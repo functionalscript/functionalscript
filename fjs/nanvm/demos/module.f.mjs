@@ -41,10 +41,12 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
-import { buildDirectory, rustDirectory, rustPath, samplePath, wasmPath } from './page/module.f.mjs'
-import { samples } from './samples/module.f.mjs'
+import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
+import { samples as importedSamples } from './samples/module.f.mjs'
 
-export { rustPath, samplePath, samples }
+export const rustPath = pageRustPath
+export const samplePath = pageSamplePath
+export const samples = importedSamples
 
 
 /** The module file naming every compiled sample, which `src/lib.rs` includes by path. */

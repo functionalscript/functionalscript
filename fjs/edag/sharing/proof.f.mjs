@@ -34,6 +34,7 @@ export const proof = {
         assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
+        assertStructurallySame(operandsOf(['memberPresent', c, ['Number', c]]), [c, ['Number', c]])
         // a list is read as a list, whatever its first item spells
         assertStructurallySame(operandsOf([',', ['&&', c]]), ['&&', c])
         assertStructurallySame(operandsOf(['[]', ['&&', ['...', c]]]), ['&&', c])
@@ -55,6 +56,7 @@ export const proof = {
         assertStructurallySame(eagerOperandsOf(['?.', c, 'a']), [c])
         assertStructurallySame(eagerOperandsOf(['?.()', c, [1]]), [c])
         assertStructurallySame(eagerOperandsOf(['+', c, 1]), [c, 1])
+        assertStructurallySame(eagerOperandsOf(['memberPresent', c, 'length']), [c, 'length'])
     },
     /** A chain's lazy positions, each key and argument list read as the caller asks; none for any other node. */
     chainLazy: () => {

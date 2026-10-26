@@ -11,7 +11,7 @@ export const revealFragment = doc => {
     if (!hash || hash === '#') return
     let id
     try {
-        id = hash.startsWith('#demo:') ? 'demo' : decodeURIComponent(hash.slice(1))
+        id = decodeURIComponent(hash.slice(1))
     } catch {
         // An invalid percent escape is an absent target, not a broken page.
         return
@@ -37,6 +37,7 @@ export const startFragments = doc => {
     view.addEventListener('hashchange', reveal)
     view.addEventListener('load', reveal, { once: true })
     for (const button of doc.querySelectorAll('button[data-copy-fragment]')) {
+        if (button.hasAttribute('data-copy-demo')) continue
         /** @type {HTMLButtonElement} */ (button).hidden = false
         const fallback = button.parentElement?.querySelector('a')
         if (fallback) fallback.hidden = true
@@ -46,6 +47,7 @@ export const startFragments = doc => {
         if (!(target instanceof view.Element)) return
         const button = target.closest('button[data-copy-fragment]')
         if (button) {
+            if (button.hasAttribute('data-copy-demo')) return
             event.preventDefault()
             event.stopPropagation()
             const url = new URL(view.location.href)

@@ -82,6 +82,7 @@ export const _taggedPrimitive = c => {
         case 'number': return Number.isFinite(c) ? num(String(c)) : kw('number')
         case 'undefined': return kw('undefined')
         case 'boolean': return lit(String(c))
+        default: throw ['not a primitive', c]
     }
 }
 

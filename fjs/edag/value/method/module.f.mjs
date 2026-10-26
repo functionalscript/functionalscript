@@ -70,9 +70,12 @@ export const callee = (runtime, key, receiver, invoke) => {
  * The admitted names this dispatcher has no native implementation of:
  * each is answered by the runtime's `dot`, and by nothing without one. The
  * list is what `native` below leaves out, named once so the guard of an
- * optional call can ask it without running a native.
+ * optional call can ask it without running a native. The NaNVM metadata
+ * generator reuses it to keep runtime-only fallback consistent.
+ *
+ * @type {readonly string[]}
  */
-const left = ['startsWith', 'codePointAt']
+export const _runtimeOnly = ['startsWith', 'codePointAt']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish
@@ -99,7 +102,7 @@ export const admits = (receiver, key) => {
  */
 export const hasMethod = (receiver, key, runtime, invoke) => {
     if (!admits(receiver, key)) { return ok(false) }
-    return mapOk(f => f !== undefined || !left.some(name => name === key))(callee(runtime, key, receiver, invoke))
+    return mapOk(f => f !== undefined || !_runtimeOnly.some(name => name === key))(callee(runtime, key, receiver, invoke))
 }
 
 /** @type {(receiver: number | bigint, key: string, value: EdagValue, invoke: Invoke) => ValueResult} */
@@ -236,7 +239,7 @@ const stringMethod = (receiver, key, args, invoke) => {
                 default: { return ok(receiver.endsWith(search, index)) }
             }
         }
-        // `left`'s: the runtime's body, no host built-in.
+        // `_runtimeOnly`'s: the runtime's body, no host built-in.
         default: { return undefined }
     }
 }

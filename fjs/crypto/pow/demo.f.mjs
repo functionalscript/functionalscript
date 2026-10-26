@@ -12,6 +12,7 @@
  * @import { DemoState } from './types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
@@ -107,7 +108,7 @@ const output = state => {
 }
 
 /** @type {Demo<DemoState, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { text: 'Hello, FunctionalScript!', nonce: '42', nBits: '0x200fffff', search: null },
     nextEvent: state => state.search?.running ? { kind: 'click', name: 'auto-next' } : null,
     update: state => event => {
@@ -163,3 +164,5 @@ export const demo = {
         ...output(state),
     ],
 }
+
+export const demo = withInputs(definition, ['text', 'nonce', 'nBits'], {})

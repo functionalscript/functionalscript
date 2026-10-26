@@ -23,6 +23,24 @@ function, and a transfer still names its owning loop. Ordinary expression
 regions retain their value shape. When a child expression requires statements,
 earlier operands are established in immutable temporaries before those
 statements, preserving evaluation and failure order.
+An abrupt-only normalized region can retain an unreachable empty yield.
+Result-slot writes use only established yielded temporaries, so those regions
+never introduce references to missing values into target syntax.
+
+Before an array/call operand can transfer outward, the physical operand
+sequencer materializes earlier reached spreads when establishing snapshots
+before a statement prelude. It reuses the logical return pass's expansion
+constructor. Merely retaining the iterable would defer a failed expansion until
+after the transfer. Existing standalone and bare-callee control forms keep their
+physical preparation domain. Member/optional calls use their shared chain
+normalization, retaining lookup and selected expansion regions. Both serializers
+receive explicit array constructions and ordinary spread references.
+
+Object-entry metadata distinguishes spread operands from property keys and
+values. Before a later control prelude, snapshots convert earlier keys to
+strings and materialize earlier object spreads through the shared constructor.
+Objects without a hoisted prelude retain their ordinary syntax. Own-property
+copying retains UTF-16 string properties, enumeration and value identities.
 
 A general loop has private parameter and result slots. Preparation establishes
 every transfer operand in an immutable temporary before writing any destination
@@ -38,14 +56,19 @@ the transition. A transition that returns its unchanged parameter needs no
 write and has `mutable: false`. This preserves the existing source loop
 spelling while keeping slot selection common to both targets.
 
-The baseline output domain has no nonlocal return or outer-loop transfer in
-an optional-chain operand, a continued member-call operand, or a lazy-definition
-initializer. Preparation explicitly refuses those cases. Hoisting a chain
-operand would make skipped work eager or move it before receiver resolution;
-putting a nonlocal transfer inside a memo function would change its owner.
-Physical receiver/callee continuations and deferred-control lowering belong to
-the later expansion of this pass. These limitations do not narrow normalized
-FAST's control-flow contract. Throws retain their existing failure propagation.
+The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
+at member and optional-call boundaries before physical lowering. Preparation
+invokes it with the current function owner and refreshes the summary for the
+new regions and bindings. Lookup remains before arguments, member calls retain
+their receiver, and skipped optional regions retain their continuations,
+including later forced calls. Both target writers use this common plan.
+The direct `()` call of a plain `.` callee canonicalizes to a member call,
+matching graph construction even when no operand returns. Its existing
+physical loop transfers retain their exact active targets; graph operand
+admission keeps its stricter enclosing-loop boundary.
+Outer-loop transfers in chain operands and nonlocal transfers in lazy-definition
+initializers retain their existing refusals. Throws retain their existing
+failure propagation.
 
 An immutable postorder summary records outward control targets and fresh-index
 requirements once. Suspended immutable tasks then prepare syntax without using

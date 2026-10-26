@@ -1610,8 +1610,8 @@ non-leaf modules are outside this normalization.
 #### The whole repository
 
 The same loop over every authored module, not only the leaves, measured at
-`55d1204`: of 317 modules — 272 `module.f.mjs` and 45 `module.f.js`
-— the 45 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
+`442ea8f`: of 325 modules — 279 `module.f.mjs` and 46 `module.f.js`
+— the 46 `.f.js` compile and every `.f.mjs` stops at its first refusal. The
 table counts that first refusal only, read at the token the compiler names,
 so it says which feature to settle first, not how much each costs; a refusal
 the compiler meets in an import is counted under the import's feature, 65 of
@@ -1619,15 +1619,15 @@ the rows' members.
 
 | Modules | First refusal |
 | ---: | --- |
-| 43 | `for`, `for…of`: no proposal ([3220](../spec/todo/3220-let.md#general-loops) leaves it a separate extension) |
-| 33 | a computed member, `a[i]`, its key not `Number(…)` |
-| 32 | a general loop: an `if` with `return`, `break` or `continue` inside a `while`, a nested `while`, a second variable the loop assigns ([general loops and tail calls](../fjs/todo/general-loops-and-tail-calls.md), H) |
-| 27 | a block whose end is reachable: a body of calls with no `return` (`assert(…)`), an `if` with no terminator, `else` among them, a `switch` with no `default` or with `break` |
+| 43 | `for`, `for…of` ([3270](../spec/todo/3270-for.md)) |
+| 35 | a computed member, `a[i]`, its key not `Number(…)` |
+| 34 | a general loop: an `if` with `return`, `break` or `continue` inside a `while`, a nested `while`, a second variable the loop assigns ([general loops and tail calls](../fjs/todo/general-loops-and-tail-calls.md), H) |
 | 27 | a global name: `Object`, `Array`, `String`, `BigInt`, `JSON`, `Math`, `Boolean`, `parseFloat`, `encodeURIComponent` ([2360](../spec/todo/2360-built-in.md), [2365](../spec/todo/2365-global-names.md)) |
+| 26 | a block whose end is reachable: a body of calls with no `return` (`assert(…)`), an `if` with no terminator, `else` among them, a `switch` with no `default` or with `break` ([3210](../spec/todo/3210-reachable-block-end.md), [3230](../spec/todo/3230-switch.md)) |
+| 19 | a property name a prototype owns: `name` 12 times, `concat`, `reduce`, `sub`, `push`, `with` |
+| 18 | a read of a later `const` ([3140](../spec/todo/3140-forward-references.md)) |
 | 17 | `export { … }`, with and without `from` |
-| 17 | a read of a later `const` ([3140](../spec/todo/3140-forward-references.md)) |
-| 17 | a property name a prototype owns: `name` 11 times, `concat`, `reduce`, `sub`, `push` |
-| 14 | `new Map`, `new Set` |
+| 15 | `new Map`, `new Set` |
 | 10 | `in` |
 | 9 | an escape the tokenizer refuses, `'\0'`, `'\x1b'` |
 | 6 | a rest element in a pattern, `[a, ...rest]` |
@@ -1640,7 +1640,10 @@ the rows' members.
 At `4c8ec55` the table was over 228 modules, 6 of them `.f.js`, with template
 literals the first refusal of 94 and destructuring of 47. Both have landed
 since — templates entirely, destructuring but for the rest element and
-defaults — and loops lead now: `for` and the general loop, 75 between them.
+defaults — and loops lead now: `for` and the general loop, 77 between them.
+At `55d1204` it was 317 modules, 45 of them `.f.js`. Ten modules were added
+since and two removed, `ci/dev` and `ci/nix`; no module changed between
+compiling and refused, and the one `.f.js` among the added is the whole gain.
 The leaf table above is what this count does not say: a module whose first
 refusal clears meets its next, and only a leaf whose every feature has landed
 renames. The same count over the self-hosting loader's dependencies is in

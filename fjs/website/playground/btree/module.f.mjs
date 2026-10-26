@@ -75,6 +75,7 @@ export const depthOf = tree => {
     switch (tree.length) {
         case 1: case 2: { return 1 }
         case 3: case 5: { return 1 + depthOf(tree[0]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 
@@ -85,6 +86,7 @@ export const nodeCount = tree => {
         case 1: case 2: { return 1 }
         case 3: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) }
         case 5: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) + nodeCount(tree[4]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 
@@ -393,9 +395,21 @@ const board = game => {
             ['div', { 'data-graph-replay': game.shown % 2 === 0 ? 'a' : 'b' }, graphSvg(g)]]
 }
 
+/** @type {Game} */
+const initial = { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+
+/** @type {import('../../demo/sharing/types.ts').Sharing<Game>} */
+const sharing = {
+    fields: { level: { default: String(initial.depth), choices: depths.map(String) }, animate: { default: initial.animate } },
+    examples: [],
+    read: game => ({ level: String(game.depth), animate: game.animate }),
+    restore: inputs => ({ ...initial, depth: Number(inputs.level), animate: inputs.animate === true }),
+}
+
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
+    init: initial,
+    sharing,
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },

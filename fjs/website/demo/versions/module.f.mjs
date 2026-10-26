@@ -34,6 +34,8 @@
  *
  * @module
  *
+ * @import { RequiredMap } from '../../../types/object/types.ts'
+ * @import { Sharing } from '../sharing/types.ts'
  * @import { Census, Keys, Layout, Options, Preset, Random, Row, Shape, State, Step, Structure, Versions, VersionsDemo } from './types.ts'
  * @import { Effect, NotImplemented } from '../../../effects/types.ts'
  * @import { RandomInt } from '../../../effects/common/types.ts'
@@ -283,6 +285,24 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         'preset' in status ? status.hint
         : 'random' in status ? `${status.random.length} keys inserted in random order: ${status.random.map(show).join(', ')}.`
         : line(status.step)(count(versions))
+    const initial = load(presets[0][0])
+    /** @type {Sharing<State<V>>} */
+    const sharing = {
+        fields: {
+            example: { default: presets[0][4], choices: ['', ...presets.map(p => p[4])] },
+            key: { default: initial.key }, count: { default: initial.count },
+        },
+        examples: presets.map(([name, , , , id]) => ({ id, inputs: { example: id, key: load(name).key, count: initial.count } })),
+        read: ({ status, key, count }) => ({ example: 'preset' in status ? assertNotNullish(presets.find(p => p[0] === status.preset))[4] : '', key, count }),
+        restore: inputs => {
+            // The restore boundary receives these finite, validated fields.
+            const values = /** @type {RequiredMap<'example' | 'key' | 'count', string>} */ (inputs)
+            const base = values.example === ''
+                ? { ...initial, versions: { before: structure.empty, after: structure.empty }, status: { random: [] } }
+                : load(assertNotNullish(presets.find(p => p[4] === values.example))[0])
+            return { ...base, key: values.key, count: values.count }
+        },
+    }
     return {
         load,
         press,
@@ -291,7 +311,8 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
         graphOf: graph,
         census: count,
         demo: {
-            init: load(presets[0][0]),
+            sharing,
+            init: initial,
             update: state => event => random !== undefined && event.kind === 'click' && event.name === 'generate'
                 ? generate(random)(state)
                 : pureOk(
