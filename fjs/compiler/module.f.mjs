@@ -30,7 +30,7 @@
  * @import { Env, Program, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  */
 
-import { _transpileDefault, noRuntime, runtimeAt } from './transpiler/module.f.mjs'
+import { _transpileDefault, noRuntime as transpilerNoRuntime, runtimeAt } from './transpiler/module.f.mjs'
 import { errorLocation } from './parser/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRustMarked } from './rust/module.f.mjs'
@@ -384,7 +384,7 @@ export const runtimeSource = packageRoot => `${packageRoot}/fjs/js/runtime/modul
 /** The runtime of the package at `packageRoot`, loaded when a data output interprets its module. @type {(packageRoot: string) => RuntimeLoad} */
 export const packageRuntime = packageRoot => runtimeAt(runtimeSource(packageRoot))
 
-export { noRuntime }
+export const noRuntime = transpilerNoRuntime
 
 /**
  * Compiles the FunctionalScript module `inputFileName` into `outputFileName`,
