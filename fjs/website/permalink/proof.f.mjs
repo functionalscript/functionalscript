@@ -13,6 +13,12 @@ export const proof = /** @type {const} */ ({
         assert(html.includes('<span data-copy-status="" aria-live="polite"></span>'))
         assert(!html.includes('>Copy link<'))
     },
+    demoControl: () => {
+        const html = htmlToString(permalink('demo', 'Demo', true))
+        assert(html.includes('data-copy-fragment="demo" data-copy-demo=""'))
+        assertEq(html.split('<svg ').length - 1, 2)
+        assert(html.includes('aria-label="Copy link to Demo"'))
+    },
     heading: () => {
         const html = htmlToString(linkedHeading(3, 'a-b', 'A & B', ['A & ', ['code', 'B']]))
         assert(html.startsWith('<!DOCTYPE html><div data-linked-heading=""><h3 id="a-b">A &amp; <code>B</code></h3>'))

@@ -78,6 +78,16 @@ const view = state => htmlToString(demo.view(state))
 const opensslSection = state => view(state).split('Run in Bash')[1].split('Why nonce reuse')[0]
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        const inputs = sharing.read(demo.init)
+        const restored = sharing.restore({ ...inputs, message: 'Shared 🌍', 'reuse-message2': '' })
+        assertEq(restored.message, 'Shared 🌍')
+        assertEq(restored.reuse.message2, '')
+        assertEq(restored.eve, null)
+        assertEq(restored.bob, null)
+        assert(!Object.keys(inputs).some(name => name.startsWith('eve-')))
+    },
     bits2int: () => {
         assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
         assertEq(all(17n).bits2int(vec(3n)(0b101n)), 0b101n, new Error("fail"))

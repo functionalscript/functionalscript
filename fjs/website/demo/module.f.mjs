@@ -29,6 +29,7 @@
  * @import { Node, Element } from '../../media/html/types.ts'
  */
 
+import { textSharing } from './sharing/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { examplePicker, name as exampleName } from './examples/module.f.js'
@@ -46,6 +47,7 @@ export const textDemo = ({ intro, name, label, rows, init, examples, highlight }
     if (examples !== undefined && name === exampleName) { throw 'textDemo: the textarea is named like the examples drop-down' }
     const picker = examples === undefined ? undefined : examplePicker(examples)
     return {
+        sharing: textSharing(name, init, examples),
         init,
         update: picker === undefined
             ? state => event => pureOk(event.kind === 'input' ? event.value : state)

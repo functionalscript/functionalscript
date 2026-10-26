@@ -63,6 +63,15 @@ const finish = keys => budget => par => par === null || typeof par === 'number' 
 const keysOf = game => toArray(values(assertNotNullish(game.versions).after))
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        assertEq(sharing.read(demo.init).level, '2')
+        const restored = sharing.restore({ level: '3', animate: false })
+        assertEq(restored.depth, 3)
+        assertEq(restored.animate, false)
+        assertEq(restored.versions, null)
+        assertEq(sharing.restore({ level: '2', animate: true }).animate, true)
+    },
     // A perfect tree of depth d: 3^d - 1 keys in half as many nodes.
     levels: () => {
         assertEq(JSON.stringify([2, 3, 4].map(d => [keyCount(d), goalNodes(d)])), '[[8,4],[26,13],[80,40]]')
