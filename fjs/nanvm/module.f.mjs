@@ -52,11 +52,19 @@
 
 import { fromValue, op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
-import { callback, functionText, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
+import {
+    callback as constructorsCallback, functionText, functionValue as constructorsFunctionValue, ref as constructorsRef,
+    returns as constructorsReturns, throws as constructorsThrows, unreached as constructorsUnreached,
+} from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.js'
 import { logicalExp } from '../edag/from_fast/source/module.f.mjs'
 
-export { callback, functionValue, ref, returns, throws, unreached } from './constructors/module.f.js'
+export const callback = constructorsCallback
+export const functionValue = constructorsFunctionValue
+export const ref = constructorsRef
+export const returns = constructorsReturns
+export const throws = constructorsThrows
+export const unreached = constructorsUnreached
 
 const { entries } = Object
 
