@@ -11,6 +11,7 @@
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
+import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
@@ -26,9 +27,10 @@ const eagerBinary = node => isBinary(node) && !lazyLayers.some(layer => Object.v
 /** Graph inputs allow only value-owned loops; physical callers may retain exact active targets. @type {(owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => _Context} */
 const operandContext = (owner, permitted) => ({ owner, operand: true, loops: permitted, permitted })
 
-/** A reference is already a bare callee; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
+/** References and native leaves are bare callees; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
 const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref' || source[0] === 'function'
-    || source[0] === 'array' || source[0] === 'object') =>
+    || source[0] === 'array' || source[0] === 'object' || isStatic(source) || isIntrinsic(source)
+    || source[0] === 'entry' || source[0] === 'hasEntry') =>
     ({ statement: null, value: source, normal: true, callee })
 
 /** A reached spread uses the ordinary array expansion kernel in either FAST stage. @type {<V>(value: V) => readonly ['array', readonly [readonly ['...', V]]]} */

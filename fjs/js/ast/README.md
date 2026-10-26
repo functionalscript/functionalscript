@@ -76,6 +76,14 @@ Object entries use entry-aware operand positions: keys convert before values,
 and spread operands materialize through the ordinary own-property kernel.
 Normal results retain enumeration, duplicate keys and value identities.
 
+Established static and intrinsic callable leaves and the `entry`/`hasEntry`
+helpers retain bare-callee provenance through value blocks, conditionals and
+comma results. Argument return lifting snapshots the callee before arguments,
+preserving static lookup failures before a later argument can return. Only
+normal argument completion invokes the established callee; a return skips the
+remaining arguments and spreads. Wrapped member references retain their
+separate receiver/provenance boundary.
+
 `analyzeBindings(scope)` consumes the resolved, pattern-expanded binding stage,
 before assignment normalization or graph construction. Each scope declares the
 same binding identities for locals and parameters. Its events distinguish

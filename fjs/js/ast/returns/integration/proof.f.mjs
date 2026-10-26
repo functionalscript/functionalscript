@@ -9,6 +9,7 @@ import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
 import { identityAnalysis } from '../../../../edag/analysis/module.f.mjs'
 import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toFast } from '../../../../edag/to_fast/module.f.mjs'
+import { evaluate as evaluateWithRuntime } from '../../../../edag/from_fast/member_returns/proof.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _calledFunction as calledFunction, _evaluate as evaluate, _collectingMemo as collectingMemo, _collectedMemo as collectedMemo } from '../../../../edag/from_fast/proof.f.mjs'
 
 /** @type {(value: Value, parameters?: readonly BindingId[]) => FastFunction} */
@@ -53,6 +54,14 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    nativeCalleeReturns: () => {
+        const runtime = /** @type {const} */ (['{}', [[':', 'static', ['=>', 1, [], ['=>', 0, [], ['throw', 'skipped native invocation']]]]]])
+        for (const callee of /** @type {readonly Value[]} */ ([
+            ['Number.isInteger'], [',', [0, ['Number.isInteger']]], ['block', result(['Number.isInteger'])],
+        ])) {
+            assertEq(evaluateWithRuntime(calledFunction(requiredFunction(['()', callee, [escape()]])), runtime), 7)
+        }
+    },
     spreadCompletions: () => {
         assertEq(evaluate(calledFunction(requiredFunction(['array', [['...', ['array', [1]]], escape()]]))), 7)
         assertEq(evaluate(calledFunction(requiredFunction(['instanceof', ['array', [['...', ['array', [1]]], escape()]], 'Array']))), 7)
@@ -1317,11 +1326,8 @@ export const proof = /** @type {const} */ ({
             calledFunction(fn, [false])
         },
         commaMemberCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['.', ['object', [[':', 'f', constantFunction]]], 'f']]], [escape()]])),
-        commaNativeCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['Number.isInteger']]], [escape()]])),
         wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
         wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
-        nativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['Number.isInteger'], [escape()]])),
-        wrappedNativeCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['Number.isInteger'])], [escape()]])),
         nestedFunctionForeignOwner: () => {
             const output = id(0)
             const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })

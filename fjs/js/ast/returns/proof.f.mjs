@@ -5,6 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
+import { intrinsicIds, staticIds } from '../../../edag/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -605,7 +606,7 @@ export const proof = /** @type {const} */ ({
     commaCalleeFacts: () => {
         const fn = id(), receiver = id(), condition = id()
         const selected = /** @type {Value} */ (['block', yielded([3], [['if', [], ref(condition), returned(9), yielded([])]])])
-        for (const last of /** @type {readonly Value[]} */ ([ref(fn), ['array', []], ['object', []], ['instanceof', 1, 'Array']])) {
+        for (const last of /** @type {readonly Value[]} */ ([ref(fn), ['array', []], ['object', []], ['instanceof', 1, 'Array'], ['Object.is'], ['slice']])) {
             for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
                 const callee = /** @type {Value} */ ([',', [prefix, last]])
                 const source = returned(['()', callee, [['block', returned(7)]]])
@@ -614,7 +615,7 @@ export const proof = /** @type {const} */ ({
                 assertEq(liftReturns(result, owner), result)
             }
         }
-        for (const last of /** @type {readonly Value[]} */ ([['.', ref(receiver), 'at'], ['?.', ref(receiver), 'at'], ['Object.is'], ['slice']])) {
+        for (const last of /** @type {readonly Value[]} */ ([['.', ref(receiver), 'at'], ['?.', ref(receiver), 'at']])) {
             for (const prefix of /** @type {readonly Value[]} */ ([1, selected])) {
                 const comma = /** @type {Value} */ ([',', [prefix, last]])
                 for (const callee of /** @type {readonly Value[]} */ ([comma, ['block', yielded([comma])], ['?:', true, comma, ref(fn)]])) {
@@ -817,13 +818,63 @@ export const proof = /** @type {const} */ ({
             assertEq(liftReturns(mapped, owner), mapped)
         }
     },
+    nativeCalleeSnapshotsAndWrappers: () => {
+        const condition = id(), argument = id(), fn = id(), destination = id()
+        const helpers = /** @type {const} */ (['entry', 'hasEntry'])
+        /** @type {readonly Value[]} */
+        const natives = [...staticIds, ...intrinsicIds, ...helpers].map(tag => [tag])
+        /** @type {Value} */
+        const selected = ['if', ref(condition), returned(7), yielded([3])]
+        for (const native of natives) {
+            const leaf = liftValueReturns(native, destination, owner)
+            assertEq(leaf.statement, null)
+            assertEq(leaf.value, native)
+            assertEq(leaf.callee, true)
+            for (const callee of /** @type {readonly Value[]} */ ([
+                native, [',', [1, native]], ['block', yielded([native])],
+                ['if', ref(condition), yielded([native]), yielded([ref(fn)])],
+                ['if', ref(condition), yielded([ref(fn)]), yielded([native])],
+                ['?:', ref(condition), native, ref(fn)],
+            ])) {
+                const ordinary = returned(['()', callee, [ref(argument)]])
+                assertEq(liftReturns(ordinary, owner), ordinary)
+                const source = returned(['()', callee, [ref(argument), selected]])
+                const result = liftReturns(source, owner)
+                const region = blockOf(result.statements[0])
+                const [established, first, returning] = region.statements
+                assert(established[0] === 'define' && first[0] === 'define' && returning[0] === 'if')
+                assertEq(established[2], callee)
+                assertStructurallySame(first[2], ref(argument))
+                assertStructurallySame(region.exit, ['yield', [['()', ref(established[1]), [ref(first[1]), ref(returning[1][0])]]]])
+                assertEq(liftReturns(result, owner), result)
+            }
+        }
+    },
+    nativeCalleeTerminalArgumentSkipsLaterWork: () => {
+        /** @type {Value} */
+        const foreign = ['block', body(['return', other, 9])]
+        for (const native of /** @type {readonly Value[]} */ ([['Object.is'], ['slice'], ['entry'], ['hasEntry']])) {
+            for (const kind of /** @type {const} */ (['()', '?.()'])) {
+                const source = returned([kind, native, [['block', returned(7)], ['...', foreign]]])
+                const result = liftReturns(source, owner)
+                const region = blockOf(result.statements[0])
+                const first = region.statements[0]
+                assert(first[0] === 'define')
+                assertEq(first[2], native)
+                assertEq(result.exit[0], kind === '()' ? 'yield' : 'return')
+                assertStructurallySame(regions(region).filter(block => block.exit[0] === 'return').map(block => block.exit), [['return', owner, 7]])
+                assertEq(liftReturns(result, owner), result)
+            }
+        }
+    },
     memberCalleeBoundaries: () => {
         const receiver = id(), fn = id()
         const member = /** @type {Value} */ (['.', ref(receiver), 'at'])
         const callees = /** @type {readonly Value[]} */ ([
-            ['?.', ref(receiver), 'at'], ['Object.is'], ['slice'], [',', []],
+            ['?.', ref(receiver), 'at'], [',', []],
             ['block', yielded([member])], ['if', true, yielded([member]), yielded([ref(fn)])],
             ['if', true, yielded([ref(fn)]), yielded([member])], ['?:', true, ['block', yielded([member])], ref(fn)],
+            ['if', true, yielded([['Object.is']]), yielded([member])], ['?:', true, member, ['slice']],
         ])
         for (const callee of callees) {
             const source = returned(['()', callee, [['block', returned(7)]]])
