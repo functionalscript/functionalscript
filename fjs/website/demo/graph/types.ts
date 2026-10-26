@@ -80,14 +80,17 @@ export type Ranked = Node & { readonly rank: number }
  * arm of `?:` — and the same node reached from an eager position elsewhere
  * is still evaluated there, so the distinction cannot live on the node.
  *
- * **A `back` edge closes a cycle**, such as a recursive call to the
- * function whose body holds it. It ends at a node, and ranking ignores it,
- * so it can point to its source's own rank or any rank left of it. It is drawn
- * around the outside of the graph: down from its port to below every node,
- * left along the bottom, and up into its target's left side, in a lane of
- * its own below the graph and in each gap it goes down or up. Returns
- * enter at distinct points down the target's left side, with the outermost
- * route entering highest. Each return keeps its own arrowhead.
+ * **A `back` edge closes a cycle**, such as a recursive call to the function
+ * whose body holds it. Ranking ignores it. Mutually reachable nodes are
+ * packed into one horizontal band, with return lanes inside that band and
+ * unrelated nodes outside. Returns to the same destination merge where they
+ * coincide and share one entry and small arrowhead. Hovering a shared piece
+ * traces every contributing connection; ports and keyboard focus retain
+ * individual connection tracing. Clicking a return segment keeps its
+ * contributing connections selected after the pointer leaves. Segments do
+ * not add Tab stops; keyboard navigation still visits original connections.
+ * Recursion draws dotted, independently of
+ * `kind`; a lazy recursive branch uses a dot-and-dash pattern.
  */
 export type Edge = {
     readonly from: number
@@ -167,7 +170,8 @@ export type Graph = {
     /**
      * Center non-tree nodes on incoming forward connections, fitting nodes
      * and routing lanes within the tallest packed column without overlaps.
-     * Trees retain their parent/child centering.
+     * Trees retain their parent/child centering. Cyclic graphs use local
+     * component bands instead of centering across unrelated components.
      */
     readonly centerColumns?: boolean | undefined
 }

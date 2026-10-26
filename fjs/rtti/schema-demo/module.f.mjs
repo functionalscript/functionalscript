@@ -117,8 +117,9 @@ const schemaGraph = graphOf(shapeOf)
 /**
  * `schema` as a graph, including the definitions of every reachable named
  * schema. Each definition is drawn once; shared uses point to that node,
- * and recursive uses go back to it around the graph. Each return has its
- * own lane and entry point; hover or focus traces one complete connection.
+ * and recursive uses return inside their cyclic group. Returns to the same
+ * definition share a trunk and entry. Hovering a shared segment traces all
+ * contributing connections; a source port or keyboard focus traces one.
  *
  * @type {(schema: Type) => Graph}
  */
