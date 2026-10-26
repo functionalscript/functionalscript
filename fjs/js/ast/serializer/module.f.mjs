@@ -256,7 +256,9 @@ const operatorText = (context, operator) => {
         }
         case '()': {
             const callee = expression(context, operator[1], 15)
-            const detached = operator[1] instanceof Array && ['.', '?.'].includes(operator[1][0])
+            let value = syntaxValue(operator[1])
+            while (value instanceof Array && value[0] === ',' && value[1].length === 1) { value = syntaxValue(value[1][0]) }
+            const detached = value instanceof Array && ['.', '?.'].includes(value[0])
             return `${detached ? `(0,${callee})` : callee}(${itemText(context, operator[2])})`
         }
         case '?.()': {

@@ -54,6 +54,14 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    wrappedMemberCalleeReturns: () => {
+        const member = /** @type {Value} */ (['.', ['object', [[':', 'f', constantFunction]]], 'f'])
+        for (const callee of /** @type {readonly Value[]} */ ([
+            [',', [0, member]], ['block', result(member)], ['block', result(['?.', null, 'f'])],
+        ])) {
+            assertEq(evaluate(calledFunction(requiredFunction(['()', callee, [escape()]]))), 7)
+        }
+    },
     nativeCalleeReturns: () => {
         const runtime = /** @type {const} */ (['{}', [[':', 'static', ['=>', 1, [], ['=>', 0, [], ['throw', 'skipped native invocation']]]]]])
         for (const callee of /** @type {readonly Value[]} */ ([
@@ -1325,9 +1333,6 @@ export const proof = /** @type {const} */ ({
             })
             calledFunction(fn, [false])
         },
-        commaMemberCalleeReturn: () => calledFunction(requiredFunction(['()', [',', [0, ['.', ['object', [[':', 'f', constantFunction]]], 'f']]], [escape()]])),
-        wrappedMemberCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['.', ['object', [[':', 'f', constantFunction]]], 'f'])], [escape()]])),
-        wrappedOptionalCalleeReturn: () => calledFunction(requiredFunction(['()', ['block', result(['?.', null, 'f'])], [escape()]])),
         nestedFunctionForeignOwner: () => {
             const output = id(0)
             const nestedTarget = /** @type {const} */ ({ kind: 'function', index: 0 })

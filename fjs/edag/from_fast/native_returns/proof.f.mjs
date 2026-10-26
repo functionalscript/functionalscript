@@ -21,7 +21,7 @@ const staticRuntime = answer => ['{}', [[':', 'static', ['=>', 1, [], answer]]]]
 const throwingCall = staticRuntime(['=>', 0, [], ['throw', 'native invocation']])
 
 /** @type {(value: Value) => readonly Value[]} */
-const wrappers = value => [value, ['block', result(value)], [',', [0, value]],
+export const wrappers = value => [value, ['block', result(value)], [',', [0, value]],
     ['if', true, result(value), result(value)], ['?:', false, value, value]]
 
 export const proof = /** @type {const} */ ({
