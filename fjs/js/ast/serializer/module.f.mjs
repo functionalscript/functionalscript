@@ -338,7 +338,8 @@ const functionText = (context, fn) => {
     const captured = context.runtime && !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
     const aliases = captured || context.external ? context.aliases : [
         ...context.aliases,
-        ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]])),
+        ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]]))
+            .filter(([binding, source]) => binding !== source),
     ]
     const self = fn.self === null || context.binding === null || context.runtime ? [] : [/** @type {const} */ ([fn.self, context.binding])]
     let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }

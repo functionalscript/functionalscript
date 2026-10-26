@@ -23,6 +23,12 @@ const simpleFunction = value => {
 const keyMethods = (toString, valueOf = 0) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    lazyInitializerReturnsAtDemand: () => {
+        const output = id(0)
+        assertEq(evaluate(calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(output)], [['define', output, ['object', [['...', escape()]]], 'lazy']]),
+        })), 7)
+    },
     returningSpreadOperandSkipsCopyAndTail: () => {
         const payload = id(0)
         const fn = requiredFunction(['object', [
@@ -295,13 +301,6 @@ export const proof = /** @type {const} */ ({
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
             const wrong = /** @type {Value} */ (['block', body(['return', foreign, 7])])
             fromFast(result(['function', requiredFunction(['object', [['...', wrong]]])]))
-        },
-        lazyInitializerOwnership: () => {
-            const output = id(0)
-            fromFast(result(['function', {
-                target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(output)], [['define', output, ['object', [['...', escape()]]], 'lazy']]),
-            }]))
         },
     },
 })

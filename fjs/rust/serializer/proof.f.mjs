@@ -162,6 +162,7 @@ export const proof = {
         }
         const rendered = unwrap(scope(body, options)).lines.join('\n')
         assert(rendered.includes('RefCell::new'))
+        assert(rendered.includes(': &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>>'))
         assert(rendered.includes('continue'))
         assert(rendered.includes('break'))
     },

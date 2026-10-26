@@ -115,6 +115,16 @@ export const proof = {
         assertEq(expression(['.', 'abc', 'slice', ['|()', [1]]]), '"abc".slice(1)')
         assertEq(expression(['?.', null, 'slice', ['|()', [1]]]), 'null?.slice(1)')
     },
+    identityCapture: () => {
+        const outer = id(0)
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const fn = /** @type {PreparedFunction} */ ({ target, parameters: [], rest: null, self: null,
+            captures: [{ binding: outer, value: ['ref', outer] }],
+            body: { statements: [], exit: ['return', target, ['ref', outer]] },
+        })
+        const source = stringify({ statements: [['define', outer, 42]], exit: ['yield', [['function', fn]]] }, 'expression')
+        assert(source.includes('return ()=>$0;'))
+    },
     exportsAndModes: () => {
         const binding = id(0)
         const block = { statements: [], exit: /** @type {const} */ (['yield', [3]]) }

@@ -13,6 +13,9 @@ lines. `valueTagged` renders one value; its `result` flag selects a
 fallible operations propagate with `?`, so callers provide a Result-returning
 Rust context. Lazy operands use Result-returning callables. A prepared memo
 stores its first successful value and leaves a failed initialization uncached.
+Its demand callable uses a borrowed `dyn Fn` reference, keeping memo dependency
+diamonds out of nested anonymous closure types while retaining lexical capture
+lifetimes and stack allocation.
 
 `bindingTagged` spells a declaration under a caller-supplied name through the
 same declaration path as ordinary prepared bindings. The corpus supplies its

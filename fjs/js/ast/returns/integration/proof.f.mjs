@@ -54,6 +54,14 @@ const sequenceValue = (kind, values) => kind === 'yield' ? ['block', body(['yiel
 const keyMethods = (toString, valueOf) => ['object', [[':', 'toString', toString], [':', 'valueOf', valueOf]]]
 
 export const proof = /** @type {const} */ ({
+    lazyInitializerReturnsAtDemand: () => {
+        const output = id(0)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(output)], [['define', output, escape(), 'lazy']]),
+        })
+        assertEq(evaluate(calledFunction(fn)), 7)
+    },
     wrappedMemberCalleeReturns: () => {
         const member = /** @type {Value} */ (['.', ['object', [[':', 'f', constantFunction]]], 'f'])
         for (const callee of /** @type {readonly Value[]} */ ([
@@ -1304,14 +1312,6 @@ export const proof = /** @type {const} */ ({
         foreignOwner: () => {
             const foreign = /** @type {const} */ ({ ...target })
             calledFunction(requiredFunction(['block', body(['return', foreign, 7])]))
-        },
-        lazyInitializer: () => {
-            const output = id(0)
-            const fn = /** @type {FastFunction} */ ({
-                target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(output)], [['define', output, escape(), 'lazy']]),
-            })
-            calledFunction(fn)
         },
         statementYieldBlockArityMismatch: () => {
             const stop = id(0), output = id(0)

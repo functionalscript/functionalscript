@@ -27,6 +27,7 @@ import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable, toArray } from '../../../types/list/module.f.mjs'
+import { normalizeLazyReturns } from '../memo/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -190,11 +191,17 @@ const values = (input, context, snapshots = []) => {
 }
 
 /** @type {(value: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
-const functionValue = (value, context) => call(() => bind(values(value.captures.map(capture => capture.value), context), prepared => {
+const functionValue = (value, context) => call(() => {
+    const normalized = normalizeLazyReturns(value.body, value.target)
+    const summary = normalized === value.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
+    /** @type {_Context} */
+    const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
+    return bind(values(value.captures.map(capture => capture.value), local), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[index] }))
-    return bind(prepareBlock(value.body, { ...context, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body =>
+    return bind(prepareBlock(normalized, { ...local, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body =>
         done({ value: { ...value, captures, body: body.value }, statements: prepared.statements, next: body.next }))
-}))
+    })
+})
 
 /** @type {(value: NormalValue, context: _Context) => _Task<_Value>} */
 const prepareValue = (value, context) => call(() => {

@@ -49,6 +49,23 @@ const exitMemoLoop = (makeBody, results = []) => {
 }
 
 export const proof = /** @type {const} */ ({
+    loopMemoRecipeLocalEscapingCompletion: () => {
+        const caller = id(0), selected = id(0), local = id(0)
+        const initializer = /** @type {Value} */ (['block', body(['return', target, ref(local)], [
+            ['define', local, ['array', [ref(caller), ref(caller)]], 'lazy'],
+        ])])
+        const loop = collectingMemo(ref(selected), 2)
+        const fn = /** @type {FastFunction} */ ({
+            target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, 7], [
+                ['define', caller, ['array', [4]], 'lazy'], ['define', selected, initializer, 'lazy'], ['loop', loop],
+            ]),
+        })
+        const value = evaluate(calledFunction(fn))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [4]])
+        assertEq(value[0], value[1])
+    },
     loopMemoOuterTransferOriginalCases: () => {
         const caller = id(0), output = id(0), count = id(0), observed = id(0)
         const breakTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -1901,20 +1918,6 @@ export const proof = /** @type {const} */ ({
             fromFast(result(7, [
                 ['define', caller, ['array', [4]], 'lazy'], ['define', selected, initializer, 'lazy'], ['loop', outer],
             ]))
-        },
-        loopMemoRecipeLocalEscapingCompletion: () => {
-            const caller = id(0), selected = id(0), local = id(0)
-            const initializer = /** @type {Value} */ (['block', body(['return', target, ref(local)], [
-                ['define', local, ['array', [ref(caller)]], 'lazy'],
-            ])])
-            const loop = collectingMemo(ref(selected), 2)
-            const fn = /** @type {FastFunction} */ ({
-                target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, 7], [
-                    ['define', caller, ['array', [4]], 'lazy'], ['define', selected, initializer, 'lazy'], ['loop', loop],
-                ]),
-            })
-            calledFunction(fn)
         },
         loopMemoReachableForeignReturnSuffix: () => {
             const selected = id(0), prerequisite = id(0), dependent = id(0)

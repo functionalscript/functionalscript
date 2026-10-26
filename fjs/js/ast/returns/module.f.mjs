@@ -68,8 +68,8 @@ const sequenceTask = (input, owner, plainCall, permitted, spreads = []) => {
     return each(0, null, null, false, false)
 }
 
-/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
-const eagerTask = (source, destination, owner, permitted) => {
+/** Snapshot eager operands in source order; object keys convert before their values. @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[], expose?: boolean) => Task<_Value>} */
+const eagerTask = (source, destination, owner, permitted, expose = false) => {
     const input = source[0] === 'object' ? source[1].flatMap(entry => entry[0] === '...'
         ? [entry[1]] : [/** @type {Value} */ (['String', entry[1]]), entry[2]]) : operatorOperands(source)
     /** @type {readonly _Expansion[]} */
@@ -80,7 +80,7 @@ const eagerTask = (source, destination, owner, permitted) => {
     return bind(sequenceTask(input, owner, source[0] === '()', permitted, spreads), result => {
         if (!result.admitted) { return done(plain(source, false)) }
         const callee = source[0] !== ',' || result.callee
-        if (!result.lifted) { return done(plain(source, callee)) }
+        if (!result.lifted && !expose) { return done(plain(source, callee)) }
         return done({
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
                 ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
@@ -236,14 +236,14 @@ const forcedChain = (region, end, owner, permitted) => {
     })
 }
 
-/** Only a reached owning return publishes the chain's explicit control regions. @type {(source: _ChainSource, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
-const chainTask = (source, destination, owner, permitted) => {
+/** Only a reached owning return or demand normalization publishes the chain's explicit regions. @type {(source: _ChainSource, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[], expose?: boolean) => Task<_Value>} */
+const chainTask = (source, destination, owner, permitted, expose = false) => {
     const end = chainEnd(source)
     return bind(chainOperand(source[1], owner, end, base => {
         const reached = source[0] === '?.()' ? chainCall(base, source[2], source[3], true, owner, end, permitted)
             : chainProperty(base, source[2], source[3], owner, end, permitted)
         return source[0] === '?.' ? bind(reached, result => done(chainGuard(present(base), result, end))) : reached
-    }, permitted), region => bind(forcedChain(region, end, owner, permitted), result => done(result.lifted ? {
+    }, permitted), region => bind(forcedChain(region, end, owner, permitted), result => done(result.lifted || expose ? {
         statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee,
     } : plain(source, result.callee))))
 }
@@ -402,3 +402,19 @@ export const liftReturns = (block, owner) => {
 
 /** Normalize one value with its exact function owner and any retained physical loop targets. @type {(value: Value, destination: BindingId, owner: FunctionTarget | null, permitted?: readonly LoopTarget[]) => { readonly statement: Statement | null, readonly value: Value, readonly normal: boolean, readonly callee: boolean }} */
 export const liftValueReturns = (value, destination, owner, permitted = []) => run(valueTask(value, destination, owner, permitted))
+
+/**
+ * Make one operation's evaluation regions explicit before a deferred demand
+ * reveals its return. Nested operands retain their normal lifting boundary.
+ * @type {(source: Operator<Value>, destination: BindingId, owner: FunctionTarget | null) => { readonly statement: Statement | null, readonly value: Value, readonly normal: boolean, readonly callee: boolean }}
+ */
+export const _exposeOperands = (source, destination, owner) => {
+    if (source[0] === '.' || source[0] === '?.' || source[0] === '?.()') {
+        return run(chainTask(source, destination, owner, [], true))
+    }
+    if (source[0] === '()' && source[1] instanceof Array && source[1][0] === '.' && source[1].length === 3) {
+        const member = source[1]
+        return run(chainTask(['.', member[1], member[2], ['|()', source[2]]], destination, owner, [], true))
+    }
+    return run(eagerTask(source, destination, owner, [], true))
+}

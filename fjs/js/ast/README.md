@@ -35,6 +35,17 @@ such a return skips the remaining captures and closure construction. Normal
 completion constructs the function from the established capture values. Its
 body retains its own function target and normalization boundary.
 
+Owning returns in lazy initializers occur at first reached demand. Private
+getter outcomes relay that return to the exact source function; a returning
+initializer skips its consumer and following work, while normal completion
+installs the shared value. Getter construction keeps lazy prerequisites
+deferred, including dependencies mentioned only in an unselected arm. The
+logical demand pass preserves caller, iteration and recipe-local lifetimes
+before graph construction or physical getter lowering.
+[`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
+[`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
+graph-owner module paths retain compatibility exports.
+
 `break` and `continue` payload expressions can return to the enclosing function.
 Return lifting establishes earlier payloads in order; a return skips the
 remaining payloads and the transfer. Normal completion retains the exact loop

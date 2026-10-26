@@ -30,6 +30,11 @@ const identityMember = value => {
 }
 
 export const proof = /** @type {const} */ ({
+    lazyInitializerReturnsAtDemand: () => {
+        const lazy = id(0)
+        assertEq(evaluate(calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
+            body: body(['return', target, ref(lazy)], [['define', lazy, ['()', ['block', result(identityMember(0))], [escape()]], 'lazy']]) })), 7)
+    },
     wrappedOwnCallableArgumentsReturn: () => {
         for (const callee of wrapped(identityMember(0))) {
             const stop = id(0)
@@ -249,11 +254,6 @@ export const proof = /** @type {const} */ ({
         foreignReturnOwner: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
             calledFunction(requiredFunction(['()', ['block', result(identityMember(0))], [['block', body(['return', foreign, 7])]]]))
-        },
-        lazyInitializerRetainsDemandBoundary: () => {
-            const lazy = id(0)
-            calledFunction({ target, parameters: [], rest: null, self: null, captures: [],
-                body: body(['return', target, ref(lazy)], [['define', lazy, ['()', ['block', result(identityMember(0))], [escape()]], 'lazy']]) })
         },
     },
 })

@@ -16,7 +16,7 @@
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/module.f.mjs'
-import { freeLoopBindings } from '../control/module.f.mjs'
+import { freeLoopBindings } from '../../../js/ast/control/module.f.mjs'
 
 /**
  * Pack owning statement transfers without crossing value operands or ordinary

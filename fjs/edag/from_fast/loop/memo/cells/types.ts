@@ -1,30 +1,8 @@
-/** Deferred recipes selected for normal helper transport. @module */
+/** Compatibility types for shared FAST lazy cell planning. @module */
 
-import type { BindingId, Block, Definition, Loop, Value } from '../../../../../js/ast/types.ts'
+import type { MemoCell as SharedMemoCell, MemoLayout as SharedMemoLayout, MemoPlan as SharedMemoPlan, RecipePlan as SharedRecipePlan } from '../../../../../js/ast/memo/cells/types.ts'
 
-export type MemoCell = {
-    readonly binding: BindingId
-    readonly initializer: Value
-    readonly definition: Definition
-    /** Start a fresh lifetime at each reached declaration in an iteration. */
-    readonly iterationLocal: boolean
-}
-
-export type MemoPlan = {
-    /** Statement occurrences have distinct identities; value operands are opaque. */
-    readonly block: Block
-    /** Dependency closure, ordered by source definitions. */
-    readonly cells: readonly MemoCell[]
-    /** Declaration identity selects roots and aliases before lexical activation. */
-    readonly definitions: ReadonlyMap<Definition, number>
-    readonly loops: ReadonlySet<Loop>
-}
-
-/** The cells visible in one recipe invocation, without a statement root. */
-export type MemoLayout = Pick<MemoPlan, 'cells' | 'definitions' | 'loops'>
-
-export type RecipePlan = {
-    readonly value: Value
-    readonly layout: MemoLayout
-    readonly localCount: number
-}
+export type MemoCell = SharedMemoCell
+export type MemoLayout = SharedMemoLayout
+export type MemoPlan = SharedMemoPlan
+export type RecipePlan = SharedRecipePlan
