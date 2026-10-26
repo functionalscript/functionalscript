@@ -9,6 +9,7 @@ array/call spread return lifting is implemented;
 object-spread return lifting is implemented;
 closure-capture return lifting is implemented;
 loop-transfer payload return lifting is implemented;
+loop-entry initializer return lifting is claimed for the next stacked PR;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
