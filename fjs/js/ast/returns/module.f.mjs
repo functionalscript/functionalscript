@@ -4,7 +4,7 @@
  * must cross them. Lookup, optional skips and receiver binding stay explicit.
  *
  * @module
- * @import { BindingId, Block, Exit, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
+ * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Item, Key, LoopTarget, Operator, Statement, Step, Value } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { Task } from '../task/types.ts'
  * @import { _ChainEnd, _ChainRegion, _ChainSource, _Context, _Expansion, _Region, _ResultMode, _Sequence, _Value } from './private.ts'
@@ -83,6 +83,20 @@ const eagerTask = (source, destination, owner, permitted) => {
             statement: ['block', [destination], { statements: result.statements, exit: result.normal
                 ? ['yield', [mapOperator((_, index) => result.values[index])(source)]] : ['yield', []] }],
             value: ref(destination), normal: result.normal, callee: !result.normal || callee,
+        })
+    })
+}
+
+/** Captures evaluate in the constructing scope; the nested body keeps its own owner. @type {(source: readonly ['function', FastFunction], destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>} */
+const captureTask = (source, destination, owner, permitted) => {
+    const fn = source[1]
+    return bind(sequenceTask(fn.captures.map(capture => capture.value), owner, false, permitted), result => {
+        if (!result.lifted) { return done(plain(source)) }
+        return done({
+            statement: ['block', [destination], { statements: result.statements, exit: result.normal
+                ? ['yield', [['function', { ...fn, captures: fn.captures.map((capture, index) => ({ ...capture, value: result.values[index] })) }]]]
+                : ['yield', []] }],
+            value: ref(destination), normal: result.normal, callee: true,
         })
     })
 }
@@ -235,11 +249,13 @@ const chainTask = (source, destination, owner, permitted) => {
 /**
  * Eager operations, constructor checks, comma sequences, array/call items
  * and object entries sequence their value operands. Member chains preserve their
- * own lookup/skip regions. Lazy initializers and function captures stay opaque.
+ * own lookup/skip regions. Captures sequence in their constructing scope;
+ * nested function bodies and lazy initializers stay opaque.
  * @type {(source: Value, destination: BindingId, owner: FunctionTarget | null, permitted: readonly LoopTarget[]) => Task<_Value>}
  */
 const valueTask = (source, destination, owner, permitted) => call(() => {
     if (!(source instanceof Array)) { return done(plain(source)) }
+    if (source[0] === 'function') { return captureTask(source, destination, owner, permitted) }
     if (source[0] === '.' || source[0] === '?.' || source[0] === '?.()') { return chainTask(source, destination, owner, permitted) }
     if (source[0] === '()' && source[1] instanceof Array && source[1][0] === '.' && source[1].length === 3) {
         const member = source[1]
@@ -305,12 +321,13 @@ const blockTask = (source, context, mode) => {
                 return finish(next, packed, normal, returns || ownReturn || permittedTransfer || added, lifted || added,
                     changed || packed !== source.exit || added, callee || normal && mapped[0] === 'yield' && mapped[1].length !== 1)
             }
-            if (mode === 'statement' && exit[0] === 'yield') {
-                return bind(sequenceTask(exit[1], context.owner, false, context.permitted), result => {
+            if (mode === 'statement' && exit[0] === 'yield' || exit[0] === 'break' || exit[0] === 'continue') {
+                const values = exit[0] === 'yield' ? exit[1] : exit[2]
+                return bind(sequenceTask(values, context.owner, false, context.permitted), result => {
                     if (!result.lifted) { return complete(exit, statements, false) }
                     const next = result.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements)
                     if (!result.normal) { return finish(next, ['yield', []], false, true, true, true) }
-                    return complete(['yield', result.values], next, true, result.callee)
+                    return complete(exit[0] === 'yield' ? ['yield', result.values] : [exit[0], exit[1], result.values], next, true, result.callee)
                 })
             }
             if (ownReturn || context.operand && exit[0] === 'yield' && (exit[1].length === 1 || mode === 'value')) {
@@ -327,10 +344,11 @@ const blockTask = (source, context, mode) => {
             return complete(exit, statements, false)
         }
         const statement = source.statements[index]
-        /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: Statement | null) => Task<_Region>} */
-        const append = (mapped, normal, addedReturns, addedLifted, leading = null) => {
-            const next = /** @type {List<Statement>} */ ({ first: mapped, tail: leading === null ? statements : { first: leading, tail: statements } })
-            const different = changed || mapped !== statement || leading !== null
+        /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: readonly Statement[]) => Task<_Region>} */
+        const append = (mapped, normal, addedReturns, addedLifted, leading = []) => {
+            const next = /** @type {List<Statement>} */ ({ first: mapped,
+                tail: leading.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements) })
+            const different = changed || mapped !== statement || leading.length !== 0
             if (normal) { return each(index + 1, next, returns || addedReturns, lifted || addedLifted, different) }
             const pruned = index + 1 !== source.statements.length || source.exit[0] !== 'yield' || source.exit[1].length !== 0
             return finish(next, ['yield', []], false, returns || addedReturns, lifted || addedLifted, different || pruned)
@@ -341,9 +359,17 @@ const blockTask = (source, context, mode) => {
                 result.statement ?? statement, result.normal, result.statement !== null, result.statement !== null))
         }
         if (statement[0] === 'loop') {
-            return bind(blockTask(statement[1].body, { ...context, loops: { first: statement[1].target, tail: context.loops } }, 'none'), result => append(
-                result.block === statement[1].body ? statement : ['loop', { ...statement[1], body: result.block }],
-                true, result.returns, result.lifted))
+            const loop = statement[1]
+            return bind(sequenceTask(loop.initial, context.owner, false, context.permitted), initial => {
+                if (!initial.normal) {
+                    return finish(initial.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements),
+                        ['yield', []], false, true, true, true)
+                }
+                return bind(blockTask(loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), result => append(
+                    !initial.lifted && result.block === loop.body ? statement
+                        : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: result.block }],
+                    true, initial.lifted || result.returns, initial.lifted || result.lifted, initial.lifted ? initial.statements : []))
+            })
         }
         if (statement[0] === 'block') {
             return bind(blockTask(statement[2], context, 'statement'), result => append(
@@ -356,14 +382,14 @@ const blockTask = (source, context, mode) => {
                     test.statement === null && then.block === statement[3] && otherwise.block === statement[4] ? statement
                         : ['if', statement[1], test.value, then.block, otherwise.block],
                     then.normal || otherwise.normal, then.returns || otherwise.returns || test.statement !== null,
-                    then.lifted || otherwise.lifted || test.statement !== null, test.statement)))
+                    then.lifted || otherwise.lifted || test.statement !== null, test.statement === null ? [] : [test.statement])))
         })
     })
     return each(0, null, false, false, false)
 }
 
 /**
- * Normalize direct required initializers, return payloads and statement results.
+ * Normalize required and loop-entry initializers, return/transfer payloads and statement results.
  * No owning return to expose means no change to the input block identity.
  * @type {(block: Block, owner: FunctionTarget) => Block}
  */

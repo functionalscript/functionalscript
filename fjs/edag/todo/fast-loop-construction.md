@@ -7,6 +7,9 @@ the end-to-end `memberPresent` query is implemented;
 member/optional-call completion lifting is implemented;
 array/call spread return lifting is implemented;
 object-spread return lifting is implemented;
+closure-capture return lifting is implemented;
+loop-transfer payload return lifting is implemented;
+loop-entry initializer return lifting is implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -207,9 +210,32 @@ values, retaining duplicate-key and enumeration rules, `__proto__` as data and
 value identities. No-return inputs retain their original object syntax.
 Plain-call admission retains member/native callee provenance through wrappers
 and comma results. Member and optional-call operands use the shared FAST return
-normalizer and the member-resolution protocol below. Lazy initializers,
-captures and native bare callees remain separate boundaries. A loop
-transfer cannot escape the operand's locally owned loop chain.
+normalizer and the member-resolution protocol below. Closure captures sequence
+their construction-time expressions using the enclosing function owner. Earlier
+captures remain required before a later capture can return; a return skips the
+remaining captures, function construction and suffix. Normal completion retains
+the original capture bindings and function metadata. The nested body remains
+untouched by that lift and normalizes at its own function entry. Selected memo
+updates and captured identities follow the same construction region.
+`break` and `continue` payloads use the same ordered snapshots in the statement
+region. A return preserves reached payload evaluations and skips the remaining
+payloads and transfer. Normal completion retains the exact target and ordered
+zero/one/many signature; all continue values establish before simultaneous state
+transfer. The existing memo and completion passes carry selected updates and
+payload identities through nested and outer-loop transfers. No-return inputs
+retain their syntax identity.
+Loop entry values use ordered required snapshots in the enclosing region,
+before the new loop target or its parameter bindings enter scope. A return
+preserves reached initializers and skips the remaining values, loop and suffix.
+Normal completion enters the loop once with the established values in declared
+parameter order, retaining the exact target and result signature. Caller and
+enclosing-iteration memo cells keep their existing lifetimes; each reached inner
+entry remains fresh. One-time entry setup keeps the existing helper fallback
+when it prevents canonical invocation-root reuse. No-return inputs retain their
+syntax identity.
+Lazy initializers and native bare callees remain
+separate boundaries. A loop transfer cannot escape the operand's locally owned
+loop chain.
 
 Statement-level outer-loop breaks and continues use the same private
 `[userValuesArray, memoVector]` transfer payload as owning exits. Lexical source
@@ -640,8 +666,14 @@ their documented normalization. Repeated conversions must stabilize.
       each reached spread before later control while preserving optional skips.
 - [x] Lift owning returns through spread-bearing object literals, preserving
       key conversion, own-property copying, enumeration and value identities.
-- [ ] Extend completion handling to other value operands, preserving their
-      lookup, spread and evaluation boundaries below.
+- [x] Lift owning returns through closure capture expressions, preserving
+      construction order, enclosing ownership, memo state and captured identities.
+- [x] Lift owning returns through `break` and `continue` payloads, preserving
+      evaluation order, exact targets, signatures, memo state and simultaneous updates.
+- [x] Lift owning returns through loop-entry initializers in enclosing scope,
+      preserving evaluation order, exact targets, state signatures and memo lifetimes.
+- [ ] Extend completion handling to lazy initializers and remaining
+      native/wrapped callee forms, preserving their evaluation boundaries.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

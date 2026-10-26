@@ -29,6 +29,24 @@ statement variants support several results. Function parameters, rest, self,
 captures and local definitions all use the same immutable reference form.
 Captures pair an inner binding identity with the value established at function
 construction. No closure captures a mutable implementation slot.
+Capture expressions evaluate in order in the enclosing function. Return lifting
+establishes earlier captures before a later expression can return to that owner;
+such a return skips the remaining captures and closure construction. Normal
+completion constructs the function from the established capture values. Its
+body retains its own function target and normalization boundary.
+
+`break` and `continue` payload expressions can return to the enclosing function.
+Return lifting establishes earlier payloads in order; a return skips the
+remaining payloads and the transfer. Normal completion retains the exact loop
+target and ordered result or next-state list. A continue establishes every next
+value before transferring, preserving simultaneous state updates.
+
+Loop entry expressions evaluate once, in order, in the enclosing scope before
+the new target and parameter bindings become active. Return lifting establishes
+earlier initializers before a later expression can return to the enclosing
+function; that return skips the remaining initializers, loop and following
+work. Normal completion enters the loop with those established values in
+declared parameter order, preserving its target and result bindings.
 
 `Operator<V>` retains the existing operation vocabulary while parameterizing
 its value operands. `mapOperator(map)(operator)` maps those operands, including

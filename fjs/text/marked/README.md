@@ -309,7 +309,7 @@ pins:
 - **The kinds.** The leaves and words it marks, one case each, and the pieces
   it does not mark (`undefined` in the `.js` writer was a gap this found).
 - **The oracle**, for a language the tokenizer reads: for every example in
-  [`fjs/compiler/examples`](../../compiler/examples/module.f.js), `disagreement`
+  [`fjs/compiler/examples`](../../compiler/examples/module.f.mjs), `disagreement`
   of its output is `null`. The marked pieces agree with the tokenizer's spans
   apart from the deliberate leading-sign boundary ([§6](#6-rendering)).
 - **Without an oracle** (Rust has no tokenizer here), two checks that need each
