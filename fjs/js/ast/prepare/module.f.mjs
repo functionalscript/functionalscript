@@ -21,7 +21,7 @@
  * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Snapshot, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
  */
 
-import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
@@ -234,8 +234,8 @@ const prepareValue = (value, context) => call(() => {
             /** @type {readonly _Snapshot[]} */
             const snapshots = operation[0] === 'object'
                 ? operation[1].flatMap(/** @returns {readonly _Snapshot[]} */ entry => entry[0] === '...' ? ['object'] : ['key', null])
-                : operation[0] === 'array' ? operation[1].map(item => item instanceof Array && item[0] === '...' ? 'array' : null)
-                    : operation[0] === '()' ? [null, ...operation[2].map(/** @returns {_Snapshot} */ item => item instanceof Array && item[0] === '...' ? 'array' : null)] : []
+                : operation[0] === 'array' ? operation[1].map(item => isSpread(item) ? 'array' : null)
+                    : operation[0] === '()' ? [null, ...operation[2].map(/** @returns {_Snapshot} */ item => isSpread(item) ? 'array' : null)] : []
             if ((memberCall || value[0] === '?.' || value[0] === '?.()' || (value[0] === '.' && value.length === 4))
                 && (memberCall ? input : input.slice(1)).some(child => nonlocalValue(child, context))) {
                 if (context.owner !== null || memberCall) {
