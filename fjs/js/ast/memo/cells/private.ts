@@ -27,6 +27,8 @@ export type _Visit = {
 }
 
 export type _LoopInfo = {
+    /** Stable occurrence identity while its body is prepared. */
+    readonly source: Loop
     readonly loop: Loop
     readonly roots: readonly _Root[]
     readonly ancestors: Link<Loop> | null
@@ -39,6 +41,7 @@ export type _Transfer = Extract<Exit, readonly ['return' | 'break' | 'continue',
 export type _Owned = {
     readonly roots: List<_Root>
     readonly definitions: List<readonly [Definition, _Root]>
+    readonly loops: List<_LoopInfo>
     readonly pruned: boolean
 }
 

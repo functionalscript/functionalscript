@@ -12,7 +12,8 @@ loop-transfer payload return lifting is implemented;
 loop-entry initializer return lifting is implemented;
 native-callee return lifting is implemented;
 wrapped-member callee return lifting is implemented;
-lazy-initializer return handling is implemented for selected demand regions;
+lazy-initializer return handling and initializer-loop cells are implemented for
+selected demand regions;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -269,9 +270,15 @@ Completion-bearing plans expose guarded member, optional-call and spread
 regions through the shared operand sequencer before threading selected demands.
 Their connected prerequisites use that same protocol. Demand-only plans keep
 the existing guarded/operand boundaries.
-Initializer-owned loops that introduce local demand cells retain their explicit
-refusal; [initializer-loop cells](../../js/ast/memo/todo/initializer-loop-cells.md)
-records the concrete nested lazy-return case and remaining lifetime work.
+Initializer-owned loops share selected local demand cells. Each reached
+declaration resets its iteration's cell, retaining caller, prerequisite and
+enclosing-iteration cells. Nested loops and repeated demands share the current
+value, and escaping closures keep that established value. Recipe layouts retain
+the borrowed prefix and append local cells in declaration order; narrower
+prerequisite calls merge their updates with the current local suffix. A return
+from a loop-local initializer propagates through the recipe to the source owner
+without marking that cell ready. Loop occurrences have distinct planning
+identities even when the input reuses a loop object.
 A loop transfer cannot escape the operand's locally owned
 loop chain.
 
@@ -716,7 +723,9 @@ their documented normalization. Repeated conversions must stabilize.
       preserving selected property reads before arguments and detached invocation.
 - [x] Extend completion handling to lazy initializers, preserving first-demand
       evaluation and memo lifetimes.
-- [ ] Extend shared demand state to cells declared inside initializer-owned loops.
+- [x] Extend shared demand state to cells declared inside initializer-owned loops.
+      Preserve reached-declaration resets, nested sharing, escaping captures,
+      prerequisite identities and source-owned returns.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

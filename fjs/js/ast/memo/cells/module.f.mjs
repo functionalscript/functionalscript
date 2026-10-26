@@ -19,6 +19,7 @@ import { exitValues, freeBindings, freeLoopBindings } from '../../control/module
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.mjs'
+import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /** Owning returns inside deferred recipes, without crossing ordinary bodies. @type {(value: Value, target: FunctionTarget) => boolean} */
 export const _hasReturn = (value, target) => {
@@ -224,7 +225,7 @@ export const memoCells = (block, externalLazyIds = [], functionTarget = null, re
                 const root = scope.get(binding)
                 return root === undefined || root === null ? [] : [root]
             })
-            inventory = [...inventory, { loop, roots: free, ancestors, transfers: loopTransfers(loop) }]
+            inventory = [...inventory, { source: loop, loop, roots: free, ancestors, transfers: loopTransfers(loop) }]
             pending = {
                 first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), ancestors: { first: loop, tail: ancestors } },
                 tail: { first: { ...next, scope: established(scope, loop.results) }, tail },
@@ -259,12 +260,13 @@ export const memoCells = (block, externalLazyIds = [], functionTarget = null, re
     }
 }
 
-const emptyOwned = /** @type {_Owned} */ ({ roots: null, definitions: null, pruned: false })
+const emptyOwned = /** @type {_Owned} */ ({ roots: null, definitions: null, loops: null, pruned: false })
 
 /** Retain source order across eager subregions. @type {(first: _Owned, second: _Owned) => _Owned} */
 const mergeOwned = (first, second) => ({
     roots: concat(first.roots)(second.roots),
     definitions: concat(first.definitions)(second.definitions),
+    loops: concat(first.loops)(second.loops),
     pruned: first.pruned || second.pruned,
 })
 
@@ -274,50 +276,51 @@ const mappedExit = (exit, values) => values.every((value, index) => value === ex
         : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
             : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]]
 
-/** @type {(values: readonly Value[], scope: _Scope) => Task<_OwnedValues>} */
-const ownedValues = (values, scope) => {
+/** @type {(values: readonly Value[], scope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedValues>} */
+const ownedValues = (values, scope, ancestors) => {
     /** @type {(index: number, prepared: List<Value>, owned: _Owned) => Task<_OwnedValues>} */
     const each = (index, prepared, owned) => call(() => index === values.length
         ? done({ values: toArray(prepared).toReversed(), owned })
-        : bind(ownedValue(values[index], scope), result => each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))))
+        : bind(ownedValue(values[index], scope, ancestors), result => each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))))
     return each(0, null, emptyOwned)
 }
 
 /**
  * Prepare the current initializer's eager regions. A lazy definition owns a
- * later recipe, and loop/function bodies own separate execution boundaries.
- * @type {(source: Value, scope: _Scope) => Task<_OwnedValue>}
+ * later recipe; loop declarations retain their reached iteration lifetime.
+ * Ordinary function bodies keep their separate execution boundary.
+ * @type {(source: Value, scope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedValue>}
  */
-const ownedValue = (source, scope) => call(() => {
+const ownedValue = (source, scope, ancestors) => call(() => {
     if (source === null || typeof source !== 'object' || source[0] === 'ref') { return done(/** @type {_OwnedValue} */ ({ value: source, owned: emptyOwned })) }
     if (source[0] === 'block') {
-        return bind(ownedBlock(source[1], scope), result => done({ value: ['block', result.block], owned: result.owned }))
+        return bind(ownedBlock(source[1], scope, ancestors), result => done({ value: ['block', result.block], owned: result.owned }))
     }
     if (source[0] === 'if') {
-        return bind(ownedValue(source[1], scope), test =>
-            bind(ownedBlock(source[2], scope), then =>
-                bind(ownedBlock(source[3], scope), otherwise => done({
+        return bind(ownedValue(source[1], scope, ancestors), test =>
+            bind(ownedBlock(source[2], scope, ancestors), then =>
+                bind(ownedBlock(source[3], scope, ancestors), otherwise => done({
                     value: ['if', test.value, then.block, otherwise.block],
                     owned: mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)),
                 }))))
     }
     if (source[0] === 'function') {
-        return bind(ownedValues(source[1].captures.map(capture => capture.value), scope), captures => done({
+        return bind(ownedValues(source[1].captures.map(capture => capture.value), scope, ancestors), captures => done({
             value: ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
             owned: captures.owned,
         }))
     }
-    return bind(ownedValues(operatorOperands(source), scope), operands => done({
+    return bind(ownedValues(operatorOperands(source), scope, ancestors), operands => done({
         value: mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
     }))
 })
 
-/** @type {(source: Block, initialScope: _Scope) => Task<_OwnedBlock>} */
-const ownedBlock = (source, initialScope) => {
+/** @type {(source: Block, initialScope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedBlock>} */
+const ownedBlock = (source, initialScope, ancestors) => {
     /** @type {(index: number, scope: _Scope, statements: List<Statement>, owned: _Owned) => Task<_OwnedBlock>} */
     const each = (index, scope, statements, owned) => call(() => {
         if (index === source.statements.length) {
-            return bind(ownedValues(exitValues(source.exit), scope), values => done({
+            return bind(ownedValues(exitValues(source.exit), scope, ancestors), values => done({
                 block: { statements: toArray(statements).toReversed(), exit: mappedExit(source.exit, values.values) },
                 normal: source.exit[0] === 'yield', owned: mergeOwned(owned, values.owned),
             }))
@@ -335,7 +338,7 @@ const ownedBlock = (source, initialScope) => {
         if (statement[0] === 'define') {
             const [, binding, initializer, mode] = statement
             if (mode === 'required') {
-                return bind(ownedValue(initializer, scope), value => append(['define', binding, value.value, mode], established(scope, [binding]), value.owned))
+                return bind(ownedValue(initializer, scope, ancestors), value => append(['define', binding, value.value, mode], established(scope, [binding]), value.owned))
             }
             const definition = /** @type {Definition} */ (['define', binding, initializer, mode])
             /** @type {_Root | null} */
@@ -345,26 +348,36 @@ const ownedBlock = (source, initialScope) => {
             if (initializer !== null && typeof initializer === 'object') {
                 if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
                 else {
-                    root = { binding, source: { definition, insideLoop: false, loop: null }, dependencies: dependencies(initializer, scope) }
+                    root = { binding, source: { definition, insideLoop: ancestors !== null, loop: ancestors?.first ?? null }, dependencies: dependencies(initializer, scope) }
                     roots = [root]
                 }
             }
             const added = /** @type {_Owned} */ ({
-                roots, definitions: root === null ? null : [[definition, root]], pruned: false,
+                roots, definitions: root === null ? null : [[definition, root]], loops: null, pruned: false,
             })
             return append(definition, new Map([...scope, [binding, root]]), added)
         }
         if (statement[0] === 'loop') {
-            return bind(ownedValues(statement[1].initial, scope), initial => append(
-                ['loop', { ...statement[1], initial: initial.values }], established(scope, statement[1].results), initial.owned))
+            const occurrence = /** @type {Loop} */ ({ ...statement[1] })
+            return bind(ownedValues(occurrence.initial, scope, ancestors), initial =>
+                bind(ownedBlock(occurrence.body, established(scope, occurrence.parameters), { first: occurrence, tail: ancestors }), body => {
+                    const loop = /** @type {Loop} */ ({ ...occurrence, initial: initial.values, body: body.block })
+                    const free = freeLoopBindings(loop).flatMap(binding => {
+                        const root = scope.get(binding)
+                        return root === undefined || root === null ? [] : [root]
+                    })
+                    const info = /** @type {_LoopInfo} */ ({ source: occurrence, loop, roots: free, ancestors, transfers: loopTransfers(loop) })
+                    const owned = /** @type {_Owned} */ ({ ...body.owned, loops: concat([info])(body.owned.loops) })
+                    return append(['loop', loop], established(scope, loop.results), mergeOwned(initial.owned, owned))
+                }))
         }
         if (statement[0] === 'block') {
-            return bind(ownedBlock(statement[2], scope), result => append(
+            return bind(ownedBlock(statement[2], scope, ancestors), result => append(
                 ['block', statement[1], result.block], established(scope, statement[1]), result.owned, result.normal))
         }
-        return bind(ownedValue(statement[2], scope), test =>
-            bind(ownedBlock(statement[3], scope), then =>
-                bind(ownedBlock(statement[4], scope), otherwise => append(
+        return bind(ownedValue(statement[2], scope, ancestors), test =>
+            bind(ownedBlock(statement[3], scope, ancestors), then =>
+                bind(ownedBlock(statement[4], scope, ancestors), otherwise => append(
                     ['if', statement[1], test.value, then.block, otherwise.block], established(scope, statement[1]),
                     mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)), then.normal || otherwise.normal))))
     })
@@ -384,28 +397,38 @@ export const recipeCells = (value, outer, aliases, functionTarget = null) => {
     })
     const byIndex = new Map(indices.map((index, position) => [index, borrowed[position]]))
     const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
-    const prepared = run(ownedValue(value, scope))
+    const prepared = run(ownedValue(value, scope, null))
     const localRoots = toArray(prepared.owned.roots)
+    const occurrences = toArray(prepared.owned.loops)
+    const bySource = new Map(occurrences.map(info => [info.source, info.loop]))
+    const inventory = occurrences.map(info => ({ ...info, ancestors: toArray(info.ancestors)
+        .map(loop => assertNotNullish(bySource.get(loop)))
+        .reduceRight((/** @type {Link<Loop> | null} */ tail, first) => ({ first, tail }), null) }))
+    const crossing = inventory.filter(info => info.roots.length !== 0)
     const returning = functionTarget === null ? [] : localRoots.filter(root => root.source !== null && _hasReturn(root.source.definition[2], functionTarget))
-    const selected = dependencyClosure([...borrowed, ...localRoots], [...borrowed, ...returning])
+    const selected = dependencyClosure([...borrowed, ...localRoots], [...new Set([...borrowed, ...returning, ...crossing.flatMap(info => info.roots)])])
     const locals = localRoots.filter(root => selected.includes(root))
+    const loops = selectedLoops(inventory, inventory.filter(info => info.roots.some(root => selected.includes(root))
+        || locals.some(root => root.source?.loop === info.source)))
+    validateTransfers(inventory, loops, functionTarget)
     const slots = new Map([
         ...borrowed.map((root, position) => /** @type {const} */ ([root, indices[position]])),
         ...locals.map((root, index) => /** @type {const} */ ([root, outer.cells.length + index])),
     ])
     const cells = locals.map(root => {
-        const definition = /** @type {NonNullable<_Root['source']>} */ (root.source).definition
-        return { binding: root.binding, initializer: definition[2], definition, iterationLocal: false }
+        const source = assertNotNullish(root.source)
+        const definition = source.definition
+        return { binding: root.binding, initializer: definition[2], definition, iterationLocal: source.insideLoop }
     })
     return {
-        value: locals.length === 0 && !prepared.owned.pruned ? value : prepared.value,
+        value: locals.length === 0 && loops.size === 0 && !prepared.owned.pruned ? value : prepared.value,
         layout: {
             cells: locals.length === 0 ? outer.cells : [...outer.cells, ...cells],
             definitions: new Map(locals.length === 0 ? [] : toArray(prepared.owned.definitions).flatMap(([definition, root]) => {
                 const index = slots.get(root)
                 return index === undefined ? [] : [/** @type {const} */ ([definition, index])]
             })),
-            loops: new Set(),
+            loops,
         },
         localCount: locals.length,
     }
