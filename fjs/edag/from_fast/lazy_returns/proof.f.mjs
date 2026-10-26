@@ -14,7 +14,7 @@ import { escape, failed, mixed, evaluate, failure, flat } from '../member_return
 import { staticRuntime } from '../native_returns/proof.f.mjs'
 
 /** @type {(initializer: Value, consume: (binding: BindingId) => Block, parameters?: readonly BindingId[]) => FastFunction} */
-export const deferred = (initializer, consume, parameters = []) => {
+export const _deferred = (initializer, consume, parameters = []) => {
     const lazy = id(0)
     const consumed = consume(lazy)
     return { target, parameters, rest: null, self: null, captures: [],
@@ -31,7 +31,7 @@ export const proof = /** @type {const} */ ({
         for (const prerequisite of /** @type {const} */ ([false, true])) {
             const dependent = id(0)
             for (const spread of /** @type {const} */ ([false, true])) {
-                const fn = deferred(mixed(ref(stop), 9), lazy => body(['return', target, ['object', [
+                const fn = _deferred(mixed(ref(stop), 9), lazy => body(['return', target, ['object', [
                     ...spread ? [/** @type {const} */ (['...', ['object', []]])] : [], [':', key, ref(prerequisite ? dependent : lazy)],
                 ]]], prerequisite ? [['define', dependent, ['array', [ref(lazy)]], 'lazy']] : []), [stop])
                 for (const returning of /** @type {const} */ ([false, true])) {
@@ -44,7 +44,7 @@ export const proof = /** @type {const} */ ({
         const stop = id(0)
         const suffix = failed('after key demand')
         for (const atValue of /** @type {const} */ ([false, true])) {
-            const fn = deferred(mixed(ref(stop), 'normal'), lazy => body(['return', target, ['object', [
+            const fn = _deferred(mixed(ref(stop), 'normal'), lazy => body(['return', target, ['object', [
                 [':', 'before', 1], [':', ref(lazy), atValue ? suffix : 9], [':', 'after', atValue ? 9 : suffix],
             ]]]), [stop])
             assertEq(evaluate(calledFunction(fn, [true])), 7)
@@ -57,7 +57,7 @@ export const proof = /** @type {const} */ ({
         const key = /** @type {Value} */ (['object', [[':', 'toString', ['function', {
             target: keyOwner, parameters: [], rest: null, self: null, captures: [], body: body(['return', keyOwner, 'converted']),
         }]]]])
-        const fn = deferred(mixed(ref(stop), ['array', [4]]), lazy => body(['return', target, ['array', [
+        const fn = _deferred(mixed(ref(stop), ['array', [4]]), lazy => body(['return', target, ['array', [
             ['.', ref(output), 'converted'], ref(lazy),
         ]]], [['define', output, ['object', [[':', key, ref(lazy)]]], 'required']]), [stop])
         const normal = evaluate(calledFunction(fn, [false]))
@@ -72,17 +72,17 @@ export const proof = /** @type {const} */ ({
         const loop = /** @type {Loop} */ ({ target: loopTarget, parameters: [], initial: [], results: [output],
             body: body(['break', loopTarget, [ref(inner)]], [['define', inner, escape(), 'lazy']]),
         })
-        assertEq(evaluate(calledFunction(deferred(['block', result(ref(output), [['loop', loop]])],
+        assertEq(evaluate(calledFunction(_deferred(['block', result(ref(output), [['loop', loop]])],
             outer => body(['return', target, ref(outer)])))), 7)
     },
     undemandedInitializerRemainsDeferred: () => {
         for (const initializer of /** @type {readonly Value[]} */ ([escape(), failed('undemanded initializer')])) {
-            assertEq(evaluate(calledFunction(deferred(initializer, () => body(['return', target, 9])))), 9)
+            assertEq(evaluate(calledFunction(_deferred(initializer, () => body(['return', target, 9])))), 9)
         }
     },
     selectedFirstDemandReturnsBeforeConsumerAndSuffix: () => {
         const reached = id(0), output = id(0), tail = id(0)
-        const fn = deferred(escape(), lazy => body(['return', target, 9], [
+        const fn = _deferred(escape(), lazy => body(['return', target, 9], [
             ['if', [], ref(reached), body(['yield', []], [
                 ['define', output, ['array', [ref(lazy), failed('skipped consumer')]], 'required'],
                 ['define', tail, failed('skipped suffix'), 'required'],
@@ -93,7 +93,7 @@ export const proof = /** @type {const} */ ({
     },
     declarationDoesNotMoveReturnBeforeReachedPrefix: () => {
         const prefix = id(0)
-        const fn = deferred(escape(), lazy => body(['return', target, ref(lazy)], [
+        const fn = _deferred(escape(), lazy => body(['return', target, ref(lazy)], [
             ['define', prefix, failed('before demand'), 'required'],
         ]))
         assertEq(failure(calledFunction(fn)), 'before demand')
@@ -103,15 +103,15 @@ export const proof = /** @type {const} */ ({
         const failing = /** @type {Value} */ (['block', body(['return', target, 7], [
             ['define', prefix, failed('initializer prefix'), 'required'],
         ])])
-        assertEq(failure(calledFunction(deferred(failing, lazy => body(['return', target, ref(lazy)])))), 'initializer prefix')
+        assertEq(failure(calledFunction(_deferred(failing, lazy => body(['return', target, ref(lazy)])))), 'initializer prefix')
         const normal = /** @type {Value} */ (['block', body(['return', target, 7], [
             ['define', unused, failed('undemanded initializer local'), 'lazy'], ['define', prefix, 1, 'required'],
         ])])
-        assertEq(evaluate(calledFunction(deferred(normal, lazy => body(['return', target, ref(lazy)])))), 7)
+        assertEq(evaluate(calledFunction(_deferred(normal, lazy => body(['return', target, ref(lazy)])))), 7)
     },
     successfulDemandCachesAcrossConditionalUses: () => {
         const stop = id(0), first = id(0), second = id(0)
-        const fn = deferred(mixed(ref(stop), ['array', [4]]), lazy => body(['return', target, ['array', [ref(first), ref(second), ref(lazy)]]], [
+        const fn = _deferred(mixed(ref(stop), ['array', [4]]), lazy => body(['return', target, ['array', [ref(first), ref(second), ref(lazy)]]], [
             ['if', [first], true, result(ref(lazy)), result(null)],
             ['if', [second], false, result(null), result(ref(lazy))],
         ]), [stop])
@@ -135,7 +135,7 @@ export const proof = /** @type {const} */ ({
             ['object', [[':', 'kind', 'return'], [':', 'value', 7]]],
         ])
         for (const payload of payloads) {
-            const fn = deferred(mixed(false, payload), lazy => body(['return', target, ['array', [ref(lazy), ref(lazy)]]]))
+            const fn = _deferred(mixed(false, payload), lazy => body(['return', target, ['array', [ref(lazy), ref(lazy)]]]))
             const value = evaluate(calledFunction(fn))
             assert(value instanceof Array)
             assertEq(value[0], value[1])
@@ -271,16 +271,16 @@ export const proof = /** @type {const} */ ({
     },
     selectedOperandDemandRetainsSkipAndPrefixOrder: () => {
         const selected = id(0)
-        const fn = deferred(escape(), lazy => body(['return', target, ['if', ref(selected), result(ref(lazy)), result(9)]]), [selected])
+        const fn = _deferred(escape(), lazy => body(['return', target, ['if', ref(selected), result(ref(lazy)), result(9)]]), [selected])
         assertEq(evaluate(calledFunction(fn, [false])), 9)
         assertEq(evaluate(calledFunction(fn, [true])), 7)
-        assertEq(evaluate(calledFunction(deferred(escape(), lazy => body(['return', target, ['?.', null, 'method', ['|()', [ref(lazy)]]]])))), undefined)
-        assertEq(failure(calledFunction(deferred(escape(), lazy => body(['return', target, ['array', [failed('operand prefix'), ref(lazy)]]])))), 'operand prefix')
+        assertEq(evaluate(calledFunction(_deferred(escape(), lazy => body(['return', target, ['?.', null, 'method', ['|()', [ref(lazy)]]]])))), undefined)
+        assertEq(failure(calledFunction(_deferred(escape(), lazy => body(['return', target, ['array', [failed('operand prefix'), ref(lazy)]]])))), 'operand prefix')
     },
     nativeReadRemainsAtTheSelectedDemand: () => {
         const reached = id(0), stop = id(0)
         const initializer = /** @type {Value} */ (['()', ['Number.isInteger'], [mixed(ref(stop), 9)]])
-        const fn = deferred(initializer, lazy => body(['return', target, ['if', ref(reached), result(ref(lazy)), result(3)]]), [reached, stop])
+        const fn = _deferred(initializer, lazy => body(['return', target, ['if', ref(reached), result(ref(lazy)), result(3)]]), [reached, stop])
         const throwingRead = staticRuntime(['throw', 'demand static read'])
         assertEq(evaluate(calledFunction(fn, [false, true])), 3)
         assertEq(evaluate(calledFunction(fn, [false, true]), throwingRead), 3)
@@ -305,7 +305,7 @@ export const proof = /** @type {const} */ ({
     firstCaptureDemandKeepsTheConstructingOwner: () => {
         const stop = id(0), captured = id(0)
         const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
-        const fn = deferred(mixed(ref(stop), 3), lazy => body(['return', target, ['()', ['function', {
+        const fn = _deferred(mixed(ref(stop), 3), lazy => body(['return', target, ['()', ['function', {
             target: owner, parameters: [], rest: null, self: null,
             captures: [{ binding: captured, value: ref(lazy) }], body: body(['return', owner, ref(captured)]),
         }], []]]), [stop])
@@ -347,7 +347,7 @@ export const proof = /** @type {const} */ ({
     throw: {
         demandedForeignReturnOwner: () => {
             const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })
-            calledFunction(deferred(['block', body(['return', foreign, 7])], lazy => body(['return', target, ref(lazy)])))
+            calledFunction(_deferred(['block', body(['return', foreign, 7])], lazy => body(['return', target, ref(lazy)])))
         },
         demandCannotEscapeToEnclosingLoop: () => {
             const lazy = id(0), output = id(0), observed = id(0)
