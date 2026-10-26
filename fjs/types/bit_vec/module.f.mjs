@@ -29,7 +29,7 @@
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
-import { bitLength, divUp, mask, maxLength, roundUp8, xor } from '../bigint/module.f.mjs'
+import { bitLength, divUp, mask, maxLength as bigintMaxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.js'
 import { map, next, toArray } from '../list/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
@@ -44,7 +44,7 @@ import { assert } from '../../asserts/module.f.js'
  * This limit is enforced by Bun's `bigint` size constraint, the minimal limit
  * across all runtime environments supported by FunctionalScript.
  */
-export { maxLength }
+export const maxLength = bigintMaxLength
 
 /**
  * `bits`, asserted to be a count. A negative one has no byte meaning, and the

@@ -23,9 +23,18 @@ import { isIntrinsic, isStatic } from '../module.f.mjs'
 import { operandsOf, visit } from '../sharing/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
-import { bindingTagged, scopeTagged as preparedScope, valueTagged } from '../../rust/serializer/module.f.mjs'
+import {
+    bindingTagged, braced as serializerBraced, op1Rust as serializerOp1Rust, op2Rust as serializerOp2Rust,
+    op3Rust as serializerOp3Rust, scopeTagged as preparedScope, useLines as serializerUseLines,
+    useLinesTagged as serializerUseLinesTagged, valueTagged,
+} from '../../rust/serializer/module.f.mjs'
 
-export { braced, op1Rust, op2Rust, op3Rust, useLines, useLinesTagged } from '../../rust/serializer/module.f.mjs'
+export const braced = serializerBraced
+export const op1Rust = serializerOp1Rust
+export const op2Rust = serializerOp2Rust
+export const op3Rust = serializerOp3Rust
+export const useLines = serializerUseLines
+export const useLinesTagged = serializerUseLinesTagged
 
 /** No override to a function's canonical representation. @type {(e: Exp) => string | undefined} */
 const noText = () => undefined
