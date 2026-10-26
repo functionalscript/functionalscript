@@ -219,6 +219,7 @@ export const proof = {
         }
         const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
         assertEq(unwrap(result).join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
+        return undefined
     },
     allFilesSkipsNodeModules: () => {
         // `node_modules` is skipped without descending into it, even though
@@ -230,6 +231,7 @@ export const proof = {
         }
         const [, result] = virtualAt(root)(allFiles('.', shouldLoad))
         assertEq(unwrap(result).join(','), './a.f.ts')
+        return undefined
     },
     loadModuleMapDefaultsToCwdWhenInitCwdUnset: () => {
         // With no `INIT_CWD` (e.g. `fjs t` invoked outside `npm run`), `env`
@@ -239,6 +241,7 @@ export const proof = {
         const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
+        return undefined
     },
     loadModuleMapReportsUnreadableRoot: () => {
         // A directory that cannot be listed is no longer a panic. Discovery
@@ -247,6 +250,7 @@ export const proof = {
         // `fjs t` that is a message on `stderr` and exit `1`.
         const [, result] = virtualAt({})(loadModuleMap({ env: { INIT_CWD: 'missing' }, engine: 'node' }))
         assert(result[0] === 'error', result)
+        return undefined
     },
     loadModuleMapRecordsUnimportableModule: () => {
         // The half `readdir` does not cover: discovery lists the file, then
@@ -260,6 +264,7 @@ export const proof = {
         assert(a !== undefined && a[0] === 'error', a)
         const b = map['./b.f.ts']
         assert(b !== undefined && b[0] === 'ok', b)
+        return undefined
     },
     loadModuleMapStripsInitCwdPrefix: () => {
         // With `INIT_CWD` set (the normal `npm run` case), discovery starts
@@ -269,6 +274,7 @@ export const proof = {
         const root = { 'sub': { 'a.f.ts': () => ({}) } }
         const [, result] = virtualAt(root)(loadModuleMap({ env: { INIT_CWD: 'sub' }, engine: 'node' }))
         assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
+        return undefined
     },
     shouldLoadOn: () => {
         // The engines running the whole Node host load the impure proofs; any
@@ -282,6 +288,7 @@ export const proof = {
         // A retired spelling is FunctionalScript, but not what an engine
         // without TypeScript can load.
         assert(!shouldLoadOn('spidermonkey')('a.f.ts'))
+        return undefined
     },
     loadModuleMapLoadsAuthoredOnlyOffTheNodeHost: () => {
         // Off Node, Deno, and Bun the impure proof is never imported, so it
@@ -292,5 +299,6 @@ export const proof = {
             Object.keys(unwrap(virtualAt(root)(loadModuleMap({ env: {}, engine }))[1])).join(',')
         assertEq(keys('spidermonkey'), './a.f.mjs')
         assertEq(keys('node'), './a.f.mjs,./proof.mjs')
+        return undefined
     },
 }
