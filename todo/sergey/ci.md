@@ -75,3 +75,11 @@ We plan to remove the `fjs` runner and NPM package check from CI until we have a
   2. [ ] run FJS files only. `fjs-only.mjs` ?
   3. [ ] run JS files only. `js-only.mjs`?
 - [ ] Create a separate repo (in different organization) that tests an FJS package. For example, its CI can build one from Git or from NPM and test it.
+
+---
+
+0 -> 1 | 10 -> 01
+       | 11 -> 00
+       |
+1 -> 0 | 00 -> 11
+       | 01    00
