@@ -10,7 +10,7 @@ import { fromFast } from '../module.f.mjs'
 import { toFast } from '../../to_fast/module.f.mjs'
 import { _id as id, _ref as ref, _result as result, _target as target, _body as body, _afterLoop as afterLoop, _calledFunction as calledFunction, _collectingMemo as collectingMemo } from '../proof.f.mjs'
 import { escape, failed, mixed, evaluate, failure, flat } from '../member_returns/proof.f.mjs'
-import { deferred } from '../lazy_returns/proof.f.mjs'
+import { _deferred as deferred } from '../lazy_returns/proof.f.mjs'
 
 export const proof = /** @type {const} */ ({
     normalIterationCellsAreFreshAndShared: () => {
