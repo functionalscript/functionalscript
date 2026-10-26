@@ -1,5 +1,5 @@
 import { digestOf, hashOutput, hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from './module.f.mjs'
-import { vec } from '../../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, vec } from '../../../types/bit_vec/module.f.mjs'
 import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { sha256 } from '../../../crypto/sha2/module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
@@ -45,6 +45,15 @@ export const proof = {
         assertEq(digestOf(sha1)('a\nb'), 'fcd127ffa1016069006ad91f3f361248f9bdf272')
         assertEq(digestOf(sha1)('a\0b'), '4a3dec2d1f8245280855c42db0ee4239f917fdb8')
         assertEq(digestOf(sha256)('1234'), '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
+    },
+    oversized: () => {
+        const text = 'a'.repeat(Number(maxLengthBytes) + 1)
+        assertEq(digestOf(sha256)(text), null)
+        const html = htmlToString(['div', ...sha256Output(text)])
+        assert(html.includes('Refused:'))
+        assert(html.includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+        assert(!html.includes('Copy digest'))
+        assert(!html.includes('Copy OpenSSL command'))
     },
     output: () => {
         const h = htmlToString(['div', ...sha1Output("a'b\n$HOME `whoami`")])

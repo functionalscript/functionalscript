@@ -10,27 +10,32 @@
  * @import { HashDemoAlgorithm } from '../../website/demo/hash/types.ts'
  */
 
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { hmac } from './module.f.mjs'
 import { hexOf, hashAlgorithms, algorithmOf, algorithmOption, opensslVerification } from '../../website/demo/hash/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
-import { selectField, textField, inputField, fieldUpdate, caption } from '../../website/demo/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.mjs'
+import { selectField, textField, inputField, fieldUpdate, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 
 /** Bind the hash and its formatter once for each HMAC choice.
- * @type {<S>(a: HashDemoAlgorithm<S>) => { readonly name: string, readonly openssl: string, readonly digest: (key: string, text: string) => string }}
+ * @type {<S>(a: HashDemoAlgorithm<S>) => { readonly name: string, readonly openssl: string, readonly digest: (key: string, text: string) => string | null }}
  */
 const hmacAlgorithm = ({ name, hash, openssl }) => {
     const keyed = hmac(hash)
     const hex = hexOf(hash)
-    return { name, openssl, digest: (key, text) => hex(keyed(utf8(key))(utf8(text))) }
+    return { name, openssl, digest: (key, text) => {
+        const keyBytes = tryUtf8(key)
+        const textBytes = tryUtf8(text)
+        return keyBytes === null || textBytes === null ? null : hex(keyed(keyBytes)(textBytes))
+    } }
 }
 
 const algorithms = hashAlgorithms(hmacAlgorithm)
 const selectedAlgorithm = algorithmOf(algorithms)
 
-/** The selected HMAC of a key and message encoded as UTF-8.
- * @type {(algorithm: string, key: string, text: string) => string}
+/** The selected HMAC of UTF-8 key and message, or null if either is too long.
+ * @type {(algorithm: string, key: string, text: string) => string | null}
  */
 export const digest = (algorithm, key, text) => selectedAlgorithm(algorithm).digest(key, text)
 
@@ -40,15 +45,20 @@ const definition = {
     update: fieldUpdate,
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
+        const value = algorithm.digest(state.key, state.text)
         return ['div',
             ['p', 'HMAC uses a key to compute an authentication code for a message. Both inputs are encoded as UTF-8; the result is shown in hexadecimal.'],
             selectField({ name: 'algorithm', label: 'Algorithm' }, algorithms.map(a => algorithmOption(a, algorithm))),
             inputField({ name: 'key', label: 'Key (UTF-8)' }, state.key),
             textField({ name: 'text', label: 'Message (UTF-8)' }, state.text),
-            caption(`HMAC-${algorithm.name}, hex:`),
-            codeBlock(algorithm.digest(state.key, state.text), 'Copy HMAC'),
-            ...opensslVerification([state.text, state.key], ([text, key]) =>
-                `printf '%s' ${text} | openssl dgst -${algorithm.openssl} -hmac ${key}`),
+            ...(value === null
+                ? [refusal(`Key or message too long: more than ${maxLengthBytes} UTF-8 bytes.`)]
+                : [
+                    caption(`HMAC-${algorithm.name}, hex:`),
+                    codeBlock(value, 'Copy HMAC'),
+                    ...opensslVerification([state.text, state.key], ([text, key]) =>
+                        `printf '%s' ${text} | openssl dgst -${algorithm.openssl} -hmac ${key}`),
+                ]),
         ]
     },
 }

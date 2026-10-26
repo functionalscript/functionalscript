@@ -9,20 +9,20 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { DemoState, DemoSearch } from './types.ts'
+ * @import { DemoState } from './types.ts'
  */
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker, powResultMarker } from '../../website/style/module.f.js'
 import { sha256Pow, targetFromNBits } from './module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { tryUtf8 } from '../../text/module.f.mjs'
 import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { hexOf } from '../../website/demo/hash/module.f.mjs'
 import { sha256 } from '../sha2/module.f.mjs'
-import { vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, vec } from '../../types/bit_vec/module.f.mjs'
 
 const formatHex = hexOf(sha256)
 const hashBits = vec(sha256.hashLength)
@@ -50,9 +50,11 @@ const targetOf = state => {
     return bits === null ? null : targetFromNBits(bits)
 }
 
-/** @type {(state: DemoState, nonce: bigint, target: bigint, start: bigint, attempts: bigint) => DemoState & { readonly search: DemoSearch }} */
+/** @type {(state: DemoState, nonce: bigint, target: bigint, start: bigint, attempts: bigint) => DemoState} */
 const tried = (state, nonce, target, start, attempts) => {
-    const hash = sha256Pow.hashInt(utf8(`${state.text}${nonce}`))
+    const bytes = tryUtf8(`${state.text}${nonce}`)
+    if (bytes === null) { return { ...state, nonce: String(nonce), search: null } }
+    const hash = sha256Pow.hashInt(bytes)
     return { ...state, nonce: String(nonce), search: { nonce, target, hash, start, attempts, running: hash > target } }
 }
 
@@ -84,7 +86,9 @@ const output = state => {
     ]
     if (nonce === null) { return [...targetView, refusal('Enter a non-negative decimal nonce.')] }
     const text = `${state.text}${nonce}`
-    const hash = state.search === null ? sha256Pow.hashInt(utf8(text)) : state.search.hash
+    const bytes = tryUtf8(text)
+    if (bytes === null) { return [...targetView, refusal(`Input including nonce too long: more than ${maxLengthBytes} UTF-8 bytes.`)] }
+    const hash = state.search === null ? sha256Pow.hashInt(bytes) : state.search.hash
     const succeeded = hash <= target
     return [
         caption('Hashed input (UTF-8):'),
@@ -122,7 +126,7 @@ const definition = {
             const target = targetOf(state)
             if (nonce === null || target === null || target === 0n) { return pureOk(state) }
             const current = tried(state, nonce, target, nonce, 1n)
-            return pureOk(current.search.running ? current : tried(state, nonce + 1n, target, nonce + 1n, 1n))
+            return pureOk(current.search === null || current.search.running ? current : tried(state, nonce + 1n, target, nonce + 1n, 1n))
         }
         if (event.name === 'auto-next') {
             const search = state.search

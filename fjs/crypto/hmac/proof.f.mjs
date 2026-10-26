@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { sha1 } from '../sha1/module.f.mjs'
 import { sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { hmac } from './module.f.mjs'
@@ -16,12 +16,29 @@ import { unwrap } from '../../types/result/module.f.js'
 
 export const proof = {
     demo: {
+        oversized: () => {
+            const atLimit = 'é'.repeat(Number(maxLengthBytes) / 2)
+            // Independent Python hmac/hashlib vectors at the byte ceiling.
+            assertEq(digest('SHA-256', atLimit, ''), '275ef92909017faaa5128b39d1d472e214705fdd498d861ea30424e7a56a44be')
+            assertEq(digest('SHA-256', '', atLimit), 'f42c9deec26f1546968fd57b06bb6a233785270a8c77b1d5d45fa2eb1cdbf93d')
+            const tooLong = `${atLimit}a`
+            for (const [key, text] of [[tooLong, ''], ['', tooLong], [tooLong, tooLong]]) {
+                assertEq(digest('SHA-256', key, text), null)
+                const html = htmlToString(demo.view({ ...demo.init, key, text }))
+                assert(html.includes('Refused:'))
+                assert(html.includes(`Key or message too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+                assert(html.includes('name="key"'))
+                assert(html.includes('name="text"'))
+                assert(!html.includes('Copy HMAC'))
+                assert(!html.includes('Copy OpenSSL command'))
+            }
+        },
         nul: () => {
             for (const [key, text] of [['a\0b', 'message'], ['key', 'a\0b'], ['\0', '\0']]) {
                 const html = htmlToString(demo.view({ algorithm: 'SHA-256', key, text }))
                 assert(html.includes('OpenSSL command unavailable:'), html)
                 assert(!html.includes('Copy OpenSSL command'), html)
-                assert(html.includes(digest('SHA-256', key, text)), html)
+                assert(html.includes(assertNotNullish(digest('SHA-256', key, text))), html)
             }
         },
         multiline: () => {
