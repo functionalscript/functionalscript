@@ -16,6 +16,7 @@ lazy-initializer return handling and initializer-loop cells are implemented for
 selected demand regions;
 normal-only member and optional-call demands are implemented;
 normal-only standalone spread and object-entry demands are implemented;
+selected demands owned entirely inside operand regions are implemented;
 remaining operand boundaries and broader memo lifetimes remain in E
 **Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
 
@@ -304,10 +305,13 @@ iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
 Demands selected wholly inside operand-owned declarations and loops can be
-absent from an operation's free aliases. Unexposed guarded, spread and object
-regions with such updates remain explicitly refused;
-[operand-owned demand regions](../../js/ast/memo/todo/operand-owned-demand-regions.md)
-records the skipped optional-argument case and remaining selection work.
+absent from an operation's free aliases. Before exposing guarded, spread and
+object regions, also recognize exact prepared declaration and loop occurrences.
+This keeps local updates inside selected optional arms and after earlier
+expansions or key conversions. The explicit worklist follows eager regions,
+loop entries/bodies/exits and function captures, while ordinary function bodies
+and deferred initializer bodies retain their own boundaries. Target identities
+and presentation indices do not substitute for prepared occurrence identity.
 External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
@@ -744,9 +748,8 @@ their documented normalization. Repeated conversions must stabilize.
       preserving skipped operands, lookup order, receivers and cell lifetimes.
 - [x] Share normal-only lazy demands through standalone array/call/object spreads
       and object entries, preserving reached expansion and key-conversion order.
-- [ ] Account for selected demands owned entirely inside operand regions before
+- [x] Account for selected demands owned entirely inside operand regions before
       hoisting updates; preserve skips and intermediate expansion/conversion order.
-      See [operand-owned demand regions](../../js/ast/memo/todo/operand-owned-demand-regions.md).
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.

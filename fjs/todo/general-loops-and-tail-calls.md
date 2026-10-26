@@ -140,8 +140,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Normal-only memo plans also sequence member and optional calls, preserving
       optional skips, lookup order, receivers and shared cell lifetimes.
       Standalone array/call/object spreads and object entries retain reached
-      expansion, copying and key-conversion order. Selection of demands owned
-      entirely inside operand regions remains open.
+      expansion, copying and key-conversion order. Prepared declaration and loop
+      occurrences expose cells owned entirely inside operands while preserving
+      function and deferred-initializer boundaries.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
