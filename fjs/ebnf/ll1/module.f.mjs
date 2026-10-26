@@ -246,7 +246,9 @@ const checkFollow = (ruleSet, first, nullable, names) => {
     names.forEach(name => {
         const clash = intersection(matchRule(decision(name))(ruleSet[name]))(follow[name])
         assert(clash.length === 0, ['first/follow conflict', name, clash])
+        return undefined
     })
+    return undefined
 }
 
 /** @type {_Mappers} */

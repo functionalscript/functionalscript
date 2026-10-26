@@ -139,11 +139,7 @@ export const remove = c => map(nodeRemove(c))
 // the invariant guard itself stays covered.
 export const proof = {
     throw: {
-        reduceValueDefaultBranch: () => {
-            reduceValue(left)([['leaf']])([['x'], 's', ['y']])
-        },
-        initValueDefaultBranch: () => {
-            initValue(right)(null)([[['a'], 'b', ['c']], 'd', ['e']])
-        },
+        reduceValueDefaultBranch: () => reduceValue(left)([['leaf']])([['x'], 's', ['y']]),
+        initValueDefaultBranch: () => initValue(right)(null)([[['a'], 'b', ['c']], 'd', ['e']]),
     },
 }
