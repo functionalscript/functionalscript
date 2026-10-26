@@ -49,6 +49,8 @@ later representation and do not define normalized fallthrough semantics.
 Wholly normal regions retain their established graph path. An immutable
 continuation worklist rewrites statement transfers without copying their
 following suffix or consuming host stack with statement depth. Body prefixes
-retain their required/lazy modes and lexical order. Nonlocal operand control
-remains in the [open loop-construction task](../../../todo/fast-loop-construction.md), alongside
-the rest/default/spread invocation work coordinated with tail-call analysis.
+retain their required/lazy modes and lexical order. Owning-function returns
+from admitted operand regions are lifted by the shared FAST return pass before
+root reconstruction. Loop transfers still require a locally owned target.
+Broader rest/default/spread invocation transitions remain coordinated with
+[tail-call analysis](../../../todo/tail-call-loop.md#general-tail-calls).

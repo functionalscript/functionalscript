@@ -89,6 +89,64 @@ export const proof = /** @type {const} */ ({
         ])), null)
         assertEq(memoCells(containing(reading(alias), [['define', alias, ['ref', known], 'lazy']])), null)
     },
+    deferredHelpersSelectTheirCallerPrerequisites: () => {
+        const initializer = /** @type {Value} */ (['block', body([['loop', reading(a)]], ['yield', [['ref', result]]])])
+        const source = body([
+            ['define', a, ['array', [4]], 'lazy'], ['define', b, initializer, 'lazy'],
+        ], ['yield', [['array', [['ref', b], ['ref', a]]]]])
+        const plan = planned(source)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.cells[1].initializer, initializer)
+        assertEq(plan.loops.size, 0)
+        const definitions = definitionsOf(plan.block)
+        assertEq(plan.definitions.get(definitions[0]), 0)
+        assertEq(plan.definitions.get(definitions[1]), 1)
+    },
+    unrelatedDeferredLoopsKeepTheirCallerUnselected: () => {
+        const initializer = /** @type {Value} */ (['block', body([
+            ['define', known, ['array', [9]], 'lazy'], ['loop', reading(known)],
+        ], ['yield', [['ref', a]]])])
+        for (const exit of /** @type {readonly Exit[]} */ ([['yield', [0]], ['yield', [['ref', b]]]])) {
+            assertEq(memoCells(body([
+                ['define', a, ['array', [4]], 'lazy'], ['define', b, initializer, 'lazy'],
+            ], exit)), null)
+        }
+    },
+    deferredParameterSnapshotsShadowCallerMarkers: () => {
+        const loop = /** @type {Loop} */ ({ ...reading(a), parameters: [a], initial: [['ref', a]] })
+        const initializer = /** @type {Value} */ (['block', body([['loop', loop]], ['yield', [['ref', result]]])])
+        assertEq(memoCells(body([
+            ['define', a, ['array', [4]], 'lazy'], ['define', known, ['array', [9]], 'lazy'],
+            ['define', b, initializer, 'lazy'],
+        ], ['yield', [['ref', b]]])), null)
+    },
+    deadDeferredStatementSuffixDoesNotSelectExternalRoots: () => {
+        const stopped = body([], ['throw', 'stopped'])
+        const terminals = /** @type {readonly Statement[]} */ ([
+            ['block', [], stopped], ['if', [], true, stopped, stopped],
+        ])
+        for (const terminal of terminals) {
+            const initializer = /** @type {Value} */ (['block', body([terminal, ['loop', reading(known)]], ['yield', [['ref', result]]])])
+            assertEq(memoCells(body([['define', b, initializer, 'lazy']]), [known]), null)
+        }
+    },
+    deepDeferredSelection: () => {
+        /** @type {Value} */
+        let initializer = ['block', body([['loop', reading(a)]], ['yield', [['ref', result]]])]
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const local = /** @type {const} */ ({ index: depth })
+            initializer = ['block', body([['define', local, initializer, 'lazy']], ['yield', [['ref', local]]])]
+        }
+        const plan = planned(body([
+            ['define', a, ['array', [4]], 'lazy'], ['define', b, initializer, 'lazy'],
+        ], ['yield', [['ref', b]]]))
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].binding, b)
+        assertEq(plan.loops.size, 0)
+    },
     deadMemoHelpers: () => {
         const unsupported = loopOf(body([], ['return', functionTarget, ['ref', a]]))
         const terminalBlock = /** @type {Statement} */ (['block', [], body([], ['throw', 'stopped'])])

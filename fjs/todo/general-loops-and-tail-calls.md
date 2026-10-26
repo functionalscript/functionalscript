@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-D and fixed-input invocation-root reconstruction implemented
-above #3127; general helper construction and tail-call work remain in E/F
+**Status:** wip — A-E construction implemented; generalized tail calls and their
+stack-safety integration are next in F, followed by source bindings and loops
 
 ### Goal
 
@@ -109,7 +109,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       every required consumer before starting D.
 - [x] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
       schema/identity decision and producer/consumer migration.
-- [ ] **E — General graph construction.** Complete the loop-construction owner
+- [x] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
       Fixed-input invocation roots and nested normal-exit aggregate helpers are
       implemented, along with statement-level function returns and outer-loop
@@ -146,6 +146,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Caller and initializer planning also share an eager lexical inventory for
       operand loops and computed lazy locals, retaining caller sharing, fresh
       local lifetimes and separate transfer ownership.
+      Deferred-initializer helper crossings select their caller-owned cells
+      even without an eager caller loop, preserving declaration-time scope and
+      first-demand evaluation through nested recipes.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

@@ -41,3 +41,13 @@ export type _Owned = {
 export type _OwnedValue = { readonly value: Value; readonly owned: _Owned }
 export type _OwnedValues = { readonly values: readonly Value[]; readonly owned: _Owned }
 export type _OwnedBlock = { readonly block: Block; readonly normal: boolean; readonly owned: _Owned }
+
+/** Static dependency origins while inspecting deferred bodies for crossings. */
+export type _DeferredBinding = { readonly roots: readonly _Root[]; readonly depth: number }
+export type _DeferredScope = ReadonlyMap<BindingId, _DeferredBinding>
+export type _DeferredSummary = {
+    readonly dependencies: readonly _Root[]
+    readonly crossed: boolean
+    readonly selected: List<_Root>
+}
+export type _DeferredBlock = { readonly summary: _DeferredSummary; readonly normal: boolean }
