@@ -344,10 +344,11 @@ const blockTask = (source, context, mode) => {
             return complete(exit, statements, false)
         }
         const statement = source.statements[index]
-        /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: Statement | null) => Task<_Region>} */
-        const append = (mapped, normal, addedReturns, addedLifted, leading = null) => {
-            const next = /** @type {List<Statement>} */ ({ first: mapped, tail: leading === null ? statements : { first: leading, tail: statements } })
-            const different = changed || mapped !== statement || leading !== null
+        /** @type {(mapped: Statement, normal: boolean, addedReturns: boolean, addedLifted: boolean, leading?: readonly Statement[]) => Task<_Region>} */
+        const append = (mapped, normal, addedReturns, addedLifted, leading = []) => {
+            const next = /** @type {List<Statement>} */ ({ first: mapped,
+                tail: leading.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements) })
+            const different = changed || mapped !== statement || leading.length !== 0
             if (normal) { return each(index + 1, next, returns || addedReturns, lifted || addedLifted, different) }
             const pruned = index + 1 !== source.statements.length || source.exit[0] !== 'yield' || source.exit[1].length !== 0
             return finish(next, ['yield', []], false, returns || addedReturns, lifted || addedLifted, different || pruned)
@@ -358,9 +359,17 @@ const blockTask = (source, context, mode) => {
                 result.statement ?? statement, result.normal, result.statement !== null, result.statement !== null))
         }
         if (statement[0] === 'loop') {
-            return bind(blockTask(statement[1].body, { ...context, loops: { first: statement[1].target, tail: context.loops } }, 'none'), result => append(
-                result.block === statement[1].body ? statement : ['loop', { ...statement[1], body: result.block }],
-                true, result.returns, result.lifted))
+            const loop = statement[1]
+            return bind(sequenceTask(loop.initial, context.owner, false, context.permitted), initial => {
+                if (!initial.normal) {
+                    return finish(initial.statements.reduce((tail, first) => /** @type {List<Statement>} */ ({ first, tail }), statements),
+                        ['yield', []], false, true, true, true)
+                }
+                return bind(blockTask(loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), result => append(
+                    !initial.lifted && result.block === loop.body ? statement
+                        : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: result.block }],
+                    true, initial.lifted || result.returns, initial.lifted || result.lifted, initial.lifted ? initial.statements : []))
+            })
         }
         if (statement[0] === 'block') {
             return bind(blockTask(statement[2], context, 'statement'), result => append(
@@ -373,14 +382,14 @@ const blockTask = (source, context, mode) => {
                     test.statement === null && then.block === statement[3] && otherwise.block === statement[4] ? statement
                         : ['if', statement[1], test.value, then.block, otherwise.block],
                     then.normal || otherwise.normal, then.returns || otherwise.returns || test.statement !== null,
-                    then.lifted || otherwise.lifted || test.statement !== null, test.statement)))
+                    then.lifted || otherwise.lifted || test.statement !== null, test.statement === null ? [] : [test.statement])))
         })
     })
     return each(0, null, false, false, false)
 }
 
 /**
- * Normalize direct required initializers, return/transfer payloads and statement results.
+ * Normalize required and loop-entry initializers, return/transfer payloads and statement results.
  * No owning return to expose means no change to the input block identity.
  * @type {(block: Block, owner: FunctionTarget) => Block}
  */

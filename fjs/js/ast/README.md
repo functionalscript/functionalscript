@@ -41,6 +41,13 @@ remaining payloads and the transfer. Normal completion retains the exact loop
 target and ordered result or next-state list. A continue establishes every next
 value before transferring, preserving simultaneous state updates.
 
+Loop entry expressions evaluate once, in order, in the enclosing scope before
+the new target and parameter bindings become active. Return lifting establishes
+earlier initializers before a later expression can return to the enclosing
+function; that return skips the remaining initializers, loop and following
+work. Normal completion enters the loop with those established values in
+declared parameter order, preserving its target and result bindings.
+
 `Operator<V>` retains the existing operation vocabulary while parameterizing
 its value operands. `mapOperator(map)(operator)` maps those operands, including
 computed keys, spreads and optional-chain continuations, without interpreting

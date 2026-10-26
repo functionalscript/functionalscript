@@ -127,8 +127,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       expressions retain construction order and the enclosing return owner,
       while nested bodies keep their own function boundary. Break and continue
       payloads retain evaluation order, exact targets and simultaneous state
-      updates while exposing owning returns. The remaining operand
-      boundaries stay open.
+      updates while exposing owning returns. Loop-entry initializers expose
+      owning returns in enclosing scope before the loop starts, preserving
+      ordered one-time setup and caller/iteration memo lifetimes. The remaining
+      operand boundaries stay open.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
