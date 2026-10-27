@@ -14,6 +14,7 @@ import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
 import { array, bigint, boolean, number, open, or, record, string, unknown } from '../rtti/module.f.mjs'
 import { ok } from '../types/result/module.f.js'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 /** @type {(s: string) => Vec} */
@@ -295,7 +296,7 @@ export const proof = {
         // an undeclared member and the value it returns does not carry it.
         extrasDropped: () => {
             const v = assertOk(revisionKit.validate({ ...revisionValue, future: 1 }))
-            assertEq('future' in v, false)
+            assertEq(hasEntry(v, 'future'), false)
         },
 
         // The refinement's error joins the kit's.

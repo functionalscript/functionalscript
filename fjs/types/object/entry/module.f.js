@@ -41,9 +41,12 @@ export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
  * converts it, a nullish `a` throwing as there. Recognized whole by the compiler as the EDAG's
  * `['hasEntry']`, as `entry` is ([spec: why two helpers](../../../../spec/property-access/entries/README.md#why-two-helpers)).
  *
- * @type {HasEntry}
+ * A type guard, {@link HasEntry}: a union told apart by which key it holds
+ * narrows under it as it does under JavaScript's `in`. The helper is cast
+ * to it whole, the parentheses leaving no node behind, since the body takes
+ * its key as `any`, as `entry`'s does.
  */
-export const hasEntry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
+export const hasEntry = /** @type {HasEntry} */ ((/** @type {unknown} */ a, /** @type {any} */ b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable === true;
-};
+});

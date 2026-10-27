@@ -13,6 +13,7 @@
 import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
 import { operatorOperands } from '../../../js/ast/module.f.mjs'
 import { _prohibitedAccess } from '../../../compiler/parser/module.f.mjs'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(a: Analysis, key: Operand, method: boolean) => string | null} */
 const keyReason = (a, key, method) => {
@@ -134,7 +135,7 @@ const lazyReason = fast => {
     let pending = [{ block: fast }]
     while (pending.length !== 0) {
         const [task, ...rest] = pending
-        if ('block' in task) {
+        if (hasEntry(task, 'block')) {
             const { block } = task
             if (block.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy')) { return 'a shared node reached from outside the lazy operand that establishes it' }
             const blocks = block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]] : statement[0] === 'if' ? [statement[3], statement[4]] : statement[0] === 'loop' ? [statement[1].body] : [])

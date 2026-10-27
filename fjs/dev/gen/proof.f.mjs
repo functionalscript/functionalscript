@@ -27,6 +27,7 @@ import { utf8 } from '../../text/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { generators, main, sequence } from './module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */
 const child = asNominal('child')
@@ -149,12 +150,12 @@ export const proof = {
             assertEq(spawned(), 0)
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
-            assert('workflows' in github)
+            assert(hasEntry(github, 'workflows'))
             const nanvm = state.root['nanvm']
             assert(typeof nanvm === 'object' && !(nanvm instanceof Array))
             const harness = nanvm['harness']
             assert(typeof harness === 'object' && !(harness instanceof Array))
-            assert('gen.fixtures' in harness, modulesPath)
+            assert(hasEntry(harness, 'gen.fixtures'), modulesPath)
         },
         // A generator that fails stops the regeneration there: the Rust
         // writer cannot compile the runtime from an empty filesystem, and

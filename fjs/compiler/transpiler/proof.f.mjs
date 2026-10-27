@@ -31,6 +31,7 @@ import { partialRun } from '../../effects/mock/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * The package's runtime at its path beside a root's files: `fjs compile` interprets a data output under it, and the virtual root is the package.
@@ -230,7 +231,7 @@ export const proof = {
                     ? { main: [utf8('import {} from "./dep"; export default 1;')], dep: failure }
                     : { main: failure }
                 const result = represented(root, 'main')
-                assert(result[0] === 'error' && 'thrown' in result[1])
+                assert(result[0] === 'error' && hasEntry(result[1], 'thrown'))
                 assertEq(result[1].path, imported ? 'dep' : 'main')
                 assertEq(result[1].message, 'module initialization failed')
                 const payload = result[1].thrown
@@ -246,13 +247,13 @@ export const proof = {
                     dep: [utf8('export const unused=7; const discarded=null.x;')],
                 }
                 const result = represented(root, 'main')
-                assert(result[0] === 'error' && 'thrown' in result[1])
+                assert(result[0] === 'error' && hasEntry(result[1], 'thrown'))
                 assertEq(result[1].path, 'dep')
                 assertStructurallySame(result[1].thrown, ['undefined'])
             }
             const root = { main: [utf8('const discarded=null.x; export default 1;')] }
             const result = virtualAt(root)(_transpileDefault(noRuntime)('main'))[1]
-            assert(result[0] === 'error' && 'thrown' in result[1])
+            assert(result[0] === 'error' && hasEntry(result[1], 'thrown'))
             assertEq(result[1].path, 'main')
             assertStructurallySame(result[1].thrown, ['undefined'])
         },

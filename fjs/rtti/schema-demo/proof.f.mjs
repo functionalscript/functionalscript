@@ -18,6 +18,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { _crossings, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
 import { occurrences } from '../../types/string/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The demo's state after `event`. @type {(event: DemoEvent) => (state: DemoState) => DemoState} */
 const step = event => state => unwrap(assertNotNullish(
@@ -41,7 +42,7 @@ const page = (name, shown = 0, compare = '') =>
  *
  * @type {(r: ReturnType<ReturnType<typeof _readersOf>>) => unknown}
  */
-const texts = r => 'error' in r ? r : { parse: answerText(r.parse), validate: answerText(r.validate) }
+const texts = r => hasEntry(r, 'error') ? r : { parse: answerText(r.parse), validate: answerText(r.validate) }
 
 /** A reader's answer as the text its block shows. @type {(a: _Answer) => string} */
 const answerText = a => a.ok ? toText(a.marked) : a.text
@@ -263,11 +264,11 @@ const demoProof = /** @type {const} */ ({
         sharing: () => {
             const e = exampleNamed('Shared parts')
             const r = _readersOf(e.schemas[0].schema)(e.value)
-            assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && answerText(r.validate).startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
-            assert('parse' in r && !answerText(r.parse).includes('const'), JSON.stringify(r))
+            assert(!hasEntry(r, 'error'), 'expected the readers to run')
+            assert(hasEntry(r, 'validate') && answerText(r.validate).startsWith('const $0={"street":"1 Main St","city":"Kyiv"};\nexport default {'), JSON.stringify(r))
+            assert(hasEntry(r, 'parse') && !answerText(r.parse).includes('const'), JSON.stringify(r))
             // The shared value's name is marked as a name, by the writer.
-            assert('validate' in r && r.validate.ok && r.validate.marked.some(([t, k]) => t === '$0' && k === 'identifier'), JSON.stringify(r))
+            assert(hasEntry(r, 'validate') && r.validate.ok && r.validate.marked.some(([t, k]) => t === '$0' && k === 'identifier'), JSON.stringify(r))
         },
         // A `;` inside a string ends no statement.
         semicolonInAString: () => assertEq(JSON.stringify(texts(_readersOf({ s: string })('export default {"s":";"};'))),
@@ -279,7 +280,7 @@ const demoProof = /** @type {const} */ ({
             assertEq(JSON.stringify(texts(_readersOf({ a: number })('export default [];'))),
                 JSON.stringify({ parse: 'at the root: unexpected value', validate: 'at the root: unexpected value' }))
         },
-        notADocument: () => assert('error' in _readersOf(number)('1'), 'expected a parse error'),
+        notADocument: () => assert(hasEntry(_readersOf(number)('1'), 'error'), 'expected a parse error'),
     },
     // Every schema the demo shows has a TypeScript type, a JSON Schema and a
     // canonical form, so the outputs never fail on a page.
@@ -350,8 +351,8 @@ const demoProof = /** @type {const} */ ({
         // From the page: a nested failure marks only that member.
         page: () => {
             const r = _readersOf({ a: { b: number } })('export default {"a":{"b":"x"}};')
-            assert(!('error' in r), 'expected the readers to run')
-            assert('validate' in r && !r.validate.ok, JSON.stringify(r))
+            assert(!hasEntry(r, 'error'), 'expected the readers to run')
+            assert(hasEntry(r, 'validate') && !r.validate.ok, JSON.stringify(r))
             assertEq(JSON.stringify(_marked(r.validate.ok ? [] : r.validate.path)(r.value)),
                 JSON.stringify(['{', '"a":', '{', '"b":', ['mark', '"x"'], '}', '}']))
         },

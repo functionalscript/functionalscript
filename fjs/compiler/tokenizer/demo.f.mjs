@@ -32,6 +32,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { caption } from '../../website/demo/module.f.mjs'
 import { stageDemo } from '../stage_demo/module.f.mjs'
 import { tokenize } from './module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * One token as a line: `line:column  kind  value`, with an error's message
@@ -42,7 +43,7 @@ import { tokenize } from './module.f.mjs'
 export const _line = ({ token, metadata }) => {
     const detail = token.kind === 'error'
         ? `${token.message}${token.end === undefined ? '' : ` (to ${token.end.line}:${token.end.column})`}`
-        : 'value' in token ? (typeof token.value === 'bigint' ? `${token.value}n` : JSON.stringify(token.value)) : ''
+        : hasEntry(token, 'value') ? (typeof token.value === 'bigint' ? `${token.value}n` : JSON.stringify(token.value)) : ''
     return `${metadata.line}:${metadata.column}  ${token.kind}${detail === '' ? '' : `  ${detail}`}`
 }
 

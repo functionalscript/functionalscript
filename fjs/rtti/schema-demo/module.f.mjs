@@ -52,6 +52,7 @@ import { highlight, render } from '../../website/demo/highlight/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 import { pageHref } from '../../website/page/module.f.mjs'
 import { chunksMarked, chunksText, keyword } from '../../text/marked/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // ── graph ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ const infoShape = name => info => {
     switch (info[0]) {
         case 'const': {
             const s = constShape(info[1])
-            return 'label' in s ? { ...s, label: named(s.label) } : s
+            return hasEntry(s, 'label') ? { ...s, label: named(s.label) } : s
         }
         case 'array': { return { kind: 'array', label: named('array'), children: [['', info[1]]] } }
         case 'record': { return { kind: 'record', label: named('record'), children: [['', info[1]]] } }
@@ -112,7 +113,7 @@ const infoShape = name => info => {
  */
 const shapeOf = t => {
     const shape = typeof t !== 'function' ? constShape(t) : infoShape(t.name)(t())
-    return 'children' in shape ? { ...shape, recursive: true } : shape
+    return hasEntry(shape, 'children') ? { ...shape, recursive: true } : shape
 }
 
 const schemaGraph = graphOf(shapeOf)
@@ -405,7 +406,7 @@ const valueView = (s, text) => {
     const r = _readersOf(s.schema)(text)
     return [
         textField({ name: 'value', label: 'Value (DataJS)', rows: 4, highlight }, text),
-        .../** @type {readonly Element[]} */ ('error' in r
+        .../** @type {readonly Element[]} */ (hasEntry(r, 'error')
             ? answerView('DataJS', false, [r.error])
             : [
                 ...answerView('parse', r.parse.ok, answerNodes(r.parse)),

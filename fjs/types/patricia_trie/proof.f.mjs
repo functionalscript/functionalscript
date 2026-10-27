@@ -7,6 +7,7 @@ import { assert, assertEq } from '../../asserts/module.f.js'
 import { emptyState, patriciaTrie } from './module.f.mjs'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { hasEntry } from '../object/entry/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -155,7 +156,7 @@ const html = state => htmlToString(demo.view(state))
 const follow = name => {
     const loaded = _load(name)
     const { status } = loaded
-    assert('preset' in status, '')
+    assert(hasEntry(status, 'preset'), '')
     return _press(status.hint.startsWith('Press Remove') ? 'remove' : 'insert')(loaded)
 }
 

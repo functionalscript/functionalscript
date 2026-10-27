@@ -29,6 +29,7 @@ import { caption, textDemo } from '../../website/demo/module.f.mjs'
 import { highlight } from '../../website/demo/highlight/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { stringLiteral } from '../string_escape/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * A value as the repository's string literal, with U+2028 and U+2029 escaped
@@ -48,7 +49,7 @@ const show = value => stringLiteral(value).replaceAll('\u2028', '\\u2028').repla
  */
 export const line = ({ token, metadata }) => {
     const detail = token.kind === 'error' ? token.message
-        : 'value' in token ? (typeof token.value === 'bigint' ? `${token.value}n` : show(token.value))
+        : hasEntry(token, 'value') ? (typeof token.value === 'bigint' ? `${token.value}n` : show(token.value))
         : ''
     return `${metadata.line}:${metadata.column}  ${token.kind}${detail === '' ? '' : `  ${detail}`}`
 }

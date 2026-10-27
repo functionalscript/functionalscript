@@ -5,6 +5,7 @@ import { number, open, option, or, string } from '../../../module.f.mjs'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'
+import { hasEntry } from '../../../../types/object/entry/module.f.js'
 
 const verdicts = verdictsOf(lessons)
 
@@ -21,8 +22,8 @@ export const proof = {
         handedBack: () => assert(assertOk(validate(person)(alice)) === alice),
         absent: () => {
             const s = { a: or(option, number) }
-            assert(!('a' in assertOk(parse(s)({}))))
-            assert(!('a' in assertOk(validate(s)({}))))
+            assert(!hasEntry(assertOk(parse(s)({})), 'a'))
+            assert(!hasEntry(assertOk(validate(s)({})), 'a'))
         },
         shared: () => {
             const s = { x: { n: number }, y: { n: number } }

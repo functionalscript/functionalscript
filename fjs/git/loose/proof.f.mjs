@@ -12,6 +12,7 @@ import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { tryRead } from './module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The file, as the chunks one open takes. @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
 const chunks = (bytes, size) => Array.from({ length: Math.max(1, Math.ceil(bytes.length / size)) }, (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
@@ -49,7 +50,7 @@ const files = {
 const hostOf = size => ({
     readWhole: path => log => [
         [...log, `readWhole ${path}`],
-        path in files
+        hasEntry(files, path)
             ? ok(chunks(files[path], size))
             : error(noFile(path)),
     ],

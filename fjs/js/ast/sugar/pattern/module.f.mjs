@@ -18,6 +18,7 @@
 import { error, ok } from '../../../../types/result/module.f.js'
 import { reverse, toArray } from '../../../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../../../types/ordered_map/module.f.mjs'
+import { hasEntry } from '../../../../types/object/entry/module.f.js'
 
 /** @type {(rest: Stack, top: Pending) => Stack} */
 const pushed = (rest, top) => ({ top, rest })
@@ -49,7 +50,7 @@ export const planPattern = policy => (target, namespace) => {
         /** @type {Pending} */
         const item = pending.top
         pending = pending.rest
-        if ('property' in item) {
+        if (hasEntry(item, 'property')) {
             const { property, parent } = item
             if (property instanceof Array) { return error(policy.refused('rest', property[1])) }
             const { key, target: element } = property
@@ -62,7 +63,7 @@ export const planPattern = policy => (target, namespace) => {
             pending = pushed(pending, { target: element, source: found[1] })
             continue
         }
-        if ('element' in item) {
+        if (hasEntry(item, 'element')) {
             const { element, source } = item
             if (element[0] === '...') { return error(policy.refused('rest', element[1])) }
             if (element[0] !== 'elision') { pending = pushed(pending, { target: element, source }) }
