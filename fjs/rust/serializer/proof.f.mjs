@@ -67,8 +67,10 @@ export const proof = {
     },
     /** Each reached iterator is established before the next operand runs. */
     spreadExpansion: () => {
-        const later = /** @type {Value} */ (['()', ['ref', x], []])
+        /** @type {Value} */
+        const later = ['()', ['ref', x], []]
         const values = /** @type {const} */ ([['...', null], later])
+        /** @type {string} */
         const expanded = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
         assertEq(text(['array', values], true), expanded)
         assertEq(text(['array', values]), `(${expanded})?`)
@@ -89,6 +91,7 @@ export const proof = {
     /** Selected chain argument thunks contain expansion; lookup stays outside. */
     selectedSpreadRegions: () => {
         const args = /** @type {const} */ ([['...', null], ['()', ['ref', x], []]])
+        /** @type {string} */
         const items = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
         assertEq(text(['.', ['()', ['ref', y], []], 'slice', ['|()', args]], true),
             `Any::dot((Any::call(_b1.clone(), Array::default().to_any()))?, string_any("slice")).end_call(&runtime, || ${items})`)
