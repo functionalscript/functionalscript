@@ -1228,8 +1228,8 @@ const toAfterCase = node => {
  */
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
-/** The shared syntax record for a module or function loop. @type {(node: Ast<WhileStatement, ModuleTokenWithMetadata, Out>) => While} */
-const whileAt = node => {
+/** The shared condition/block record for a loop or its normal conditional. @type {(node: Ast<WhileStatement, ModuleTokenWithMetadata, Out>) => While} */
+const loopConditionAt = node => {
     const [first, , condition, , blk] = unmapped(node)
     return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
 }
@@ -1247,7 +1247,7 @@ const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        case 'while': { return symbol({ id: 'statement', statement: ['while', whileAt(branch)] }) }
+        case 'while': { return symbol({ id: 'statement', statement: ['while', loopConditionAt(branch)] }) }
         default: {
             const [first, , condition, , blk] = unmapped(branch)
             const [block] = blockOf(unmapped(blk))
@@ -1269,7 +1269,7 @@ const discarded = (name, rest, end) =>
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
-    if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', whileAt(branch)] }) }
+    if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
@@ -1295,12 +1295,15 @@ const toBodyNameStatement = ([name, rest, end]) => {
 }
 
 /**
- * A loop block's statement, tagged: a `const` or a `let`, its record; or
- * what begins with a name, {@link toBodyNameStatement}.
+ * A loop block's statement, tagged: a declaration, a normal conditional over
+ * another loop block, or what begins with a name.
  *
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toLoopStatement = ([kind, branch]) => symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopConditionAt(branch)] }) }
+    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+}
 
 /**
  * The record of a statement that is a keyword and a value — `return`,

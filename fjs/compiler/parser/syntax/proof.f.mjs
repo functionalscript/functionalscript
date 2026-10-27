@@ -54,6 +54,23 @@ const returned = node => {
 }
 
 export const proof = {
+    loopConditionalsKeepLexicalBlocksAndFollowingStatements: () => {
+        const module = unwrap(parseSyntax(tokenizeString('let i=0;while(i<2){\nif(i===0){const local=1;if(local){i=i+local;}}i=i+1;}export default i;')))
+        const loop = module.statements[1]
+        assert(loop[0] === 'while')
+        assertStructurallySame(loop[1].block[1].map(statement => statement[0]), ['if', 'assign'])
+        const conditional = loop[1].block[1][0]
+        assert(conditional[0] === 'if')
+        assertStructurallySame(Object.keys(conditional[1]).toSorted(), ['block', 'condition', 'start'])
+        assertEq(conditional[1].start.metadata.line, 2)
+        assertEq(conditional[1].condition[0], '===')
+        assertEq(conditional[1].block[0], 'loop')
+        assertStructurallySame(conditional[1].block[1].map(statement => statement[0]), ['const', 'if'])
+        const nested = conditional[1].block[1][1]
+        assert(nested[0] === 'if')
+        assertEq(nested[1].condition[0], 'ref')
+        assertEq(nested[1].block[1][0][0], 'assign')
+    },
     moduleLoopsKeepTheirOwnStatementRecord: () => {
         const module = unwrap(parseSyntax(tokenizeString('let i=0;\nexport const before=i;\nwhile(i<2){i=i+1;}\nexport const after=i;\nexport default i;')))
         assertStructurallySame(module.statements.map(statement => statement[0]), ['let', 'const', 'while', 'const'])

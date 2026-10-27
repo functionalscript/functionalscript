@@ -148,11 +148,14 @@ export type While = {
     readonly block: LoopBlock
 }
 
-/** A loop's block: its statements in order, `const`s, `let`s and assignments, and no terminator. */
+/** A loop's block: declarations, assignments and normal conditionals in order, and no terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
-/** A loop block's statement, tagged: a `const`, a `let`, or an assignment. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment]
+/** A normal conditional in a loop has the same condition/block record as its containing loop. Its closing brace resumes the surrounding block. */
+export type LoopIf = While
+
+/** A loop block's statement, tagged: a declaration, assignment or normal conditional. */
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the

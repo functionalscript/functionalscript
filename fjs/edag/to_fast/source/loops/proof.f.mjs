@@ -26,6 +26,58 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    conditionalSourceBodiesRetainValuesAndStableSpelling: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<7){if(i>3){sum=sum+i;}i=i+1;}return [i,sum];})();', [7, 15]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if(i<2){sum=sum+i;}if(sum>0){sum=sum+10;}i=i+1;}return [i,sum];})();', [3, 21]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let local=1;if(i>0){local=local+2;}sum=sum+local;i=i+1;}return [i,sum];})();', [3, 7]],
+            ['export default (()=>{let i=0;let sum=0;while(i<4){if(i>0){if(i<3){sum=sum+i;}}i=i+1;}return [i,sum];})();', [4, 3]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if(i<2){let sum=10;sum=sum+1;const own=sum;}sum=sum+1;i=i+1;}return [i,sum];})();', [3, 3]],
+            ['export default (()=>{let i=0;let a=1;let b=2;while(i<3){if(i<2){const old=a;a=b;b=old;}i=i+1;}return [i,a,b];})();', [3, 1, 2]],
+            ['export default (()=>{let i=0;let saved=null;while(i<3){if(i>0){const snapshot=i;saved=()=>snapshot;}i=i+1;}return saved();})();', 2],
+            ['export default (()=>{let i=0;let a=null;let b=null;while(i<2){if(i<2){const shared=[i];a=shared;b=shared;}i=i+1;}return [a===b,a];})();', [true, [1]]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if((()=>{const pair=[i];return pair===pair?i<2:false;})()){sum=sum+i;}i=i+1;}return [i,sum];})();', [3, 1]],
+            ['export default (()=>{let i=0;while(i<2){if(false){const skipped=null.x;}i=i+1;}return i;})();', 2],
+            ['export default (()=>{while(false){if(true){const skipped=null.x;}}return 7;})();', 7],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected, source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            assertStructurallySame(evaluate(normalized), expected, first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), source)
+            assertEq(assertOk(tryStringify(restored)), canonical, source)
+            assertStructurallySame(evaluate(restored), expected, canonical)
+        }
+    },
+    conditionalSourceBodiesKeepRequiredFailuresSelected: () => {
+        /** @type {readonly string[]} */
+        const sources = [
+            'export default (()=>{let i=0;while(i<1){if(null.x){i=1;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(true){const required=null.x;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;let sum=0;while(i<1){if(true){sum=null.x;sum=1;}i=i+1;}return [i,sum];})();',
+            'export default (()=>{let i=0;while(i<1){if(true){if(true){const required=null.x;}}i=i+1;}return i;})();',
+        ]
+        for (const source of sources) {
+            const original = graph(source)
+            failure(original)
+            const first = assertOk(tryStringify(original))
+            failure(graph(first))
+            const canonical = assertOk(tryStringify(graph(first)))
+            failure(graph(canonical))
+            assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+        }
+    },
+    conditionalSourceBodyHasAPinnedWhileSpelling: () => {
+        const original = graph('export default ()=>{let i=0;while(i<4){if(i<2){i=i+1;}i=i+1;}return i;};')
+        assertEq(assertOk(tryStringify(original)), 'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[0];return $4<4;})()){const $5=$2;const $4=$5[0];const $6=$4<2?$4+1:$4;const $7=$6+1;const $8=[$7];$2=$8;}const $9=(()=>{const $10=$2;const $4=$10[0];return [$4];})();return $9;};return $0([0])[0];};')
+    },
     aggregateSourceWhileHasAStableNormalForm: () => {
         for (const source of /** @type {const} */ ([
             'export default (n=>{let i=0;let sum=0;while(i<n){sum=sum+i;i=i+1;}return [i,sum];})(5);',

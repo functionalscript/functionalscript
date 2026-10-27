@@ -43,6 +43,14 @@ source-normalized graph and canonical text then stabilize without helper or
 projection growth. Existing canonical scalar-loop graphs and spelling stay
 unchanged; condition-only required prefixes gain ordinary `while` output.
 
+Conditional source statements inside a loop normalize to explicit FAST branch
+results. Common graph conversion expresses those results as values within the
+existing plain-loop plan, retaining bounded-stack output and its source
+normalization contract without target-specific branch-state analysis.
+Copied condition projections are established immediately before their first
+body use, so unrelated required branch computations do not introduce redundant
+anchors that would need another source-normalization pass.
+
 Other canonical invocation roots retain recursive source spelling: multiple
 physical inputs, observed rest, structured transfers or a prefix computation
 that creates identity and must also be read in the body/result. Broader source

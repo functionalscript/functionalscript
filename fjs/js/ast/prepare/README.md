@@ -72,8 +72,10 @@ define-only continuing arm and one computed normal result. This is the shape
 of aggregate helpers for plain source loops. Entry computations run in the
 condition on every test, including the final false test. Only the transitive
 primitive/reference/numeric-projection prefix needed by the body or normal
-result is copied into those regions. Computations that create identity or call
-functions remain in their original condition region; a dependency shared with
+result is copied into those regions. Body copies are established immediately
+before their first statement use, preserving source normalization around
+unrelated initializers and selected branch results. Computations that create
+identity or call functions remain in their original condition region; a dependency shared with
 another region keeps the general loop form instead of being duplicated.
 
 Preparation uses the existing `while` plan and immutable iteration snapshots.

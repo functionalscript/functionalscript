@@ -5,6 +5,7 @@
  *
  * @module
  * @import { Block, Definition, Loop, Value } from '../../types.ts'
+ * @import { ScalarLoop } from '../types.ts'
  * @import { PlainLoop } from './types.ts'
  */
 
@@ -41,6 +42,24 @@ const prefixFor = (prefix, block) => {
 }
 
 /**
+ * Copies read values already established by the condition. Keep them beside
+ * their first body use so they do not acquire required anchors ahead of
+ * unrelated initializers or selected branch results during a source parse.
+ * @type {(prefix: readonly Definition[], step: ScalarLoop['step']) => ScalarLoop['step']}
+ */
+const withPrefix = (prefix, step) => {
+    let remaining = prefix
+    /** @type {readonly Definition[]} */
+    let statements = []
+    for (const statement of step.statements) {
+        const needed = prefixFor(remaining, { statements: [statement], exit: ['yield', []] })
+        statements = [...statements, ...needed, statement]
+        remaining = remaining.filter(definition => !needed.some(required => required[1] === definition[1]))
+    }
+    return { statements: [...statements, ...remaining], exit: step.exit }
+}
+
+/**
  * The terminal conditional continues one exact target or supplies its computed
  * normal result. Only projection dependencies may cross from the condition's
  * prefix into the continuing body or final-result region.
@@ -62,10 +81,10 @@ export const plainLoopOf = loop => {
     const resultPrefix = prefixFor(prefix, { statements: [], exit: ['yield', done[2]] })
     if (![...stepPrefix, ...resultPrefix].every(statement => projection(statement[2]))) { return null }
     return {
-        prefix, stepPrefix, resultPrefix,
+        prefix, resultPrefix,
         iteration: {
             condition,
-            step: { statements: /** @type {readonly Definition[]} */ (step.statements), exit: step.exit },
+            step: withPrefix(stepPrefix, { statements: /** @type {readonly Definition[]} */ (step.statements), exit: step.exit }),
             next: next[2][0],
         },
         result: done[2][0],
