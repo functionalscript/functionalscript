@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — `while` bodies with conditionals; nested loops and exits remain planned
+**Status:** implemented — nested `while` bodies with conditionals; explicit exits remain planned
 
 ```js
 export default n => {
@@ -20,7 +20,8 @@ statements read the values the last round left. Conditions use the same truth
 test as `?:`. No `;` follows the closing `}`.
 
 A loop may stand at module level, in a function body, in a terminal guard's or
-case's block, or after another loop. Module loops run in initialization order,
+case's block, inside another loop or conditional arm, or after another loop.
+Module loops run in initialization order,
 including between named exports; earlier exported constants retain their
 declared values ([modules](../../modules/README.md)). Its body holds `const`s
 and initialized `let`s, call statements, assignments and conditional blocks.
@@ -55,7 +56,25 @@ while (i < n) {
 }
 ```
 
-The current body grammar excludes switches, nested loops, `break`,
+An inner loop completes before the next statement in its enclosing block.
+Its assignments update enclosing variables in source order. Declarations in
+the outer body initialize again on every reached outer iteration; declarations
+inside the inner body belong to each reached inner iteration. An initially
+false inner condition skips only that body and leaves following statements
+reachable. Inner loops may also stand in either conditional arm.
+
+```js
+while (i < n) {
+    let j = 0;
+    while (j < 2) {
+        sum = sum + i + j;
+        j = j + 1;
+    }
+    i = i + 1;
+}
+```
+
+The current body grammar excludes switches, `break`,
 `continue`, `return` and `throw` statements. These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not

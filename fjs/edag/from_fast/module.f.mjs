@@ -28,7 +28,7 @@ import { liftReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { demandsInOrder } from '../demand/module.f.mjs'
+import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -36,8 +36,11 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** Establish a region's required evaluations before its result. @type {(value: Lowered) => Exp} */
-export const anchored = value => demandsInOrder(value.exp, value.anchors) ? value.exp : [',', [...value.anchors, value.exp]]
+/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered) => Exp} */
+export const anchored = value => {
+    const count = requiredPrefixLength(value.exp, value.anchors)
+    return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
+}
 
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)

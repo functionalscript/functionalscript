@@ -42,12 +42,15 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(result('let state=0;export const before=state;while(state<2){let local=1;local=local+1;state=state+local;}export const after=state;export default state;'), { after: 2, before: 0, default: 2 })
     },
     snapshotsSequentialAndZeroState: () => {
-        for (const [source, expected] of /** @type {readonly (readonly [string, unknown])[]} */ ([
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
             ['while(false){}export default 7;', { default: 7 }],
+            ['while(false){while(false){}}export default 1;', { default: 1 }],
             ['let r = 0; while (r) { r = 1; } export default r;', { default: 0 }],
             ['let i=0;let sum=0;export const before=i;while(i<3){sum=sum+i;i=i+1;}export const middle=sum;while(i<5){i=i+1;sum=sum+2;}export const after=i;export default sum;', { after: 5, before: 0, default: 7, middle: 3 }],
             ['let current=[0];export const before=current;let i=0;while(i<2){current=[i+1];i=i+1;}export const after=current;export default [before===after,before[0],after[0]];', { after: [2], before: [0], default: [false, 0, 2] }],
-        ])) {
+        ]
+        for (const [source, expected] of cases) {
             assertStructurallySame(result(source), expected, source)
         }
         parsed('let state=0;const snapshot=state;export const read=()=>snapshot;while(state<2){state=state+1;}export default [read(),state];')
@@ -106,7 +109,6 @@ export const proof = /** @type {const} */ ({
             ['while(false){};export default 1;', 'unexpected token'],
             ['export default 1;while(false){}', 'unexpected token'],
             ['while(false){}throw 1;while(false){}', 'unexpected token'],
-            ['while(false){while(false){}}export default 1;', 'unexpected token'],
             ['while(false){if(true){return 1;}}export default 1;', 'unexpected token'],
             ['while(false){break;}export default 1;', 'unexpected token'],
         ])) { assertEq(assertError(parse('')(source)).message, expected, source) }

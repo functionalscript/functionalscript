@@ -55,6 +55,13 @@ writes only. A read-only carried value therefore does not invent a write that
 escapes an enclosing immediate-call value region. Graph construction consumes
 the explicit signature without source write analysis.
 
+Nested source loops use this same rule recursively. Their reference/write
+events participate in the enclosing loop's state selection, and their normal
+results update the surrounding immutable mapping before later statements.
+Declarations introduced inside an outer iteration stay local to that iteration;
+an inner loop selects their established values at each reached entry. A binding
+carried read-only by an inner loop does not invent an enclosing write.
+
 Ordinary functions consume analyzed source capture facts. Intermediate
 functions forward values needed to construct deeper closures without inventing
 source reference events. Captures establish the current immutable version when

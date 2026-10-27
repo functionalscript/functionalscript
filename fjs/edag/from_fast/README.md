@@ -31,10 +31,15 @@ or string coercions.
 Environment graph substitutions can perform work; ordinary function parameters
 and captures are established values when the function body begins.
 
-Construction removes an anchor list only when the actual result demands the
-whole list in order before intervening work. Unknown operations retain the
-list. This keeps wide state updates stable without independently dropping an
-earlier demand while retaining a later one.
+Construction retains the shortest required prefix in its original order whose
+remaining suffix the result demands before intervening unowned work. The demand
+proof treats the retained prefix as established and matches the same graph-node
+identities, preserving earlier failures and lazy boundaries. Unknown operations
+retain unproven anchors; the proof covers the complete removed suffix.
+The shared demand query carries the retained prefix's eager dependency closure
+forward as the cut advances, using the existing persistent identity set. Each
+failed trial keeps its newly matched values local, so it cannot make a later
+cut appear safe. Earlier dependencies are not rebuilt for every candidate.
 
 Eager operands retain their own required evaluations when floating them would
 cross earlier work. Construction tests the actual parent with each child's

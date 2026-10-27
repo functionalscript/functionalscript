@@ -27,6 +27,24 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    independentCopiesFollowBodyReadOrder: () => {
+        /** @type {import('../../types.ts').BindingId} */
+        const combined = { index: 4 }
+        /** @type {readonly import('../../types.ts').Definition[]} */
+        const prefix = [
+            ['define', alias, ['.', ['ref', state], 0], 'required'],
+            ['define', other, ['.', ['ref', state], 1], 'required'],
+        ]
+        /** @type {import('../../types.ts').Definition} */
+        const sum = ['define', combined, ['+', ['ref', other], ['ref', alias]], 'required']
+        /** @type {Block} */
+        const step = { statements: [sum], exit: ['continue', target, [['ref', combined]]] }
+        /** @type {Loop} */
+        const source = { ...scalar, body: { ...scalar.body, statements: [...prefix, ['if', [], true, step, done]] } }
+        const plan = plainLoopOf(source)
+        assertStructurallySame(plan?.prefix, prefix)
+        assertStructurallySame(plan?.iteration.step.statements, [prefix[1], prefix[0], sum])
+    },
     schedulesCopiedDependenciesAtTheirFirstStepUse: () => {
         /** @type {BindingId} */
         const dependent = { index: 4 }

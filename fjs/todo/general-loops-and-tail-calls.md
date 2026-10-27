@@ -193,7 +193,11 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       union of their outer writes, retaining preceding values in an arm that
       leaves a binding unchanged. Each arm retains its lexical region and only
       reached conditions and computations run.
-      Nested loops, switches and explicit exits remain.
+      Nested `while` bodies, including loops in conditional arms, resume their
+      enclosing statements with the inner results and fresh local initialization
+      for every reached outer iteration. Existing shared source state selection
+      and graph conversion retain their normal continuations and scopes.
+      Switches and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

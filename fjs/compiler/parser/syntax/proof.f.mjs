@@ -54,6 +54,23 @@ const returned = node => {
 }
 
 export const proof = {
+    nestedLoopsKeepTheirBlocksAndFollowingStatements: () => {
+        const module = unwrap(parseSyntax(tokenizeString('let i=0;\nwhile(i<2){\nlet j=0;\nwhile(j<i){j=j+1;}if(i){while(false){}}else{while(false){}}i=i+1;}export default i;')))
+        const outer = module.statements[1]
+        assert(outer[0] === 'while')
+        assertEq(outer[1].start.metadata.line, 2)
+        assertStructurallySame(outer[1].block[1].map(statement => statement[0]), ['let', 'while', 'if', 'assign'])
+        const inner = outer[1].block[1][1]
+        assert(inner[0] === 'while')
+        assertEq(inner[1].start.metadata.line, 4)
+        assertEq(inner[1].condition[0], '<')
+        assertStructurallySame(inner[1].block[1].map(statement => statement[0]), ['assign'])
+        const conditional = outer[1].block[1][2]
+        assert(conditional[0] === 'if')
+        assertEq(conditional[1].block[1][0][0], 'while')
+        assert(conditional[1].otherwise !== null)
+        assertEq(conditional[1].otherwise[1][0][0], 'while')
+    },
     loopConditionalsKeepLexicalBlocksAndFollowingStatements: () => {
         const module = unwrap(parseSyntax(tokenizeString('let i=0;while(i<2){\nif(i===0){const local=1;if(local){i=i+local;}}i=i+1;}export default i;')))
         const loop = module.statements[1]

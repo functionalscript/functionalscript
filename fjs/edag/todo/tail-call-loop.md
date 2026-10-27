@@ -51,10 +51,15 @@ Copied condition projections are established immediately before their first
 body use, so unrelated required branch computations do not introduce redundant
 anchors that would need another source-normalization pass.
 
+Nested source loops use the same state selection, graph conversion and loop
+preparation. Each normal result resumes its enclosing body, with fresh reached
+local declarations and immutable iteration snapshots. Eligible helpers retain
+bounded-stack output and the same source-normalization contract at each level.
+
 Other canonical invocation roots retain recursive source spelling: multiple
 physical inputs, observed rest, structured transfers or a prefix computation
 that creates identity and must also be read in the body/result. Broader source
-placement, structured bodies and explicit exits remain H work. The source
+placement and structured transfers remain H work. The source
 adapter uses shared recognition and preparation, with no writer-specific state
 or source-write analysis.
 

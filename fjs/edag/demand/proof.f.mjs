@@ -3,7 +3,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { demandsInOrder } from './module.f.mjs'
+import { demandsInOrder, requiredPrefixLength } from './module.f.mjs'
 
 const first = /** @type {const} */ (['.', null, 'first'])
 const second = /** @type {const} */ (['.', null, 'second'])
@@ -101,10 +101,121 @@ export const proof = /** @type {const} */ ({
         assertEq(demandsInOrder(['[]', [read, second]], [second], [read]), true)
         assertEq(demandsInOrder(['[]', [first, second]], [second], [['.', null, 'first']]), false)
     },
+    completedParentsEstablishEagerDependencies: () => {
+        /** @type {Exp} */
+        const state = ['arg', 0]
+        /** @type {Exp} */
+        const read = ['.', state, 0]
+        /** @type {Exp} */
+        const predicate = ['>', read, 0]
+        assertEq(demandsInOrder(['[]', [read, second]], [second], [predicate]), true)
+        /** @type {Exp} */
+        const owner = ['[]', [first]]
+        assertEq(demandsInOrder(['[]', [owner, second]], [owner, first, second]), true)
+        /** @type {Exp} */
+        const key = ['String', first]
+        /** @type {readonly Exp[]} */
+        const parents = [
+            ['[]', [['...', first], second]],
+            ['()', fn, [['...', first], second]],
+            ['{}', [[':', key, second]]],
+        ]
+        for (const parent of parents) {
+            assertEq(demandsInOrder(0, [first, second], [parent]), true)
+            assertEq(demandsInOrder(['[]', [parent, second]], [parent, first, second]), true)
+        }
+        assertEq(demandsInOrder(0, [key], [parents[2]]), true)
+    },
+    completedParentsKeepLazyAndFunctionBoundaries: () => {
+        /** @type {Exp} */
+        const test = ['===', first, 0]
+        /** @type {readonly ['Number', Exp]} */
+        const key = ['Number', second]
+        /** @type {readonly (readonly [Exp, readonly Exp[], readonly Exp[]])[]} */
+        const cases = [
+            [['?:', test, second, fn], [test, first], [second, fn]],
+            [['=>', 0, [first], second], [first], [second]],
+            [['?.', first, key], [first], [key, second]],
+            [['?.()', first, [second]], [first], [second]],
+            [['.', first, 'method', ['|()', [second]]], [first], [second]],
+        ]
+        for (const [parent, reached, skipped] of cases) {
+            for (const value of reached) { assertEq(demandsInOrder(0, [value], [parent]), true) }
+            for (const value of skipped) { assertEq(demandsInOrder(0, [value], [parent]), false) }
+        }
+        /** @type {Exp} */
+        const other = ['.', null, 'first']
+        assertEq(demandsInOrder(0, [other], [['[]', [first]]]), false)
+    },
+    deepSharedCompletedParents: () => {
+        /** @type {Exp} */
+        let parent = first
+        for (let depth = 0; depth < 20_000; ++depth) { parent = ['[]', [parent, parent]] }
+        assertEq(demandsInOrder(0, [first], [parent]), true)
+    },
     deepContainers: () => {
         /** @type {Exp} */
         let exp = first
         for (let depth = 0; depth < 20_000; ++depth) { exp = ['[]', [exp]] }
         assertEq(demandsInOrder(exp, [first]), true)
+    },
+    shortestRequiredPrefixes: () => {
+        /** @type {Exp} */
+        const owner = ['[]', [first]]
+        /** @type {Exp} */
+        const other = ['.', null, 'first']
+        /** @type {readonly (readonly [Exp, readonly Exp[], number])[]} */
+        const cases = [
+            [0, [], 0],
+            [first, [first], 0],
+            [second, [first, second], 1],
+            [0, [first, second], 2],
+            [['[]', [second, first]], [first, second], 1],
+            [['[]', [first, second]], [first, second, first], 0],
+            [first, [other, first], 1],
+            [second, [owner, first, second], 1],
+            [second, [first, 0, second], 2],
+            [second, [first, 0, second, 0], 4],
+            [['[]', [first, second]], [first, null, first, second], 2],
+            [0, [0, null, 1n, 'value', false], 5],
+            [['[]', [owner, second]], [owner, second, other], 3],
+        ]
+        for (const [exp, required, expected] of cases) {
+            assertEq(requiredPrefixLength(exp, required), expected)
+            assertEq(demandsInOrder(exp, required.slice(expected), required.slice(0, expected)), true)
+            for (let at = 0; at < expected; ++at) {
+                assertEq(demandsInOrder(exp, required.slice(at), required.slice(0, at)), false)
+            }
+        }
+    },
+    requiredPrefixesKeepCompletionBoundaries: () => {
+        /** @type {readonly ['Number', Exp]} */
+        const key = ['Number', second]
+        /** @type {readonly (readonly [Exp, readonly Exp[], readonly Exp[]])[]} */
+        const cases = [
+            [['?:', first, second, fn], [first], [second, fn]],
+            [['=>', 0, [first], second], [first], [second]],
+            [['?.', first, key], [first], [key, second]],
+            [['?.()', first, [second]], [first], [second]],
+            [['.', first, 'method', ['|()', [second]]], [first], [second]],
+        ]
+        for (const [parent, reached, skipped] of cases) {
+            assertEq(requiredPrefixLength(0, [parent, ...reached]), 1)
+            for (const value of skipped) { assertEq(requiredPrefixLength(0, [parent, value]), 2) }
+        }
+        /** @type {readonly Exp[]} */
+        const completed = [
+            ['[]', [['...', first], second]],
+            ['()', fn, [['...', first], second]],
+            ['{}', [[':', key, first]]],
+        ]
+        for (const parent of completed) { assertEq(requiredPrefixLength(0, [parent, first, second]), 1) }
+        assertEq(requiredPrefixLength(['[]', [['+', first, 1], second]], [first, second]), 2)
+    },
+    manyUnusedRequiredValues: () => {
+        /** @type {readonly Exp[]} */
+        const required = Array.from({ length: 3_000 }, () => ['[]', []])
+        assertEq(requiredPrefixLength(0, required), required.length)
+        assertEq(requiredPrefixLength(required[required.length - 1], required), required.length - 1)
     },
 })

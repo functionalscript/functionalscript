@@ -238,6 +238,69 @@ export const proof = {
             assertEq(value === exp, natural)
         }
     },
+    demandedAnchorSuffixRetainsEarlierFailures: () => {
+        /** @type {Exp} */
+        const first = ['throw', 17]
+        /** @type {Exp} */
+        const second = ['throw', 99]
+        const graph = anchored({ exp: second, anchors: [first, second] })
+        assertStructurallySame(graph, [',', [first, second]])
+        assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 17)
+        /** @type {Exp} */
+        const prefix = ['[]', []]
+        /** @type {readonly Exp[]} */
+        const primitives = [0, null, 1n]
+        for (const primitive of primitives) {
+            assertStructurallySame(anchored({ exp: second, anchors: [prefix, primitive, second] }), [',', [prefix, primitive, second]])
+        }
+    },
+    demandedAnchorSuffixKeepsLazyAndUnownedWork: () => {
+        /** @type {Exp} */
+        const first = ['[]', []]
+        /** @type {Exp} */
+        const second = ['throw', 17]
+        /** @type {readonly Exp[]} */
+        const expressions = [
+            ['?:', false, second, first],
+            ['[]', [['throw', 99], second]],
+        ]
+        for (const exp of expressions) {
+            const graph = anchored({ exp, anchors: [first, second] })
+            assertStructurallySame(graph, [',', [first, second, exp]])
+            assertEq(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 17)
+        }
+    },
+    demandedAnchorSuffixRetainsSharedIdentity: () => {
+        /** @type {Exp} */
+        const shared = ['[]', []]
+        /** @type {Exp} */
+        const same = ['===', shared, shared]
+        /** @type {Exp} */
+        const exp = ['?:', same, shared, null]
+        const graph = anchored({ exp, anchors: [shared, same] })
+        assertStructurallySame(graph, [',', [shared, exp]])
+        assert(graph instanceof Array && graph[0] === ',')
+        assertEq(graph[1][0], shared)
+        assertEq(graph[1][1], exp)
+        assertStructurallySame(evaluate(graph), [])
+    },
+    manyUnusedInitializersRetainOrderedAnchors: () => {
+        const count = 3_000
+        const bindings = Array.from({ length: count }, (_, index) => id(index))
+        const block = result(0, bindings.map(binding => ['define', binding, ['array', []], 'required']))
+        const lowered = lowerBlock(block)
+        const graph = anchored(lowered)
+        assertEq(lowered.anchors.length, count)
+        assertEq(new Set(lowered.anchors).size, count)
+        assert(graph instanceof Array && graph[0] === ',')
+        assertEq(graph[1].length, count + 1)
+        for (let index = 0; index < count; ++index) {
+            assertEq(graph[1][index], lowered.anchors[index])
+            assertStructurallySame(graph[1][index], ['[]', []])
+        }
+        assertEq(graph[1][count], 0)
+        assertStructurallySame(fromFast(block), graph)
+    },
     wideRequiredUpdatesNormalizeTogether: () => {
         const parameters = Array.from({ length: 18 }, (_, index) => id(index))
         const next = parameters.map((_, index) => id(index))
