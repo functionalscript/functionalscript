@@ -448,6 +448,17 @@ const stepper = (root, demo) => {
     let queue = Promise.resolve()
     let pending = 0
     let revision = 0
+    // A reader edit not yet reported to `settled`.
+    let edited = false
+    /** @type {() => void} */
+    let onSettled = () => {}
+    const drain = () => {
+        pending -= 1
+        if (pending === 0 && edited) {
+            edited = false
+            onSettled()
+        }
+    }
     let incremental = false
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let scheduled
@@ -465,7 +476,10 @@ const stepper = (root, demo) => {
     }
     /** @type {(event: DemoEvent, automatic?: boolean) => void} */
     const step = (event, automatic = false) => {
-        if (!automatic && event.kind !== 'start') { revision += 1 }
+        if (!automatic && event.kind !== 'start') {
+            revision += 1
+            edited = true
+        }
         const keepControls = automatic || incremental
         clearTimeout(scheduled)
         scheduled = undefined
@@ -491,8 +505,8 @@ const stepper = (root, demo) => {
                 incremental = false
                 fail(root, cause)
             } finally {
-                pending -= 1
                 if (!keepControls) { busy(root, false) }
+                drain()
             }
         })
     }
@@ -501,6 +515,7 @@ const stepper = (root, demo) => {
         read: () => state,
         busy: () => pending > 0,
         revision: () => revision,
+        settled: listener => { onSettled = listener },
         replace: (replacement, after, current, initialize = false) => {
             clearTimeout(scheduled)
             scheduled = undefined
@@ -532,7 +547,7 @@ const stepper = (root, demo) => {
                 } finally {
                     if (initialize) { busy(root, false) }
                 }
-            }).catch(cause => fail(root, cause)).finally(() => { pending -= 1 })
+            }).catch(cause => fail(root, cause)).finally(drain)
         },
     }
 }
