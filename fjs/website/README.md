@@ -43,7 +43,8 @@ copies `#demo` without a query; input links use `#demo` for defaults. Example li
 such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
 custom inputs use individual query parameters such as `?compiler=source#demo`.
 Restore validates all inputs before replacing state and never presses action
-buttons. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
+buttons. Each settled edit pushes a history entry carrying the same query, so
+the address bar is always the current link and Back walks the edits. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
 atomic sharing adapter; `textDemo` supplies one automatically. See the
 [sharing contract](./demo/sharing/README.md) for encodings, validation,
 clipboard feedback, startup edits and history navigation.
