@@ -29,6 +29,7 @@ import { cmp as cmpValue } from '../../types/function/compare/module.f.mjs'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.js'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
@@ -1312,7 +1313,7 @@ const patternsValidate = (k, item, value) => kindFold({
  * and what a set with no `rest` admits past them.
  *
  * The declared members are checked with absence decided **before** dispatch
- * — a key or index that is neither an own property nor an inherited one is a
+ * — a key or index that is no enumerable own entry ({@link hasEntry}) is a
  * missing member, legal exactly when its set carries the absent bit; a
  * present one is checked as the value read. That is the before-dispatch test
  * the schema-form readers make, so the three readers agree on `{}` versus
@@ -1323,9 +1324,7 @@ const patternsValidate = (k, item, value) => kindFold({
  * What is left over is held to `rest`, or, with no `rest`, answered by
  * `bare`. It is `undeclaredMembers` on both kinds — what the schema-form
  * readers walk too — so "what is left over" is one rule rather than two that
- * happen to coincide, including an index the prototype supplies, which an
- * own-entry filter answered `ok` for while the rendered tail claimed the
- * `rest`'s type over it.
+ * happen to coincide.
  */
 const setValidate =
     /**
@@ -1341,7 +1340,7 @@ const setValidate =
         const declared = eachEntry(
             entries,
             (k, n) => {
-                if (!(k in value)) {
+                if (!hasEntry(value, k)) {
                     return admitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value')
                 }
                 const m = nodeValidate(rules)(n)(getItem(value, k))
@@ -1389,7 +1388,7 @@ const objectSetValidate = setValidate(
     /** @type {(p: ObjectSet) => ReadonlyArray<readonly [string, Node]>} */
     p => definedEntries(p.props),
     /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
-    (value, k) => value[k],
+    (value, k) => entry(value, k),
     () => true,
 )
 

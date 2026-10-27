@@ -132,6 +132,13 @@ const rows = () => {
         // the declared-member top — anything, or nothing — is still closed over
         // its undeclared keys
         [{ a: or(option, unknown) }, {}],
+        // a declared name `Object.prototype` carries is an own entry like any
+        // other: `{}` holds no `toString` and no `constructor`
+        [{ toString: or(option, number) }, {}],
+        [{ toString: or(option, number) }, { toString: 1 }],
+        [{ toString: or(option, number) }, { toString: 'x' }],
+        [{ constructor: number }, {}],
+        [{ constructor: number }, { constructor: 1 }],
         [{ a: or(option, unknown) }, { a: 1 }],
         [{ a: or(option, unknown) }, { a: 1, b: 2 }],
         // and the same rows under `open`, which is the form that admits them
@@ -372,6 +379,24 @@ export const proof = {
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
+    // A member is an enumerable own entry, so a name only `Object.prototype`
+    // supplies is absent from a plain object: legal where the schema admits
+    // absence, a missing member where it does not, and never the inherited
+    // function read as the member's value.
+    inheritedName: {
+        optionalIsAbsent: () => {
+            const s = { toString: or(option, number) }
+            assertOk(validate(s)({}))
+            assertOk(d(s)({}))
+            assert(!hasEntry(unwrap(parse(s)({})), 'toString'), 'an absent member is not materialized')
+        },
+        requiredIsMissing: () => {
+            const s = { constructor: number }
+            assertErrorPath(['constructor'])(validate(s)({}))
+            assertErrorPath(['constructor'])(parse(s)({}))
+            assertErrorPath(['constructor'])(d(s)({}))
+        },
+    },
     sparseTuple: {
         holeIsDeclaredUndefined: () => {
             assertError(validate([, number])([9, 5]))
