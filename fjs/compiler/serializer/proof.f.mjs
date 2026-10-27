@@ -770,7 +770,7 @@ export const proof = {
         // what the compiler builds is written
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const g=a.b; return [g(1), a.b(2), a.b(1)(2)];};'))),
-            'export default (...$0)=>{const $1=$0.b;const $2=$0.b(1);return [$1(1),$0.b(2),$2(2)];};')
+            'export default (...$0)=>[(()=>{const $1=$0.b;return $1(1);})(),$0.b(2),(()=>{const $2=$0.b(1);return $2(2);})()];')
     },
     // A function's text is the function written as one expression: the
     // module text of a function with no frame, less `export default` and

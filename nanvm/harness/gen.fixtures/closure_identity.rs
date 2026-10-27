@@ -7,16 +7,16 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b4: Any<A> = A::static_function(|_self, _args| {
-        let _b284: Any<A> = _args.rest(0).to_any();
-        Ok(A::static_function(|_self, _args| { Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end() }, 0, [_b284.clone()].to_array(), Some("()=>$0[0]")).to_any())
+        let _b289: Any<A> = _args.rest(0).to_any();
+        Ok(A::static_function(|_self, _args| { Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end() }, 0, [_b289.clone()].to_array(), Some("()=>$0[0]")).to_any())
     }, 0, Array::default(), Some("(...$0)=>()=>$0[0]")).to_any();
     let _b5: Any<A> = (Any::call(_b4.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?;
-    let _b7: Any<A> = (Any::call(_b4.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?;
-    let _b15: Any<A> = A::static_function(|_self, _args| {
-        let _b944: Any<A> = _args.rest(0).to_any();
-        Ok(A::static_function(|_self, _args| { Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end() }, 0, [_b944.clone()].to_array(), Some("()=>$0[0]")).to_any())
+    let _b6: Any<A> = (Any::call(_b4.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?;
+    let _b11: Any<A> = A::static_function(|_self, _args| {
+        let _b716: Any<A> = _args.rest(0).to_any();
+        Ok(A::static_function(|_self, _args| { Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end() }, 0, [_b716.clone()].to_array(), Some("()=>$0[0]")).to_any())
     }, 0, Array::default(), Some("(...$0)=>()=>$0[0]")).to_any();
-    let _b17: Any<A> = [(string_key("x"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any();
-    let _b19: Any<A> = (Any::call(_b15.clone(), [(Any::dot(_b17.clone(), string_any("x")).end())?].to_array().to_any()))?;
-    Ok([(string_key("default"), [(Any::call(_b5.clone(), Array::default().to_any()))?, (Any::call(_b7.clone(), Array::default().to_any()))?, (strict_eq(_b5.clone(), _b7.clone()))?, (strict_eq(_b5.clone(), _b5.clone()))?, (strict_eq((Any::call(_b19.clone(), Array::default().to_any()))?, (Any::dot(_b17.clone(), string_any("x")).end())?))?, (strict_eq((Any::call(_b19.clone(), Array::default().to_any()))?, (Any::call(_b19.clone(), Array::default().to_any()))?))?].to_array().to_any())].to_object().to_any())
+    let _b13: Any<A> = [(string_key("x"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any();
+    let _b15: Any<A> = (Any::call(_b11.clone(), [(Any::dot(_b13.clone(), string_any("x")).end())?].to_array().to_any()))?;
+    Ok([(string_key("default"), [(Any::call(_b5.clone(), Array::default().to_any()))?, (Any::call(_b6.clone(), Array::default().to_any()))?, (strict_eq(_b5.clone(), _b6.clone()))?, (strict_eq(_b5.clone(), _b5.clone()))?, (strict_eq((Any::call(_b15.clone(), Array::default().to_any()))?, (Any::dot(_b13.clone(), string_any("x")).end())?))?, (strict_eq((Any::call(_b15.clone(), Array::default().to_any()))?, (Any::call(_b15.clone(), Array::default().to_any()))?))?].to_array().to_any())].to_object().to_any())
 }

@@ -23,6 +23,8 @@ const loops = [
     ['Loop with no state', 'export default n => {\n    while (false) {\n        const unreached = null.x;\n    }\n    return n;\n};', 'loop-with-no-state'],
     ['Sequential loops', 'export default n => {\n    let value = 1;\n    let steps = 0;\n    while (value < n) {\n        value = value * 2;\n        steps = steps + 1;\n    }\n    while (steps > 0) {\n        steps = steps - 1;\n    }\n    return [value, steps];\n};', 'sequential-loops'],
     ['Loop in a guard', 'export default n => {\n    if (n < 0) {\n        let total = 0;\n        while (n < 0) {\n            total = total + n;\n            n = n + 1;\n        }\n        return total;\n    }\n    return n;\n};', 'loop-in-a-guard'],
+    ['Module loop', 'let i = 0;\nlet sum = 0;\nwhile (i < 5) {\n    sum = sum + i;\n    i = i + 1;\n}\nexport default [i, sum];', 'module-loop'],
+    ['Loop between exports', 'let value = 0;\nexport const before = value;\nwhile (value < 3) {\n    value = value + 1;\n}\nexport const after = value;\nexport default [before, after];', 'loop-between-exports'],
 ]
 
 /** @type {Examples} */

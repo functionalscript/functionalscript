@@ -7,16 +7,16 @@
  *
  * @module
  * @import { Exp, ExpOp } from '../types.ts'
- * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Value } from '../../js/ast/types.ts'
+ * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { Binding, Context, ExitOwner, Link, Node, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
+ * @import { AnchorStep, Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { iterable, toArray } from '../../types/list/module.f.mjs'
-import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
+import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.mjs'
 import { exitValues, freeLoopBindings } from '../../js/ast/control/module.f.mjs'
@@ -35,8 +35,49 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
+/** Only established reads and simple eager containers cross an unmatched node. @type {(node: ExpOp) => readonly AnchorStep[]} */
+const anchorPrefix = node => {
+    /** @type {(values: readonly Exp[]) => readonly AnchorStep[]} */
+    const values = values => values.map(value => [value])
+    if (node.length === 1 || node[0] === 'arg' || node[0] === 'frame') { return [] }
+    if (node[0] === '=>') { return values(node[2]) }
+    if (node[0] === ',') { return values(node[1]) }
+    if (node[0] === '[]' && node[1].every(item => !isSpread(item))) { return values(/** @type {readonly Exp[]} */ (node[1])) }
+    if (node[0] === '{}' && node[1].every(entry => entry[0] === ':' && typeof entry[1] === 'string')) { return values(node[1].map(entry => /** @type {Exp} */ (entry[2]))) }
+    if (node[0] === '()' && node[2].every(item => !isSpread(item))) { return [...values([node[1], .../** @type {readonly Exp[]} */ (node[2])]), null] }
+    if (node[0] === '.' || node[0] === '?.' || node[0] === '?.()' || node[0] === '?:') { return [[node[1]], null] }
+    if (node[0] === 'instanceof') { return [[node[1]]] }
+    if (['!', 'typeof', '===', '!=='].includes(node[0])) { return values(/** @type {readonly Exp[]} */ (node.slice(1))) }
+    return [null]
+}
+
+/** The whole emitted list must be demanded in order, including its own effects. @type {(value: Lowered) => boolean} */
+const naturalAnchors = ({ anchors, exp }) => {
+    if (anchors.some(anchor => !(anchor instanceof Array))) { return false }
+    /** @type {Link<AnchorStep> | null} */
+    let pending = { first: [exp], tail: null }
+    /** @type {readonly Exp[]} */
+    let established = []
+    let index = 0
+    while (pending !== null) {
+        const current = /** @type {Link<AnchorStep>} */ (pending)
+        const first = current.first
+        pending = current.tail
+        if (first === null) { return false }
+        const node = first[0]
+        if (Object.is(node, anchors[index])) {
+            established = [...established, node]
+            while (index < anchors.length && established.some(value => Object.is(value, anchors[index]))) { ++index }
+            if (index === anchors.length) { return true }
+        } else if (!established.some(value => Object.is(value, node)) && node instanceof Array) {
+            pending = prepend(anchorPrefix(node), pending)
+        }
+    }
+    return false
+}
+
 /** Establish a region's required evaluations before its result. @type {(value: Lowered) => Exp} */
-export const anchored = ({ exp, anchors }) => anchors.length === 0 ? exp : [',', [...anchors, exp]]
+export const anchored = value => value.anchors.length === 0 || naturalAnchors(value) ? value.exp : [',', [...value.anchors, value.exp]]
 
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)
@@ -129,20 +170,118 @@ const closure = (relations, roots) => {
     return found
 }
 
-/** @type {(node: Node, parts: readonly Summary[]) => Summary} */
-const summary = (node, parts) => {
+/** Reads of preceding operands stay before the selected execution barrier. @type {(parts: readonly Summary[], divergent?: boolean) => readonly BindingId[]} */
+const prefixReads = (parts, divergent = false) => {
+    /** @type {readonly BindingId[]} */
+    let prefix = []
+    for (const part of parts) {
+        prefix = [...prefix, ...(divergent ? part.demand : part.prefix)]
+        if (part.diverges || !divergent && part.fails) { break }
+    }
+    return prefix
+}
+
+/** Calls, coercions, and computed keys may invoke user functions. @type {(value: Operator<Value>) => boolean} */
+const invokes = value => {
+    if (value[0] === '()' || value[0] === '?.()') { return true }
+    if ((value[0] === '.' || value[0] === '?.' || value[0] === 'memberPresent') && value[2] instanceof Array) { return true }
+    if (value[0] === 'object' && value[1].some(entry => entry[0] === ':' && typeof entry[1] !== 'string')) { return true }
+    if (value.length > 1 && !['array', 'object', '.', '?.', 'memberPresent', '?:', ',', '!', 'typeof', '===', '!==', 'instanceof', 'throw'].includes(value[0])
+        && operatorOperands(value).some(operand => operand instanceof Array)) { return true }
+    /** @type {Step<Value> | undefined} */
+    let next = (value[0] === '.' || value[0] === '?.') && value.length === 4 ? /** @type {import('../../js/ast/types.ts')._ContinuedAccess<Value>} */ (value)[3] : undefined
+    while (next !== undefined) {
+        if (next[0] !== '|.' || next[1] instanceof Array) { return true }
+        next = next[2]
+    }
+    return false
+}
+
+/** Expansion and key conversion execute before the following operand. @type {(value: Operator<Value>, divergent?: boolean) => number} */
+const prefixEnd = (value, divergent = false) => {
+    if (value[0] === 'array' || value[0] === '()') {
+        const offset = value[0] === 'array' ? 0 : 1
+        const items = value[0] === 'array' ? value[1] : value[2]
+        const spread = items.findIndex(isSpread)
+        return divergent || spread < 0 ? Infinity : offset + spread + 1
+    }
+    if (value[0] === 'object') {
+        let offset = 0
+        for (const entry of value[1]) {
+            if (entry[0] === '...') {
+                if (!divergent) { return offset + 1 }
+                offset += 1
+            } else {
+                if (typeof entry[1] !== 'string') { return offset + 1 }
+                offset += 2
+            }
+        }
+    }
+    return Infinity
+}
+
+/** A deferred or substituted graph read can execute work before later reads. @type {(relations: readonly (readonly [BindingId, readonly BindingId[]])[], opaque: readonly BindingId[], roots: readonly BindingId[]) => { readonly references: readonly BindingId[]; readonly work: boolean }} */
+const firstDemands = (relations, opaque, roots) => {
+    const dependencies = new Map(relations)
+    /** @type {Link<BindingId | null> | null} */
+    let pending = prepend(roots, null)
+    /** @type {readonly BindingId[]} */
+    let references = []
+    while (pending !== null) {
+        const { first: id, tail } = pending
+        pending = tail
+        if (id === null) { return { references, work: true } }
+        if (references.includes(id)) { continue }
+        references = [...references, id]
+        pending = prepend(dependencies.get(id) ?? [], opaque.includes(id) ? { first: null, tail: pending } : pending)
+    }
+    return { references, work: false }
+}
+
+/** Keep failures ordered around divergence and distinct explicit thrown values. @type {(scope: OrderScope, pending: readonly Ordered[], value: Pick<Summary, 'prefix' | 'demand' | 'fails' | 'diverges'>) => { readonly pending: readonly Ordered[]; readonly required: readonly BindingId[]; readonly fails: boolean; readonly diverges: boolean }} */
+const orderedStep = (scope, pending, value) => {
+    const first = firstDemands(scope.reads, scope.opaque, value.prefix)
+    const beforeDivergence = firstDemands(scope.demands, scope.deferred, value.demand)
+    let { fails, diverges } = value
+    fails = fails || first.work
+    diverges = diverges || beforeDivergence.work
+    const consumed = pending.filter(owner => owner.bindings.some(binding => (owner.diverges ? first.references : beforeDivergence.references).includes(binding)))
+    const forced = pending.filter(owner => !consumed.includes(owner) && (diverges || owner.diverges && fails))
+    return {
+        pending: pending.filter(owner => !consumed.includes(owner) && !forced.includes(owner)),
+        required: forced.flatMap(owner => owner.bindings),
+        fails: fails || consumed.length !== 0,
+        diverges: diverges || consumed.some(owner => owner.diverges),
+    }
+}
+
+/** @type {(node: Node, parts: readonly Summary[], external: readonly BindingId[]) => Summary} */
+const summary = (node, parts, external) => {
     /** @type {Summary} */
-    const empty = { references: [], required: [], reached: [], entry: [], returns: false, normal: true }
+    const empty = { references: [], required: [], reached: [], entry: [], returns: false, normal: true, prefix: [], demand: [], fails: false, diverges: false }
     if (node[0] === 'value') {
         const value = node[1]
         if (!(value instanceof Array)) { return empty }
-        if (value[0] === 'ref') { return { ...empty, references: [value[1]] } }
-        if (value[0] === 'function') { return { ...empty, references: parts.slice(0, -1).flatMap(part => part.references) } }
-        if (value[0] === 'block' || value[0] === 'if') { return { ...empty, references: parts[0].references } }
-        return { ...empty, references: parts.flatMap((part, index) => isLazyOperand(value, index) ? [] : part.references) }
+        if (value[0] === 'ref') { return { ...empty, references: [value[1]], prefix: [value[1]], demand: [value[1]], fails: external.includes(value[1]), diverges: external.includes(value[1]) } }
+        if (value[0] === 'function') {
+            const captures = parts.slice(0, -1)
+            return { ...empty, references: captures.flatMap(part => part.references), prefix: prefixReads(captures), demand: prefixReads(captures, true), fails: captures.some(part => part.fails), diverges: captures.some(part => part.diverges) }
+        }
+        if (value[0] === 'block') { return { ...empty, references: parts[0].references, prefix: parts[0].prefix, demand: parts[0].demand, fails: parts[0].fails, diverges: parts[0].diverges } }
+        if (value[0] === 'if') { return { ...empty, references: parts[0].references, prefix: parts[0].prefix, demand: parts[0].demand, fails: parts.some(part => part.fails), diverges: parts.some(part => part.diverges) } }
+        const eager = parts.filter((_, index) => !isLazyOperand(value, index))
+        const end = prefixEnd(value)
+        const demandEnd = prefixEnd(value, true)
+        const numeric = ['+', '-', '*', '/', '%', '**', '~', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', 'Number', 'String'].includes(value[0]) && operatorOperands(value).every(operand => typeof operand === 'number')
+        const total = value.length === 1 || numeric || ['!', 'typeof', '===', '!==', 'instanceof', ',', '?:'].includes(value[0])
+            || value[0] === 'array' && value[1].every(item => !(item instanceof Array) || item[0] !== '...')
+            || value[0] === 'object' && value[1].every(entry => entry[0] === ':' && typeof entry[1] === 'string')
+        return { ...empty, references: eager.flatMap(part => part.references), prefix: prefixReads(parts.filter((_, index) => index < end && !isLazyOperand(value, index))), demand: prefixReads(parts.filter((_, index) => index < demandEnd && !isLazyOperand(value, index)), true), fails: !total || parts.some(part => part.fails), diverges: invokes(value) || parts.some(part => part.diverges) }
     }
     /** @type {readonly (readonly [BindingId, readonly BindingId[]])[]} */
     let relations = []
+    /** @type {OrderScope} */
+    let orderScope = { reads: [], opaque: external, demands: [], deferred: external }
     /** @type {readonly BindingId[]} */
     let required = []
     /** @type {readonly BindingId[]} */
@@ -152,18 +291,35 @@ const summary = (node, parts) => {
     let active = 0
     let returns = false
     let normal = true
+    /** @type {readonly Ordered[]} */
+    let pending = []
+    /** @type {readonly BindingId[]} */
+    let ordered = []
+    /** @type {readonly Summary[]} */
+    let executions = []
     for (const statement of node[1].statements) {
         if (!normal) { break }
         ++active
         const part = parts[position]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
+            orderScope = { ...orderScope, reads: [...orderScope.reads, [statement[1], part.prefix]], demands: [...orderScope.demands, [statement[1], part.demand]] }
             if (statement[3] === 'required') {
                 required = [...required, ...part.references]
                 if (entering) { entry = [...entry, ...part.references] }
+                const order = orderedStep(orderScope, pending, part)
+                pending = [...order.pending, ...(order.fails || order.diverges ? [{ bindings: [statement[1]], diverges: order.diverges }] : [])]
+                ordered = [...ordered, ...order.required]
+                executions = [...executions, { ...part, fails: order.fails, diverges: order.diverges }]
+            } else if (part.fails || part.diverges) {
+                orderScope = { ...orderScope, opaque: [...orderScope.opaque, statement[1]], deferred: [...orderScope.deferred, ...(part.diverges ? [statement[1]] : [])] }
             }
             ++position
         } else if (statement[0] === 'block') {
+            const order = orderedStep(orderScope, pending, part)
+            pending = order.pending
+            ordered = [...ordered, ...order.required]
+            executions = [...executions, { ...part, fails: order.fails, diverges: order.diverges }]
             required = [...required, ...part.references]
             if (entering) { entry = [...entry, ...part.entry.filter(binding => part.references.includes(binding))] }
             entering = false
@@ -171,6 +327,12 @@ const summary = (node, parts) => {
             normal = part.normal
             ++position
         } else if (statement[0] === 'if') {
+            const arms = parts.slice(position + 1, position + 3)
+            const execution = /** @type {Summary} */ ({ ...part, fails: part.fails || arms.some(part => part.fails), diverges: part.diverges || arms.some(part => part.diverges) })
+            const order = orderedStep(orderScope, pending, execution)
+            pending = order.pending
+            ordered = [...ordered, ...order.required]
+            executions = [...executions, execution]
             required = [...required, ...part.references]
             if (entering) { entry = [...entry, ...part.references] }
             entering = false
@@ -181,21 +343,36 @@ const summary = (node, parts) => {
             const length = statement[1].initial.length
             /** @type {readonly BindingId[]} */
             const references = [...parts.slice(position, position + length).flatMap(part => part.references), ...freeLoopBindings(statement[1])]
+            /** @type {readonly BindingId[]} */
+            const prefix = [...freeLoopBindings(statement[1]), ...prefixReads(parts.slice(position, position + length))]
+            /** @type {readonly BindingId[]} */
+            const demand = [...freeLoopBindings(statement[1]), ...prefixReads(parts.slice(position, position + length), true)]
+            const execution = { ...empty, prefix, demand, fails: true, diverges: true }
+            const order = orderedStep(orderScope, pending, execution)
+            pending = [...order.pending, { bindings: statement[1].results, diverges: true }]
+            ordered = [...ordered, ...order.required]
+            executions = [...executions, execution]
             required = [...required, ...references]
             if (entering) { entry = [...entry, ...references] }
             position += length + 1
         }
     }
     const exits = parts.slice(parts.length - exitValues(node[1].exit).length)
+    const terminal = orderedStep(orderScope, pending, { prefix: prefixReads(exits), demand: prefixReads(exits, true), fails: node[1].exit[0] === 'throw' || exits.some(part => part.fails), diverges: node[1].exit[0] === 'throw' || exits.some(part => part.diverges) })
     const reached = closure(relations, [...(normal ? exits.flatMap(part => part.references) : []), ...required])
+    const unused = node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : [])
     const local = new Set(relations.map(([binding]) => binding))
     return {
         references: reached.filter(id => !local.has(id)),
-        required: node[1].statements.slice(0, active).flatMap(statement => statement[0] === 'define' && statement[3] === 'required' && !reached.includes(statement[1]) ? [statement[1]] : []),
+        required: [...ordered, ...terminal.required, ...unused],
         reached,
         entry: closure(relations, [...entry, ...(entering ? exits.flatMap(part => part.references) : [])]),
         returns: returns || (normal && node[1].exit[0] === 'return'),
         normal: normal && node[1].exit[0] === 'yield',
+        prefix: firstDemands(orderScope.reads, orderScope.opaque, prefixReads([...executions, ...exits])).references.filter(id => !local.has(id)),
+        demand: firstDemands(orderScope.demands, orderScope.deferred, prefixReads([...executions, ...exits], true)).references.filter(id => !local.has(id)),
+        fails: executions.some(part => part.fails) || terminal.fails,
+        diverges: executions.some(part => part.diverges) || terminal.diverges,
     }
 }
 
@@ -203,9 +380,9 @@ const summary = (node, parts) => {
  * Immutable postorder dependency facts. Result blocks resolve local definition
  * chains once; enclosing values read their external dependencies directly.
  * The walk includes skipped regions so later lowering has their own facts.
- * @type {(root: Node, known?: Summaries) => Summaries}
+ * @type {(root: Node, known?: Summaries, external?: readonly BindingId[]) => Summaries}
  */
-const summaries = (root, known = new Map()) => {
+const summaries = (root, known = new Map(), external = []) => {
     /** @type {Link<Visit> | null} */
     let work = { first: ['enter', root], tail: null }
     /** @type {Link<Summary> | null} */
@@ -229,7 +406,7 @@ const summaries = (root, known = new Map()) => {
             results = result.tail
             parts = { first: result.first, tail: parts }
         }
-        const value = summary(visit[1], toArray(parts))
+        const value = summary(visit[1], toArray(parts), external)
         results = { first: value, tail: results }
         entries = { first: [visit[1][1], value], tail: entries }
     }
@@ -237,7 +414,7 @@ const summaries = (root, known = new Map()) => {
 }
 
 /** @type {(block: Block, context: Context) => Summary} */
-const blockSummary = (block, context) => context.summaries.get(block) ?? assertNotNullish(summaries(['block', block], context.summaries).get(block))
+const blockSummary = (block, context) => context.summaries.get(block) ?? assertNotNullish(summaries(['block', block], context.summaries, context.external).get(block))
 
 /** @type {(input: readonly Value[], context: Context) => Task<readonly Lowered[]>} */
 const lowerValues = (input, context) => {
@@ -273,8 +450,9 @@ const functionValue = (source, context) => call(() => {
                 captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
             ])),
         ]
+        const known = context.external.length === 0 ? context.summaries : new Map()
         /** @type {Context} */
-        const local = { ...context, summaries: fn === source ? context.summaries : new Map([...context.summaries, ...summaries(['block', fn.body], context.summaries)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
+        const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : new Map([...known, ...summaries(['block', fn.body], known)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
             done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
@@ -303,7 +481,7 @@ const scalarRoot = (fn, loop, context) => call(() => {
 
 /** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment; readonly results: readonly BindingId[] }>} */
 const loopTask = (loop, context) => call(() => {
-    const state = invariantState(loop, lazyBindings(context.scope))
+    const state = invariantState(loop, [...lazyBindings(context.scope), ...context.external])
     return bind(lowerValues(state.aliases.map(alias => alias.value), context), aliases => {
         const local = /** @type {Context} */ ({ ...context, scope: scopeOf(state.aliases.map((alias, index) => [alias.parameter, aliases[index].exp]), context.scope) })
         const scalar = scalarLoopOf(state.loop) !== null
@@ -377,7 +555,7 @@ const regionTask = (block, context, normalize = false) => call(() => {
     const local = normalize ? { ...context,
         functionTarget: null,
         memoPrepared: true,
-        summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries)]),
+        summaries: normalized === block ? context.summaries : new Map([...context.summaries, ...summaries(['block', normalized], context.summaries, context.external)]),
     } : context
     return blockTask(normalized, local)
 })
@@ -482,7 +660,7 @@ const controlTask = (block, context, expected) => call(() => {
         }
         if (statement[0] === 'loop') {
             return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1, scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(results, value, reached, !results.some(binding => entry.includes(binding))) }))
+                { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding)) || !results.some(binding => entry.includes(binding))) }))
         }
         if (!regionHasControl(statement, current)) {
             const task = statement[0] === 'block' ? regionTask(statement[2], current)
@@ -524,7 +702,7 @@ const blockTask = (block, context) => call(() => {
         if (statement[0] === 'loop') {
             return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1,
                 scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(results, value, reached) }))
+                { head: anchors, tail: loopAnchors(results, value, reached, results.some(binding => required.includes(binding))) }))
         }
         const task = statement[0] === 'block' ? regionTask(statement[2], current)
             : conditional(statement[2], statement[3], statement[4], current)
@@ -535,13 +713,17 @@ const blockTask = (block, context) => call(() => {
 })
 
 /** @type {(node: Node, environment: Environment, transfer?: Transfer, memoPrepared?: boolean) => Context} */
-const contextFor = (node, environment, transfer, memoPrepared = false) => ({
-    scope: scopeOf(environment),
-    transfer: transfer === undefined ? { kind: 'default' } : { kind: 'custom', transfer },
-    summaries: summaries(node),
-    functionTarget: null,
-    memoPrepared,
-})
+const contextFor = (node, environment, transfer, memoPrepared = false) => {
+    const external = environment.flatMap(([binding, value]) => value instanceof Array && value.length !== 1 && !['arg', 'frame'].includes(value[0]) ? [binding] : [])
+    return {
+        scope: scopeOf(environment),
+        transfer: transfer === undefined ? { kind: 'default' } : { kind: 'custom', transfer },
+        summaries: summaries(node, new Map(), external),
+        functionTarget: null,
+        memoPrepared,
+        external,
+    }
+}
 
 /**
  * Lower a normalized expression, retaining distinct equal operation nodes.

@@ -1011,6 +1011,10 @@ const functionScope = list => {
         : { ...bound, rest: plan, late: [...bound.late, { plan, init: null, rest: true }] })
 }
 
+/** The same lexical loop entry serves a body continuation or one module statement. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | null) => _State} */
+const enterLoop = (stack, scope, loop, body) =>
+    [{ top: { loop, body, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
  * value in document order. Source guards retain their lexical block and the
@@ -1030,9 +1034,7 @@ const bodyRound = (stack, scope, frame) => {
     if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
     // A loop's condition and block are source regions. Their complete
     // evidence reaches sugar before mutable loop inputs are selected.
-    if (kind === 'while') {
-        return [{ top: { loop: statement, body: frame, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', statement.condition]]
-    }
+    if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1520,6 +1522,7 @@ const returned = (stack, scope, frame, value) => {
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
         const loop = /** @type {const} */ ({ target: { kind: 'loop', index: outer.trace.count }, events: completedTrace(scope).events, condition: frame.condition[0], body })
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
     }
     if ('block' in frame) {
@@ -1697,11 +1700,10 @@ const closed = (stack, scope, body) => {
  * function that is the whole value is entered with the word bound to itself,
  * {@link entered}, as a body's is.
  *
- * @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>}
+ * @type {(initial: _State) => Result<_Evaluated, ParseError>}
  */
-const evaluate = (initial, self) => root => {
-    /** @type {_State} */
-    let state = [null, initial, self === null ? ['enter', root] : ['define', root, self]]
+const evaluateState = initial => {
+    let state = initial
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step
@@ -1720,6 +1722,9 @@ const evaluate = (initial, self) => root => {
         }
     }
 }
+
+/** A source value enters the shared resolution worklist without a statement continuation. @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>} */
+const evaluate = (initial, self) => root => evaluateState([null, initial, self === null ? ['enter', root] : ['define', root, self]])
 
 /**
  * The word a binding may take: an identifier, refusing a keyword, and one
@@ -1809,7 +1814,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
-    /** @type {Statement | null} */
+    /** @type {Statement | While | null} */
     let previous = null
     for (const statement of imports) {
         if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
@@ -1837,6 +1842,16 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
+        if (statement[0] === 'while') {
+            const loop = statement[1]
+            if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
+            previous = loop
+            const [tag, evaluated] = evaluateState(enterLoop(null, scope, loop, null))
+            if (tag === 'error') { return error(evaluated) }
+            scope = evaluated.scope
+            body = [...body, ...regionBlock(evaluated.value).statements]
+            continue
+        }
         if (statement[0] === 'assign') {
             const assignment = statement[1]
             if (unterminated(previous, assignment)) { return error(unexpectedToken(assignment.start)) }
@@ -1891,8 +1906,8 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     // an exported pattern binding no name exports nothing, and the grammar
     // saw only the `export`: the module is refused where a name was owed
     if (exports.length === 0) {
-        const last = assertNotNullish(statements.findLast(s => s[0] !== 'assign' && s[1].exported), ['a module with no export and no throw', statements])
-        assert(last[0] !== 'assign')
+        const last = assertNotNullish(statements.findLast(s => s[0] === 'const' && s[1].exported), ['a module with no export and no throw', statements])
+        assert(last[0] === 'const')
         return error(noExport(last[1].declaration.start))
     }
     /** @type {SourceModule} */

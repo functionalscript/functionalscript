@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -1227,6 +1227,12 @@ const toAfterCase = node => {
  */
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
+/** The shared syntax record for a module or function loop. @type {(node: Ast<WhileStatement, ModuleTokenWithMetadata, Out>) => While} */
+const whileAt = node => {
+    const [first, , condition, , blk] = unmapped(node)
+    return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
+}
+
 /**
  * A block's statement, tagged by its keyword: a `const` or a `let`, its
  * record; what begins with a name, an assignment or a call statement,
@@ -1240,10 +1246,7 @@ const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        case 'while': {
-            const [first, , condition, , blk] = unmapped(branch)
-            return symbol({ id: 'statement', statement: ['while', { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }] })
-        }
+        case 'while': { return symbol({ id: 'statement', statement: ['while', whileAt(branch)] }) }
         default: {
             const [first, , condition, , blk] = unmapped(branch)
             const [block] = blockOf(unmapped(blk))
@@ -1263,8 +1266,9 @@ const toStatement = ([kind, branch]) => {
 const discarded = (name, rest, end) =>
     ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
 
-/** A module's statement before its exports, tagged: a `const` or a `let`, the record a `const` has, unexported; or what begins with a name, {@link toBodyNameStatement}, a call statement the record of a `const` that binds nothing. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+/** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', whileAt(branch)] }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })

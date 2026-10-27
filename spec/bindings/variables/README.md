@@ -86,7 +86,7 @@ parameter is a variable too, fixed or rest.
   ([module structure](../../modules/README.md)), under every rule above;
   an export is a `const`, so `export let` is refused
   ([`export let`](../../modules/export-let/README.md)). A loop can step several
-  variables; none stands at module level yet
+  variables, at module level as well as in a function body
   ([loops](../../control-flow/loops/README.md)).
 
 ## Capture compatibility

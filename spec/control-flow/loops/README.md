@@ -19,8 +19,11 @@ first. A false condition skips the body; after normal completion, following
 statements read the values the last round left. Conditions use the same truth
 test as `?:`. No `;` follows the closing `}`.
 
-A loop may stand in a function body, in a terminal guard's or case's block,
-or after another loop. Its body holds `const`s and initialized `let`s, call
+A loop may stand at module level, in a function body, in a terminal guard's or
+case's block, or after another loop. Module loops run in initialization order,
+including between named exports; earlier exported constants retain their
+declared values ([modules](../../modules/README.md)). Its body holds `const`s
+and initialized `let`s, call
 statements and assignments. It may assign zero, one or several outer variables,
 including parameters. Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
@@ -33,8 +36,7 @@ the preceding round's values; a failed test or body computation does not
 complete the loop normally.
 
 The current body grammar excludes guards, switches, nested loops, `break`,
-`continue`, `return` and `throw` statements. Module-level loops are also
-refused. These are remaining parts of
+`continue`, `return` and `throw` statements. These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
