@@ -90,13 +90,17 @@ additional compatibility format. The
 records this migration without changing arity, successful evaluation, captured
 identity, required failures or lazy sharing.
 
-A body reading `self` is rendered as a named function expression unless
-shared conversion recognizes an eligible scalar loop, `r => c ? self(next) : r`.
-Such a loop uses `let` and `while`, with private state and immutable iteration
+A body with remaining `self` reads is rendered as a named function expression.
+Shared conversion can replace terminal self-call evaluations with loops for
+fixed parameters and matching spread-free recursive arguments, including the
+established scalar form `r => c ? self(next) : r`. Such loops use private state
+and immutable iteration
 snapshots ([loops](../control-flow/loops/README.md),
 [function text](../../fjs/edag/function-text.md#a-loop)). Source output can retain
 a named callable around that loop and use capture aliases required by its
-round-trip contract; its text need not equal code-only function text. This text
+round-trip contract; general invocation loops retain recursive source spelling
+until their source syntax is admitted. Its text need not equal code-only
+function text. This text
 need not be accepted by the FunctionalScript source parser: the total text
 renderer and the structural source serializer have separate contracts
 ([function text](../../fjs/edag/function-text.md)). The Rust VM also answers

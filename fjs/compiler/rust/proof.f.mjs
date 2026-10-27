@@ -360,7 +360,7 @@ export const proof = {
                 assertEq(JSON.stringify(result[1].flatMap(([run, kind]) => kind === undefined ? wordsOf(run) : [])), '[]', name)
                 for (const [run, kind] of result[1]) {
                     if (kind === 'identifier') { assert(![...run].some(c => c === '$' || c === ':'), `${name}: ${run}`); assert(!'0123456789'.includes(run[0]), `${name}: ${run}`) }
-                    if (kind === 'keyword') { assert(['use', 'pub', 'fn', 'let', 'mut', 'loop', 'while', 'if', 'else', 'break'].includes(run), `${name}: ${run}`) }
+                    if (kind === 'keyword') { assert(['use', 'pub', 'fn', 'let', 'mut', 'loop', 'while', 'if', 'else', 'break', 'continue'].includes(run), `${name}: ${run}`) }
                     if (kind === 'literal') { assert(['true', 'false'].includes(run), `${name}: ${run}`) }
                     if (kind === 'string') { assert(run.startsWith('"') && run.endsWith('"'), `${name}: ${run}`) }
                     if (kind === 'number') { assert(run.startsWith('0x') ? [...run.slice(2)].every(c => '0123456789abcdef'.includes(c)) : [...run].every(c => '-0123456789'.includes(c)), `${name}: ${run}`) }

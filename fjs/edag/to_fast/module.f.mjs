@@ -6,7 +6,7 @@
  * @module
  * @import { Analysis, Node, Operand, Step as GraphStep } from '../analysis/types.ts'
  * @import { Exp } from '../types.ts'
- * @import { Context, Done, Work } from './private.ts'
+ * @import { Context, Done, Work, _FunctionBody } from './private.ts'
  * @import { Invocation } from './types.ts'
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  * @import { PersistentSet } from '../../types/set/types.ts'
@@ -20,6 +20,9 @@ import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { mapOk, okThen } from '../../types/result/module.f.js'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { add, empty, has } from '../../types/set/module.f.mjs'
+import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { freeBindings } from '../../js/ast/control/module.f.mjs'
+import { _tailCalls } from './tail/module.f.mjs'
 
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */
 const lazyOperands = node => {
@@ -209,7 +212,7 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             ? /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])[2]
                 .flatMap(value => value instanceof Array && !isRead(a.nodes[value[1]]) ? [value[1]] : [])
             : [])
-        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && scopeHolds(a, i, 'self') && (loopOf(a, i) === null || keepsRecursion(a, i, /** @type {import('../loop/types.ts').Loop} */ (loopOf(a, i)))))
+        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && assertNotNullish(at(String(i))(context.functions)).named)
         const called = eager.flatMap(i => {
             const node = a.nodes[i]
             if (node[0] !== '()' && node[0] !== '?.()') { return [] }
@@ -237,47 +240,77 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             : valueOf(context, available, roots[roots.length - 1], value => deliver(done, { statements, exit: ['yield', [value]] })))
     }
 
+    /** Placement and terminal eligibility are shared by naming and emission. @type {(i: number, functions: Context['functions'], done: Done<_FunctionBody>) => Work} */
+    const functionBody = (i, functions, done) => () => {
+        const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
+        const context = /** @type {Context} */ ({ ...contexts[i], functions })
+        const parts = loopOf(a, i)
+        const loop = parts !== null && !keepsRecursion(a, i, parts) ? parts : null
+        if (loop !== null) {
+            const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
+            const iteration = { ...context, parameters: [context.loop] }
+            return region(iteration, [], [loop.condition], condition => region(iteration, [], [...loop.asserts, loop.next], arm => {
+                /** @type {Block} */
+                const body = {
+                    statements: [['if', [], ['block', condition], { statements: arm.statements, exit: ['continue', target, /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (arm.exit)[1]] }, { statements: [], exit: ['break', target, [['ref', context.loop]]] }]],
+                    exit: ['continue', target, [['ref', context.loop]]],
+                }
+                return deliver(done, {
+                    parameters: context.parameters, rest: null, self: null, named: false,
+                    body: { statements: [['loop', { target, parameters: [context.loop], initial: [['ref', context.parameters[0]]], results: [context.result], body }]], exit: ['return', context.target, ['ref', context.result]] },
+                })
+            }))
+        }
+        return region(context, [], [node[3]], raw => {
+            const body = terminal(raw)
+            const rest = scopeHolds(a, i, 'rest') ? context.rest : null
+            const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
+            const tail = rest === null ? _tailCalls(body, context.parameters, context.self, target) : null
+            if (tail !== null) {
+                // Entry parameters and current iteration values have different
+                // identities, even where their presentation indices agree.
+                const parameters = context.parameters.map(binding => ({ ...binding }))
+                return deliver(done, {
+                    parameters, rest: null, named: true,
+                    self: freeBindings(tail, context.parameters).includes(context.self) ? context.self : null,
+                    body: {
+                        statements: [['loop', { target, parameters: context.parameters, initial: parameters.map(binding => /** @type {const} */ (['ref', binding])), results: [context.result], body: tail }]],
+                        exit: ['return', context.target, ['ref', context.result]],
+                    },
+                })
+            }
+            const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (body.exit)
+            return deliver(done, {
+                parameters: context.parameters, rest, named: scopeHolds(a, i, 'self'),
+                self: scopeHolds(a, i, 'self') ? context.self : null,
+                body: body.exit[0] === 'throw' ? body : { statements: body.statements, exit: ['return', context.target, exit[1][0]] },
+            })
+        })
+    }
     /** @type {(outer: Context, bound: readonly number[], i: number, done: Done<FastFunction>) => Work} */
     const functionOf = (outer, bound, i, done) => () => {
         const node = /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])
         const context = contexts[i]
-        const parts = loopOf(a, i)
-        const loop = parts !== null && !keepsRecursion(a, i, parts) ? parts : null
-        return gather(node[2], (value, k, next) => valueOf(outer, bound, value, value => deliver(next, { binding: context.captures[k], value })), captures => {
-            if (loop !== null) {
-                const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
-                const iteration = { ...context, parameters: [context.loop] }
-                return region(iteration, [], [loop.condition], condition => region(iteration, [], [...loop.asserts, loop.next], arm => {
-                    /** @type {Block} */
-                    const body = {
-                        statements: [['if', [], ['block', condition], { statements: arm.statements, exit: ['continue', target, /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (arm.exit)[1]] }, { statements: [], exit: ['break', target, [['ref', context.loop]]] }]],
-                        exit: ['continue', target, [['ref', context.loop]]],
-                    }
-                    return deliver(done, {
-                        target: context.target, parameters: context.parameters, rest: null, self: null, captures,
-                        body: { statements: [['loop', { target, parameters: [context.loop], initial: [['ref', context.parameters[0]]], results: [context.result], body }]], exit: ['return', context.target, ['ref', context.result]] },
-                    })
-                }))
-            }
-            return region(context, [], [node[3]], raw => {
-                const body = terminal(raw)
-                const exit = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (body.exit)
-                return deliver(done, {
-                    target: context.target, parameters: context.parameters,
-                    rest: scopeHolds(a, i, 'rest') ? context.rest : null,
-                    self: scopeHolds(a, i, 'self') ? context.self : null,
-                    captures, body: body.exit[0] === 'throw' ? body : { statements: body.statements, exit: ['return', context.target, exit[1][0]] },
-                })
+        const body = assertNotNullish(at(String(i))(outer.functions))
+        return gather(node[2], (value, k, next) => valueOf(outer, bound, value, value => deliver(next, { binding: context.captures[k], value })), captures =>
+            deliver(done, { parameters: body.parameters, rest: body.rest, self: body.self, body: body.body, target: context.target, captures }))
+    }
+    /** Graph entries are in operand postorder, including nested function bodies. @type {(index: number, functions: Context['functions']) => Work} */
+    const prepareFunctions = (index, functions) => () => {
+        if (index === count) {
+            return region({ ...rootContext, functions }, external.map(([index]) => index), [a.root], block => {
+                result = terminal(block)
+                return null
             })
-        })
+        }
+        return a.nodes[index][0] === '=>'
+            ? functionBody(index, functions, body => prepareFunctions(index + 1, setReplace(String(index))(body)(functions)))
+            : prepareFunctions(index + 1, functions)
     }
     /** @type {Block | null} */
     let result = null
     /** @type {Work | null} */
-    let work = region(rootContext, external.map(([index]) => index), [a.root], block => {
-        result = terminal(block)
-        return null
-    })
+    let work = prepareFunctions(0, null)
     while (work !== null) { work = work() }
     return assertNotNullish(/** @type {Block | null} */ (result), 'missing FAST conversion result')
 }

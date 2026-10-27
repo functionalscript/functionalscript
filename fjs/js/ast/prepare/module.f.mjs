@@ -18,7 +18,7 @@
  * @module
  * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Operator, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
  * @import { Block, Exit, Function as PreparedFunction, Statement, Value } from './types.ts'
- * @import { _Block, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Snapshot, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
+ * @import { _Block, _Completion, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Snapshot, _Statement, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
  */
 
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
@@ -76,6 +76,53 @@ const facts = node => {
     }
 }
 
+/** Only reached sequential children contribute an outward break. @type {(children: readonly _Completion[]) => _Completion} */
+const sequential = children => {
+    let normal = true
+    /** @type {readonly LoopTarget[]} */
+    let breaks = []
+    for (const child of children) {
+        if (!normal) { break }
+        breaks = [...new Set([...breaks, ...child.breaks])]
+        normal = child.normal
+    }
+    return { normal, breaks }
+}
+
+/**
+ * Structural completion is independent of outward-transfer refusal facts.
+ * Ordinary operations remain conservative about whether they can complete;
+ * explicit regions, branches and loops retain their reached transfer owners.
+ * @type {(node: _Node, children: readonly _Flow[]) => _Completion}
+ */
+const completion = (node, children) => {
+    if (node[0] === 'function') { return { normal: true, breaks: children.slice(0, -1).flatMap(child => child.breaks) } }
+    if (node[0] === 'loop') {
+        const initial = sequential(children.slice(0, -1))
+        const body = children[children.length - 1]
+        return {
+            normal: body.breaks.includes(node[1].target),
+            breaks: [...new Set([...initial.breaks, ...body.breaks.filter(target => target !== node[1].target)])],
+        }
+    }
+    if (node[0] === 'value' || node[0] === 'statement' && node[1][0] === 'define') {
+        return { normal: true, breaks: node[0] === 'statement' && node[1][3] === 'lazy' ? [] : [...new Set(children.flatMap(child => child.breaks))] }
+    }
+    if (node[0] === 'statement' && node[1][0] === 'if') {
+        const [condition, then, otherwise] = children
+        return {
+            normal: then.normal || otherwise.normal,
+            breaks: [...new Set([...condition.breaks, ...then.breaks, ...otherwise.breaks])],
+        }
+    }
+    const reached = sequential(children)
+    if (node[0] !== 'exit' || node[1][0] === 'yield') { return reached }
+    return {
+        normal: false,
+        breaks: node[1][0] === 'break' ? [...new Set([...reached.breaks, node[1][1]])] : reached.breaks,
+    }
+}
+
 /**
  * One postorder scan records outward transfers and the highest diagnostic
  * index. Constructor-built maps are immutable; repeated block queries do not
@@ -105,9 +152,12 @@ const flows = (root, known = new Map()) => {
         let next = own.ids.reduce((next, id) => Math.max(next, id.index + 1), 0)
         let returns = own.returns
         let loops = own.loops
+        /** @type {_Link<_Flow> | null} */
+        let children = null
         for (let index = 0; index < own.children.length; ++index) {
             const child = assertNotNullish(results)
             results = child.tail
+            children = { first: child.first, tail: children }
             next = Math.max(next, child.first.next)
             // The last child is the function body or loop body. Only that
             // region owns the boundary; capture and initial expressions do not.
@@ -116,7 +166,7 @@ const flows = (root, known = new Map()) => {
                 loops = [...new Set([...loops, ...node[0] === 'loop' && index === 0 ? child.first.loops.filter(target => target !== node[1].target) : child.first.loops])]
             }
         }
-        const flow = { next, returns, loops }
+        const flow = /** @type {_Flow} */ ({ next, returns, loops, ...completion(node, toArray(children)) })
         results = { first: flow, tail: results }
         entries = { first: [node[1], flow], tail: entries }
     }
@@ -301,7 +351,7 @@ const exitValue = (exit, context) => call(/** @returns {_Task<_Prepared<{ readon
 })
 
 /** @type {(statement: NormalStatement, context: _Context) => _Task<_Statements>} */
-const statementValue = (statement, context) => call(() => {
+const statementTask = (statement, context) => call(() => {
     if (statement[0] === 'define') {
         if (statement[3] === 'lazy' && nonlocalValue(statement[2], context)) { throw ['unsupported FAST preparation', 'a nonlocal transfer in a lazy definition'] }
         return bind(prepareValue(statement[2], context), result => {
@@ -346,9 +396,10 @@ const statementValue = (statement, context) => call(() => {
             })
         }
         return bind(values(loop.initial, context), initial => {
+            const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)
             const parameters = fresh(initial.next + temporaries.length, loop.parameters.length)
-            const results = fresh(initial.next + temporaries.length + parameters.length, loop.results.length)
+            const results = fresh(initial.next + temporaries.length + parameters.length, normal ? loop.results.length : 0)
             return bind(prepareBlock(loop.body, {
                 ...context,
                 next: initial.next + temporaries.length + parameters.length + results.length,
@@ -364,7 +415,7 @@ const statementValue = (statement, context) => call(() => {
                         statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, ['ref', parameters[index]]])), ...body.value.statements],
                         exit: body.value.exit,
                     }],
-                    ...loop.results.map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[index]]])),
+                    ...loop.results.slice(0, results.length).map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[index]]])),
                 ],
                 next: body.next,
             }))
@@ -389,6 +440,12 @@ const statementValue = (statement, context) => call(() => {
     }))
 })
 
+/** Result-bearing regions retain the destination layout used by expression lifting. @type {(statement: NormalStatement, context: _Context) => _Task<_Statement>} */
+const statementValue = (statement, context) => bind(statementTask(statement, context), result => done({
+    ...result, normal: statement[0] === 'define' || statement[0] !== 'loop' && statement[1].length !== 0
+        || assertNotNullish(context.flows.get(statement)).normal,
+}))
+
 /** @type {(block: NormalBlock, context: _Context) => _Task<_Block>} */
 const prepareBlock = (block, context) => {
     /** @type {(index: number, current: _Context, previous: import('../../../types/list/types.ts').List<Statement>) => _Task<_Block>} */
@@ -400,11 +457,13 @@ const prepareBlock = (block, context) => {
             }))
         }
         const statement = block.statements[index]
-        return bind(statementValue(statement, current), result => each(index + 1, {
+        return bind(statementValue(statement, current), result => result.normal ? each(index + 1, {
             ...current,
             next: result.next,
             memos: statement[0] === 'define' && statement[3] === 'lazy' ? [...current.memos, statement[1]] : current.memos,
-        }, { head: previous, tail: result.value }))
+        }, { head: previous, tail: result.value }) : done({
+            value: withSlots({ statements: [...toArray(previous), ...result.value], exit: ['yield', []] }), next: result.next,
+        }))
     })
     return each(0, context, null)
 }

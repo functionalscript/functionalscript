@@ -64,7 +64,7 @@ export const proof = {
         // each round shares its own node and starts fresh
         const shared = /** @type {const} */ (['[]', [['arg', 0]]])
         assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 3], call(['+', ['.', shared, 0], ['.', shared, 'length']]), ['arg', 0]]])(0), 3)
-        // and so does the recursion a condition reaching the shared node keeps
+        // A condition and arm sharing identity establish one value each round.
         const pairs = compile(['=>', 1, [], ['?:', ['<', ['.', shared, 0], 2], call(['+', ['.', shared, 0], 1]), ['[]', [shared, shared]]]])
         const result = pairs(0)
         assertEq(result[0], result[1])

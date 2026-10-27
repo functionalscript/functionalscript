@@ -120,7 +120,7 @@ export const proof = {
         const table = assertOk(identityAnalysis(['[]', [fn, fn]]))
         assertEq(functionFromAnalysis(table, table.nodes.findIndex(node => node[0] === '=>')).parameters.length, 0)
         const recursion = assertOk(identityAnalysis(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]))
-        assert(functionFromAnalysis(recursion, /** @type {readonly ['#', number]} */ (recursion.root)[1]).self !== null)
+        assertEq(functionFromAnalysis(recursion, /** @type {readonly ['#', number]} */ (recursion.root)[1]).body.statements[0][0], 'loop')
     },
     loops: () => {
         /** @type {(next: Exp) => Exp} */

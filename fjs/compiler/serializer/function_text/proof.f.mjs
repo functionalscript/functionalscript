@@ -20,10 +20,11 @@ const render = e => {
 const text = body => render(['=>', 0, [], body])
 
 export const proof = {
-    // a body reading its own `self` is a named function expression; a
-    // nested function captures that name as an immutable lexical value
+    // A direct self-tail call becomes a transition. A self value captured
+    // by a nested function still needs the named function expression.
     self: () => {
-        assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]), '(function $0($1){return $0($1);})')
+        assertEq(render(['=>', 1, [], ['()', ['self'], [['arg', 0]]]]),
+            '($0)=>{const $1=$0;let $2=$1;L0:while(true){const $3=$2;const $4=$3;$2=$4;continue L0;}}')
         assertEq(render(['=>', 0, [], ['=>', 0, [['self']], ['frame', 0]]]), '(function $0(){return ()=>$0;})')
     },
     // a loop, `r => COND ? self(NEXT) : r`, is an arrow whose body is the
@@ -48,12 +49,12 @@ export const proof = {
         // numbered before the parameter
         assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
             '($1)=>{let $2=$1;while((()=>{const $3=$2;return $0;})()){const $4=$2;const $5=$0;$2=$5;}return $2;}')
-        // the shapes that keep the recursion, in every writer: a root
-        // assert, a condition sharing identity with the body, and a rest read
+        // Generic transitions keep root work and condition/arm sharing in
+        // one iteration. A rest read retains ordinary recursive invocation.
         assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, call(0), ['arg', 0]]]]]),
-            '(function $0($1){const $2=[1];return true?$0(0):$1;})')
+            '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[1];if(true){const $6=0;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
-            '(function $0($1){const $2=[$1];return $2[0]?$0($2.length):$1;})')
+            '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[$4];if($5[0]){const $6=$5.length;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),
             '(function $0($1,...$2){return $2.length?$0($1):$1;})')
         // a next value that throws is assigned as the applied function a
@@ -63,7 +64,7 @@ export const proof = {
         // a condition reaches a shared value through a nested capture too,
         // and not through one holding something else
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [shared], ['frame', 0]], []], call(['.', shared, 0]), ['arg', 0]]]),
-            '(function $0($1){const $2=[$1];const $3=()=>$2;return $3()?$0($2[0]):$1;})')
+            '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[$4];const $6=()=>$5;if($6()){const $7=$5[0];$2=$7;continue L0;}else{const $8=$4;$3=$8;break L0;}}const $9=$3;return $9;}')
         assertEq(render(['=>', 1, [], ['?:', ['()', ['=>', 0, [['[]', [1]]], ['frame', 0]], []], call(0), ['arg', 0]]]),
             '($0)=>{let $1=$0;while((()=>{const $2=$1;const $3=[1];const $4=()=>$3;return $4();})()){const $5=$1;const $6=0;$1=$6;}return $1;}')
     },
