@@ -202,8 +202,8 @@ export const proof = {
          * General tail loops keep shared containers inside the iteration,
          * once per invocation. The established scalar template keeps its
          * spelling, including shared operations in the test and round.
-         * Rest, spread and mismatched recursive arguments stay calls, as
-         * does an established call result read from a shared binding.
+         * Missing and extra spread-free arguments use that same loop.
+         * Rest, spread and established call-result reads stay calls.
          */
         recursion: () => {
             /** @type {Exp} */
@@ -225,20 +225,20 @@ export const proof = {
                 ['=>', 1, [], [',', [['+', 1, 2], ['?:', true, c, ['arg', 0]]]]],
                 ['=>', 1, [], ['?:', true, c, 1]],
                 ['=>', 1, [], c],
+                ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
+                loop(true, ['()', ['self'], [1, 2]]),
             ]
             for (const e of general) {
                 const lines = scoped(e)
-                assert(lines.some(line => line.endsWith('loop {')), JSON.stringify(e))
+                assert(lines.some(line => line.endsWith('loop {') || line.includes(': while ')), JSON.stringify(e))
                 assert(!lines.some(line => line.includes('Function::new(_self.clone())')), JSON.stringify(e))
             }
             /** @type {readonly Exp[]} */
             const recursive = [
                 loop(['rest'], c),
                 loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
-                // missing/extra recursive arguments, and a call already
-                // evaluated into a shared binding rather than in tail position
-                ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
-                loop(true, ['()', ['self'], [1, 2]]),
+                // A call already evaluated into a shared binding is
+                // a result read rather than a terminal evaluation.
                 loop(true, [',', [c, c]]),
             ]
             for (const e of recursive) {

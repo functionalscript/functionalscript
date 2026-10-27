@@ -74,6 +74,25 @@ export const proof = {
         assertEq(failing(4), 5)
         throws(() => failing(0), e => e === 'three')
     },
+    tailArgumentCounts: () => {
+        const missing = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1]]], ['arg', 1]]])
+        assertEq(missing.length, 2)
+        assertEq(missing(100_000, 9), undefined)
+        assertEq(missing(0, 9), 9)
+        const swapped = compile(['=>', 3, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['arg', 2], ['arg', 1], ['[]', [['arg', 0]]]]],
+            ['[]', [['arg', 1], ['arg', 2]]]]])
+        assertEq(swapped.length, 3)
+        assertStructurallySame(swapped(100_001, 1, 2), [2, 1])
+        const captured = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['=>', 0, [['arg', 0]], ['frame', 0]], 7]], ['arg', 1]]])
+        assertEq(captured(100_000, null)(), 1)
+        const failing = compile(['=>', 1, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['throw', 'unused extra']]], ['arg', 0]]])
+        assertEq(failing(0), 0)
+        throws(() => failing(1), e => e === 'unused extra')
+    },
     captures: () => {
         const captured = Object.freeze([9])
         /** @type {FunctionExp} */

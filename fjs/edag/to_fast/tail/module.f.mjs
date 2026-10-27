@@ -13,7 +13,8 @@ import { bind, call, done, run } from '../../../js/ast/task/module.f.mjs'
 /**
  * Convert only reached terminal blocks and conditional arms. Other expressions
  * remain complete base results, including references to established calls.
- * Only matching spread-free calls transition the fixed invocation signature.
+ * Spread-free calls transition the fixed invocation signature. Missing values
+ * become undefined; extra arguments remain required evaluations before transfer.
  * @type {(source: Block, parameters: readonly BindingId[], self: BindingId, target: LoopTarget) => Block | null}
  */
 export const _tailCalls = (source, parameters, self, target) => {
@@ -33,8 +34,19 @@ export const _tailCalls = (source, parameters, self, target) => {
                 })))
             }
             if (value[0] === '()' && value[1] instanceof Array && value[1][0] === 'ref' && value[1][1] === self
-                && value[2].length === parameters.length && !value[2].some(item => item instanceof Array && item[0] === '...')) {
-                return done({ block: { statements: [], exit: ['continue', target, /** @type {readonly Value[]} */ (value[2])] }, changed: true })
+                && !value[2].some(item => item instanceof Array && item[0] === '...')) {
+                const args = /** @type {readonly Value[]} */ (value[2])
+                if (args.length > parameters.length) {
+                    // Materialize the invocation before reading its fixed
+                    // prefix. Every extra value and lazy demand stays reached.
+                    // This private vector's identity is never exposed.
+                    const binding = { index: self.index + 1 }
+                    return done({ block: {
+                        statements: [['define', binding, ['array', args], 'required']],
+                        exit: ['continue', target, parameters.map((_, index) => ['.', ['ref', binding], index])],
+                    }, changed: true })
+                }
+                return done({ block: { statements: [], exit: ['continue', target, parameters.map((_, index) => index < args.length ? args[index] : undefined)] }, changed: true })
             }
         }
         return done({ block: { statements: [], exit: ['break', target, [value]] }, changed: false })
