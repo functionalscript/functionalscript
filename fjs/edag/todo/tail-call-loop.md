@@ -50,6 +50,17 @@ placement, structured bodies and explicit exits remain H work. The source
 adapter uses shared recognition and preparation, with no writer-specific state
 or source-write analysis.
 
+An inherited example of that fallback is the raw zero-parameter graph function
+`['=>', 0, [], ['()', ['self'], []]]`. Serializing a call of this function still
+prints `const $0=()=>$0();export default $0();`, which overflows the stack on V8.
+The same spelling is produced at revision
+`30e0652bb948d8a161173a90e7e7c5f0a8d0ba48`, before the shared-owner ordering
+correction. Common tail lowering already gives this graph bounded-stack
+code-only JavaScript and Rust; source recognition does not yet include this
+zero-parameter root. An admitted source `while (true) {}` uses the supported
+aggregate-helper path instead. Extending the raw root's source spelling remains
+[H](../../todo/general-loops-and-tail-calls.md), outside the shared-owner fix.
+
 ### Problem
 
 Both serializers spell a function that calls itself as recursion. The

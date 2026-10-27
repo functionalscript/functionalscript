@@ -692,8 +692,8 @@ export const proof = {
         logical: () => {
             assertEq(fjsRoundTrip('export default (...a) => (a[0] && a[1] || a[2]) ?? a[3];'), 'export default (...$0)=>{const $1=$0[0];const $2=$1?$0[1]:$1;const $3=$2?$2:$0[2];return ($3===null?true:$3===undefined)?$0[3]:$3;};')
             assertEq(fjsRoundTrip('export default (...a) => a[0] && (() => { const x = null.x; return 1; })();'), 'export default (...$0)=>{const $1=$0[0];return $1?(()=>{const $2=null.x;return 1;})():$1;};')
-            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];const $3=$0[2];return [$2?$1:$2,$3?$1:$3];})():4;')
-            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$1)=>{const $2=$1[0];const $3=$1[1];return [$2?$0:$2,$3?$0:$3];};')
+            assertEq(fjsRoundTrip('export default (...a) => a[0] ? (() => { const x = [1]; return [a[1] && x, a[2] && x]; })() : 4;'), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];const $3=$2?$1:$2;const $4=$0[2];return [$3,$4?$1:$4];})():4;')
+            assertEq(fjsRoundTrip('const c = []; export default (...a) => [a[0] && c, a[1] && c];'), 'const $0=[];export default (...$1)=>[(()=>{const $2=$1[0];return $2?$0:$2;})(),(()=>{const $3=$1[1];return $3?$0:$3;})()];')
             assertEq(fjsRoundTrip('export default (...a) => (a[0] + 1) && a[1] + (a[2] ? 1 : 2);'), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]+($0[2]?1:2):$1;};')
         },
         // The lazy operators and the conditional, and the block a lazy
@@ -745,16 +745,13 @@ export const proof = {
             assertEq(
                 fjsRoundTrip('export default (b, f) => { let w = 0; while (w < 3) { const u0 = f(b); const u1 = b + u0; const u2 = f?.(u1); w = w + 1; } return 0; };'),
                 'export default ($0,$1)=>{const $2=($3)=>{const $4=$1;const $5=$0;let $6=$3;while((()=>{const $7=$6;return $7<3;})()){const $8=$6;const $9=$5+$4($5);const $10=$4?.($9);const $11=$8+1;$6=$11;}return $6;};const $12=$2(0);return 0;};')
-            // an anchor on a node the scope reaches anyway, a `const` read
-            // only through a call inlined beside it, is that node's `const`,
-            // in a body and in a module: the text is what the graph says, and
-            // reads back without the anchor the graph did not need
-            // (`edag/todo/redundant-anchor.md`)
-            assertEq(compileSource('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')('output.f.js'), 'export default ($0)=>{const $1=$0+1;return $1*2;};')
-            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'const $0=[1][0]+1;export default $0*2;')
-            // a shared node the scope reaches eagerly is named where its
-            // `const` stands, before an item the source wrote first: which
-            // failure comes first is no observation
+            // An inlined alias leaves one value use. Removing its redundant
+            // anchor also removes the temporary in both function and module
+            // output, while preserving the computation at that value use.
+            assertEq(compileSource('export default n => { const t = n + 1; const u = (() => t)(); return t * 2; };')('output.f.js'), 'export default ($0)=>($0+1)*2;')
+            assertEq(compileSource('const b = [1]; const t = b[0] + 1; const u = (() => t)(); export default t * 2;')('output.f.js'), 'export default ([1][0]+1)*2;')
+            // A required source initializer stays before later result
+            // operands, including a call written first in that result array.
             assertEq(fjsRoundTrip('export default (f) => { const y = f.x; return [f(), y, y]; };'), 'export default ($0)=>{const $1=$0.x;return [$0(),$1,$1];};')
         },
         // Stage A's operators, with the parentheses JavaScript's own
@@ -1172,11 +1169,14 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             ].join('\n')))
         },
         sharedOperation: () => {
+            // Export-local sharing stays in that export's value block.
             assertStructurallySame(
                 compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
                 [
-                    '    let _b0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
-                    '    Ok([(string_key("default"), [_b0.clone(), _b0.clone()].to_array().to_any())].to_object().to_any())',
+                    '    Ok([(string_key("default"), {',
+                    '        let _b0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    '        [_b0.clone(), _b0.clone()].to_array().to_any()',
+                    '    })].to_object().to_any())',
                 ])
         },
     },

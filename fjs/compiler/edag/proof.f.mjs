@@ -1045,8 +1045,9 @@ export const proof = {
             /** @type {(source: string, expected: string) => void} */
             const writes = (source, expected) => assertEq(unwrap(tryModuleStringify(unresolved(unwrap(parse('')(source))).edag)), expected)
             writes('const x = [1, 2]; const [a, b] = x; export default [b, a];', 'const $0=[...[1,2]];export default [$0[1],$0[0]];')
+            // Preserve the earlier property read before the array expansion.
             writes('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];',
-                'const $0={"a":null,"%":[true,false]};const $1=[...$0["%"]];export default [$0.a,$1[0],$1[1]];')
+                'const $0={"a":null,"%":[true,false]};const $1=$0.a;const $2=[...$0["%"]];export default [$1,$2[0],$2[1]];')
             writes('export default (...r) => { const [x, y] = r; return [y, x]; };', 'export default (...$0)=>{const $1=[...$0];return [$1[1],$1[0]];};')
             writes('const x = {}; const {} = x; const [] = x; export default 1;', 'const $0={};const $1=$0.length;const $2=[...$0];export default 1;')
             // a parameter pattern's reads open the body, and an object

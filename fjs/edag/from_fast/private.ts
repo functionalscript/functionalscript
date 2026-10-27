@@ -10,9 +10,6 @@ export type Binding = Environment[number]
 
 export type Link<T> = { readonly first: T; readonly tail: Link<T> | null }
 
-/** A null step stops before unowned work; a tuple visits one graph value. */
-export type AnchorStep = readonly [Exp] | null
-
 /** New lexical chunks override enclosing bindings; entries retain transfer order. */
 export type Scope = {
     readonly index: Stack<ReadonlyMap<BindingId, Binding>>

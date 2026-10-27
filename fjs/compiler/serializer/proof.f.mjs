@@ -951,10 +951,10 @@ export const proof = {
         writes(['=>', 0, [], ['throw', null]], 'export default ()=>{throw null;};')
         assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
         writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
-        // a shared constructor the throw holds is hoisted before the statement
+        // Sharing confined to the payload stays inside its value block.
         /** @type {Exp} */
         const o = ['{}', []]
-        writes(['throw', ['[]', [o, o]]], 'const $0={};throw [$0,$0];')
+        writes(['throw', ['[]', [o, o]]], 'throw (()=>{const $0={};return [$0,$0];})();')
         // the module writer takes a throwing module to the same text
         assertEq(unwrap(tryModuleStringify(['throw', 'x'])), 'throw "x";')
         assertEq(unwrap(tryModuleStringify([',', [['[]', []], ['throw', 1]]])), 'const $0=[];throw 1;')
@@ -1054,8 +1054,9 @@ export const proof = {
         const pair = /** @type {const} */ (['[]', [array, array]])
         // An ordinary property path nests Dot nodes. A property continuation
         // belongs to an optional region, whose later call owns this argument.
+        // Ordinary lookup also precedes the argument's local sharing block.
         writes(['=>', 1, [], ['.', ['.', ['arg', 0], 'x'], 'y', ['|()', [pair]]]],
-            'export default ($0)=>{const $1=[];return $0.x.y([$1,$1]);};')
+            'export default ($0)=>$0.x.y((()=>{const $1=[];return [$1,$1];})());')
         writes(['=>', 1, [], ['?.', ['arg', 0], 'x', ['|.', 'y', ['|()', [pair]]]]],
             'export default ($0)=>$0?.x.y((()=>{const $1=[];return [$1,$1];})());')
         writes(['=>', 1, [], ['.', ['arg', 0], 'x', ['|?.()', [], ['|.', 'y', ['|()', [pair]]]]]],
@@ -1371,10 +1372,10 @@ export const proof = {
         // under the lazy operators and the conditional, which bind looser
         // than them all
         writes(fn(conditional('&&', ['+', r0, 1], r1)), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]:$1;};')
-        writes(fn(['+', conditional('&&', r0, r1), 1]), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1)+1;};')
+        writes(fn(['+', conditional('&&', r0, r1), 1]), 'export default (...$0)=>(()=>{const $1=$0[0];return $1?$0[1]:$1;})()+1;')
         writes(fn(['+', r0, ['?:', r1, 1, 2]]), 'export default (...$0)=>$0[0]+($0[1]?1:2);')
         writes(fn(['?:', ['+', r0, 1], 1, 2]), 'export default (...$0)=>$0[0]+1?1:2;')
-        writes(fn(['|', r0, conditional('??', r1, 1)]), 'export default (...$0)=>{const $1=$0[1];return $0[0]|(($1===null?true:$1===undefined)?1:$1);};')
+        writes(fn(['|', r0, conditional('??', r1, 1)]), 'export default (...$0)=>$0[0]|(()=>{const $1=$0[1];return ($1===null?true:$1===undefined)?1:$1;})();')
         // the prefixes bind tighter than every binary operator, so an
         // operator's text is grouped under one and a prefix stands bare
         // under anything, another prefix included
@@ -1539,8 +1540,8 @@ export const proof = {
             writes(fn(['?:', r0, ['=>', 0, [], 1], 2]), 'export default (...$0)=>$0[0]?()=>1:2;')
             writes(fn(['?:', r0, 1, ['=>', 0, [], 1]]), 'export default (...$0)=>$0[0]?1:()=>1;')
             // an operator binds looser than a step and than the prefix
-            writes(fn(['.', conditional('&&', r0, r1), 'x']), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1).x;};')
-            writes(fn(['-', conditional('&&', r0, r1)]), 'export default (...$0)=>{const $1=$0[0];return -($1?$0[1]:$1);};')
+            writes(fn(['.', conditional('&&', r0, r1), 'x']), 'export default (...$0)=>(()=>{const $1=$0[0];return $1?$0[1]:$1;})().x;')
+            writes(fn(['-', conditional('&&', r0, r1)]), 'export default (...$0)=>-(()=>{const $1=$0[0];return $1?$0[1]:$1;})();')
             writes(fn(conditional('&&', ['-', r0], r1)), 'export default (...$0)=>{const $1=-$0[0];return $1?$0[1]:$1;};')
             // a body whose text opens with `{` is a block, whatever follows
             writes(fn(['?:', ['.', ['{}', []], 'x'], 1, 2]), 'export default ()=>{return {}.x?1:2;};')
@@ -1572,10 +1573,10 @@ export const proof = {
             // a function in the block captures the block's `const`, and is
             // one depth further in
             writes(['?:', true, ['[]', [c, ['=>', 0, [c], ['frame', 0]]]], 1], 'export default true?(()=>{const $0=[1];return [$0,()=>$0];})():1;')
-            // blocks nest as lazy operands do
+            // Sharing stays in its operand, inside the selected outer block.
             /** @type {Exp} */
             const d = ['[]', [2]]
-            writes(fn(['?:', r0, ['[]', [c, c, conditional('&&', r1, ['[]', [d, d]])]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];return [$1,$1,$2?(()=>{const $3=[2];return [$3,$3];})():$2];})():4;')
+            writes(fn(['?:', r0, ['[]', [c, c, conditional('&&', r1, ['[]', [d, d]])]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1,(()=>{const $2=$0[1];return $2?(()=>{const $3=[2];return [$3,$3];})():$2;})()];})():4;')
             // a value the scope reaches eagerly as well — in the same
             // statement, or a later one — is the scope's `const`
             writes(fn(['[]', [c, ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$0)=>{const $1=[1];return [$1,$0[0]?[$1,$1]:1];};')
@@ -1604,7 +1605,7 @@ export const proof = {
             // and two equal nodes are two, each written where it stands
             /** @type {() => Exp} */
             const twin = () => conditional('??', ['.', ['rest'], 0], ['.', ['rest'], 1])
-            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>{const $1=$0[0];const $2=$0[0];return [($1===null?true:$1===undefined)?$0[1]:$1,($2===null?true:$2===undefined)?$0[1]:$2];};')
+            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>[(()=>{const $1=$0[0];return ($1===null?true:$1===undefined)?$0[1]:$1;})(),(()=>{const $2=$0[0];return ($2===null?true:$2===undefined)?$0[1]:$2;})()];')
             /** @type {Exp} */
             const m = ['?:', r0, c, 1]
             writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$0)=>{const $1=[1];const $2=$0[0]?$1:1;return [$2,$2];};')
