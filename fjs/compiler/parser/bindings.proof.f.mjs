@@ -190,6 +190,37 @@ export const proof = {
             assertEq(refusal.message, 'reassigned variable captured', source)
         }
     },
+    loopEvidenceIncludesConditionBodyAndNestedReads: () => {
+        const module = parsed('export default limit=>{let left=0;let right=1;while((()=>left<limit)()){const snapshot=right;let local=0;local=local+1;left=left+local;right=snapshot+1;}return [left,right];};')
+        assert(module.body.exit[0] === 'yield')
+        const object = module.body.exit[1]
+        assert(object instanceof Array && object[0] === 'object')
+        const member = object[1][0]
+        assert(member[0] === ':')
+        const value = member[2]
+        assert(value instanceof Array && value[0] === 'function')
+        const statement = assertNotNullish(value[1].body.statements.find(statement => statement[0] === 'while'))
+        assert(statement[0] === 'while')
+        const loop = statement[1]
+        assertStructurallySame(Object.keys(loop).toSorted(), ['body', 'condition', 'events', 'target'])
+        assertEq(loop.events[0][0], 'function')
+        assertEq(loop.events.at(-1)?.[0], 'region')
+        const events = allEvents(loop.events)
+        for (const name of /** @type {const} */ (['left', 'right', 'local'])) {
+            const fact = named(module, name, 'let')
+            assertEq(fact.binding.isMutable, true)
+            assert(events.some(event => event[0] === 'read' && event[1] === fact.origin.id), name)
+            assert(events.some(event => event[0] === 'write' && event[1] === fact.origin.id), name)
+        }
+        const limit = named(module, 'limit', 'parameter')
+        assertEq(limit.binding.isMutable, false)
+        assert(events.some(event => event[0] === 'read' && event[1] === limit.origin.id))
+        assertEq(named(module, 'snapshot', 'const').binding.isMutable, false)
+        // The loop preserves facts only; local mutable declarations are still
+        // present for sugar to distinguish from established outer bindings.
+        const local = named(module, 'local', 'let')
+        assert(events.some(event => event[0] === 'initialize' && event[1] === local.origin.id))
+    },
     patternsAndDefaults: () => {
         const module = parsed('export default ([a],{b},c=a,...rest)=>()=>[a,b,c,rest];')
         for (const name of ['a', 'b', 'c', 'rest']) {

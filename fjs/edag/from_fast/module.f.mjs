@@ -18,6 +18,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { iterable, toArray } from '../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
+import { invariantState } from '../../js/ast/loop/invariant/module.f.mjs'
 import { exitValues, freeLoopBindings } from '../../js/ast/control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
@@ -300,15 +301,29 @@ const scalarRoot = (fn, loop, context) => call(() => {
     return aliases(0, context.scope)
 })
 
-/** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment }>} */
+/** Memo admission leaves only established values to capture. @type {(loop: Loop, context: Context) => Task<{ readonly value: Lowered; readonly bindings: Environment; readonly results: readonly BindingId[] }>} */
 const loopTask = (loop, context) => call(() => {
-    const scalar = scalarLoopOf(loop) !== null
-    return bind(functionValue(scalar ? scalarHelper(loop) : aggregateHelper(loop), context), fn =>
-        bind(valueTask(scalar ? loop.initial[0] : ['array', loop.initial], context), initial => {
-            /** @type {Lowered} */
-            const value = { exp: ['()', fn.exp, [initial.exp]], anchors: [...fn.anchors, ...initial.anchors] }
-            return done({ value, bindings: loop.results.map((binding, i) => [binding, scalar ? value.exp : ['.', value.exp, i]]) })
-        }))
+    const state = invariantState(loop, lazyBindings(context.scope))
+    return bind(lowerValues(state.aliases.map(alias => alias.value), context), aliases => {
+        const local = /** @type {Context} */ ({ ...context, scope: scopeOf(state.aliases.map((alias, index) => [alias.parameter, aliases[index].exp]), context.scope) })
+        const scalar = scalarLoopOf(state.loop) !== null
+        const helper = scalar ? scalarHelper(state.loop) : aggregateHelper(state.loop)
+        return bind(functionValue(helper, local), fn =>
+            bind(valueTask(scalar ? state.loop.initial[0] : ['array', state.loop.initial], local), initial => {
+                // An optimized-away source read can leave an invariant entry
+                // outside the helper's captures. Its required demand remains.
+                const demanded = state.aliases.flatMap((alias, index) => {
+                    const value = aliases[index].exp
+                    return !(value instanceof Array) || value === initial.exp || helper.captures.some(capture => capture.binding === alias.parameter) ? [] : [value]
+                })
+                /** @type {Lowered} */
+                const value = { exp: ['()', fn.exp, [initial.exp]], anchors: [...demanded, ...fn.anchors, ...initial.anchors] }
+                return done({ value, results: state.loop.results, bindings: [
+                    ...state.loop.results.map((binding, i) => /** @type {Environment[number]} */ ([binding, scalar ? value.exp : ['.', value.exp, i]])),
+                    ...state.aliases.map((alias, index) => /** @type {Environment[number]} */ ([alias.result, aliases[index].exp])),
+                ] })
+            }))
+    })
 })
 /** @type {(source: Operator<Value>, values: readonly Lowered[]) => Lowered} */
 const combined = (source, values) => {
@@ -400,8 +415,8 @@ const definitionTask = (statement, context, required, eager = false) => bind(val
     return done({ scope, anchors })
 })
 
-/** @type {(loop: Loop, value: Lowered, reached: readonly BindingId[], eager?: boolean) => readonly Exp[]} */
-const loopAnchors = (loop, value, reached, eager = false) => [...value.anchors, ...(eager || !loop.results.some(binding => reached.includes(binding)) ? [value.exp] : [])]
+/** Established invariant result aliases do not demand the helper itself. @type {(results: readonly BindingId[], value: Lowered, reached: readonly BindingId[], eager?: boolean) => readonly Exp[]} */
+const loopAnchors = (results, value, reached, eager = false) => [...value.anchors, ...(eager || !results.some(binding => reached.includes(binding)) ? [value.exp] : [])]
 
 /** @type {(statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => boolean} */
 const regionHasControl = (statement, context) => {
@@ -466,8 +481,8 @@ const controlTask = (block, context, expected) => call(() => {
             return bind(definitionTask(statement, current, required, !entry.includes(statement[1])), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }
         if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), ({ value, bindings }) => each(index + 1, scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(statement[1], value, reached, !statement[1].results.some(binding => entry.includes(binding))) }))
+            return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1, scopeOf(bindings, scope),
+                { head: anchors, tail: loopAnchors(results, value, reached, !results.some(binding => entry.includes(binding))) }))
         }
         if (!regionHasControl(statement, current)) {
             const task = statement[0] === 'block' ? regionTask(statement[2], current)
@@ -507,9 +522,9 @@ const blockTask = (block, context) => call(() => {
             return bind(definitionTask(statement, current, required), value => each(index + 1, value.scope, { head: anchors, tail: value.anchors }))
         }
         if (statement[0] === 'loop') {
-            return bind(loopTask(statement[1], current), ({ value, bindings }) => each(index + 1,
+            return bind(loopTask(statement[1], current), ({ value, bindings, results }) => each(index + 1,
                 scopeOf(bindings, scope),
-                { head: anchors, tail: loopAnchors(statement[1], value, reached) }))
+                { head: anchors, tail: loopAnchors(results, value, reached) }))
         }
         const task = statement[0] === 'block' ? regionTask(statement[2], current)
             : conditional(statement[2], statement[3], statement[4], current)

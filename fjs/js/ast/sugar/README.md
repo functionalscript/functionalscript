@@ -1,7 +1,7 @@
 # Source normalization
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
-parameter patterns and defaults, assignments, guards, switches and scalar
+parameter patterns and defaults, assignments, guards, switches and plain
 `while` loops. These constructs contain no generated functions, capture frames
 or immutable assignment versions. The parser retains source legality and
 diagnostics; representing a construct here does not admit new source syntax.
@@ -33,10 +33,18 @@ binding established before the block, and normalization asserts it, until
 general loops give a block's writes results
 ([let](../../../spec/todo/3220-let.md), "General loops"). A terminal arm, a
 guard's or a case's block, needs no such check: nothing in the enclosing scope
-runs after it, so a write in it is read by the arm alone, as JavaScript reads it. A scalar loop gets an explicit input binding,
-entry value, iteration body and separate result binding. Its assignments choose
-immutable iteration versions; the normal iteration transfer continues with the
-latest version. Graph construction consumes this signature directly.
+runs after it, so a write in it is read by the arm alone, as JavaScript reads it.
+
+A loop selects established outer bindings that are mutable and read or written
+in its source events, in binding-introduction order. Nested function/default
+reads participate; loop-local declarations stay local. The same ordered list
+supplies independent input parameters and normal result bindings, including
+zero or multiple values. Entry values come from the current immutable mapping;
+assignments choose successive immutable iteration values, and the final values
+continue simultaneously. Normal completion updates source mappings for actual
+writes only. A read-only carried value therefore does not invent a write that
+escapes an enclosing immediate-call value region. Graph construction consumes
+the explicit signature without source write analysis.
 
 Ordinary functions consume analyzed source capture facts. Intermediate
 functions forward values needed to construct deeper closures without inventing

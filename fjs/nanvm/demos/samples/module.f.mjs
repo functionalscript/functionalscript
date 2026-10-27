@@ -56,8 +56,8 @@ export const samples = [
         [7, ['returned', '"positive"']],
     ] },
     { name: 'loops', directory: 'spec/control-flow/loops', calls: [
-        [5, ['returned', '8']],
-        [100, ['returned', '128']],
+        [5, ['returned', '[8,3]']],
+        [100, ['returned', '[128,7]']],
     ] },
     { name: 'switch_statement', directory: 'spec/control-flow/switch', calls: [
         [0, ['returned', '"container"']],

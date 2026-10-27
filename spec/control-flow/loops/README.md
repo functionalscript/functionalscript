@@ -1,124 +1,89 @@
 # Loops
 
-**Status:** implemented
+**Status:** implemented — plain `while` bodies; structured bodies and exits remain planned
 
 ```js
 export default n => {
-    let r = 1;
-    while (r < n) { r = r * 2; }
-    return r;
+    let value = 1;
+    let steps = 0;
+    while (value < n) {
+        value = value * 2;
+        steps = steps + 1;
+    }
+    return [value, steps];
 };
 ```
 
-- **`while (condition) { … }`** is a loop: a statement of a block body,
-  standing where a `const` may, over one **variable**
-  ([variables](../../bindings/variables/README.md)) — a `let`'s or a
-  parameter's, the one name declared outside the block that the block
-  assigns. The `while` runs its block while the condition is truthy,
-  tested as `?:` tests its condition, before each round; and from the loop
-  on the variable holds the value the last round left. The block holds
-  `const`s and `let`s of its own, call statements
-  ([call statements](../../functions/call-statements/README.md)) and
-  assignments, `x = value;`, each ended as every statement is; an
-  assignment rebinds a variable for the statements after it, in order, as
-  JavaScript reads them, and the block's end continues the loop with the
-  variable's last binding. A value nothing after it reads, a `const` the
-  block never uses or an assignment overwritten before any read, `r =
-  null.x; r = 1;`, is established all the same, for what it does, as an
-  unused `const` is anywhere ([bodies and guards](../guards/README.md)):
-  the throw JavaScript throws there is thrown here, and the writer writes
-  the value back as a `const` of the block, the same graph. This is the
-  one form: one variable per loop, no `break`, `continue`, guard,
-  `return`, `throw` or nested loop in the block, and no loop at the module
-  level — each a step of a plan rather than a guarantee, additive on this
-  one ([`spec/todo/3220-let.md`](../../todo/3220-let.md)). No `;` follows
-  the `}`, as none follows a guard's.
+`while (condition) { … }` tests its condition before each round, including the
+first. A false condition skips the body; after normal completion, following
+statements read the values the last round left. Conditions use the same truth
+test as `?:`. No `;` follows the closing `}`.
 
-- The loop is syntactic sugar and adds no node: `let r = init; while (c)
-  { s…; r = next; } rest` denotes `rest` with `r` the value of
-  `loop(init)`, where `loop` is the function `r => c ? (() => { s…;
-  return loop(next); })() : r` — the recursive spelling, its one parameter
-  the variable, the block the body of a parameterless function called
-  where it stands, as a guard's is, so that a `const` in it is the block's
-  alone and runs only when the condition holds. The variable's value at
-  the `while` is `init`, whatever stood between its declaration and the
-  loop; a loop over a parameter the function's own argument. The graph is the template
-  `['=>', 1, slots, ['?:', c, ['()', ['self'], [next]], ['arg', 0]]]`
-  called with `init`, a comma around the call where the block holds a
-  `const` the next value does not reach — the same graph and hash a
-  function written that way has, and what the block reads from the body
-  around it is the function's frame, as any nested function's captures
-  are ([captures](../../functions/captures/README.md)).
+A loop may stand in a function body, in a terminal guard's or case's block,
+or after another loop. Its body holds `const`s and initialized `let`s, call
+statements and assignments. It may assign zero, one or several outer variables,
+including parameters. Assignments take effect in source order: a later
+assignment reads the value an earlier one established. Loop-local declarations
+belong to that round, and a shadowed name denotes its own binding.
 
-- **A loop runs in constant stack** in the FunctionalScript output, in
-  function text and in the Rust output: each writer recognizes the template
-  and spells it as the one loop, `while (c) { …; r = next; }` — the source
-  writer as these two statements, the code-only text as the same two over a
-  `let` of the function's parameter
-  ([function text](../../../fjs/edag/function-text.md)), and the Rust output as
-  Rust's `loop` over a `let mut` of the initial value where the function
-  is called where it is written, and as the function's closure whose body
-  is that loop over its argument where it is held as a value, no round a
-  call either way — where a function calling itself last is
-  otherwise recursion, which V8 runs out of stack on after some thousands
-  of rounds, having no tail calls, and Rust likewise. A hand-written
-  function of the template's shape, `const loop = r => c ? loop(next) :
-  r;`, is the same graph and gets the same loop; one of a shape no `while`
-  writes — a `const` before the condition running every round, a condition
-  sharing a value with the block that mints identity, a container, a
-  function or a call, a read of the rest array — keeps the recursion in
-  every writer, which ask one recognizer; a read the condition
-  and the block repeat, `r[0]`, one value of the graph, is written where
-  each read stands and loops. A condition sharing a value of its own, the
-  `const` of a function called where written, is the FunctionalScript
-  output's loop still, the condition written as that function again, so
-  that the value is established afresh at every test, and the Rust
-  output's, whose `loop` rebinds it; the function text keeps the recursion
-  for it. The FunctionalScript output alone keeps the recursion for a
-  nested function that reads the variable, `self(() => r)`, since its
-  nested function captures by name where the recursion's holds the value
-  of its round — the function text's captures by value, through the
-  wrapper it applies, and the Rust output's frame is a value. The EDAG
-  interpreters still run the call
-  ([tail-call-loop](../../../fjs/edag/todo/tail-call-loop.md)).
+Initializers, call statements and assignment computations run when reached,
+even if nothing reads their values. For example, `r = null.x; r = 1;` throws
+at the first assignment. The condition runs once at every reached test, using
+the preceding round's values; a failed test or body computation does not
+complete the loop normally.
 
-- Three programs JavaScript admits are refused rather than read another
-  way:
-  - a block that assigns no variable declared outside it (`loop variable
-    missing`) — a `const` of the variable's name in the block among them,
-    the block's own binding, which the loop never sees: the state being
-    all the condition reads, every round is the same round, a loop that
-    never ends or throws at once. This compiler names the slip rather
-    than compile a loop that cannot advance;
-  - a block that assigns a second variable declared outside it (`second
-    loop variable`): the graph construction steps one, and more is a
-    step of the plan ([`spec/todo/3220-let.md`](../../todo/3220-let.md),
-    "General loops");
-  - a function nested in the loop, in its condition or its block, that
-    reads the variable and is held as a value (`reassigned variable
-    captured`): the rule every variable has
-    ([variables](../../bindings/variables/README.md)), the loop being
-    where a variable is assigned most. A function called where it is
-    written, `r = (() => r + 1)();`, reads the round's value as
-    JavaScript's does, and is admitted; a function after the loop reads a
-    snapshot, `const s = r;`, instead.
+The current body grammar excludes guards, switches, nested loops, `break`,
+`continue`, `return` and `throw` statements. Module-level loops are also
+refused. These are remaining parts of
+[general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
+admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
+finish. A source function called inside a body keeps its own returns and may
+contain its own loops.
 
-  The variable is a name of the body as a `const` is — bound twice is
-  `duplicate id`, read in its own initializer `const not found`, by a
-  nested function there too, `let r = () => r;`, whose closure JavaScript
-  lets see the variable's last value.
+## Bindings and captures
+
+The ordinary [variable rules](../../bindings/variables/README.md) apply.
+Assignments to constants remain refused. A held function cannot capture a
+binding reassigned anywhere in its scope, including after the capture or in an
+unreachable loop. Use a snapshot to preserve the value of a particular round:
+`const snapshot = value; const read = () => snapshot;`. A function called where
+it is written may read the current variable, as in
+`value = (() => value + 1)();`; assigning an outer variable from that function
+remains refused. A never-reassigned `let` or parameter is capturable.
+
+## Normalization and output
+
+Loops add no graph operation. Shared source binding facts select the outer
+mutable bindings read or written by the loop, in declaration-introduction
+order. These become explicit FAST input and normal-result signatures, with no
+fixed-parameter limit on loop state. Immutable outer values remain references;
+local declarations stay in the body. Each iteration transfers the current
+values simultaneously after its source assignments have run in order.
+
+The established scalar shape keeps its recursive graph and exact graph round
+trip. General state uses the shared aggregate helper. Source serialization
+round trips through the same graph conversion and stabilizes under its declared
+normalization, rather than preserving the written variable names or count.
+
+Code-only JavaScript/function text and Rust emit general helpers as loops and
+run with bounded stack. Source `.js`/`.mjs` serialization currently emits
+general aggregate helpers as recursive functions. Deep new multi-state source
+outputs can therefore overflow on hosts without proper tail calls; connecting
+their plain `while` spelling is the next
+[source-output step](../../../fjs/edag/todo/tail-call-loop.md#remaining-general-source-output).
+Existing scalar source output retains its bounded-stack loop spelling,
+including loops that read an unchanged outer mutable value.
 
 ## Examples
 
-The compiler demo offers the programs `loops` in [`module.f.js`](../module.f.js), each with its real output.
+The compiler demo offers the programs `loops` in
+[`module.f.js`](../module.f.js), each with its real output.
 
-The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
-example as a function of one number — the one-variable `while` loop:
-the least power of two not below the input — with every output `fjs compile`
-makes of it: the expression graph (EDAG), the Rust and the WebAssembly that
-Rust builds to. Its Run button calls the default export with `5` and `100`,
-as JavaScript and as WebAssembly, and shows what each call returned or
-threw.
+The demo on this page runs [`sample.f.js`](./sample.f.js), this page's example:
+the least power of two not below the input, together with the number of steps.
+It shows the expression graph (EDAG), Rust and WebAssembly output. Run calls the
+default export with `5` and `100`, as JavaScript and WebAssembly, and returns
+`[8, 3]` and `[128, 7]`.
 
 ## Reference
 

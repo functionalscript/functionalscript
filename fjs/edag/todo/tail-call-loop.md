@@ -15,6 +15,33 @@ requires FAST and migration of existing consumers before broader behavior.
 This file owns the output work: baseline migration in C and generalized
 tail-call analysis in F. The implemented contracts below stay historical.
 
+### Remaining general source output
+
+The first H increment admits plain source loops with zero or multiple state
+values. Code-only JavaScript and Rust emit their aggregate helpers with bounded
+stack. Source `.js`/`.mjs` output still reifies general aggregate helpers as
+recursive functions so the result remains accepted source and round trips
+stably. It does not yet spell these helpers as plain `while` statements.
+
+For example, serialize this newly admitted program to `.js`, then call its
+default export with `100000` on V8:
+
+```js
+export default n => {
+    let i = 0;
+    let sum = 0;
+    while (i < n) { sum = sum + i; i = i + 1; }
+    return [i, sum];
+};
+```
+
+The emitted source overflows the stack, although code-only JavaScript, Rust and
+the source input's own `while` complete. H must connect shared plain-loop
+recognition/preparation to source serialization for aggregate helpers, including
+projection prefixes and normal-result computation. Preserve evaluation,
+identity, capture and stable graph/source conversion contracts. This is the
+next output increment; no per-writer state or source-write analysis is needed.
+
 ### Problem
 
 Both serializers spell a function that calls itself as recursion. The

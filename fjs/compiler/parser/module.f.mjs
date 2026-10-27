@@ -1,6 +1,6 @@
 /**
  * Resolve admitted source names and preserve source blocks, assignments,
- * parameter plans and scalar loops for the common sugar pass.
+ * parameter plans and loop source evidence for the common sugar pass.
  *
  * The explicit work stack keeps source depth independent of the host stack.
  * The parser owns declaration, key and capture admission; sugar owns generated
@@ -77,22 +77,6 @@ const constAssignment = foldError('assignment to const')
  * ([spec: variables](../../../spec/bindings/variables/README.md)).
  */
 const reassignedCaptured = foldError('reassigned variable captured')
-
-/**
- * A loop whose block assigns no variable declared outside it, at the
- * `while`: the state being all the condition reads, every round is the
- * same round — a loop that never ends, or throws at once — which this fold
- * names rather than compile ([spec: loops](../../../spec/control-flow/loops/README.md)).
- */
-const loopVariableMissing = foldError('loop variable missing')
-
-/**
- * A loop whose block assigns a second variable declared outside it, at the
- * first assignment to it: the graph construction steps one variable
- * ([spec: loops](../../../spec/control-flow/loops/README.md)).
- */
-const secondLoopVariable = foldError('second loop variable')
-
 
 /**
  * A parameter list whose first parameter is no binding target — no name
@@ -1044,11 +1028,10 @@ const bodyRound = (stack, scope, frame) => {
     }
     if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
     if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
-    // a loop's condition and block are regions of the body, as a guard's
-    // block is; which variable the block steps is read off its assignments
-    // when it closes, {@link loopRound}
+    // A loop's condition and block are source regions. Their complete
+    // evidence reaches sugar before mutable loop inputs are selected.
     if (kind === 'while') {
-        return [{ top: { loop: statement, body: frame, condition: null, variable: null }, rest: stack }, regionScope(scope, empty, null), ['enter', statement.condition]]
+        return [{ top: { loop: statement, body: frame, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', statement.condition]]
     }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
@@ -1532,11 +1515,11 @@ const returned = (stack, scope, frame, value) => {
         if (frame.condition === null) {
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
-                { block: frame.loop.block[1], start: frame.loop.start, index: 0, writes: [], plan: null, assigned: null, done: null })
+                { block: frame.loop.block[1], index: 0, plan: null, assigned: null, done: null })
         }
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
-        const loop = { target: /** @type {const} */ ({ kind: 'loop', index: outer.trace.count }), variable: assertNotNullish(frame.variable, 'a loop closed without its variable'), condition: frame.condition[0], body }
+        const loop = /** @type {const} */ ({ target: { kind: 'loop', index: outer.trace.count }, events: completedTrace(scope).events, condition: frame.condition[0], body })
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
     }
     if ('block' in frame) {
@@ -1612,26 +1595,17 @@ const switchReturned = (stack, scope, frame, value) => {
 /**
  * Retain declarations and assignments in a loop's block, a region of the
  * body: `const`s and `let`s as the body's, and assignments, each resolved
- * as an assignment anywhere is, {@link assigned}, and noted with its name.
- * At the `}`, the variable the loop steps is the one name declared outside
- * the block that the block assigns — a block assigning none, or a second,
- * is refused, the graph construction stepping one — and the loop frame
- * under the block's takes it. Sugar chooses immutable versions and explicit
- * iteration transfers.
+ * as an assignment anywhere is, {@link assigned}. Zero or several outer writes
+ * are admitted. Complete resolved read/write events, rather than a selected
+ * state variable, reach sugar, which chooses immutable versions and explicit
+ * iteration transfers after whole-scope analysis.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
  */
 const loopRound = (stack, scope, frame) => {
     const { block, index } = frame
     if (index === block.length) {
-        const outer = frame.writes.filter(([id]) => !scope.trace.bindings.includes(id))
-        const first = outer[0]
-        if (first === undefined) { return [stack, scope, error(loopVariableMissing(frame.start))] }
-        const second = outer.find(([id]) => id !== first[0])
-        if (second !== undefined) { return [stack, scope, error(secondLoopVariable(second[1]))] }
-        const { top, rest } = assertNotNullish(stack, 'a loop block without its loop')
-        assert('loop' in top, 'a loop block under a frame that is no loop')
-        return closed({ top: { ...top, variable: first[0] }, rest }, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
+        return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
     }
     const [kind, statement] = block[index]
     if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
@@ -1640,7 +1614,7 @@ const loopRound = (stack, scope, frame) => {
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
-        return [{ top: { ...frame, plan: null, assigned: target[1], writes: [...frame.writes, [target[1], statement.name]] }, rest: stack }, target[0], ['enter', statement.value]]
+        return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, target[0], ['enter', statement.value]]
     }
     const { target, value } = statement
     const namespace = namespaceOf(target, value)

@@ -18,8 +18,8 @@ through AST -> FAST -> EDAG and EDAG -> FAST -> target before adding the new
 features. Do not implement short-circuit normalization, general rebinding or
 broader loop recognition in the old fold/writers and later port them to FAST.
 
-The current language remains the [restricted loop form](../../spec/control-flow/loops/README.md)
-until the corresponding source milestone is complete.
+The [loop specification](../../spec/control-flow/loops/README.md) records the
+source forms delivered by each H increment.
 
 ### Owners
 
@@ -175,6 +175,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
+      Plain bodies now admit zero/multiple state values, sequential loops and
+      loops in terminal guard/case blocks. Shared binding events select state;
+      code-only JavaScript and Rust execute aggregate helpers with bounded
+      stack. Source serialization still uses recursion for general aggregate
+      helpers ([remaining source output](../edag/todo/tail-call-loop.md#remaining-general-source-output)).
+      Module loops, structured/nested bodies and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

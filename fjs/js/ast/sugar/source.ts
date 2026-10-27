@@ -10,7 +10,7 @@ import type { Primitive } from '../../../media/datajs/types.ts'
 import type { StaticId } from '../../../edag/types.ts'
 import type { AstImport, BinaryTag } from '../../../compiler/ast/types.ts'
 import type {
-    BindingId, FunctionTarget, LoopTarget, Operator,
+    BindingEvent, BindingId, FunctionTarget, LoopTarget, Operator,
     _Unary, _InstanceOf, _Array, _Object, _Access, _ContinuedAccess,
     _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf,
 } from '../types.ts'
@@ -58,10 +58,10 @@ export type SourceValue =
     | readonly ['function', SourceFunction]
     | readonly ['block', SourceBlock]
 
-/** The parser preserves the source scalar loop, including its assignments. */
+/** Resolved loops retain source evidence; sugar selects their mutable state. */
 export type SourceLoop = {
     readonly target: LoopTarget
-    readonly variable: BindingId
+    readonly events: readonly BindingEvent[]
     readonly condition: SourceValue
     readonly body: SourceBlock
 }

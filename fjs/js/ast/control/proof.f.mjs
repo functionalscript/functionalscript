@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { freeBindings, freeLoopBindings } from './module.f.mjs'
+import { freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -41,6 +41,27 @@ const identities = (bindings, expected) => {
 }
 
 export const proof = {
+    loopTransferOwners: () => {
+        const escaping = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, [['ref', a]]] })
+        const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })
+        const returned = returning(['ref', a])
+        const nested = /** @type {Loop} */ ({ target: inner, parameters: [], initial: [null], results: [], body: escaping })
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            escaping, stopped, ['block', escaping],
+            ['if', false, yielding(1), escaping],
+            fn([{ binding: local, value: ['block', escaping] }], nestedReturning(0)),
+            { statements: [['define', local, ['block', escaping], 'required']], exit: ['yield', []] },
+            { statements: [['block', [], escaping]], exit: ['yield', []] },
+            { statements: [['if', [], true, yielding(1), escaping]], exit: ['yield', []] },
+            { statements: [['loop', nested]], exit: ['yield', []] },
+        ])) { assertEq(hasLoopTransfer(value, outer), true) }
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            null, undefined, ['ref', a], ['array', [1, ['ref', a]]], returned,
+            fn([], nestedReturning(['block', escaping])),
+            ['block', { statements: [], exit: ['break', inner, []] }],
+            { statements: [['loop', { ...nested, initial: [], body: yielding(1) }]], exit: ['throw', 1] },
+        ])) { assertEq(hasLoopTransfer(value, outer), false) }
+    },
     references: () => {
         const value = /** @type {Value} */ (['array', [
             ['ref', b],

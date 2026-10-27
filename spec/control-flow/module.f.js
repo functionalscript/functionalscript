@@ -19,6 +19,10 @@ const guards = [
 const loops = [
     ['Loop', 'export default n => {\n    let r = 1;\n    while (r < n) {\n        r = r * 2;\n    }\n    return r;\n};', 'loop'],
     ['Loop over a parameter', 'export default n => {\n    while (n > 0) {\n        n = n - 7;\n    }\n    return n;\n};', 'loop-over-a-parameter'],
+    ['Loop with two variables', 'export default n => {\n    let value = 1;\n    let steps = 0;\n    while (value < n) {\n        value = value * 2;\n        steps = steps + 1;\n    }\n    return [value, steps];\n};', 'loop-with-two-variables'],
+    ['Loop with no state', 'export default n => {\n    while (false) {\n        const unreached = null.x;\n    }\n    return n;\n};', 'loop-with-no-state'],
+    ['Sequential loops', 'export default n => {\n    let value = 1;\n    let steps = 0;\n    while (value < n) {\n        value = value * 2;\n        steps = steps + 1;\n    }\n    while (steps > 0) {\n        steps = steps - 1;\n    }\n    return [value, steps];\n};', 'sequential-loops'],
+    ['Loop in a guard', 'export default n => {\n    if (n < 0) {\n        let total = 0;\n        while (n < 0) {\n            total = total + n;\n            n = n + 1;\n        }\n        return total;\n    }\n    return n;\n};', 'loop-in-a-guard'],
 ]
 
 /** @type {Examples} */

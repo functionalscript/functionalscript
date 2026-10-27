@@ -1181,6 +1181,14 @@ export const proof = {
         writes(['=>', 1, [], ['?:', false, ['()', ['self'], [['arg', 0]]], ['arg', 0]]],
             'export default ($0)=>{let $1=$0;while((()=>{const $2=$1;return false;})()){const $3=$1;$1=$1;}return $1;};')
     },
+    unchangedOuterLoopState: () => {
+        // A source binding assigned before the loop is mutable even when this
+        // loop only reads it. Carrying that unchanged value must preserve the
+        // established scalar graph and its bounded-stack source spelling.
+        const parsed = unwrap(parse(path)('export default n=>{let limit=n;limit=limit+0;let i=0;while(i<limit){i=i+1;}return i;};'))
+        const graph = _defaultExport(unresolved(parsed).edag)
+        assert(reads(graph).includes('while('))
+    },
     loops: () => {
         /** @type {(next: Exp) => Exp} */
         const call = next => ['()', ['self'], [next]]

@@ -90,8 +90,8 @@ export type _DeclarationKind = 'const' | 'let' | 'parameter'
 /** The statement being read: a declaration's plan, or an assignment's resolved target. */
 export type _Declaring = { readonly plan: _Plan | null; readonly assigned: BindingId | null }
 export type _BodyFrame = _Counted<SourceStatement> & _Declaring & { readonly statements: Block[1]; readonly first: number }
-export type _LoopFrame = { readonly loop: While; readonly body: _BodyFrame; readonly condition: readonly [SourceValue] | null; readonly variable: BindingId | null }
-export type _LoopBodyFrame = _Counted<SourceStatement> & _Declaring & { readonly block: LoopBlock[1]; readonly start: ModuleTokenWithMetadata; readonly writes: readonly (readonly [BindingId, ModuleTokenWithMetadata])[] }
+export type _LoopFrame = { readonly loop: While; readonly body: _BodyFrame; readonly condition: readonly [SourceValue] | null }
+export type _LoopBodyFrame = _Counted<SourceStatement> & _Declaring & { readonly block: LoopBlock[1] }
 export type _GuardFrame = { readonly guard: If; readonly body: _BodyFrame; readonly condition: SourceValue; readonly then: SourceBlock | null }
 export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 export type _UnaryFrame = { readonly unary: UnaryTag }
