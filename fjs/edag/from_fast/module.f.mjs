@@ -42,6 +42,17 @@ export const anchored = value => demandsInOrder(value.exp, value.anchors) ? valu
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)
 
+/** Keep child requirements local unless the actual parent proves safe floating.
+ * @type {(values: readonly Lowered[], construct: (values: readonly Exp[]) => Exp) => { readonly values: readonly Exp[]; readonly anchors: readonly Exp[] }}
+ */
+const orderedOperands = (values, construct) => {
+    const anchors = floated(values)
+    const local = values.map(anchored)
+    return demandsInOrder(construct(local), anchors)
+        ? { values: values.map(value => value.exp), anchors }
+        : { values: local, anchors: [] }
+}
+
 /** @type {(scope: Scope, binding: BindingId) => Binding | undefined} */
 const bindingOf = (scope, binding) => {
     let index = scope.index
@@ -398,7 +409,8 @@ const functionValue = (source, context) => call(() => {
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
     const fn = matched !== null ? directInvocationRoot(normalized, matched) : normalized
     return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
-        const candidates = captures.map(capture => capture.exp).filter(exp => exp instanceof Array)
+        const placed = orderedOperands(captures, values => ['[]', values])
+        const candidates = placed.values.filter(exp => exp instanceof Array)
         const slots = candidates.filter((node, i) => candidates.findIndex(other => sameCapture(other, node)) === i)
         const reads = slots.map((_, i) => /** @type {Exp} */ (['frame', i]))
         /** @type {Environment} */
@@ -407,7 +419,7 @@ const functionValue = (source, context) => call(() => {
             ...(fn.rest === null ? [] : [/** @type {const} */ ([fn.rest, ['rest']])]),
             ...(fn.self === null ? [] : [/** @type {const} */ ([fn.self, ['self']])]),
             ...fn.captures.map((capture, i) => /** @type {const} */ ([capture.binding,
-                captures[i].exp instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (captures[i].exp)))] : captures[i].exp,
+                placed.values[i] instanceof Array ? reads[slots.findIndex(node => sameCapture(node, /** @type {ExpOp} */ (placed.values[i])))] : placed.values[i],
             ])),
         ]
         const known = context.external.length === 0 ? context.summaries : new Map()
@@ -415,7 +427,7 @@ const functionValue = (source, context) => call(() => {
         const local = { ...context, external: [], summaries: fn === source && context.external.length === 0 ? known : new Map([...known, ...summaries(['block', fn.body], known)]), scope: scopeOf(inner), transfer: { kind: 'default' }, functionTarget: fn.target, memoPrepared: true }
         const root = rootLoopOf(fn)
         return bind(root === null ? blockTask(fn.body, local) : scalarRoot(fn, root, local), body =>
-            done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: floated(captures) }))
+            done({ exp: ['=>', fn.parameters.length, slots, anchored(body)], anchors: placed.anchors }))
     })
 })
 
@@ -454,8 +466,9 @@ const loopTask = (loop, context) => call(() => {
                     const value = aliases[index].exp
                     return !(value instanceof Array) || value === initial.exp || helper.captures.some(capture => capture.binding === alias.parameter) ? [] : [value]
                 })
+                const placed = orderedOperands([fn, initial], values => ['()', values[0], [values[1]]])
                 /** @type {Lowered} */
-                const value = { exp: ['()', fn.exp, [initial.exp]], anchors: [...demanded, ...fn.anchors, ...initial.anchors] }
+                const value = { exp: ['()', placed.values[0], [placed.values[1]]], anchors: [...demanded, ...placed.anchors] }
                 return done({ value, results: state.loop.results, bindings: [
                     ...state.loop.results.map((binding, i) => /** @type {Environment[number]} */ ([binding, scalar ? value.exp : ['.', value.exp, i]])),
                     ...state.aliases.map((alias, index) => /** @type {Environment[number]} */ ([alias.result, aliases[index].exp])),
@@ -465,29 +478,21 @@ const loopTask = (loop, context) => call(() => {
 })
 /** @type {(source: Operator<Value>, values: readonly Lowered[]) => Lowered} */
 const combined = (source, values) => {
-    const mapped = mapOperator((_, index) => {
-        const value = values[index]
-        return isLazyOperand(source, index) ? anchored(value) : value.exp
-    })(source)
-    const anchors = floated(values.filter((_, i) => !isLazyOperand(source, i)))
-    if (mapped[0] === 'array') { return { exp: ['[]', mapped[1]], anchors } }
-    if (mapped[0] === 'object') { return { exp: ['{}', mapped[1]], anchors } }
-    if (mapped[0] === ',') {
+    if (source[0] === ',') {
         const before = values.slice(0, -1).flatMap(value => value.exp instanceof Array ? [...value.anchors, value.exp] : value.anchors)
         const last = values[values.length - 1]
         return { exp: last.exp, anchors: [...before, ...last.anchors] }
     }
-    if (mapped[0] === '-' && mapped.length === 2 && (typeof mapped[1] === 'number' || typeof mapped[1] === 'bigint')) {
-        return { exp: -mapped[1], anchors }
+    /** @type {(values: readonly Exp[]) => Exp} */
+    const construct = values => {
+        const mapped = mapOperator((_, index) => values[index])(source)
+        if (mapped[0] === 'array') { return ['[]', mapped[1]] }
+        if (mapped[0] === 'object') { return ['{}', mapped[1]] }
+        if (mapped[0] === '-' && mapped.length === 2 && (typeof mapped[1] === 'number' || typeof mapped[1] === 'bigint')) { return -mapped[1] }
+        return /** @type {Exp} */ (mapped)
     }
-    if (mapped[0] === '()' && source[0] === '()') {
-        const callee = source[1]
-        const f = mapped[1]
-        if (callee instanceof Array && callee[0] === '.' && callee.length === 3 && f instanceof Array && f[0] === '.' && f.length === 3) {
-            return { exp: ['.', f[1], f[2], ['|()', mapped[2]]], anchors }
-        }
-    }
-    return { exp: /** @type {Exp} */ (mapped), anchors }
+    const placed = orderedOperands(values.map((value, index) => isLazyOperand(source, index) ? plain(anchored(value)) : value), construct)
+    return { exp: construct(placed.values), anchors: placed.anchors }
 }
 
 /** @type {(root: Value, context: Context) => Task<Lowered>} */
@@ -498,6 +503,11 @@ const valueTask = (root, context) => call(() => {
     if (root[0] === 'function') { return functionValue(root[1], context) }
     if (root[0] === 'block') { return regionTask(root[1], context, true) }
     if (root[0] === 'if') { return conditional(root[1], root[2], root[3], context, true) }
+    // A direct member callee retains its receiver and lookup boundary.
+    // Wrapped member values remain detached ordinary calls.
+    if (root[0] === '()' && root[1] instanceof Array && root[1][0] === '.' && root[1].length === 3) {
+        return valueTask(['.', root[1][1], root[1][2], ['|()', root[2]]], context)
+    }
     return bind(lowerValues(operatorOperands(root), context), values => done(combined(root, values)))
 })
 
@@ -521,7 +531,11 @@ const regionTask = (block, context, normalize = false) => call(() => {
 })
 
 /** One result stays scalar; other signatures use their declared order. @type {(values: readonly Lowered[]) => Lowered} */
-const resultsValue = values => ({ exp: values.length === 1 ? values[0].exp : ['[]', values.map(value => value.exp)], anchors: floated(values) })
+const resultsValue = values => {
+    if (values.length === 1) { return values[0] }
+    const placed = orderedOperands(values, values => ['[]', values])
+    return { exp: ['[]', placed.values], anchors: placed.anchors }
+}
 
 /** @type {(exit: Exit, context: Context) => Task<Lowered>} */
 const transferTask = (exit, context) => call(() => {

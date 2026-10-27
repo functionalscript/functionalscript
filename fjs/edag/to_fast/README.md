@@ -157,6 +157,11 @@ then stabilize; repeated output adds no helpers or unused projection demands.
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.
+Unshared operand-local commas have a value-block/IIFE spelling. Their first
+source parse can relocate safe anchors or compact equivalent capture slots;
+the resulting graph and source spelling then stabilize exactly. Shared commas
+outside canonical scopes remain refused. This extends source graph admission
+without adding source syntax.
 Canonical JavaScript bytes now come from prepared FAST, so names, grouping and
 single-use temporary declarations may differ from the former direct graph
 writers. Code-only function text still treats frame slots as external values
