@@ -1,7 +1,7 @@
 ## Smart CI follow-ups
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
