@@ -228,6 +228,48 @@ export const proof = {
         ]
         for (const source of failures) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
     },
+    alternativeBodyResultsJoinBothEnvironments: () => {
+        /** @type {string} */
+        const source = 'export default (n,selected)=>{let i=0;let a=1;let b=2;while(i<n){if(selected){let local=a;local=local+3;b=local;}else{let local=b;local=local+5;a=local;}i=i+1;}return [i,a,b];};'
+        const normalized = fn(source)
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const guard = statement[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const branch = guard[3].statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        // The true arm writes b first; the union is still a, b, with neither
+        // arm's local declaration crossing the branch boundary.
+        assertEq(branch[1].length, 2)
+        assert(branch[3].exit[0] === 'yield' && branch[4].exit[0] === 'yield')
+        assertStructurallySame(branch[3].exit[1][0], ['ref', statement[1].parameters[1]])
+        assertStructurallySame(branch[4].exit[1][1], ['ref', statement[1].parameters[2]])
+        assertStructurallySame(result(`export default (${source.slice('export default '.length, -1)})(2,true);`), { default: [2, 1, 4] })
+        assertStructurallySame(result(`export default (${source.slice('export default '.length, -1)})(2,false);`), { default: [2, 7, 2] })
+    },
+    alternativeBodiesPreserveLocalsAliasesAndSnapshots: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let x=1;while(i<4){if(i===0){x=10;}else if(i===1){x=20;}else if(i===2){}else{x=x+3;}i=i+1;}return [i,x];})();', [4, 23]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let local=1;if(i===0){if(false){local=7;}else{local=local+2;}}else{if(i===1){local=5;}else if(false){local=null.x;}else{local=9;}}sum=sum+local;i=i+1;}return [i,sum];})();', [3, 17]],
+            ['export default (()=>{let i=0;const first=[1];const second=[2];let left=first;let right=second;while(i<2){if(i===0){left=second;}else{right=first;}i=i+1;}return [left===second,right===first,left===right];})();', [true, true, false]],
+            ['export default (()=>{let i=0;let a=null;let b=null;while(i<3){if(i<1){const shared=[i];a=shared;b=shared;}else{const shared=[i+10];a=shared;b=shared;}i=i+1;}return [a,b,a===b];})();', [[12], [12], true]],
+            ['export default (()=>{let i=0;let read=()=>-1;while(i<3){if(i===1){const snapshot=i;read=()=>snapshot;}else if(i===2){const snapshot=i+10;read=()=>snapshot;}else{const snapshot=i;read=()=>snapshot;}i=i+1;}return read();})();', 12],
+            ['export default (()=>{let i=0;let x=1;while(i<2){if(i===0){const x=2;const read=()=>x;read();}else{let x=3;x=x+1;}i=i+1;}return x;})();', 1],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    alternativeBodiesKeepTestsAndWorkSelected: () => {
+        assertStructurallySame(result('export default (()=>{let i=0;while(i<2){if(true){}else if(null.x){const skipped=null.x;}else{const skipped=null.x;}i=i+1;}return i;})();'), { default: 2 })
+        assertStructurallySame(result('export default (()=>{let i=0;while(i<2){if(false){const skipped=null.x;}else if(true){}else{const skipped=null.x;}i=i+1;}return i;})();'), { default: 2 })
+        /** @type {readonly string[]} */
+        const failures = [
+            'export default (()=>{let i=0;while(i<1){if(false){}else if(null.x){}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(false){}else{const required=null.x;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(false){}else if(false){}else{i=null.x;i=1;}i=i+1;}return i;})();',
+        ]
+        for (const source of failures) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
     zeroStateLoopsRetainTheirEvaluationRegions: () => {
         const normalized = fn('export default ()=>{while(false){let local=0;local=local+1;}return 7;};')
         const statement = normalized.body.statements.find(statement => statement[0] === 'loop')

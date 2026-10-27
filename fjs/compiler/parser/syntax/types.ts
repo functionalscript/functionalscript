@@ -151,8 +151,13 @@ export type While = {
 /** A loop's block: declarations, assignments and normal conditionals in order, and no terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
-/** A normal conditional in a loop has the same condition/block record as its containing loop. Its closing brace resumes the surrounding block. */
-export type LoopIf = While
+/** A normal conditional resumes the surrounding block after its selected arm. An `else if` is another conditional in the alternate block. */
+export type LoopIf = {
+    readonly start: ModuleTokenWithMetadata
+    readonly condition: Node
+    readonly block: LoopBlock
+    readonly otherwise: LoopBlock | null
+}
 
 /** A loop block's statement, tagged: a declaration, assignment or normal conditional. */
 export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf]
@@ -498,6 +503,7 @@ export type Out =
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
+    | { readonly id: 'loopElse', readonly block: LoopBlock }
     | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }
     | { readonly id: 'last', readonly statements: List<ModuleStatement>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

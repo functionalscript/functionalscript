@@ -34,12 +34,15 @@ guard's or a case's block, needs no such check: nothing in the enclosing scope
 runs after it, so a write in it is read by the arm alone, as JavaScript reads it.
 
 A conditional statement inside a loop instead keeps the surrounding statement
-continuation. Its assigned outer bindings become explicit FAST branch results
-in binding-introduction order. The reached arm yields its latest immutable
-versions; the skipped arm yields the preceding versions. Following statements
-read these results. Branch-local declarations do not escape, required work
-stays inside the reached arm, and aliases needed for result values survive
-pruning. Nested conditionals use the same rule without a function boundary.
+continuation. Both arms normalize from the same preceding immutable mapping.
+The union of their assigned outer bindings becomes explicit FAST branch results
+in binding-introduction order. Each arm yields its latest immutable versions,
+retaining preceding versions for names it does not write. An omitted `else`
+is an empty normal arm, preserving the original one-arm normalization.
+Following statements read these results. Branch-local declarations do not
+escape, required work stays inside the reached arm, and aliases needed for
+result values survive pruning. `else if` is a conditional in the false arm;
+nested conditionals use the same rule without a function boundary.
 
 A loop selects established outer bindings that are mutable and read or written
 in its source events, in binding-introduction order. Nested function/default

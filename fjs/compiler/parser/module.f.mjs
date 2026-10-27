@@ -1528,13 +1528,22 @@ const returned = (stack, scope, frame, value) => {
     if ('block' in frame) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
-            return loopRound({ top: { loopGuard: frame, condition: value }, rest: stack }, regionScope(scope, empty, null),
+            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
                 { block: statement.block[1], index: 0, plan: null, assigned: null, done: null })
         }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         return landed(loopRound, stack, scope, frame, kind, value)
     }
-    if ('loopGuard' in frame) { return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition, regionBlock(value)]])) }
+    if ('loopGuard' in frame) {
+        const block = regionBlock(value)
+        if (frame.then === null && frame.otherwise !== null) {
+            return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
+                { block: frame.otherwise[1], index: 0, plan: null, assigned: null, done: null })
+        }
+        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
+            frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
+        ]]))
+    }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }

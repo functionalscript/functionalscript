@@ -39,7 +39,7 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, `if` opening a guard in one, `let` and `while` a loop, `switch`
+ * too, `if` opening a guard in one, `else` an alternate, `let` and `while` a loop, `switch`
  * and `case` a switch, `as` an import alias, and `typeof` a prefix
  * opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -506,9 +506,18 @@ export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 /** A loop block's statement: a declaration, a normal conditional over another {@link LoopBlock}, or what begins with a name. A thunk, since its branch names itself through that block. */
 export type LoopStatement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly if: readonly [number, number, Value, number, LoopBlock]
+    readonly if: LoopIfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement
+}]
+
+/** A loop's normal conditional, with an optional alternate block or conditional. */
+export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]
+
+/** A braced alternate or another conditional, after `else`. */
+export type LoopElse = () => readonly ['const', {
+    readonly block: LoopBlock
+    readonly if: LoopIfStatement
 }]
 
 /**

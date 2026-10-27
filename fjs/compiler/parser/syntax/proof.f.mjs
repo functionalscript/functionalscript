@@ -60,7 +60,8 @@ export const proof = {
         assertStructurallySame(loop[1].block[1].map(statement => statement[0]), ['if', 'assign'])
         const conditional = loop[1].block[1][0]
         assert(conditional[0] === 'if')
-        assertStructurallySame(Object.keys(conditional[1]).toSorted(), ['block', 'condition', 'start'])
+        assertStructurallySame(Object.keys(conditional[1]).toSorted(), ['block', 'condition', 'otherwise', 'start'])
+        assertEq(conditional[1].otherwise, null)
         assertEq(conditional[1].start.metadata.line, 2)
         assertEq(conditional[1].condition[0], '===')
         assertEq(conditional[1].block[0], 'loop')
@@ -69,6 +70,24 @@ export const proof = {
         assert(nested[0] === 'if')
         assertEq(nested[1].condition[0], 'ref')
         assertEq(nested[1].block[1][0][0], 'assign')
+    },
+    loopAlternatesRemainSeparateLexicalBlocks: () => {
+        const module = unwrap(parseSyntax(tokenizeString('let i=0;while(i<4){if(i===0){i=1;}else if(i===1){i=2;}else{const next=4;i=next;}i=i+1;}export default i;')))
+        const loop = module.statements[1]
+        assert(loop[0] === 'while')
+        const conditional = loop[1].block[1][0]
+        assert(conditional[0] === 'if')
+        const alternate = conditional[1].otherwise
+        assert(alternate !== null)
+        assertEq(alternate[1].length, 1)
+        const chained = alternate[1][0]
+        assert(chained[0] === 'if')
+        assertEq(chained[1].start.metadata.column, 40)
+        assertEq(chained[1].condition[0], '===')
+        const final = chained[1].otherwise
+        assert(final !== null)
+        assertStructurallySame(final[1].map(statement => statement[0]), ['const', 'assign'])
+        assertEq(loop[1].block[1][1][0], 'assign')
     },
     moduleLoopsKeepTheirOwnStatementRecord: () => {
         const module = unwrap(parseSyntax(tokenizeString('let i=0;\nexport const before=i;\nwhile(i<2){i=i+1;}\nexport const after=i;\nexport default i;')))

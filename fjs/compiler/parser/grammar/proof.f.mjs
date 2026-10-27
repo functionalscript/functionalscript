@@ -19,7 +19,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopStatement, member, object, parameters, paren, statement,
+    module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopElse, loopIfStatement, loopStatement, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
 
@@ -111,6 +111,16 @@ export const proof = {
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         whileStatement: () => { parser(/** @type {Rule} */ (whileStatement)) },
         loopStatement: () => { parser(/** @type {Rule} */ (loopStatement)) },
+        loopIfStatement: () => {
+            /** @type {Rule} */
+            const rule = loopIfStatement
+            parser(rule)
+        },
+        loopElse: () => {
+            /** @type {Rule} */
+            const rule = loopElse
+            parser(rule)
+        },
         bodyNameStatement: () => { parser(/** @type {Rule} */ (bodyNameStatement)) },
         moduleStatement: () => { parser(/** @type {Rule} */ (moduleStatement)) },
         attribute: () => { parser(attribute) },
@@ -134,7 +144,7 @@ export const proof = {
         assertEq(id.symbol, sym('id'))
         assertEq(id.meta.token.kind, 'id')
         // a reserved word no rule requires is the one `keyword` symbol
-        const reserved = symbolOf({ token: { kind: 'id', value: 'else' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
+        const reserved = symbolOf({ token: { kind: 'id', value: 'var' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false })
         assertEq(reserved.symbol, sym('keyword'))
         assertEq(reserved.meta.token.kind, 'id')
     },
@@ -442,7 +452,16 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { if (r) {} } } return r; };'), ['ok'])
         assertStructurallySame(read('let r=0;while(r<2){if(r===0){r=r+1}r=r+1;}export default r;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){}}export default 7;'), ['ok'])
-        assertStructurallySame(read('while(false){if(true){}else{}}export default 7;'), ['error', 'else'])
+        assertStructurallySame(read('while(false){if(true){}else{}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){if(true){}else if(false){}else{}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){if(true){}else if(false){}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){if(true){if(false){}else{}}else{if(false){}else{}}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){if(true){}else value=1;}export default 7;'), ['error', 'value'])
+        assertStructurallySame(read('while(false){if(true){}else{}else{}}export default 7;'), ['error', 'else'])
+        assertStructurallySame(read('while(false){if(true){};else{}}export default 7;'), ['error', ';'])
+        assertStructurallySame(read('while(false){if(true){}else{return 1;}}export default 7;'), ['error', 'return'])
+        assertStructurallySame(read('while(false){if(true){}else{while(false){}}}export default 7;'), ['error', 'while'])
+        assertStructurallySame(read('export default {else:1}.else;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('while(false){if(true){throw 1;}}export default 7;'), ['error', 'throw'])
         assertStructurallySame(read('while(false){if(true){while(false){}}}export default 7;'), ['error', 'while'])

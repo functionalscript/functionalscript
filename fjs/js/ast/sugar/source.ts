@@ -69,8 +69,8 @@ export type SourceLoop = {
 export type SourceStatement =
     | readonly ['initialize', ExpansionPlan, SourceValue]
     | readonly ['write', BindingId, SourceValue]
-    /** A normally completing conditional body precedes the next statement. */
-    | readonly ['if', SourceValue, SourceBlock]
+    /** Both normal arms precede the next statement; an omitted else is empty. */
+    | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
 
 export type SourceCase = {

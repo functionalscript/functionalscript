@@ -26,6 +26,61 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    alternativeSourceBodiesRetainValuesAndStableSpelling: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<4){if(i<2){sum=sum+i;}else{sum=sum+10;}i=i+1;}return [i,sum];})();', [4, 21]],
+            ['export default (()=>{let i=0;let a=1;let b=2;while(i<4){if(i<2){a=a+i;}else{b=b+i;}i=i+1;}return [i,a,b];})();', [4, 2, 7]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let local=1;if(i<2){local=local+2;}else{local=local+4;}sum=sum+local;i=i+1;}return [i,sum];})();', [3, 11]],
+            ['export default (()=>{let i=0;let sum=0;while(i<4){if(i===0){sum=sum+1;}else if(i===1){sum=sum+2;}else if(i===2){sum=sum+4;}else{sum=sum+8;}i=i+1;}return [i,sum];})();', [4, 15]],
+            ['export default (()=>{let i=0;let sum=0;while(i<4){if(i===0){sum=sum+1;}else if(i===1){sum=sum+2;}i=i+1;}return [i,sum];})();', [4, 3]],
+            ['export default (()=>{let i=0;let sum=0;while(i<2){if(i<2){sum=sum+1;}else if(null.x){sum=99;}else{sum=100;}i=i+1;}return [i,sum];})();', [2, 2]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if(false){const skipped=null.x;}else if(i<2){sum=sum+i;}else{sum=sum+10;}i=i+1;}return [i,sum];})();', [3, 11]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if(i<2){if(i===0){sum=sum+1;}else{sum=sum+2;}}else{if(i===2){sum=sum+4;}else{const skipped=null.x;}}i=i+1;}return [i,sum];})();', [3, 7]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){if(i<2){const local=i+1;sum=sum+local;}else{let local=i+10;local=local+1;sum=sum+local;}i=i+1;}return [i,sum];})();', [3, 16]],
+            ['export default (()=>{let i=0;let a=null;let b=null;while(i<2){if(i<1){const shared=[i];a=shared;b=shared;}else{const shared=[i+10];a=shared;b=shared;}i=i+1;}return [a===b,a];})();', [true, [11]]],
+            ['export default (()=>{let i=0;let saved=null;while(i<2){if(i<1){const snapshot=i;saved=()=>snapshot;}else{const snapshot=i+10;saved=()=>snapshot;}i=i+1;}return saved();})();', 11],
+            ['export default (()=>{let i=0;while(i<2){if(false){}else{}i=i+1;}return i;})();', 2],
+            ['export default (()=>{while(false){if(null.x){}else if(null.y){}else{const skipped=null.z;}}return 7;})();', 7],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected, source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            assertStructurallySame(evaluate(normalized), expected, first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), source)
+            assertEq(assertOk(tryStringify(restored)), canonical, source)
+            assertStructurallySame(evaluate(restored), expected, canonical)
+        }
+    },
+    alternativeSourceBodiesKeepRequiredFailuresSelected: () => {
+        /** @type {readonly string[]} */
+        const sources = [
+            'export default (()=>{let i=0;while(i<1){if(true){const required=null.x;}else{i=10;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(false){i=10;}else{const required=null.x;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(false){}else if(null.x){i=10;}else{i=20;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;let sum=0;while(i<1){if(false){sum=7;}else{sum=null.x;sum=1;}i=i+1;}return [i,sum];})();',
+            'export default (()=>{let i=0;while(i<1){if(false){}else if(true){if(false){}else{const required=null.x;}}else{}i=i+1;}return i;})();',
+        ]
+        for (const source of sources) {
+            const original = graph(source)
+            failure(original)
+            const first = assertOk(tryStringify(original))
+            failure(graph(first))
+            const canonical = assertOk(tryStringify(graph(first)))
+            failure(graph(canonical))
+            assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+        }
+    },
+    alternativeSourceBodyHasAPinnedWhileSpelling: () => {
+        const original = graph('export default ()=>{let i=0;while(i<4){if(i<2){i=i+1;}else{i=i+2;}}return i;};')
+        assertEq(assertOk(tryStringify(original)), 'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[0];return $4<4;})()){const $5=$2;const $4=$5[0];const $6=[$4<2?$4+1:$4+2];$2=$6;}const $7=(()=>{const $8=$2;const $4=$8[0];return [$4];})();return $7;};return $0([0])[0];};')
+    },
     conditionalSourceBodiesRetainValuesAndStableSpelling: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
