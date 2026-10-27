@@ -9,7 +9,8 @@ import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../
 import { parse } from '../../../../compiler/transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../../../compiler/edag/module.f.mjs'
 import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
-import { fromAnalysis } from '../../module.f.mjs'
+import { fromAnalysis, toFast } from '../../module.f.mjs'
+import { fromFast } from '../../../from_fast/module.f.mjs'
 import { identityAnalysis } from '../../../analysis/module.f.mjs'
 import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.mjs'
 import { _tailFunction } from '../../tail_calls/proof.f.mjs'
@@ -32,6 +33,9 @@ export const proof = /** @type {const} */ ({
             'const f=(n,saved)=>n===0?saved:f(n-1,()=>n);export default f(2,null)();',
             'const f=(n,a)=>n>0?(n%2===0?f(n-2,a+2):f(n-1,a+1)):a;export default f(7,0);',
             'const f=(n,a)=>{const x=[n];return n===0?[a,x]:f(n-1,a+1)};export default f(3,0);',
+            'const f=(n,a)=>n===0?a:f(n-1);export default f(3,9);',
+            'const f=(n,a,b)=>n===0?[a,b]:f(n-1,b,a,[n]);export default f(3,1,2);',
+            'const f=(n,saved)=>n===0?saved:f(n-1,()=>n,7);export default f(2,null)();',
         ])
         for (const source of sources) {
             const original = graph(source)
@@ -42,6 +46,18 @@ export const proof = /** @type {const} */ ({
             assertEq(assertOk(tryStringify(graph(second))), second)
             assert(!first.includes(':while(true)'), first)
         }
+    },
+    extraArgumentSourceSetupHasAStableCanonicalSpelling: () => {
+        const original = graph('const f=n=>n>0?f(n-1,null.x):7;export default f;')
+        const first = assertOk(tryStringify(original))
+        const restored = graph(first)
+        assertEq(evaluate(['()', original, [0]]), 7)
+        assertEq(evaluate(['()', restored, [0]]), 7)
+        failure(['()', original, [1]])
+        failure(['()', restored, [1]])
+        const canonical = assertOk(tryStringify(restored))
+        assertEq(assertOk(tryStringify(fromFast(assertOk(toFast(original))))), canonical)
+        assertEq(assertOk(tryStringify(graph(canonical))), canonical)
     },
     commonPlacementAndScalarSpellingStayIntact: () => {
         const ordinary = /** @type {Block} */ (yielded(['+', 1, 2]))
@@ -73,6 +89,9 @@ export const proof = /** @type {const} */ ({
         const written = assertOk(tryStringify(original))
         failure(original)
         failure(graph(written))
+        const extra = graph('const f=n=>n===0?0:f(n-1,(()=>{throw 7})());export default f(1);')
+        failure(extra)
+        failure(graph(assertOk(tryStringify(extra))))
         const prefixed = /** @type {Exp} */ (['=>', 0, [], [',', [['throw', 1], 0]]])
         const restored = graph(assertOk(tryStringify(prefixed)))
         failure(['()', prefixed, []])

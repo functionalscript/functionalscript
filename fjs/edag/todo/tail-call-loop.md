@@ -373,9 +373,14 @@ preparation; connecting the source feature later does not rewrite it.
       JavaScript/Rust execution, including repeated nested E helpers. Source
       spelling reifies nonscalar invocation loops as recursion through the
       existing root resolver until H admits their syntax.
+- [x] Extend spread-free tail calls to missing and extra arguments without
+      observed rest. Fill missing parameters with `undefined` and retain every
+      supplied argument's evaluation before simultaneous loop state updates,
+      including unused extra arguments and their failures. Preserve stable
+      repeated conversion, captures and bounded-stack JavaScript/Rust execution.
 - [ ] Produce the canonical invocation loop and common prepared output. Cover
-      remaining missing/extra/failing arguments, spreads, rest,
-      defaults/destructuring, arity and self identity.
+      spreads and observed rest, including their missing/extra/failing argument
+      behavior, defaults/destructuring, arity and self identity.
 - [ ] Carry capture snapshots and per-invocation memo/object/function lifetimes
       through the remaining invocation forms and all consumers; no
       backend-specific eligibility or placement.
