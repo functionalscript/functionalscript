@@ -65,6 +65,45 @@ export const proof = {
             assert(text(value, true).length > 0)
         }
     },
+    /** Each reached iterator is established before the next operand runs. */
+    spreadExpansion: () => {
+        /** @type {Value} */
+        const later = ['()', ['ref', x], []]
+        const values = /** @type {const} */ ([['...', null], later])
+        /** @type {string} */
+        const expanded = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
+        assertEq(text(['array', values], true), expanded)
+        assertEq(text(['array', values]), `(${expanded})?`)
+        // The callee is the first Rust call argument; expansion belongs to
+        // the following argument array, before its later operand call.
+        assertEq(text(['()', later, values], true), `Any::call((Any::call(_b0.clone(), Array::default().to_any()))?, (${expanded})?)`)
+        // Failure of the spread operand itself propagates before iterator
+        // admission, which has its own question mark at the item boundary.
+        assertEq(text(['array', [['...', ['Number', null]], 1]], true),
+            'spread_array([spread_item((Any::number(Nullish::Null.to_any()))?)?, value_item(f64_any(0x3ff0000000000000))])')
+        // Repeated references retain the established element identity; every
+        // spread is established independently at its original list position.
+        assertEq(text(['array', [['ref', x], ['...', ['ref', y]], ['ref', x], ['...', ['array', []]]]], true),
+            'spread_array([value_item(_b0.clone()), spread_item(_b1.clone())?, value_item(_b0.clone()), spread_item(Array::default().to_any())?])')
+        const used = unwrap(valueTagged(['array', values], options))[1]
+        assertStructurallySame(used.filter(([module, name]) => module === 'unstable' && name === 'spread_item'), [['unstable', 'spread_item']])
+    },
+    /** Selected chain argument thunks contain expansion; lookup stays outside. */
+    selectedSpreadRegions: () => {
+        const args = /** @type {const} */ ([['...', null], ['()', ['ref', x], []]])
+        /** @type {string} */
+        const items = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
+        assertEq(text(['.', ['()', ['ref', y], []], 'slice', ['|()', args]], true),
+            `Any::dot((Any::call(_b1.clone(), Array::default().to_any()))?, string_any("slice")).end_call(&runtime, || ${items})`)
+        assertEq(text(['.', 'abc', 'slice', ['|?.()', args]], true),
+            `Any::dot(string_any("abc"), string_any("slice")).option_call(&runtime, || ${items}).end()`)
+        assertEq(text(['?.', null, 'slice', ['|()', args]], true),
+            `Any::option_dot(Nullish::Null.to_any(), || Ok(string_any("slice"))).call(&runtime, || ${items}).end()`)
+        assertEq(text(['?.()', undefined, args], true),
+            `Any::option_call(Nullish::Undefined.to_any(), || ${items}).end()`)
+        assertEq(text(['?.', null, 'slice', ['|!()', args]], true),
+            `Any::option_dot(Nullish::Null.to_any(), || Ok(string_any("slice"))).end_call(&runtime, || ${items})`)
+    },
     memberPresence: () => {
         assertEq(text(['memberPresent', ['array', []], 'at'], true), 'Any::member_present(Array::default().to_any(), string_any("at"), &runtime)')
         assertEq(text(['memberPresent', ['array', []], 0]), '(Any::member_present(Array::default().to_any(), f64_any(0x0000000000000000), &runtime))?')

@@ -797,7 +797,7 @@ export const proof = {
         outputs: () => {
             assertEq(compileSource('const a = [1]; export default [...a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["...",["[]",[1]]]]]]]];')
             assertEq(compileSource('const f = (...r) => r; export default (...r) => f(...r, 1);')('output.js'), 'const $0=(...$1)=>$1;export default (...$2)=>$0(...$2,1);')
-            assert(compileSource('export default [...null, 1];')('output.rs').includes("spread_array([spread_item(Nullish::Null.to_any()), value_item(f64_any(0x3ff0000000000000))]))?"))
+            assert(compileSource('export default [...null, 1];')('output.rs').includes("spread_array([spread_item(Nullish::Null.to_any())?, value_item(f64_any(0x3ff0000000000000))]))?"))
         },
         // a call whose function reads its rest array through a spread stays
         // a call, as one reading it any other way does

@@ -13,12 +13,12 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         Ok(_b154.clone())
     }, 0, Array::default(), Some("(...$0)=>$0")).to_any();
     let _b2: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
-    let _b3: Any<A> = (Any::call(_b1.clone(), (spread_array([spread_item(_b2.clone())]))?))?;
+    let _b3: Any<A> = (Any::call(_b1.clone(), (spread_array([spread_item(_b2.clone())?]))?))?;
     let _b7: Any<A> = A::static_function(|_self, _args| {
         let _b664: Any<A> = _args.rest(0).to_any();
-        Any::call(A::frame(_self)[0].clone(), (spread_array([spread_item(_b664.clone())]))?)
+        Any::call(A::frame(_self)[0].clone(), (spread_array([spread_item(_b664.clone())?]))?)
     }, 0, [_b1.clone()].to_array(), Some("(...$1)=>$0(...$1)")).to_any();
-    let _b8: Any<A> = (Any::call(_b7.clone(), (spread_array([spread_item(_b2.clone())]))?))?;
+    let _b8: Any<A> = (Any::call(_b7.clone(), (spread_array([spread_item(_b2.clone())?]))?))?;
     let _b10: Any<A> = A::static_function(|_self, _args| { Ok(_args.argument(0)) }, 2, Array::default(), Some("($0,$1)=>$0")).to_any();
     let _b13: Any<A> = A::static_function(|_self, _args| { Ok(_args.argument(1)) }, 2, Array::default(), Some("($0,$1)=>$1")).to_any();
     let _b15: Any<A> = A::static_function(|_self, _args| { Ok(f64_any(0x401c000000000000)) }, 0, Array::default(), Some("()=>7")).to_any();
