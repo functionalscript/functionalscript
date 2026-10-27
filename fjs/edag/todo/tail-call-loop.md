@@ -378,8 +378,13 @@ preparation; connecting the source feature later does not rewrite it.
       supplied argument's evaluation before simultaneous loop state updates,
       including unused extra arguments and their failures. Preserve stable
       repeated conversion, captures and bounded-stack JavaScript/Rust execution.
+- [x] Expand spread tail arguments through the required private invocation
+      array before fixed state updates. Preserve empty/multiple/string spreads,
+      missing and unused extra values, required failures, lazy demands and
+      captures using common preparation. Keep normalized graph/source fixed
+      points and bounded-stack JavaScript/Rust execution.
 - [ ] Produce the canonical invocation loop and common prepared output. Cover
-      spreads and observed rest, including their missing/extra/failing argument
+      observed rest, including its missing/extra/failing argument
       behavior, defaults/destructuring, arity and self identity.
 - [ ] Carry capture snapshots and per-invocation memo/object/function lifetimes
       through the remaining invocation forms and all consumers; no

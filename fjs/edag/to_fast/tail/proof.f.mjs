@@ -30,6 +30,21 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(normalized.exit, ['continue', target, [['.', ['ref', definition[1]], 0], ['.', ['ref', definition[1]], 1]]])
         assert(definition[1] !== first && definition[1] !== second && definition[1] !== self)
     },
+    spreadArgumentsMaterializeBeforeReadingTheirExpandedPrefix: () => {
+        const self = /** @type {BindingId} */ ({ index: 0 })
+        const first = /** @type {BindingId} */ ({ index: 1 })
+        const second = /** @type {BindingId} */ ({ index: 2 })
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const args = /** @type {const} */ ([['...', ['array', [['ref', second], ['ref', first]]]]])
+        const normalized = _tailCalls({ statements: [], exit: ['yield', [['()', ['ref', self], args]]] }, [first, second], self, target)
+        assert(normalized !== null)
+        assertEq(normalized.statements.length, 1)
+        const definition = normalized.statements[0]
+        assert(definition[0] === 'define')
+        assertEq(definition[3], 'required')
+        assertStructurallySame(definition[2], ['array', args])
+        assertStructurallySame(normalized.exit, ['continue', target, [['.', ['ref', definition[1]], 0], ['.', ['ref', definition[1]], 1]]])
+    },
     nestedFinalSequencesRetainTheirTailEvaluation: () => {
         const graph = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', ['arg', 0], 0],
             [',', [['[]', [1]], [',', [['{}', []], ['()', ['self'], [['-', ['arg', 0], 1]]]]]]], 'done']])

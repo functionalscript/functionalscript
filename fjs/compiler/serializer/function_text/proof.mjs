@@ -93,6 +93,33 @@ export const proof = {
         assertEq(failing(0), 0)
         throws(() => failing(1), e => e === 'unused extra')
     },
+    spreadTailArguments: () => {
+        const count = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['...', ['[]', [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]]]]], ['arg', 1]]])
+        assertEq(count.length, 2)
+        assertEq(count(100_000, 0), 100_000)
+        const swapped = compile(['=>', 3, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['...', ['[]', [['arg', 2]]]], ['...', ['[]', []]], ['arg', 1]]],
+            ['[]', [['arg', 1], ['arg', 2]]]]])
+        assertStructurallySame(swapped(100_001, 1, 2), [2, 1])
+        const captured = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['...', ['[]', [['-', ['arg', 0], 1], ['=>', 0, [['arg', 0]], ['frame', 0]]]]]]], ['arg', 1]]])
+        assertEq(captured(100_000, null)(), 1)
+        const missing = compile(['=>', 2, [], ['?:', ['===', ['arg', 0], ['undefined']], ['arg', 1],
+            ['()', ['self'], [['...', ['[]', []]]]]]])
+        assertEq(missing(1, 9), undefined)
+        const text = compile(['=>', 3, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [0, ['...', 'A𝄞'], 99]], ['[]', [['arg', 1], ['arg', 2]]]]])
+        assertStructurallySame(text(1), ['A', '𝄞'])
+        const invalid = compile(['=>', 1, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [0, ['...', null]]], 7]])
+        assertEq(invalid(0), 7)
+        throws(() => invalid(1))
+        const extra = compile(['=>', 1, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['...', ['[]', [0, ['throw', 'expanded extra']]]]]], 7]])
+        assertEq(extra(0), 7)
+        throws(() => extra(1), e => e === 'expanded extra')
+    },
     captures: () => {
         const captured = Object.freeze([9])
         /** @type {FunctionExp} */

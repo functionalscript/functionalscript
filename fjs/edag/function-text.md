@@ -114,7 +114,7 @@ recursion keep their recursive representation; eligibility belongs to the
 [shared conversion](./to_fast/README.md), rather than to an individual writer.
 
 Shared conversion also lowers direct terminal self-call evaluations with zero
-through sixteen fixed parameters and spread-free arguments. Either
+through sixteen fixed parameters without observed rest. Either
 conditional arm and the final sequence operand can transition; arbitrary base
 results return directly. Each argument is established before simultaneous state
 updates, and immutable iteration snapshots preserve escaped captures. Required
@@ -129,7 +129,8 @@ loops as recursion until the broader source grammar is admitted in H, retaining
 its existing source round-trip domain. Missing fixed arguments become
 `undefined`, and unused extra arguments retain their required evaluation before
 the transition. This extension deliberately changes the text of these newly
-eligible functions as well. Spread recursive arguments and observed rest
+eligible functions as well. Spread calls materialize their arguments before the
+transition, including required expansion and unused extras. Observed rest
 bindings keep ordinary calls in this increment.
 
 A source call to such a function may retain a named callable whose own body
