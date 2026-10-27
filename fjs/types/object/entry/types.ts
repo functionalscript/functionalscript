@@ -17,10 +17,17 @@ import type { entry, hasEntry } from './module.f.js'
 export type EntryLookup = <T, K>(a: T, b: K) => (K extends keyof T ? T[K] : unknown) | undefined
 
 /**
- * The members of the union `T` that declare the key `K`, required or
- * optional.
+ * The members of the union `T` that declare the key `K`, each as it is once
+ * it holds `K`: a member that requires `K` as it is, and one that may lack
+ * it, by an optional property or an index signature, with `K` added. Added,
+ * not kept whole, so that the guard's `false` branch keeps that member too.
  */
-export type Declaring<T, K extends PropertyKey> = T extends unknown ? (K extends keyof T ? T : never) : never
+export type Declaring<T, K extends PropertyKey> =
+    T extends unknown
+        ? K extends keyof T
+            ? T extends { readonly [P in K]: unknown } ? T : T & { readonly [P in K]: T[K] }
+            : never
+        : never
 
 /**
  * `T` once it is known to hold the key `K`: the members of a union that
@@ -78,8 +85,25 @@ type _AddsKey = Assert<Equal<WithEntry<{ readonly a: number }, 'b'>, { readonly 
 
 type _Optional = { readonly kind: 'a', readonly value: number } | { readonly kind: 'b', readonly value?: string }
 
-// A member that declares the key as optional may hold it, so it stays.
-type _KeepsOptional = Assert<Equal<WithEntry<_Optional, 'value'>, _Optional>>
+// A member that declares the key as optional may hold it, so it stays,
+// holding the key.
+type _KeepsOptional = Assert<Equal<
+    WithEntry<_Optional, 'value'>,
+    | { readonly kind: 'a', readonly value: number }
+    | ({ readonly kind: 'b', readonly value?: string } & { readonly value: string | undefined })
+>>
+
+// It may lack the key, too, so the guard's `false` branch keeps it.
+type _FalseKeepsOptional = Assert<Equal<
+    Exclude<_Optional, WithEntry<_Optional, 'value'>>,
+    { readonly kind: 'b', readonly value?: string }
+>>
+
+// An index signature does not promise the key either.
+type _FalseKeepsIndex = Assert<Equal<
+    Exclude<{ readonly [k: string]: number }, WithEntry<{ readonly [k: string]: number }, 'a'>>,
+    { readonly [k: string]: number }
+>>
 
 // A key the helper converts, such as `true`, narrows nothing.
 type _ConvertedKey = Assert<Equal<WithEntry<{ readonly true: number }, true>, { readonly true: number }>>
