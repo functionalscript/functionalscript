@@ -5,7 +5,7 @@ import { _restArguments, _restTransition } from './module.f.mjs'
 
 const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     inverse: () => {
         const args = /** @type {const} */ ([1, ['...', ['array', [2, 3]]]])
         for (const length of [0, 1, 16]) {
@@ -21,7 +21,7 @@ export const proof = {
         const statement = block.statements[0]
         assert(statement[0] === 'define' && block.exit[0] === 'continue')
         const binding = statement[1]
-        const different = { ...binding }
+        const different = /** @type {const} */ ({ ...binding })
         const rest = block.exit[2][1]
         const fixed = block.exit[2][0]
         for (const changed of /** @type {readonly Block[]} */ ([
@@ -40,4 +40,4 @@ export const proof = {
                 /** @type {Block} */ ({ ...block, exit: ['continue', target, [fixed, /** @type {Value} */ (value)]] })),
         ])) { assertEq(_restArguments(changed, 1, target), null) }
     },
-}
+})
