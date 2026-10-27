@@ -197,7 +197,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       enclosing statements with the inner results and fresh local initialization
       for every reached outer iteration. Existing shared source state selection
       and graph conversion retain their normal continuations and scopes.
-      Switches and explicit exits remain.
+      The next increment admits unlabeled `break` and `continue` in loop bodies
+      and conditional arms, resolving the innermost loop and packaging current
+      state through the existing FAST transfers. Owning returns, statement
+      throws and switches remain subsequent increments.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.
