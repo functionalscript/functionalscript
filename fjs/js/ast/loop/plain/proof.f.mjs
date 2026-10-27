@@ -55,8 +55,8 @@ export const proof = /** @type {const} */ ({
         ])
         const normal = /** @type {Block} */ ({ statements: [], exit: ['break', target, [['array', [['ref', alias]]]]] })
         const source = /** @type {Loop} */ ({ ...scalar, body: { ...scalar.body, statements: [...prefix, ['if', [], true, step, normal]] } })
-        assertStructurallySame(plainLoopOf(source), { prefix, stepPrefix: [], resultPrefix: prefix, condition: true, step, next: 1, result: ['array', [['ref', alias]]] })
-        assertStructurallySame(plainLoopOf(scalar), { prefix: [], stepPrefix: [], resultPrefix: [], condition: true, step, next: 1, result: ['ref', state] })
+        assertStructurallySame(plainLoopOf(source), { prefix, stepPrefix: [], resultPrefix: prefix, iteration: { condition: true, step, next: 1 }, result: ['array', [['ref', alias]]] })
+        assertStructurallySame(plainLoopOf(scalar), { prefix: [], stepPrefix: [], resultPrefix: [], iteration: { condition: true, step, next: 1 }, result: ['ref', state] })
         for (const value of /** @type {readonly Value[]} */ ([1, ['ref', state], ['.', ['.', ['ref', state], 0], 1]])) {
             assertEq(plainLoopOf({ ...source, body: { ...source.body, statements: [['define', alias, value, 'required'], ...source.body.statements.slice(1)] } })?.prefix[0][2], value)
         }

@@ -62,8 +62,12 @@ export const plainLoopOf = loop => {
     const resultPrefix = prefixFor(prefix, { statements: [], exit: ['yield', done[2]] })
     if (![...stepPrefix, ...resultPrefix].every(statement => projection(statement[2]))) { return null }
     return {
-        prefix, stepPrefix, resultPrefix, condition,
-        step: { statements: /** @type {readonly Definition[]} */ (step.statements), exit: step.exit },
-        next: next[2][0], result: done[2][0],
+        prefix, stepPrefix, resultPrefix,
+        iteration: {
+            condition,
+            step: { statements: /** @type {readonly Definition[]} */ (step.statements), exit: step.exit },
+            next: next[2][0],
+        },
+        result: done[2][0],
     }
 }
