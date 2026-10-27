@@ -89,6 +89,32 @@ parameter is a variable too, fixed or rest.
   variable, and none stands at module level yet
   ([loops](../../control-flow/loops/README.md)).
 
+## Capture compatibility
+
+General bindings replace the earlier treatment of a loop's final variable as an
+implicit `const`. A binding reassigned anywhere in its source scope stays mutable
+for capture admission, including after its last assignment or loop. A held
+function that captures it is refused even if the assignment follows the capture
+or appears in an unreachable loop. These source facts are checked before
+optimization.
+
+Capture an explicit snapshot instead:
+
+```js
+export default n => {
+    let value = 0;
+    while (value < n) { value = value + 1; }
+    const snapshot = value;
+    return () => snapshot;
+};
+```
+
+A never-reassigned `let` or parameter remains capturable. A function called
+where it is written can still read a reassigned binding, through nested
+immediate calls as well. Assigning to an outer binding from inside such a
+function remains refused. This read admission is retained; it does not allow a
+held closure over the mutable binding.
+
 ## Examples
 
 The compiler demo offers the programs `variables` in [`module.f.js`](../module.f.js), each with its real output.
