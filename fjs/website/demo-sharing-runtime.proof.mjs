@@ -27,6 +27,9 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     let restores = 0
     let scrolls = 0
     let state = sharing.restore(defaultsOf(sharing.fields))
+    /** @type {string[]} */
+    const pushed = []
+    let settled = () => {}
     const details = { tagName: 'DETAILS', open: false, parentElement: null }
     const target = { parentElement: details, scrollIntoView: () => { scrolls++ } }
     /** @type {any} */
@@ -37,6 +40,12 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         navigator: { clipboard: { writeText: async (/** @type {string} */ text) => { copied.push(text) } } },
         addEventListener: (/** @type {string} */ name, /** @type {() => void} */ listener) => windowEvents.set(name, [...windowEvents.get(name) ?? [], listener]),
         requestAnimationFrame: (/** @type {() => void} */ callback) => callback(),
+        history: { pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => {
+            pushed.push(url)
+            const next = new URL(url, view.location.href)
+            view.location.search = next.search
+            view.location.hash = next.hash
+        } },
         setTimeout: () => 1, clearTimeout: () => {},
     }
     document.defaultView = view
@@ -66,15 +75,17 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         read: () => state,
         busy: () => busy,
         revision: () => revision,
+        settled: (/** @type {() => void} */ listener) => { settled = listener },
         replace: (/** @type {any} */ next, /** @type {() => void} */ after, /** @type {() => import('./demo/sharing/types.ts').RestoreDisposition} */ current, /** @type {boolean} */ initialize = false) => pending.push({ next, after, current, initialize }),
     }
     return {
-        root, demo, view, controls, document, button, sectionButton, status, feedback, copied, pending, details, windowEvents,
+        root, demo, view, controls, document, button, sectionButton, status, feedback, copied, pending, pushed, details, windowEvents,
         get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
         flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
         navigate: (/** @type {string} */ next) => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; windowEvents.get('popstate')?.forEach(f => f()); windowEvents.get('hashchange')?.forEach(f => f()) },
         input: () => { revision += 1 },
+        edit: (/** @type {any} */ value) => { revision += 1; state = value; settled() },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
         click: async (section = false) => { (section ? sectionEvents : buttonEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
@@ -230,5 +241,33 @@ export const proof = {
         noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : selector.includes('button[data-copy-demo-section]') ? noStatus.sectionButton : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)
+    },
+    editsPushHistory: () => {
+        const f = fixture(undefined, '?example=second#heading')
+        f.start(); f.flush()
+        f.edit('Custom 🌍')
+        assertEq(f.pushed[0], '/demo/?source=Custom%20%F0%9F%8C%8D#heading')
+        f.edit('Custom 🌍')
+        assertEq(f.pushed.length, 1)
+        f.edit('first')
+        assertEq(f.pushed[1], '/demo/#heading')
+        assertEq(f.view.location.search, '')
+        f.edit('second')
+        assertEq(f.pushed[2], '/demo/?example=second#heading')
+        assertEq(f.restores, 1)
+        f.navigate('#heading'); f.flush()
+        assertEq(f.state, 'first')
+        f.status.textContent = 'kept'
+        f.edit('z')
+        assertEq(f.status.textContent, 'kept')
+        f.edit('x'.repeat(20_000))
+        assertEq(f.pushed.length, 4)
+        assert(f.status.textContent.includes('16 KiB'))
+        f.edit('y')
+        assertEq(f.status.textContent, '')
+        assertEq(f.pushed[4], '/demo/?source=y#heading')
+        const empty = fixture(recordSharing({}, {}), '#demo')
+        empty.start(); empty.edit({})
+        assertEq(empty.pushed.length, 0)
     },
 }

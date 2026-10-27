@@ -33,8 +33,20 @@ as an empty tree ID remains valid. No declared input is silently discarded.
 Copy uses `#demo` for defaults and `?example=ID#demo` for a complete example
 match. Other inputs are exported in sorted parameter-name order as a complete
 input set. Outputs, action history and generated results are excluded. Copied
-links preserve origin/path and replace the old query; typing and copying never
-change the address bar.
+links preserve origin/path and replace the old query; copying never changes the
+address bar.
+
+## Address bar
+
+Editing the page's primary Demo keeps the address bar on the current inputs.
+Each time the demo's update queue drains after a reader edit, the runtime
+encodes the inputs with the same rules as **Copy with inputs** and, when the
+query differs, pushes a history entry with it. The heading fragment is left as
+it is, so editing never scrolls; a default input set drops the query. Back and
+forward then walk the edits through the ordinary query navigation below.
+Restores, action buttons and automatic work push nothing, nor do embedded
+instances or demos without inputs. Inputs over the sharing limit push nothing
+and say so; the next edit within the limit clears that notice.
 
 The limit is **16,384 ASCII characters for the encoded query plus `#demo`**,
 including `?` and parameter names. Oversized incoming queries are refused before

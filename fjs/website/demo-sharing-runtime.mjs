@@ -67,6 +67,22 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
             locationKey = next
             if (changed || search === '' && view.location.hash === '#demo') { restore() }
         }
+        // Each settled edit pushes its inputs, so the address bar is the link
+        // and Back walks the edits. The heading fragment stays as it is.
+        if (definedEntries(sharing.fields).length !== 0) {
+            // Clears only its own refusal, not another notice.
+            let refused = false
+            controller.settled(() => {
+                const encoded = encodeQuery(sharing, sharing.read(controller.read()))
+                if (encoded[0] === 'error') { report(encoded[1]); refused = true; return }
+                if (refused) { report(''); refused = false }
+                const query = encoded[1].slice(0, encoded[1].indexOf('#'))
+                if (query === view.location.search) { return }
+                view.history.pushState(null, '', `${view.location.pathname}${query}${view.location.hash}`)
+                search = view.location.search
+                locationKey = `${search}\0${view.location.hash}`
+            })
+        }
         view.addEventListener('popstate', navigate)
         view.addEventListener('hashchange', navigate)
         if (search !== '' || view.location.hash === '#demo') { restore(true) }

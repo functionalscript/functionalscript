@@ -540,7 +540,7 @@ export const demo = {
 
 /** Generated heading controls and a controllable hashchange source for the
  * actual demo controller, using the same DOM stand-in as the other proofs.
- * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, navigate: (hash: string) => void }}
+ * @type {(d: ReturnType<typeof dom>, hash?: string) => { status: { textContent: string }, pushed: string[], navigate: (hash: string) => void }}
  */
 const shared = (d, hash = '#documentation') => {
     /** @type {(() => void)[]} */
@@ -550,6 +550,14 @@ const shared = (d, hash = '#documentation') => {
     view.location = new URL(hash, 'https://example.com/demo/')
     view.addEventListener = (/** @type {string} */ name, /** @type {() => void} */ listener) => { if (name === 'popstate') { listeners.push(listener) } }
     view.requestAnimationFrame = (/** @type {() => void} */ callback) => callback()
+    /** @type {string[]} */
+    const pushed = []
+    view.history = { pushState: (/** @type {unknown} */ _, /** @type {string} */ __, /** @type {string} */ url) => {
+        pushed.push(url)
+        const next = new URL(url, view.location.href)
+        view.location.search = next.search
+        view.location.hash = next.hash
+    } }
     doc.getElementById = () => null
     const status = { textContent: '' }
     const button = { hidden: true, addEventListener() {} }
@@ -557,7 +565,7 @@ const shared = (d, hash = '#documentation') => {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
             : selector.includes('button[data-copy-demo]') || selector.includes('button[data-copy-demo-section]') ? button : status,
     }
-    return { status, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
+    return { status, pushed, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
 }
 
 const sharedModule = moduleUrl(`
@@ -580,6 +588,25 @@ export const demo = {
 const sharedHash = inputs => '?' + new URLSearchParams(inputs).toString() + '#demo'
 
 export const proof = {
+    actionChangesSharedFieldWithoutPushingHistory: async () => {
+        const d = dom(new URL('../crypto/pow/demo.f.mjs', import.meta.url).href)
+        const links = shared(d, '#demo')
+        await startDemo(d.root)
+        await settle()
+        assertEq(links.pushed.length, 0)
+        d.click('next-nonce')
+        await settle()
+        assertEq(d.named('nonce').value, '43')
+        assertEq(links.pushed.length, 0)
+        d.input('nonce', '50')
+        await settle()
+        assertEq(links.pushed.length, 1)
+        assert(links.pushed[0].includes('nonce=50'))
+        d.click('next-nonce')
+        await settle()
+        assertEq(d.named('nonce').value, '51')
+        assertEq(links.pushed.length, 1)
+    },
     atomicSharing: async () => {
         const d = dom(sharedModule)
         const links = shared(d, sharedHash({ left: 'X', right: 'Y' }))
@@ -618,6 +645,7 @@ export const proof = {
         await settle()
         assert(d.root.innerHTML.includes('reader|B|'))
         assert(links.status.textContent.includes('edits were preserved'))
+        assertEq(links.pushed.at(-1), '/demo/?left=reader&right=B#demo')
     },
     earlySharingEditMarker: async () => {
         const d = dom(sharedModule)

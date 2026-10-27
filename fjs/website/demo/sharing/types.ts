@@ -36,5 +36,7 @@ export type DemoController = {
     readonly read: () => any
     readonly busy: () => boolean
     readonly revision: () => number
+    /** Sets the one listener called when the queue drains after reader edits. */
+    readonly settled: (listener: () => void) => void
     readonly replace: (state: any, after: () => void, current: () => RestoreDisposition, initialize?: boolean) => void
 }
