@@ -48,9 +48,9 @@ Complete the stages in order.
 
 #### Stage 3: Generate WAT directly in the demo
 
-- [ ] Reuse the FJS binary parser, AST, sample selection, and WAT serializer
-      from stage 2 in the browser demo: load the `.wasm`, parse it, and
-      generate and display the selected sample's WAT directly.
+- [ ] Reuse the FJS binary parser, AST, name demangling, sample selection,
+      and WAT serializer from stage 2 in the browser demo: load the `.wasm`,
+      parse it, and generate and display the selected sample's WAT directly.
 - [ ] Replace fetching pre-generated `.wat` files with this in-demo
       generation, then remove those files from the publishing step.
       Continue publishing the `.wasm` the demo loads.
