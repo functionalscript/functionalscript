@@ -33,6 +33,7 @@ import { disagreement } from '../website/demo/highlight/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
+import { encodeQuery } from '../website/demo/sharing/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
@@ -1436,6 +1437,18 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(started.text, demo.init.text)
             const picked = nextDemo(state, { kind: 'input', name: 'example', value: 'Recursion: Ackermann' })
             assertEq(textOfResult(picked.panes[0]), '9')
+        },
+        sharing: () => {
+            const sharing = assertNotNullish(demo.sharing)
+            const hex = assertNotNullish(examples.find(([name]) => name === 'Hex escape'))[1]
+            assertStructurallySame(encodeQuery(sharing, sharing.read({ text: hex, panes: [] })), ['ok', '?example=hex-escape#demo'])
+            const restored = sharing.restore({ compiler: 'export default 2;' })
+            assertStructurallySame(restored, { text: 'export default 2;', panes: [] })
+            assertEq(nextDemo(restored, { kind: 'click', name: 'run' }), restored)
+            const started = nextDemo(restored, { kind: 'start' })
+            assertEq(started.text, 'export default 2;')
+            assertEq(textOfResult(started.panes[0]), '2')
+            assertEq(started.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
         },
     },
 }
