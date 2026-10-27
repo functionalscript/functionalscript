@@ -22,6 +22,7 @@ import { unwrap } from '../result/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { set, squares } from './testlib.f.mjs'
 import { max } from '../number/max/module.f.js'
+import { hasEntry } from '../object/entry/module.f.js'
 
 /** @type {(sequence: List<Unknown>) => string} */
 const stringify = sequence => stringifySorted(toArray(sequence))
@@ -100,7 +101,7 @@ const update = event => state => unwrap(assertNotNullish(runPure(demo.update(sta
 const follow = name => {
     const loaded = _load(name)
     const { status } = loaded
-    assert('preset' in status, '')
+    assert(hasEntry(status, 'preset'), '')
     return status.hint.startsWith('Click') ? _move(Number(loaded.key))(loaded)
         : press(status.hint.startsWith('Press Insert') ? 'insert' : 'remove')(loaded.key)(loaded)
 }
@@ -140,7 +141,7 @@ const demoProof = {
         const { versions, status } = r[1]
         assertEq(versions.before, versions.after)
         assertEq(JSON.stringify(toArray(values(versions.after))), JSON.stringify(Array.from({ length: 26 }, (_, i) => (i + 1) * 10)))
-        assert('random' in status && status.random.length === 26, '')
+        assert(hasEntry(status, 'random') && status.random.length === 26, '')
         assert(html(r[1]).includes('26 keys inserted in random order: 10, 30, 50, 70, '), '')
     },
     // The page opens on the first preset loaded: one tree that is both

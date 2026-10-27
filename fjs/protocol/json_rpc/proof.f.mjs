@@ -5,6 +5,7 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     error as errorSchema,
     decodeRequest,
@@ -67,38 +68,38 @@ export const proof = {
     dispatch: {
         success: () => {
             const r = d({ jsonrpc: '2.0', method: 'ping', id: 1 })
-            assert(r !== null && 'result' in r && r.result === 'pong' && r.id === 1)
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'pong' && r.id === 1)
         },
         paramsPassed: () => {
             const r = d({ jsonrpc: '2.0', method: 'echo', params: 'hi', id: 2 })
-            assert(r !== null && 'result' in r && r.result === 'hi')
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'hi')
         },
         handlerError: () => {
             const r = d({ jsonrpc: '2.0', method: 'boom', id: 3 })
-            assert(r !== null && 'error' in r && r.error.code === -32_602 && r.id === 3)
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_602 && r.id === 3)
         },
         methodNotFound: () => {
             const r = d({ jsonrpc: '2.0', method: 'nope', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32_601)
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
         },
         // `method` is untrusted wire data: an inherited `Object.prototype`
         // name must not resolve to a callable.
         inheritedToString: () => {
             const r = d({ jsonrpc: '2.0', method: 'toString', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32_601)
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
         },
         inheritedConstructor: () => {
             const r = d({ jsonrpc: '2.0', method: 'constructor', id: 4 })
-            assert(r !== null && 'error' in r && r.error.code === -32_601)
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_601)
         },
         // ... while an *own* property of that name is an ordinary method.
         ownPrototypeName: () => {
             const r = dOwnPrototypeName({ jsonrpc: '2.0', method: 'toString', id: 4 })
-            assert(r !== null && 'result' in r && r.result === 'own')
+            assert(r !== null && hasEntry(r, 'result') && r.result === 'own')
         },
         invalidRequest: () => {
             const r = d({ jsonrpc: '1.0', method: 'ping', id: 5 })
-            assert(r !== null && 'error' in r && r.error.code === -32_600 && r.id === null)
+            assert(r !== null && hasEntry(r, 'error') && r.error.code === -32_600 && r.id === null)
         },
         notification: () => {
             const r = d({ jsonrpc: '2.0', method: 'ping' })
@@ -115,7 +116,7 @@ export const proof = {
         success: () => {
             const r = successResponseOf(1)('pong')
             assertEq(r.jsonrpc, '2.0')
-            assert('result' in r && r.result === 'pong', r)
+            assert(hasEntry(r, 'result') && r.result === 'pong', r)
             assertEq(r.id, 1)
             assert(isOk(parse(response)(r)), r)
         },
@@ -126,7 +127,7 @@ export const proof = {
         error: () => {
             const r = errorResponseOf('abc')(parseError)
             assertEq(r.jsonrpc, '2.0')
-            assert('error' in r && r.error.code === -32_700, r)
+            assert(hasEntry(r, 'error') && r.error.code === -32_700, r)
             assertEq(r.id, 'abc')
             assert(isOk(parse(response)(r)), r)
         },

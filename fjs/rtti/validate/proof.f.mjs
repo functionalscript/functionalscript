@@ -12,6 +12,7 @@ import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     assert,
     assertEq,
@@ -217,8 +218,8 @@ export const proof = {
             const schema = { a: number, b: or(option, string) }
             const input = { a: 1 }
             const out = unwrap(validate(schema)(input))
-            assert(!('b' in out), 'an absent optional member must stay absent')
-            assert(!('b' in unwrap(parse(schema)(input))), 'parse omits it too')
+            assert(!hasEntry(out, 'b'), 'an absent optional member must stay absent')
+            assert(!hasEntry(unwrap(parse(schema)(input)), 'b'), 'parse omits it too')
         },
         // An undeclared member survives — where the schema admits one at all.
         // `parse` accepts the same values and does not carry the member into
@@ -227,7 +228,7 @@ export const proof = {
             const schema = open({ a: number })
             const struct = { a: 1, b: 'extra' }
             assertStructurallySame(unwrap(validate(schema)(struct)), { a: 1, b: 'extra' })
-            assert(!('b' in unwrap(parse(schema)(struct))), 'parse drops it')
+            assert(!hasEntry(unwrap(parse(schema)(struct)), 'b'), 'parse drops it')
             // The same on the other kind: a longer array keeps its tail.
             const tuple = [1, 'extra']
             assertStructurallySame(unwrap(validate(open([number]))(tuple)), [1, 'extra'])
@@ -764,7 +765,7 @@ export const proof = {
         // says nothing about a member it declares.
         absentOptionalStaysAbsent: () => {
             const out = unwrap(validate({ a: number, b: or(option, string) })({ a: 1 }))
-            assert(!('b' in out), 'an absent optional member must stay absent')
+            assert(!hasEntry(out, 'b'), 'an absent optional member must stay absent')
         },
         path: () => {
             assertErrorPath(['1'])(validate([number, number])([1, 'two']))

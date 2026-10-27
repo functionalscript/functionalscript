@@ -6,6 +6,7 @@
 import { assert, assertEq, assertError } from '../../asserts/module.f.js'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
@@ -291,7 +292,7 @@ export const proof = {
         },
         mapReference: () => assertEq(mapHashes(h => `<${h}>`)(validRevisionOf({ lock: h1 })).lock, `<${h1}>`),
         // An absent `lock` stays absent rather than becoming a present `undefined`.
-        mapNoLock: () => assert(!('lock' in mapHashes(h => h)(validRevisionOf({})))),
+        mapNoLock: () => assert(!hasEntry(mapHashes(h => h)(validRevisionOf({})), 'lock')),
     },
 
     decodeText: {

@@ -35,6 +35,7 @@ import { set } from './set/module.f.mjs'
 import { remove } from './remove/module.f.mjs'
 import { cmp, sum } from '../number/module.f.mjs'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
+import { hasEntry } from '../object/entry/module.f.js'
 
 /** @type {(key: number) => Row<TNode<number>>} */
 const keyRow = key => ({ label: '', inline: String(key), key })
@@ -71,7 +72,7 @@ const rowsOf = node => {
 
 /** @type {(node: TNode<number>) => number} */
 const average = node => {
-    const keys = rowsOf(node).flatMap(row => 'inline' in row ? [Number(row.inline)] : [])
+    const keys = rowsOf(node).flatMap(row => hasEntry(row, 'inline') ? [Number(row.inline)] : [])
     return sum(keys) / keys.length
 }
 

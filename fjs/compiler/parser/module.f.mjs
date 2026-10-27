@@ -31,6 +31,7 @@ import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -210,7 +211,7 @@ const brokenLine = statement => statement.first.newline
  *
  * @type {(previous: Statement | If | Switch | While | null, next: Statement | If | Switch | While) => boolean}
  */
-const unterminated = (previous, next) => previous !== null && 'semicolon' in previous && !previous.semicolon && !next.start.newline
+const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
 
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
@@ -666,7 +667,7 @@ const chainRound = (stack, scope, frame) => {
     const { parts, index } = frame
     if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
     const part = parts[index]
-    if ('value' in part) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
+    if (hasEntry(part, 'value')) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
     const { key } = part
     if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
     const [tag, named] = checkedKey(key, part.method)
@@ -682,7 +683,7 @@ const chainRound = (stack, scope, frame) => {
  *
  * @type {(stack: _Stack) => boolean}
  */
-const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
+const isCallee = stack => stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0
 
 /**
  * The node an item evaluates: a value's own, or a spread's operand — the
@@ -981,8 +982,8 @@ const parameterBindings = (bound, plan, initialize) => ({
  * @type {(list: ParameterList) => Result<_Bound, ParseError>}
  */
 const functionScope = list => {
-    if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
-    if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
+    if (hasEntry(list, 'invalid')) { return error(malformedParameters(list.invalid)) }
+    if (hasEntry(list, 'arrow')) { return error(unexpectedToken(list.arrow)) }
     const defaulted = list.fixed.findIndex(parameter => parameter[0] === '=')
     const count = defaulted === -1 ? list.fixed.length : defaulted
     /** @type {_Bound} */
@@ -1297,7 +1298,7 @@ const isHasEntryOf = (node, x) => {
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => ValueIntrinsic | null}
  */
 const intrinsicFunction = ([, list, body]) => {
-    if (!('fixed' in list) || list.rest !== null || body[0] !== '()') { return null }
+    if (!hasEntry(list, 'fixed') || list.rest !== null || body[0] !== '()') { return null }
     const [, callee, items] = body
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
@@ -1349,7 +1350,7 @@ const intrinsicFunction = ([, list, body]) => {
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<ValueEntryFunction | ValueHasEntryFunction, ParseError> | null}
  */
 const entryFunction = ([, list, body]) => {
-    if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
+    if (!hasEntry(list, 'fixed') || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
     const [p, q] = list.fixed
     const first = body[1][0]
     const last = body[1][1]
@@ -1478,26 +1479,26 @@ const lateLanded = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: SourceValue) => _State}
  */
 const returned = (stack, scope, frame, value) => {
-    if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
-    if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
-    if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
-    if ('comma' in frame) { return commaRound(stack, scope, advanced(frame, [value])) }
-    if ('key' in frame) {
+    if (hasEntry(frame, 'container')) { return containerReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
+    if (hasEntry(frame, 'conditional')) { return conditionalRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'comma')) { return commaRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'key')) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
     }
-    if ('indexed' in frame) {
+    if (hasEntry(frame, 'indexed')) {
         /** @type {ValueAccess} */
         const access = ['.', frame.indexed, /** @type {ValueKey} */ (value)]
         return [stack, scope, ok(access)]
     }
-    if ('chain' in frame) { return chainRound(stack, scope, advanced(frame, [value])) }
-    if ('unary' in frame) {
+    if (hasEntry(frame, 'chain')) { return chainRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'unary')) {
         /** @type {ValueUnary} */
         const applied = [frame.unary, value]
         return [stack, scope, ok(applied)]
     }
-    if ('instanceof' in frame) {
+    if (hasEntry(frame, 'instanceof')) {
         // the right operand is a name, not a value: the one reference the
         // language has a meaning for, never resolved in scope — `Array` is
         // a reserved global, so no scope binds it
@@ -1507,13 +1508,13 @@ const returned = (stack, scope, frame, value) => {
         const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
     }
-    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
-    if ('left' in frame) {
+    if (hasEntry(frame, 'right')) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
+    if (hasEntry(frame, 'left')) {
         /** @type {ValueBinary} */
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
-    if ('loop' in frame) {
+    if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
@@ -1525,7 +1526,7 @@ const returned = (stack, scope, frame, value) => {
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
     }
-    if ('block' in frame) {
+    if (hasEntry(frame, 'block')) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
             return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
@@ -1534,7 +1535,7 @@ const returned = (stack, scope, frame, value) => {
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         return landed(loopRound, stack, scope, frame, kind, value)
     }
-    if ('loopGuard' in frame) {
+    if (hasEntry(frame, 'loopGuard')) {
         const block = regionBlock(value)
         if (frame.then === null && frame.otherwise !== null) {
             return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
@@ -1544,7 +1545,7 @@ const returned = (stack, scope, frame, value) => {
             frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
         ]]))
     }
-    if ('statements' in frame) {
+    if (hasEntry(frame, 'statements')) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
         if (kind === 'assign') { return bodyRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
@@ -1554,13 +1555,13 @@ const returned = (stack, scope, frame, value) => {
         }
         return closed(stack, scope, { statements: toArray(frame.done), exit: kind === 'throw' ? ['throw', value] : ['return', scope.trace.target, value] })
     }
-    if ('switch' in frame) { return switchReturned(stack, scope, frame, value) }
-    if ('guard' in frame) {
+    if (hasEntry(frame, 'switch')) { return switchReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'guard')) {
         const block = regionBlock(value)
         if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
         return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['if', frame.condition, frame.then, block] })
     }
-    if ('late' in frame) { return lateLanded(stack, scope, frame, { value }) }
+    if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
     return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
 }
 
@@ -1681,7 +1682,7 @@ const restoredScope = (scope, held) => {
 const isCalledWhereWritten = stack => {
     if (stack === null) { return false }
     const { top } = stack
-    return ('call' in top && top.index === 0) || ('chain' in top && top.index === 0 && top.chain[0] === '?.()')
+    return (hasEntry(top, 'call') && top.index === 0) || (hasEntry(top, 'chain') && top.index === 0 && top.chain[0] === '?.()')
 }
 
 /**

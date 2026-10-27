@@ -185,7 +185,7 @@ well as execution time; they are not predictions for this revised allocation.
   belong to this repository's configuration and which affect `fjs ci` users.
 - [CI caching](./096-ci-caching.md) and [Smart CI](../cache/README.md) — preserve
   check identities and measure setup costs after redistribution.
-- [Wasmtime threads](./wasmtime-threads-cell-until-47.md) — existing WASM runtime
-  coverage decision, independent of the six-job allocation.
+- [Wasmtime threads](../../../todo/blocked/wasmtime-threads.md) — existing WASM
+  runtime coverage, independent of the six-job allocation.
 - [Nix alternatives](./investigate-mise-pixi.md) — investigate environment
   tooling independently; this allocation does not select a replacement.
