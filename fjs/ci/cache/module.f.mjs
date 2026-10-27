@@ -5,10 +5,9 @@
  *
  * @module
  *
- * @import { Effect, IoChannel, Operation } from '../../effects/types.ts'
- * @import { NodeOp, Env, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { Effect, IoChannel } from '../../effects/types.ts'
+ * @import { ExecFile, NodeOp, Env, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { DocumentedCommands } from '../../cli/types.ts'
- * @import { Read } from '../../git/walk/types.ts'
  * @import { Oid, OidBytes } from '../../git/types.ts'
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -24,18 +23,15 @@ import { branchCas, snapshot } from '../../cas/git/module.f.mjs'
 import { exactArgs } from '../../cli/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../effects/module.f.mjs'
-import { exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { oidBytes } from '../../git/format/module.f.mjs'
-import { tryFromHexOf } from '../../git/oid/module.f.mjs'
+import { hexText, tryFromHexOf } from '../../git/oid/module.f.mjs'
 import { tryCommonDir } from '../../git/repo/module.f.mjs'
-import { objectsDirs, readIn } from '../../git/store/module.f.mjs'
-import { isSubtree } from '../../git/tree/module.f.mjs'
-import { tryEntries } from '../../git/walk/module.f.mjs'
 import { parse, stringifySorted } from '../../media/json/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { parse as parseType } from '../../rtti/parse/module.f.mjs'
-import { stringToU8List, u8ListToString } from '../../text/utf8/module.f.mjs'
+import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import * as pins from '../config/module.f.js'
 import { checksSchema, platformSchema } from '../smart/module.f.mjs'
@@ -88,33 +84,34 @@ export const checkManifest = (check, platform, inputs, trees) => ({
     below: inputs[check.rung],
 })
 
-/**
- * Walks trees alone. Leaf blob ids are reused without reading their objects,
- * and the starting id is the exact commit GitHub checked out.
- *
- * @template {Operation} O
- * @param {Read<O>} read
- * @param {OidBytes} width
- * @returns {(commit: Oid) => Effect<O, readonly File[], IoChannel>}
- */
-export const committedFiles = (read, width) => {
-    const entries = tryEntries(read, width)
-    /** @type {(id: Oid, path: string) => Effect<O, readonly File[], IoChannel>} */
-    const walk = (id, path) => {
-        const admitted = step(entries(id), es => es === null
-            ? refuse('ERR_CI_TREE')(`cannot read the committed tree at ${path}`)
-            : pureOk(es))
-        return foldStep(admitted, /** @type {readonly File[]} */ ([]), e => files => {
-            const decoded = u8ListToString(e.name)
-            const name = path === '' ? decoded : join(path, decoded)
-            return isSubtree(e)
-                ? mapStep(walk(e.oid, name), below => [...files, ...below])
-                : ['100644', '100755'].includes(u8ListToString(e.mode))
-                    ? pureOk([...files, [name, vecToCBase32(e.oid)]])
-                    : refuse('ERR_CI_INPUT')(`unsupported committed input mode: ${name}`)
-        })
+/** One NUL-delimited ls-tree record; the first tab separates metadata from the literal path. @type {(width: OidBytes, record: string) => Effect<never, File, IoChannel>} */
+const treeFile = (width, record) => {
+    const tab = record.indexOf('\t')
+    const header = record.slice(0, tab).split(' ')
+    const [mode, kind, hex] = header
+    const name = record.slice(tab + 1)
+    if (tab === -1 || header.length !== 3 || name === '') {
+        return refuse('ERR_CI_TREE')('invalid git ls-tree record')
     }
-    return commit => walk(commit, '')
+    if (!['100644', '100755'].includes(mode) || kind !== 'blob') {
+        return refuse('ERR_CI_INPUT')(`unsupported committed input mode: ${name}`)
+    }
+    const id = tryFromHexOf(width)(stringToU8List(hex))
+    return id === null
+        ? refuse('ERR_CI_TREE')(`invalid committed blob id: ${name}`)
+        : pureOk([name, vecToCBase32(id)])
+}
+
+/** Enumerates committed blob ids in one Git process, without reading source blobs or working-tree files. @type {(width: OidBytes) => (commit: Oid) => Effect<ExecFile, readonly File[], IoChannel>} */
+export const committedFiles = width => commit => {
+    const listed = execFile('git', ['ls-tree', '-r', '-z', '--full-tree', hexText(commit), '--'])
+    return step(listed, ({ stdout }) => {
+        if (stdout !== '' && !stdout.endsWith('\0')) {
+            return refuse('ERR_CI_TREE')('unterminated git ls-tree output')
+        }
+        return foldStep(pureOk(stdout.split('\0').slice(0, -1)), /** @type {readonly File[]} */ ([]), record => files =>
+            mapStep(treeFile(width, record), file => [...files, file]))
+    })
 }
 
 const readChecks = parseType(checksSchema)
@@ -142,17 +139,16 @@ export const init = ({ env }) => {
     const platform = historyStep(checks, () => settings(env.FJS_CI_PLATFORM ?? '', readPlatform))
     const repo = historyStep(platform, repository)
     const width = historyStep(repo, b => oidBytes(b.dir))
-    const dirs = historyStep(width, (_w, b) => objectsDirs(b.dir))
-    const files = historyStep(dirs, (ods, w) => {
+    const files = historyStep(width, w => {
         const commit = w === null ? null : tryFromHexOf(w)(ascii(env.GITHUB_SHA ?? ''))
         return commit === null || w === null
             ? refuse('ERR_CI_COMMIT')('GITHUB_SHA must name the checked-out commit')
-            : committedFiles(readIn(ods, w), w)(commit)
+            : committedFiles(w)(commit)
     })
     const trees = historyStep(files, inputTrees)
-    const cache = historyStep(trees, (_t, _f, _ods, _w, b) => snapshot(b))
+    const cache = historyStep(trees, (_t, _f, _w, b) => snapshot(b))
     const created = historyStep(cache, () => mkdir(manifestDirectory(env), { recursive: true }))
-    const prepared = mapStep(created, ([, cas, t, , , , , host, cs]) => {
+    const prepared = mapStep(created, ([, cas, t, , , , host, cs]) => {
         const inputs = inputKeys(t)
         return cs.map(check => ({ check, manifest: checkManifest(check, host, inputs, t), cas }))
     })

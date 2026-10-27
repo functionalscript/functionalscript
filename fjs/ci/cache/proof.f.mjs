@@ -1,11 +1,11 @@
 /**
  * @import { Check, Platform } from '../smart/types.ts'
  * @import { Dir, State } from '../../effects/node/virtual/types.ts'
- * @import { NodeProgramOptions } from '../../effects/node/types.ts'
- * @import { Envelope } from '../../git/object/types.ts'
- * @import { Oid } from '../../git/types.ts'
+ * @import { ExecResult, IoResult, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
+ * @import { Oid, OidBytes } from '../../git/types.ts'
  * @import { File, Rung, Tree } from './types.ts'
- * @import { Effect } from '../../effects/types.ts'
+ * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
  */
@@ -13,9 +13,10 @@
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { writeObject } from '../../cas/git/module.f.mjs'
-import { history, historyStep, pureOk, runPure } from '../../effects/module.f.mjs'
-import { readUtf8File, writeFiles } from '../../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
+import { history, historyStep, ioError, runPure } from '../../effects/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.mjs'
+import { nodeCommands, readUtf8File, writeFiles } from '../../effects/node/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { hexText, of, tryFromHexOf } from '../../git/oid/module.f.mjs'
 import { tryRead as readObject } from '../../git/store/module.f.mjs'
@@ -24,6 +25,7 @@ import { stringifySorted } from '../../media/json/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ListToString } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.mjs'
 
 /** @type {Check} */
@@ -55,9 +57,27 @@ const treeId = idOf('tree', tree)
 const commit = ascii(`tree ${hexText(treeId)}\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\nsource\n`)
 const commitId = idOf('commit', commit)
 
-/** Source blobs are deliberately absent: enumeration needs their ids alone. @type {(id: Oid) => Envelope | null} */
-const sourceObject = id => id === commitId ? { type: 'commit', payload: commit }
-    : id === treeId ? { type: 'tree', payload: tree } : null
+const sourceListing = `100644 blob ${hexText(sourceId)}\tpackage.json\0`
+
+/** Script Git's captured output while preserving the virtual filesystem. @type {(outcome: IoResult<ExecResult>, target?: Oid) => RunInstance<NodeOp, State>} */
+const withGitResult = (outcome, target = commitId) => {
+    /** @type {PartialMemOperationMap<NodeOp, State>} */
+    const operations = {
+        ...virtualOperationMap,
+        execFile: (command, args) => state => {
+            assertEq(command, 'git')
+            assertStructurallySame(args, ['ls-tree', '-r', '-z', '--full-tree', hexText(target), '--'])
+            return [state, outcome]
+        },
+    }
+    return partialRun(nodeCommands)(operations)
+}
+
+/** @type {(stdout?: string, target?: Oid) => RunInstance<NodeOp, State>} */
+const withGit = (stdout = sourceListing, target = commitId) => withGitResult(ok({ stdout, stderr: '' }), target)
+
+/** @type {(stdout: string, width?: OidBytes, target?: Oid) => Result<readonly File[], IoChannel>} */
+const enumerated = (stdout, width = 20, target = commitId) => withGit(stdout, target)(emptyState)(committedFiles(width)(target))[1]
 
 const config = /** @type {const} */ ('[core]\nrepositoryformatversion = 0\n[user]\nname = Cache Writer\nemail = cache@example.com\n')
 
@@ -145,25 +165,57 @@ export const proof = /** @type {const} */ ({
         assert(keyOf(manifest) !== keyOf(checkManifest({ ...check, steps: [{ run: 'node --test', 'working-directory': 'sub' }] }, platform, inputs, trees)))
     },
     committedFiles: () => {
-        const read = /** @type {(id: Oid) => import('../../effects/types.ts').Effect<never, Envelope | null, import('../../effects/types.ts').IoChannel>} */ (id => pureOk(sourceObject(id)))
-        assertStructurallySame(assertOk(pureResult(committedFiles(read, 20)(commitId))), [['package.json', vecToCBase32(sourceId)]])
-        assertError(pureResult(committedFiles(read, 20)(sourceId)))
-        const subTree = toArray(writeTree(20)([{ ...regular, name: ascii('module.f.js') }]))
-        const subId = idOf('tree', subTree)
-        const parentTree = toArray(writeTree(20)([{ mode: ascii('40000'), name: ascii('fjs'), oid: subId }]))
-        const parentId = idOf('tree', parentTree)
-        const nested = /** @type {typeof read} */ (id => pureOk(id === parentId ? { type: 'tree', payload: parentTree } : id === subId ? { type: 'tree', payload: subTree } : null))
-        assertStructurallySame(assertOk(pureResult(committedFiles(nested, 20)(parentId))), [['fjs/module.f.js', vecToCBase32(sourceId)]])
-        for (const mode of ['120000', '160000']) {
-            const bytes = toArray(writeTree(20)([{ ...regular, mode: ascii(mode) }]))
-            const id = idOf('tree', bytes)
-            const unusual = /** @type {typeof read} */ (() => pureOk({ type: 'tree', payload: bytes }))
-            assertError(pureResult(committedFiles(unusual, 20)(id)))
+        assertStructurallySame(assertOk(enumerated(sourceListing)), [['package.json', vecToCBase32(sourceId)]])
+        assertStructurallySame(assertOk(enumerated('')), [])
+        const path = ' fjs/café\tline\nmodule.f.js \n'
+        assertStructurallySame(assertOk(enumerated(`${sourceListing}100755 blob ${hexText(sourceId)}\t${path}\0`)), [
+            ['package.json', vecToCBase32(sourceId)], [path, vecToCBase32(sourceId)],
+        ])
+        const hash256 = of(32)
+        const source256 = hash256('blob', ascii('source'))
+        const commit256 = hash256('commit', ascii('commit'))
+        assertStructurallySame(assertOk(enumerated(`100644 blob ${hexText(source256)}\tfjs/module.f.js\0`, 32, commit256)), [
+            ['fjs/module.f.js', vecToCBase32(source256)],
+        ])
+    },
+    malformedListing: () => {
+        const hex = hexText(sourceId)
+        for (const stdout of [
+            sourceListing.slice(0, -1),
+            `100644 blob ${hex} package.json\0`,
+            `100644 blob\tpackage.json\0`,
+            `100644 blob ${hex} extra\tpackage.json\0`,
+            `100644  blob ${hex}\tpackage.json\0`,
+            `100644 blob ${hex}\t\0`,
+            `100644 blob ${'g'.repeat(40)}\tpackage.json\0`,
+            `100644 blob ${hex.slice(2)}\tpackage.json\0`,
+            `100644 blob ${hex}00\tpackage.json\0`,
+            '\0',
+            `${sourceListing}\0`,
+        ]) {
+            const refused = assertError(enumerated(stdout))
+            assertEq(refused[0] === 'ioError' ? refused[1].code : '', 'ERR_CI_TREE')
+        }
+    },
+    unsupportedInputs: () => {
+        for (const header of ['120000 blob', '160000 commit', '040000 tree', '100644 commit', '100755 tree']) {
+            const refused = assertError(enumerated(`${header} ${hexText(sourceId)}\tunsupported\0`))
+            assertEq(refused[0] === 'ioError' ? refused[1].code : '', 'ERR_CI_INPUT')
+        }
+    },
+    gitFailures: () => {
+        for (const failure of [
+            ioError({ code: 'ENOENT', message: 'git unavailable' }),
+            ioError({ message: 'git ls-tree exited with code 128' }),
+        ]) {
+            const run = withGitResult(error(failure))
+            assertStructurallySame(assertError(run(emptyState)(committedFiles(20)(commitId))[1]), failure)
+            assertError(run(seeded())(init(options))[1])
         }
     },
     roundTrip: () => {
         const before = seeded()
-        const [miss, result] = virtual(before)(init(options))
+        const [miss, result] = withGit()(before)(init(options))
         assertOk(result)
         assertEq(textAt(miss, 'tmp/output'), 'hit-suite=false\n')
         const manifest = textAt(miss, 'tmp/fjs-ci-node/suite.json')
@@ -173,7 +225,7 @@ export const proof = /** @type {const} */ ({
         const [again, rereported] = virtual(added)(report({ ...options, args: ['suite'] }))
         assertOk(rereported)
         assertStructurallySame(again.root, added.root)
-        const [hit, hitResult] = virtual(again)(init(options))
+        const [hit, hitResult] = withGit()(again)(init(options))
         assertOk(hitResult)
         assertEq(textAt(hit, 'tmp/output'), 'hit-suite=true\n')
         assertEq(textAt(hit, 'tmp/fjs-ci-node/suite.json'), manifest)
@@ -187,22 +239,22 @@ export const proof = /** @type {const} */ ({
             { ...options.env, FJS_CI_PLATFORM: 'bad' },
             { ...options.env, GITHUB_SHA: 'not-a-sha' },
             {},
-        ]) { assertError(virtual(state)(init({ ...options, env }))[1]) }
+        ]) { assertError(withGit()(state)(init({ ...options, env }))[1]) }
         for (const name of ['FJS_CI_PLATFORM', 'GITHUB_SHA', 'GITHUB_OUTPUT']) {
             const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
-            assertError(virtual(state)(init({ ...options, env }))[1])
+            assertError(withGit()(state)(init({ ...options, env }))[1])
         }
         for (const name of ['RUNNER_TEMP', 'GITHUB_JOB']) {
             const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
-            assertOk(virtual(state)(init({ ...options, env }))[1])
+            assertOk(withGit()(state)(init({ ...options, env }))[1])
         }
-        assertError(virtualAt({ '.git': [utf8('bad')], tmp: {} })(init(options))[1])
+        assertError(withGit()({ ...emptyState, root: { '.git': [utf8('bad')], tmp: {} } })(init(options))[1])
         /** @type {Dir} */
         const malformed = { ...root, '.git': { config: [utf8('[core]\nrepositoryformatversion = 99\n')], objects: { pack: {} } } }
-        assertError(virtualAt(malformed)(init(options))[1])
+        assertError(withGit()({ ...emptyState, root: malformed })(init(options))[1])
         const [corrupt, written] = virtual(state)(writeFiles([['.git/refs/heads/build-cache', 'not a ref\n']]))
         assertOk(written)
-        assertError(virtual(corrupt)(init(options))[1])
+        assertError(withGit()(corrupt)(init(options))[1])
     },
     reportRefusal: () => {
         for (const name of ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL']) {
@@ -214,7 +266,7 @@ export const proof = /** @type {const} */ ({
         const included = `${config}[includeIf "gitdir:/runner/_work/functionalscript/functionalscript/.git"]\npath = /runner/_temp/checkout-auth.config\n`
         const [checkout, configured] = virtual(seeded())(writeFiles([['.git/config', included]]))
         assertOk(configured)
-        const [miss, initialized] = virtual(checkout)(init(options))
+        const [miss, initialized] = withGit()(checkout)(init(options))
         assertOk(initialized)
         const [added, reported] = virtual(miss)(report({ ...options, args: ['suite'] }))
         assertOk(reported)
@@ -224,7 +276,7 @@ export const proof = /** @type {const} */ ({
         const text = u8ListToString(commit.payload)
         assert(text.includes('author github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'))
         assert(text.includes('committer github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'))
-        const [hit, rechecked] = virtual(added)(init(options))
+        const [hit, rechecked] = withGit()(added)(init(options))
         assertOk(rechecked)
         assertEq(textAt(hit, 'tmp/output'), 'hit-suite=true\n')
         assertEq(textAt(hit, '.git/config'), included)
