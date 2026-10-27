@@ -478,8 +478,8 @@ const stepper = (root, demo) => {
     const step = (event, automatic = false) => {
         if (!automatic && event.kind !== 'start') {
             revision += 1
-            edited = true
         }
+        if (!automatic && event.kind === 'input') { edited = true }
         const keepControls = automatic || incremental
         clearTimeout(scheduled)
         scheduled = undefined

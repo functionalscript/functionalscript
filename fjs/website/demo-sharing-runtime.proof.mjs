@@ -241,7 +241,8 @@ export const proof = {
         noStatus.controls.querySelector = (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? noStatus.root : selector.includes('button[data-copy-demo]') ? noStatus.button : selector.includes('button[data-copy-demo-section]') ? noStatus.sectionButton : null
         noStatus.start()
         assertEq(noStatus.pending.length, 0)
-    },    editsPushHistory: () => {
+    },
+    editsPushHistory: () => {
         const f = fixture(undefined, '?example=second#heading')
         f.start(); f.flush()
         f.edit('Custom 🌍')
