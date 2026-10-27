@@ -691,7 +691,7 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm install -g functionalscript@0.56.0\",\"shell\":\"bash\"},{\"run\":\"mise exec -- fjs test\",\"shell\":\"bash\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --target i686-pc-windows-msvc --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --target i686-pc-windows-msvc --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm start test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"2025\",\"architecture\":\"x64\"}"
           }
         },
@@ -715,11 +715,6 @@
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
-        },
-        {
-          "run": "mise exec -- npm install -g functionalscript@0.56.0",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
           "run": "mise exec -- cargo test",
@@ -771,7 +766,7 @@
           "continue-on-error": true
         },
         {
-          "run": "mise exec -- fjs test",
+          "run": "mise exec -- npm start test",
           "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
@@ -826,7 +821,7 @@
           "run": "npm start ci init",
           "continue-on-error": true,
           "env": {
-            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm install -g functionalscript@0.56.0\",\"shell\":\"bash\"},{\"run\":\"mise exec -- fjs test\",\"shell\":\"bash\"}]}]",
+            "FJS_CI_CHECKS": "[{\"id\":\"rust\",\"rung\":\"rust\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"test \\\"\\u0024(mise exec -- rustc --version | cut -d' ' -f1,2)\\\" = \\\"rustc 1.99.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo test --release\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy -- -D warnings\",\"shell\":\"bash\"},{\"run\":\"mise exec -- cargo clippy --release -- -D warnings\",\"shell\":\"bash\"}]},{\"id\":\"suite\",\"rung\":\"js\",\"steps\":[{\"uses\":\"jdx/mise-action@v3\",\"with\":{\"version\":\"2026.10.19\",\"install_args\":\"--locked\",\"cache\":\"true\",\"env\":\"false\",\"add_shims_to_path\":\"false\"}},{\"run\":\"test \\\"\\u0024(mise exec -- node --version)\\\" = \\\"v26.12.1\\\"\",\"shell\":\"bash\"},{\"run\":\"mise exec -- npm start test\",\"shell\":\"bash\"}]}]",
             "FJS_CI_PLATFORM": "{\"os\":\"windows\",\"version\":\"11\",\"architecture\":\"arm64\"}"
           }
         },
@@ -850,11 +845,6 @@
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
-        },
-        {
-          "run": "mise exec -- npm install -g functionalscript@0.56.0",
-          "shell": "bash",
-          "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
           "run": "mise exec -- cargo test",
@@ -886,7 +876,7 @@
           "continue-on-error": true
         },
         {
-          "run": "mise exec -- fjs test",
+          "run": "mise exec -- npm start test",
           "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'"
         },

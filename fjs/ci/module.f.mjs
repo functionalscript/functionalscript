@@ -13,7 +13,7 @@
 
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeFiles } from '../effects/node/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.js'
+import { images, node } from './config/module.f.js'
 import {
     _workflowsDirectory,
     architecture,
@@ -153,7 +153,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...platformNodeSteps(functionalscript),
+            ...platformNodeSteps(),
             ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'

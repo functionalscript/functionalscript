@@ -55,7 +55,7 @@ const checkId = (jobId, step) => {
     const run = command(step)
     return jobId === 'deno' || jobId === 'bun' ? 'suite'
         : run.startsWith('cargo ') ? 'rust'
-        : run === 'node --test' || run === 'fjs test' ? 'suite'
+        : run === 'node --test' || run === 'npm start test' ? 'suite'
         : run === 'tsc' ? 'tsc'
         : run === 'npm start compile' ? 'compile'
         : run === 'npm run cov' ? 'coverage'
@@ -84,7 +84,6 @@ const dependencies = (jobId, ids, step) => {
     const run = command(step)
     return own !== undefined ? [own]
         : run === 'npm ci' ? ids.filter(id => id !== 'rust' && !id.startsWith('spidermonkey-'))
-        : run.startsWith('npm install -g functionalscript@') ? ['suite']
         : isAction(step, 'dtolnay/rust-toolchain') || run.includes('rustc --version') || run.includes('wasmtime --version') || run.includes('wasmer --version')
             || run === 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386' ? ['rust']
         : run.includes('js --version') || run === 'mise -E spidermonkey install --locked http:spidermonkey'

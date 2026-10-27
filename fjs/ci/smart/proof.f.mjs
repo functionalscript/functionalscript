@@ -164,8 +164,7 @@ export const proof = /** @type {const} */ ({
             { run: 'test "$(mise exec -- wasmer --version)" = "wasmer 7.1.0"' },
             { run: 'test "$(mise -E spidermonkey exec -- js --version)" = "JavaScript-C140.14.0"' },
             install, { run: 'cargo test' }, { run: 'cargo clippy -- -D warnings' },
-            { run: 'npm install -g functionalscript@0.56.0' },
-            suite, { run: 'fjs test' },
+            suite, { run: 'npm start test' },
             { run: 'mise -E spidermonkey exec -- npm run sm c' }, { run: 'mise -E spidermonkey exec -- npm run sm t' },
         ], 'ubuntu-arm')
         assertEq(stepWith(source, rustVersion.run).if, "steps.init.outputs.hit-rust != 'true'")
@@ -177,7 +176,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- npm run sm c').if, "steps.init.outputs.hit-spidermonkey-compile != 'true'")
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- npm run sm t').if, "steps.init.outputs.hit-spidermonkey-suite != 'true'")
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(stepWith(source, 'npm install -g functionalscript@0.56.0').if, "steps.init.outputs.hit-suite != 'true'")
+        assertEq(stepWith(source, 'npm start test').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
     },
     /** Each alternative engine groups its install, pin verification and coverage. */
