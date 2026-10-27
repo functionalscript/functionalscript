@@ -58,6 +58,7 @@ import {
 } from './constructors/module.f.js'
 import { groups as memberGroups } from './member/module.f.js'
 import { logicalExp } from '../edag/from_fast/source/module.f.mjs'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 export const callback = constructorsCallback
 export const functionValue = constructorsFunctionValue
@@ -139,11 +140,11 @@ export const orders = g => c => isCommutative(g)
  * @type {(g: Group) => string}
  */
 export const groupKey = g =>
-    'method' in g ? `.${g.method}`
-    : 'arity' in g ? `${g.op}/${g.arity}`
+    hasEntry(g, 'method') ? `.${g.method}`
+    : hasEntry(g, 'arity') ? `${g.op}/${g.arity}`
     // one key per constructor, `instanceof Array`, spelled as the source
     // is: the name is the group's, not the operand's
-    : 'name' in g ? `${g.op} ${g.name}`
+    : hasEntry(g, 'name') ? `${g.op} ${g.name}`
     : g.op
 
 /**
@@ -173,9 +174,9 @@ export const casesOf = g => g.cases
  * @type {(g: OperatorGroup) => 1 | 2 | 3}
  */
 export const arityOf = g => {
-    if ('arity' in g) { return g.arity }
+    if (hasEntry(g, 'arity')) { return g.arity }
     // the constructor is a name, not an operand: one operand
-    if ('name' in g) { return 1 }
+    if (hasEntry(g, 'name')) { return 1 }
     if (g.op === '&&' || g.op === '||' || g.op === '??') { return 2 }
     if (isOp1Id(g.op)[0] === 'ok') { return 1 }
     return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
@@ -312,7 +313,7 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */
 export const caseExp = shared => g => args => {
-    if ('method' in g) { return methodExp(valuesExp(shared))(g.method)(args) }
+    if (hasEntry(g, 'method')) { return methodExp(valuesExp(shared))(g.method)(args) }
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
@@ -322,7 +323,7 @@ export const caseExp = shared => g => args => {
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
     const [a, b, c] = args.map(valuesExp(shared))
     // the constructor name is the group's, carried into the node as it is
-    if ('name' in g) { return ['instanceof', a, g.name] }
+    if (hasEntry(g, 'name')) { return ['instanceof', a, g.name] }
     if (g.op === '&&' || g.op === '||' || g.op === '??') { return logicalExp(g.op, a, b) }
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing

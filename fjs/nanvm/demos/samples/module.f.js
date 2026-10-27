@@ -13,13 +13,15 @@
  * a test before it is deployed.
  *
  * **Data alone, imported by the pages.** A page reads its place from here,
- * so this module imports nothing: the compiler the generator needs stays
- * out of the browser.
+ * so this module imports nothing but a dependency-free helper: the compiler
+ * the generator needs stays out of the browser.
  *
  * @module
  *
  * @import { FunctionPlace, Place } from '../page/types.ts'
  */
+
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /** The samples. A name is the sample's module and export in `nanvm-demos`, so no two share one. @type {readonly (Place | FunctionPlace)[]} */
 export const samples = [
@@ -199,6 +201,6 @@ export const placeAt = directory => {
  */
 export const functionPlaceAt = directory => {
     const place = placeAt(directory)
-    if (!('calls' in place)) { throw `the sample in ${directory} lists no calls` }
+    if (!hasEntry(place, 'calls')) { throw `the sample in ${directory} lists no calls` }
     return /** @type {FunctionPlace} */ (place)
 }

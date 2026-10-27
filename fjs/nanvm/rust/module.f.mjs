@@ -59,6 +59,7 @@ import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { generatedHeader, indent } from '../../media/rust/item/module.f.js'
 import { bindingLine, braced, expExpr as sharedExpExpr, needsRuntime, statementsOf } from '../../edag/rust/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The name a group's `run` binds the runtime value to, {@link groupFile}. */
 const runtimeName = 'rt'
@@ -160,7 +161,7 @@ const operatorFnName = id => {
  *
  * @type {(g: Group) => string}
  */
-export const fnName = g => 'method' in g ? `method_${snakeCase(g.method)}` : operatorFnName(groupKey(g))
+export const fnName = g => hasEntry(g, 'method') ? `method_${snakeCase(g.method)}` : operatorFnName(groupKey(g))
 
 /**
  * A statement's lines, indented into the group's function — one, unless a

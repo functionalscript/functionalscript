@@ -85,6 +85,7 @@ import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { pushOk, walkFold } from '../../../types/stack_walk/module.f.mjs'
 import { chunksMarked, chunkStrings, chunksText, keyword, withNames } from '../../../text/marked/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, leafSerialize as leafSerializeWith, nullSerialize, numberSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 const {
     entries,
@@ -168,7 +169,7 @@ export const keySerialize = key => key === protoKey
  */
 export const _memberValue = (key, descriptor) =>
     descriptor.enumerable !== true ? error(`${key} is a non-enumerable property`) :
-    !('value' in descriptor) ? error(`${key} is an accessor property`) :
+    !hasEntry(descriptor, 'value') ? error(`${key} is an accessor property`) :
     ok(descriptor.value)
 
 /**

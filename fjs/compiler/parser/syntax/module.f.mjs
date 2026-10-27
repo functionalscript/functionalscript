@@ -48,6 +48,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
     afterCase, binaryOpTag, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
@@ -105,7 +106,7 @@ const splitEof = tokens => {
  */
 const tokenAt = node => {
     const { meta } = symbolAt(node)
-    assert('token' in meta)
+    assert(hasEntry(meta, 'token'))
     return meta
 }
 
@@ -116,7 +117,7 @@ const tokenAt = node => {
  */
 const outAt = node => {
     const { meta } = symbolAt(node)
-    assert('id' in meta)
+    assert(hasEntry(meta, 'id'))
     return meta
 }
 
@@ -937,7 +938,7 @@ const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/*
  *
  * @type {(list: ParameterList, arrow: ModuleTokenWithMetadata) => ParameterList}
  */
-const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { arrow }
+const arrowed = (list, arrow) => hasEntry(list, 'invalid') || !arrow.newline ? list : { arrow }
 
 /**
  * What follows a name or a `( value )`, `arrowOrRest`: the function whose

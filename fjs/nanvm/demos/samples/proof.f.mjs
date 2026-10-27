@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { functionPlaceAt, placeAt, samples } from './module.f.mjs'
+import { functionPlaceAt, placeAt, samples } from './module.f.js'
 
 export const proof = {
     // A name is the sample's WASM export, so no two may share one, nor two a directory.

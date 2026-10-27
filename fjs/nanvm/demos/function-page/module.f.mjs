@@ -30,7 +30,7 @@
  * [`spell`](../spell/module.f.mjs) here and by its Rust twin in
  * `nanvm-demos`, so the comparison tells `null` from `undefined` and keeps
  * an array's nesting. The calls are the samples list's
- * ([`../samples/module.f.mjs`](../samples/module.f.mjs)), where the answers
+ * ([`../samples/module.f.js`](../samples/module.f.js)), where the answers
  * JavaScript gives are stated and tested on both sides.
  *
  * **A call is timed {@link repetitions} times over.** One call of a spec

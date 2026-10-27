@@ -9,6 +9,7 @@
  */
 
 import { identity, compose } from '../function/module.f.js'
+import { hasEntry } from '../object/entry/module.f.js'
 import {
     addition,
     logicalNot,
@@ -50,7 +51,7 @@ export const next = head => {
 
         if (head instanceof Array) {
             head = fromArrayLike(head)
-        } else if (head !== null && 'head' in head) {
+        } else if (head !== null && hasEntry(head, 'head')) {
             [head, tail] = [head.head, concat(head.tail)(tail)]
             continue
         }
@@ -297,7 +298,7 @@ const lengthList = list => () => {
     if (notLazy === null) { return null }
     if (notLazy instanceof Array) { return [notLazy.length] }
     const tail = lengthList(notLazy.tail)
-    if ('first' in notLazy) {
+    if (hasEntry(notLazy, 'first')) {
         return { first: 1, tail }
     }
     return { head: lengthList(notLazy.head), tail }
