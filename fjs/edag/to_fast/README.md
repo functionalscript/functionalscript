@@ -48,6 +48,10 @@ computed member keys in the normalized operand vocabulary. A shared value used
 across operands becomes required only after its earlier eager work has been
 established. Complete earlier computations receive ordered immutable snapshots;
 implicit spread expansion, key conversion and member lookup remain barriers.
+A later snapshot cannot claim a dependency reachable from an earlier planned
+initializer. That earlier initializer may already have demanded the value;
+rewriting its lazy dependencies to the later binding would read an uninitialized
+snapshot. Those dependencies retain their existing owners instead.
 A value that cannot cross such a barrier safely retains first-demand memo
 storage. Source admission explicitly refuses that storage where its grammar
 cannot express it; runtime JavaScript and Rust consume the common plan.

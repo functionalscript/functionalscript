@@ -271,7 +271,11 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                     // Establish complete earlier computations before this owner.
                     // Implicit lookup, key conversion and spread barriers have
                     // no separate graph node and retain first-demand storage.
-                    for (const j of eagerHere.filter(j => j < i && !owned.includes(j) && !bound.includes(j) && !isRead(a.nodes[j])).toSorted((x, y) => x - y)) {
+                    // Earlier initializers may already have demanded these
+                    // dependencies. A new snapshot must not rebind them to a
+                    // declaration that follows their first demand.
+                    const prior = reachable(a, ownOperandsOf, bound)(ordered.map(plan => plan.value))
+                    for (const j of eagerHere.filter(j => j < i && !owned.includes(j) && !bound.includes(j) && !prior.includes(j) && !isRead(a.nodes[j])).toSorted((x, y) => x - y)) {
                         if (!demandsInOrder(exp, [a.exps[j]], earlier)) { continue }
                         owned = [...owned, j]
                         required = [...required, j]
