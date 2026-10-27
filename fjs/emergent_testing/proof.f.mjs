@@ -18,7 +18,7 @@ import {
     addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
-import { shouldLoad } from '../dev/module.f.mjs'
+import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
@@ -286,13 +286,13 @@ export const namedExports = () => {
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
 export const defaultReporterOutput = () => {
     const [stdout, stderr, exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { x: ok0 } }),
+        'a.proof.f.mjs': () => ({ proof: { x: ok0 } }),
     })
     assertEq(exit, 0)
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): '
+        'import("./a.proof.f.mjs").proof.x(): '
         + 'ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
@@ -302,12 +302,12 @@ export const defaultReporterOutput = () => {
 // A leaf over a millisecond: the terminal's four decimals, still in milliseconds.
 export const defaultReporterOutputLargeDuration = () => {
     const [stdout, , exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { x: ok1 } }),
+        'a.proof.f.mjs': () => ({ proof: { x: ok1 } }),
     })
     assertEq(exit, 0)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): '
+        'import("./a.proof.f.mjs").proof.x(): '
         + 'ok, 1.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 1.0000 ms\n',
@@ -328,15 +328,15 @@ export const defaultReporterOutputLargeDuration = () => {
  */
 export const defaultReporterFailOutput = () => {
     const [stdout, stderr, exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
+        'a.proof.f.mjs': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.bad(): '
+        'import("./a.proof.f.mjs").proof.bad(): '
         + 'error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.bad()\n'
+        + 'import("./a.proof.f.mjs").proof.bad()\n'
         + 'oops\n'
         + 'Number of tests: pass: 0, fail: 1, total: 1\n'
         + 'Time: 0.0000 ms\n',
@@ -359,22 +359,22 @@ export const defaultReporterFailOutput = () => {
  */
 export const defaultReporterFailuresAtEnd = () => {
     const [stdout, , exit] = runMain({
-        'a.proof.f.ts': () => ({
+        'a.proof.f.mjs': () => ({
             proof: { one: failWith('first'), two: ok0, three: failWith('second') },
         }),
     })
     assertEq(exit, 1)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.one(): '
+        'import("./a.proof.f.mjs").proof.one(): '
         + 'error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.two(): '
+        + 'import("./a.proof.f.mjs").proof.two(): '
         + 'ok, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.three(): '
+        + 'import("./a.proof.f.mjs").proof.three(): '
         + 'error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.one()\n'
+        + 'import("./a.proof.f.mjs").proof.one()\n'
         + 'first\n'
-        + 'import("./a.proof.f.ts").proof.three()\n'
+        + 'import("./a.proof.f.mjs").proof.three()\n'
         + 'second\n'
         + 'Number of tests: pass: 1, fail: 2, total: 3\n'
         + 'Time: 0.0000 ms\n',
@@ -385,19 +385,19 @@ export const defaultReporterFailuresAtEnd = () => {
 // walk threads one state through all of them rather than one per module.
 export const defaultReporterFailuresAcrossModules = () => {
     const [stdout, , exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { x: failWith('from-a') } }),
-        'b.proof.f.ts': () => ({ proof: { y: failWith('from-b') } }),
+        'a.proof.f.mjs': () => ({ proof: { x: failWith('from-a') } }),
+        'b.proof.f.mjs': () => ({ proof: { y: failWith('from-b') } }),
     })
     assertEq(exit, 1)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): '
+        'import("./a.proof.f.mjs").proof.x(): '
         + 'error, 0.0000 ms\n'
-        + 'import("./b.proof.f.ts").proof.y(): '
+        + 'import("./b.proof.f.mjs").proof.y(): '
         + 'error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.x()\n'
+        + 'import("./a.proof.f.mjs").proof.x()\n'
         + 'from-a\n'
-        + 'import("./b.proof.f.ts").proof.y()\n'
+        + 'import("./b.proof.f.mjs").proof.y()\n'
         + 'from-b\n'
         + 'Number of tests: pass: 0, fail: 2, total: 2\n'
         + 'Time: 0.0000 ms\n',
@@ -409,7 +409,7 @@ export const defaultReporterFailuresAcrossModules = () => {
 // collected, not after.
 export const defaultReporterExpectedThrowNotReported = () => {
     const [stdout, , exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
+        'a.proof.f.mjs': () => ({ proof: { throw: { x: fail0 } } }),
     })
     assertEq(exit, 0)
     assert(!stdout.includes('oops'), stdout)
@@ -600,7 +600,7 @@ export const nothingRunsAfterARunIsAbandoned = () => {
 // title (the JSON path) and message, in the same deferred position
 export const githubReporterOutput = () => {
     const [stdout, stderr, exit] = runMain({
-        's.proof.f.ts': () => ({ proof: { 'a:b,c%d': fail0 } }),
+        's.proof.f.mjs': () => ({ proof: { 'a:b,c%d': fail0 } }),
     }, true)
     assertEq(exit, 1)
     // The annotation goes to `stdout` with everything else: a workflow log
@@ -609,7 +609,7 @@ export const githubReporterOutput = () => {
     assertEq(stderr, '')
     assert(
         stdout.includes(
-            '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n'),
+            '::error file=./s.proof.f.mjs,line=1,title=import("./s.proof.f.mjs").proof["a%3Ab%2Cc%25d"]()::oops\n'),
         stdout)
 }
 
@@ -810,9 +810,10 @@ export const registerEmptyModuleMap = () => {
  *     files: readonly string[],
  *     load: (path: string) => IoResult<Module>,
  *     invoke: boolean,
+ *     select?: (path: string) => boolean,
  * ) => readonly (readonly [TestContext, string, boolean])[]}
  */
-const runRegister = (testContext, files, load, invoke) => {
+const runRegister = (testContext, files, load, invoke, select) => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {(readonly [TestContext, string, boolean])[]} */
     let calls = []
@@ -840,7 +841,7 @@ const runRegister = (testContext, files, load, invoke) => {
     }))
     runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
         ...defaultNodeProgramOptions, env: {}, testContext,
-    })))
+    }, select)))
     return calls
 }
 
@@ -994,7 +995,7 @@ const defaultReporterExpectedToThrow = () => {
     // fail0 returns a SandboxResult indicating an error; in a throw context
     // defaultTest inverts it to ok, so defaultReporter.result sees s==='ok' and throws===true
     const [stdout, , exit] = runMain({
-        'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
+        'a.proof.f.mjs': () => ({ proof: { throw: { x: fail0 } } }),
     })
     assertEq(exit, 0)
     assert(stdout.includes('# EXPECTED TO THROW'), stdout)
@@ -1071,7 +1072,36 @@ const formatDurationProofs = {
     },
 }
 
+/** Built-in discovery never imports excluded host or legacy files. */
+export const mainSelectsAuthoredOnly = () => {
+    const excluded = () => { assert(false, 'excluded module imported') }
+    const [stdout, , code] = runMain({
+        'a.f.mjs': () => ({ proof: { ok: ok0 } }),
+        'b.f.js': () => ({ proof: { ok: ok0 } }),
+        'proof.mjs': excluded,
+        'old.f.ts': excluded,
+        'old.f.mts': excluded,
+    })
+    assertEq(code, 0)
+    assert(stdout.includes('pass: 2, fail: 0, total: 2'), stdout)
+}
+
+/** Selective registration shares adapters and excludes imports before evaluation. */
+export const registerSelectsProofClass = () => {
+    /** @type {readonly string[]} */
+    const files = ['a.f.mjs', 'b.f.js', 'proof.mjs', 'old.f.ts', 'ordinary.mjs']
+    for (const select of [isAuthored, isHostProof]) {
+        const calls = runRegister(registerNoopCtx, files, path => {
+            assert(select(path), path)
+            return loadsOk()
+        }, false, select)
+        assertEq(calls.length, files.filter(select).length)
+    }
+}
+
 export const proof = {
+    mainSelectsAuthoredOnly,
+    registerSelectsProofClass,
     testResult: testResultProofs,
     runTotals: runTotalsProofs,
     formatDuration: formatDurationProofs,

@@ -110,14 +110,15 @@ cargo fmt -- --check
 
 #### Ways to run the FunctionalScript test suite
 
-Every row below runs the same suite; pick the first one that fits your
-environment.
+The built-in runner selects authored `.f.mjs` and `.f.js` proofs. Native
+runners discover the combined FJS and host-JS entry by default. For selective
+native invocations, see [the runner documentation](./fjs/emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner).
 
 | Command                                 | Runtime  | Needs internet | Notes                                    |
 | --------------------------------------- | -------- | -------------- | ---------------------------------------- |
 | `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
-| `npm start test`                        | Node pin | no             | The repo's runner, no type-check step.   |
-| `node --test`                           | Node pin | no             | Node's native test runner.               |
+| `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
+| `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
 | `npm run cov`                           | Node pin | no             | `node --test` plus coverage.             |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |

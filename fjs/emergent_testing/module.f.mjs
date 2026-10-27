@@ -31,7 +31,7 @@ import {
     resultStep, step,
     unreadableThrownValue, walkStep,
 } from '../effects/module.f.mjs'
-import { loadModuleMap } from '../dev/module.f.mjs'
+import { isAuthored, loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
@@ -523,10 +523,11 @@ const exitCodeStep = e =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
+ * @param {(path: string) => boolean} [select]
  * @returns {Program<O | Catch | LoadModuleOperations | Write>}
  */
-export const testAll = reporter => options =>
-    exitCodeStep(step(loadModuleMap(options), runModuleMap(reporter)))
+export const testAll = (reporter, select) => options =>
+    exitCodeStep(step(loadModuleMap(options, select), runModuleMap(reporter)))
 
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with
@@ -770,7 +771,7 @@ export const defaultReporter = options => {
  * @type {NodeProgram}
  */
 export const main =
-    options => testAll(defaultReporter(options))(options)
+    options => testAll(defaultReporter(options), isAuthored)(options)
 
 /**
  * Entry point for external test frameworks (Node `--test`, Bun, Deno).
@@ -778,10 +779,12 @@ export const main =
  * Discovers test modules via `loadModuleMap`, then registers each with the
  * host-selected `TestContext` supplied through `NodeProgramOptions`.
  *
- * @type {NodeProgram}
+ * @param {NodeProgramOptions} o
+ * @param {(path: string) => boolean} [select]
+ * @returns {ReturnType<NodeProgram>}
  */
-export const register = o => {
-    const registered = step(loadModuleMap(o), registerModuleMap(o.testContext))
+export const register = (o, select) => {
+    const registered = step(loadModuleMap(o, select), registerModuleMap(o.testContext))
     // `exitStep`, not `mapStep(…, () => 0)`: registering is the whole job here,
     // so "registered nothing, exit 0" is the answer this used to give and the
     // one it must not. A success has no code of its own, which is exactly the

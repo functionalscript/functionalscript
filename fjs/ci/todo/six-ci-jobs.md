@@ -51,18 +51,18 @@ Separate native-runner entry points select the proof set:
 | Entry point | Selected proofs | State |
 | --- | --- | --- |
 | `all.test.mjs` | FJS and host JS | Exists |
-| `fjs-only.mjs` (tentative name) | FJS only | TODO |
-| `js-only.mjs` (tentative name) | Host JS only | TODO |
+| `fjs-only.mjs` | FJS only | Exists |
+| `js-only.mjs` | Host JS only | Exists |
 
 The repository command `fjs t`, including `npm start t`, must select only
 `.f.mjs` and `.f.js` files. Node's coverage run uses the FJS-only native entry;
 the OS/runtime effect checks use the JS-only native entry. Bun and SpiderMonkey
 continue to run the FJS suite through the repository runner.
 
-[Split FJS and JS runners](../../emergent_testing/todo/split-fjs-and-js-runners.md)
-owns that work. Settle the new filenames against native-runner discovery and
-explicit-selection behavior so a filtered invocation does not also run
-`all.test.mjs`.
+The [selective runner entries](../../emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner)
+are implemented and verified under Node, Deno and Bun. Explicit file paths
+select one entry without discovering `all.test.mjs`; default discovery
+continues to use the combined entry. CI wiring remains part of this plan.
 
 Define the test selection explicitly when splitting the suites. Every authored
 FJS proof must remain in each engine's FJS suite, and every applicable host
@@ -136,9 +136,10 @@ duration; it does not require an additional job.
 ### Tasks
 
 - [x] Fold the former standalone WASM job into `ubuntu-arm`.
-- [ ] Complete [the runner split](../../emergent_testing/todo/split-fjs-and-js-runners.md):
+- [x] Complete [the runner split](../../emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner):
       restrict `fjs t` to `.f.mjs` and `.f.js`, and add FJS-only and JS-only
       native-runner entries alongside the existing combined entry.
+- [ ] Wire the selective entries into CI and update the affected cache inputs.
 - [ ] Run Node coverage through the FJS-only entry, following
       [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md).
 - [ ] Restructure runtime steps so platform jobs share setup without duplicate
@@ -171,7 +172,7 @@ well as execution time; they are not predictions for this revised allocation.
 
 - [Installed CLI and npm package checks](./built-package-checks.md) — replacement
   in a test repository in a different organization.
-- [Split FJS and JS runners](../../emergent_testing/todo/split-fjs-and-js-runners.md)
+- [Selective runner entries](../../emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner)
   — the test-selection prerequisite for this allocation.
 - [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md) —
   preserve the coverage requirement using only FJS proofs under Node.
