@@ -25,7 +25,7 @@
  *
  * @module
  *
- * @import { EntryLookup, HasEntry, WithEntry } from './types.ts'
+ * @import { EntryLookup, HasEntry } from './types.ts'
  */
 
 /** @type {EntryLookup} */
@@ -42,15 +42,11 @@ export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
  * `['hasEntry']`, as `entry` is ([spec: why two helpers](../../../../spec/property-access/entries/README.md#why-two-helpers)).
  *
  * A type guard, {@link HasEntry}: a union told apart by which key it holds
- * narrows under it as it does under JavaScript's `in`.
- *
- * @template T
- * @template {PropertyKey} K
- * @param {T} a
- * @param {K} b
- * @returns {a is WithEntry<T, K>}
+ * narrows under it as it does under JavaScript's `in`. The helper is cast
+ * to it whole, the parentheses leaving no node behind, since the body takes
+ * its key as `any`, as `entry`'s does.
  */
-export const hasEntry = (a, b) => {
+export const hasEntry = /** @type {HasEntry} */ ((/** @type {unknown} */ a, /** @type {any} */ b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable === true;
-};
+});
