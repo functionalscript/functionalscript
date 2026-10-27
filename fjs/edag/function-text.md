@@ -113,6 +113,22 @@ calls. Functions whose invocation or capture behavior requires ordinary
 recursion keep their recursive representation; eligibility belongs to the
 [shared conversion](./to_fast/README.md), rather than to an individual writer.
 
+Shared conversion also lowers direct terminal self-call evaluations with zero
+through sixteen fixed parameters and matching spread-free arguments. Either
+conditional arm and the final sequence operand can transition; arbitrary base
+results return directly. Each argument is established before simultaneous state
+updates, and immutable iteration snapshots preserve escaped captures. Required
+prefix work and local memo storage start afresh each round. Reading a previously
+established recursive result does not invoke or transition again. Mixed ordinary
+self uses retain a named function around the loop.
+
+These general forms intentionally change code-only function text under the
+function-source exception. Their JavaScript and Rust loops use bounded stack
+for tail-only iterations. The source serializer reifies nonscalar invocation
+loops as recursion until the broader source grammar is admitted in H, retaining
+its existing source round-trip domain. Missing, extra and spread recursive
+arguments and observed rest bindings keep ordinary calls in this increment.
+
 A source call to such a function may retain a named callable whose own body
 contains the loop. It need not be inlined into the caller's body. Source
 functions with multiple captures establish aliases in signature order before

@@ -20,7 +20,8 @@ export type _Node =
     | readonly ['statement', NormalStatement]
     | readonly ['exit', NormalExit]
 
-export type _Flow = { readonly next: number; readonly returns: boolean; readonly loops: readonly LoopTarget[] }
+export type _Completion = { readonly normal: boolean; readonly breaks: readonly LoopTarget[] }
+export type _Flow = _Completion & { readonly next: number; readonly returns: boolean; readonly loops: readonly LoopTarget[] }
 export type _Facts = {
     readonly children: readonly _Node[]
     readonly ids: readonly BindingId[]
@@ -48,6 +49,7 @@ export type _Context = {
 
 export type _Prepared<T> = { readonly value: T; readonly next: number }
 export type _Statements = _Prepared<readonly Statement[]>
+export type _Statement = _Statements & { readonly normal: boolean }
 export type _Values = _Prepared<readonly Value[]>
 export type _Block = _Prepared<Block>
 export type _Value = {
