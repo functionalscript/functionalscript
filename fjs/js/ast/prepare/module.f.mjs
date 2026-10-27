@@ -397,20 +397,21 @@ const statementTask = (statement, context) => call(() => {
             })
         }
         const plain = plainLoopOf(loop)
-        if (plain !== null && !nonlocalValue(plain.condition, context) && !nonlocalValue(plain.next, context)
+        if (plain !== null && !nonlocalValue(plain.iteration.condition, context) && !nonlocalValue(plain.iteration.next, context)
             && !nonlocalValue(plain.result, context) && plain.prefix.every(statement => !nonlocalValue(statement[2], context))
-            && plain.step.statements.every(statement => !nonlocalValue(statement[2], context))) {
+            && plain.iteration.step.statements.every(statement => !nonlocalValue(statement[2], context))) {
+            const { iteration } = plain
             return bind(prepareValue(loop.initial[0], context), initial => {
                 const computed = !(plain.result instanceof Array && plain.result[0] === 'ref' && plain.result[1] === loop.parameters[0])
                 const [slot, conditionParameter, finalState, finalParameter] = fresh(initial.next, computed ? 4 : 2)
-                const conditionBlock = /** @type {NormalValue} */ (['block', { statements: plain.prefix, exit: ['yield', [plain.condition]] }])
+                const conditionBlock = /** @type {NormalValue} */ (['block', { statements: plain.prefix, exit: ['yield', [iteration.condition]] }])
                 return bind(prepareValue(conditionBlock, {
                     ...context,
                     next: initial.next + (computed ? 4 : 2),
                     reads: [...context.reads, [loop.parameters[0], conditionParameter]],
                 }), condition => {
-                    const mutable = !(plain.next instanceof Array && plain.next[0] === 'ref' && plain.next[1] === loop.parameters[0])
-                    const step = /** @type {NormalBlock} */ ({ statements: plain.step.statements, exit: ['yield', mutable ? [plain.next] : []] })
+                    const mutable = !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0])
+                    const step = /** @type {NormalBlock} */ ({ statements: iteration.step.statements, exit: ['yield', mutable ? [iteration.next] : []] })
                     return bind(prepareBlock({ ...step, statements: [...plain.stepPrefix, ...step.statements] }, {
                         ...context,
                         next: condition.next,
