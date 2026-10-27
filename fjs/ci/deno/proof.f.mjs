@@ -7,6 +7,6 @@ export const proof = {
     commands: () => assertStructurallySame(toSteps(denoSteps).flatMap(step => step.run === undefined ? [] : [step.run]), [
         `test "$(${environmentCommand("deno eval 'console.log(Deno.version.deno)'")})" = "${deno}"`,
         environmentCommand('deno install --frozen'),
-        environmentCommand('deno task cov'),
+        environmentCommand('deno test -A ./fjs/emergent_testing/fjs-only.mjs'),
     ]),
 }

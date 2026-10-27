@@ -14,7 +14,7 @@ export const proof = {
             [
                 `actions/setup-node@${actions['actions/setup-node']}`,
                 `actions/checkout@${actions['actions/checkout']}`,
-                'npm start test',
+                'node --test ./fjs/emergent_testing/js-only.mjs',
             ])
         assertEq(steps[0]?.with?.['node-version'], node)
     },

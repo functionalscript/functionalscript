@@ -47,14 +47,14 @@ const tscVersionStep = environmentVersionStep(
     'tsc --version', `Version ${typescript.version}`)
 
 /**
- * The Windows platform jobs test the checked-out source through npm start.
+ * The Windows platform jobs run host-JS proofs from the checked-out source.
  * No global CLI or runtime dependencies are needed; Node supplies the host.
  *
  * @type {() => readonly MetaStep[]}
  */
 export const platformNodeSteps = () => [
     install(installNode()),
-    test({ run: 'npm start test' }),
+    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**

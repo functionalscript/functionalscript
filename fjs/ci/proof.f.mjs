@@ -50,7 +50,7 @@ export const proof = {
                 assert(job.steps.some(step => step.uses?.startsWith('jdx/mise-action@')))
                 assert(!job.steps.some(step => step.uses?.startsWith('cachix/')))
                 for (const command of rustPlatformCommands) { assert(has(gha, id, command), `${id}: ${command}`) }
-                assert(has(gha, id, o === 'windows' ? 'npm start test' : 'node --test'))
+                assert(has(gha, id, 'node --test ./fjs/emergent_testing/js-only.mjs'))
             }
         }
         assert(has(gha, 'ubuntu-intel', '--target i686-unknown-linux-gnu'))
@@ -60,8 +60,8 @@ export const proof = {
         assert(has(gha, 'ubuntu-arm', 'npm run sm c'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
         for (const command of ['tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
-        assert(has(gha, 'deno', 'deno task cov'))
-        assert(has(gha, 'bun', 'bun test --coverage'))
+        assert(has(gha, 'deno', 'deno test -A ./fjs/emergent_testing/fjs-only.mjs'))
+        assert(has(gha, 'bun', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'))
     },
     noRust: () => {
         const gha = generate(false)

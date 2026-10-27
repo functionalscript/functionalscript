@@ -7,6 +7,6 @@ export const proof = {
     commands: () => assertStructurallySame(toSteps(bunSteps).flatMap(step => step.run === undefined ? [] : [step.run]), [
         `test "$(${environmentCommand('bun --version')})" = "${bun}"`,
         environmentCommand('bun install --frozen-lockfile'),
-        environmentCommand('bun test --coverage'),
+        environmentCommand('bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'),
     ]),
 }

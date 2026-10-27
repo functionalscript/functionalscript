@@ -55,7 +55,7 @@ const checkId = (jobId, step) => {
     const run = command(step)
     return jobId === 'deno' || jobId === 'bun' ? 'suite'
         : run.startsWith('cargo ') ? 'rust'
-        : run === 'node --test' || run === 'npm start test' ? 'suite'
+        : run === 'node --test ./fjs/emergent_testing/js-only.mjs' ? 'suite'
         : run === 'tsc' ? 'tsc'
         : run === 'npm start compile' ? 'compile'
         : run === 'npm run cov' ? 'coverage'

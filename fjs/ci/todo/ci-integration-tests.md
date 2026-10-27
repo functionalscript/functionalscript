@@ -56,7 +56,7 @@ Open questions:
       above), install, run `main`.
 - [ ] Document the scenario authoring convention.
 
-The Windows jobs now test the checkout with `npm start test`; the former
+The Windows jobs now test host-JS proofs from the checkout with Node; the former
 installed-CLI smoke step has been removed. Installed-package scenarios remain
 part of this integration-test proposal.
 

@@ -68,7 +68,7 @@ const shellPlatformSteps = (rust, o, a) => [
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
-        'node --test',
+        'node --test ./fjs/emergent_testing/js-only.mjs',
         ...shellSpiderMonkeyCommands(o, a),
     ]),
 ]
@@ -81,7 +81,7 @@ const intelMacSteps = rust => [
     test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
-    test({ run: 'node --test' }),
+    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**

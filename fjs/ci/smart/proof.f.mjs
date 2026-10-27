@@ -34,7 +34,7 @@ const mise = uses('jdx/mise-action')
 const nodeVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- node --version)" = "v26.12.1"' })
 const tscVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- tsc --version)" = "Version 7.0.2"' })
 const install = /** @type {const} */ ({ run: 'mise exec -- npm ci' })
-const suite = /** @type {const} */ ({ run: 'mise exec -- node --test' })
+const suite = /** @type {const} */ ({ run: 'mise exec -- node --test ./fjs/emergent_testing/js-only.mjs' })
 const compile = /** @type {const} */ ({ run: 'mise exec -- npm start compile' })
 const tsc = /** @type {const} */ ({ run: 'mise exec -- tsc' })
 const coverage = /** @type {const} */ ({ run: 'mise exec -- npm run cov' })
@@ -164,7 +164,7 @@ export const proof = /** @type {const} */ ({
             { run: 'test "$(mise exec -- wasmer --version)" = "wasmer 7.1.0"' },
             { run: 'test "$(mise -E spidermonkey exec -- js --version)" = "JavaScript-C140.14.0"' },
             install, { run: 'cargo test' }, { run: 'cargo clippy -- -D warnings' },
-            suite, { run: 'npm start test' },
+            suite, { run: 'node --test ./fjs/emergent_testing/js-only.mjs' },
             { run: 'mise -E spidermonkey exec -- npm run sm c' }, { run: 'mise -E spidermonkey exec -- npm run sm t' },
         ], 'ubuntu-arm')
         assertEq(stepWith(source, rustVersion.run).if, "steps.init.outputs.hit-rust != 'true'")
@@ -176,7 +176,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- npm run sm c').if, "steps.init.outputs.hit-spidermonkey-compile != 'true'")
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- npm run sm t').if, "steps.init.outputs.hit-spidermonkey-suite != 'true'")
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(stepWith(source, 'npm start test').if, "steps.init.outputs.hit-suite != 'true'")
+        assertEq(stepWith(source, 'node --test ./fjs/emergent_testing/js-only.mjs').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
     },
     /** Each alternative engine groups its install, pin verification and coverage. */
