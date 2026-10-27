@@ -210,6 +210,63 @@ export const proof = {
         assertEq(named(localPattern, 'a').binding.capturedBy.length, 1)
         assertEq(named(localPattern, 'b').binding.capturedBy.length, 1)
     },
+    destructuredParameterWritesAndCaptures: () => {
+        for (const source of /** @type {const} */ ([
+            'export default ([value])=>{value=value+1;return value;};',
+            'export default ({value})=>{value=value+1;return value;};',
+        ])) {
+            const module = parsed(source)
+            const value = named(module, 'value', 'parameter')
+            assertEq(value.binding.isMutable, true)
+            assertEq(value.binding.capturedBy.length, 0)
+            const events = allEvents(module.scope.events)
+            assertEq(events.filter(event => event[0] === 'initialize' && event[1] === value.origin.id).length, 1)
+            assertEq(events.filter(event => event[0] === 'write' && event[1] === value.origin.id).length, 1)
+        }
+        const snapshot = parsed('export default ([value])=>{const snapshot=value;value=1;return ()=>snapshot;};')
+        assertEq(named(snapshot, 'value', 'parameter').binding.isMutable, true)
+        assertEq(named(snapshot, 'value', 'parameter').binding.capturedBy.length, 0)
+        assertEq(named(snapshot, 'snapshot', 'const').binding.isMutable, false)
+        assertEq(named(snapshot, 'snapshot', 'const').binding.capturedBy.length, 1)
+        for (const source of /** @type {const} */ ([
+            'export default ([value])=>{const read=()=>value;value=1;return read;};',
+            'export default ({value})=>{value=1;return ()=>value;};',
+            'export default ({value})=>{const write=()=>{value=1;return 0;};return write;};',
+        ])) {
+            const refusal = assertError(parseFromTokens(tokenizeString(source)))
+            assertEq(refusal.message, 'reassigned variable captured', source)
+        }
+    },
+    shadowedNamesKeepTheirOwnWriteClassification: () => {
+        const outerWrite = parsed('export default ()=>{let value=0;const read=({value})=>()=>value;value=1;return read;};')
+        const outer = named(outerWrite, 'value', 'let')
+        const parameter = named(outerWrite, 'value', 'parameter')
+        assert(outer.origin.id !== parameter.origin.id)
+        assertEq(outer.binding.isMutable, true)
+        assertEq(outer.binding.capturedBy.length, 0)
+        assertEq(parameter.binding.isMutable, false)
+        assertEq(parameter.binding.capturedBy.length, 1)
+        const innerWrite = parsed('export default value=>{if(value){let value=0;value=1;return value;}return ()=>value;};')
+        const captured = named(innerWrite, 'value', 'parameter')
+        const local = named(innerWrite, 'value', 'let')
+        assert(captured.origin.id !== local.origin.id)
+        assertEq(captured.binding.isMutable, false)
+        assertEq(captured.binding.capturedBy.length, 1)
+        assertEq(local.binding.isMutable, true)
+        assertEq(local.binding.capturedBy.length, 0)
+        const refusal = assertError(parseFromTokens(tokenizeString('export default value=>{if(value){let value=0;value=1;return ()=>value;}return value;};')))
+        assertEq(refusal.message, 'reassigned variable captured')
+    },
+    unreachableWritesStillPreventEscapingCaptures: () => {
+        for (const source of /** @type {const} */ ([
+            'export default ()=>{let value=0;const read=()=>value;while(false){value=1;}return read;};',
+            'export default ([value])=>{const read=()=>value;while(false){value=1;}return read;};',
+            'export default ()=>{let value=0;if(false){return ()=>{value=1;return 0;};}return value;};',
+        ])) {
+            const refusal = assertError(parseFromTokens(tokenizeString(source)))
+            assertEq(refusal.message, 'reassigned variable captured', source)
+        }
+    },
     selfAndShadowedSelf: () => {
         const module = parsed('const f=n=>n===0?0:f(n-1); export default f;')
         assertEq(named(module, 'f', 'const').binding.isMutable, false)

@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-F shared construction and tail calls implemented;
-source bindings and loops remain in G/H
+**Status:** wip — A-G shared construction, tail calls and general bindings
+implemented; general source loops remain in H
 
 ### Goal
 
@@ -164,11 +164,14 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       original arguments without wrapper growth, including sixteen fixed
       parameters plus rest without changing public arity. H owns new source
       loop spelling.
-- [ ] **G — General bindings.** Implement the language owner's admission and
-      AST-to-FAST rules after approval using the existing analysis, a pattern
-      after `let` included; migrate the post-loop and immediate-call capture
-      exceptions for reassigned bindings to explicit snapshots. May start once
-      D is complete, before E/F.
+- [x] **G — General bindings.** Implement the approved language owner's
+      admission and AST-to-FAST rules using the existing analysis, including
+      patterns after `let` and module variables. Write-based capture admission
+      applies to locals and parameters before optimization, including
+      destructured and shadowed bindings and unreachable writes. Held closures
+      over reassigned bindings require explicit snapshots, including after a
+      loop. Immediate-call reads remain admitted; nested writes stay refused.
+      The language owner records compatibility and the proof evidence.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.

@@ -148,6 +148,8 @@ export const proof = {
         assertStructurallySame(result('export default (()=>{let value=1;while(false){value=value;}return value;})();'), { default: 1 })
         assertError(memo(assertOk(analysis(graph('export default (()=>{let value=null.x;while(false){value=1;}return value;})();'))))({ args: [] }))
         assertError(memo(assertOk(analysis(graph('export default (()=>{let value=0;while(value<1){const required=null.x;value=1;}return value;})();'))))({ args: [] }))
+        assertError(memo(assertOk(analysis(graph('export default (()=>{let value=null.x;value=1;return value;})();'))))({ args: [] }))
+        assertError(memo(assertOk(analysis(graph('export default (()=>{let value=0;value=null.x;value=1;return value;})();'))))({ args: [] }))
     },
     discardedCommas: () => {
         assertStructurallySame(graph('const value=[]; const alias=value; export default (alias,value.length);'), ['{}', [[':', 'default', ['.', ['[]', []], 'length']]]])
