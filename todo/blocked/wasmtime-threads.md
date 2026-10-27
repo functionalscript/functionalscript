@@ -15,12 +15,9 @@ Wasmer only (`.cargo/config.wasmer.toml`); Wasmtime still lints the target via
 Clippy, which needs no runner. The runner×target matrix has lost the
 Wasmtime×threads cell.
 
-The Wasmtime CI runs is the one the pinned Nixpkgs snapshot provides —
-`wasmtime` in [`fjs/ci/config/module.f.js`](../../fjs/ci/config/module.f.js),
-45.0.2 at `36c8d4a` — which predates the removal. So the cell was dropped
-ahead of the snapshot reaching 47, not forced by the version CI runs today.
-Whether to restore it until that bump is current work, not blocked:
-[wasmtime-threads-cell-until-47](../../fjs/ci/todo/wasmtime-threads-cell-until-47.md).
+The Wasmtime CI runs, `wasmtime` in
+[`fjs/ci/config/module.f.js`](../../fjs/ci/config/module.f.js), is past 47,
+so the cell cannot return under `wasm32-wasip1-threads`.
 This issue waits only on the new threads target below.
 
 ### Trigger
@@ -47,5 +44,3 @@ Wasmtime will not revive.
   is the workaround this issue removes
 - [.cargo/config.toml](../../.cargo/config.toml) — missing
   `wasm32-wasip1-threads` runner points here
-- [wasmtime-threads-cell-until-47](../../fjs/ci/todo/wasmtime-threads-cell-until-47.md)
-  — the cell while the pinned Wasmtime still supports wasi-threads

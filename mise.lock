@@ -56,211 +56,172 @@ checksum = "sha256:0f20ce6674d4f2dbcc8c5d59fdf99f7ba45f8c3b367e0f5781cbfa30a1c78
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-windows-x64-baseline.zip"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-aarch64-linux.tar.xz"
+asset_pattern = "wasmtime-v50.0.0-aarch64-linux.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-arm64"]
-checksum = "sha256:844ccd7dced4cd5afa3ede9baf953ee24577ea7f4276c401528aba6c23c197a3"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-aarch64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323055"
+checksum = "sha256:10f9ad1f8539d2e04e041cc622de6a270109ab1e43a6be1f69843c2082166832"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840091"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-x86_64-linux.tar.xz"
+asset_pattern = "wasmtime-v50.0.0-x86_64-linux.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-x64"]
-checksum = "sha256:1adc4ffbd92c2520fcd161bce953f8c9a9569e14461365780dbcff20f1accec9"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-x86_64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323178"
+checksum = "sha256:77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840344"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-aarch64-macos.tar.xz"
+asset_pattern = "wasmtime-v50.0.0-aarch64-macos.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.macos-arm64"]
-checksum = "sha256:74414e5e2ee6718799c5b577a6b1797c62ec383cdca024387cc98e8c8f37367d"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-aarch64-macos.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323066"
+checksum = "sha256:323dc098dc0455d60f396c404627e967b7033ffcfa29abfffb243126cf82c9d6"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-macos.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840121"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-x86_64-macos.tar.xz"
+asset_pattern = "wasmtime-v50.0.0-x86_64-macos.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.macos-x64"]
-checksum = "sha256:dd87242fc3d1e04569f353281a6bac71b3d2d72bfff10d4fdc39a08b7ed35bd6"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-x86_64-macos.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323192"
+checksum = "sha256:ad14d9fb6a51d1633318426d6df21734127faddc81fe18a3afd70c5964eabeb5"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-macos.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840372"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-aarch64-windows.zip"
+asset_pattern = "wasmtime-v50.0.0-aarch64-windows.zip"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.windows-arm64"]
-checksum = "sha256:9101111b3d16a987f34ffcb38ac2bc072c50aa44a5bfd6c4eb5a1e92180a2fe4"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-aarch64-windows.zip"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323084"
+checksum = "sha256:938d84a71a7f36ca9151a906584386444e031169558aa2860ce0a9020f8fef23"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-windows.zip"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840140"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "45.0.2"
+version = "50.0.0"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["45.0.2"]
+specifiers = ["50.0.0"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v45.0.2-x86_64-windows.zip"
+asset_pattern = "wasmtime-v50.0.0-x86_64-windows.zip"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.windows-x64"]
-checksum = "sha256:dac1587ec5705d6d26967d5f7eeb5efb1f91804f49593b30a14a989c0ed9ac7a"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v45.0.2/wasmtime-v45.0.2-x86_64-windows.zip"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/448323216"
+checksum = "sha256:cea9ccc700aaccb2b5507e96ac990ba60104bd7ab39284fb2e67cb64d58efcc4"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-windows.zip"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840475"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-aarch64-unknown-linux-gnu.zip"
 
 [tools."github:denoland/deno"."platforms.linux-arm64"]
-checksum = "sha256:d4589cc1ffcbf1995c92a0127d932aaf832ac70cfdcc6d5b7bf38043cf303575"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-aarch64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444708427"
+checksum = "sha256:d49596c20b9788cf8f5d8ddf644103d4bde56ed239753f0bdb92ba9361d51905"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-aarch64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662558092"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-x86_64-unknown-linux-gnu.zip"
 
 [tools."github:denoland/deno"."platforms.linux-x64"]
-checksum = "sha256:30455b845ffa6082209c3590269c910ad3b7efdf28c9879afd4006c47ae54197"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-x86_64-unknown-linux-gnu.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444717063"
+checksum = "sha256:e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662551650"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-aarch64-apple-darwin.zip"
 
 [tools."github:denoland/deno"."platforms.macos-arm64"]
-checksum = "sha256:88b350be928fdba0e5d8142ff7c101a17133426371e3cf5ed0e0f74e62476f6c"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-aarch64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444721337"
+checksum = "sha256:9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-aarch64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662875176"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-x86_64-apple-darwin.zip"
 
 [tools."github:denoland/deno"."platforms.macos-x64"]
-checksum = "sha256:4254ec12123cfcf88b87703d7acf092a1ea024bdf9be8dd3cd9d4474761cb74e"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-x86_64-apple-darwin.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444739746"
+checksum = "sha256:4b2f5edd2639b7470f034238b321d7002d8dfb4726d8558f52c17afac370eb2c"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-apple-darwin.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662788950"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-aarch64-pc-windows-msvc.zip"
 
 [tools."github:denoland/deno"."platforms.windows-arm64"]
-checksum = "sha256:243f478ac577ade1bbd980ecf510607a10ed8cc977b462083ada48e5f6580de1"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-aarch64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444725199"
+checksum = "sha256:b413b92b735b50c198e8fe3b85af1aa50e29d5f72e229aab701d132286e14cef"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-aarch64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662580249"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
-version = "2.8.3"
+version = "2.9.8"
 backend = "github:denoland/deno"
-specifiers = ["2.8.3"]
+specifiers = ["2.9.8"]
 
 [tools."github:denoland/deno".options]
 asset_pattern = "deno-x86_64-pc-windows-msvc.zip"
 
 [tools."github:denoland/deno"."platforms.windows-x64"]
-checksum = "sha256:7fdd1f42e6b0855421ecf27bb406e2492ade1087c85e30ebf0deab6280ea743c"
-url = "https://github.com/denoland/deno/releases/download/v2.8.3/deno-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/denoland/deno/releases/assets/444718355"
+checksum = "sha256:cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+url = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/denoland/deno/releases/assets/662526167"
 provenance = "github-attestations"
-
-[[tools."github:wasmerio/wasmer"]]
-version = "7.1.0"
-backend = "github:wasmerio/wasmer"
-specifiers = ["7.1.0"]
-
-[tools."github:wasmerio/wasmer".options]
-asset_pattern = "wasmer-linux-aarch64.tar.gz"
-
-[tools."github:wasmerio/wasmer"."platforms.linux-arm64"]
-checksum = "sha256:b9177f79be73e3912ef0bfda9e56db7540ed09dd22dc293f27b564ab150e5c79"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.1.0/wasmer-linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/382886687"
-
-[[tools."github:wasmerio/wasmer"]]
-version = "7.1.0"
-backend = "github:wasmerio/wasmer"
-specifiers = ["7.1.0"]
-
-[tools."github:wasmerio/wasmer".options]
-asset_pattern = "wasmer-linux-amd64.tar.gz"
-
-[tools."github:wasmerio/wasmer"."platforms.linux-x64"]
-checksum = "sha256:61a6ad0f972ee0afbb7907ab90f1120e15d2e219ec1ce08999f2864e0b8c340f"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.1.0/wasmer-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/382886633"
-
-[[tools."github:wasmerio/wasmer"]]
-version = "7.1.0"
-backend = "github:wasmerio/wasmer"
-specifiers = ["7.1.0"]
-
-[tools."github:wasmerio/wasmer".options]
-asset_pattern = "wasmer-darwin-arm64.tar.gz"
-
-[tools."github:wasmerio/wasmer"."platforms.macos-arm64"]
-checksum = "sha256:10b847ebbdc3f438887c27f240507d359a122e22c6920beada8911590a9adefe"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.1.0/wasmer-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/382886850"
 
 [[tools."github:wasmerio/wasmer"]]
 version = "7.1.0"
@@ -276,17 +237,60 @@ url = "https://github.com/wasmerio/wasmer/releases/download/v7.1.0/wasmer-darwin
 url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/382886797"
 
 [[tools."github:wasmerio/wasmer"]]
-version = "7.1.0"
+version = "7.5.0"
 backend = "github:wasmerio/wasmer"
-specifiers = ["7.1.0"]
+specifiers = ["7.5.0"]
+
+[tools."github:wasmerio/wasmer".options]
+asset_pattern = "wasmer-linux-aarch64.tar.gz"
+
+[tools."github:wasmerio/wasmer"."platforms.linux-arm64"]
+checksum = "sha256:903dadb34ba984d981a9bdd2ed1e456dab862c4489d65d2498ad5e7cf1a1fe87"
+checksum_source = "mise-versions"
+url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602905130"
+
+[[tools."github:wasmerio/wasmer"]]
+version = "7.5.0"
+backend = "github:wasmerio/wasmer"
+specifiers = ["7.5.0"]
+
+[tools."github:wasmerio/wasmer".options]
+asset_pattern = "wasmer-linux-amd64.tar.gz"
+
+[tools."github:wasmerio/wasmer"."platforms.linux-x64"]
+checksum = "sha256:23f99818deaad93859f8bb8292af81f0c39f25aea19eaccfb72fc7c9e8a3fae9"
+checksum_source = "mise-versions"
+url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602904856"
+
+[[tools."github:wasmerio/wasmer"]]
+version = "7.5.0"
+backend = "github:wasmerio/wasmer"
+specifiers = ["7.5.0"]
+
+[tools."github:wasmerio/wasmer".options]
+asset_pattern = "wasmer-darwin-arm64.tar.gz"
+
+[tools."github:wasmerio/wasmer"."platforms.macos-arm64"]
+checksum = "sha256:fd6526fdce3f8c68a8c3139e9b0e438991d04bafda3d0f091bf98c1600ea0401"
+checksum_source = "mise-versions"
+url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602905660"
+
+[[tools."github:wasmerio/wasmer"]]
+version = "7.5.0"
+backend = "github:wasmerio/wasmer"
+specifiers = ["7.5.0"]
 
 [tools."github:wasmerio/wasmer".options]
 asset_pattern = "wasmer-windows-amd64.tar.gz"
 
 [tools."github:wasmerio/wasmer"."platforms.windows-x64"]
-checksum = "sha256:b61178c7ea2f57737b7a2e3943cd1e35826589dd66e66bcef60fe447a4c839fa"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.1.0/wasmer-windows-amd64.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/382886587"
+checksum = "sha256:05ed663fd0db01d5a690e151c976c384d035a8acac7a7710ffb5fcc9d54c917f"
+checksum_source = "mise-versions"
+url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-windows-amd64.tar.gz"
+url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602904719"
 
 [[tools.node]]
 version = "26.12.1"
