@@ -227,7 +227,7 @@ export const proof = {
         assertEq(nodeExpr(['-', ['{}', []]]), "<Any<A> as core::ops::Neg>::neg(Object::default().to_any())")
     },
     computedKey: () => {
-        assert(nodeExpr(['{}', [[':', ['undefined'], 1]]]).includes('computed_item'))
+        assert(nodeExpr(['{}', [[':', ['undefined'], 1]]]).includes('property_item((Nullish::Undefined.to_any()).to_string()?, '))
     },
     /**
      * A Rust name is this printer's, and never derived from a punctuation id.

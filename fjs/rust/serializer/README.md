@@ -26,6 +26,12 @@ iteration cannot throw or run represented code. `spread_array` can therefore
 consume established iterators after evaluating the items while retaining its
 length and allocation checks. This does not change allocation-failure timing.
 
+Computed object keys emit `property_item((key).to_string()?, value)`. Rust
+finishes the first argument before evaluating the second, so each key is
+evaluated and converted once before its value starts. A failed conversion
+propagates immediately. The key expression is grouped to retain block and
+conditional receivers; static string keys retain their typed literal spelling.
+
 `bindingTagged` spells a declaration under a caller-supplied name through the
 same declaration path as ordinary prepared bindings. The corpus supplies its
 named values through [common graph conversion](../../edag/to_fast/README.md),

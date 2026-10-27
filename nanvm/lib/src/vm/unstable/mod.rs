@@ -193,20 +193,15 @@ pub enum ObjectItem<A: IVm> {
     Spread(Any<A>),
 }
 
-/// A property entry, `k: v` in `{k: v, ...o}`.
+/// A property entry, `k: v` in `{k: v, ...o}`. A computed key uses
+/// `property_item(key.to_string()?, value)`, establishing its string conversion
+/// before the value argument is evaluated. The VM has no symbols, so
+/// [`Any::to_string`] supplies `ToPropertyKey` for its values.
+/// A plain object becomes `"[object Object]"`; an own callable `toString`
+/// supplies the primitive, with `valueOf` as the fallback if needed. A throw or
+/// failure to produce a primitive propagates before the value starts.
 pub fn property_item<A: IVm>(k: String<A>, v: Any<A>) -> ObjectItem<A> {
     ObjectItem::Property(k, v)
-}
-
-/// A computed property entry, `[k]: v`: [`Any::to_string`] supplies
-/// `ToPropertyKey` for the VM's values, which do not include symbols.
-/// A plain object becomes `"[object Object]"`; an own callable `toString`
-/// is called, with `valueOf` as the fallback if it returns no primitive.
-/// Conversion errors propagate: `{ toString: 0 }`, for example, cannot
-/// produce a primitive and is refused. The only fallible entry, so the
-/// one that is a `Result`.
-pub fn computed_item<A: IVm>(k: Any<A>, v: Any<A>) -> Result<ObjectItem<A>, Any<A>> {
-    Ok(ObjectItem::Property(k.to_string()?, v))
 }
 
 /// A spread entry, `...o` in `{k: v, ...o}`.
@@ -479,10 +474,10 @@ mod test {
         let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
         let negative_zero = || f64_any::<Naive>(0x8000_0000_0000_0000);
         let object = spread_object([
-            computed_item(one(), string_any("a")).unwrap(),
-            computed_item(negative_zero(), string_any("b")).unwrap(),
-            computed_item(Any::undefined(), string_any("c")).unwrap(),
-            computed_item(string_any("1"), string_any("d")).unwrap(),
+            property_item(one().to_string().unwrap(), string_any("a")),
+            property_item(negative_zero().to_string().unwrap(), string_any("b")),
+            property_item(Any::undefined().to_string().unwrap(), string_any("c")),
+            property_item(string_any("1").to_string().unwrap(), string_any("d")),
         ]);
         let entries = Object::try_from(object).unwrap().own_entries();
         assert_eq!(
@@ -494,7 +489,7 @@ mod test {
             ]
         );
         let plain = Object::<Naive>::default().to_any();
-        let item = computed_item(plain, one()).unwrap();
+        let item = property_item(plain.to_string().unwrap(), one());
         let ObjectItem::Property(key, _) = item else {
             panic!()
         };
@@ -504,12 +499,17 @@ mod test {
     /// An own conversion method supplies the key, and its errors propagate.
     #[test]
     fn computed_key_conversion() {
+        use core::cell::Cell;
+
         let with_to_string = |method: Any<Naive>| -> Any<Naive> {
             [(string_key("toString"), method)].to_object().to_any()
         };
         let method =
             Naive::static_function(|_, _| Ok(string_any("own")), 0, [].to_array(), None).to_any();
-        let item = computed_item(with_to_string(method), string_any("value")).unwrap();
+        let item = property_item(
+            with_to_string(method).to_string().unwrap(),
+            string_any("value"),
+        );
         let object = Object::try_from(spread_object([item])).unwrap();
         assert_eq!(
             object.own_entries(),
@@ -523,11 +523,26 @@ mod test {
             None,
         )
         .to_any();
+        let reached = Cell::new(false);
+        let later = || -> Result<Any<Naive>, Any<Naive>> {
+            reached.set(true);
+            Err(string_any("value failed"))
+        };
+        let item = (|| -> Result<ObjectItem<Naive>, Any<Naive>> {
+            Ok(property_item(with_to_string(method).to_string()?, later()?))
+        })();
         assert!(matches!(
-            computed_item(with_to_string(method), string_any("value")),
+            item,
             Err(error) if error == string_any("key conversion failed")
         ));
-        assert!(computed_item(with_to_string(f64_any(0)), string_any("value")).is_err());
+        assert!(!reached.get());
+        assert!(with_to_string(f64_any(0)).to_string().is_err());
+
+        let item = (|| -> Result<ObjectItem<Naive>, Any<Naive>> {
+            Ok(property_item(string_any("own").to_string()?, later()?))
+        })();
+        assert!(matches!(item, Err(error) if error == string_any("value failed")));
+        assert!(reached.get());
     }
 
     /// A string of code units holds what no `&str` can, a lone surrogate,
