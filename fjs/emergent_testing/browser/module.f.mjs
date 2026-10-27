@@ -69,19 +69,20 @@ const attempt = f =>
  * made: anything carrying `message` or `stack` is read as the failure it
  * describes, and everything else by its own text.
  *
- * Asking whether the fields are there is as user-observable as reading them —
- * `in` consults a proxy — so the question and the answer share one attempt.
+ * Reading the fields is the question: a field that reads `undefined` says
+ * nothing, so a value whose two fields both do is described by its own text.
+ * An Error's `message` and `stack` are its own but not enumerable, and a
+ * `message` may be inherited, so no presence test would ask the same; the
+ * reads see both. They are user-observable — a proxy sees them, a getter may
+ * throw — so they share one attempt.
  *
  * @type {(value: unknown) => readonly [unknown, unknown] | null}
  */
-const fields = value =>
-    value !== null && (typeof value === 'object' || typeof value === 'function')
-        && ('message' in value || 'stack' in value)
-        ? [
-            /** @type {{ readonly message?: unknown }} */(value).message,
-            /** @type {{ readonly stack?: unknown }} */(value).stack,
-        ]
-        : null
+const fields = value => {
+    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
+    const { message, stack } = /** @type {{ readonly message?: unknown, readonly stack?: unknown }} */ (value)
+    return message === undefined && stack === undefined ? null : [message, stack]
+}
 
 /** @type {(value: unknown) => Effect<Catch, readonly [string, string], never>} */
 export const errorDetails = value =>
