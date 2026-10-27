@@ -25,7 +25,7 @@
  *
  * @module
  *
- * @import { EntryLookup, HasEntry } from './types.ts'
+ * @import { EntryLookup, HasEntry, WithEntry } from './types.ts'
  */
 
 /** @type {EntryLookup} */
@@ -41,9 +41,16 @@ export const entry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
  * converts it, a nullish `a` throwing as there. Recognized whole by the compiler as the EDAG's
  * `['hasEntry']`, as `entry` is ([spec: why two helpers](../../../../spec/property-access/entries/README.md#why-two-helpers)).
  *
- * @type {HasEntry}
+ * A type guard, {@link HasEntry}: a union told apart by which key it holds
+ * narrows under it as it does under JavaScript's `in`.
+ *
+ * @template T
+ * @template {PropertyKey} K
+ * @param {T} a
+ * @param {K} b
+ * @returns {a is WithEntry<T, K>}
  */
-export const hasEntry = (/** @type {unknown} */ a, /** @type {any} */ b) => {
+export const hasEntry = (a, b) => {
     const x = Object.getOwnPropertyDescriptor(a, b);
     return x?.enumerable === true;
 };
