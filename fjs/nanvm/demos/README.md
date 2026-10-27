@@ -32,7 +32,7 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
 
 ## How the Pages Are Built
 
-- [`samples`](./samples/module.f.mjs) lists every sample, with the calls a
+- [`samples`](./samples/module.f.js) lists every sample, with the calls a
   feature page makes and the answers JavaScript gives.
 - `npm run gen` compiles each sample to `nanvm/demos/gen.samples/<name>.rs`,
   committed, with a Rust test per listed call, so the two runs a page

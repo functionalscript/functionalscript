@@ -8,7 +8,7 @@
 
 import program from './sample.f.js'
 import { wasmDemo } from '../page/module.f.mjs'
-import { placeAt } from '../samples/module.f.mjs'
+import { placeAt } from '../samples/module.f.js'
 
 /**
  * The sample spells its bytes as a bare `bigint`, since `fjs compile` cannot

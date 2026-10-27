@@ -15,6 +15,7 @@ import { _readersOf } from '../schema-demo/module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { validate } from '../validate/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * What both readers make of a lesson's value against each of its schemas:
@@ -30,7 +31,7 @@ export const verdicts = lessons => (name, expected, text) => {
     assertEq(lesson.schemas.length, expected.length)
     lesson.schemas.forEach((s, i) => {
         const r = _readersOf(s.schema)(text ?? lesson.value)
-        assert(!('error' in r), name)
+        assert(!hasEntry(r, 'error'), name)
         assertEq(r.parse.ok, expected[i])
         assertEq(r.validate.ok, expected[i])
     })

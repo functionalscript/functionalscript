@@ -28,7 +28,7 @@ export type ListedCall = readonly [number, Outcome]
 
 /**
  * A function sample's place, with the calls its page's Run button makes, in
- * order ([`../samples/module.f.mjs`](../samples/module.f.mjs)).
+ * order ([`../samples/module.f.js`](../samples/module.f.js)).
  */
 export type FunctionPlace = Place & {
     readonly calls: readonly ListedCall[]

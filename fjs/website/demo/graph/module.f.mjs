@@ -62,6 +62,7 @@ import { stateScan, toArray } from '../../../types/list/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /**
  * Every node's rank: the longest path from the root, so every edge points
@@ -112,7 +113,7 @@ const { is } = Object
  */
 const draw = (walk, value, s) => {
     const id = walk.next
-    const [kind, label, children, groups] = 'inline' in s
+    const [kind, label, children, groups] = hasEntry(s, 'inline')
         ? [s.kind ?? 'leaf', s.inline, [], undefined]
         : [s.kind, s.label, s.children, s.groups]
     return {
@@ -198,7 +199,7 @@ export const graphOf =
         // edge from its parent is added once everything under it is
         // drawn, so ids and edges come out in the order recursion gave.
         const rootShape = shape(root)
-        if ('owner' in rootShape) { throw noOwner }
+        if (hasEntry(rootShape, 'owner')) { throw noOwner }
         const start = draw({ refs: [], nodes: [], edges: [], next: 0 }, root, rootShape)
         let walk = start.walk
         /** @type {_Stack<V>} */
@@ -215,10 +216,10 @@ export const graphOf =
                 /** @type {_Stack<V>} */
                 const advanced = [{ ...top, next: top.next + 1 }, rest]
                 const c = shape(child)
-                if ('owner' in c) {
+                if (hasEntry(c, 'owner')) {
                     walk = withEdge(walk, { from: top.id, to: ownerOf(advanced, c.owner), label, kind, back: true })
                     stack = advanced
-                } else if ('inline' in c) {
+                } else if (hasEntry(c, 'inline')) {
                     walk = withEdge(walk, { from: top.id, to: c, label, kind })
                     stack = advanced
                 } else {
