@@ -6,5 +6,5 @@ import { environmentSteps, environmentVersionStep } from '../environment/module.
 /** @type {readonly MetaStep[]} */
 export const bunSteps = [
     environmentVersionStep('bun --version', bun),
-    ...environmentSteps(['bun install --frozen-lockfile', 'bun test --coverage']),
+    ...environmentSteps(['bun install --frozen-lockfile', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs']),
 ]

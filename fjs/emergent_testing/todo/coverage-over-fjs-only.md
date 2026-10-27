@@ -3,33 +3,24 @@
 **Priority:** P3
 **Status:** open
 
-### Problem
+### Current state
 
-`npm run cov` runs every proof `shouldLoad` in
-[`fjs/dev`](../../dev/module.f.mjs) accepts and then measures
-`module.f.mjs` and `module.f.js`. The proofs include the plain JavaScript
-ones — every file whose name ends in `proof.mjs`, under `fjs/` and `spec/`
-alike, since `npm run cov` from the root walks the whole tree;
-`fjs/effects/node/proof.mjs` and `fjs/compiler/transpiler/proof.mjs` among
-them, and proofs under `spec/` reaching measured modules through
-`fjs/compiler/refused_demo/host.mjs` — so a line of a
-FunctionalScript module may be covered by a JavaScript proof alone. The
-coverage verdict is then a function of JavaScript files as well as
-FunctionalScript ones, and a change to a `proof.mjs` can move it.
+`npm run cov` now selects `fjs/emergent_testing/fjs-only.mjs`, measuring
+`module.f.mjs` and `module.f.js` with the existing 100% thresholds.
+The Deno and Bun CI jobs run the FJS-only native entry without coverage;
+local `deno task cov` still offers combined-suite coverage.
 
-The [build cache](../../ci/cache/README.md) therefore keys coverage on the
-`js` group. After this task it may use `fjs`, provided every plain JavaScript
-module a FunctionalScript proof imports is included too. The host adapters
-under `fjs/effects/` and the runner and reporter under `fjs/emergent_testing/`
-already belong to `fjs`; other dependencies need the same audit before moving
-the key. `deno task cov` has the same shape: every test, `module.f.m?js` measured.
+Coverage cache keys deliberately retain the conservative `js` input rung.
+Narrowing them to `fjs` requires auditing every host dependency imported by
+an authored proof. The selected command and package manifest already
+invalidate results from the former combined coverage run.
 
 ### Proposal
 
 Under coverage, load FunctionalScript proofs from `.f.mjs` and `.f.js` files
 only. `isAuthored` in `fjs/dev` already selects those files. The Node coverage
 run uses the FJS-only native entry from
-[the runner split](./split-fjs-and-js-runners.md), in place of the combined
+[the implemented runner split](../README.md#selecting-fjs-or-host-js-with-a-native-runner), in place of the combined
 entry that uses `shouldLoad`.
 
 The [six-job CI plan](../../ci/todo/six-ci-jobs.md) requires coverage on Node
@@ -56,22 +47,28 @@ switch, module by module, as
 [per-module coverage](./per-module-coverage.md) does for the gaps hidden by
 other modules' proofs.
 
+The initial FJS-only run passed all 13,443 tests but exposed coverage gaps in
+returned-tree failure reporting and member/operand return preparation. Authored
+proofs now exercise those paths, including object/array spread snapshots and
+active loop targets. Both modules meet 100% coverage in their scoped FJS-only
+runs. CI reruns the complete gate on the final change.
+
 ### Tasks
 
-- [ ] Run Node coverage through the FJS-only native entry using `isAuthored`
+- [x] Run Node coverage through the FJS-only native entry using `isAuthored`
       and list the modules whose coverage drops.
-- [ ] Close each gap in the module's own `proof.f.mjs`.
-- [ ] Make `npm run cov` select the FJS-only native entry and retain its
+- [x] Close each gap in the module's own `proof.f.mjs`.
+- [x] Make `npm run cov` select the FJS-only native entry and retain its
       coverage thresholds. The generated CI requires coverage under Node only.
 - [ ] Keep host-JS proofs in the JS-only native entries for Node, Deno and Bun;
       the six-job migration removes the existing Deno/Bun coverage commands
       in favor of the assigned FJS and JS test runs.
-- [ ] [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) says what coverage runs
+- [x] [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) says what coverage runs
       and measures, and the build cache's `fjs` rung cites it.
 
 ### Related
 
-- [Split FJS and JS runners](./split-fjs-and-js-runners.md)
+- [Selective runner entries](../README.md#selecting-fjs-or-host-js-with-a-native-runner)
 - [Six CI jobs](../../ci/todo/six-ci-jobs.md)
 - [Prove each module's coverage by its own proof](./per-module-coverage.md)
 - [Cache successful builds by their inputs](../../ci/cache/README.md)

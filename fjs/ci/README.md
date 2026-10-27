@@ -12,6 +12,20 @@ Linux/Windows checks, Linux ARM formatting and four WASM targets, SpiderMonkey
 compilation/tests, TypeScript, compilation, coverage and packed-package checks
 remain separate steps. Host compiler/SDK prerequisites still apply.
 
+The six platform jobs run Node's JS-only entry
+(`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
+`fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
+test because parser stress proofs can exceed its default five seconds. `node26` runs
+FJS-only Node coverage via `npm run cov`, retaining the 100% thresholds;
+SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+Host-JS proofs currently have Node coverage across all six platforms; Deno
+and Bun host-JS runs remain part of the later six-job allocation.
+
+Suite and coverage cache keys retain the conservative `js` input rung.
+The selected command and `package.json` participate in the key, so old
+combined-suite results cannot certify the new selective runs. Narrowing the
+inputs requires a separate dependency audit.
+
 ## Files
 
 - `config/module.f.js`: exact accepted tool versions and runner/action pins.

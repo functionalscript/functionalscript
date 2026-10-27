@@ -174,9 +174,10 @@ mise install --locked
 
 The startup Node version must match `fjs/ci/config/module.f.js` exactly.
 `./dev.sh <command>` runs one command in the selected environment; no arguments
-opens an interactive shell. Windows users can invoke `mise exec -- <command>`
-directly from PowerShell. The devcontainer installs mise; rebuild it when its
-Dockerfile changes. Native compilers, platform SDKs and 32-bit libc remain host
+opens an interactive shell. Windows users can run `.\dev.ps1 <command>` from
+PowerShell; no arguments opens an interactive PowerShell. The devcontainer
+installs mise; rebuild it when its Dockerfile changes. Native compilers,
+platform SDKs and 32-bit libc remain host
 prerequisites. Linux x64 needs `gcc-multilib libc6-dev-i386` for i686 checks.
 
 Run checks scoped to the changed directory as described above and in

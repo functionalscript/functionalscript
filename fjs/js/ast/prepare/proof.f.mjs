@@ -106,6 +106,31 @@ export const proof = {
             assert(!prepared.body.statements.some(statement => statement[0] === 'while'), field)
         }
     },
+    memberReturnOperands: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        /** @type {NormalValue} */
+        const choice = ['if', ['ref', id(100)],
+            { statements: [], exit: ['return', target, 7] }, yielding(1)]
+        /** @type {(block: Block) => boolean} */
+        const keepsReturn = block => (block.exit[0] === 'return' && block.exit[1] === target && block.exit[2] === 7)
+            || block.statements.some(statement => statement[0] === 'block' ? keepsReturn(statement[1])
+                : statement[0] === 'if' ? keepsReturn(statement[2]) || keepsReturn(statement[3]) : false)
+        for (const value of /** @type {readonly NormalValue[]} */ ([
+            ['.', 'abc', 'slice', ['|()', [choice]]],
+            ['?.', 'abc', 'slice', ['|()', [choice]]],
+            ['()', ['.', 'abc', 'slice'], [choice]],
+            ['()', ['.', choice, 'slice'], [1]],
+            ['object', [['...', ['object', [[':', 'a', 1]]]], [':', 'value', choice]]],
+            ['object', [[':', 'a', 1], [':', 'value', choice]]],
+            ['array', [['...', ['array', [1]]], choice]],
+            ['()', ['ref', id(101)], [['...', ['array', [1]]], choice]],
+        ])) {
+            const prepared = prepareFunction({ target, parameters: [id(100), id(101)], rest: null,
+                self: null, captures: [], body: { statements: [], exit: ['return', target, value] } })
+            assertEq(prepared.body.exit[0], 'return')
+            assert(keepsReturn(prepared.body), { value, prepared })
+        }
+    },
     unconditionalTailLoopsHaveNoResultSuffix: () => {
         for (const arity of /** @type {const} */ ([0, 1, 2])) {
             const fn = _tailFunction(['=>', arity, [], ['()', ['self'], Array.from({ length: arity }, (_, index) => ['arg', index])]])
@@ -445,6 +470,10 @@ export const proof = {
         const transfer = loop[2].statements[3]
         assert(transfer[0] === 'block')
         assertStructurallySame(transfer[1].exit, ['continue', target])
+        /** Direct member calls preserve the active physical loop target. */
+        const escapingCall = scalar(target, a, result, ['()', ['.', 'abc', 'slice'],
+            [['block', { statements: [], exit: ['break', target, [9]] }]]])
+        assertEq(loopStatement(prepare({ statements: [['loop', escapingCall]], exit: ['yield', []] }))[1], target)
         const modified = scalar(target, a, result, ['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }])
         assertEq(loopStatement(prepare({ statements: [['loop', modified]], exit: ['yield', []] }))[1], target)
         const setup = scalar(target, a, result, ['ref', a], [['define', local, ['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }], 'required']])
