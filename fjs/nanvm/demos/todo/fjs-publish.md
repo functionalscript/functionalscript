@@ -7,71 +7,52 @@
 
 [`nanvm/demos/publish`](../../../../nanvm/demos/publish/src/main.rs)
 is a Rust program that copies the demo WASM and produces each sample's WAT.
-Move this workflow into an FJS script, keeping the WebAssembly processing
-reusable outside the demos. The migration should land before we implement
-our own binary parser. Once that parser and its AST-based WAT serializer
-are available, the browser demo should generate the WAT it displays.
+Create reusable FJS tools for parsing and writing binary WebAssembly first,
+then use them to replace the publisher with an FJS implementation.
 
 ### Tasks
 
-Complete the stages in order.
+Complete the steps in order.
 
-#### Stage 1: FJS script using wasm-tools
+#### Step 1: Parse and write WASM files
 
-- [ ] Replace the Rust publisher with an FJS script using the existing effects
-      interface for files and subprocesses, and
-      [`wasm-tools`](https://github.com/bytecodealliance/wasm-tools) for
-      WebAssembly processing, including demangling and WAT output.
-- [ ] Preserve per-sample function selection: printing the entire module with
-      `wasm-tools print` alone does not replace the current publisher.
+- [ ] Define a reusable WebAssembly AST and implement an FJS parser from
+      binary `.wasm` bytes to that AST.
+- [ ] Implement the corresponding FJS writer from the AST to binary
+      `.wasm` bytes. Keep parsing and writing separate, with no dependency
+      on the demo publisher.
+- [ ] Support the module structure needed by the demo modules, including
+      imported and defined functions and their name metadata.
+- [ ] Verify that parser/writer round trips preserve the represented module,
+      using focused fixtures and the generated demo modules.
+
+#### Step 2: Replace the demo publisher with FJS
+
+- [ ] Replace `nanvm/demos/publish` with an FJS implementation using the
+      existing effects interface for files and the reusable WASM modules
+      where needed.
+- [ ] Use the AST to select each sample's functions and generate its WAT
+      with readable, demangled Rust names. Keep this WAT text serializer
+      separate from the binary `.wasm` writer.
 - [ ] Update the [build-script generator](../module.f.mjs) to invoke the FJS
-      script, regenerate its output, and make `wasm-tools` available in the
-      local and deployment build environments.
+      implementation and regenerate its output.
 - [ ] Verify the demo outputs and failure behavior, then remove the replaced
       Rust publisher crate, its workspace entry, and dependencies no longer
       used by the workspace.
 
-#### Stage 2: FJS WASM parser and AST
-
-- [ ] Implement a reusable FJS parser that reads binary `.wasm` bytes and
-      produces a WebAssembly AST. This is a binary parser, not a parser of
-      the WAT text printed in stage 1.
-- [ ] Keep binary parsing, sample selection, and WAT serialization separate.
-      Represent the structure needed to inspect functions and their names,
-      including the relationship between imported and defined functions.
-- [ ] Use the AST for the publisher's sample selection and WAT generation,
-      replacing its `wasm-tools` processing as the FJS implementation covers
-      the demo modules.
-- [ ] Prove the parser and publisher behavior with focused fixtures and the
-      generated demo modules, using `wasm-tools` as a reference during the
-      transition.
-
-#### Stage 3: Generate WAT directly in the demo
-
-- [ ] Reuse the FJS binary parser, AST, name demangling, sample selection,
-      and WAT serializer from stage 2 in the browser demo: load the `.wasm`,
-      parse it, and generate and display the selected sample's WAT directly.
-- [ ] Replace fetching pre-generated `.wat` files with this in-demo
-      generation, then remove those files from the publishing step.
-      Continue publishing the `.wasm` the demo loads.
-- [ ] Verify that the displayed WAT comes from the same WASM module the demo
-      executes, with the same readable names and sample filtering. Keep
-      parsing and WAT generation outside timed sample execution.
-
 ### Behavior to preserve
 
 - Copy the original WASM bytes to `nanvm/demos/wasm/nanvm_demos.wasm`.
-- Show each sample's functions with readable, demangled Rust names. The WAT
-  listings are display fragments; they do not need to be standalone
-  WebAssembly modules.
-- During stages 1 and 2, write `nanvm/demos/wasm/<sample>.wat`, create output
-  directories, and remove stale sample `.wat` files while preserving
-  unrelated files. Stage 3 replaces these WAT artifacts with text generated
-  in the browser demo.
+  The publisher need not rewrite the binary through the new writer.
+- Write `nanvm/demos/wasm/<sample>.wat` for each listed sample, containing
+  that sample's functions with readable, demangled Rust names. These are
+  display fragments; they do not need to be standalone WebAssembly modules.
+- Create the output directories and remove stale sample `.wat` files while
+  preserving unrelated files.
 - Report unreadable or invalid input and samples with no matching functions
   as failures.
-- Keep compiling and publishing the WASM binary as a separate build step;
-  stage 3 moves WAT generation into the demo.
+- Keep the website consuming these build artifacts; publishing remains a
+  separate build step.
 
 ### Related
 
