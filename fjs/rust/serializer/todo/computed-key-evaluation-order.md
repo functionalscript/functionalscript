@@ -1,7 +1,7 @@
 ## Convert computed object keys before property values
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 Rust output delays a computed property key's string conversion until after its
 value operand has evaluated. The object printer in
