@@ -1,5 +1,6 @@
 /**
- * General tail loops retain recursive source spelling and source round trips.
+ * Plain loops use admitted source while statements; other tail loops retain
+ * recursive spelling. Both paths preserve execution and stable round trips.
  *
  * @import { Block, Function as FastFunction, Loop, Value } from '../../../../js/ast/types.ts'
  * @import { Exp } from '../../../types.ts'
@@ -25,6 +26,48 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    aggregateSourceWhileHasAStableNormalForm: () => {
+        for (const source of /** @type {const} */ ([
+            'export default (n=>{let i=0;let sum=0;while(i<n){sum=sum+i;i=i+1;}return [i,sum];})(5);',
+            'export default (()=>{let i=0;let a=1;let b=2;while(i<3){const old=a;a=b;b=old;i=i+1;}return [i,a,b];})();',
+            'export default (()=>{while(false){const skipped=null.x;}return 7;})();',
+            'export default (()=>{let i=0;let sum=0;while(i<2){sum=sum+i;i=i+1;}while(sum<4){i=i+1;sum=sum+2;}return [i,sum];})();',
+            'export default (()=>{let i=0;let saved=null;while(i<3){const snapshot=i;saved=()=>snapshot;i=i+1;}return saved();})();',
+            'export default (()=>{let i=0;let sum=0;while(i<3&&(false?null.x:true)){sum=sum+i;i=i+1;}return [i,sum];})();',
+            'export default (()=>{let i=0;let sum=0;while((()=>{const pair=[i,sum];return pair===pair?pair[0]<3:false;})()){sum=sum+i;i=i+1;}return [i,sum];})();',
+        ])) {
+            const original = graph(source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            assertStructurallySame(evaluate(normalized), evaluate(original))
+            const canonical = assertOk(tryStringify(normalized))
+            assert(canonical.includes('while('), canonical)
+            const restored = graph(canonical)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)))
+            assertEq(assertOk(tryStringify(restored)), canonical)
+        }
+    },
+    plainSourceLoopsPreserveRequiredFailuresAndFinalCaptures: () => {
+        for (const source of /** @type {const} */ ([
+            'export default (()=>{while(null.x){}return 7;})();',
+            'export default (()=>{while(true){const required=null.x;}return 7;})();',
+            'export default (()=>{let i=0;let sum=0;while(i<1){sum=null.x;sum=1;i=i+1;}return [i,sum];})();',
+            'export default (()=>{let limit=null.x;limit=limit;let i=0;while(i<0){const unused=limit;i=i+1;}return i;})();',
+        ])) {
+            const original = graph(source)
+            const written = assertOk(tryStringify(original))
+            failure(original)
+            failure(graph(written))
+        }
+        const original = graph('const f=n=>n>0?f(n-1):()=>n;export default f(2)();')
+        const written = assertOk(tryStringify(original))
+        assert(written.includes('while('), written)
+        assertEq(evaluate(graph(written)), 0)
+        const canonical = assertOk(tryStringify(graph(written)))
+        assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+    },
     recursiveSourceRoundTrips: () => {
         const sources = /** @type {const} */ ([
             'const f=(n,a)=>n===0?a:f(n-1,a+n);export default f(4,0);',
@@ -71,7 +114,10 @@ export const proof = /** @type {const} */ ({
             failure(['()', original, [1, 9]])
             failure(['()', restored, [1, 9]])
             const canonical = assertOk(tryStringify(restored))
-            assertEq(assertOk(tryStringify(fromFast(assertOk(toFast(original))))), canonical)
+            // Physical while output separates its normal result from the loop.
+            // Parsing that first spelling establishes the source normal form.
+            const converted = assertOk(tryStringify(fromFast(assertOk(toFast(original)))))
+            assertEq(assertOk(tryStringify(graph(converted))), canonical)
             assertEq(assertOk(tryStringify(graph(canonical))), canonical)
         }
     },

@@ -177,9 +177,11 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       its complete conversion path and evidence.
       Plain bodies now admit zero/multiple state values, sequential loops and
       loops in terminal guard/case blocks. Shared binding events select state;
-      code-only JavaScript and Rust execute aggregate helpers with bounded
-      stack. Source serialization still uses recursion for general aggregate
-      helpers ([remaining source output](../edag/todo/tail-call-loop.md#remaining-general-source-output)).
+      source JavaScript, code-only JavaScript and Rust execute eligible plain
+      aggregate helpers with bounded stack. Shared preparation retains
+      condition-only work and immutable final-result captures; the first source
+      round trip establishes a stable normal form
+      ([output contract](../edag/todo/tail-call-loop.md#remaining-general-source-output)).
       Module loops, structured/nested bodies and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.

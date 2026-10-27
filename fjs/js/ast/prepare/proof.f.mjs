@@ -36,6 +36,76 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    plainLoopProjectionRegionsAndFinalSnapshot: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), result = id(1), count = id(2), alias = id(3), unused = id(4)
+        const prefix = /** @type {readonly Definition[]} */ ([
+            ['define', count, ['.', ['ref', state], 0], 'required'],
+            ['define', alias, ['ref', count], 'required'],
+            ['define', unused, ['.', ['ref', state], 1], 'required'],
+        ])
+        const source = /** @type {Loop} */ ({ target, parameters: [state], initial: [['array', [0, 7]]], results: [result], body: {
+            statements: [...prefix, ['if', [], ['<', ['ref', alias], 3],
+                { statements: [], exit: ['continue', target, [['array', [['+', ['ref', alias], 1], 7]]]] },
+                { statements: [], exit: ['break', target, [['array', [['ref', alias]]]]] },
+            ]], exit: ['yield', []],
+        } })
+        const prepared = prepare({ statements: [['loop', source]], exit: ['yield', [['ref', result]]] })
+        assertStructurallySame(prepared.statements.map(statement => statement[0]), ['while', 'define'])
+        const statement = prepared.statements[0]
+        assert(statement[0] === 'while')
+        assertEq(statement[1].mutable, true)
+        assert(statement[1].result !== result)
+        assert(statement[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === count))
+        assert(statement[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === alias))
+        assert(!statement[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === unused))
+        const normal = prepared.statements[1]
+        assert(normal[0] === 'define' && normal[2] instanceof Array && normal[2][0] === 'block')
+        const snapshot = normal[2][1].statements[0]
+        assert(snapshot[0] === 'define')
+        assertStructurallySame(snapshot[2], ['ref', statement[1].result])
+        assert(!normal[2][1].statements.some(statement => statement[0] === 'define' && statement[1] === unused))
+    },
+    unchangedPlainResultNeedsNoPostlude: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), result = id(1), unused = id(2)
+        const source = /** @type {Loop} */ ({ target, parameters: [state], initial: [['array', [0]]], results: [result], body: {
+            statements: [['define', unused, ['.', ['ref', state], 0], 'required'], ['if', [], false,
+                { statements: [], exit: ['continue', target, [['ref', state]]] },
+                { statements: [], exit: ['break', target, [['ref', state]]] },
+            ]], exit: ['yield', []],
+        } })
+        const prepared = prepare({ statements: [['loop', source]], exit: ['yield', [['ref', result]]] })
+        assertStructurallySame(prepared.statements.map(statement => statement[0]), ['while'])
+        const statement = prepared.statements[0]
+        assert(statement[0] === 'while')
+        assertEq(statement[1].result, result)
+        assertEq(statement[1].mutable, false)
+        assertEq(statement[1].body.statements.length, 1)
+    },
+    outwardPlainOperandsKeepGeneralPreparation: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), result = id(1), projected = id(2), effect = id(3)
+        const escape = /** @type {NormalValue} */ (['block', { statements: [], exit: ['return', owner, 7] }])
+        for (const field of /** @type {const} */ (['condition', 'next', 'result', 'prefix', 'step'])) {
+            const source = /** @type {Loop} */ ({ target, parameters: [state], initial: [['array', [0]]], results: [result], body: {
+                statements: [
+                    ['define', projected, ['.', ['ref', state], 0], 'required'],
+                    ...field === 'prefix' ? [/** @type {Definition} */ (['define', effect, escape, 'required'])] : [],
+                    ['if', [], field === 'condition' ? escape : false,
+                        { statements: field === 'step' ? [['define', effect, escape, 'required']] : [], exit: ['continue', target, [field === 'next' ? escape : ['ref', state]]] },
+                        { statements: [], exit: ['break', target, [field === 'result' ? escape : 9]] },
+                    ],
+                ], exit: ['yield', []],
+            } })
+            const prepared = prepareFunction({ target: owner, parameters: [], rest: null, self: null, captures: [], body: {
+                statements: [['loop', source]], exit: ['return', owner, ['ref', result]],
+            } })
+            assert(prepared.body.statements.some(statement => statement[0] === 'loop'), field)
+            assert(!prepared.body.statements.some(statement => statement[0] === 'while'), field)
+        }
+    },
     memberReturnOperands: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
         /** @type {NormalValue} */

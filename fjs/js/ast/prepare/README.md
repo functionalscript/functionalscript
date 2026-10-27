@@ -66,6 +66,23 @@ the transition. A transition that returns its unchanged parameter needs no
 write and has `mutable: false`. This preserves the existing source loop
 spelling while keeping slot selection common to both targets.
 
+The shared [`plain-loop plan`](../loop/plain/module.f.mjs) also recognizes a
+one-state helper with required entry definitions, a terminal condition, a
+define-only continuing arm and one computed normal result. This is the shape
+of aggregate helpers for plain source loops. Entry computations run in the
+condition on every test, including the final false test. Only the transitive
+primitive/reference/numeric-projection prefix needed by the body or normal
+result is copied into those regions. Computations that create identity or call
+functions remain in their original condition region; a dependency shared with
+another region keeps the general loop form instead of being duplicated.
+
+Preparation uses the existing `while` plan and immutable iteration snapshots.
+An unchanged normal result directly names the loop result. A computed result
+instead gets a real immutable final-state snapshot before its definitions and
+value run once after the loop. Closures can capture that snapshot without
+capturing mutable slots. Hidden nonlocal transfers retain the general control
+plan. The scalar path and both serializers keep their existing contracts.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

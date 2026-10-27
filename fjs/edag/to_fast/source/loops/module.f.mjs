@@ -1,7 +1,7 @@
 /**
- * Reify canonical invocation loops as recursive source until the source grammar
- * admits general loops. Placement and tail eligibility stay in common FAST.
- * The established scalar loop keeps its existing source spelling.
+ * Retain plain loops supported by shared preparation and reify other canonical
+ * invocation loops as recursive source. Placement and tail eligibility stay in
+ * common FAST; the source adapter chooses no state or target syntax.
  *
  * @module
  * @import { Block, Exit, Function as FastFunction, Statement, Value } from '../../../../js/ast/types.ts'
@@ -10,6 +10,7 @@
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
+import { plainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
@@ -32,7 +33,7 @@ const resultBlock = block => call(() => {
 /** Inverse aliases read established invocation inputs, captures and self. @type {(fn: FastFunction) => Task<FastFunction>} */
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
-    if (loop === null || (fn.rest === null && scalarLoopOf(loop) !== null)) { return done(fn) }
+    if (loop === null || (fn.rest === null && (scalarLoopOf(loop) !== null || plainLoopOf(loop) !== null))) { return done(fn) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

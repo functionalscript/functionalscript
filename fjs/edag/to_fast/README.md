@@ -113,12 +113,19 @@ their contracts.
 New general loops retain the required function owner previously chosen for
 their recursive form, even when all runtime self reads become transitions.
 This preserves placement and supplies the name needed for recursive source
-spelling. Code-only JavaScript and Rust use the common prepared loop. Until H
-admits general source loops, source spelling reifies nonscalar canonical roots
-with the graph owner's existing transfer resolver. Synthesized invocation-read
-aliases become ordinary required reads, and terminal statement conditionals
-return through source value conditionals. Computed lazy definitions keep their
-existing admission rules. The established scalar source loop remains unchanged.
+spelling. Code-only JavaScript and Rust use the common prepared loop. Source
+spelling retains rest-free roots recognized by the shared scalar or
+[`plain-loop plan`](../../js/ast/loop/plain/module.f.mjs), including aggregate
+helpers produced by plain source loops. Other canonical roots use the graph
+owner's existing transfer resolver. Synthesized invocation-read aliases become
+ordinary required reads, and terminal statement conditionals return through
+source value conditionals. Computed lazy definitions keep their existing
+admission rules. The established scalar source loop remains unchanged.
+
+General plain-loop output computes the normal result after iteration. Parsing
+the first emitted source introduces that scalar-loop/result boundary and can
+change the original graph. The source-normalized graph and canonical spelling
+then stabilize; repeated output adds no helpers or unused projection demands.
 
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
