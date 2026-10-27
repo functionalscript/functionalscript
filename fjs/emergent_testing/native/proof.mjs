@@ -1,4 +1,5 @@
 /** Native entry discovery and explicit selection, under the active runtime. */
+
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
