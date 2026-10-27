@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 const runtime = process.versions.deno ? 'deno' : process.versions.bun ? 'bun' : 'node'
 const flags = runtime === 'node' ? ['--test'] : runtime === 'deno' ? ['test', '-A', '--config', fileURLToPath(new URL('../../../deno.json', import.meta.url))] : ['test']
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     selectiveEntries: () => {
         const root = mkdtempSync(join(tmpdir(), 'fjs-native-'))
         try {
@@ -52,4 +52,4 @@ export const proof = {
             rmSync(root, { recursive: true, force: true })
         }
     },
-}
+})
