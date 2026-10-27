@@ -45,7 +45,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(select('.github/workflows/gen.ci.yml'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/module.f.mjs'), ['fjs', 'rust'])
         assertStructurallySame(select('fjs/ci/cache/types.ts'), ['ts', 'rust'])
-        for (const path of ['.gitattributes', '.gitignore', '.node-version', 'dev.sh',
+        for (const path of ['.gitattributes', '.gitignore', '.node-version', 'dev.sh', 'dev.ps1',
             '.mise/locks/npm-typescript/7.0.2/aube-lock.yaml', '.mise/locks/npm-typescript/7.0.2/package.json',
             'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock']) {
             assertStructurallySame(select(path), ['fjs', 'rust'])

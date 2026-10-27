@@ -10,8 +10,12 @@ leaves it disabled, since its input selectors describe this repository.
 
 ## Inputs and keys
 
-`npm start ci init` reads file IDs from the checked-out commit's Git trees,
-without reading source blobs. It builds four input manifests:
+`npm start ci init` enumerates file IDs from the checked-out commit with one
+native `git ls-tree -r -z --full-tree` call, without reading source blobs or
+working-tree files. NUL-delimited records preserve literal paths, and Git's hex
+object IDs become the same CBase32 identities used by the cache. This avoids
+reopening and decoding pack indexes for every source directory. It builds four
+input manifests:
 
 | Group | Inputs |
 | --- | --- |
