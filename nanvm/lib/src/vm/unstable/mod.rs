@@ -94,11 +94,11 @@ pub fn strict_ne<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
 }
 
 /// One item of an array literal or a call's argument list, as
-/// [`spread_array`] and [`spread_call`] read it: a value, or a spread whose
-/// values the iterable gives ([`Any::get_iterator`]).
+/// [`spread_array`] and [`spread_call`] read it: a value, or an established
+/// spread iterator ([`Any::get_iterator`]).
 pub enum ArrayItem<A: IVm> {
     Value(Any<A>),
-    Spread(Any<A>),
+    Spread(IteratorRecord<A>),
 }
 
 /// An item that is its own value, `a` in `[a, ...b]`.
@@ -106,15 +106,12 @@ pub fn value_item<A: IVm>(v: Any<A>) -> ArrayItem<A> {
     ArrayItem::Value(v)
 }
 
-/// A spread item, `...b` in `[a, ...b]`.
-pub fn spread_item<A: IVm>(v: Any<A>) -> ArrayItem<A> {
-    ArrayItem::Spread(v)
-}
-
-/// An item of [`spread_array`] after its spreads' iterators are taken.
-enum Part<A: IVm> {
-    One(Any<A>),
-    Many(IteratorRecord<A>),
+/// A spread item, `...b` in `[a, ...b]`. Take its iterator before the next
+/// operand is evaluated: generated item lists propagate this `Result` with
+/// `?` at the item's position. Iteration itself cannot throw or run represented
+/// code for the VM's immutable arrays and strings ([`IteratorRecord`]).
+pub fn spread_item<A: IVm>(v: Any<A>) -> Result<ArrayItem<A>, Any<A>> {
+    v.get_iterator().map(ArrayItem::Spread)
 }
 
 /// Room for `additional` more elements, or the `RangeError` an array that
@@ -131,14 +128,14 @@ fn reserve<A: IVm>(values: &mut Vec<Any<A>>, additional: usize) -> Result<(), An
 /// spread of a value that is not iterable throws, so the array is an
 /// operation's `Result` where an array without a spread is a value.
 ///
-/// Every spread's iterator is taken first, and the array's length is
-/// bounded before anything is built: past JavaScript's limit, `2³² − 1`
-/// elements and `Array<A>`'s `u32` length, the result is the `RangeError`
+/// Every spread's iterator is already established by [`spread_item`], and the
+/// array's length is bounded before anything is built: past JavaScript's limit,
+/// `2³² − 1` elements and `Array<A>`'s `u32` length, the result is the `RangeError`
 /// `ArrayCreate` throws, refused on the iterators' lower bounds — exact for
 /// an array — and, since a string's code points are only known by walking
 /// it, checked again as each element is added, so the build never passes
-/// the limit. Taking the iterators first is unobservable: neither an array
-/// nor a string runs code while iterated. The elements' room is reserved up
+/// the limit. Delaying the iteration is unobservable: neither an array nor a
+/// string runs code or throws while iterated. The elements' room is reserved up
 /// front and before every growth, so a length under the limit whose elements
 /// the machine cannot hold is the same `RangeError`, not an abort. The array
 /// built from them is the container constructor's own allocation, which is
@@ -147,18 +144,12 @@ fn reserve<A: IVm>(values: &mut Vec<Any<A>>, additional: usize) -> Result<(), An
 pub fn spread_array<A: IVm>(
     items: impl IntoIterator<Item = ArrayItem<A>>,
 ) -> Result<Any<A>, Any<A>> {
-    let parts = items
-        .into_iter()
-        .map(|item| match item {
-            ArrayItem::Value(v) => Ok(Part::One(v)),
-            ArrayItem::Spread(v) => v.get_iterator().map(Part::Many),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let parts: Vec<_> = items.into_iter().collect();
     let at_least: u64 = parts
         .iter()
         .map(|p| match p {
-            Part::One(_) => 1,
-            Part::Many(i) => i.size_hint().0 as u64,
+            ArrayItem::Value(_) => 1,
+            ArrayItem::Spread(i) => i.size_hint().0 as u64,
         })
         .sum();
     let limit = u64::from(u32::MAX);
@@ -177,8 +168,8 @@ pub fn spread_array<A: IVm>(
     };
     for part in parts {
         match part {
-            Part::One(v) => push(v)?,
-            Part::Many(i) => i.into_iter().try_for_each(&mut push)?,
+            ArrayItem::Value(v) => push(v)?,
+            ArrayItem::Spread(i) => i.into_iter().try_for_each(&mut push)?,
         }
     }
     Ok(values.to_array().to_any())
@@ -342,20 +333,38 @@ mod test {
         assert_eq!(
             elements(spread_array([
                 value_item(one()),
-                spread_item(string_any("ab")),
-                spread_item(inner),
+                spread_item(string_any("ab")).unwrap(),
+                spread_item(inner).unwrap(),
             ])),
             [one(), string_any("a"), string_any("b"), two()]
         );
         let empty: Any<Naive> = [].to_array().to_any();
         assert!(
             elements(spread_array([
-                spread_item(string_any("")),
-                spread_item(empty)
+                spread_item(string_any("")).unwrap(),
+                spread_item(empty).unwrap()
             ]))
             .is_empty()
         );
-        assert!(spread_array([value_item(one()), spread_item(one())]).is_err());
+        assert!(spread_item(one()).is_err());
+    }
+
+    /// Generated lists propagate each spread's admission before evaluating
+    /// the next operand, even when that operand would fail differently.
+    #[test]
+    fn spread_admission_precedes_later_operands() {
+        use crate::vm::Nullish;
+        use core::cell::Cell;
+
+        let reached = Cell::new(false);
+        let later = || -> Result<Any<Naive>, Any<Naive>> {
+            reached.set(true);
+            Err(string_any("later"))
+        };
+        let result: Result<Any<Naive>, Any<Naive>> =
+            (|| spread_array([spread_item(Nullish::Null.to_any())?, value_item(later()?)]))();
+        assert_eq!(result.err(), Some(error::not_iterable()));
+        assert!(!reached.get());
     }
 
     /// Past `2³² − 1` elements the result is the `RangeError`, refused on
@@ -369,9 +378,9 @@ mod test {
             .collect::<Vec<_>>()
             .to_array()
             .to_any();
-        let too_many = (0..65_537).map(|_| spread_item(block.clone()));
+        let too_many = (0..65_537).map(|_| spread_item(block.clone()).unwrap());
         assert_eq!(spread_array(too_many).err(), Some(error::array_too_long()));
-        let within = (0..2).map(|_| spread_item(block.clone()));
+        let within = (0..2).map(|_| spread_item(block.clone()).unwrap());
         assert_eq!(elements(spread_array(within)).len(), 131_072);
     }
 
@@ -391,7 +400,7 @@ mod test {
         if Vec::<Any<Naive>>::new().try_reserve(all).is_ok() {
             return;
         }
-        let spreads = (0..65_535).map(|_| spread_item(block.clone()));
+        let spreads = (0..65_535).map(|_| spread_item(block.clone()).unwrap());
         assert_eq!(spread_array(spreads).err(), Some(error::array_too_long()));
     }
 
@@ -421,11 +430,16 @@ mod test {
         let identity: Any<Naive> =
             Naive::static_function(|_, args| Ok(args.to_any()), 0, [].to_array(), None).to_any();
         assert_eq!(
-            elements(spread_call(identity, [spread_item(string_any("ab"))])),
+            elements(spread_call(
+                identity,
+                [spread_item(string_any("ab")).unwrap()]
+            )),
             [string_any("a"), string_any("b")]
         );
         let one = || f64_any::<Naive>(0x3ff0_0000_0000_0000);
-        assert!(spread_call(one(), [spread_item(one())]).is_err());
+        let bad_spread = (|| spread_call(one(), [spread_item(one())?]))();
+        assert_eq!(bad_spread.err(), Some(error::not_iterable()));
+        assert!(spread_call(one(), [spread_item(string_any("ab")).unwrap()]).is_err());
     }
 
     /// `{a: 1, ...{b: 2, a: 3}, ...'x'}` is `{0: 'x', a: 3, b: 2}`: the

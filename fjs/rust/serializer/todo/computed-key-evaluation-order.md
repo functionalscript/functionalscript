@@ -37,5 +37,6 @@ conversion.
       Amnesia and generated Rust, including multiple properties and successful
       key conversion through repeated graph/source conversions.
 
-The [array/call spread issue](./spread-evaluation-order.md) is a separate case
-where helper-argument evaluation postpones required work.
+Array/call spreads [establish their iterators at each operand's
+position](../README.md). Computed key conversion still needs its own ordering
+before the property value.
