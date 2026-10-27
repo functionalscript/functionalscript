@@ -412,7 +412,7 @@ const statementTask = (statement, context) => call(() => {
                 }), condition => {
                     const mutable = !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0])
                     const step = /** @type {NormalBlock} */ ({ statements: iteration.step.statements, exit: ['yield', mutable ? [iteration.next] : []] })
-                    return bind(prepareBlock({ ...step, statements: [...plain.stepPrefix, ...step.statements] }, {
+                    return bind(prepareBlock(step, {
                         ...context,
                         next: condition.next,
                         yields: mutable ? [slot] : null,

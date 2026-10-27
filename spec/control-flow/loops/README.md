@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — plain `while` bodies; structured bodies and exits remain planned
+**Status:** implemented — `while` bodies with conditionals; nested loops and exits remain planned
 
 ```js
 export default n => {
@@ -23,9 +23,9 @@ A loop may stand at module level, in a function body, in a terminal guard's or
 case's block, or after another loop. Module loops run in initialization order,
 including between named exports; earlier exported constants retain their
 declared values ([modules](../../modules/README.md)). Its body holds `const`s
-and initialized `let`s, call
-statements and assignments. It may assign zero, one or several outer variables,
-including parameters. Assignments take effect in source order: a later
+and initialized `let`s, call statements, assignments and conditional blocks.
+It may assign zero, one or several outer variables, including parameters.
+Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
 belong to that round, and a shadowed name denotes its own binding.
 
@@ -35,7 +35,22 @@ at the first assignment. The condition runs once at every reached test, using
 the preceding round's values; a failed test or body computation does not
 complete the loop normally.
 
-The current body grammar excludes guards, switches, nested loops, `break`,
+An `if (condition) { ... }` inside a loop executes its block when the condition
+is truthy and then continues with the following statement. Assignments in the
+block update the enclosing loop's variables; a skipped block leaves their
+values unchanged. Its declarations belong to that block, including nested
+conditional blocks.
+
+```js
+while (i < n) {
+    if (i > 3) {
+        sum = sum + i;
+    }
+    i = i + 1;
+}
+```
+
+The current body grammar excludes `else`, switches, nested loops, `break`,
 `continue`, `return` and `throw` statements. These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
@@ -61,6 +76,9 @@ order. These become explicit FAST input and normal-result signatures, with no
 fixed-parameter limit on loop state. Immutable outer values remain references;
 local declarations stay in the body. Each iteration transfers the current
 values simultaneously after its source assignments have run in order.
+Conditional blocks supply explicit FAST results for the enclosing bindings they
+assign. Their true arm supplies the updated values and their false arm supplies
+the preceding values; later statements read the selected results.
 
 The established scalar shape keeps its recursive graph and exact graph round
 trip. General state uses the shared aggregate helper. Source serialization
@@ -68,9 +86,10 @@ round trips through the same graph conversion and stabilizes under its declared
 normalization, rather than preserving the written variable names or count.
 
 Source `.js`/`.mjs`, code-only JavaScript/function text and Rust emit eligible
-plain aggregate helpers as loops and run with bounded stack. Required condition
-computations run at every test; the normal result is computed once after the
-final false test. Its closures capture immutable final values. The source
+aggregate helpers with plain or conditional bodies as loops and run with bounded
+stack. Required condition computations run at every test; the normal result is
+computed once after the final false test. Its closures capture immutable final
+values. The source
 spelling can introduce a scalar helper boundary on its first round trip; its
 normalized graph and canonical text then stabilize. Existing scalar source
 output retains its graph and bounded-stack spelling, including loops that read

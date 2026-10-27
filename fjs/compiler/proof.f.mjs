@@ -1330,6 +1330,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Loop': 'xxooo',
                 'Loop over a parameter': 'xxooo',
                 'Loop with two variables': 'xxooo',
+                'Loop with a conditional': 'xxooo',
                 'Loop with no state': 'xxooo',
                 'Sequential loops': 'xxooo',
                 'Loop in a guard': 'xxooo',

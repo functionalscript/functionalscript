@@ -186,6 +186,48 @@ export const proof = {
             ['export default (()=>{let x=0;let y=1;while(x<3){let local=1;local=local+1;x=x+1;y=y+local;}return [x,y];})();', [3, 7]],
         ])) { assertStructurallySame(result(source), { default: expected }, source) }
     },
+    conditionalBodyResultsMergeOnlyOuterWrites: () => {
+        /** @type {string} */
+        const source = 'export default (n,selected)=>{let i=0;let sum=0;while(i<n){if(selected){let local=1;local=local+1;sum=sum+i;i=i+local;}i=i+1;}return [i,sum];};'
+        const normalized = fn(source)
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const guard = statement[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const branch = guard[3].statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        // Local is written too, but only the two enclosing bindings cross the
+        // branch. Their shared declaration order is i, sum, not write order.
+        assertEq(branch[1].length, 2)
+        assert(branch[1][0] !== branch[1][1])
+        assert(branch[3].exit[0] === 'yield' && branch[4].exit[0] === 'yield')
+        assertEq(branch[3].exit[1].length, 2)
+        assertStructurallySame(branch[4].exit[1], statement[1].parameters.map(id => ['ref', id]))
+        assertStructurallySame(result(`export default (${source.slice('export default '.length, -1)})(4,true);`), { default: [6, 3] })
+        assertStructurallySame(result(`export default (${source.slice('export default '.length, -1)})(4,false);`), { default: [4, 0] })
+    },
+    conditionalBodiesPreserveSequentialAndNestedVersions: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let x=1;let y=2;while(i<2){if(i===0){x=y;y=x+1;x=y+1;}y=y+1;i=i+1;}return [x,y];})();', [4, 5]],
+            ['export default (()=>{let i=0;let x=0;while(i<3){if(i>0){let local=i;if(i===2){local=local+3;x=x+local;}x=x+local;}i=i+1;}return [i,x];})();', [3, 11]],
+            ['export default (()=>{let i=0;let x=1;while(i<2){if(i===0){const x=7;const read=()=>x;read();}i=i+1;}return x;})();', 1],
+            ['export default (()=>{let i=0;let first=[0];const second=[1];while(i<2){if(i===0){first=second;}i=i+1;}return first===second;})();', true],
+            ['export default (()=>{let i=0;let read=()=>0;while(i<2){if(i===1){const snapshot=i;const local=[snapshot];read=()=>local;}i=i+1;}return [read()[0],read()===read()];})();', [1, true]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    conditionalBodiesKeepSelectedRequiredWork: () => {
+        assertStructurallySame(result('export default (()=>{let i=0;while(i<2){if(false){const skipped=null.x;}if(i===0){}i=i+1;}return i;})();'), { default: 2 })
+        assertStructurallySame(result('export default (()=>{while(false){if(null.x){const skipped=null.x;}}return 7;})();'), { default: 7 })
+        /** @type {readonly string[]} */
+        const failures = [
+            'export default (()=>{let i=0;while(i<1){if(null.x){}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(true){const required=null.x;}i=i+1;}return i;})();',
+            'export default (()=>{let i=0;while(i<1){if(true){i=null.x;i=1;}i=i+1;}return i;})();',
+        ]
+        for (const source of failures) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
     zeroStateLoopsRetainTheirEvaluationRegions: () => {
         const normalized = fn('export default ()=>{while(false){let local=0;local=local+1;}return 7;};')
         const statement = normalized.body.statements.find(statement => statement[0] === 'loop')

@@ -45,7 +45,7 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | bodyNameStatement
+ * loopStatement ::= const | let | 'if' '(' value ')' loopBlock | bodyNameStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
@@ -1242,15 +1242,17 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
 
 /**
- * A statement of a loop's block: a `const`, a `let`, or what begins with
- * a name, {@link bodyNameStatement}. `const`, `let` and a name decide the
- * three in one symbol. A thunk, as {@link statement} is, since the block
- * holds this rule and this rule holds a value.
+ * A statement of a loop's block: a declaration, a normal conditional,
+ * `if (condition) loopBlock`, or what begins with a name. The conditional
+ * resumes with the following statement whether its block runs or is skipped.
+ * Its block may hold further conditionals, using this same rule, and owns its
+ * declarations. `else`, explicit exits and nested loops remain follow-ups.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
     const: constStatement,
+    if: [sym('if'), sym('('), value, sym(')'), loopBlock],
     let: letStatement,
     name: bodyNameStatement,
 }]
@@ -1258,8 +1260,8 @@ export const loopStatement = () => ['const', {
 /**
  * A loop's block, `{ const x = …; r = …; }`: any number of
  * {@link loopStatement}s and no terminator, since reaching the `}`
- * continues the loop. A guard, a `return` or a `throw` in it, and a nested
- * loop, are follow-ups, each additive on this form.
+ * continues the loop. Normal conditionals keep their own lexical blocks and
+ * resume here. A `return` or a `throw` in it, and a nested loop, are follow-ups.
  *
  * @type {LoopBlock}
  */

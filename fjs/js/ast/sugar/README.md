@@ -1,9 +1,9 @@
 # Source normalization
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
-parameter patterns and defaults, assignments, guards, switches and plain
-`while` loops. These constructs contain no generated functions, capture frames
-or immutable assignment versions. The parser retains source legality and
+parameter patterns and defaults, assignments, guards, switches, conditional
+loop statements and `while` loops. These constructs contain no generated
+functions, capture frames or immutable assignment versions. The parser retains source legality and
 diagnostics; representing a construct here does not admit new source syntax.
 
 [`pattern`](./pattern/module.f.mjs) plans checked patterns before the complete
@@ -29,11 +29,17 @@ Terminal guards and switches become yielding value regions. They introduce no
 invocation or capture boundary. A block normalized as a value — a source block
 or a function called where it is written, which the scope around it goes on
 after — keeps its writes to itself: the parser admits none that reaches a
-binding established before the block, and normalization asserts it, until
-general loops give a block's writes results
-([let](../../../spec/todo/3220-let.md), "General loops"). A terminal arm, a
+binding established before the block, and normalization asserts it. A terminal arm, a
 guard's or a case's block, needs no such check: nothing in the enclosing scope
 runs after it, so a write in it is read by the arm alone, as JavaScript reads it.
+
+A conditional statement inside a loop instead keeps the surrounding statement
+continuation. Its assigned outer bindings become explicit FAST branch results
+in binding-introduction order. The reached arm yields its latest immutable
+versions; the skipped arm yields the preceding versions. Following statements
+read these results. Branch-local declarations do not escape, required work
+stays inside the reached arm, and aliases needed for result values survive
+pruning. Nested conditionals use the same rule without a function boundary.
 
 A loop selects established outer bindings that are mutable and read or written
 in its source events, in binding-introduction order. Nested function/default

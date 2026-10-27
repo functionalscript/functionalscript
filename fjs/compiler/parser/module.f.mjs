@@ -1526,10 +1526,15 @@ const returned = (stack, scope, frame, value) => {
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
     }
     if ('block' in frame) {
-        const [kind] = frame.block[frame.index]
+        const [kind, statement] = frame.block[frame.index]
+        if (kind === 'if') {
+            return loopRound({ top: { loopGuard: frame, condition: value }, rest: stack }, regionScope(scope, empty, null),
+                { block: statement.block[1], index: 0, plan: null, assigned: null, done: null })
+        }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         return landed(loopRound, stack, scope, frame, kind, value)
     }
+    if ('loopGuard' in frame) { return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition, regionBlock(value)]])) }
     if ('statements' in frame) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
@@ -1614,6 +1619,7 @@ const loopRound = (stack, scope, frame) => {
     if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
+    if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1626,7 +1632,7 @@ const loopRound = (stack, scope, frame) => {
     return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
 
-/** A resolved region payload, used only while closing terminal source branches. @type {(value: SourceValue) => SourceBlock} */
+/** A resolved lexical region payload, including normal and terminal branches. @type {(value: SourceValue) => SourceBlock} */
 const regionBlock = value => {
     assert(value instanceof Array && value[0] === 'block')
     return value[1]

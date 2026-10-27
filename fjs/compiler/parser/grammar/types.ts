@@ -503,9 +503,10 @@ export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a `const`, a `let`, or what begins with a name, {@link BodyNameStatement}. A thunk, since it holds a value. */
+/** A loop block's statement: a declaration, a normal conditional over another {@link LoopBlock}, or what begins with a name. A thunk, since its branch names itself through that block. */
 export type LoopStatement = () => readonly ['const', {
     readonly const: ConstStatement
+    readonly if: readonly [number, number, Value, number, LoopBlock]
     readonly let: LetStatement
     readonly name: BodyNameStatement
 }]

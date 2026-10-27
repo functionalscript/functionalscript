@@ -92,6 +92,7 @@ export type _Declaring = { readonly plan: _Plan | null; readonly assigned: Bindi
 export type _BodyFrame = _Counted<SourceStatement> & _Declaring & { readonly statements: Block[1]; readonly first: number }
 export type _LoopFrame = { readonly loop: While; readonly body: _BodyFrame | null; readonly condition: readonly [SourceValue] | null }
 export type _LoopBodyFrame = _Counted<SourceStatement> & _Declaring & { readonly block: LoopBlock[1] }
+export type _LoopGuardFrame = { readonly loopGuard: _LoopBodyFrame; readonly condition: SourceValue }
 export type _GuardFrame = { readonly guard: If; readonly body: _BodyFrame; readonly condition: SourceValue; readonly then: SourceBlock | null }
 export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 export type _UnaryFrame = { readonly unary: UnaryTag }
@@ -100,7 +101,7 @@ export type _BinaryLeftFrame = { readonly tag: BinaryTag; readonly right: Node }
 export type _BinaryRightFrame = { readonly tag: BinaryTag; readonly left: SourceValue }
 export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: readonly ['?:', Node, Node, Node] }
 export type _CommaFrame = _Counted<SourceValue> & { readonly comma: readonly Node[] }
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _BodyFrame | _GuardFrame | _SwitchFrame | _LoopFrame | _LoopBodyFrame
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _BodyFrame | _GuardFrame | _SwitchFrame | _LoopFrame | _LoopBodyFrame | _LoopGuardFrame
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]
