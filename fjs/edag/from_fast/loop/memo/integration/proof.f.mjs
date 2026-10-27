@@ -353,7 +353,20 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(recurred[3], [99])
         const second = fromFast(assertOk(toFast(graph)))
         const third = fromFast(assertOk(toFast(second)))
-        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+        // Reconstructed required-order anchors normalize after memo pack inlining.
+        const fourth = fromFast(assertOk(toFast(third)))
+        assertStructurallySame(assertOk(identityAnalysis(fourth)), assertOk(identityAnalysis(third)))
+        for (const normalized of [second, third]) {
+            const repeated = evaluate(['()', normalized, [false, 5, 7, 8]])
+            assertStructurallySame(repeated, value)
+            assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array && repeated[2] instanceof Array)
+            assertEq(repeated[0], repeated[1])
+            assertEq(repeated[0][0], repeated[0][1])
+            assertEq(repeated[0][0][0], repeated[2])
+            assertEq(repeated[0][0][1], repeated[3])
+            assertEq(repeated[2][0], repeated[4])
+            assertStructurallySame(evaluate(['()', normalized, [true, 5]]), recurred)
+        }
     },
     loopMemoReturnNestedIdentity: () => {
         const caller = id(0), dependent = id(0), dead = id(0)
@@ -569,13 +582,19 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(recurred[3], [99])
         const second = fromFast(assertOk(toFast(graph)))
         const third = fromFast(assertOk(toFast(second)))
-        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
-        const call = /** @type {Exp} */ (['()', third, [false, 5, 7, 8]])
-        const repeated = evaluate(call)
-        assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array)
-        assertEq(repeated[0], repeated[1])
-        assertEq(repeated[0][0], repeated[0][1])
-        assertEq(repeated[0][0][0], repeated[2])
+        const fourth = fromFast(assertOk(toFast(third)))
+        assertStructurallySame(assertOk(identityAnalysis(fourth)), assertOk(identityAnalysis(third)))
+        for (const normalized of [second, third]) {
+            const repeated = evaluate(['()', normalized, [false, 5, 7, 8]])
+            assertStructurallySame(repeated, value)
+            assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array && repeated[2] instanceof Array)
+            assertEq(repeated[0], repeated[1])
+            assertEq(repeated[0][0], repeated[0][1])
+            assertEq(repeated[0][0][0], repeated[2])
+            assertEq(repeated[0][0][1], repeated[3])
+            assertEq(repeated[2][0], repeated[4])
+            assertStructurallySame(evaluate(['()', normalized, [true, 5, 7, 8]]), recurred)
+        }
     },
     loopMemoRecipeLocalIdentity: () => {
         const caller = id(0), selected = id(0), local = id(0)
@@ -764,13 +783,19 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(recurred[3], [99])
         const second = fromFast(assertOk(toFast(graph)))
         const third = fromFast(assertOk(toFast(second)))
-        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
-        const call = /** @type {Exp} */ (['()', third, [false, 5, 7, 8]])
-        const repeated = evaluate(call)
-        assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array)
-        assertEq(repeated[0], repeated[1])
-        assertEq(repeated[0][0], repeated[0][1])
-        assertEq(repeated[0][0][0], repeated[2])
+        const fourth = fromFast(assertOk(toFast(third)))
+        assertStructurallySame(assertOk(identityAnalysis(fourth)), assertOk(identityAnalysis(third)))
+        for (const normalized of [second, third]) {
+            const repeated = evaluate(['()', normalized, [false, 5, 7, 8]])
+            assertStructurallySame(repeated, value)
+            assert(repeated instanceof Array && repeated[0] instanceof Array && repeated[0][0] instanceof Array && repeated[2] instanceof Array)
+            assertEq(repeated[0], repeated[1])
+            assertEq(repeated[0][0], repeated[0][1])
+            assertEq(repeated[0][0][0], repeated[2])
+            assertEq(repeated[0][0][1], repeated[3])
+            assertEq(repeated[2][0], repeated[4])
+            assertStructurallySame(evaluate(['()', normalized, [true, 5, 7, 8]]), recurred)
+        }
     },
     loopMemoIterationLocalIdentity: () => {
         const local = id(0)
@@ -1001,9 +1026,13 @@ export const proof = /** @type {const} */ ({
         const secondGraph = fromFast(assertOk(toFast(graph)))
         const thirdGraph = fromFast(assertOk(toFast(secondGraph)))
         assertStructurallySame(assertOk(identityAnalysis(thirdGraph)), assertOk(identityAnalysis(secondGraph)))
-        const repeated = evaluate(thirdGraph)
-        assert(repeated instanceof Array)
-        for (const observed of repeated.slice(0, 5)) { assertEq(observed, repeated[0]) }
+        for (const normalized of [secondGraph, thirdGraph]) {
+            const repeated = evaluate(normalized)
+            assertStructurallySame(repeated, value)
+            assert(repeated instanceof Array)
+            for (const observed of repeated.slice(0, 5)) { assertEq(observed, repeated[0]) }
+            assert(repeated[5] !== repeated[6])
+        }
     },
     loopMemoNestedThreeLevelsFreshInvocations: () => {
         const lazy = id(0), fnBinding = id(0), first = id(0), second = id(0)
@@ -1299,9 +1328,12 @@ export const proof = /** @type {const} */ ({
         const second = fromFast(assertOk(toFast(fromFast(block))))
         const third = fromFast(assertOk(toFast(second)))
         assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
-        const repeated = evaluate(third)
-        assert(repeated instanceof Array)
-        assertEq(repeated[0], repeated[3])
+        for (const normalized of [second, third]) {
+            const repeated = evaluate(normalized)
+            assertStructurallySame(repeated, value)
+            assert(repeated instanceof Array)
+            for (const observed of repeated) { assertEq(observed, repeated[0]) }
+        }
     },
     loopMemoFreshInvocations: () => {
         const lazy = id(0), fnBinding = id(0), first = id(0), second = id(0)

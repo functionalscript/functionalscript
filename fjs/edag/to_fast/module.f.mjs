@@ -165,7 +165,12 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             case 'args': { return deliver(done, ['ref', invocation.args ?? rootContext.rest]) }
             case 'self': { return deliver(done, ['ref', context.self]) }
             case 'frame': { return deliver(done, ['ref', context.captures[node[1]]]) }
-            case '=>': { return functionOf(context, bound, i, fn => deliver(done, ['function', fn])) }
+            case '=>': {
+                const captures = node[2].flatMap(value => value instanceof Array && !bound.includes(value[1]) && !isRead(a.nodes[value[1]]) ? [value[1]] : [])
+                return gather(captures, (capture, _, next) => valueOf(context, bound, ['#', capture], value => deliver(next, /** @type {Statement} */ (['define', ids[capture], value, 'required']))), statements =>
+                    functionOf(context, [...bound, ...captures], i, fn => deliver(done, statements.length === 0 ? ['function', fn]
+                        : ['block', { statements, exit: ['yield', [['function', fn]]] }])))
+            }
             case ',': { return region(context, bound, node[1], block => deliver(done, ['block', block])) }
             case 'throw': { return valueOf(context, bound, node[1], value => deliver(done, ['block', { statements: [], exit: ['throw', value] }])) }
             case '?:': {
@@ -175,9 +180,17 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 const operator = graphOperator(a, node)
                 const operands = operatorOperands(operator)
                 const eagerCount = eagerOperands(node).length - (node[0] === '.' && !(node[2] instanceof Array) ? 1 : 0)
-                return gather(operands, (operand, position, next) => position >= eagerCount
-                    ? region(context, bound, [operand], block => deliver(next, /** @type {Value} */ (['block', block])))
-                    : valueOf(context, bound, operand, next), values => deliver(done, mapOperator((_, index) => values[index])(operator)))
+                /** @type {(available: readonly number[], statements: readonly Statement[]) => Work} */
+                const construct = (available, statements) => gather(operands, (operand, position, next) => position >= eagerCount
+                    ? region(context, available, [operand], block => deliver(next, /** @type {Value} */ (['block', block])))
+                    : valueOf(context, available, operand, next), values => {
+                    const value = mapOperator((_, index) => values[index])(operator)
+                    return deliver(done, statements.length === 0 ? value : ['block', { statements, exit: ['yield', [value]] }])
+                })
+                const callee = node[0] === '()' || node[0] === '?.()' ? node[1] : null
+                return callee instanceof Array && !bound.includes(callee[1]) && !isRead(a.nodes[callee[1]])
+                    ? valueOf(context, bound, callee, value => construct([...bound, callee[1]], [['define', ids[callee[1]], value, 'required']]))
+                    : construct(bound, [])
             }
         }
     }
@@ -206,21 +219,23 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
         const shared = sharedHere.filter(i => !splits.includes(i))
         const cross = crosses.filter(i => !splits.includes(i))
         const promoted = reachable(a, ownOperandsOf, bound)(cross.map(i => /** @type {const} */ (['#', i])))
-        // Captured values and recursive functions require names even where
-        // unshared. This preserves explicit value captures and source arity.
-        const captured = eager.flatMap(i => a.nodes[i][0] === '=>'
+        // Region roots and established owners can name their callees and
+        // captures immediately. A name needed only inside a later operand
+        // stays in that operand's value block.
+        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && assertNotNullish(at(String(i))(context.functions)).named)
+        const owners = [...shared.filter(i => eager.includes(i)), ...recursive]
+        const prefix = reachable(a, node => node[0] === '=>' ? node[2]
+            : node[0] === '()' || node[0] === '?.()' ? [node[1]] : [], bound)([...roots, ...owners.map(i => /** @type {const} */ (['#', i]))])
+        const named = eager.flatMap(i => a.nodes[i][0] === '=>'
             ? /** @type {Extract<Node, readonly ['=>', number, readonly Operand[], Operand]>} */ (a.nodes[i])[2]
                 .flatMap(value => value instanceof Array && !isRead(a.nodes[value[1]]) ? [value[1]] : [])
-            : [])
-        const recursive = eager.filter(i => a.nodes[i][0] === '=>' && assertNotNullish(at(String(i))(context.functions)).named)
-        const called = eager.flatMap(i => {
+            : (a.nodes[i][0] === '()' || a.nodes[i][0] === '?.()') && a.nodes[i][1] instanceof Array && !isRead(a.nodes[a.nodes[i][1][1]])
+                ? [a.nodes[i][1][1]] : [])
+        const movable = (/** @type {number} */ i) => {
             const node = a.nodes[i]
-            if (node[0] !== '()' && node[0] !== '?.()') { return [] }
-            const callee = node[1]
-            return callee instanceof Array && !isRead(a.nodes[callee[1]]) ? [callee[1]] : []
-        })
-        // A callee or capture can already be established in an enclosing scope.
-        const required = [...new Set([...shared.filter(i => eager.includes(i)), ...captured, ...recursive, ...called])].filter(i => !bound.includes(i))
+            return node.length === 1 || node[0] === '=>' && node[2].every(value => !(value instanceof Array) || bound.includes(value[1]) || owners.includes(value[1]) || isRead(a.nodes[value[1]]))
+        }
+        const required = [...new Set([...owners, ...named.filter(i => prefix.includes(i) || movable(i))])].filter(i => !bound.includes(i))
         const lazy = shared.filter(i => promoted.includes(i) && !required.includes(i))
         const owned = [...required, ...lazy].toSorted((x, y) => x - y)
         const available = [...bound, ...owned]

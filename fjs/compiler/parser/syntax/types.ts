@@ -139,8 +139,7 @@ export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]
 /**
  * A loop, `while (condition) block`: the token it begins with, its
  * condition, and its block, {@link LoopBlock}. It records no `;`, as a
- * guard does not. Which variable the loop steps is the fold's to find,
- * from the assignments in the block
+ * guard does not. The common sugar pass selects state after source resolution
  * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
  */
 export type While = {
@@ -401,8 +400,8 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
-/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, or an assignment. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment]
+/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an

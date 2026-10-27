@@ -7,6 +7,8 @@
  */
 
 import { assertEq, assertOk } from '../../asserts/module.f.js'
+import { throws } from 'node:assert/strict'
+import { runInNewContext } from 'node:vm'
 import { toFast } from './module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { stringify } from '../../js/ast/serializer/module.f.mjs'
@@ -18,6 +20,32 @@ import { _defaultExport, unresolved } from '../../compiler/edag/module.f.mjs'
 const execute = graph => Function(`"use strict";return (${stringify(prepare(assertOk(toFast(graph))), 'expression', true)});`)()
 
 export const proof = {
+    movableClosuresRetainEstablishedCaptureValues: () => {
+        const captured = /** @type {const} */ (['[]', [7]])
+        const closure = /** @type {const} */ (['=>', 0, [captured], ['frame', 0]])
+        const values = /** @type {readonly unknown[]} */ (execute(['[]', [captured, ['()', closure, []]]]))
+        assertEq(values[0], values[1])
+        const fn = /** @type {(value: number) => readonly unknown[]} */ (execute(['=>', 1, [], ['[]', [0, ['()', ['=>', 0, [['arg', 0]], ['frame', 0]], []]]]]))
+        assertEq(fn(9)[1], 9)
+    },
+    laterCalleeAndCaptureKeepTheirOperandOrder: () => {
+        const forever = /** @type {Exp} */ (['()', ['=>', 1, [], ['()', ['self'], [['arg', 0]]]], [0]])
+        const callee = /** @type {Exp} */ (['()', ['throw', 2], []])
+        const coercion = /** @type {Exp} */ (['-', ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 2]]]]]])
+        const capture = /** @type {Exp} */ (['=>', 0, [coercion], ['frame', 0]])
+        for (const later of [callee, capture]) {
+            const graph = /** @type {Exp} */ (['[]', [forever, later]])
+            const written = assertOk(tryStringify(graph))
+            const restored = _defaultExport(unresolved(assertOk(parse('/operand-order.f.js')(written))).edag)
+            for (const value of [graph, restored]) {
+                const text = stringify(prepare(assertOk(toFast(value))), 'expression', true)
+                throws(() => runInNewContext(`(${text})`, {}, { timeout: 100 }), { code: 'ERR_SCRIPT_EXECUTION_TIMEOUT' })
+            }
+            const reversed = /** @type {Exp} */ (['[]', [later, forever]])
+            const text = stringify(prepare(assertOk(toFast(reversed))), 'expression', true)
+            throws(() => runInNewContext(`(${text})`, {}, { timeout: 100 }), error => error === 2)
+        }
+    },
     enclosingCallAndCaptureBindings: () => {
         const fn = /** @type {const} */ (['=>', 0, [], 7])
         assertEq(execute([',', [fn, ['?:', true, ['()', fn, []], 0]]]), 7)

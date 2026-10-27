@@ -482,19 +482,23 @@ export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
     readonly let: LetStatement
-    readonly while: readonly [number, number, Value, number, LoopBlock]
+    readonly while: WhileStatement
     readonly name: BodyNameStatement
 }]
 
 /** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
 export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
 
-/** A module's statement before its exports: a `const`, a `let`, or what begins with a name, an assignment or a call statement. */
+/** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
     readonly let: LetStatement
+    readonly while: WhileStatement
     readonly name: BodyNameStatement
 }
+
+/** The plain loop form shared by module and function statements. */
+export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]

@@ -37,6 +37,12 @@ again. Explicit comma demands retain their evaluation through a fresh discarded
 binder where needed. This keeps generated declarations valid and preserves the
 captured allocation's identity.
 
+An unshared callee or capture that needs a name inside a later operand gets a
+local value block at that operand. Its initializer stays after earlier calls,
+coercions and implicit lookup or spread work. Region roots, established owners
+and function values whose captures are already established retain their prefix
+names.
+
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
 This transitive check stops at values already established eagerly or by an

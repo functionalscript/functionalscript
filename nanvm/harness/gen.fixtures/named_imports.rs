@@ -10,13 +10,18 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b374: Any<A> = _args.rest(0).to_any();
         (Any::dot(_b374.clone(), f64_any(0x0000000000000000)).end())? + (Any::dot(_b374.clone(), f64_any(0x3ff0000000000000)).end())?
     }, 0, Array::default(), Some("(...$0)=>$0[0]+$0[1]")).to_any())].to_object().to_any();
-    let _b7: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
-    let _b8: Any<A> = [(string_key("a"), _b7.clone()), (string_key("default"), _b7.clone()), (string_key("z"), _b7.clone())].to_object().to_any();
-    let _b9: Any<A> = (Any::dot(_b8.clone(), string_any("a")).end())?;
-    let _b13: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [_b9.clone()].to_array(), Some("()=>()=>$0")).to_any();
-    let _b14: Any<A> = (Any::dot(_b8.clone(), string_any("default")).end())?;
-    let _b20: Any<A> = (Any::call(_b13.clone(), Array::default().to_any()))?;
-    let _b26: Any<A> = [(strict_eq(_b14.clone(), _b9.clone()))?, (strict_eq(_b9.clone(), (Any::dot(_b8.clone(), string_any("z")).end())?))?, (strict_eq(_b14.clone(), _b14.clone()))?, (strict_eq(_b9.clone(), _b9.clone()))?, (strict_eq((Any::call(_b20.clone(), Array::default().to_any()))?, _b9.clone()))?, (strict_eq((Any::dot(_b6.clone(), string_any("absent")).end())?, Nullish::Undefined.to_any()))?].to_array().to_any();
-    let _b27: Any<A> = (Any::dot(_b6.clone(), string_any("add")).end())?;
-    Ok([(string_key("captured"), _b13.clone()), (string_key("checks"), _b26.clone()), (string_key("default"), _b26.clone()), (string_key("main"), A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [_b27.clone()].to_array(), Some("()=>$0(20,22)")).to_any())].to_object().to_any())
+    let _b7: Any<A> = (Any::dot(_b6.clone(), string_any("add")).end())?;
+    let _b8: Any<A> = (Any::dot(_b6.clone(), string_any("absent")).end())?;
+    let _b9: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
+    let _b10: Any<A> = [(string_key("a"), _b9.clone()), (string_key("default"), _b9.clone()), (string_key("z"), _b9.clone())].to_object().to_any();
+    let _b11: Any<A> = (Any::dot(_b10.clone(), string_any("default")).end())?;
+    let _b12: Any<A> = (Any::dot(_b10.clone(), string_any("a")).end())?;
+    let _b13: Any<A> = (Any::dot(_b10.clone(), string_any("z")).end())?;
+    let _b16: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [f64_any(0x4034000000000000), f64_any(0x4036000000000000)].to_array().to_any()) }, 0, [_b7.clone()].to_array(), Some("()=>$0(20,22)")).to_any();
+    let _b20: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[0].clone()].to_array(), Some("()=>$0")).to_any()) }, 0, [_b12.clone()].to_array(), Some("()=>()=>$0")).to_any();
+    let _b30: Any<A> = [(strict_eq(_b11.clone(), _b12.clone()))?, (strict_eq(_b12.clone(), _b13.clone()))?, (strict_eq(_b11.clone(), _b11.clone()))?, (strict_eq(_b12.clone(), _b12.clone()))?, (strict_eq({
+        let _b25: Any<A> = (Any::call(_b20.clone(), Array::default().to_any()))?;
+        (Any::call(_b25.clone(), Array::default().to_any()))?
+    }, _b12.clone()))?, (strict_eq(_b8.clone(), Nullish::Undefined.to_any()))?].to_array().to_any();
+    Ok([(string_key("captured"), _b20.clone()), (string_key("checks"), _b30.clone()), (string_key("default"), _b30.clone()), (string_key("main"), _b16.clone())].to_object().to_any())
 }
