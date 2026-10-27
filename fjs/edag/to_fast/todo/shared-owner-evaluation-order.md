@@ -1,7 +1,7 @@
 ## Preserve earlier eager work before shared-owner placement
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 Common [`fromAnalysis`](../module.f.mjs) can establish a shared owner before an
 earlier eager computation that remains inline. This changes divergence into
