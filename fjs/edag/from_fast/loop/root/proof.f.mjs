@@ -92,18 +92,18 @@ export const proof = {
     restEntryAliasesAndPublicArity: () => {
         const restAlias = id(0)
         const loop = restLoopOf(body(['break', loopTarget, [ref(currentRest)]]))
-        const entered = { ...loop, initial: [ref(a), ref(b), ref(restAlias)] }
-        const fn = { ...restRoot(entered), body: body(['return', target, ref(output)], [['define', restAlias, ref(entryRest), 'required'], ['loop', entered]]) }
+        const entered = /** @type {Loop} */ ({ ...loop, initial: [ref(a), ref(b), ref(restAlias)] })
+        const fn = /** @type {FastFunction} */ ({ ...restRoot(entered), body: body(['return', target, ref(output)], [['define', restAlias, ref(entryRest), 'required'], ['loop', entered]]) })
         assertEq(invocationRootOf(fn), entered)
         assertStructurallySame(assertOk(evaluate(fn, [1, 2, 3])), [3])
-        const zero = { ...loop, parameters: [currentRest], initial: [ref(entryRest)] }
-        const zeroFn = { ...restRoot(zero), parameters: [] }
+        const zero = /** @type {Loop} */ ({ ...loop, parameters: [currentRest], initial: [ref(entryRest)] })
+        const zeroFn = /** @type {FastFunction} */ ({ ...restRoot(zero), parameters: [] })
         assertEq(invocationRootOf(zeroFn), zero)
         assertStructurallySame(assertOk(evaluate(zeroFn, [1, 2])), [1, 2])
         const wide = fixedRoot(16)
         const wideLoop = /** @type {Extract<Statement, readonly ['loop', ...unknown[]]>} */ (wide.body.statements[0])[1]
-        const all = { ...wideLoop, parameters: [...wideLoop.parameters, currentRest], initial: [...wideLoop.initial, ref(entryRest)], body: body(['break', loopTarget, [ref(currentRest)]]) }
-        const wideFn = { ...wide, rest: entryRest, body: body(['return', target, ref(output)], [['loop', all]]) }
+        const all = /** @type {Loop} */ ({ ...wideLoop, parameters: [...wideLoop.parameters, currentRest], initial: [...wideLoop.initial, ref(entryRest)], body: body(['break', loopTarget, [ref(currentRest)]]) })
+        const wideFn = /** @type {FastFunction} */ ({ ...wide, rest: entryRest, body: body(['return', target, ref(output)], [['loop', all]]) })
         assertEq(invocationRootOf(wideFn), all)
         const value = graph(wideFn)
         assert(value instanceof Array && value[0] === '=>')
@@ -145,7 +145,7 @@ export const proof = {
     hiddenRestTransitionsUseTheHelperFallback: () => {
         const transfer = /** @type {Value} */ (['block', body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]])])
         const local = id(0)
-        const inner = { ...loopOf(body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]])), target: { ...loopTarget }, initial: [ref(x), ref(y)] }
+        const inner = /** @type {Loop} */ ({ ...loopOf(body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]])), target: { ...loopTarget }, initial: [ref(x), ref(y)] })
         for (const statement of /** @type {readonly Statement[]} */ ([
             ['define', local, transfer, 'required'],
             ['define', local, ['array', [transfer]], 'required'],
@@ -155,7 +155,7 @@ export const proof = {
             ['loop', inner],
         ])) { assertEq(invocationRootOf(restRoot(restLoopOf(body(['break', loopTarget, [7]], [statement])))), null) }
         assertEq(invocationRootOf(restRoot(restLoopOf(body(['break', loopTarget, [transfer]])))), null)
-        const ownLoop = { ...inner, body: body(['break', inner.target, [1]]) }
+        const ownLoop = /** @type {Loop} */ ({ ...inner, body: body(['break', inner.target, [1]]) })
         const ordinary = restLoopOf(body(['break', loopTarget, [7]], [
             ['loop', ownLoop], ['define', local, capturedValue(ref(currentRest)), 'required'],
             ['define', id(100), ['block', body(['yield', [1]], [
