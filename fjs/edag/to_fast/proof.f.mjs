@@ -16,12 +16,56 @@ import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { memo } from '../memo/module.f.mjs'
+import { vm } from '../amnesia/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
 import { sourceReason } from './source/module.f.mjs'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */
 const roundTrip = graph => assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(graph))))), assertOk(analysis(graph)))
 
+/** Earlier lazy owners must keep the dependencies used by their first demand. @type {() => readonly Exp[]} */
+export const _snapshotCases = () => {
+    /** @type {Exp} */
+    const computed = ['+', 1, 2]
+    /** @type {readonly Exp[]} */
+    const owners = [
+        ['[]', [computed]],
+        ['()', ['=>', 1, [], ['[]', [['arg', 0]]]], [computed]],
+        ['()', ['=>', 0, [computed], ['[]', [['frame', 0]]]], []],
+    ]
+    return owners.flatMap(owner => {
+        /** @type {readonly Exp[]} */
+        const earlier = [
+            ['[]', [['...', 'x'], owner]],
+            ['()', ['=>', 0, [], ['rest']], [['...', 'x'], owner]],
+            ['()', ['=>', 0, [['[]', [['...', 'x'], owner]]], ['frame', 0]], []],
+            ['[]', [['()', ['=>', 0, [], 'x'], []], owner]],
+        ]
+        return earlier.map(first => {
+            /** @type {Exp} */
+            const later = ['+', first, 1]
+            /** @type {Exp} */
+            const graph = ['[]', [first, owner, later, later]]
+            return graph
+        })
+    })
+}
+
 export const proof = {
+    snapshotsKeepEarlierLazyDependencies: () => {
+        for (const initial of _snapshotCases()) {
+            const expected = assertOk(toData(assertOk(vm({ frame: [], args: [] })(initial))))
+            assertStructurallySame(expected, [['x', [3]], [3], 'x,31', 'x,31'])
+            let graph = initial
+            for (let round = 0; round < 4; round += 1) {
+                const values = assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
+                assertStructurallySame(values, expected)
+                assert(values instanceof Array && values[0] instanceof Array)
+                assertEq(values[0][1], values[1])
+                graph = fromFast(assertOk(toFast(graph)))
+            }
+        }
+    },
     operations: () => {
         /** @type {readonly Exp[]} */
         const graphs = [
