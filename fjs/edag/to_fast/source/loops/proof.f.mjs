@@ -36,6 +36,10 @@ export const proof = /** @type {const} */ ({
             'const f=(n,a)=>n===0?a:f(n-1);export default f(3,9);',
             'const f=(n,a,b)=>n===0?[a,b]:f(n-1,b,a,[n]);export default f(3,1,2);',
             'const f=(n,saved)=>n===0?saved:f(n-1,()=>n,7);export default f(2,null)();',
+            'const f=(n,a)=>n===0?a:f(...[n-1,a+1]);export default f(3,0);',
+            'const f=(n,a,b)=>n===0?[a,b]:f(n-1,...[b],...[],a);export default f(3,1,2);',
+            'const f=(n,saved)=>n===0?saved:f(...[n-1,()=>n]);export default f(2,null)();',
+            'const f=(n,a,b)=>n===0?[a,b]:f(0,..."A𝄞",99);export default f(1);',
         ])
         for (const source of sources) {
             const original = graph(source)
@@ -47,17 +51,23 @@ export const proof = /** @type {const} */ ({
             assert(!first.includes(':while(true)'), first)
         }
     },
-    extraArgumentSourceSetupHasAStableCanonicalSpelling: () => {
-        const original = graph('const f=n=>n>0?f(n-1,null.x):7;export default f;')
-        const first = assertOk(tryStringify(original))
-        const restored = graph(first)
-        assertEq(evaluate(['()', original, [0]]), 7)
-        assertEq(evaluate(['()', restored, [0]]), 7)
-        failure(['()', original, [1]])
-        failure(['()', restored, [1]])
-        const canonical = assertOk(tryStringify(restored))
-        assertEq(assertOk(tryStringify(fromFast(assertOk(toFast(original))))), canonical)
-        assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+    invocationSourceSetupHasAStableCanonicalSpelling: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=n=>n>0?f(n-1,null.x):7;export default f;',
+            'const f=n=>n>0?f(0,...null):7;export default f;',
+            'const f=n=>n>0?f(...[0,null.x]):7;export default f;',
+        ])) {
+            const original = graph(source)
+            const first = assertOk(tryStringify(original))
+            const restored = graph(first)
+            assertEq(evaluate(['()', original, [0]]), 7)
+            assertEq(evaluate(['()', restored, [0]]), 7)
+            failure(['()', original, [1]])
+            failure(['()', restored, [1]])
+            const canonical = assertOk(tryStringify(restored))
+            assertEq(assertOk(tryStringify(fromFast(assertOk(toFast(original))))), canonical)
+            assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+        }
     },
     commonPlacementAndScalarSpellingStayIntact: () => {
         const ordinary = /** @type {Block} */ (yielded(['+', 1, 2]))

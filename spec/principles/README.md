@@ -92,8 +92,7 @@ identity, required failures or lazy sharing.
 
 A body with remaining `self` reads is rendered as a named function expression.
 Shared conversion can replace terminal self-call evaluations with loops for
-fixed parameters without observed rest and spread-free recursive arguments,
-including the
+fixed parameters without observed rest, including spread arguments and the
 established scalar form `r => c ? self(next) : r`. Such loops use private state
 and immutable iteration
 snapshots ([loops](../control-flow/loops/README.md),

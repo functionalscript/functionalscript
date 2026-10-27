@@ -41,8 +41,8 @@ previously supported source round trips while broader loop syntax waits for H;
 it does not repeat graph placement or tail eligibility. Required function owners
 remain in the common plan so the source recursive name is established.
 
-Missing and extra tail arguments normalize to fixed invocation inputs. Parsing
-the first source output can inline one-use argument setup; serialization of the
+Missing, extra and spread tail arguments normalize to fixed invocation inputs.
+Parsing the first source output can inline one-use argument setup; serialization of the
 normalized graph has that canonical spelling and reaches a source fixed point.
 This initial graph/text migration preserves evaluation and source admission;
 the existing exact-graph source domain keeps its round-trip checks.

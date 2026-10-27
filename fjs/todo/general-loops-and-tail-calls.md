@@ -157,8 +157,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       captures, per-iteration lifetimes and stable graph conversion are proven,
       including deep JavaScript/Rust execution of repeated nested E helpers.
       Missing and extra spread-free recursive arguments preserve required
-      evaluation and simultaneous state updates. Spread/rest preparation
-      remains; H owns new source loop spelling.
+      evaluation and simultaneous state updates. Spread arguments expand before
+      transitions through the same private invocation array. Observed-rest
+      preparation remains; H owns new source loop spelling.
 - [ ] **G — General bindings.** Implement the language owner's admission and
       AST-to-FAST rules after approval using the existing analysis, a pattern
       after `let` included; migrate the post-loop and immediate-call capture

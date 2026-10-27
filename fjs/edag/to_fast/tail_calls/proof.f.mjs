@@ -111,19 +111,102 @@ export const proof = /** @type {const} */ ({
         const missing = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1]]), ['[]', [arg(0), arg(1)]]]])
         const extra = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1], 7]), arg(0)]])
         const spread = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], recur([['...', ['[]', [['-', arg(0), 1]]]]]), arg(0)]])
-        for (const fn of [missing, extra]) {
+        for (const fn of [missing, extra, spread]) {
             const normalized = _tailFunction(fn)
             assert(loops(normalized))
             assertEq(normalized.self, null)
             assertEq(evaluate(['.', stable(fn), 'length']), fn instanceof Array && fn[0] === '=>' ? fn[1] : -1)
         }
-        assert(!loops(_tailFunction(spread)))
-        assert(_tailFunction(spread).self !== null)
         assertStructurallySame(run(missing, [1, 9]), [0, undefined])
         assertEq(run(extra, [3]), 0)
         assertEq(run(spread, [3]), 0)
         const failingExtra = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1], ['throw', 'recursive extra argument']]), 0]])
         failure(['()', fromFast(assertOk(toFast(failingExtra))), [1]])
+    },
+    spreadArgumentsExpandEmptyMultipleAndMixedInputs: () => {
+        const mixed = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0], recur([
+            ['...', ['[]', []]], ['-', arg(0), 1], ['...', ['[]', [['+', arg(1), 1]]]], ['...', ''],
+        ]), arg(1)]])
+        assert(loops(_tailFunction(mixed)))
+        assertEq(run(mixed, [3, 4]), 7)
+        const short = /** @type {Exp} */ (['=>', 3, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1]]]]]), ['[]', [arg(0), arg(1), arg(2)]]]])
+        assert(loops(_tailFunction(short)))
+        assertStructurallySame(run(short, [3, 8, 9]), [0, undefined, undefined])
+        const empty = /** @type {Exp} */ (['=>', 2, [], ['?:', ['===', arg(0), ['undefined']],
+            ['[]', [arg(0), arg(1)]], recur([['...', ['[]', []]]])]])
+        assert(loops(_tailFunction(empty)))
+        assertStructurallySame(run(empty, [1, 2]), [undefined, undefined])
+        const strings = /** @type {Exp} */ (['=>', 3, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], ['...', 'ab']]), ['[]', [arg(1), arg(2)]]]])
+        assert(loops(_tailFunction(strings)))
+        assertStructurallySame(run(strings, [2, 8, 9]), ['a', 'b'])
+    },
+    expandedExtraValuesRetainFailuresAndSkippedRegions: () => {
+        const invalid = /** @type {readonly Exp[]} */ ([null, 1, true, ['undefined'], ['{}', []], ['throw', 'spread argument']])
+        for (const input of invalid) {
+            const fn = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+                recur([['-', arg(0), 1], ['...', input]]), 7]])
+            assert(loops(_tailFunction(fn)))
+            assertEq(run(fn, [0]), 7)
+            failure(['()', stable(fn), [1]])
+        }
+        const extra = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1], ['throw', 'unused expanded extra']]]]]), 7]])
+        assert(loops(_tailFunction(extra)))
+        assertEq(run(extra, [0]), 7)
+        failure(['()', stable(extra), [1]])
+        const later = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1]]]], ['throw', 'later ordinary extra']]), 7]])
+        assert(loops(_tailFunction(later)))
+        assertEq(run(later, [0]), 7)
+        failure(['()', stable(later), [1]])
+        const zero = /** @type {Exp} */ (['=>', 0, [], recur([['...', null]])])
+        assert(loops(_tailFunction(zero)))
+        failure(['()', stable(zero), []])
+    },
+    spreadTransitionsRetainSwapsCapturesAndArity: () => {
+        const swapped = /** @type {Exp} */ (['=>', 3, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1], arg(2), arg(1)]]], ['...', ['[]', [7, 8]]]]), ['[]', [arg(1), arg(2)]]]])
+        assert(loops(_tailFunction(swapped)))
+        assertStructurallySame(run(swapped, [3, 1, 2]), [2, 1])
+        assertEq(evaluate(['.', stable(swapped), 'length']), 3)
+        const saved = /** @type {Exp} */ (['=>', 0, [arg(0)], ['frame', 0]])
+        const captured = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], ['...', ['[]', [saved]]]]), ['()', arg(1), []]]])
+        assert(loops(_tailFunction(captured)))
+        assertEq(run(captured, [3, null]), 1)
+        assertEq(evaluate(['.', stable(captured), 'length']), 2)
+    },
+    spreadArgumentsRetainLocalSharingAndFreshIterations: () => {
+        const local = /** @type {Exp} */ (['[]', [arg(0)]])
+        const fn = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['.', local, 0], 0],
+            recur([['-', arg(0), 1], ['...', ['[]', [['[]', [arg(1), local, local]]]]]]), ['[]', [arg(1), local, local]]]])
+        assert(loops(_tailFunction(fn)))
+        const values = run(fn, [2, null])
+        assert(values instanceof Array && values[0] instanceof Array)
+        assertEq(values[1], values[2])
+        assertEq(values[0][1], values[0][2])
+        assert(values[1] !== values[0][1])
+        assertStructurallySame(values[1], [0])
+        assertStructurallySame(values[0][1], [1])
+    },
+    spreadCallsRetainObservedRestAndNonTailEvaluationBoundaries: () => {
+        const rest = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1], 'recursive rest']]]]), ['rest']]])
+        assert(!loops(_tailFunction(rest)))
+        assert(_tailFunction(rest).rest !== null && _tailFunction(rest).self !== null)
+        assertStructurallySame(run(rest, [2, 'initial rest']), ['recursive rest'])
+        const call = recur([['...', ['[]', [['-', arg(0), 1]]]]])
+        const ordinary = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], ['+', call, 1], 0]])
+        assert(!loops(_tailFunction(ordinary)))
+        assert(_tailFunction(ordinary).self !== null)
+        assertEq(run(ordinary, [3]), 3)
+        const established = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            ['?:', ['===', call, 0], call, 1], 0]])
+        assert(!loops(_tailFunction(established)))
+        assert(_tailFunction(established).self !== null)
+        assertEq(run(established, [3]), 0)
     },
     absentRecursiveParametersAreUndefinedAtEveryInvocation: () => {
         const fn = /** @type {Exp} */ (['=>', 3, [], ['?:', ['>', arg(0), 0],

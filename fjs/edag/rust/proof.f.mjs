@@ -202,8 +202,8 @@ export const proof = {
          * General tail loops keep shared containers inside the iteration,
          * once per invocation. The established scalar template keeps its
          * spelling, including shared operations in the test and round.
-         * Missing and extra spread-free arguments use that same loop.
-         * Rest, spread and established call-result reads stay calls.
+         * Missing, extra and spread arguments use that same loop.
+         * Rest and established call-result reads stay calls.
          */
         recursion: () => {
             /** @type {Exp} */
@@ -227,6 +227,7 @@ export const proof = {
                 ['=>', 1, [], c],
                 ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
                 loop(true, ['()', ['self'], [1, 2]]),
+                loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
             ]
             for (const e of general) {
                 const lines = scoped(e)
@@ -236,7 +237,6 @@ export const proof = {
             /** @type {readonly Exp[]} */
             const recursive = [
                 loop(['rest'], c),
-                loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
                 // A call already evaluated into a shared binding is
                 // a result read rather than a terminal evaluation.
                 loop(true, [',', [c, c]]),

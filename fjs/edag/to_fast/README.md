@@ -77,8 +77,8 @@ required and lazy definitions keep their original evaluation owners. Nested
 function bodies have their own plans. Function bodies are planned once in graph
 postorder, and naming and emission consume the same private plan.
 
-The general domain has zero through sixteen fixed parameters, no observed
-rest binding and spread-free recursive arguments. Its canonical root
+The general domain has zero through sixteen fixed parameters and no observed
+rest binding. Its canonical root
 loop returns one opaque public result. Entry bindings and iteration bindings
 are distinct identities. Common preparation establishes all next arguments
 before slot writes and snapshots current parameters for captures, while local
@@ -86,16 +86,18 @@ objects, functions and memo storage are recreated each iteration. Remaining
 non-tail calls and self references retain the function's recursive identity.
 Missing fixed arguments become `undefined`. Supplied arguments are established
 before state changes, including unused extra arguments and their failures.
-Calls with extra arguments use one required private array, followed by reads of
-its fixed prefix. This retains ordered lazy demands and capture reads without
-creating discarded reference anchors that move on a later graph conversion.
+Calls with spreads or extra arguments use one required private array, followed
+by reads of its fixed prefix. Common preparation retains reached expansion and
+its failures before state updates, even when the fixed prefix is empty or
+already full. This retains lazy demands and capture reads
+without creating discarded reference anchors that move on a later graph conversion.
 The array's identity stays private to the transition.
-Spread recursive arguments and observed rest remain ordinary calls.
+Functions with observed rest retain ordinary calls.
 Existing scalar graph cases keep their previous shape; general cases
 retain their normalized graph on repeated conversion.
 
-Lowering missing or extra arguments deliberately changes the graph to fixed
-invocation inputs. Source output preserves evaluation and remains parseable;
+Lowering missing, extra or spread arguments deliberately changes the graph to
+fixed invocation inputs. Source output preserves evaluation and remains parseable;
 parsing its first output can inline one-use argument setup. Serializing the
 normalized graph gives that canonical source spelling, which is stable on
 subsequent source round trips. Existing exact-graph/source fixtures retain
