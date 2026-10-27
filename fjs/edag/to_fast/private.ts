@@ -16,5 +16,7 @@ export type Context = {
     readonly captures: readonly BindingId[]
     readonly loop: BindingId
     readonly result: BindingId
+    /** Operand roots whose local owners stay after earlier operand work. */
+    readonly regions: readonly number[]
     readonly functions: OrderedMap<_FunctionBody>
 }

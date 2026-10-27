@@ -15,11 +15,57 @@ import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { memo } from '../memo/module.f.mjs'
+import { vm } from '../amnesia/module.f.mjs'
+import { toData } from '../value/to_unknown/module.f.mjs'
+import { sourceReason } from './source/module.f.mjs'
 
 /** Compare semantic graph tables without merging allocation identities. @type {(graph: Exp) => void} */
 const roundTrip = graph => assertStructurallySame(assertOk(analysis(fromFast(assertOk(toFast(graph))))), assertOk(analysis(graph)))
 
+/** Earlier lazy owners must keep the dependencies used by their first demand. @type {() => readonly Exp[]} */
+export const _snapshotCases = () => {
+    /** @type {Exp} */
+    const computed = ['+', 1, 2]
+    /** @type {readonly Exp[]} */
+    const owners = [
+        ['[]', [computed]],
+        ['()', ['=>', 1, [], ['[]', [['arg', 0]]]], [computed]],
+        ['()', ['=>', 0, [computed], ['[]', [['frame', 0]]]], []],
+    ]
+    return owners.flatMap(owner => {
+        /** @type {readonly Exp[]} */
+        const earlier = [
+            ['[]', [['...', 'x'], owner]],
+            ['()', ['=>', 0, [], ['rest']], [['...', 'x'], owner]],
+            ['()', ['=>', 0, [['[]', [['...', 'x'], owner]]], ['frame', 0]], []],
+            ['[]', [['()', ['=>', 0, [], 'x'], []], owner]],
+        ]
+        return earlier.map(first => {
+            /** @type {Exp} */
+            const later = ['+', first, 1]
+            /** @type {Exp} */
+            const graph = ['[]', [first, owner, later, later]]
+            return graph
+        })
+    })
+}
+
 export const proof = {
+    snapshotsKeepEarlierLazyDependencies: () => {
+        for (const initial of _snapshotCases()) {
+            const expected = assertOk(toData(assertOk(vm({ frame: [], args: [] })(initial))))
+            assertStructurallySame(expected, [['x', [3]], [3], 'x,31', 'x,31'])
+            let graph = initial
+            for (let round = 0; round < 4; round += 1) {
+                const values = assertOk(toData(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] }))))
+                assertStructurallySame(values, expected)
+                assert(values instanceof Array && values[0] instanceof Array)
+                assertEq(values[0][1], values[1])
+                graph = fromFast(assertOk(toFast(graph)))
+            }
+        }
+    },
     operations: () => {
         /** @type {readonly Exp[]} */
         const graphs = [
@@ -69,6 +115,16 @@ export const proof = {
         assert(table.shared.includes(queries[0]))
         assertEq(table.nodes.filter(node => node[0] === '.').length, 1)
         roundTrip(['=>', 1, [receiver], ['memberPresent', ['frame', 0], ['Number', ['arg', 0]]]])
+    },
+    computedKeyOperandPreservesSharing: () => {
+        const shared = /** @type {const} */ (['[]', []])
+        const key = /** @type {const} */ (['Number', ['?:', ['===', shared, shared], 1, 0]])
+        let graph = /** @type {Exp} */ (['.', ['[]', [10, 20]], key])
+        for (let i = 0; i < 4; i += 1) {
+            assertEq(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 20)
+            roundTrip(graph)
+            graph = fromFast(assertOk(toFast(graph)))
+        }
     },
     identities: () => {
         const shared = /** @type {const} */ (['[]', []])
@@ -183,6 +239,78 @@ export const proof = {
         const before = /** @type {const} */ (['[]', [2]])
         const graph = /** @type {Exp} */ ([',', [before, second, ['[]', [conditional('&&', 1, ['[]', [second, second]]), conditional('&&', 2, ['[]', [2]])]]]])
         roundTrip(graph)
+    },
+    sharedOwnersRetainDemandOrder: () => {
+        const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
+        const failure = /** @type {const} */ (['throw', 2])
+        const containing = /** @type {const} */ (['[]', [forever, failure]])
+        // An inner owner can be demanded after work in another owner's
+        // initializer, even when the outer owner itself is reached first.
+        const graphs = /** @type {readonly Exp[]} */ ([
+            ['[]', [forever, failure, failure]],
+            ['[]', [['?:', true, forever, 0], failure, failure]],
+            ['[]', [forever, ['[]', [failure, failure]]]],
+            ['[]', [containing, containing, failure]],
+        ])
+        for (const graph of graphs) { roundTrip(graph) }
+    },
+    implicitBarriersRetainLaterSharedOwners: () => {
+        const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
+        const another = /** @type {const} */ (['()', forever[1], []])
+        const graphs = /** @type {readonly Exp[]} */ ([
+            ['[]', [['...', null], ['+', 1, 2], ['+', 3, 4], forever, forever]],
+            ['[]', [['...', null], forever, another, forever, another]],
+        ])
+        for (const graph of graphs) { roundTrip(graph) }
+    },
+    totalSharedOwnerPrecedesItsSelectedDemand: () => {
+        const shared = /** @type {const} */ (['[]', []])
+        const graph = /** @type {Exp} */ ([',', [['[]', [['?:', 1, shared, 1]]], ['[]', [shared, 2]]]])
+        const table = assertOk(identityAnalysis(graph))
+        assertEq(sourceReason(table, fromAnalysis(table)), null)
+        roundTrip(graph)
+    },
+    computedOwnerRetainsItsFirstSelectedDemand: () => {
+        const shared = /** @type {const} */ (['()', ['=>', 0, [], ['[]', []]], []])
+        for (const selected of [false, true]) {
+            const graph = /** @type {Exp} */ ([',', [['[]', [['?:', selected, shared, 1]]], ['[]', [shared, 2]]]])
+            roundTrip(graph)
+            assertStructurallySame(assertOk(memo(assertOk(identityAnalysis(fromFast(assertOk(toFast(graph))))))({ args: [] })), ['[]', [['[]', []], 2]])
+        }
+    },
+    sharedOwnersPreserveSelectedIdentity: () => {
+        const shared = /** @type {const} */ (['[]', [7]])
+        for (const selected of [false, true]) {
+            const graph = /** @type {Exp} */ (['===', ['?:', selected, shared, ['[]', []]], shared])
+            let restored = graph
+            for (let i = 0; i < 4; i += 1) {
+                assertEq(assertOk(memo(assertOk(identityAnalysis(restored)))({ args: [] })), selected)
+                roundTrip(restored)
+                restored = fromFast(assertOk(toFast(restored)))
+            }
+        }
+        const skipped = /** @type {const} */ (['throw', 1])
+        const graph = /** @type {Exp} */ (['[]', [['?:', false, skipped, 0], ['?:', false, skipped, 1]]])
+        for (const value of [graph, fromFast(assertOk(toFast(graph)))]) {
+            assertStructurallySame(assertOk(memo(assertOk(identityAnalysis(value)))({ args: [] })), ['[]', [0, 1]])
+        }
+    },
+    sharedOwnerCapturesRemainInvocationLocal: () => {
+        const shared = /** @type {const} */ (['[]', [7]])
+        const closure = /** @type {const} */ (['=>', 0, [shared], ['frame', 0]])
+        const fn = /** @type {const} */ (['=>', 0, [], ['[]', [['()', ['=>', 0, [], 0], []], shared, shared, closure]]])
+        const first = /** @type {const} */ (['()', fn, []])
+        const second = /** @type {const} */ (['()', fn, []])
+        const graph = /** @type {Exp} */ (['[]', [
+            ['===', ['.', first, 1], ['.', first, 2]],
+            ['===', ['()', ['.', first, 3], []], ['.', first, 1]],
+            ['!==', ['.', first, 1], ['.', second, 1]],
+        ]])
+        let restored = graph
+        for (let i = 0; i < 4; i += 1) {
+            assertStructurallySame(assertOk(memo(assertOk(identityAnalysis(restored)))({ args: [] })), ['[]', [true, true, true]])
+            restored = fromFast(assertOk(toFast(restored)))
+        }
     },
     deepExpressions: () => {
         /** @type {Exp} */

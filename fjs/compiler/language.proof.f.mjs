@@ -56,10 +56,10 @@ export const proof = {
     // labels of one case joined by conditional regions after the first.
     switches: () => {
         assertEq(compileSource('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };')('output.js'), 'export default ($0)=>$0===1?1:2;')
-        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.js'), "export default ($0)=>{const $1=$0[0];const $2=$1===1;return ($2?$2:$1===2)?1:$1===3?(()=>{throw 3;})():0;};")
+        assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.js'), "export default ($0)=>{const $1=$0[0];return (()=>{const $2=$1===1;return $2?$2:$1===2;})()?1:$1===3?(()=>{throw 3;})():0;};")
         assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: { const x = [1]; return [x, x]; } } const y = [2]; return y; };')('output.js'), 'export default ($0)=>$0[0]===1?(()=>{const $1=[1];return [$1,$1];})():[2];')
         assertEq(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.edag.data.js'), "const $0=[\".\",[\"arg\",0],0];const $1=[\"===\",$0,1];export default [\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"?:\",$1,$1,[\"===\",$0,2]],1,[\"?:\",[\"===\",$0,3],[\"throw\",3],0]]]]]];")
-        assert(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes("        let _b1: Any<A> = (Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?;\n        let _b2: Any<A> = (strict_eq(_b1.clone(), f64_any(0x3ff0000000000000)))?;\n        if Any::<A>::to_boolean(if Any::<A>::to_boolean(_b2.clone()) { _b2.clone() } else { (strict_eq(_b1.clone(), f64_any(0x4000000000000000)))? }) { Ok(f64_any(0x3ff0000000000000)) } else { if Any::<A>::to_boolean((strict_eq(_b1.clone(), f64_any(0x4008000000000000)))?) { Err(f64_any(0x4008000000000000)) } else { Ok(f64_any(0x0000000000000000)) } }"))
+        assert(compileSource('export default (n) => { switch (n[0]) { case 1: case 2: { return 1; } case 3: { throw 3; } default: { return 0; } } };')('output.rs').includes("        let _b1: Any<A> = (Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?;\n        if Any::<A>::to_boolean({\n            let _b2: Any<A> = (strict_eq(_b1.clone(), f64_any(0x3ff0000000000000)))?;\n            if Any::<A>::to_boolean(_b2.clone()) { _b2.clone() } else { (strict_eq(_b1.clone(), f64_any(0x4000000000000000)))? }\n        }) { Ok(f64_any(0x3ff0000000000000)) } else { if Any::<A>::to_boolean((strict_eq(_b1.clone(), f64_any(0x4008000000000000)))?) { Err(f64_any(0x4008000000000000)) } else { Ok(f64_any(0x0000000000000000)) } }"))
         assertEq(jsonRefused('export default (n) => { switch (n) { case 1: { return 1; } } return 2; };'), 'output.json - error: callable materialization requires a target compile/load boundary')
     },
     // JSON denotes a tree, so a node the export reaches twice is written
@@ -943,19 +943,19 @@ export const proof = {
         },
         outputs: () => {
             const source = 'export default (a, b = a, ...r) => [a, b, r];'
-            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>{const $2=$1[0];return [$0,$2===undefined?$0:$2,$1.slice(1)];};')
+            assertEq(compileSource(source)('output.js'), 'export default ($0,...$1)=>[$0,(()=>{const $2=$1[0];return $2===undefined?$0:$2;})(),$1.slice(1)];')
             // Fixed argument reads share their established invocation value.
             assertEq(compileSource(source)('output.edag.data.js'),
                 'const $0=["arg",0];const $1=["rest"];const $2=[".",$1,0];export default ["{}",[[":","default",["=>",1,[],["[]",[$0,["?:",["===",$2,["undefined"]],$0,$2],[".",$1,"slice",["|()",[1]]]]]]]]];')
             assert(compileSource(source)('output.rs').includes('if Any::<A>::to_boolean((strict_eq(_b2.clone(), Nullish::Undefined.to_any()))?) { _args.argument(0) } else { _b2.clone() }'))
             assertEq(compileSource('export default (a = 1) => { const b = [a]; return [b, b]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];const $2=[$1===undefined?1:$1];return [$2,$2];};')
-            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>{const $3=$2[0];return [$1,$3===undefined?$0:$3,$2.slice(1)];};')
+            assertEq(fjsRoundTrip('const x = {}; export default (a, b = x, ...r) => [a, b, r];'), 'const $0={};export default ($1,...$2)=>[$1,(()=>{const $3=$2[0];return $3===undefined?$0:$3;})(),$2.slice(1)];')
         },
     },
     // Code outputs preserve throws; data outputs execute module initialization.
     throws: () => {
         assertEq(compileSource('export default () => { throw 1; };')('output.js'), 'export default ()=>{throw 1;};')
-        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$0)=>{const $1=$0[0];throw [$1,$1];};')
+        assertEq(compileSource('export default (...a) => { const x = a[0]; throw [x, x]; };')('output.js'), 'export default (...$0)=>{throw (()=>{const $1=$0[0];return [$1,$1];})();};')
         assertEq(compileSource('export default () => { throw 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,[],["throw",1]]]]];')
         assertEq(moduleRefused('export default () => { throw 1; };'), 'output.data.js - error: callable materialization requires a target compile/load boundary')
         assertEq(compileSource('throw "boom";')('output.js'), 'throw "boom";')

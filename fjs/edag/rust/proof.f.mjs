@@ -1400,7 +1400,18 @@ export const proof = {
             /** @type {Spread} */
             const s = ['...', a]
             assertStructurallySame(scoped(['[]', [s, s]]), ["let _b1: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","spread_array([spread_item(_b1.clone()), spread_item(_b1.clone())])"])
-            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), ["let _b2: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","Any::dot(args.clone().to_any(), string_any(\"at\")).end_call(&runtime, || spread_array([spread_item(_b2.clone()), spread_item(_b2.clone())]))"])
+            // Member lookup precedes the arguments' first shared demand.
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), [
+                'let _b0: Any<A> = args.clone().to_any();',
+                'let _b333 = std::cell::RefCell::new(None::<Any<A>>);',
+                'let _b2: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {',
+                '    if let Some(value) = _b333.borrow().as_ref() { return Ok(value.clone()); }',
+                '    let value: Any<A> = { (Any::dot(args.clone().to_any(), string_any("a")).end())? };',
+                '    *_b333.borrow_mut() = Some(value.clone());',
+                '    Ok(value)',
+                '};',
+                'Any::dot(_b0.clone(), string_any("at")).end_call(&runtime, || spread_array([spread_item((_b2())?), spread_item((_b2())?)]))',
+            ])
             /** @type {Property} */
             const p = [':', 'k', a]
             assertStructurallySame(scoped(['{}', [p, p]]), ["let _b1: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","Ok([(string_key(\"k\"), _b1.clone()), (string_key(\"k\"), _b1.clone())].to_object().to_any())"])

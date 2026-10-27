@@ -43,6 +43,27 @@ coercions and implicit lookup or spread work. Region roots, established owners
 and function values whose captures are already established retain their prefix
 names.
 
+Sharing entirely within one operand stays in that operand's region, including
+computed member keys in the normalized operand vocabulary. A shared value used
+across operands becomes required only after its earlier eager work has been
+established. Complete earlier computations receive ordered immutable snapshots;
+implicit spread expansion, key conversion and member lookup remain barriers.
+A later snapshot cannot claim a dependency reachable from an earlier planned
+initializer. That earlier initializer may already have demanded the value;
+rewriting its lazy dependencies to the later binding would read an uninitialized
+snapshot. Those dependencies retain their existing owners instead.
+A value that cannot cross such a barrier safely retains first-demand memo
+storage. Source admission explicitly refuses that storage where its grammar
+cannot express it; runtime JavaScript and Rust consume the common plan.
+
+Explicit comma roots retain their written order. Required definitions and memo
+declarations follow their dependencies rather than using graph indices as a
+global execution order. Total container and function constructions over already
+established operands can keep their prefix names. The shared
+[`demandsInOrder`](../demand/module.f.mjs) query proves each placement against
+the actual established values. Graph construction uses the same query to remove
+only ordered redundant anchors.
+
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
 This transitive check stops at values already established eagerly or by an

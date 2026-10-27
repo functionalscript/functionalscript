@@ -6,9 +6,11 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 #[allow(clippy::if_same_then_else)]
 pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
-    let _b2: Any<A> = [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
-    let _b3: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
-    Ok([(string_key("default"), [f64_any(0x4008000000000000), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000), [f64_any(0x4010000000000000), f64_any(0x4014000000000000)].to_array().to_any()].to_array().to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000), [f64_any(0x3ff0000000000000), _b2.clone(), f64_any(0x4010000000000000), _b3.clone(), _b2.clone(), _b3.clone()].to_array().to_any(), true.to_any(), true.to_any(), true.to_any(), true.to_any()].to_array().to_any())].to_object().to_any())
+    Ok([(string_key("default"), [f64_any(0x4008000000000000), [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000), f64_any(0x4008000000000000), [f64_any(0x4010000000000000), f64_any(0x4014000000000000)].to_array().to_any()].to_array().to_any(), true.to_any(), true.to_any(), true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000), {
+        let _b2: Any<A> = [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any();
+        let _b3: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
+        [f64_any(0x3ff0000000000000), _b2.clone(), f64_any(0x4010000000000000), _b3.clone(), _b2.clone(), _b3.clone()].to_array().to_any()
+    }, true.to_any(), true.to_any(), true.to_any(), true.to_any()].to_array().to_any())].to_object().to_any())
 }
 
 #[rustfmt::skip]

@@ -9,7 +9,7 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { BindingId, Block, Definition, Exit, Function as FastFunction, Loop, Operator, Statement, Step, Value } from '../../js/ast/types.ts'
  * @import { Environment, Lowered, Transfer } from './types.ts'
- * @import { AnchorStep, Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
+ * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
@@ -28,6 +28,7 @@ import { liftReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
+import { demandsInOrder } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -35,49 +36,8 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** Only established reads and simple eager containers cross an unmatched node. @type {(node: ExpOp) => readonly AnchorStep[]} */
-const anchorPrefix = node => {
-    /** @type {(values: readonly Exp[]) => readonly AnchorStep[]} */
-    const values = values => values.map(value => [value])
-    if (node.length === 1 || node[0] === 'arg' || node[0] === 'frame') { return [] }
-    if (node[0] === '=>') { return values(node[2]) }
-    if (node[0] === ',') { return values(node[1]) }
-    if (node[0] === '[]' && node[1].every(item => !isSpread(item))) { return values(/** @type {readonly Exp[]} */ (node[1])) }
-    if (node[0] === '{}' && node[1].every(entry => entry[0] === ':' && typeof entry[1] === 'string')) { return values(node[1].map(entry => /** @type {Exp} */ (entry[2]))) }
-    if (node[0] === '()' && node[2].every(item => !isSpread(item))) { return [...values([node[1], .../** @type {readonly Exp[]} */ (node[2])]), null] }
-    if (node[0] === '.' || node[0] === '?.' || node[0] === '?.()' || node[0] === '?:') { return [[node[1]], null] }
-    if (node[0] === 'instanceof') { return [[node[1]]] }
-    if (['!', 'typeof', '===', '!=='].includes(node[0])) { return values(/** @type {readonly Exp[]} */ (node.slice(1))) }
-    return [null]
-}
-
-/** The whole emitted list must be demanded in order, including its own effects. @type {(value: Lowered) => boolean} */
-const naturalAnchors = ({ anchors, exp }) => {
-    if (anchors.some(anchor => !(anchor instanceof Array))) { return false }
-    /** @type {Link<AnchorStep> | null} */
-    let pending = { first: [exp], tail: null }
-    /** @type {readonly Exp[]} */
-    let established = []
-    let index = 0
-    while (pending !== null) {
-        const current = /** @type {Link<AnchorStep>} */ (pending)
-        const first = current.first
-        pending = current.tail
-        if (first === null) { return false }
-        const node = first[0]
-        if (Object.is(node, anchors[index])) {
-            established = [...established, node]
-            while (index < anchors.length && established.some(value => Object.is(value, anchors[index]))) { ++index }
-            if (index === anchors.length) { return true }
-        } else if (!established.some(value => Object.is(value, node)) && node instanceof Array) {
-            pending = prepend(anchorPrefix(node), pending)
-        }
-    }
-    return false
-}
-
 /** Establish a region's required evaluations before its result. @type {(value: Lowered) => Exp} */
-export const anchored = value => value.anchors.length === 0 || naturalAnchors(value) ? value.exp : [',', [...value.anchors, value.exp]]
+export const anchored = value => demandsInOrder(value.exp, value.anchors) ? value.exp : [',', [...value.anchors, value.exp]]
 
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)
