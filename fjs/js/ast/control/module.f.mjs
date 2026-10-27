@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { BindingId, Block, Exit, Loop, Value } from '../types.ts'
+ * @import { BindingId, Block, Exit, Loop, LoopTarget, Value } from '../types.ts'
  * @import { _Context as Context, _Link as Link, _Task as Task } from './private.ts'
  */
 
@@ -94,3 +94,33 @@ export const freeBindings = (block, bound = []) => {
 
 /** A loop helper's body dependencies; entry expressions belong to its caller. @type {(loop: Loop) => readonly BindingId[]} */
 export const freeLoopBindings = loop => freeBindings(loop.body, loop.parameters)
+
+/**
+ * Find a transfer to one exact loop target through values and statement
+ * regions, including nested loops. Ordinary function bodies remain opaque;
+ * their captures still execute in the constructing region.
+ * @type {(root: Value | Block, target: LoopTarget) => boolean}
+ */
+export const hasLoopTransfer = (root, target) => {
+    /** @type {Link<Value | Block> | null} */
+    let work = { first: root, tail: null }
+    while (work !== null) {
+        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
+        work = tail
+        if (node === null || typeof node !== 'object') { continue }
+        /** @type {readonly (Value | Block)[]} */
+        let children
+        if (node instanceof Array) {
+            children = node[0] === 'ref' ? [] : node[0] === 'function' ? node[1].captures.map(capture => capture.value)
+                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
+        } else {
+            const exit = node.exit
+            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target) { return true }
+            children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
+                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit)]
+        }
+        work = children.reduceRight((tail, first) => ({ first, tail }), work)
+    }
+    return false
+}

@@ -151,6 +151,92 @@ export const proof = {
         assertError(memo(assertOk(analysis(graph('export default (()=>{let value=null.x;value=1;return value;})();'))))({ args: [] }))
         assertError(memo(assertOk(analysis(graph('export default (()=>{let value=0;value=null.x;value=1;return value;})();'))))({ args: [] }))
     },
+    generalLoopStateUsesDeclarationOrderAndSharedWriteFacts: () => {
+        const source = /** @type {const} */ ('export default ()=>{let first=0;let second=1;let unused=9;unused=8;while(second<4){second=second+1;first=first+second;}return [first,second,unused];};')
+        const normalized = fn(source)
+        const initializers = normalized.body.statements.filter(statement => statement[0] === 'define')
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const loop = statement[1]
+        assertEq(loop.parameters.length, 2)
+        assertEq(loop.results.length, 2)
+        // The condition first reads second; the state signature still starts
+        // with first, introduced before it, and excludes unreferenced unused.
+        assertStructurallySame(loop.initial, initializers.slice(0, 2).map(statement => ['ref', statement[1]]))
+        assert(loop.parameters[0] !== loop.parameters[1])
+        assert(loop.results[0] !== loop.results[1])
+        for (const parameter of loop.parameters) { assert(!loop.results.includes(parameter)) }
+        assertStructurallySame(result('export default (()=>{let first=0;let second=1;let unused=9;unused=8;while(second<4){second=second+1;first=first+second;}return [first,second,unused];})();'), { default: [9, 4, 8] })
+        const defaults = fn('export default limit=>{let carried=limit;carried=carried+1;let count=0;while(count<3){const observed=((value=carried)=>value)();count=count+observed;}return [count,carried];};')
+        const withDefault = defaults.body.statements.find(statement => statement[0] === 'loop')
+        assert(withDefault !== undefined && withDefault[0] === 'loop')
+        // carried is mutable in the whole scope and read by the nested
+        // parameter default; it remains state even though this body never writes it.
+        assertEq(withDefault[1].parameters.length, 2)
+        assertStructurallySame(result('export default (limit=>{let carried=limit;carried=carried+1;let count=0;while(count<3){const observed=((value=carried)=>value)();count=count+observed;}return [count,carried];})(0);'), { default: [3, 1] })
+    },
+    generalLoopAssignmentsRemainSequentialAcrossPlacements: () => {
+        for (const [source, expected] of /** @type {readonly (readonly [string, unknown])[]} */ ([
+            ['export default (()=>{let x=0;let y=0;while(x<2){x=x+1;y=y+1;}while(y<5){x=x+2;y=y+1;}return [x,y];})();', [8, 5]],
+            ['export default (selected=>{let x=0;let y=1;if(selected){while(x<3){y=y+x;x=x+1;}return [x,y];}while(y<4){x=x+y;y=y+1;}return [x,y];})(true);', [3, 4]],
+            ['export default (selected=>{let x=0;let y=1;if(selected){while(x<3){y=y+x;x=x+1;}return [x,y];}while(y<4){x=x+y;y=y+1;}return [x,y];})(false);', [6, 4]],
+            ['export default (selected=>{let x=0;let y=1;switch(selected){case 1:{while(x<2){x=x+1;y=y*2;}return [x,y];}default:{while(y<3){y=y+1;x=x+y;}return [x,y];}}})(1);', [2, 4]],
+            ['export default (selected=>{let x=0;let y=1;switch(selected){case 1:{while(x<2){x=x+1;y=y*2;}return [x,y];}default:{while(y<3){y=y+1;x=x+y;}return [x,y];}}})(0);', [5, 3]],
+            ['export default (()=>{let x=0;let y=6;while((()=>{const pair=[x,y];return pair[0]<pair[1];})()){x=x+1;y=y-1;}return [x,y];})();', [3, 3]],
+            ['export default (()=>{let x=0;let y=1;while(x<3){let local=1;local=local+1;x=x+1;y=y+local;}return [x,y];})();', [3, 7]],
+        ])) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    zeroStateLoopsRetainTheirEvaluationRegions: () => {
+        const normalized = fn('export default ()=>{while(false){let local=0;local=local+1;}return 7;};')
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        assertEq(statement[1].parameters.length, 0)
+        assertEq(statement[1].initial.length, 0)
+        assertEq(statement[1].results.length, 0)
+        assertStructurallySame(result('export default (()=>{while(false){let local=0;local=local+1;}return 7;})();'), { default: 7 })
+        assertStructurallySame(result('export default (()=>{while(false){const skipped=null.x;}const value=[];return [value,value];})();'), { default: [[], []] })
+        for (const source of /** @type {const} */ ([
+            'export default (()=>{while(null.x){const local=0;}return 7;})();',
+            'export default (()=>{while(true){const required=null.x;}return 7;})();',
+            'export default (()=>{let x=null.x;let y=0;while(false){x=1;y=2;}return [x,y];})();',
+            'export default (()=>{let x=0;let y=0;while(x<2?true:null.x){x=x+1;y=y+1;}return [x,y];})();',
+            'export default (()=>{let x=0;let y=0;while(x<1){x=null.x;x=3;y=y+1;}return [x,y];})();',
+        ])) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
+    loopLocalsAndCaptureSnapshotsStayFresh: () => {
+        const source = /** @type {const} */ ('export default (()=>{let count=3;let history=null;while(count>0){const snapshot=count;const local=[snapshot];const read=()=>local;history=[history,local,read];count=count-1;}return [history[1],history[2](),history[0][1],history[0][2](),history[1]===history[2](),history[1]===history[0][1]];})();')
+        assertStructurallySame(result(source), { default: [[1], [1], [2], [2], true, false] })
+    },
+    readOnlyStateDoesNotBecomeAnEscapingWrite: () => {
+        const normalized = fn('export default n=>{let outer=0;while(outer<n){outer=(()=>{let inner=0;while(inner<outer+1){inner=inner+1;}return inner;})();}return outer;};')
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const guard = statement[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const update = guard[3].statements.find(statement => statement[0] === 'define')
+        assert(update !== undefined && update[0] === 'define' && update[2] instanceof Array && update[2][0] === 'block')
+        const inner = update[2][1].statements.find(statement => statement[0] === 'loop')
+        assert(inner !== undefined && inner[0] === 'loop')
+        // outer is still carried by the inner loop, but its unchanged value
+        // introduces no write across the surrounding immediately invoked body.
+        assertEq(inner[1].parameters.length, 2)
+        assertEq(inner[1].results.length, 2)
+        assertStructurallySame(result('export default (n=>{let outer=0;while(outer<n){outer=(()=>{let inner=0;while(inner<outer+1){inner=inner+1;}return inner;})();}return outer;})(3);'), { default: 3 })
+    },
+    loopStateIsNotLimitedByFunctionArity: () => {
+        const width = /** @type {const} */ (18)
+        const names = Array.from({ length: width }, (_, index) => `value${index}`)
+        const declarations = names.map(name => `let ${name}=0;`).join('')
+        const assignments = names.map(name => `${name}=${name}+1;`).join('')
+        const source = /** @type {string} */ (`export default ()=>{${declarations}while(value0<2){${assignments}}return [${names.join(',')}];};`)
+        const normalized = fn(source)
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        assertEq(normalized.parameters.length, 0)
+        assertEq(statement[1].parameters.length, width)
+        assertEq(statement[1].results.length, width)
+        assertStructurallySame(result(`export default (()=>{${declarations}while(value0<2){${assignments}}return [${names.join(',')}];})();`), { default: Array.from({ length: width }, () => 2) })
+    },
     discardedCommas: () => {
         assertStructurallySame(graph('const value=[]; const alias=value; export default (alias,value.length);'), ['{}', [[':', 'default', ['.', ['[]', []], 'length']]]])
         assertStructurallySame(graph('export default (...args)=>(1,args,()=>1,Object.is,((s,a,b)=>s.slice(a,b)),args[0]);'), ['{}', [[':', 'default', ['=>', 0, [], ['.', ['rest'], 0]]]]])

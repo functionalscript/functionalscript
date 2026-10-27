@@ -18,39 +18,8 @@ import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
 import { _restArguments } from '../../../../js/ast/invocation/module.f.mjs'
-import { exitValues } from '../../../../js/ast/control/module.f.mjs'
-import { operatorOperands } from '../../../../js/ast/module.f.mjs'
+import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.mjs'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-
-/**
- * Values and nested loops are separate transfer owners. A rest root with a
- * transfer hidden there uses the ordinary helper path instead of reconstructing
- * an unverified rest transition. Ordinary function bodies remain opaque.
- * @type {(root: Value | Block, target: LoopTarget) => boolean}
- */
-const hiddenTransfer = (root, target) => {
-    /** @type {Link<Value | Block> | null} */
-    let work = { first: root, tail: null }
-    while (work !== null) {
-        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
-        work = tail
-        if (node === null || typeof node !== 'object') { continue }
-        /** @type {readonly (Value | Block)[]} */
-        let children
-        if (node instanceof Array) {
-            children = node[0] === 'ref' ? [] : node[0] === 'function' ? node[1].captures.map(capture => capture.value)
-                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
-        } else {
-            const exit = node.exit
-            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target) { return true }
-            children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
-                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit)]
-        }
-        work = children.reduceRight((tail, first) => ({ first, tail }), work)
-    }
-    return false
-}
 
 /** Validate reached statement transfers without crossing hidden transfer owners. @type {(block: Block, length: number, target: LoopTarget) => Task<_RestResult>} */
 const restBlockTask = (block, length, target) => {
@@ -60,17 +29,17 @@ const restBlockTask = (block, length, target) => {
             const statement = block.statements[index]
             if (statement[0] === 'define' || statement[0] === 'loop') {
                 const values = statement[0] === 'define' ? [statement[2]] : [...statement[1].initial, statement[1].body]
-                return values.some(value => hiddenTransfer(value, target)) ? done({ valid: false, normal: false }) : each(index + 1)
+                return values.some(value => hasLoopTransfer(value, target)) ? done({ valid: false, normal: false }) : each(index + 1)
             }
             /** @type {(result: _RestResult) => Task<_RestResult>} */
             const resume = result => result.valid && result.normal ? each(index + 1) : done(result)
             if (statement[0] === 'block') { return bind(restBlockTask(statement[2], length, target), resume) }
-            if (hiddenTransfer(statement[2], target)) { return done({ valid: false, normal: false }) }
+            if (hasLoopTransfer(statement[2], target)) { return done({ valid: false, normal: false }) }
             return bind(restBlockTask(statement[3], length, target), then => bind(restBlockTask(statement[4], length, target), otherwise =>
                 resume({ valid: then.valid && otherwise.valid, normal: then.normal || otherwise.normal })))
         }
         const exit = block.exit
-        const valid = !exitValues(exit).some(value => hiddenTransfer(value, target))
+        const valid = !exitValues(exit).some(value => hasLoopTransfer(value, target))
             && (exit[0] !== 'continue' || exit[1] === target && _restArguments(block, length, target) !== null)
             && (exit[0] !== 'break' || exit[1] === target)
         return done({ valid, normal: exit[0] === 'yield' })

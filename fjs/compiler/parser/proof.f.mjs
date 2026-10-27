@@ -490,15 +490,26 @@ export const proof = {
             // or a newline, and so does the `let`
             assertEq(parseFromTokens(tokenizeString('export default n => {\n    let r = 0\n    while (r < n) {\n        r = r + 1\n    }\n    return r\n};'))[0], 'ok')
         },
+        generalStateAdmission: () => {
+            for (const source of /** @type {const} */ ([
+                'export default ()=>{while(false){}return 7;};',
+                'export default n=>{let r=0;while(r<n){}return r;};',
+                'export default n=>{let r=0;while(r<n){const r=1;}return r;};',
+                'export default ()=>{while(false){let local=0;local=local+1;}return 7;};',
+                'export default n=>{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];};',
+                'export default n=>{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}while(s>n){s=s-1;r=r+1;}return [r,s];};',
+                'export default n=>{if(n){let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];}return [];};',
+                'export default n=>{switch(n){case 1:{let r=0;let s=0;while(r<n){r=r+1;s=s+r;}return [r,s];}default:{return [];}}};',
+                'export default n=>{let r=0;let s=0;while(r<n){const snapshot=r;const read=()=>snapshot;r=read()+1;s=s+r;}return [r,s];};',
+            ])) {
+                assertOk(parseFromTokens(tokenizeString(source)))
+            }
+            const declarations = Array.from({ length: 18 }, (_, index) => `let s${index}=0;`).join('')
+            const updates = Array.from({ length: 18 }, (_, index) => `s${index}=s${index}+1;`).join('')
+            assertOk(parseFromTokens(tokenizeString(`export default n=>{${declarations}while(s0<n){${updates}}return s17;};`)))
+        },
         refused: () => {
             for (const [source, message, column] of /** @type {const} */ ([
-                // the block steps one variable declared outside it: a block
-                // assigning none — a `const` of the variable's name in it
-                // being the block's own — is a loop that cannot advance,
-                // and a second variable is more than the graph constructs
-                ['export default n => { let r = 0; while (r < n) { } return r; };', 'loop variable missing', 34],
-                ['export default n => { let r = 0; while (r < n) { const r = 1; } return r; };', 'loop variable missing', 34],
-                ['export default n => { let r = 0; let s = 0; while (r < n) { r = r + 1; s = s + 1; } return r; };', 'second loop variable', 72],
                 // an assignment in the block rebinds a variable, as anywhere
                 ['export default n => { let r = 0; while (r < n) { const x = 1; x = 2; } return r; };', 'assignment to const', 63],
                 // a function nested in the loop that reads the variable is

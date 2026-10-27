@@ -58,7 +58,7 @@ parameter is a variable too, fixed or rest.
   so the assignments in it are that block's own, and the statements after
   the guard read the values the body established before it — the one way
   two branches rejoin is the loop ([loops](../../control-flow/loops/README.md)),
-  which steps one variable.
+  which carries the variables its condition and body read or assign.
 - **A reassigned variable is captured by no function held as a value.** A
   function nested in the variable's scope — a `const`, an item, an
   argument, a value returned, a condition — may not read or assign a
@@ -85,8 +85,8 @@ parameter is a variable too, fixed or rest.
   variable of the module, which is a function
   ([module structure](../../modules/README.md)), under every rule above;
   an export is a `const`, so `export let` is refused
-  ([`export let`](../../modules/export-let/README.md)). A loop steps one
-  variable, and none stands at module level yet
+  ([`export let`](../../modules/export-let/README.md)). A loop can step several
+  variables; none stands at module level yet
   ([loops](../../control-flow/loops/README.md)).
 
 ## Capture compatibility

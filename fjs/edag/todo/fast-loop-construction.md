@@ -25,6 +25,16 @@ conversion neither searches for outer mutable names nor performs liveness
 analysis. Immutable free values use ordinary captures. Internal producers
 maintain the contract; no repeated validation pass is added.
 
+Canonical plain loops may retain the established scalar helper even when
+source state selection declares additional invariant slots. Shared
+[`loop/invariant`](../../js/ast/loop/invariant/module.f.mjs) recognizes exact
+parameter forwarding on the owning continue and normal break. With established
+nondeferred entry values, unchanged slots become external parameter/result
+aliases; required entry demands and loop execution remain anchored even when
+only an invariant result is used. This normalization performs no source write
+or liveness analysis and leaves source-selected signatures unchanged. Computed
+or deferred entry values and hidden owning transfers keep their general helper.
+
 A loop may appear sequentially, in either branch, or inside another loop.
 Keep its initial call and frame/argument construction at that execution point.
 An unselected branch evaluates none of its loop setup; an inner loop gets a

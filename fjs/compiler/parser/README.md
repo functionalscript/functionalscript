@@ -25,7 +25,12 @@ rule of the language asks, whether a newline stood before a token
 `parseFromTokens` returns one record with `imports`, a structured source `body`,
 and complete source binding evidence. Source values refer to original
 declaration identities; blocks retain initialization plans, assignments,
-scalar loops and terminal branches for the common sugar pass. `scope` records initialization, reads, writes,
+plain loops and terminal branches for the common sugar pass. Each loop retains
+its complete condition/body event tree, including nested source-function reads.
+The parser admits zero or several outer writes without selecting loop state;
+sugar intersects those events with established bindings and the shared
+`isMutable` facts. Loop-local names remain separate resolved identities.
+`scope` records initialization, reads, writes,
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
 `origins` retains each binding's name, declaration kind and source position.
@@ -417,15 +422,15 @@ container of nodes, a record per statement — and the names are resolved after
 the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
-The syntax reader retains function declarations, scalar loop statements,
+The syntax reader retains function declarations, plain loop statements,
 terminal guards and switches as source constructs. Resolution preserves them
 as checked source blocks and original binding references. `() => 7` and
 `() => { return 7; }` resolve to the same targeted return. A guard retains its
 condition and two lexical blocks: the written block and the remaining
 statements. A switch retains the discriminant, ordered labels, cases and final
-fallback. A loop retains the one variable declared outside its block that
-the block assigns, and the block's assignments; it creates no parser-generated
-function or recursive call.
+fallback. A loop retains its condition, lexical body and ordered source binding
+events. The common sugar pass selects state from those events and the shared
+binding facts; the parser creates no helper function or recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
 immutable definitions and explicit loop transfers. The grammar still requires

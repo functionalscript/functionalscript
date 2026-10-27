@@ -403,8 +403,8 @@ mod tests {
     #[test]
     fn loops() {
         let entry = crate::load(super::loops::module::<Naive>).unwrap();
-        crate::assert_call(&entry, 5.0, Ok("8"));
-        crate::assert_call(&entry, 100.0, Ok("128"));
+        crate::assert_call(&entry, 5.0, Ok("[8,3]"));
+        crate::assert_call(&entry, 100.0, Ok("[128,7]"));
     }
 
     #[test]

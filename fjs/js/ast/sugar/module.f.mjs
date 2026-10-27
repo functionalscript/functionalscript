@@ -40,6 +40,27 @@ const scopesOf = root => {
 }
 
 /**
+ * Source references and writes in first-use order, including nested scopes.
+ * @type {(events: readonly BindingEvent[]) => { readonly references: readonly BindingId[], readonly writes: readonly BindingId[] }}
+ */
+const eventFacts = events => {
+    /** @type {readonly BindingId[]} */
+    let found = []
+    /** @type {readonly BindingId[]} */
+    let writes = []
+    let pending = events
+    while (pending.length !== 0) {
+        const [event, ...rest] = pending
+        if (event[0] === 'function') { pending = [...event[1].events, ...rest]; continue }
+        if (event[0] === 'region') { pending = [...event[1], ...rest]; continue }
+        if (event[0] !== 'initialize' && !found.includes(event[1])) { found = [...found, event[1]] }
+        if (event[0] === 'write' && !writes.includes(event[1])) { writes = [...writes, event[1]] }
+        pending = rest
+    }
+    return { references: found, writes }
+}
+
+/**
  * Shared facts choose external source declarations. The event order preserves
  * first reference order, including forwarding needed to construct a child.
  * No mutability or capture predicate is recomputed from executable values.
@@ -52,18 +73,16 @@ const captureSources = (context, fn) => {
     const own = scopes.flatMap(scope => scope.bindings)
     const targets = scopes.map(scope => scope.target)
     const eligible = context.bindings.filter(fact => fact.id !== fn.self && !own.includes(fact.id) && fact.capturedBy.some(target => targets.includes(target))).map(fact => fact.id)
-    /** @type {readonly BindingId[]} */
-    let found = []
-    let pending = scope.events
-    while (pending.length !== 0) {
-        const [event, ...rest] = pending
-        if (event[0] === 'function') { pending = [...event[1].events, ...rest]; continue }
-        if (event[0] === 'region') { pending = [...event[1], ...rest]; continue }
-        if (event[0] !== 'initialize' && eligible.includes(event[1]) && !found.includes(event[1])) { found = [...found, event[1]] }
-        pending = rest
-    }
-    return found
+    return eventFacts(scope.events).references.filter(id => eligible.includes(id))
 }
+
+/**
+ * Shared whole-scope write facts choose state; the preserved loop trace chooses
+ * references. Outer declaration order fixes both signatures. Loop-local names
+ * are absent from the entry environment and never become loop state.
+ * @type {(used: readonly BindingId[], environment: Environment, context: Context) => readonly BindingId[]}
+ */
+const loopSources = (used, environment, context) => context.bindings.filter(fact => fact.isMutable && used.includes(fact.id) && environment.some(([id]) => id === fact.id)).map(fact => fact.id)
 
 /** @type {(value: Value) => ReferenceTask} */
 const valueTask = value => ({ kind: 'value', value })
@@ -314,7 +333,7 @@ const normalizedExit = (exit, environment, context) => {
 }
 
 /**
- * Assignments retain their source identity until this complete scan. Scalar
+ * Assignments retain their source identity until this complete scan. Source
  * loop inputs, iteration versions and results are chosen here, after analysis.
  *
  * @type {(source: SourceBlock, environment: Environment, context: Context, retained?: readonly BindingId[]) => Normalized}
@@ -338,22 +357,26 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             continue
         }
         const loop = statement[1]
-        const parameter = binding(loop.variable.index)
-        const result = binding(loop.variable.index)
-        const scope = [...inner, /** @type {const} */ ([loop.variable, reference(parameter)])]
-        const step = normalizedBlock(loop.body, scope, context, [loop.variable])
+        const events = eventFacts(loop.events)
+        const sources = loopSources(events.references, inner, context)
+        const parameters = sources.map(source => binding(source.index))
+        const results = sources.map(source => binding(source.index))
+        const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
+        const step = normalizedBlock(loop.body, scope, context, sources)
         const condition = normalizedValue(scope, context)(loop.condition)
         statements = [...statements, ['loop', {
-            target: loop.target, parameters: [parameter], initial: [lookup(inner, loop.variable)], results: [result],
+            target: loop.target, parameters, initial: sources.map(source => lookup(inner, source)), results,
             body: {
                 statements: [['if', [], condition,
-                    { ...step.block, exit: ['continue', loop.target, [lookup(step.environment, loop.variable)]] },
-                    { statements: [], exit: ['break', loop.target, [reference(parameter)]] },
+                    { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] },
+                    { statements: [], exit: ['break', loop.target, parameters.map(reference)] },
                 ]],
                 exit: ['yield', []],
             },
         }]]
-        inner = [...inner, [loop.variable, reference(result)]]
+        // Read-only state crosses the loop but introduces no source write at a
+        // surrounding value/IIFE boundary. Its established value stays current.
+        inner = [...inner, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])]
     }
     const terminal = normalizedExit(source.exit, inner, context)
     return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner }

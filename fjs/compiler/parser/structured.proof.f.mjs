@@ -45,7 +45,10 @@ export const proof = {
         assert(declaration[0] === 'initialize' && statement[0] === 'while')
         const state = assertNotNullish(module.origins.find(origin => origin.name === 'state')).id
         assertEq(declaration[1].ids[0], state)
-        assertEq(statement[1].variable, state)
+        const conditionRead = statement[1].events[0]
+        assert(conditionRead[0] === 'read')
+        assertEq(conditionRead[1], state)
+        assert(statement[1].events.some(event => event[0] === 'region'))
         const assignment = statement[1].body.statements[1]
         assert(assignment[0] === 'write')
         assertEq(assignment[1], state)
