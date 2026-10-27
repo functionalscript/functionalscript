@@ -32,7 +32,10 @@
  * ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
  * A built-in is found through an import's read of its export object,
  * `{ f }.f`, which the lowering spells an import as and which folds to
- * `f`. Any other export is the module's own, for its types and its proof.
+ * `f`. The `statics` and `runtime` values initialize in export order, including
+ * overwritten entries. Metadata uses the last export of each name, but
+ * execution retains each whole value so unused tables keep their required
+ * work. Any other export is the module's own, for its types and its proof.
  *
  * @module
  *
@@ -87,20 +90,25 @@ const resolve = root => {
 
 /**
  * The properties of an object literal written out, each `[':', key, value]`
- * with a literal key, a key written twice kept at its last writing, as the
- * EDAG means it; or `null` for any other node, a spread or a computed key
+ * with a literal key, in evaluation order; or `null` for any other node,
+ * a spread or a computed key
  * among them. A member of an object literal is a property or a spread,
  * each an array, so its tag is read as one.
  *
  * @type {(root: Exp) => readonly (readonly any[])[] | null}
  */
-const literalProperties = root => {
+const literalEntries = root => {
     const node = sequenced(root).value
     if (!(node instanceof Array) || node[0] !== '{}') { return null }
     const properties = /** @type {readonly (readonly any[])[]} */ (node[1])
-    return properties.every(p => p[0] === ':' && typeof p[1] === 'string')
-        ? properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
-        : null
+    return properties.every(p => p[0] === ':' && typeof p[1] === 'string') ? properties : null
+}
+
+/** Metadata observes the last writing of a key; execution retains all entries. @type {(root: Exp) => readonly (readonly any[])[] | null} */
+const literalProperties = root => {
+    const properties = literalEntries(root)
+    return properties === null ? null
+        : properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
 }
 
 /**
@@ -140,15 +148,19 @@ const builtIns = table => {
  */
 const table = root => {
     const sequence = sequenced(root)
-    const exports = literalProperties(sequence.value)
+    const exports = literalEntries(sequence.value)
     if (exports === null) { return error(['the runtime module is no object of exports', root]) }
-    const runtime = exports.find(p => p[1] === 'runtime')
+    const runtime = exports.findLast(p => p[1] === 'runtime')
     if (runtime === undefined) { return error(['no `runtime` export', root]) }
-    const statics = exports.find(p => p[1] === 'statics')
+    const statics = exports.findLast(p => p[1] === 'statics')
     if (statics === undefined) { return error(['no `statics` export of an object literal', root]) }
     return okThen((/** @type {readonly _BuiltIn[]} */ all) => {
         const twice = all.find((b, i) => all.findIndex(c => c.node === b.node) !== i)
-        return twice === undefined ? ok(/** @type {_Table} */ ({ builtIns: all, value: sequence.prefix.length === 0 ? /** @type {Exp} */ (runtime[2]) : [',', [...sequence.prefix, /** @type {Exp} */ (runtime[2])]] }))
+        /** @type {readonly Exp[]} */
+        const initializers = exports.filter(p => p[1] === 'statics' || p[1] === 'runtime').map(p => p[2])
+        /** @type {Exp} */
+        const value = [',', [...sequence.prefix, ...initializers, runtime[2]]]
+        return twice === undefined ? ok({ builtIns: all, value })
             : error(['a function two built-ins name; JavaScript keeps them apart', twice.name])
     })(builtIns(statics[2]))
 }

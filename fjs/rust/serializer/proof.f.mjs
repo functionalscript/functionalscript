@@ -67,9 +67,13 @@ export const proof = {
     },
     /** Key evaluation and conversion finish before the property value starts. */
     computedKeyOrder: () => {
-        const key = /** @type {Value} */ (['()', ['ref', x], []])
-        const value = /** @type {Value} */ (['()', ['ref', y], []])
-        const object = /** @type {Value} */ (['object', [[':', key, value]]])
+        /** @type {Value} */
+        const key = ['()', ['ref', x], []]
+        /** @type {Value} */
+        const value = ['()', ['ref', y], []]
+        /** @type {Value} */
+        const object = ['object', [[':', key, value]]]
+        /** @type {string} */
         const converted = 'property_item(((Any::call(_b0.clone(), Array::default().to_any()))?).to_string()?, (Any::call(_b1.clone(), Array::default().to_any()))?)'
         assertEq(text(object, true), `Ok(spread_object([${converted}]))`)
         assertEq(text(object), `spread_object([${converted}])`)
@@ -79,12 +83,13 @@ export const proof = {
     },
     /** Parentheses make conversion consume the entire conditional or block. */
     computedKeyGrouping: () => {
-        const keys = /** @type {readonly Value[]} */ ([
+        /** @type {readonly Value[]} */
+        const keys = [
             ['if', true, yielding([1]), yielding([2])],
             ['?:', false, 1, 2],
             ['block', { statements: [['define', x, 1]], exit: ['yield', [['ref', x]]] }],
             ['Number', ['ref', x]],
-        ])
+        ]
         for (const key of keys) {
             assertEq(text(['object', [[':', key, ['ref', y]]]]),
                 `spread_object([property_item((${text(key)}).to_string()?, _b1.clone())])`)
@@ -92,9 +97,11 @@ export const proof = {
     },
     /** Entry order, selected regions and established value references stay intact. */
     computedKeyRegionsAndIdentity: () => {
-        const object = /** @type {Value} */ (['object', [
+        /** @type {Value} */
+        const object = ['object', [
             [':', ['ref', x], ['ref', y]], ['...', ['object', []]], [':', 1, ['ref', y]],
-        ]])
+        ]]
+        /** @type {string} */
         const expected = 'spread_object([property_item((_b0.clone()).to_string()?, _b1.clone()), spread_entries(Object::default().to_any()), property_item((f64_any(0x3ff0000000000000)).to_string()?, _b1.clone())])'
         assertEq(text(object), expected)
         assertEq(text(['if', true, yielding([object]), yielding([['object', []]])]),
@@ -108,8 +115,10 @@ export const proof = {
     },
     /** Each reached iterator is established before the next operand runs. */
     spreadExpansion: () => {
-        const later = /** @type {Value} */ (['()', ['ref', x], []])
+        /** @type {Value} */
+        const later = ['()', ['ref', x], []]
         const values = /** @type {const} */ ([['...', null], later])
+        /** @type {string} */
         const expanded = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
         assertEq(text(['array', values], true), expanded)
         assertEq(text(['array', values]), `(${expanded})?`)
@@ -130,6 +139,7 @@ export const proof = {
     /** Selected chain argument thunks contain expansion; lookup stays outside. */
     selectedSpreadRegions: () => {
         const args = /** @type {const} */ ([['...', null], ['()', ['ref', x], []]])
+        /** @type {string} */
         const items = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
         assertEq(text(['.', ['()', ['ref', y], []], 'slice', ['|()', args]], true),
             `Any::dot((Any::call(_b1.clone(), Array::default().to_any()))?, string_any("slice")).end_call(&runtime, || ${items})`)
