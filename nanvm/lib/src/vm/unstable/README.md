@@ -32,3 +32,8 @@ represented code. Array construction retains its length and allocation checks
 after item evaluation. An object's, `{k: v, ...o}`, is
 `spread_object([property_item(k, v), spread_entries(o)])`, a value, since an
 object spread never throws (`Any::object_spread`).
+
+A computed property uses `property_item((key).to_string()?, value)`.
+`Any::to_string` converts the key before Rust starts the value argument and
+propagates conversion failure at that position. `property_item` takes the
+established VM string directly, for both literal and computed keys.

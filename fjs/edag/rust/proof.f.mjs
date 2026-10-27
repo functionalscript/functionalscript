@@ -1134,24 +1134,29 @@ export const proof = {
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
     /**
-     * A key that is not a string literal, `{ [k]: v }`: coerced by
-     * `computed_item` where the entry is built, which can throw, so the
+     * A key that is not a string literal, `{ [k]: v }`: converted to a
+     * string before its value is evaluated. The conversion can throw, so
      * entries go through `spread_object`, inside a Result-returning scope.
      * Corpus cases use this same Result scope, including computed keys.
      */
     computedKey: {
         operand: () => assertStructurallySame(
             scoped(['{}', [[':', ['undefined'], 1]]]),
-            ['Ok(spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?]))']),
+            ['Ok(spread_object([property_item((Nullish::Undefined.to_any()).to_string()?, f64_any(0x3ff0000000000000))]))']),
         mixed: () => assertStructurallySame(
             scoped(['{}', [[':', 'a', 0], [':', 1, 2]]]),
-            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?]))']),
+            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), property_item((f64_any(0x3ff0000000000000)).to_string()?, f64_any(0x4000000000000000))]))']),
         spread: () => assertStructurallySame(
             scoped(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
-            ['Ok(spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())]))']),
+            ['Ok(spread_object([property_item((f64_any(0x3ff0000000000000)).to_string()?, f64_any(0x4000000000000000)), spread_entries(Object::default().to_any())]))']),
         corpusScopes: () => {
-            assert(scoped(['{}', [[':', ['undefined'], 1]]]).join('\n').includes('computed_item'))
-            assert(scoped(['typeof', ['{}', [[':', 1, 2]]]]).join('\n').includes('computed_item'))
+            assert(scoped(['{}', [[':', ['undefined'], 1]]]).join('\n').includes('property_item((Nullish::Undefined.to_any()).to_string()?, '))
+            assert(scoped(['typeof', ['{}', [[':', 1, 2]]]]).join('\n').includes('property_item((f64_any(0x3ff0000000000000)).to_string()?, '))
+        },
+        metadata: () => {
+            assertStructurallySame(usedBy(['{}', [[':', ['undefined'], 1]]]), {
+                vm: ['Nullish', 'ToAny'], unstable: ['f64_any', 'property_item', 'spread_object'],
+            })
         },
     },
     /**
