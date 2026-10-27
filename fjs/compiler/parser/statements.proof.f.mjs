@@ -345,11 +345,13 @@ export const proof = {
             assertEq(result, "[\"{}\",[[\":\",\"default\",[\".\",[\".\",[\"args\"],0],\"default\"]]]]")
         },
         () => {
+            // Imports initialize in source order even when the exported
+            // array first reads the second module's value.
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],1],\"default\"],[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]")
+            assertEq(result, "[\",\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],1],\"default\"],[\".\",[\".\",[\"args\"],0],\"default\"],[\".\",[\".\",[\"args\"],1],\"default\"]]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')

@@ -296,7 +296,7 @@ const primitiveExpr = v => {
  *
  * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
  * `[exp]:` keys alike. A string literal is the `string_key` a property takes;
- * any other key is computed, and `computed_item` coerces it.
+ * any other key converts before its property's value is evaluated.
  *
  * @type {(k: string) => Printed<string>}
  */
@@ -406,7 +406,7 @@ const array = (s, values, result = false) => {
     if (values.some(v => v instanceof Array && v[0] === '...')) {
         return flat(map1((/** @type {readonly string[]} */ items) => cat([fallible(result)(`${unstable('spread_array')[0]}([${items.join(', ')}])`), ['', unstable('spread_array')[1]]]))(all(values.map(v =>
             v instanceof Array && v[0] === '...'
-                ? flat(map1(x => cat([unstable('spread_item'), `(${x})`]))(expression(s, v[1], false)))
+                ? flat(map1(x => cat([unstable('spread_item'), `(${x})?`]))(expression(s, v[1], false)))
                 : flat(map1(x => cat([unstable('value_item'), `(${x})`]))(expression(s, /** @type {Value} */ (v), false)))))))
     }
     return map1(pure(result))(values.length === 0 ? ok(cat([vm('Array'), '::default()', toAny]))
@@ -421,7 +421,7 @@ const object = (s, entries) => {
         ? flat(map1(v => cat([unstable('spread_entries'), `(${v})`]))(expression(s, e[1], false)))
         : typeof e[1] === 'string'
             ? flat(map1(v => cat([spread ? unstable('property_item') : code(''), '(', literalKey(/** @type {string} */ (e[1])), `, ${v})`]))(expression(s, e[2], false)))
-            : flat(map2((k, v) => cat([unstable('computed_item'), `(${k}, ${v})?`]))(expression(s, e[1], false), expression(s, e[2], false))))
+            : flat(map2((k, v) => cat([unstable('property_item'), `((${k}).to_string()?, ${v})`]))(expression(s, e[1], false), expression(s, e[2], false))))
     return flat(map1((/** @type {readonly string[]} */ items) => spread
         ? cat([unstable('spread_object'), `([${items.join(', ')}])`])
         : cat([`[${items.join(', ')}]`, toObject, toAny]))(all(members)))

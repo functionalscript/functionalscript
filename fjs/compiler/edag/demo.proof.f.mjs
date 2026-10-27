@@ -14,6 +14,7 @@ import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** SVG text tags, including their attributes and text but not the closing tag. @type {(html: string) => readonly string[]} */
 const svgTextTags = html => html.split('<text ').slice(1).map(tag => tag.slice(0, tag.indexOf('</text>')))
@@ -28,7 +29,7 @@ const lazyPositions = html => html.split('<').filter(tag => tag.includes('data-g
  */
 const nodeShapeOf = (exp, msg) => {
     const shape = _shapeOf(exp)
-    assert('children' in shape, msg)
+    assert(hasEntry(shape, 'children'), msg)
     return shape
 }
 

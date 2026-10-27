@@ -12,6 +12,7 @@ import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     assert,
     assertEq,
@@ -131,6 +132,13 @@ const rows = () => {
         // the declared-member top — anything, or nothing — is still closed over
         // its undeclared keys
         [{ a: or(option, unknown) }, {}],
+        // a declared name `Object.prototype` carries is an own entry like any
+        // other: `{}` holds no `toString` and no `constructor`
+        [{ toString: or(option, number) }, {}],
+        [{ toString: or(option, number) }, { toString: 1 }],
+        [{ toString: or(option, number) }, { toString: 'x' }],
+        [{ constructor: number }, {}],
+        [{ constructor: number }, { constructor: 1 }],
         [{ a: or(option, unknown) }, { a: 1 }],
         [{ a: or(option, unknown) }, { a: 1, b: 2 }],
         // and the same rows under `open`, which is the form that admits them
@@ -217,8 +225,8 @@ export const proof = {
             const schema = { a: number, b: or(option, string) }
             const input = { a: 1 }
             const out = unwrap(validate(schema)(input))
-            assert(!('b' in out), 'an absent optional member must stay absent')
-            assert(!('b' in unwrap(parse(schema)(input))), 'parse omits it too')
+            assert(!hasEntry(out, 'b'), 'an absent optional member must stay absent')
+            assert(!hasEntry(unwrap(parse(schema)(input)), 'b'), 'parse omits it too')
         },
         // An undeclared member survives — where the schema admits one at all.
         // `parse` accepts the same values and does not carry the member into
@@ -227,7 +235,7 @@ export const proof = {
             const schema = open({ a: number })
             const struct = { a: 1, b: 'extra' }
             assertStructurallySame(unwrap(validate(schema)(struct)), { a: 1, b: 'extra' })
-            assert(!('b' in unwrap(parse(schema)(struct))), 'parse drops it')
+            assert(!hasEntry(unwrap(parse(schema)(struct)), 'b'), 'parse drops it')
             // The same on the other kind: a longer array keeps its tail.
             const tuple = [1, 'extra']
             assertStructurallySame(unwrap(validate(open([number]))(tuple)), [1, 'extra'])
@@ -371,6 +379,24 @@ export const proof = {
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
+    // A member is an enumerable own entry, so a name only `Object.prototype`
+    // supplies is absent from a plain object: legal where the schema admits
+    // absence, a missing member where it does not, and never the inherited
+    // function read as the member's value.
+    inheritedName: {
+        optionalIsAbsent: () => {
+            const s = { toString: or(option, number) }
+            assertOk(validate(s)({}))
+            assertOk(d(s)({}))
+            assert(!hasEntry(unwrap(parse(s)({})), 'toString'), 'an absent member is not materialized')
+        },
+        requiredIsMissing: () => {
+            const s = { constructor: number }
+            assertErrorPath(['constructor'])(validate(s)({}))
+            assertErrorPath(['constructor'])(parse(s)({}))
+            assertErrorPath(['constructor'])(d(s)({}))
+        },
+    },
     sparseTuple: {
         holeIsDeclaredUndefined: () => {
             assertError(validate([, number])([9, 5]))
@@ -764,7 +790,7 @@ export const proof = {
         // says nothing about a member it declares.
         absentOptionalStaysAbsent: () => {
             const out = unwrap(validate({ a: number, b: or(option, string) })({ a: 1 }))
-            assert(!('b' in out), 'an absent optional member must stay absent')
+            assert(!hasEntry(out, 'b'), 'an absent optional member must stay absent')
         },
         path: () => {
             assertErrorPath(['1'])(validate([number, number])([1, 'two']))

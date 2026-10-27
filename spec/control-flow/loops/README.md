@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — plain `while` bodies; structured bodies and exits remain planned
+**Status:** implemented — `while` bodies with conditionals; nested loops and exits remain planned
 
 ```js
 export default n => {
@@ -19,10 +19,13 @@ first. A false condition skips the body; after normal completion, following
 statements read the values the last round left. Conditions use the same truth
 test as `?:`. No `;` follows the closing `}`.
 
-A loop may stand in a function body, in a terminal guard's or case's block,
-or after another loop. Its body holds `const`s and initialized `let`s, call
-statements and assignments. It may assign zero, one or several outer variables,
-including parameters. Assignments take effect in source order: a later
+A loop may stand at module level, in a function body, in a terminal guard's or
+case's block, or after another loop. Module loops run in initialization order,
+including between named exports; earlier exported constants retain their
+declared values ([modules](../../modules/README.md)). Its body holds `const`s
+and initialized `let`s, call statements, assignments and conditional blocks.
+It may assign zero, one or several outer variables, including parameters.
+Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
 belong to that round, and a shadowed name denotes its own binding.
 
@@ -32,9 +35,28 @@ at the first assignment. The condition runs once at every reached test, using
 the preceding round's values; a failed test or body computation does not
 complete the loop normally.
 
-The current body grammar excludes guards, switches, nested loops, `break`,
-`continue`, `return` and `throw` statements. Module-level loops are also
-refused. These are remaining parts of
+An `if (condition) { ... }` inside a loop executes its block when the condition
+is truthy. An optional `else` block runs when it is falsy; `else if` tests the
+next condition only when preceding conditions were falsy. The selected block
+continues with the following statement. Assignments update the enclosing loop's
+variables; an arm that leaves a variable unassigned preserves its preceding
+value. Each block owns its declarations, including nested conditional blocks.
+
+```js
+while (i < n) {
+    if (i < 2) {
+        sum = sum + i;
+    } else if (i < 4) {
+        sum = sum + 2 * i;
+    } else {
+        sum = sum + 3 * i;
+    }
+    i = i + 1;
+}
+```
+
+The current body grammar excludes switches, nested loops, `break`,
+`continue`, `return` and `throw` statements. These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
@@ -59,6 +81,11 @@ order. These become explicit FAST input and normal-result signatures, with no
 fixed-parameter limit on loop state. Immutable outer values remain references;
 local declarations stay in the body. Each iteration transfers the current
 values simultaneously after its source assignments have run in order.
+Conditional blocks supply explicit FAST results for the union of enclosing
+bindings assigned by either arm, in declaration-introduction order. Both arms
+start with the same incoming values and supply their latest versions; an arm
+that leaves a binding unchanged supplies its preceding value. Later statements
+read the selected results. An omitted `else` supplies the incoming values.
 
 The established scalar shape keeps its recursive graph and exact graph round
 trip. General state uses the shared aggregate helper. Source serialization
@@ -66,9 +93,10 @@ round trips through the same graph conversion and stabilizes under its declared
 normalization, rather than preserving the written variable names or count.
 
 Source `.js`/`.mjs`, code-only JavaScript/function text and Rust emit eligible
-plain aggregate helpers as loops and run with bounded stack. Required condition
-computations run at every test; the normal result is computed once after the
-final false test. Its closures capture immutable final values. The source
+aggregate helpers with plain or conditional bodies as loops and run with bounded
+stack. Required condition computations run at every test; the normal result is
+computed once after the final false test. Its closures capture immutable final
+values. The source
 spelling can introduce a scalar helper boundary on its first round trip; its
 normalized graph and canonical text then stabilize. Existing scalar source
 output retains its graph and bounded-stack spelling, including loops that read

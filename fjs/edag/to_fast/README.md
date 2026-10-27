@@ -37,6 +37,33 @@ again. Explicit comma demands retain their evaluation through a fresh discarded
 binder where needed. This keeps generated declarations valid and preserves the
 captured allocation's identity.
 
+An unshared callee or capture that needs a name inside a later operand gets a
+local value block at that operand. Its initializer stays after earlier calls,
+coercions and implicit lookup or spread work. Region roots, established owners
+and function values whose captures are already established retain their prefix
+names.
+
+Sharing entirely within one operand stays in that operand's region, including
+computed member keys in the normalized operand vocabulary. A shared value used
+across operands becomes required only after its earlier eager work has been
+established. Complete earlier computations receive ordered immutable snapshots;
+implicit spread expansion, key conversion and member lookup remain barriers.
+A later snapshot cannot claim a dependency reachable from an earlier planned
+initializer. That earlier initializer may already have demanded the value;
+rewriting its lazy dependencies to the later binding would read an uninitialized
+snapshot. Those dependencies retain their existing owners instead.
+A value that cannot cross such a barrier safely retains first-demand memo
+storage. Source admission explicitly refuses that storage where its grammar
+cannot express it; runtime JavaScript and Rust consume the common plan.
+
+Explicit comma roots retain their written order. Required definitions and memo
+declarations follow their dependencies rather than using graph indices as a
+global execution order. Total container and function constructions over already
+established operands can keep their prefix names. The shared
+[`demandsInOrder`](../demand/module.f.mjs) query proves each placement against
+the actual established values. Graph construction uses the same query to remove
+only ordered redundant anchors.
+
 A value shared across otherwise separate lazy regions may instead be repeated
 when every operation reachable from it is `mergeable` and none is a comma.
 This transitive check stops at values already established eagerly or by an
@@ -130,6 +157,11 @@ then stabilize; repeated output adds no helpers or unused projection demands.
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.
+Unshared operand-local commas have a value-block/IIFE spelling. Their first
+source parse can relocate safe anchors or compact equivalent capture slots;
+the resulting graph and source spelling then stabilize exactly. Shared commas
+outside canonical scopes remain refused. This extends source graph admission
+without adding source syntax.
 Canonical JavaScript bytes now come from prepared FAST, so names, grouping and
 single-use temporary declarations may differ from the former direct graph
 writers. Code-only function text still treats frame slots as external values

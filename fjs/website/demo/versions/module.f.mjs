@@ -51,6 +51,7 @@ import { randomInt } from '../../../effects/common/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { digitsValue, one } from '../../../text/ascii/module.f.js'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 const readBinary = digitsValue(2n)
 
@@ -105,7 +106,7 @@ const nodesOfBoth = ({ root, shape }) => versions => {
     const { rows } = shape(versions)
     /** @typedef {Parameters<typeof rows>[0]} N */
     /** @type {(node: N | null) => readonly N[]} */
-    const nodesOf = node => node === null ? [] : [node, ...rows(node).flatMap(row => 'to' in row ? nodesOf(row.to) : [])]
+    const nodesOf = node => node === null ? [] : [node, ...rows(node).flatMap(row => hasEntry(row, 'to') ? nodesOf(row.to) : [])]
     return [[...new Set(nodesOf(root(versions.before)))], [...new Set(nodesOf(root(versions.after)))]]
 }
 
@@ -126,9 +127,9 @@ export const sameShape = ({ root, shape }) => versions => {
         const [ra, rb] = [rows(a), rows(b)]
         return title(a) === title(b) && ra.length === rb.length && ra.every((x, i) => {
             const y = rb[i]
-            return 'to' in x
-                ? 'to' in y && x.corner === y.corner && same(x.to)(y.to)
-                : !('to' in y) && x.label === y.label && x.inline === y.inline
+            return hasEntry(x, 'to')
+                ? hasEntry(y, 'to') && x.corner === y.corner && same(x.to)(y.to)
+                : !hasEntry(y, 'to') && x.label === y.label && x.inline === y.inline
                     && JSON.stringify(x.parts) === JSON.stringify(y.parts)
         })
     }
@@ -153,7 +154,7 @@ export const graphOf = structure => versions => {
     const { rows, title, order, layout } = structure.shape(versions)
     /** @typedef {Parameters<typeof rows>[0]} N */
     /** @type {(node: N) => readonly N[]} */
-    const childrenOf = node => rows(node).flatMap(row => 'to' in row ? [row.to] : [])
+    const childrenOf = node => rows(node).flatMap(row => hasEntry(row, 'to') ? [row.to] : [])
     const newRoot = structure.root(versions.after)
     const [old, current] = nodesOfBoth(structure)(versions)
     /** @type {(node: N) => string} */
@@ -169,7 +170,7 @@ export const graphOf = structure => versions => {
     return {
         nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rankOf[layout](node) })),
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
-        edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => 'to' in row
+        edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => hasEntry(row, 'to')
             ? { from, to: all.indexOf(row.to), label: '', corner: row.corner }
             : { from, to: { inline: row.inline, parts: row.parts, click: clickOf(row) }, label: row.label }))),
     }
@@ -282,8 +283,8 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
     const countId = `${name}-count`
     /** @type {(status: State<V>['status']) => (versions: Versions<V>) => string} */
     const statusLine = status => versions =>
-        'preset' in status ? status.hint
-        : 'random' in status ? `${status.random.length} keys inserted in random order: ${status.random.map(show).join(', ')}.`
+        hasEntry(status, 'preset') ? status.hint
+        : hasEntry(status, 'random') ? `${status.random.length} keys inserted in random order: ${status.random.map(show).join(', ')}.`
         : line(status.step)(count(versions))
     const initial = load(presets[0][0])
     /** @type {Sharing<State<V>>} */
@@ -293,7 +294,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
             key: { default: initial.key }, count: { default: initial.count },
         },
         examples: presets.map(([name, , , , id]) => ({ id, inputs: { example: id, key: load(name).key, count: initial.count } })),
-        read: ({ status, key, count }) => ({ example: 'preset' in status ? assertNotNullish(presets.find(p => p[0] === status.preset))[4] : '', key, count }),
+        read: ({ status, key, count }) => ({ example: hasEntry(status, 'preset') ? assertNotNullish(presets.find(p => p[0] === status.preset))[4] : '', key, count }),
         restore: inputs => {
             // The restore boundary receives these finite, validated fields.
             const values = /** @type {RequiredMap<'example' | 'key' | 'count', string>} */ (inputs)
@@ -324,7 +325,7 @@ export const versionsDemo = ({ structure, name, noun, intro, keys = decimal, pre
                     : state),
             view: ({ key, count: keyCount, versions, status, error }) => ['div',
                 ['p', intro],
-                picker.view('preset' in status ? status.preset : ''),
+                picker.view(hasEntry(status, 'preset') ? status.preset : ''),
                 ['p',
                     ['label', { for: keyId }, `${label} `],
                     ['input', { type: 'text', id: keyId, name: 'key', value: key, size: '10' }],

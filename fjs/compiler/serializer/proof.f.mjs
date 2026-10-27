@@ -89,9 +89,32 @@ const redundantAnchor = e => {
 }
 
 /**
+ * Newly admitted operand prefixes in the generated family. Its old scope
+ * roots are the graph, function bodies and conditional arms; all other
+ * operands previously refused commas. Admission has already excluded shared
+ * operand commas before the law asks this question.
+ * @type {(e: Exp) => boolean}
+ */
+const generatedOperandPrefix = e => {
+    /** @type {readonly { readonly value: unknown; readonly region: boolean }[]} */
+    let pending = [{ value: e, region: true }]
+    while (pending.length !== 0) {
+        const [{ value, region }, ...rest] = pending
+        if (!(value instanceof Array)) { pending = rest; continue }
+        if (value[0] === ',' && !region) { return true }
+        const children = value[0] === '=>'
+            ? [...value[2].map((/** @type {unknown} */ value) => ({ value, region: false })), { value: value[3], region: true }]
+            : operandsOf(value).map((child, index) => ({ value: child, region: value[0] === '?:' && index !== 0 }))
+        pending = [...children, ...rest]
+    }
+    return false
+}
+
+/**
  * The text the writer writes for a graph holding a redundant anchor
- * ({@link redundantAnchor}): read back, without the anchor, it is a graph
- * the writer writes and reads back to the same table ({@link reads}).
+ * ({@link redundantAnchor}), or a newly admitted operand prefix whose safe
+ * anchors can move outward: its first parse establishes a graph the writer
+ * writes and reads back to the same table and exact text ({@link reads}).
  *
  * @type {(e: Exp) => string}
  */
@@ -709,8 +732,7 @@ export const proof = {
         assertEq(
             reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
             'const $0=[1];const $1=[2];export default ()=>{const $2=$0;const $3=$1;const $4=()=>$3;return [$2,$4,$4];};')
-        // slots the parser would not build have no text that reads back,
-        // and one of the enclosing scope, a comma, has no text yet
+        // Slots the parser would not build have no text that reads back.
         refuses(['=>', 0, [1], slot(0)], 'a frame slot holding a primitive')
         refuses(['=>', 0, [c, c], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
         refuses(['=>', 0, [c], 1], 'a frame slot the body never reads')
@@ -720,7 +742,10 @@ export const proof = {
         refuses(['=>', 0, [c], slot(1)], 'invalid frame slot index or scope')
         refuses(['=>', 0, [c], slot(-0)], 'invalid frame slot index or scope')
         refuses(slot(0), 'invalid frame slot index or scope')
-        refuses(['=>', 0, [[',', [['[]', []], c]]], slot(0)], 'a comma outside a scope')
+        // A capture's local prefix can normalize to an enclosing anchor when
+        // reparsed; the established capture and canonical source remain stable.
+        assertEq(rewrites(['=>', 0, [[',', [['[]', []], c]]], slot(0)]),
+            'const $0=(()=>{const $1=[];return [1];})();export default ()=>$0;')
     },
     calls: () => {
         /** @type {(e: Exp) => Exp} */
@@ -770,7 +795,7 @@ export const proof = {
         // what the compiler builds is written
         assertEq(
             reads(_defaultExport(moduleGraph('export default (...a)=>{const g=a.b; return [g(1), a.b(2), a.b(1)(2)];};'))),
-            'export default (...$0)=>{const $1=$0.b;const $2=$0.b(1);return [$1(1),$0.b(2),$2(2)];};')
+            'export default (...$0)=>[(()=>{const $1=$0.b;return $1(1);})(),$0.b(2),(()=>{const $2=$0.b(1);return $2(2);})()];')
     },
     // A function's text is the function written as one expression: the
     // module text of a function with no frame, less `export default` and
@@ -951,10 +976,10 @@ export const proof = {
         writes(['=>', 0, [], ['throw', null]], 'export default ()=>{throw null;};')
         assertEq(unwrap(tryModuleStringify(['throw', null])), 'throw null;')
         writes([',', [['[]', []], ['throw', 1]]], 'const $0=[];throw 1;')
-        // a shared constructor the throw holds is hoisted before the statement
+        // Sharing confined to the payload stays inside its value block.
         /** @type {Exp} */
         const o = ['{}', []]
-        writes(['throw', ['[]', [o, o]]], 'const $0={};throw [$0,$0];')
+        writes(['throw', ['[]', [o, o]]], 'throw (()=>{const $0={};return [$0,$0];})();')
         // the module writer takes a throwing module to the same text
         assertEq(unwrap(tryModuleStringify(['throw', 'x'])), 'throw "x";')
         assertEq(unwrap(tryModuleStringify([',', [['[]', []], ['throw', 1]]])), 'const $0=[];throw 1;')
@@ -1054,8 +1079,9 @@ export const proof = {
         const pair = /** @type {const} */ (['[]', [array, array]])
         // An ordinary property path nests Dot nodes. A property continuation
         // belongs to an optional region, whose later call owns this argument.
+        // Ordinary lookup also precedes the argument's local sharing block.
         writes(['=>', 1, [], ['.', ['.', ['arg', 0], 'x'], 'y', ['|()', [pair]]]],
-            'export default ($0)=>{const $1=[];return $0.x.y([$1,$1]);};')
+            'export default ($0)=>$0.x.y((()=>{const $1=[];return [$1,$1];})());')
         writes(['=>', 1, [], ['?.', ['arg', 0], 'x', ['|.', 'y', ['|()', [pair]]]]],
             'export default ($0)=>$0?.x.y((()=>{const $1=[];return [$1,$1];})());')
         writes(['=>', 1, [], ['.', ['arg', 0], 'x', ['|?.()', [], ['|.', 'y', ['|()', [pair]]]]]],
@@ -1063,23 +1089,46 @@ export const proof = {
         writes(['=>', 1, [], ['?.', ['arg', 0], 'x', ['|.', ['Number', 0], ['|?.()', [pair]]]]],
             'export default ($0)=>$0?.x[Number(0)]?.((()=>{const $1=[];return [$1,$1];})());')
     },
+    operandPrefixes: () => {
+        // Existing source IIFEs keep these prefixes at their operand positions.
+        writes(['[]', [[',', [1, 2]]]], 'export default [(()=>{const $0=1;return 2;})()];')
+        writes(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'export default ()=>[(()=>{const $0=1;return 2;})()];')
+        writes(['{}', [['...', [',', [1, 2]]]]], 'export default {...(()=>{const $0=1;return 2;})()};')
+        const comma = /** @type {const} */ ([',', [1, 2]])
+        assertEq(generatedOperandPrefix(comma), false)
+        assertEq(generatedOperandPrefix(['=>', 0, [], comma]), false)
+        assertEq(generatedOperandPrefix(['?:', true, comma, 0]), false)
+        assertEq(generatedOperandPrefix(['[]', [comma]]), true)
+        assertEq(generatedOperandPrefix(['=>', 0, [comma], ['frame', 0]]), true)
+        const shared = /** @type {const} */ (['[]', [7]])
+        const original = /** @type {Exp} */ (['[]', [[',', [['[]', []], ['[]', [shared, shared, ['[]', [7]]]]]]]])
+        const first = rewrites(original)
+        assertEq(first, 'export default [(()=>{const $0=[];const $1=[7];return [$1,$1,[7]];})()];')
+        const normalized = _defaultExport(moduleGraph(first))
+        const canonical = reads(normalized)
+        assertEq(canonical, 'const $0=[];const $1=[7];export default [[$1,$1,[7]]];')
+        for (const graph of [original, normalized, _defaultExport(moduleGraph(canonical))]) {
+            const outer = moduleValue(graph)
+            assert(outer instanceof Array)
+            const inner = outer[0]
+            assert(inner instanceof Array)
+            assertEq(inner[0], inner[1])
+            assert(inner[0] !== inner[2])
+        }
+    },
     refuses: () => {
         // A node kind this writer has no spelling for, which is how the
         // feature that adds one is made to add its spelling here too: the
         // unary plus, `op12`'s `+` of one operand, which the language has
         // no prefix for
         refuses(['+', 1], 'a unary + node')
-        // a node under a lazy operand is walked for what it holds before
-        // it is refused for what it is
-        refuses(['{}', [['...', [',', [1, 2]]]]], 'a comma outside a scope')
-
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
-        // a comma is a scope's own form — a module's root and a function's
-        // body are where one is read — and the lowering builds one nowhere
-        // else, so one inside a container is a graph built by hand
-        refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
-        refuses(['=>', 0, [], ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
+        // One comma shared across operand positions still has no canonical
+        // source spelling; independent local prefixes have their own blocks.
+        const operand = /** @type {const} */ ([',', [1, 2]])
+        refuses(['[]', [operand, operand]], 'a shared comma outside a scope')
+        refuses(['=>', 0, [], ['[]', [operand, operand]]], 'a shared comma outside a scope')
         // An access key no literal spells: a computed one, and the three
         // numbers the tokenizer does not read back.
         // a key the EDAG's index admits nowhere, which only a graph built
@@ -1371,10 +1420,10 @@ export const proof = {
         // under the lazy operators and the conditional, which bind looser
         // than them all
         writes(fn(conditional('&&', ['+', r0, 1], r1)), 'export default (...$0)=>{const $1=$0[0]+1;return $1?$0[1]:$1;};')
-        writes(fn(['+', conditional('&&', r0, r1), 1]), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1)+1;};')
+        writes(fn(['+', conditional('&&', r0, r1), 1]), 'export default (...$0)=>(()=>{const $1=$0[0];return $1?$0[1]:$1;})()+1;')
         writes(fn(['+', r0, ['?:', r1, 1, 2]]), 'export default (...$0)=>$0[0]+($0[1]?1:2);')
         writes(fn(['?:', ['+', r0, 1], 1, 2]), 'export default (...$0)=>$0[0]+1?1:2;')
-        writes(fn(['|', r0, conditional('??', r1, 1)]), 'export default (...$0)=>{const $1=$0[1];return $0[0]|(($1===null?true:$1===undefined)?1:$1);};')
+        writes(fn(['|', r0, conditional('??', r1, 1)]), 'export default (...$0)=>$0[0]|(()=>{const $1=$0[1];return ($1===null?true:$1===undefined)?1:$1;})();')
         // the prefixes bind tighter than every binary operator, so an
         // operator's text is grouped under one and a prefix stands bare
         // under anything, another prefix included
@@ -1539,8 +1588,8 @@ export const proof = {
             writes(fn(['?:', r0, ['=>', 0, [], 1], 2]), 'export default (...$0)=>$0[0]?()=>1:2;')
             writes(fn(['?:', r0, 1, ['=>', 0, [], 1]]), 'export default (...$0)=>$0[0]?1:()=>1;')
             // an operator binds looser than a step and than the prefix
-            writes(fn(['.', conditional('&&', r0, r1), 'x']), 'export default (...$0)=>{const $1=$0[0];return ($1?$0[1]:$1).x;};')
-            writes(fn(['-', conditional('&&', r0, r1)]), 'export default (...$0)=>{const $1=$0[0];return -($1?$0[1]:$1);};')
+            writes(fn(['.', conditional('&&', r0, r1), 'x']), 'export default (...$0)=>(()=>{const $1=$0[0];return $1?$0[1]:$1;})().x;')
+            writes(fn(['-', conditional('&&', r0, r1)]), 'export default (...$0)=>-(()=>{const $1=$0[0];return $1?$0[1]:$1;})();')
             writes(fn(conditional('&&', ['-', r0], r1)), 'export default (...$0)=>{const $1=-$0[0];return $1?$0[1]:$1;};')
             // a body whose text opens with `{` is a block, whatever follows
             writes(fn(['?:', ['.', ['{}', []], 'x'], 1, 2]), 'export default ()=>{return {}.x?1:2;};')
@@ -1572,10 +1621,10 @@ export const proof = {
             // a function in the block captures the block's `const`, and is
             // one depth further in
             writes(['?:', true, ['[]', [c, ['=>', 0, [c], ['frame', 0]]]], 1], 'export default true?(()=>{const $0=[1];return [$0,()=>$0];})():1;')
-            // blocks nest as lazy operands do
+            // Sharing stays in its operand, inside the selected outer block.
             /** @type {Exp} */
             const d = ['[]', [2]]
-            writes(fn(['?:', r0, ['[]', [c, c, conditional('&&', r1, ['[]', [d, d]])]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];const $2=$0[1];return [$1,$1,$2?(()=>{const $3=[2];return [$3,$3];})():$2];})():4;')
+            writes(fn(['?:', r0, ['[]', [c, c, conditional('&&', r1, ['[]', [d, d]])]], 4]), 'export default (...$0)=>$0[0]?(()=>{const $1=[1];return [$1,$1,(()=>{const $2=$0[1];return $2?(()=>{const $3=[2];return [$3,$3];})():$2;})()];})():4;')
             // a value the scope reaches eagerly as well — in the same
             // statement, or a later one — is the scope's `const`
             writes(fn(['[]', [c, ['?:', r0, ['[]', [c, c]], 1]]]), 'export default (...$0)=>{const $1=[1];return [$1,$0[0]?[$1,$1]:1];};')
@@ -1604,7 +1653,7 @@ export const proof = {
             // and two equal nodes are two, each written where it stands
             /** @type {() => Exp} */
             const twin = () => conditional('??', ['.', ['rest'], 0], ['.', ['rest'], 1])
-            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>{const $1=$0[0];const $2=$0[0];return [($1===null?true:$1===undefined)?$0[1]:$1,($2===null?true:$2===undefined)?$0[1]:$2];};')
+            writes(fn(['[]', [twin(), twin()]]), 'export default (...$0)=>[(()=>{const $1=$0[0];return ($1===null?true:$1===undefined)?$0[1]:$1;})(),(()=>{const $2=$0[0];return ($2===null?true:$2===undefined)?$0[1]:$2;})()];')
             /** @type {Exp} */
             const m = ['?:', r0, c, 1]
             writes(fn([',', [c, ['[]', [m, m]]]]), 'export default (...$0)=>{const $1=[1];const $2=$0[0]?$1:1;return [$2,$2];};')
@@ -1675,7 +1724,9 @@ export const proof = {
     // and which four hand-picked accept sets in a row did not catch. A
     // graph holding a redundant anchor, which the `,` contract excludes, is
     // written as it says and reads back without the anchor: its text reads
-    // back to a graph the law holds for ({@link rewrites}).
+    // back to a graph the law holds for ({@link rewrites}). Newly admitted
+    // unshared operand prefixes use that first-source normalization too;
+    // every formerly admitted nonredundant shape keeps the raw-table law.
     //
     // The graphs are every shape over every shape over the atoms, some
     // thousands of them, of which about half have a text and the rest are
@@ -1688,7 +1739,7 @@ export const proof = {
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
-            if (redundantAnchor(e)) { rewrites(e) } else { reads(e) }
+            if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
         }),
     ])),
     /**

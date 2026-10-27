@@ -246,9 +246,9 @@ const functionValue = (source, environment, context) => {
  * before it would be lost, the scope reading the old value where JavaScript
  * reads the new. The parser refuses every such program — an assignment from
  * a function called where it is written is `reassigned variable captured`,
- * and a loop in one over an outer variable assigns it the same way — and
- * this is the assertion that keeps it so, until a block's writes become its
- * results ([let](../../../spec/todo/3220-let.md), "General loops"). `inner`
+ * and a loop in one over an outer variable assigns it the same way. Statement
+ * conditionals merge outer writes through explicit branch results instead;
+ * they do not introduce this value boundary. `inner`
  * is `outer` with the block's own bindings before its statements, a rest
  * parameter's, which the block may assign.
  *
@@ -354,6 +354,22 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const made = establish(inner, statement[1], normalizedValue(inner, context)(statement[2]), false)
             inner = made.environment
             statements = [...statements, ...made.statements]
+            continue
+        }
+        if (statement[0] === 'if') {
+            // Both arms' final versions must survive alias pruning before
+            // the changed outer names become its explicit result signature.
+            const outer = context.bindings.filter(fact => inner.some(([id]) => id === fact.id)).map(fact => fact.id)
+            const branch = normalizedBlock(statement[2], inner, context, outer)
+            const otherwise = normalizedBlock(statement[3], inner, context, outer)
+            const writes = [...branch.environment.slice(inner.length), ...otherwise.environment.slice(inner.length)].map(([id]) => id)
+            const sources = outer.filter(id => writes.includes(id))
+            const results = sources.map(source => binding(source.index))
+            statements = [...statements, ['if', results, normalizedValue(inner, context)(statement[1]),
+                { ...branch.block, exit: ['yield', sources.map(source => lookup(branch.environment, source))] },
+                { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] },
+            ]]
+            inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
             continue
         }
         const loop = statement[1]

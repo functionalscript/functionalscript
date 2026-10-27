@@ -44,6 +44,7 @@ import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The first line of a generated expectation. @type {(fixture: string) => string} */
 const header = fixture =>
@@ -113,7 +114,7 @@ const withHeader = fixture => text => [header(fixture), ...text.split('\n').slic
 export const expectation = fixture => interpreted => {
     if (interpreted[0] === 'error') {
         const failure = interpreted[1]
-        return 'thrown' in failure
+        return hasEntry(failure, 'thrown')
             ? ok([header(fixture), '', throwing, '', none, throwsConstant(true), ''].join('\n'))
             : error(`${fixture}: ${failure.message}`)
     }

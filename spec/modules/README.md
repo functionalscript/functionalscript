@@ -2,13 +2,14 @@
 
 **Status:** implemented
 
-A module is a sequence of statements, each terminated by a semicolon —
-`export default 5;` — or by nothing, where JavaScript's automatic semicolon
+A module is a sequence of statements. Most end with a semicolon —
+`export default 5;` — or omit it where JavaScript's automatic semicolon
 insertion supplies one: at the end of the input, before a `}`, and before a
 statement that begins on a new line. `export default 5` at the end of a file
 is that module, and so is `const a = 1` followed by `export default a` on the
-next line. A newline is what ends such a statement, so two statements on one
-line need the `;` between them: `const a = 1 export default a;` is a syntax
+next line. A `while` block ends at its closing `}`, with no following `;`.
+A newline is what ends a statement with an omitted semicolon, so two such
+statements on one line need the `;` between them: `const a = 1 export default a;` is a syntax
 error in JavaScript and an error here, at `export`, exactly as it was when
 the `;` was required. A comment counts by the line it ends on: a line comment
 ends at a newline, and a block comment that holds one breaks the line as
@@ -58,6 +59,7 @@ so every DataJS document parses here.
 |variable|`let name = expression;`|
 |assignment|`name = expression;`|
 |call statement|`name(expression);`|
+|loop|`while (condition) { statements }`|
 |named export|`export const name = expression;`|
 |default export|`export default expression;`|
 |throw|`throw expression;`|
@@ -71,11 +73,37 @@ export default [base, extra];      // optional, at most one, last
 ```
 
 These are the module-level statement forms. A statement begins with `import`,
-`const`, `let`, `export`, or `throw`, or with the name of an assignment or
+`const`, `let`, `while`, `export`, or `throw`, or with the name of an assignment or
 a call statement, each of which stands wherever a `const` does
 ([variables](../bindings/variables/README.md),
 [call statements](../functions/call-statements/README.md)); more forms land as the
 language grows ([`spec/todo/`](../todo/README.md)).
+
+A plain [`while` loop](../control-flow/loops/README.md) runs at its written
+position during module initialization. It can stand before or between named
+exports. Each exported constant keeps the value established by its declaration:
+
+```js
+let value = 0;
+export const before = value;
+while (value < 3) {
+    value = value + 1;
+}
+export const after = value;
+export default [before, after];
+```
+
+This exports `before` as `0`, `after` as `3`, and the default as `[0, 3]`.
+Loop-local declarations remain local. The ordinary variable/capture rules
+apply to module bindings, including writes in unreachable loops. A failed
+initializer, condition or body fails module loading; following declarations
+and exports do not run. Imports retain their existing loading rules.
+The default export or terminal throw still ends the module.
+
+An initializer runs at its declaration even if only a later export reads its
+value. It cannot be deferred past a loop that never finishes. Likewise, an
+earlier loop executes before a later initializer or loop condition can fail,
+regardless of the order in which exports read their results.
 
 JavaScript accepts `throw` at the top level of a module, and
 [a module is a function](#a-module-is-a-function), so a block's rule

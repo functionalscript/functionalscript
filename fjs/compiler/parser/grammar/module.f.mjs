@@ -3,14 +3,15 @@
  * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
  *
  * ```text
- * module ::= import* const* last eof
+ * module ::= import* moduleStatement* last eof
+ * moduleStatement ::= const | let | while | bodyNameStatement
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
  * binding ::= id [ 'as' id ]
  * const  ::= 'const' target '=' value end
  * target ::= id | array | object
- * last   ::= 'export' ( 'default' value end | const const* [ last ] )
+ * last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
  *          | 'throw' value end
  * end    ::= [ ';' ]
  * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
@@ -35,7 +36,8 @@
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' statement* terminator '}'
  * statement ::= const | 'if' '(' value ')' block | let
- *             | 'while' '(' value ')' loopBlock | bodyNameStatement
+ *             | while | bodyNameStatement
+ * while  ::= 'while' '(' value ')' loopBlock
  * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
@@ -43,7 +45,9 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | bodyNameStatement
+ * loopStatement ::= const | let | loopIfStatement | bodyNameStatement
+ * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
+ * loopElse ::= loopBlock | loopIfStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
@@ -139,7 +143,7 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopElse, LoopIfStatement, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -176,7 +180,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
- * one, `let` and `while` a loop, `switch` and `case` a switch, and `as`
+ * one, `else` an alternate, `let` and `while` a loop, `switch` and `case` a switch, and `as`
  * introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
@@ -184,7 +188,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * symbol rejects every one of them, which is what {@link identifier} is
  * for: the union of `id` and the framing keywords. Which words a position may
  * hold is the fold's to say, since it is a property of the word — JavaScript
- * reserves six while `from` and `as` are ordinary, and it lets every reserved
+ * reserves its keywords while `from` and `as` are ordinary, and it lets every reserved
  * word stand as a key or after `.`, so `{ default: 3 }`, `{ return: 3 }`
  * and `a.with` parse and `const export = 1;` is refused by the fold, as
  * `const if = 1;` is.
@@ -199,7 +203,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -218,7 +222,7 @@ export const sym = alphabet.encode
 /**
  * One token as the parser's input: the symbol of its kind — of its word,
  * for a keyword with its own symbol, and `keyword` for any other word
- * `fjs/js/keywords` reserves, `else` or `var` — with the whole token as
+ * `fjs/js/keywords` reserves, `var` or `for` — with the whole token as
  * metadata, so that a fold above still has its value and its position.
  *
  * `keyword` stands wherever {@link identifier} does, so a reserved word is
@@ -259,6 +263,7 @@ export const identifier = /** @type {const} */ ({
     return: sym('return'),
     throw: sym('throw'),
     if: sym('if'),
+    else: sym('else'),
     let: sym('let'),
     while: sym('while'),
     switch: sym('switch'),
@@ -1175,10 +1180,9 @@ export const terminator = /** @type {const} */ ({
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * A `let` is a declaration as a `const` is, {@link letStatement}, and a
- * loop is `while (condition) loopBlock`: two statements the grammar reads
- * where a `const` may stand, each on its own, since one symbol decides
- * each; which variable a loop steps is the fold's to find, from the
- * assignments in its block
+ * loop is `while (condition) loopBlock`. Both stand where a `const` may,
+ * independently, each beginning with its own keyword. Resolved source facts
+ * let the common sugar pass select loop state
  * ([spec: loops](../../../../spec/control-flow/loops/README.md)). No
  * {@link end} follows the loop's `}`, as none follows the guard's.
  *
@@ -1192,7 +1196,7 @@ export const statement = () => ['const', {
     const: constStatement,
     if: [sym('if'), sym('('), value, sym(')'), block],
     let: letStatement,
-    while: [sym('while'), sym('('), value, sym(')'), loopBlock],
+    while: whileStatement,
     name: bodyNameStatement,
 }]
 
@@ -1241,15 +1245,18 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
 
 /**
- * A statement of a loop's block: a `const`, a `let`, or what begins with
- * a name, {@link bodyNameStatement}. `const`, `let` and a name decide the
- * three in one symbol. A thunk, as {@link statement} is, since the block
- * holds this rule and this rule holds a value.
+ * A statement of a loop's block: a declaration, a normal conditional,
+ * `if (condition) loopBlock`, or what begins with a name. The conditional
+ * resumes with the following statement whether its block runs or is skipped.
+ * Its block may hold further conditionals, using this same rule, and owns its
+ * declarations. An `else` selects another block or conditional. Explicit exits
+ * and nested loops remain follow-ups.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
     const: constStatement,
+    if: loopIfStatement,
     let: letStatement,
     name: bodyNameStatement,
 }]
@@ -1257,14 +1264,23 @@ export const loopStatement = () => ['const', {
 /**
  * A loop's block, `{ const x = …; r = …; }`: any number of
  * {@link loopStatement}s and no terminator, since reaching the `}`
- * continues the loop. A guard, a `return` or a `throw` in it, and a nested
- * loop, are follow-ups, each additive on this form.
+ * continues the loop. Normal conditionals keep their own lexical blocks and
+ * resume here. A `return` or a `throw` in it, and a nested loop, are follow-ups.
  *
  * @type {LoopBlock}
  */
 export const loopBlock = /** @type {const} */ ([
     sym('{'), repeatFrom0(loopStatement), sym('}'),
 ])
+
+/** An alternate block or conditional. Braces make its two starts unambiguous. @type {LoopElse} */
+export const loopElse = () => ['const', { block: loopBlock, if: loopIfStatement }]
+
+/** A normal conditional shared by a loop statement and an `else if` tail. @type {LoopIfStatement} */
+export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock, option([sym('else'), loopElse])]
+
+/** The plain loop statement shared by module and function bodies. @type {WhileStatement} */
+export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
 
 /**
  * A function's block body: `{ const x = 1; return value; }` — any number of
@@ -1343,12 +1359,11 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 /**
- * A module's statement before its exports: a `const`, a `let`, or what
- * begins with a name, an assignment or a call statement,
- * {@link bodyNameStatement}, as a body's. `const`, `let` and a name decide
- * the three in one symbol.
+ * A module's statement before its exports: a `const`, a `let`, a plain loop,
+ * or what begins with a name, an assignment or a call statement,
+ * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, while: whileStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —
@@ -1372,7 +1387,7 @@ export const lastStatement = () => ['const', {
 
 /**
  * The whole module: imports first, ordinary and exported constants,
- * variables, assignments and call statements in order,
+ * variables, assignments, plain loops and call statements in order,
  * {@link moduleStatement}, and {@link lastStatement} —
  * at least one export, or a `throw`. Ending on `eof` is what makes a
  * trailing stray token a failure.

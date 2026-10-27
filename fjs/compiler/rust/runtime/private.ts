@@ -6,6 +6,12 @@
 
 import type { Exp } from '../../../edag/types.ts'
 
+/** Required module initialization followed by its namespace/value. */
+export type _Sequenced = {
+    readonly prefix: readonly Exp[]
+    readonly value: Exp
+}
+
 /**
  * A module-level node the `statics` table holds, resolved: a function, a
  * built-in; a native static the table lists as itself, no built-in of the

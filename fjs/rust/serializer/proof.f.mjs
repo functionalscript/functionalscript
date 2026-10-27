@@ -65,6 +65,93 @@ export const proof = {
             assert(text(value, true).length > 0)
         }
     },
+    /** Key evaluation and conversion finish before the property value starts. */
+    computedKeyOrder: () => {
+        /** @type {Value} */
+        const key = ['()', ['ref', x], []]
+        /** @type {Value} */
+        const value = ['()', ['ref', y], []]
+        /** @type {Value} */
+        const object = ['object', [[':', key, value]]]
+        /** @type {string} */
+        const converted = 'property_item(((Any::call(_b0.clone(), Array::default().to_any()))?).to_string()?, (Any::call(_b1.clone(), Array::default().to_any()))?)'
+        assertEq(text(object, true), `Ok(spread_object([${converted}]))`)
+        assertEq(text(object), `spread_object([${converted}])`)
+        assertStructurallySame(unwrap(scope(yielding([object]), options)).uses, {
+            vm: ['Array', 'ToAny'], unstable: ['property_item', 'spread_object'],
+        })
+    },
+    /** Parentheses make conversion consume the entire conditional or block. */
+    computedKeyGrouping: () => {
+        /** @type {readonly Value[]} */
+        const keys = [
+            ['if', true, yielding([1]), yielding([2])],
+            ['?:', false, 1, 2],
+            ['block', { statements: [['define', x, 1]], exit: ['yield', [['ref', x]]] }],
+            ['Number', ['ref', x]],
+        ]
+        for (const key of keys) {
+            assertEq(text(['object', [[':', key, ['ref', y]]]]),
+                `spread_object([property_item((${text(key)}).to_string()?, _b1.clone())])`)
+        }
+    },
+    /** Entry order, selected regions and established value references stay intact. */
+    computedKeyRegionsAndIdentity: () => {
+        /** @type {Value} */
+        const object = ['object', [
+            [':', ['ref', x], ['ref', y]], ['...', ['object', []]], [':', 1, ['ref', y]],
+        ]]
+        /** @type {string} */
+        const expected = 'spread_object([property_item((_b0.clone()).to_string()?, _b1.clone()), spread_entries(Object::default().to_any()), property_item((f64_any(0x3ff0000000000000)).to_string()?, _b1.clone())])'
+        assertEq(text(object), expected)
+        assertEq(text(['if', true, yielding([object]), yielding([['object', []]])]),
+            `if Any::<A>::to_boolean(true.to_any()) { ${expected} } else { Object::default().to_any() }`)
+        assertEq(text(['object', [[':', 'plain', ['ref', y]]]]),
+            '[(string_key("plain"), _b1.clone())].to_object().to_any()')
+        const uses = unwrap(scope(yielding([object]), options)).uses
+        assertEq(uses.unstable.includes('computed_item'), false)
+        assertEq(uses.vm.includes('ToString'), false)
+        assert(uses.unstable.includes('property_item'))
+    },
+    /** Each reached iterator is established before the next operand runs. */
+    spreadExpansion: () => {
+        /** @type {Value} */
+        const later = ['()', ['ref', x], []]
+        const values = /** @type {const} */ ([['...', null], later])
+        /** @type {string} */
+        const expanded = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
+        assertEq(text(['array', values], true), expanded)
+        assertEq(text(['array', values]), `(${expanded})?`)
+        // The callee is the first Rust call argument; expansion belongs to
+        // the following argument array, before its later operand call.
+        assertEq(text(['()', later, values], true), `Any::call((Any::call(_b0.clone(), Array::default().to_any()))?, (${expanded})?)`)
+        // Failure of the spread operand itself propagates before iterator
+        // admission, which has its own question mark at the item boundary.
+        assertEq(text(['array', [['...', ['Number', null]], 1]], true),
+            'spread_array([spread_item((Any::number(Nullish::Null.to_any()))?)?, value_item(f64_any(0x3ff0000000000000))])')
+        // Repeated references retain the established element identity; every
+        // spread is established independently at its original list position.
+        assertEq(text(['array', [['ref', x], ['...', ['ref', y]], ['ref', x], ['...', ['array', []]]]], true),
+            'spread_array([value_item(_b0.clone()), spread_item(_b1.clone())?, value_item(_b0.clone()), spread_item(Array::default().to_any())?])')
+        const used = unwrap(valueTagged(['array', values], options))[1]
+        assertStructurallySame(used.filter(([module, name]) => module === 'unstable' && name === 'spread_item'), [['unstable', 'spread_item']])
+    },
+    /** Selected chain argument thunks contain expansion; lookup stays outside. */
+    selectedSpreadRegions: () => {
+        const args = /** @type {const} */ ([['...', null], ['()', ['ref', x], []]])
+        /** @type {string} */
+        const items = 'spread_array([spread_item(Nullish::Null.to_any())?, value_item((Any::call(_b0.clone(), Array::default().to_any()))?)])'
+        assertEq(text(['.', ['()', ['ref', y], []], 'slice', ['|()', args]], true),
+            `Any::dot((Any::call(_b1.clone(), Array::default().to_any()))?, string_any("slice")).end_call(&runtime, || ${items})`)
+        assertEq(text(['.', 'abc', 'slice', ['|?.()', args]], true),
+            `Any::dot(string_any("abc"), string_any("slice")).option_call(&runtime, || ${items}).end()`)
+        assertEq(text(['?.', null, 'slice', ['|()', args]], true),
+            `Any::option_dot(Nullish::Null.to_any(), || Ok(string_any("slice"))).call(&runtime, || ${items}).end()`)
+        assertEq(text(['?.()', undefined, args], true),
+            `Any::option_call(Nullish::Undefined.to_any(), || ${items}).end()`)
+        assertEq(text(['?.', null, 'slice', ['|!()', args]], true),
+            `Any::option_dot(Nullish::Null.to_any(), || Ok(string_any("slice"))).end_call(&runtime, || ${items})`)
+    },
     memberPresence: () => {
         assertEq(text(['memberPresent', ['array', []], 'at'], true), 'Any::member_present(Array::default().to_any(), string_any("at"), &runtime)')
         assertEq(text(['memberPresent', ['array', []], 0]), '(Any::member_present(Array::default().to_any(), f64_any(0x0000000000000000), &runtime))?')

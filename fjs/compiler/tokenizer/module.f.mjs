@@ -55,6 +55,7 @@ import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
 import { isKeyword } from '../../js/keywords/module.f.js'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { flat, stateScan } from '../../types/list/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // -- layer 3: the ModuleToken stream -------------------------------------------
 
@@ -121,7 +122,7 @@ const templateSourceAccepted = source => {
  * @type {(input: JsToken) => ModuleToken}
  */
 const toModuleToken = input =>
-    'source' in input && !templateSourceAccepted(input.source) ? { kind: 'error', message: 'invalid token' }
+    hasEntry(input, 'source') && !templateSourceAccepted(input.source) ? { kind: 'error', message: 'invalid token' }
     : moduleTokenKindSet.has(input.kind) ? /** @type {ModuleToken} */ (input)
     : isKeyword(input.kind) ? { kind: 'id', value: input.kind }
     : { kind: 'error', message: 'invalid token' }

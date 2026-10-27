@@ -352,8 +352,13 @@ export const proof = {
     parameters: () => {
         const { imports, edag } = compile('import a from "./a.f.js"; import b from "./b.f.js"; export default [b, a, b];')
         assertStructurallySame(imports, [{ specifier: './a.f.js', json: false, name: 'default' }, { specifier: './b.f.js', json: false, name: 'default' }])
-        expectEdag(edag, ['[]', [['.', ['.', ['args'], 1], 'default'], ['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default']]])
-        assert(edag instanceof Array && edag[0] === '[]' && edag[1][0] === edag[1][2], edag)
+        // Establish the first import before the result reads the second one.
+        expectEdag(edag, [',', [['.', ['.', ['args'], 0], 'default'], ['[]', [['.', ['.', ['args'], 1], 'default'], ['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default']]]]])
+        assert(edag instanceof Array && edag[0] === ',', edag)
+        const [first, result] = edag[1]
+        assert(result instanceof Array && result[0] === '[]', result)
+        assertEq(first, result[1][1])
+        assertEq(result[1][0], result[1][2])
     },
     // A member a later duplicate shadows is in the graph — the constructor
     // applies every member written — so a reference in it is reached, and
@@ -598,9 +603,9 @@ export const proof = {
             expectEdag(compile('const f = () => { const g = f; return g(); }; export default f;').edag, ['=>', 0, [], ['()', ['self'], []]])
         },
         // What the body anchors — the `const`s its value does not reach —
-        // floats to the nearest block root: the scope's root through eager
-        // positions, and a lazy operand, which is established only when
-        // the operator decides to and so takes the comma itself.
+        // floats to the nearest block root only when it crosses no earlier
+        // eager work. Otherwise it stays in the operand's comma. A lazy
+        // operand retains its selected block root.
         anchors: () => {
             /** @type {Exp} */
             const x = ['.', null, 'x']
@@ -613,7 +618,8 @@ export const proof = {
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() && 2;').edag, [',', [x, ['?:', 1, 2, 1]]])
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() ? 2 : 3;').edag, [',', [x, ['?:', 1, 2, 3]]])
             expectEdag(compile('const f = (...a) => 1; export default f((() => { const x = null.x; return 2; })());').edag, [',', [x, ['()', ['=>', 0, [], 1], [2]]]])
-            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, [',', [x, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [2]]]]])
+            // Member lookup precedes the argument's required initializer.
+            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [[',', [x, 2]]]]])
             // a lazy operand is a block root: the anchor stays under it
             expectEdag(compile('export default 1 && (() => { const x = null.x; return 2; })();').edag, ['?:', 1, [',', [x, 2]], 1])
             expectEdag(compile('export default 1 || (() => { const x = null.x; return 2; })();').edag, ['?:', 1, 1, [',', [x, 2]]])
@@ -739,13 +745,12 @@ export const proof = {
         expectEdag(compile('const f = [(...x) => x]; export default f[Number("0")](7);').edag, ['.', ['[]', [['=>', 0, [], ['rest']]]], ['Number', '0'], ['|()', [7]]])
         assertStructurallySame(execute(compile('const xs = [10, 20]; export default [xs[Number("1")], null?.[Number(null.x)]];').edag), [20, undefined])
         // a computed object key is the property's own key operand, lowered
-        // as its value is: eager, so an inlined body's anchors float to the
-        // object's root from the key as from the value, and a `const` read
-        // there alone is inlined there
+        // as its value is. Key conversion stays before a following value's
+        // local prefix; a `const` read there alone is inlined there.
         expectEdag(compile('const c = [1]; export default {[c]: 2};').edag, ['{}', [[':', ['[]', [1]], 2]]])
         expectEdag(compile('export default {[1 + 1]: 2, ["a"]: 3};').edag, ['{}', [[':', ['+', 1, 1], 2], [':', 'a', 3]]])
         expectEdag(compile('export default {[(() => { const x = [7]; return 0; })()]: 1};').edag, [',', [['[]', [7]], ['{}', [[':', 0, 1]]]]])
-        expectEdag(compile('export default {[1 + 1]: (() => { const x = [7]; return 0; })()};').edag, [',', [['[]', [7]], ['{}', [[':', ['+', 1, 1], 0]]]]])
+        expectEdag(compile('export default {[1 + 1]: (() => { const x = [7]; return 0; })()};').edag, ['{}', [[':', ['+', 1, 1], [',', [['[]', [7]], 0]]]]])
         assertStructurallySame(execute(compile('const k = "a"; export default {[k + "b"]: 1, [null]: 2, [[1, 2]]: 3}["ab"];').edag), 1)
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold
@@ -1040,8 +1045,9 @@ export const proof = {
             /** @type {(source: string, expected: string) => void} */
             const writes = (source, expected) => assertEq(unwrap(tryModuleStringify(unresolved(unwrap(parse('')(source))).edag)), expected)
             writes('const x = [1, 2]; const [a, b] = x; export default [b, a];', 'const $0=[...[1,2]];export default [$0[1],$0[0]];')
+            // Preserve the earlier property read before the array expansion.
             writes('const { a, "%": [c, d] } = { a: null, "%": [true, false] }; export default [a, c, d];',
-                'const $0={"a":null,"%":[true,false]};const $1=[...$0["%"]];export default [$0.a,$1[0],$1[1]];')
+                'const $0={"a":null,"%":[true,false]};const $1=$0.a;const $2=[...$0["%"]];export default [$1,$2[0],$2[1]];')
             writes('export default (...r) => { const [x, y] = r; return [y, x]; };', 'export default (...$0)=>{const $1=[...$0];return [$1[1],$1[0]];};')
             writes('const x = {}; const {} = x; const [] = x; export default 1;', 'const $0={};const $1=$0.length;const $2=[...$0];export default 1;')
             // a parameter pattern's reads open the body, and an object
@@ -1175,10 +1181,11 @@ export const proof = {
             expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), [',', [[',', [1, 2]], 1]])
             // two imports of one module are one node once bound, so the
             // unreached one is anchored only where the node is not already
-            // in the graph; before binding they are two parameters
+            // in the graph; before binding they are two parameters demanded
+            // in declaration order, ahead of the result's reads.
             const twice = { 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];'), 'm.f.js': file('export default [1];') }
             expectEdag(program(twice)('a.f.js'), ['[]', [['[]', [1]]]])
-            expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
+            expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
     },

@@ -32,14 +32,17 @@
  * ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
  * A built-in is found through an import's read of its export object,
  * `{ f }.f`, which the lowering spells an import as and which folds to
- * `f`. Any other export is the module's own, for its types and its proof.
+ * `f`. The `statics` and `runtime` values initialize in export order, including
+ * overwritten entries. Metadata uses the last export of each name, but
+ * execution retains each whole value so unused tables keep their required
+ * work. Any other export is the module's own, for its types and its proof.
  *
  * @module
  *
  * @import { Exp } from '../../../edag/types.ts'
  * @import { Uses } from '../../../edag/rust/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
- * @import { _BuiltIn, _Resolved, _Table } from './private.ts'
+ * @import { _BuiltIn, _Resolved, _Sequenced, _Table } from './private.ts'
  */
 
 import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
@@ -50,6 +53,19 @@ import { isNative } from '../../../js/static/module.f.js'
 import { isStatic, nativeFunctionText, staticPath } from '../../../edag/module.f.mjs'
 import { itemTagged } from '../module.f.mjs'
 
+/** Inspect a sequence's value without forgetting the required work before it. @type {(root: Exp) => _Sequenced} */
+const sequenced = root => {
+    let value = root
+    /** @type {readonly Exp[]} */
+    let prefix = []
+    while (value instanceof Array && value[0] === ',') {
+        prefix = [...prefix, ...value[1].slice(0, -1)]
+        const next = value[1].at(-1)
+        value = next === undefined ? ['undefined'] : next
+    }
+    return { prefix, value }
+}
+
 /**
  * A module-level node the `statics` table holds, resolved: a function,
  * which is a built-in; a native static the table lists as itself,
@@ -59,7 +75,8 @@ import { itemTagged } from '../module.f.mjs'
  *
  * @type {(node: Exp) => _Resolved}
  */
-const resolve = node => {
+const resolve = root => {
+    const node = sequenced(root).value
     if (!(node instanceof Array)) { return ['other', node] }
     const [id, a, key] = /** @type {readonly any[]} */ (node)
     if (id === '=>') { return ['function', node] }
@@ -73,19 +90,25 @@ const resolve = node => {
 
 /**
  * The properties of an object literal written out, each `[':', key, value]`
- * with a literal key, a key written twice kept at its last writing, as the
- * EDAG means it; or `null` for any other node, a spread or a computed key
+ * with a literal key, in evaluation order; or `null` for any other node,
+ * a spread or a computed key
  * among them. A member of an object literal is a property or a spread,
  * each an array, so its tag is read as one.
  *
- * @type {(node: unknown) => readonly (readonly any[])[] | null}
+ * @type {(root: Exp) => readonly (readonly any[])[] | null}
  */
-const literalProperties = node => {
+const literalEntries = root => {
+    const node = sequenced(root).value
     if (!(node instanceof Array) || node[0] !== '{}') { return null }
     const properties = /** @type {readonly (readonly any[])[]} */ (node[1])
-    return properties.every(p => p[0] === ':' && typeof p[1] === 'string')
-        ? properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
-        : null
+    return properties.every(p => p[0] === ':' && typeof p[1] === 'string') ? properties : null
+}
+
+/** Metadata observes the last writing of a key; execution retains all entries. @type {(root: Exp) => readonly (readonly any[])[] | null} */
+const literalProperties = root => {
+    const properties = literalEntries(root)
+    return properties === null ? null
+        : properties.filter((p, i) => properties.findLastIndex(q => q[1] === p[1]) === i)
 }
 
 /**
@@ -97,7 +120,7 @@ const literalProperties = node => {
  * over, since `nanvm-lib` writes it. Or the refusal: a value that is no
  * object literal, an entry that is no function, a body at a native path.
  *
- * @type {(table: unknown) => Result<readonly _BuiltIn[], readonly unknown[]>}
+ * @type {(table: Exp) => Result<readonly _BuiltIn[], readonly unknown[]>}
  */
 const builtIns = table => {
     const entries = literalProperties(table)
@@ -124,15 +147,20 @@ const builtIns = table => {
  * @type {(root: Exp) => Result<_Table, readonly unknown[]>}
  */
 const table = root => {
-    const exports = literalProperties(root)
+    const sequence = sequenced(root)
+    const exports = literalEntries(sequence.value)
     if (exports === null) { return error(['the runtime module is no object of exports', root]) }
-    const runtime = exports.find(p => p[1] === 'runtime')
+    const runtime = exports.findLast(p => p[1] === 'runtime')
     if (runtime === undefined) { return error(['no `runtime` export', root]) }
-    const statics = exports.find(p => p[1] === 'statics')
+    const statics = exports.findLast(p => p[1] === 'statics')
     if (statics === undefined) { return error(['no `statics` export of an object literal', root]) }
     return okThen((/** @type {readonly _BuiltIn[]} */ all) => {
         const twice = all.find((b, i) => all.findIndex(c => c.node === b.node) !== i)
-        return twice === undefined ? ok(/** @type {_Table} */ ({ builtIns: all, value: /** @type {Exp} */ (runtime[2]) }))
+        /** @type {readonly Exp[]} */
+        const initializers = exports.filter(p => p[1] === 'statics' || p[1] === 'runtime').map(p => p[2])
+        /** @type {Exp} */
+        const value = [',', [...sequence.prefix, ...initializers, runtime[2]]]
+        return twice === undefined ? ok({ builtIns: all, value })
             : error(['a function two built-ins name; JavaScript keeps them apart', twice.name])
     })(builtIns(statics[2]))
 }

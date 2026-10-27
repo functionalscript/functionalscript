@@ -23,8 +23,17 @@ operators, `===` and `!==`: their `nanvm-lib` form is `PartialEq`, which
 answers a `bool`, and generated code wants the `Result<Any<A>, Any<A>>`
 every other operator returns. An array spread has four: `spread_array` builds the
 array an item list holds, `[a, ...b]`, as `spread_array([value_item(a),
-spread_item(b)])`, and `spread_call` calls with such a list; each answers a
-`Result`, since a spread of what is not iterable throws
-(`Any::get_iterator`). An object's, `{k: v, ...o}`, is
+spread_item(b)?])`, and `spread_call` calls with such a list. `spread_item`
+establishes its iterator immediately and returns a `Result`, so generated code
+propagates a non-iterable operand's failure before evaluating the next item.
+`spread_array` and `spread_call` also return a `Result`. Arrays and strings are
+the only iterables, and stepping their established iterators cannot fail or run
+represented code. Array construction retains its length and allocation checks
+after item evaluation. An object's, `{k: v, ...o}`, is
 `spread_object([property_item(k, v), spread_entries(o)])`, a value, since an
 object spread never throws (`Any::object_spread`).
+
+A computed property uses `property_item((key).to_string()?, value)`.
+`Any::to_string` converts the key before Rust starts the value argument and
+propagates conversion failure at that position. `property_item` takes the
+established VM string directly, for both literal and computed keys.

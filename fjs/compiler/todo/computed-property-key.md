@@ -42,11 +42,11 @@ What the key becomes is already decided below the compiler. EDAG's
 ([`edag`](../../edag/types.ts)); the interpreter converts the value with
 `ToString`, as the `entry` helper converts the key it reads
 ([reading an entry at run time](../../../spec/property-access/entries/README.md)),
-and `nanvm-lib`'s `computed_item`
-([`vm/unstable`](../../../nanvm/lib/src/vm/unstable/mod.rs)) does the same
-through `Any::to_string`. That is JavaScript's `ToPropertyKey` on every
-value the language has — a symbol, the one case it treats apart, has no
-spelling here — so `[1]` is the key `"1"`, `[null]` the key `"null"`, and
+and Rust output does the same through `Any::to_string` before passing the key
+to `property_item`
+([`vm/unstable`](../../../nanvm/lib/src/vm/unstable/mod.rs)). That is JavaScript's
+`ToPropertyKey` on every value the language has — a symbol, the one case it
+treats apart, has no spelling here — so `[1]` is the key `"1"`, `[null]` the key `"null"`, and
 `[[1, 2]]` the key `"1,2"`. The compiler's job is to hand the key's node
 down; it adds no conversion and no refusal of its own, which would make
 the source form diverge from the graph the VM already runs.
@@ -62,14 +62,14 @@ language accepts, and keep the three constant spellings as they are:
   ([`edag`](../../edag/types.ts)), so the output format needs no change;
   only the compiler's lowering and the serializer learn the non-constant
   key. The Rust output prints one already: a property whose key is no
-  string goes through `computed_item` in
-  [`edag/rust`](../../edag/rust/module.f.mjs)'s `propertyExpr`, which the
-  compiler's Rust output delegates to.
+  string is converted with `Any::to_string` before its value is evaluated in
+  [`rust/serializer`](../../rust/serializer/module.f.mjs), then passed to
+  `property_item` with the value. The compiler's Rust output uses that printer.
 - The key's value is converted where the object is built, by the
   interpreter and the VM as they already do: `ToString` on every value,
   and the literal fails where that conversion does — an object whose
   `toString` throws or yields no primitive, `{ [{ toString: 0 }]: 1 }` —
-  as `computed_item` propagates its `to_string` error and
+  as the Rust key argument propagates its `to_string` error before the value and
   [`edag/memo`](../../edag/memo/proof.f.mjs)'s `keyFailure` pins for the
   interpreter. The compiler refuses nothing of its own and passes the node
   through, so the constant spellings and the computed one meet the same

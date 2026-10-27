@@ -15,7 +15,7 @@
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
  * stale. The samples are listed, not found by a walk, in
- * [`samples`](./samples/module.f.mjs): each one also needs a demo page, so a
+ * [`samples`](./samples/module.f.js): each one also needs a demo page, so a
  * new sample is never one file. A sample of its own is a directory beside
  * this module; a spec page's example sits with its page, so the page holds
  * its text, its example and its demo.
@@ -42,7 +42,8 @@ import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.mjs'
 import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
-import { samples as importedSamples } from './samples/module.f.mjs'
+import { samples as importedSamples } from './samples/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const rustPath = pageRustPath
 export const samplePath = pageSamplePath
@@ -103,7 +104,7 @@ export const callStatement = ([input, [kind, text]]) => {
 export const modules = places => {
     const sorted = places.toSorted((a, b) => cmp(a.name)(b.name))
     /** @type {readonly FunctionPlace[]} */
-    const functions = sorted.flatMap(place => 'calls' in place ? [place] : [])
+    const functions = sorted.flatMap(place => hasEntry(place, 'calls') ? [place] : [])
     return [
         generatedHeader('`fjs run ./fjs/nanvm/demos/module.f.mjs`', 'add or remove a sample instead'),
         '',

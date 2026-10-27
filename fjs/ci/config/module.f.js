@@ -20,11 +20,11 @@ export const images = /** @type {const} */({
     }
 })
 
-export const functionalscript = /** @type {const} */ '0.56.0'
+export const functionalscript = /** @type {const} */ '0.57.0'
 
 export const bun = '1.4.4'
 
-export const deno = '2.8.3'
+export const deno = '2.9.8'
 
 export const node = /** @type {const} */ ('26.12.1')
 
@@ -36,16 +36,16 @@ export const rust = '1.99.1'
 
 export const jobTimeout = /** @type {const} */ (30)
 
-export const wasmtime = '45.0.2'
+export const wasmtime = '50.0.0'
 
-export const wasmer = '7.1.0'
+export const wasmer = '7.5.0'
 
 export const spidermonkey = /** @type {const} */ ({
-    version: '140.14.0',
+    version: '153.6.0',
 })
 
 export const actions = /** @type {const} */({
-    'jdx/mise-action': 'v3',
+    'jdx/mise-action': 'v5',
     'actions/checkout': 'v7.0.1',
     'actions/setup-node': 'v7.1.0',
     'actions/cache': 'v6.1.0',

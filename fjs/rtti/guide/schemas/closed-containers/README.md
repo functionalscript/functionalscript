@@ -92,9 +92,8 @@ readers are written for the two readings agree
 ([what the readers assume of a
 value](../../readers/assumptions/README.md)); a foreign
 value is converted to DataJS at the host boundary before it reaches a reader.
-The one place an inherited member shows is a *declared* name such as
-`toString`, whose presence is asked through the prototype
-([`inherited-declared-member`](../../../todo/inherited-declared-member.md)).
+A *declared* member follows the same rule: a name such as `toString`, which a
+plain object only inherits, is absent from `{}`.
 
 ## Examples
 

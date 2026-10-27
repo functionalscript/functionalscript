@@ -31,6 +31,24 @@ export type Summary = {
     readonly entry: readonly BindingId[]
     readonly returns: boolean
     readonly normal: boolean
+    /** Reads established before the value can fail or diverge. */
+    readonly prefix: readonly BindingId[]
+    /** Reads before divergence or an explicit thrown value; implicit failures may precede them. */
+    readonly demand: readonly BindingId[]
+    readonly fails: boolean
+    /** A distinct explicit failure also prevents interchangeable-failure ordering. */
+    readonly diverges: boolean
+}
+
+/** One required computation may be named by several normal loop results. */
+export type Ordered = { readonly bindings: readonly BindingId[]; readonly diverges: boolean }
+
+/** Definition dependencies before failure, and before divergence or an explicit throw. */
+export type OrderScope = {
+    readonly reads: readonly (readonly [BindingId, readonly BindingId[]])[]
+    readonly opaque: readonly BindingId[]
+    readonly demands: readonly (readonly [BindingId, readonly BindingId[]])[]
+    readonly deferred: readonly BindingId[]
 }
 
 export type Summaries = ReadonlyMap<Node[1], Summary>
@@ -43,6 +61,8 @@ export type Context = {
     readonly functionTarget: FunctionTarget | null
     /** Eager descendants have already been planned by this region's owner. */
     readonly memoPrepared: boolean
+    /** External graph substitutions need not already have been evaluated. */
+    readonly external: readonly BindingId[]
 }
 
 /** Region control keeps normal joins separate from terminal evaluations. */

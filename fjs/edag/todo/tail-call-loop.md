@@ -43,12 +43,31 @@ source-normalized graph and canonical text then stabilize without helper or
 projection growth. Existing canonical scalar-loop graphs and spelling stay
 unchanged; condition-only required prefixes gain ordinary `while` output.
 
+Conditional source statements inside a loop normalize to explicit FAST branch
+results. Common graph conversion expresses those results as values within the
+existing plain-loop plan, retaining bounded-stack output and its source
+normalization contract without target-specific branch-state analysis.
+Copied condition projections are established immediately before their first
+body use, so unrelated required branch computations do not introduce redundant
+anchors that would need another source-normalization pass.
+
 Other canonical invocation roots retain recursive source spelling: multiple
 physical inputs, observed rest, structured transfers or a prefix computation
 that creates identity and must also be read in the body/result. Broader source
 placement, structured bodies and explicit exits remain H work. The source
 adapter uses shared recognition and preparation, with no writer-specific state
 or source-write analysis.
+
+An inherited example of that fallback is the raw zero-parameter graph function
+`['=>', 0, [], ['()', ['self'], []]]`. Serializing a call of this function still
+prints `const $0=()=>$0();export default $0();`, which overflows the stack on V8.
+The same spelling is produced at revision
+`30e0652bb948d8a161173a90e7e7c5f0a8d0ba48`, before the shared-owner ordering
+correction. Common tail lowering already gives this graph bounded-stack
+code-only JavaScript and Rust; source recognition does not yet include this
+zero-parameter root. An admitted source `while (true) {}` uses the supported
+aggregate-helper path instead. Extending the raw root's source spelling remains
+[H](../../todo/general-loops-and-tail-calls.md), outside the shared-owner fix.
 
 ### Problem
 

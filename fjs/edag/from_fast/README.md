@@ -20,6 +20,49 @@ retain required inner evaluations in their own expression and establish them
 only when that value is reached. References reuse the established graph node;
 equal operations written separately stay separate.
 
+Required initializers and loop calls also retain their order when their values
+are reached only by a later export or result. A possible failure stays before
+later divergent work, and earlier divergent work stays before a later failure.
+Explicit throws retain their first failure payload as well.
+Natural earlier demands need no duplicate anchor. Demand analysis distinguishes
+reads before any failure from reads before divergence or an explicit throw,
+including lazy recipes, spread expansion, computed keys and user-defined numeric
+or string coercions.
+Environment graph substitutions can perform work; ordinary function parameters
+and captures are established values when the function body begins.
+
+Construction removes an anchor list only when the actual result demands the
+whole list in order before intervening work. Unknown operations retain the
+list. This keeps wide state updates stable without independently dropping an
+earlier demand while retaining a later one.
+
+Eager operands retain their own required evaluations when floating them would
+cross earlier work. Construction tests the actual parent with each child's
+anchors in place; only a proven ordered demand prefix permits those anchors to
+float outward. Otherwise an operand-local comma preserves its execution point,
+including after spread expansion, object-key conversion and member lookup.
+Function captures and multiple yielded results use the same rule. A direct
+member callee retains its receiver; a wrapped member value remains detached.
+Established loop helper values follow the same call-operand boundary.
+
+Source output now admits unshared operand-local commas through ordinary value
+blocks and IIFEs. This newly admitted graph domain can normalize on its first
+source parse: safe declaration anchors can move to an enclosing scope, and
+equivalent capture slots can compact. Its source-normalized graph and text must
+then remain exact on subsequent rounds. Existing admitted-domain identity and
+source fixed-point proofs retain their original contracts. Shared commas outside
+canonical scopes retain their explicit source refusal; linked shared-module
+sequences remain in their [separate task](../../compiler/serializer/todo/shared-linked-comma.md).
+
+Required-order anchors extend graph normalization. Memo metadata and completion
+graphs can gain explicit demands when placement exposes a formerly implicit
+ordering constraint. These fixtures normalize with two placement/construction
+round trips from initial lowering, then require strict graph identity on the
+next conversion. Their values, captures and identities are checked throughout;
+their initial graph bytes/hashes are outside the canonical-anchor domain below.
+Admitted-source fixed points and established scalar source spelling retain
+their existing contracts.
+
 The source consumer is the admitted-source adapter in
 [`js/ast/sugar`](../../js/ast/sugar/module.f.mjs). Source admission finishes
 before graph construction. Physical prepared FAST is never an input to this API.
@@ -54,9 +97,9 @@ required even when no result is used. Aggregate state-slot reads are required
 definitions at iteration entry, allowing inner helpers to capture established
 outer values. Otherwise-unused slots retain required read anchors. These reads
 use the already-evaluated internal state array and introduce no source
-evaluation. This extends the aggregate-helper graph normalization from the
-previous lazy slot reads; the state/result order and existing scalar exact-graph
-cases remain unchanged. General helper round trips preserve their documented
+evaluation. Required-order comma anchors extend the aggregate-helper graph
+normalization; state/result order and established scalar emitted source remain
+unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
 
 [`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity

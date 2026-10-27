@@ -1134,24 +1134,29 @@ export const proof = {
         assertEq(printed(-(2n ** 64n)), 'bigint_any_words(true, &[0x0000000000000000, 0x0000000000000001])')
     },
     /**
-     * A key that is not a string literal, `{ [k]: v }`: coerced by
-     * `computed_item` where the entry is built, which can throw, so the
+     * A key that is not a string literal, `{ [k]: v }`: converted to a
+     * string before its value is evaluated. The conversion can throw, so
      * entries go through `spread_object`, inside a Result-returning scope.
      * Corpus cases use this same Result scope, including computed keys.
      */
     computedKey: {
         operand: () => assertStructurallySame(
             scoped(['{}', [[':', ['undefined'], 1]]]),
-            ['Ok(spread_object([computed_item(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000))?]))']),
+            ['Ok(spread_object([property_item((Nullish::Undefined.to_any()).to_string()?, f64_any(0x3ff0000000000000))]))']),
         mixed: () => assertStructurallySame(
             scoped(['{}', [[':', 'a', 0], [':', 1, 2]]]),
-            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?]))']),
+            ['Ok(spread_object([property_item(string_key("a"), f64_any(0x0000000000000000)), property_item((f64_any(0x3ff0000000000000)).to_string()?, f64_any(0x4000000000000000))]))']),
         spread: () => assertStructurallySame(
             scoped(['{}', [[':', 1, 2], ['...', ['{}', []]]]]),
-            ['Ok(spread_object([computed_item(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))?, spread_entries(Object::default().to_any())]))']),
+            ['Ok(spread_object([property_item((f64_any(0x3ff0000000000000)).to_string()?, f64_any(0x4000000000000000)), spread_entries(Object::default().to_any())]))']),
         corpusScopes: () => {
-            assert(scoped(['{}', [[':', ['undefined'], 1]]]).join('\n').includes('computed_item'))
-            assert(scoped(['typeof', ['{}', [[':', 1, 2]]]]).join('\n').includes('computed_item'))
+            assert(scoped(['{}', [[':', ['undefined'], 1]]]).join('\n').includes('property_item((Nullish::Undefined.to_any()).to_string()?, '))
+            assert(scoped(['typeof', ['{}', [[':', 1, 2]]]]).join('\n').includes('property_item((f64_any(0x3ff0000000000000)).to_string()?, '))
+        },
+        metadata: () => {
+            assertStructurallySame(usedBy(['{}', [[':', ['undefined'], 1]]]), {
+                vm: ['Nullish', 'ToAny'], unstable: ['f64_any', 'property_item', 'spread_object'],
+            })
         },
     },
     /**
@@ -1348,27 +1353,28 @@ export const proof = {
      * A spread, in an array or a call's arguments, prints through the
      * `vm::unstable` helpers over `get_iterator`. It can throw, so the list
      * holding it is an operation: `spread_array(…)` or `spread_call(…)`, a
-     * `Result` bound with `?` where it is a temporary, and an argument
-     * list's thunk answers `spread_array`'s own `Result`.
+     * `Result` bound with `?` where it is a temporary. Each `spread_item`
+     * establishes its iterator and propagates failure before the next item;
+     * an argument list's thunk answers `spread_array`'s own `Result`.
      */
     spread: {
         array: () => {
             assertEq(
                 printed(['[]', [1, ['...', 'ab']]]),
-                'spread_array([value_item(f64_any(0x3ff0000000000000)), spread_item(string_any("ab"))])')
-            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]], 3]]), ["Ok([(spread_array([spread_item(string_any(\"ab\"))]))?, f64_any(0x4008000000000000)].to_array().to_any())"])
+                'spread_array([value_item(f64_any(0x3ff0000000000000)), spread_item(string_any("ab"))?])')
+            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]], 3]]), ["Ok([(spread_array([spread_item(string_any(\"ab\"))?]))?, f64_any(0x4008000000000000)].to_array().to_any())"])
         },
         call: () => {
             assertEq(
                 printed(['()', ['args'], [0, ['...', 'ab']]]),
-                "{\n    let _b0: Any<A> = args.clone().to_any();\n    Any::call(_b0.clone(), (spread_array([value_item(f64_any(0x0000000000000000)), spread_item(string_any(\"ab\"))]))?)\n}")
+                "{\n    let _b0: Any<A> = args.clone().to_any();\n    Any::call(_b0.clone(), (spread_array([value_item(f64_any(0x0000000000000000)), spread_item(string_any(\"ab\"))?]))?)\n}")
         },
         /** A call step's and an optional call's arguments are a thunk, answering `spread_array`'s `Result`. */
         thunks: () => {
-            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [['...', 'ab']]]]), ["Any::dot(args.clone().to_any(), string_any(\"at\")).end_call(&runtime, || spread_array([spread_item(string_any(\"ab\"))]))"])
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [['...', 'ab']]]]), ["Any::dot(args.clone().to_any(), string_any(\"at\")).end_call(&runtime, || spread_array([spread_item(string_any(\"ab\"))?]))"])
             assertEq(
                 printed(['?.()', ['undefined'], [['...', 'ab']]]),
-                'Any::option_call(Nullish::Undefined.to_any(), || spread_array([spread_item(string_any("ab"))])).end()')
+                'Any::option_call(Nullish::Undefined.to_any(), || spread_array([spread_item(string_any("ab"))?])).end()')
         },
         /** Without a spread, nothing changes: the array is a value and the call `Any::call`. */
         noSpread: () => {
@@ -1399,15 +1405,26 @@ export const proof = {
             const a = ['.', ['args'], 'a']
             /** @type {Spread} */
             const s = ['...', a]
-            assertStructurallySame(scoped(['[]', [s, s]]), ["let _b1: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","spread_array([spread_item(_b1.clone()), spread_item(_b1.clone())])"])
-            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), ["let _b2: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","Any::dot(args.clone().to_any(), string_any(\"at\")).end_call(&runtime, || spread_array([spread_item(_b2.clone()), spread_item(_b2.clone())]))"])
+            assertStructurallySame(scoped(['[]', [s, s]]), ["let _b1: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","spread_array([spread_item(_b1.clone())?, spread_item(_b1.clone())?])"])
+            // Member lookup precedes the arguments' first shared demand.
+            assertStructurallySame(scoped(['.', ['args'], 'at', ['|()', [s, s]]]), [
+                'let _b0: Any<A> = args.clone().to_any();',
+                'let _b333 = std::cell::RefCell::new(None::<Any<A>>);',
+                'let _b2: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {',
+                '    if let Some(value) = _b333.borrow().as_ref() { return Ok(value.clone()); }',
+                '    let value: Any<A> = { (Any::dot(args.clone().to_any(), string_any("a")).end())? };',
+                '    *_b333.borrow_mut() = Some(value.clone());',
+                '    Ok(value)',
+                '};',
+                'Any::dot(_b0.clone(), string_any("at")).end_call(&runtime, || spread_array([spread_item((_b2())?)?, spread_item((_b2())?)?]))',
+            ])
             /** @type {Property} */
             const p = [':', 'k', a]
             assertStructurallySame(scoped(['{}', [p, p]]), ["let _b1: Any<A> = (Any::dot(args.clone().to_any(), string_any(\"a\")).end())?;","Ok([(string_key(\"k\"), _b1.clone()), (string_key(\"k\"), _b1.clone())].to_object().to_any())"])
         },
         /** A spread array nested in a corpus expression is an operation, as an operator is. */
         preparedScopes: () => {
-            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]]]]), ["Ok([(spread_array([spread_item(string_any(\"ab\"))]))?].to_array().to_any())"])
+            assertStructurallySame(scoped(['[]', [['[]', [['...', 'ab']]]]]), ["Ok([(spread_array([spread_item(string_any(\"ab\"))?]))?].to_array().to_any())"])
             assertStructurallySame(scoped(['[]', [['[]', ['ab']]]]), ["Ok([[string_any(\"ab\")].to_array().to_any()].to_array().to_any())"])
         },
     },

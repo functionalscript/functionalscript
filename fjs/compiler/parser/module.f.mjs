@@ -31,6 +31,7 @@ import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -210,7 +211,7 @@ const brokenLine = statement => statement.first.newline
  *
  * @type {(previous: Statement | If | Switch | While | null, next: Statement | If | Switch | While) => boolean}
  */
-const unterminated = (previous, next) => previous !== null && 'semicolon' in previous && !previous.semicolon && !next.start.newline
+const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
 
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
@@ -666,7 +667,7 @@ const chainRound = (stack, scope, frame) => {
     const { parts, index } = frame
     if (index === parts.length) { return [stack, scope, ok(chainClosed(frame.chain, toArray(frame.done)))] }
     const part = parts[index]
-    if ('value' in part) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
+    if (hasEntry(part, 'value')) { return [{ top: frame, rest: stack }, scope, ['enter', part.value]] }
     const { key } = part
     if (key instanceof Array) { return keyEntered(stack, scope, key, frame) }
     const [tag, named] = checkedKey(key, part.method)
@@ -682,7 +683,7 @@ const chainRound = (stack, scope, frame) => {
  *
  * @type {(stack: _Stack) => boolean}
  */
-const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
+const isCallee = stack => stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0
 
 /**
  * The node an item evaluates: a value's own, or a spread's operand — the
@@ -981,8 +982,8 @@ const parameterBindings = (bound, plan, initialize) => ({
  * @type {(list: ParameterList) => Result<_Bound, ParseError>}
  */
 const functionScope = list => {
-    if ('invalid' in list) { return error(malformedParameters(list.invalid)) }
-    if ('arrow' in list) { return error(unexpectedToken(list.arrow)) }
+    if (hasEntry(list, 'invalid')) { return error(malformedParameters(list.invalid)) }
+    if (hasEntry(list, 'arrow')) { return error(unexpectedToken(list.arrow)) }
     const defaulted = list.fixed.findIndex(parameter => parameter[0] === '=')
     const count = defaulted === -1 ? list.fixed.length : defaulted
     /** @type {_Bound} */
@@ -1011,6 +1012,10 @@ const functionScope = list => {
         : { ...bound, rest: plan, late: [...bound.late, { plan, init: null, rest: true }] })
 }
 
+/** The same lexical loop entry serves a body continuation or one module statement. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | null) => _State} */
+const enterLoop = (stack, scope, loop, body) =>
+    [{ top: { loop, body, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
  * value in document order. Source guards retain their lexical block and the
@@ -1030,9 +1035,7 @@ const bodyRound = (stack, scope, frame) => {
     if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
     // A loop's condition and block are source regions. Their complete
     // evidence reaches sugar before mutable loop inputs are selected.
-    if (kind === 'while') {
-        return [{ top: { loop: statement, body: frame, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', statement.condition]]
-    }
+    if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1295,7 +1298,7 @@ const isHasEntryOf = (node, x) => {
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => ValueIntrinsic | null}
  */
 const intrinsicFunction = ([, list, body]) => {
-    if (!('fixed' in list) || list.rest !== null || body[0] !== '()') { return null }
+    if (!hasEntry(list, 'fixed') || list.rest !== null || body[0] !== '()') { return null }
     const [, callee, items] = body
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
@@ -1347,7 +1350,7 @@ const intrinsicFunction = ([, list, body]) => {
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<ValueEntryFunction | ValueHasEntryFunction, ParseError> | null}
  */
 const entryFunction = ([, list, body]) => {
-    if (!('fixed' in list) || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
+    if (!hasEntry(list, 'fixed') || list.fixed.length !== 2 || list.rest !== null || body[0] !== 'block' || body[1].length !== 2) { return null }
     const [p, q] = list.fixed
     const first = body[1][0]
     const last = body[1][1]
@@ -1476,26 +1479,26 @@ const lateLanded = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: SourceValue) => _State}
  */
 const returned = (stack, scope, frame, value) => {
-    if ('container' in frame) { return containerReturned(stack, scope, frame, value) }
-    if ('call' in frame) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
-    if ('conditional' in frame) { return conditionalRound(stack, scope, advanced(frame, [value])) }
-    if ('comma' in frame) { return commaRound(stack, scope, advanced(frame, [value])) }
-    if ('key' in frame) {
+    if (hasEntry(frame, 'container')) { return containerReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
+    if (hasEntry(frame, 'conditional')) { return conditionalRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'comma')) { return commaRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'key')) {
         const { key, method } = frame
         return key instanceof Array ? keyEntered(stack, scope, key, { indexed: value }) : [stack, scope, accessClosed(key, method, value)]
     }
-    if ('indexed' in frame) {
+    if (hasEntry(frame, 'indexed')) {
         /** @type {ValueAccess} */
         const access = ['.', frame.indexed, /** @type {ValueKey} */ (value)]
         return [stack, scope, ok(access)]
     }
-    if ('chain' in frame) { return chainRound(stack, scope, advanced(frame, [value])) }
-    if ('unary' in frame) {
+    if (hasEntry(frame, 'chain')) { return chainRound(stack, scope, advanced(frame, [value])) }
+    if (hasEntry(frame, 'unary')) {
         /** @type {ValueUnary} */
         const applied = [frame.unary, value]
         return [stack, scope, ok(applied)]
     }
-    if ('instanceof' in frame) {
+    if (hasEntry(frame, 'instanceof')) {
         // the right operand is a name, not a value: the one reference the
         // language has a meaning for, never resolved in scope — `Array` is
         // a reserved global, so no scope binds it
@@ -1505,13 +1508,13 @@ const returned = (stack, scope, frame, value) => {
         const checked = ['instanceof', value, 'Array']
         return [stack, scope, ok(checked)]
     }
-    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
-    if ('left' in frame) {
+    if (hasEntry(frame, 'right')) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
+    if (hasEntry(frame, 'left')) {
         /** @type {ValueBinary} */
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
-    if ('loop' in frame) {
+    if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
@@ -1520,14 +1523,29 @@ const returned = (stack, scope, frame, value) => {
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
         const loop = /** @type {const} */ ({ target: { kind: 'loop', index: outer.trace.count }, events: completedTrace(scope).events, condition: frame.condition[0], body })
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
     }
-    if ('block' in frame) {
-        const [kind] = frame.block[frame.index]
+    if (hasEntry(frame, 'block')) {
+        const [kind, statement] = frame.block[frame.index]
+        if (kind === 'if') {
+            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
+                { block: statement.block[1], index: 0, plan: null, assigned: null, done: null })
+        }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         return landed(loopRound, stack, scope, frame, kind, value)
     }
-    if ('statements' in frame) {
+    if (hasEntry(frame, 'loopGuard')) {
+        const block = regionBlock(value)
+        if (frame.then === null && frame.otherwise !== null) {
+            return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
+                { block: frame.otherwise[1], index: 0, plan: null, assigned: null, done: null })
+        }
+        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
+            frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
+        ]]))
+    }
+    if (hasEntry(frame, 'statements')) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
         if (kind === 'assign') { return bodyRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
@@ -1537,13 +1555,13 @@ const returned = (stack, scope, frame, value) => {
         }
         return closed(stack, scope, { statements: toArray(frame.done), exit: kind === 'throw' ? ['throw', value] : ['return', scope.trace.target, value] })
     }
-    if ('switch' in frame) { return switchReturned(stack, scope, frame, value) }
-    if ('guard' in frame) {
+    if (hasEntry(frame, 'switch')) { return switchReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'guard')) {
         const block = regionBlock(value)
         if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
         return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['if', frame.condition, frame.then, block] })
     }
-    if ('late' in frame) { return lateLanded(stack, scope, frame, { value }) }
+    if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
     return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
 }
 
@@ -1611,6 +1629,7 @@ const loopRound = (stack, scope, frame) => {
     if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
+    if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1623,7 +1642,7 @@ const loopRound = (stack, scope, frame) => {
     return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
 
-/** A resolved region payload, used only while closing terminal source branches. @type {(value: SourceValue) => SourceBlock} */
+/** A resolved lexical region payload, including normal and terminal branches. @type {(value: SourceValue) => SourceBlock} */
 const regionBlock = value => {
     assert(value instanceof Array && value[0] === 'block')
     return value[1]
@@ -1663,7 +1682,7 @@ const restoredScope = (scope, held) => {
 const isCalledWhereWritten = stack => {
     if (stack === null) { return false }
     const { top } = stack
-    return ('call' in top && top.index === 0) || ('chain' in top && top.index === 0 && top.chain[0] === '?.()')
+    return (hasEntry(top, 'call') && top.index === 0) || (hasEntry(top, 'chain') && top.index === 0 && top.chain[0] === '?.()')
 }
 
 /**
@@ -1697,11 +1716,10 @@ const closed = (stack, scope, body) => {
  * function that is the whole value is entered with the word bound to itself,
  * {@link entered}, as a body's is.
  *
- * @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>}
+ * @type {(initial: _State) => Result<_Evaluated, ParseError>}
  */
-const evaluate = (initial, self) => root => {
-    /** @type {_State} */
-    let state = [null, initial, self === null ? ['enter', root] : ['define', root, self]]
+const evaluateState = initial => {
+    let state = initial
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step
@@ -1720,6 +1738,9 @@ const evaluate = (initial, self) => root => {
         }
     }
 }
+
+/** A source value enters the shared resolution worklist without a statement continuation. @type {(initial: _Scope, self: _Self | null) => (root: Node) => Result<_Evaluated, ParseError>} */
+const evaluate = (initial, self) => root => evaluateState([null, initial, self === null ? ['enter', root] : ['define', root, self]])
 
 /**
  * The word a binding may take: an identifier, refusing a keyword, and one
@@ -1809,7 +1830,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
-    /** @type {Statement | null} */
+    /** @type {Statement | While | null} */
     let previous = null
     for (const statement of imports) {
         if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
@@ -1837,6 +1858,16 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
+        if (statement[0] === 'while') {
+            const loop = statement[1]
+            if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
+            previous = loop
+            const [tag, evaluated] = evaluateState(enterLoop(null, scope, loop, null))
+            if (tag === 'error') { return error(evaluated) }
+            scope = evaluated.scope
+            body = [...body, ...regionBlock(evaluated.value).statements]
+            continue
+        }
         if (statement[0] === 'assign') {
             const assignment = statement[1]
             if (unterminated(previous, assignment)) { return error(unexpectedToken(assignment.start)) }
@@ -1891,8 +1922,8 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     // an exported pattern binding no name exports nothing, and the grammar
     // saw only the `export`: the module is refused where a name was owed
     if (exports.length === 0) {
-        const last = assertNotNullish(statements.findLast(s => s[0] !== 'assign' && s[1].exported), ['a module with no export and no throw', statements])
-        assert(last[0] !== 'assign')
+        const last = assertNotNullish(statements.findLast(s => s[0] === 'const' && s[1].exported), ['a module with no export and no throw', statements])
+        assert(last[0] === 'const')
         return error(noExport(last[1].declaration.start))
     }
     /** @type {SourceModule} */

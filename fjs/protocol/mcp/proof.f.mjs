@@ -24,6 +24,7 @@ import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
 import { string } from '../../rtti/module.f.mjs'
 import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
     toolResultStep, toolStep,
@@ -121,13 +122,13 @@ const step3 = cfg => msg1 => msg2 => msg3 =>
 /** Whether `resp` is an object carrying an `error` member. */
 /** @type {(resp: unknown) => boolean} */
 const hasError = resp =>
-    typeof resp === 'object' && resp !== null && 'error' in resp
+    typeof resp === 'object' && resp !== null && hasEntry(resp, 'error')
 
 /** @type {(resp: unknown) => number} */
 const errorCode = resp => {
-    assert(hasError(resp) && typeof resp === 'object' && resp !== null && 'error' in resp, resp)
+    assert(hasError(resp) && typeof resp === 'object' && resp !== null && hasEntry(resp, 'error'), resp)
     const { error } = resp
-    assert(typeof error === 'object' && error !== null && 'code' in error, error)
+    assert(typeof error === 'object' && error !== null && hasEntry(error, 'code'), error)
     const { code } = error
     assert(typeof code === 'number', code)
     return code
@@ -135,13 +136,13 @@ const errorCode = resp => {
 
 /** @type {(resp: unknown) => unknown} */
 const errorId = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'id' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'id'), resp)
     return resp.id
 }
 
 /** @type {(resp: unknown) => object} */
 const resultOf = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'result'), resp)
     const { result } = resp
     assert(typeof result === 'object' && result !== null, result)
     return result
@@ -150,7 +151,7 @@ const resultOf = resp => {
 /** @type {(resp: unknown) => string} */
 const protocolVersion = resp => {
     const result = resultOf(resp)
-    assert('protocolVersion' in result, result)
+    assert(hasEntry(result, 'protocolVersion'), result)
     const { protocolVersion: v } = result
     assert(typeof v === 'string', v)
     return v
@@ -159,11 +160,11 @@ const protocolVersion = resp => {
 /** @type {(resp: unknown) => readonly string[]} */
 const toolNames = resp => {
     const result = resultOf(resp)
-    assert('tools' in result, result)
+    assert(hasEntry(result, 'tools'), result)
     const { tools } = result
     assert(tools instanceof Array, tools)
     return tools.map(t => {
-        assert(typeof t === 'object' && t !== null && 'name' in t, t)
+        assert(typeof t === 'object' && t !== null && hasEntry(t, 'name'), t)
         const { name } = t
         assert(typeof name === 'string', name)
         return name
@@ -173,7 +174,7 @@ const toolNames = resp => {
 /** @type {(resp: unknown) => unknown} */
 const nextCursor = resp => {
     const result = resultOf(resp)
-    assert('nextCursor' in result, result)
+    assert(hasEntry(result, 'nextCursor'), result)
     return result.nextCursor
 }
 
@@ -181,11 +182,11 @@ const nextCursor = resp => {
 /** @type {(resp: unknown) => string} */
 const firstText = resp => {
     const result = resultOf(resp)
-    assert('content' in result, result)
+    assert(hasEntry(result, 'content'), result)
     const { content } = result
     assert(content instanceof Array && content.length !== 0, content)
     const [item] = content
-    assert(typeof item === 'object' && item !== null && 'text' in item, item)
+    assert(typeof item === 'object' && item !== null && hasEntry(item, 'text'), item)
     const { text } = item
     assert(typeof text === 'string', text)
     return text

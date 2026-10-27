@@ -39,7 +39,7 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, `if` opening a guard in one, `let` and `while` a loop, `switch`
+ * too, `if` opening a guard in one, `else` an alternate, `let` and `while` a loop, `switch`
  * and `case` a switch, `as` an import alias, and `typeof` a prefix
  * opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -482,28 +482,42 @@ export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
     readonly if: readonly [number, number, Value, number, Block]
     readonly let: LetStatement
-    readonly while: readonly [number, number, Value, number, LoopBlock]
+    readonly while: WhileStatement
     readonly name: BodyNameStatement
 }]
 
 /** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
 export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
 
-/** A module's statement before its exports: a `const`, a `let`, or what begins with a name, an assignment or a call statement. */
+/** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
     readonly let: LetStatement
+    readonly while: WhileStatement
     readonly name: BodyNameStatement
 }
+
+/** The plain loop form shared by module and function statements. */
+export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a `const`, a `let`, or what begins with a name, {@link BodyNameStatement}. A thunk, since it holds a value. */
+/** A loop block's statement: a declaration, a normal conditional over another {@link LoopBlock}, or what begins with a name. A thunk, since its branch names itself through that block. */
 export type LoopStatement = () => readonly ['const', {
     readonly const: ConstStatement
+    readonly if: LoopIfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement
+}]
+
+/** A loop's normal conditional, with an optional alternate block or conditional. */
+export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]
+
+/** A braced alternate or another conditional, after `else`. */
+export type LoopElse = () => readonly ['const', {
+    readonly block: LoopBlock
+    readonly if: LoopIfStatement
 }]
 
 /**

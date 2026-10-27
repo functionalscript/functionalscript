@@ -139,8 +139,7 @@ export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]
 /**
  * A loop, `while (condition) block`: the token it begins with, its
  * condition, and its block, {@link LoopBlock}. It records no `;`, as a
- * guard does not. Which variable the loop steps is the fold's to find,
- * from the assignments in the block
+ * guard does not. The common sugar pass selects state after source resolution
  * ([spec: loops](../../../../spec/control-flow/loops/README.md)).
  */
 export type While = {
@@ -149,11 +148,19 @@ export type While = {
     readonly block: LoopBlock
 }
 
-/** A loop's block: its statements in order, `const`s, `let`s and assignments, and no terminator. */
+/** A loop's block: declarations, assignments and normal conditionals in order, and no terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
-/** A loop block's statement, tagged: a `const`, a `let`, or an assignment. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment]
+/** A normal conditional resumes the surrounding block after its selected arm. An `else if` is another conditional in the alternate block. */
+export type LoopIf = {
+    readonly start: ModuleTokenWithMetadata
+    readonly condition: Node
+    readonly block: LoopBlock
+    readonly otherwise: LoopBlock | null
+}
+
+/** A loop block's statement, tagged: a declaration, assignment or normal conditional. */
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -401,8 +408,8 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
-/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, or an assignment. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment]
+/** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an
@@ -496,6 +503,7 @@ export type Out =
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
+    | { readonly id: 'loopElse', readonly block: LoopBlock }
     | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }
     | { readonly id: 'last', readonly statements: List<ModuleStatement>, readonly default: ValueStatement | null, readonly thrown: ValueStatement | null }
     | { readonly id: 'module', readonly module: Module }

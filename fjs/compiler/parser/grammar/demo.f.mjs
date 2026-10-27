@@ -36,9 +36,9 @@ import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
     circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
-    lastStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
+    lastStatement, loopBlock, loopElse, loopIfStatement, loopStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
-    value, values,
+    value, values, whileStatement,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
@@ -79,6 +79,11 @@ export const diagrams = [
     ['body', body],
     ['block', block],
     ['statement', statement],
+    ['whileStatement', whileStatement],
+    ['loopBlock', loopBlock],
+    ['loopStatement', loopStatement],
+    ['loopIfStatement', loopIfStatement],
+    ['loopElse', loopElse],
     ['terminator', terminator],
     ['caseTail', caseTail],
     ['afterCase', afterCase],

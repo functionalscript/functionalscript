@@ -25,6 +25,7 @@ import { textOfResult } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -86,7 +87,7 @@ export const expectRefused = (source, message, column) => {
 }
 
 /** Parser fixtures execute through the shared represented interpreter. @type {(ast: ResolvedModule, args?: Values) => EdagValue} */
-const evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
+export const _evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
 export const proof = {
     // A module may end in `throw` in place of its exports: the body's last
@@ -108,7 +109,7 @@ export const proof = {
             const module = unwrap(parseFromTokens(tokenizeString(source)))
             assertStructurallySame(module.imports.map(({ binding, ...record }) => record), ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
             const exports = /** @type {const} */ (['{}', [[':', 'default', 1], [':', 'x', 2], [':', 'as', 3]]])
-            assertStructurallySame(assertOk(toData(evaluate(module, module.imports.map(() => exports)))), { default: [1, 2, 2, 1, 3] })
+            assertStructurallySame(assertOk(toData(_evaluate(module, module.imports.map(() => exports)))), { default: [1, 2, 2, 1, 3] })
             const syntax = unwrap(parseSyntax(tokenizeString(source)))
             assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
                 ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
@@ -120,7 +121,7 @@ export const proof = {
             const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
             assertStructurallySame(module.imports.map(({ name }) => name), [null, 'default'])
             const exports = /** @type {const} */ (['{}', [[':', 'default', 7]]])
-            assertStructurallySame(assertOk(toData(evaluate(module, [exports, exports]))), { default: 7 })
+            assertStructurallySame(assertOk(toData(_evaluate(module, [exports, exports]))), { default: 7 })
         },
         json: () => {
             const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
@@ -155,7 +156,7 @@ export const proof = {
                 ['export const __proto__=7;', Object.fromEntries([['__proto__', 7]])],
             ])) {
                 const module = unwrap(parseFromTokens(tokenizeString(source)))
-                const result = assertOk(toData(evaluate(module)))
+                const result = assertOk(toData(_evaluate(module)))
                 assertStructurallySame(result, expected)
                 assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
             }
@@ -197,7 +198,7 @@ export const proof = {
             assertEq(exported.semicolon, false)
             const body = exported.value[2]
             assert(body[0] === 'block')
-            assertStructurallySame(body[1].map(([, statement]) => 'semicolon' in statement && statement.semicolon), [false, false])
+            assertStructurallySame(body[1].map(([, statement]) => hasEntry(statement, 'semicolon') && statement.semicolon), [false, false])
             assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
             assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
             const sameLine = 'export default () => { const x = 1 return x; };'
@@ -415,7 +416,6 @@ export const proof = {
                 ['let a; export default a;', 'unexpected token', 6],
                 ['export default () => { let [a]; return a; };', 'unexpected token', 31],
                 ['export let a = 1; export default a;', 'unexpected token', 8],
-                ['let r = 0; while (r) { r = 1; } export default r;', 'unexpected token', 12],
             ])) {
                 const result = parseFromTokens(tokenizeString(source))
                 assert(result[0] === 'error', source)
@@ -558,10 +558,10 @@ export const proof = {
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //
-    // Every value below was **recorded from that parser** before it was deleted,
-    // not written by hand and not read off the replacement — so these still say
-    // "the parser behaves as it always did", which a test written against the
-    // new implementation could not.
+    // Values were recorded from that parser before it was deleted. Narrow
+    // declared graph migrations are marked below: the numeric spelling and a
+    // required initializer before export evaluation. Every other expectation
+    // stays fixed; these cases do not apply a blanket graph normalizer.
     parseCorpus: [
         () => {
             for (const [source, expected] of [
@@ -574,8 +574,8 @@ export const proof = {
                 // the three numbers JSON cannot spell, as words — and the
                 // third of them as the negation it is written as, the `-`
                 // being a prefix the grammar reads rather than part of the
-                // word. The one line of this corpus the language moved
-                // under; every other value still says what it recorded.
+                // word. This line follows the current numeric spelling;
+                // the required-initializer migration is marked separately.
                 ["export default [NaN, Infinity, -Infinity];", "[\"{}\",[[\":\",\"default\",[\"[]\",[NaN,Infinity,-Infinity]]]]]"],
                 ["export default \"abc\";", "[\"{}\",[[\":\",\"default\",\"abc\"]]]"],
                 ["export default 1234567890n;", "[\"{}\",[[\":\",\"default\",1234567890n]]]"],
@@ -613,7 +613,9 @@ export const proof = {
                 ["const a = 1;\nexport default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
                 ["export default 1;", "[\"{}\",[[\":\",\"default\",1]]]"],
                 ["const a = 1;export default a;", "[\"{}\",[[\":\",\"default\",1]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a];", "[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]]"],
+                // a's required allocation precedes the export's first read
+                // of x, rather than waiting for the later reference to a.
+                ["import x from \"m\";const a = [x];export default [x,a];", "[\",\",[[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]],[\"{}\",[[\":\",\"default\",[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"],[\"[]\",[[\".\",[\".\",[\"args\"],0],\"default\"]]]]]]]]]]"],
                 ["const a = 1 ; // c\nexport default a ;", "[\"{}\",[[\":\",\"default\",1]]]"],
                 // whitespace may precede the `;`, newlines included — a
                 // newline is trivia, so the value and its terminator may sit
@@ -849,7 +851,7 @@ export const proof = {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
         assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
-        const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
+        const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
@@ -1012,7 +1014,7 @@ export const proof = {
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
-        const object = assertOk(toData(assertOk(read(ok(evaluate(value)), 'default'))))
+        const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)
@@ -1153,7 +1155,7 @@ export const proof = {
         // string read as a literal, a bigint converted, an array joined, an
         // object through its own `valueOf`
         evaluated: () => {
-            const value = evaluate(unwrap(parseFromTokens(tokenizeString('export default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), Number({ valueOf: () => 7 }), Number("x")];'))))
+            const value = _evaluate(unwrap(parseFromTokens(tokenizeString('export default [Number("0x10"), Number(" 4 "), Number(1n), Number([7]), Number(null), Number({ valueOf: () => 7 }), Number("x")];'))))
             assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16, 4, 1, 7, 0, 7, NaN]])
         },
         // the word bound, in every position a name is bound, and read
@@ -1214,7 +1216,7 @@ export const proof = {
         // the interpreter reads the key the conversion gives, as JavaScript
         // reads it: a number's string, so `NaN` names nothing
         indexEvaluated: () => {
-            const value = evaluate(unwrap(parseFromTokens(tokenizeString('const xs = [10, 20, 30]; export default [xs[Number("1")], xs[Number(2n)], "abc"[Number(true)], { "1": "o" }[Number("1")], xs[Number("x")]];'))))
+            const value = _evaluate(unwrap(parseFromTokens(tokenizeString('const xs = [10, 20, 30]; export default [xs[Number("1")], xs[Number(2n)], "abc"[Number(true)], { "1": "o" }[Number("1")], xs[Number("x")]];'))))
             assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [20, 30, 'b', 'o', ['undefined']]])
         },
         // any other value in brackets is refused at the token it begins

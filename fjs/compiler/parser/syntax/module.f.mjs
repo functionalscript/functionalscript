@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -48,9 +48,10 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
     afterCase, binaryOpTag, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -105,7 +106,7 @@ const splitEof = tokens => {
  */
 const tokenAt = node => {
     const { meta } = symbolAt(node)
-    assert('token' in meta)
+    assert(hasEntry(meta, 'token'))
     return meta
 }
 
@@ -116,7 +117,7 @@ const tokenAt = node => {
  */
 const outAt = node => {
     const { meta } = symbolAt(node)
-    assert('id' in meta)
+    assert(hasEntry(meta, 'id'))
     return meta
 }
 
@@ -937,7 +938,7 @@ const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/*
  *
  * @type {(list: ParameterList, arrow: ModuleTokenWithMetadata) => ParameterList}
  */
-const arrowed = (list, arrow) => 'invalid' in list || !arrow.newline ? list : { arrow }
+const arrowed = (list, arrow) => hasEntry(list, 'invalid') || !arrow.newline ? list : { arrow }
 
 /**
  * What follows a name or a `( value )`, `arrowOrRest`: the function whose
@@ -1227,6 +1228,32 @@ const toAfterCase = node => {
  */
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
+/** The shared condition/block record for a loop or its normal conditional. @type {(node: Ast<WhileStatement | LoopIfStatement, ModuleTokenWithMetadata, Out>) => While} */
+const loopConditionAt = node => {
+    const [first, , condition, , blk] = unmapped(node)
+    return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
+}
+
+/** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
+const loopElseAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'loopElse')
+    return out.block
+}
+
+/** A missing alternate remains distinct from an explicitly empty lexical block. @type {(node: Ast<LoopIfStatement, ModuleTokenWithMetadata, Out>) => LoopIf} */
+const loopIfAt = node => {
+    const tail = unmapped(unmapped(node)[5])
+    return { ...loopConditionAt(node), otherwise: tail.length === 0 ? null : loopElseAt(unmapped(tail[0])[1]) }
+}
+
+/** `else if` is a conditional in a normal alternate region. @type {(node: Children<LoopElse, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toLoopElse = ([kind, branch]) => {
+    /** @type {LoopBlock} */
+    const block = kind === 'block' ? loopBlockOf(unmapped(branch)) : ['loop', [['if', loopIfAt(branch)]]]
+    return symbol({ id: 'loopElse', block })
+}
+
 /**
  * A block's statement, tagged by its keyword: a `const` or a `let`, its
  * record; what begins with a name, an assignment or a call statement,
@@ -1240,10 +1267,7 @@ const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        case 'while': {
-            const [first, , condition, , blk] = unmapped(branch)
-            return symbol({ id: 'statement', statement: ['while', { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }] })
-        }
+        case 'while': { return symbol({ id: 'statement', statement: ['while', loopConditionAt(branch)] }) }
         default: {
             const [first, , condition, , blk] = unmapped(branch)
             const [block] = blockOf(unmapped(blk))
@@ -1263,8 +1287,9 @@ const toStatement = ([kind, branch]) => {
 const discarded = (name, rest, end) =>
     ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
 
-/** A module's statement before its exports, tagged: a `const` or a `let`, the record a `const` has, unexported; or what begins with a name, {@link toBodyNameStatement}, a call statement the record of a `const` that binds nothing. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+/** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
@@ -1290,12 +1315,15 @@ const toBodyNameStatement = ([name, rest, end]) => {
 }
 
 /**
- * A loop block's statement, tagged: a `const` or a `let`, its record; or
- * what begins with a name, {@link toBodyNameStatement}.
+ * A loop block's statement, tagged: a declaration, a normal conditional over
+ * another loop block, or what begins with a name.
  *
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toLoopStatement = ([kind, branch]) => symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
+    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+}
 
 /**
  * The record of a statement that is a keyword and a value — `return`,
@@ -1662,6 +1690,7 @@ export const mappings = [
     map(caseTail, toCaseTail),
     map(afterCase, toAfterCase),
     map(loopStatement, toLoopStatement),
+    map(loopElse, toLoopElse),
     map(lastStatement, toLast),
     map(module, toModule),
 ]

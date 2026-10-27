@@ -182,7 +182,18 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       condition-only work and immutable final-result captures; the first source
       round trip establishes a stable normal form
       ([output contract](../edag/todo/tail-call-loop.md#remaining-general-source-output)).
-      Module loops, structured/nested bodies and explicit exits remain.
+      Module loops now reuse source loop resolution and state selection,
+      preserving initialization order and named-export snapshots.
+      Conditional statements inside loop bodies preserve assigned outer bindings
+      through explicit FAST branch results, including unchanged values on the
+      skipped arm and following body statements. Nested conditional blocks keep
+      their lexical scopes. Existing shared loop output emits these branch
+      computations with bounded stack.
+      `else` and `else if` loop-body arms share explicit FAST results for the
+      union of their outer writes, retaining preceding values in an arm that
+      leaves a binding unchanged. Each arm retains its lexical region and only
+      reached conditions and computations run.
+      Nested loops, switches and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.
