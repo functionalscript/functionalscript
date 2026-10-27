@@ -1,0 +1,115 @@
+/**
+ * General tail loops retain recursive source spelling and source round trips.
+ *
+ * @import { Block, Function as FastFunction, Loop, Value } from '../../../../js/ast/types.ts'
+ * @import { Exp } from '../../../types.ts'
+ */
+
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { parse } from '../../../../compiler/transpiler/module.f.mjs'
+import { _defaultExport, unresolved } from '../../../../compiler/edag/module.f.mjs'
+import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
+import { fromAnalysis } from '../../module.f.mjs'
+import { identityAnalysis } from '../../../analysis/module.f.mjs'
+import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.mjs'
+import { _tailFunction } from '../../tail_calls/proof.f.mjs'
+import { _sourceLoops } from './module.f.mjs'
+
+/** @type {(source: string) => Exp} */
+const graph = source => _defaultExport(unresolved(assertOk(parse('/tail.f.js')(source))).edag)
+
+/** @type {(value: Value) => Block} */
+const yielded = value => ({ statements: [], exit: ['yield', [value]] })
+
+const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
+
+export const proof = /** @type {const} */ ({
+    recursiveSourceRoundTrips: () => {
+        const sources = /** @type {const} */ ([
+            'const f=(n,a)=>n===0?a:f(n-1,a+n);export default f(4,0);',
+            'const f=n=>n===0?({done:true}):f(n-1);export default f(3);',
+            'const f=(n,a,b)=>n===0?[a,b]:f(n-1,b,a);export default f(3,1,2);',
+            'const f=(n,saved)=>n===0?saved:f(n-1,()=>n);export default f(2,null)();',
+            'const f=(n,a)=>n>0?(n%2===0?f(n-2,a+2):f(n-1,a+1)):a;export default f(7,0);',
+            'const f=(n,a)=>{const x=[n];return n===0?[a,x]:f(n-1,a+1)};export default f(3,0);',
+        ])
+        for (const source of sources) {
+            const original = graph(source)
+            const first = assertOk(tryStringify(original))
+            const restored = graph(first)
+            assertStructurallySame(evaluate(restored), evaluate(original))
+            const second = assertOk(tryStringify(restored))
+            assertEq(assertOk(tryStringify(graph(second))), second)
+            assert(!first.includes(':while(true)'), first)
+        }
+    },
+    commonPlacementAndScalarSpellingStayIntact: () => {
+        const ordinary = /** @type {Block} */ (yielded(['+', 1, 2]))
+        assertEq(_sourceLoops(ordinary), ordinary)
+        const scalar = /** @type {Exp} */ (['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]])
+        const placed = fromAnalysis(assertOk(identityAnalysis(scalar)))
+        assertEq(_sourceLoops(placed), placed)
+        assert(assertOk(tryStringify(['()', scalar, [0]])).includes('while('))
+        const binding = /** @type {const} */ ({ index: 0 })
+        const plain = /** @type {Block} */ ({ statements: [['block', [], yielded(1)], ['define', binding, 1, 'required']],
+            exit: ['yield', [['if', true, yielded(1), yielded(2)]]] })
+        assertEq(_sourceLoops(plain), plain)
+    },
+    emptyAndThrowingInvocationRoots: () => {
+        const empty = _tailFunction(['=>', 0, [], ['()', ['self'], []]])
+        assert(_sourceLoops(yielded(['function', empty])).exit[0] === 'yield')
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const output = /** @type {const} */ ({ index: 0 })
+        const throwing = /** @type {FastFunction} */ ({ ...empty, body: {
+            statements: [['loop', { target, parameters: [], initial: [], results: [output], body: { statements: [], exit: ['throw', 'stopped'] } }]],
+            exit: ['return', empty.target, ['ref', output]],
+        } })
+        const converted = _sourceLoops(yielded(['function', throwing]))
+        assert(converted.exit[0] === 'yield')
+        const value = converted.exit[1][0]
+        assert(value instanceof Array && value[0] === 'function')
+        assertEq(value[1].body.exit[0], 'throw')
+        const original = graph('const f=n=>n>0?f(n-1):(()=>{throw 1})();export default f(3);')
+        const written = assertOk(tryStringify(original))
+        failure(original)
+        failure(graph(written))
+        const prefixed = /** @type {Exp} */ (['=>', 0, [], [',', [['throw', 1], 0]]])
+        const restored = graph(assertOk(tryStringify(prefixed)))
+        failure(['()', prefixed, []])
+        failure(['()', restored, []])
+    },
+    nestedSourceValuesRetainTheirExecutionRegions: () => {
+        const fn = _tailFunction(counter)
+        const inner = /** @type {Value} */ (['function', fn])
+        const binding = /** @type {const} */ ({ index: 0 })
+        const parameter = /** @type {const} */ ({ index: 0 })
+        const output = /** @type {const} */ ({ index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const own = /** @type {FastFunction} */ ({ ...fn, target: owner, parameters: [], self: null,
+            body: { statements: [], exit: ['return', owner, inner] }, captures: [{ binding, value: inner }] })
+        const loop = /** @type {Loop} */ ({ target, parameters: [parameter], initial: [inner], results: [output], body: { statements: [], exit: ['break', target, [inner]] } })
+        const statements = /** @type {Block['statements']} */ ([
+            ['define', binding, inner, 'required'], ['block', [], yielded(inner)],
+            ['if', [], inner, yielded(inner), yielded(inner)], ['loop', loop],
+        ])
+        const values = /** @type {readonly Value[]} */ ([
+            inner, ['block', yielded(inner)], ['if', inner, yielded(inner), yielded(inner)], ['function', own], ['array', [inner]],
+        ])
+        for (const value of values) {
+            const source = /** @type {Block} */ ({ statements, exit: ['yield', [value]] })
+            assert(_sourceLoops(source) !== source)
+        }
+        for (const exit of /** @type {readonly Block['exit'][]} */ ([['throw', inner], ['continue', target, [inner]], ['return', fn.target, inner]])) {
+            const source = /** @type {Block} */ ({ statements: [], exit })
+            assert(_sourceLoops(source) !== source)
+        }
+    },
+    deepValuesRetainIdentity: () => {
+        /** @type {Value} */
+        let value = 1
+        for (let depth = 0; depth < 20_000; ++depth) { value = ['~', value] }
+        const source = yielded(value)
+        assertEq(_sourceLoops(source), source)
+    },
+})

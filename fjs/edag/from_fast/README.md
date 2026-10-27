@@ -383,12 +383,12 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-These increments do not complete epic E. Remaining value-operand exits,
-rest invocation reconstruction and broader lazy demand-state lifetimes remain
-explicit E/F work. Unsupported forms are refused
-explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
+E's construction domain is implemented. F now lowers fixed-parameter terminal
+self-call evaluations through canonical invocation roots; broader invocation
+preparation, including rest and spread transitions, remains F work. Unsupported
+forms are refused explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
 function-return targets and loop-body normal yields. Standalone block
 construction has no source function to own helper returns. A deferred free
 binding is never eagerly captured to construct a helper. The
-[loop construction proposal](../todo/fast-loop-construction.md) records the
+[loop construction contract](../todo/fast-loop-construction.md) records the
 completion and memo-state contracts for that extension.

@@ -1,25 +1,10 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
-statement-level transfers and normal-exit caller memo transport are implemented;
-the end-to-end `memberPresent` query is implemented;
-member/optional-call completion lifting is implemented;
-array/call spread return lifting is implemented;
-object-spread return lifting is implemented;
-closure-capture return lifting is implemented;
-loop-transfer payload return lifting is implemented;
-loop-entry initializer return lifting is implemented;
-native-callee return lifting is implemented;
-wrapped-member callee return lifting is implemented;
-lazy-initializer return handling and initializer-loop cells are implemented for
-selected demand regions;
-normal-only member and optional-call demands are implemented;
-normal-only standalone spread and object-entry demands are implemented;
-selected demands owned entirely inside operand regions are implemented;
-caller-level eager operand loops and computed lazy locals are planned together;
-deferred-initializer helper crossings select their caller-owned cells;
-E construction is implemented; shared-emission stack-safety integration remains in F
+**Status:** done — kept as the record; cited by
+[compiler architecture](../../compiler/architecture.md) and the
+[source-loop proposal](../../../spec/todo/3220-let.md) for migration rationale
+and member-resolution alternatives. Epic I owns their final relocation.
 
 ### Problem
 
@@ -825,8 +810,11 @@ their documented normalization. Repeated conversions must stabilize.
       Aggregate-helper proofs pin parameter/result order and first-use capture
       order; semantic conversion proofs retain scalar graphs and reach stable
       graphs while preserving identities and function metadata.
-- [ ] **F integration:** With shared emission, run repeated nested loops without
+- [x] **F integration:** With shared emission, run repeated nested loops without
       recursive helper cycles or stack growth proportional to iterations.
+      Shared fixed-parameter tail lowering covers the generated helper domain;
+      deep JavaScript/Rust checks retain simultaneous state, captures and memo
+      lifetimes. Broader user invocation recipes remain in the tail-call owner.
 
 ### Related
 

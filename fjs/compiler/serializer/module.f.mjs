@@ -15,6 +15,7 @@ import { checked, identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { isIntrinsic } from '../../edag/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis } from '../../edag/to_fast/module.f.mjs'
 import { sourceReason } from '../../edag/to_fast/source/module.f.mjs'
+import { _sourceLoops } from '../../edag/to_fast/source/loops/module.f.mjs'
 import { prepare, prepareFunction } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify, render, renderModule } from '../../js/ast/serializer/module.f.mjs'
 import { isIdentifier } from '../../js/identifier/module.f.mjs'
@@ -30,7 +31,7 @@ const chunks = text => mapOk((/** @type {import('../../text/marked/types.ts').Ma
 
 /** Source admission and graph placement, each exactly once. @type {(e: Exp, module?: boolean) => Document} */
 const source = (e, module = false) => okThen(a => {
-    const fast = fromAnalysis(a)
+    const fast = _sourceLoops(fromAnalysis(a))
     const why = sourceReason(a, fast, module)
     return why === null ? chunks(module ? renderModule(prepare(fast)) : render(prepare(fast))) : error(why)
 })(okThen(checked)(identityAnalysis(e)))
