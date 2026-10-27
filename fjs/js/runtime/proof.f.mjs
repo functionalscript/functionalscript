@@ -1,4 +1,7 @@
+/** @import { Exp } from '../../edag/types.ts' */
+
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
 import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
@@ -33,8 +36,8 @@ const staticNodes = node => node instanceof Array
     ? [...(isStaticNode(node) ? [node] : []), ...node.flatMap(staticNodes)]
     : []
 
-/** The node an object node holds under a key. @type {(node: unknown, key: string) => unknown} */
-const at = (node, key) => Object.fromEntries(/** @type {readonly (readonly [string, string, unknown])[]} */ (/** @type {readonly any[]} */ (node)[1]).map(([, k, v]) => [k, v]))[key]
+/** Inspect an export after its required initialization prefix. @type {(node: unknown, key: string) => unknown} */
+const at = (node, key) => _moduleExports(/** @type {Exp} */ (node)).find(([, name]) => name === key)?.[2]
 
 /**
  * Every type, with the values the static functions part on: the zeros and
@@ -235,13 +238,8 @@ export const proof = {
         // `dot` holds no chain step — no member call, no optional chain —
         // since an executor runs it to answer those; the two helpers and a
         // `()` of a function value are what it uses.
-        const exported = /** @type {readonly (readonly [string, string, readonly any[]])[]} */ (/** @type {readonly any[]} */ (edag)[1])
-        const value = exported.find(([, name]) => name === 'runtime')
-        assert(value !== undefined)
-        const sections = /** @type {readonly (readonly [string, string, readonly unknown[]])[]} */ (value[2][1])
-        const compiled = sections.find(([, name]) => name === 'dot')
-        assert(compiled !== undefined)
-        const [tag, length, , body] = compiled[2]
+        const compiled = /** @type {readonly unknown[]} */ (at(at(edag, 'runtime'), 'dot'))
+        const [tag, length, , body] = compiled
         assertEq(`${tag}/${length}`, '=>/2')
         assertEq(steps(body).join(), '')
         assertEq(JSON.stringify(body).includes('["()"'), true)

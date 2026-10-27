@@ -352,8 +352,13 @@ export const proof = {
     parameters: () => {
         const { imports, edag } = compile('import a from "./a.f.js"; import b from "./b.f.js"; export default [b, a, b];')
         assertStructurallySame(imports, [{ specifier: './a.f.js', json: false, name: 'default' }, { specifier: './b.f.js', json: false, name: 'default' }])
-        expectEdag(edag, ['[]', [['.', ['.', ['args'], 1], 'default'], ['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default']]])
-        assert(edag instanceof Array && edag[0] === '[]' && edag[1][0] === edag[1][2], edag)
+        // Establish the first import before the result reads the second one.
+        expectEdag(edag, [',', [['.', ['.', ['args'], 0], 'default'], ['[]', [['.', ['.', ['args'], 1], 'default'], ['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default']]]]])
+        assert(edag instanceof Array && edag[0] === ',', edag)
+        const [first, result] = edag[1]
+        assert(result instanceof Array && result[0] === '[]', result)
+        assertEq(first, result[1][1])
+        assertEq(result[1][0], result[1][2])
     },
     // A member a later duplicate shadows is in the graph — the constructor
     // applies every member written — so a reference in it is reached, and
@@ -1175,10 +1180,11 @@ export const proof = {
             expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), [',', [[',', [1, 2]], 1]])
             // two imports of one module are one node once bound, so the
             // unreached one is anchored only where the node is not already
-            // in the graph; before binding they are two parameters
+            // in the graph; before binding they are two parameters demanded
+            // in declaration order, ahead of the result's reads.
             const twice = { 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];'), 'm.f.js': file('export default [1];') }
             expectEdag(program(twice)('a.f.js'), ['[]', [['[]', [1]]]])
-            expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
+            expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
     },

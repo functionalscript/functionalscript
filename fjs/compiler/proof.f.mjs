@@ -969,7 +969,8 @@ export const proof = {
             assertEq(moduleRefused('const n = null; export default (n?.b).c;'), 'input.f.js - error: module initialization failed')
             assertEq(compileSource('const n = null; export default n?.b.c;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.",null,"b",["|.","c"]]]]];')
             assertEq(compileSource('const f = (...x) => x; export default f?.(1).length;')('output.edag.data.js'), 'export default ["{}",[[":","default",["?.()",["=>",0,[],["rest"]],[1],["|.","length"]]]]];')
-            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};const $2=$0.b?.d(1);const $3=null?.(1);const $4=null?.(1);export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),$2(2),$3?.(2),$4(2)];')
+            // Later callees keep their initialization inside their array item.
+            assertEq(fjsRoundTrip(`${o}export default [a?.b.c, (a?.b).c, a?.b?.c, a?.b.d(1).length, (a?.b.d)(1), a?.b?.d?.(1), a.b?.d(1), (a.b?.d(1))(2), n?.(1)?.(2), (n?.(1))(2)];`), 'const $0={"b":{"c":1,"d":(...$1)=>$1}};export default [$0?.b.c,($0?.b).c,$0?.b?.c,$0?.b.d(1).length,($0?.b.d)(1),$0?.b?.d?.(1),$0.b?.d(1),(()=>{const $2=$0.b?.d(1);return $2(2);})(),(()=>{const $3=null?.(1);return $3?.(2);})(),(()=>{const $4=null?.(1);return $4(2);})()];')
             assertEq(fjsRoundTrip('export default (...x) => [x?.[0], x?.["a b"], x[0]?.y, 1?.x];'), 'export default (...$0)=>[$0?.[0],$0?.["a b"],$0[0]?.y,(1)?.x];')
             // a key is judged as an access's: refused at the key, through a step too
             assertEq(moduleRefused('export default [1, 2]?.at;'), 'input.f.js:1:24 - error: prohibited property name')
