@@ -82,8 +82,9 @@ mise install --locked
 ./dev.sh npm ci
 ```
 
-`./dev.sh <command>` uses mise; without arguments it opens a shell. On Windows,
-run `mise exec -- <command>` directly. The six native CI hosts use the same manager.
+`./dev.sh <command>` uses mise; without arguments it opens a shell. On Windows
+PowerShell, use `.\dev.ps1 <command>` or `.\dev.ps1` for an interactive shell.
+The six native CI hosts use the same manager.
 The devcontainer installs it and initializes the workspace on creation.
 
 Host prerequisites remain necessary: Linux needs a C compiler, Linux x64 also
@@ -109,15 +110,16 @@ cargo fmt -- --check
 
 #### Ways to run the FunctionalScript test suite
 
-Every row below runs the same suite; pick the first one that fits your
-environment.
+The built-in runner selects authored `.f.mjs` and `.f.js` proofs. Native
+runners discover the combined FJS and host-JS entry by default. For selective
+native invocations, see [the runner documentation](./fjs/emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner).
 
 | Command                                 | Runtime  | Needs internet | Notes                                    |
 | --------------------------------------- | -------- | -------------- | ---------------------------------------- |
 | `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
-| `npm start test`                        | Node pin | no             | The repo's runner, no type-check step.   |
-| `node --test`                           | Node pin | no             | Node's native test runner.               |
-| `npm run cov`                           | Node pin | no             | `node --test` plus coverage.             |
+| `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
+| `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
+| `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |

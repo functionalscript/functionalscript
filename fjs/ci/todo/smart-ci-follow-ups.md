@@ -9,10 +9,9 @@ The [success cache](../cache/README.md) skips individual CI checks. Generator
 checks remain uncached, and local execution of the same gated steps is not yet
 implemented.
 
-Source enumeration on a local shallow clone took 76 seconds during initial
-validation. The native reader reparses pack indexes for every tree. A single
-`git ls-tree` call is the simpler alternative to adding pack-index caching;
-using it awaits the approval required by AGENTS.md §6.
+Source enumeration uses one native `git ls-tree` call rather than reparsing
+pack indexes for every source directory. Cache lookup and addition still use
+the custom Git CAS reader and writer; their cost remains to be measured.
 
 The [CI run 40016215099](https://github.com/functionalscript/functionalscript/actions/runs/40016215099)
 showed a concurrent push advancing `build-cache` before another job published,
@@ -23,6 +22,8 @@ the source tree stays untouched.
 
 ### Tasks
 
+- [x] Enumerate committed source inputs with one native Git invocation while
+      preserving cache identities and literal paths.
 - [ ] Enumerate every input read by the generators before caching the
       generated-file drift check. Keep generation and its comparison together.
 - [ ] Implement local execution of the same step and gate data, recording the
@@ -30,9 +31,8 @@ the source tree stays untouched.
       when the resulting contract and inputs agree.
 - [ ] Measure setup cost for macOS and Windows jobs whose checks all hit,
       and native CAS lookup/add cost at CI scale.
-      Add a gate job or Git CLI backend only if those measurements
-      justify the extra machinery. The Git CLI backend needs the approval
-      described in [AGENTS.md](../../../AGENTS.md#6-external-tools).
+      Add a gate job or replace the remaining CAS operations with Git CLI calls
+      only if those measurements justify the extra machinery.
 
 ### Related
 

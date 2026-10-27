@@ -23,6 +23,6 @@ export const denoSteps = [
     denoVersionStep,
     ...environmentSteps([
         'deno install --frozen',
-        'deno task cov',
+        'deno test -A ./fjs/emergent_testing/fjs-only.mjs',
     ]),
 ]
