@@ -33,6 +33,10 @@
  * **The output is copyable**: it is a document or generated source a reader
  * can save and use elsewhere. Copy keeps the original output text.
  *
+ * **A link shares the source**, as the stage demos' do. A restored state has
+ * the text and no panes yet: restoring cannot run the compiler outside
+ * `catch`, so the `start` that follows every restore compiles them.
+ *
  * @module
  *
  * @import { Result } from '../types/result/types.ts'
@@ -42,6 +46,7 @@
  * @import { Effect } from '../effects/types.ts'
  * @import { DemoState } from './types.ts'
  * @import { Element } from '../media/html/types.ts'
+ * @import { Sharing } from '../website/demo/sharing/types.ts'
  */
 
 import { toText } from '../text/marked/module.f.mjs'
@@ -59,7 +64,7 @@ import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
 import { errorMessage, foldStep, history, historyStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
 import { catch_ } from '../effects/common/module.f.mjs'
-import { assert } from '../asserts/module.f.js'
+import { assert, assertNotNullish } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.data.js'
 
 /**
@@ -138,14 +143,26 @@ const pane = (text, file) => resultMapStep(catch_(() => compiled(text)(file)), r
     return ok(kind === 'ok' ? /** @type {Result<Marked, string>} */ (value) : error(`Could not compile this output: ${String(value)}`))
 })
 
+const sourceSharing = assertNotNullish(sourceDemo.sharing)
+
+/** @type {Sharing<DemoState>} */
+const sharing = {
+    ...sourceSharing,
+    read: ({ text }) => sourceSharing.read(text),
+    restore: inputs => ({ text: sourceSharing.restore(inputs), panes: [] }),
+}
+
 /** @type {Demo<DemoState, DemoEvent, Catch>} */
 export const demo = {
+    sharing,
     // Only the fixed initial example is compiled on load. Edited source is
     // always evaluated through `catch`, never by `view`.
     init: { text: sourceDemo.init, panes: outputs.map(([, file]) => compiled(sourceDemo.init)(file)) },
     update: state => event => {
-        if (event.kind !== 'input') { return pureOk(state) }
-        const text = sourceDemo.update(state.text)(event)
+        // `outputs` is never empty, so no panes is a restored state.
+        const restored = event.kind === 'start' && state.panes.length === 0
+        if (event.kind !== 'input' && !restored) { return pureOk(state) }
+        const text = restored ? pureOk(state.text) : sourceDemo.update(state.text)(event)
         const panes = historyStep(history(text), text => foldStep(pureOk(outputs), /** @type {DemoState['panes']} */ ([]),
             ([, file]) => panes => mapStep(pane(text, file), result => [...panes, result])))
         return mapStep(panes, ([panes, text]) => ({ text, panes }))
