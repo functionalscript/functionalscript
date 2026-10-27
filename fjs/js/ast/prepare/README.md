@@ -49,6 +49,16 @@ iteration first creates immutable parameter snapshots; closures capture those
 snapshots rather than mutable slots. Slot mutability is recorded in the plan,
 including loops that never update a parameter.
 
+A loop without a break to its own target cannot complete normally. Shared
+preparation omits its result storage and projections, then stops following work
+in the containing statement region. Result-free conditionals and statement blocks
+carry that completion fact outward. Values and definitions retain conservative
+completion, preserving existing expression and result-bearing region layouts.
+Returns and throws still exit their exact owner;
+ordinary nested function bodies do not supply an enclosing loop's break. The
+prepared region ends with an empty unreachable yield, so both serializers omit
+the unreachable suffix, including after unconditional tail loops.
+
 The canonical scalar loop produced for existing source tail recursion becomes
 a prepared `while`: its condition reads a fresh immutable snapshot of the
 current slot, and its body establishes the iteration snapshot before executing

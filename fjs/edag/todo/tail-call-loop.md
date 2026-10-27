@@ -1,8 +1,8 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — baseline input/output and tail-loop emission use shared FAST;
-general tail-call analysis remains in F
+**Status:** wip — fixed-parameter tail evaluations use canonical invocation loops;
+broader argument/rest preparation and source syntax remain in F/H
 
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
@@ -362,19 +362,29 @@ preparation; connecting the source feature later does not rewrite it.
 
 #### General analysis tasks
 
-- [ ] After D/E, implement eligibility on placed evaluations. Cover either/both
+- [x] After D/E, implement eligibility on placed evaluations for matching,
+      spread-free fixed invocations without observed rest. Cover either/both
       conditional arms, sequences, the established-result example, lazy shared
       calls, nested functions and mixed tail/non-tail self uses.
+- [x] Produce canonical fixed-invocation roots, preserving simultaneous argument
+      updates, capture snapshots, local memo/object/function lifetimes, arity
+      and remaining self identity. Keep the established scalar graph shape.
+- [x] Verify stable repeated conversion for this fixed domain and bounded-stack
+      JavaScript/Rust execution, including repeated nested E helpers. Source
+      spelling reifies nonscalar invocation loops as recursion through the
+      existing root resolver until H admits their syntax.
 - [ ] Produce the canonical invocation loop and common prepared output. Cover
-      swapped/dependent values, missing/extra/failing arguments, spreads, rest,
+      remaining missing/extra/failing arguments, spreads, rest,
       defaults/destructuring, arity and self identity.
 - [ ] Carry capture snapshots and per-invocation memo/object/function lifetimes
-      through all consumers; no backend-specific eligibility or placement.
+      through the remaining invocation forms and all consumers; no
+      backend-specific eligibility or placement.
 - [ ] Verify EDAG -> normalized FAST -> EDAG for the declared graph domain,
-      including stable repeated conversion and one-time setup.
+      extending stable repeated conversion and one-time setup to those forms.
 - [ ] Prove generalized tail-only cases and repeated nested generated loops
-      stack-safe in shared JS/Rust output. Lexical nesting may add stack depth;
-      iteration count must not. Ordinary non-tail user recursion stays ordinary.
+      stack-safe across the remaining invocation forms in shared JS/Rust output.
+      Lexical nesting may add stack depth; iteration count must not. Ordinary
+      non-tail user recursion stays ordinary.
 - [ ] Connect newly admitted source spellings in H with end-to-end source
       round-trip and execution proofs, using this same shared path.
 

@@ -34,6 +34,13 @@ Named scalar loop functions establish capture aliases in signature order before
 the condition. This removes the former inline writer's capture-order refusal
 using the existing source grammar.
 
+General fixed-parameter tail calls use loops in code-only JavaScript and Rust.
+Source output reifies nonscalar canonical invocation loops as recursion using
+the existing root transfer resolver, then performs source admission. This keeps
+previously supported source round trips while broader loop syntax waits for H;
+it does not repeat graph placement or tail eligibility. Required function owners
+remain in the common plan so the source recursive name is established.
+
 Source output continues to refuse frame layouts and lazy graphs the parser
 cannot represent. The existing source proofs retain every graph fixture and
 check graph normalization, text fixed points and agreement between token marks

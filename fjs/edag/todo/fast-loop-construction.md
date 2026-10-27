@@ -1,21 +1,10 @@
 ## Construct EDAG from structured FAST loops
 
 **Priority:** P2
-**Status:** wip — scalar loops, fixed-input roots, nested aggregate helpers,
-statement-level transfers and normal-exit caller memo transport are implemented;
-the end-to-end `memberPresent` query is implemented;
-member/optional-call completion lifting is implemented;
-array/call spread return lifting is implemented;
-object-spread return lifting is implemented;
-closure-capture return lifting is implemented;
-loop-transfer payload return lifting is implemented;
-loop-entry initializer return lifting is implemented;
-native-callee return lifting is implemented;
-wrapped-member callee return lifting is implemented;
-lazy-initializer return handling and initializer-loop cells are implemented for
-selected demand regions;
-remaining operand boundaries and broader memo lifetimes remain in E
-**Blocked by:** [FAST contract, milestone A](../../todo/general-loops-and-tail-calls.md#implementation-order)
+**Status:** done — kept as the record; cited by
+[compiler architecture](../../compiler/architecture.md) and the
+[source-loop proposal](../../../spec/todo/3220-let.md) for migration rationale
+and member-resolution alternatives. Epic I owns their final relocation.
 
 ### Problem
 
@@ -131,9 +120,36 @@ definitions and region/loop binders establish their own values. This adds one
 private recipe function per cell to the memo-bearing normalization while
 retaining the no-memo exact graph domain. External lazy provenance follows
 aliases and is refused before a recipe helper could capture it eagerly.
-Statement-region occurrences have distinct planning identities even when the
-input reuses an immutable declaration, block or loop object; source bindings
-and targets retain their identities.
+Each reached declaration, block and loop occurrence has a distinct planning
+identity, including eager operand regions that reuse immutable input containers.
+Source bindings and targets retain their identities.
+
+Caller and initializer planning share one eager lexical inventory. Operand-owned
+loops can be the only crossing that selects a caller's cell; computed lazy
+locals join the same dependency closure instead of capturing that cell as an
+external value. Required initializers, tests, loop entries/bodies/exits and
+capture expressions participate, while function bodies and deferred initializers
+retain their own planning boundaries. Required values and parameter/result
+binders shadow deferred entries. Lifetime ancestry crosses eager value regions
+so reached local declarations reset with their enclosing iteration; transfer
+ownership stops at the value boundary and never permits an operand to break or
+continue an enclosing statement loop. With no selected cells the original root
+identity is retained.
+Graph construction carries that prepared state through eager descendants while
+still normalizing each operand's control completions. Ordinary functions and
+deferred initializers start fresh planning scopes. Scope maps retain only
+deferred roots, so established values do not accumulate in deeply nested eager
+regions.
+
+Cell selection also inspects deferred initializers for helper crossings without
+evaluating their values. When an initializer's loop needs a caller-owned lazy
+root, select its owning declaration and the connected prerequisite/dependent
+closure before recipe construction, even if the caller has no eager loop.
+Resolve aliases and shadows in the declaration's lexical scope. Nested recipes
+propagate their crossing requirements to that owner; ordinary function bodies
+remain opaque. A loop that does not cross a caller dependency does not itself
+justify selecting a later read outside the loop. Runtime evaluation still
+starts at first reached demand, preserving skipped and unused initializers.
 
 Caller-owned dependent recipes join the same cell vector through transitive
 prerequisite/dependent closure, in source definition order. Their conditional
@@ -269,7 +285,15 @@ their own helper or getter boundaries.
 Completion-bearing plans expose guarded member, optional-call and spread
 regions through the shared operand sequencer before threading selected demands.
 Their connected prerequisites use that same protocol. Demand-only plans keep
-the existing guarded/operand boundaries.
+their normal value/state pair protocol and also expose member and optional-call
+regions. Optional skips leave keys, arguments and their cells undemanded;
+reached lookup precedes arguments, direct calls keep their receiver, and wrapped
+property values retain detached invocation. The member sequencer expands its
+call's spreads in order before later arguments. Standalone array, plain-call
+and object spreads also expose their reached expansions or own-property copies
+before later operands. Object entries convert each key before its value with
+or without spreads. Normal plans retain their value/state pairs and shared
+caller, iteration and recipe cells.
 Initializer-owned loops share selected local demand cells. Each reached
 declaration resets its iteration's cell, retaining caller, prerequisite and
 enclosing-iteration cells. Nested loops and repeated demands share the current
@@ -293,8 +317,15 @@ Payload evaluation supplies the latest vector before every transfer. Continued
 iterations retain caller and enclosing-iteration cells and reset their own local
 lifetimes at reached declarations. Foreign targets and operand escapes remain
 refused.
-Demand-only guarded operands that are not exposed by return lifting retain their
-existing refusals. External lazy environments have no AST
+Demands selected wholly inside operand-owned declarations and loops can be
+absent from an operation's free aliases. Before exposing guarded, spread and
+object regions, also recognize exact prepared declaration and loop occurrences.
+This keeps local updates inside selected optional arms and after earlier
+expansions or key conversions. The explicit worklist follows eager regions,
+loop entries/bodies/exits and function captures, while ordinary function bodies
+and deferred initializer bodies retain their own boundaries. Target identities
+and presentation indices do not substitute for prepared occurrence identity.
+External lazy environments have no AST
 recipe for this pass and keep the existing refusal.
 
 ### Enclosing-function returns
@@ -338,7 +369,8 @@ for statement regions and reset at operand boundaries. Canonical invocation-root
 reconstruction preserves those regions while rewriting its owning transfers.
 Ordinary nested function bodies and value operands are not traversed by this
 normalization. Payload computations remain ordinary evaluations; their broader
-tail-call eligibility belongs to F. Value-operand completions remain open.
+tail-call eligibility belongs to F. The shared return lift exposes admitted
+value-operand completions before this statement-level pass.
 
 Loop IDs follow lexical introduction order within each normalization scope,
 independently of debug indices. Dispatch uses original target result/parameter
@@ -370,7 +402,8 @@ sixteen fixed parameters, no rest binding and one opaque public result, while
 keeping the established scalar shape first. Its contract lives in
 [`from_fast/loop/root`](../from_fast/loop/root/README.md). This is part of E;
 normal-exit general helpers, including nested helpers, are also implemented.
-Operand control and rest transitions remain open below.
+Operand completion lifting is implemented. Broader invocation transitions,
+including rest/default/spread setup, belong to F's shared tail-call preparation.
 
 The former fixed-input root constructor copied the following suffix into each
 normal exit of a region with nonlocal exits. For example, both arms below can
@@ -726,6 +759,18 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Extend shared demand state to cells declared inside initializer-owned loops.
       Preserve reached-declaration resets, nested sharing, escaping captures,
       prerequisite identities and source-owned returns.
+- [x] Share normal-only lazy demands through member and optional calls,
+      preserving skipped operands, lookup order, receivers and cell lifetimes.
+- [x] Share normal-only lazy demands through standalone array/call/object spreads
+      and object entries, preserving reached expansion and key-conversion order.
+- [x] Account for selected demands owned entirely inside operand regions before
+      hoisting updates; preserve skips and intermediate expansion/conversion order.
+- [x] Plan caller-level cells and loops throughout eager operand regions,
+      including computed local dependents and loops that are the only crossing.
+      Preserve lexical scope, declaration lifetimes and operand ownership barriers.
+- [x] Select caller-owned cells needed only by helper crossings inside deferred
+      initializers, including nested recipes and aliases, without evaluating
+      their values before first reached demand.
 - [x] Propagate statement-level resolved breaks and continues through inner helpers to their
       enclosing target without recursive helper cycles. Distinct target
       identities with the same presentation index remain distinct.
@@ -751,16 +796,25 @@ their documented normalization. Repeated conversions must stabilize.
 - [x] Carry shared demand state through outer-loop breaks and continues.
       Preserve fresh iteration lifetimes and selected updates through every completion.
       Track exact ancestor targets and control-only intermediate helpers.
-- [ ] Implement the root-loop rule with exact fixtures, including rejection of
+- [x] Implement the root-loop rule with exact fixtures, including rejection of
       one-time setup, changed invocation layouts and following result processing.
+      The [root contract](../from_fast/loop/root/README.md) and its `layout`,
+      `aliasFrameAndWideInvocation`, `retainedEntryParameters` and exact-graph
+      proofs pin the fixed-input domain and helper fallback.
 - [x] Share normal continuations in noncanonical helper callers at graph
       construction, retaining direct terminal values and selected required work.
 - [x] Extend the graph join to canonical invocation-root reconstruction and
       close the measured mixed-region suffix-growth case above.
-- [ ] Keep the existing scalar shape; pin deterministic general state/capture
+- [x] Keep the existing scalar shape; pin deterministic general state/capture
       ordering and stable repeated conversions.
-- [ ] **F integration:** With shared emission, run repeated nested loops without
+      Aggregate-helper proofs pin parameter/result order and first-use capture
+      order; semantic conversion proofs retain scalar graphs and reach stable
+      graphs while preserving identities and function metadata.
+- [x] **F integration:** With shared emission, run repeated nested loops without
       recursive helper cycles or stack growth proportional to iterations.
+      Shared fixed-parameter tail lowering covers the generated helper domain;
+      deep JavaScript/Rust checks retain simultaneous state, captures and memo
+      lifetimes. Broader user invocation recipes remain in the tail-call owner.
 
 ### Related
 

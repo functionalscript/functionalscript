@@ -42,12 +42,38 @@ installs the shared value. Getter construction keeps lazy prerequisites
 deferred, including dependencies mentioned only in an unselected arm. The
 logical demand pass preserves caller, iteration and recipe-local lifetimes
 before graph construction or physical getter lowering.
+Caller and initializer planning share an eager lexical inventory of operand
+blocks, loops and computed lazy locals. Operands reuse the caller's selected
+cells and prerequisites; local getters start at reached declarations. Cell
+lifetimes follow enclosing iterations through operands, while loop-transfer
+ownership remains local to the operand's statement regions. Ordinary function
+bodies and deferred initializers retain separate planning boundaries.
+Selection also inspects deferred initializers for helper crossings that need
+caller-owned cells. Such a crossing selects the initializer's owner and its
+connected lazy prerequisites and dependents before constructing recipes; it
+does not evaluate an initializer. Declaration-time aliases and shadows govern
+the lookup. Nested recipes propagate that need to their owning declaration,
+while ordinary function bodies remain opaque. An unrelated local loop does
+not select a caller dependency read only outside that loop.
+Graph lowering plans each owner's eager regions once, then starts fresh at
+ordinary function and deferred-initializer boundaries.
 This includes cells declared in loops inside an initializer: each reached
 declaration starts a fresh cell, while repeated demands and nested loops share
 that iteration's value. Escaping closures retain the established value.
 Initializer-loop entries use the enclosing cells; narrower prerequisite calls
 preserve the current local suffix. Returns propagate to the source function,
 and loop transfers stay within the operand's locally owned loop chain.
+Selected normal-only memo plans also sequence member and optional calls.
+Optional skips keep keys, arguments and their cells undemanded. Reached member
+lookup precedes arguments, direct method calls retain their receiver, and
+wrapped property values keep detached invocation. Member-call argument spreads
+use the same reached expansion order. Normal plans also sequence standalone
+array/call spreads and object entries. Each reached spread expands or copies
+before later operands; object keys convert before their values, with or without
+spreads. Selection also recognizes exact prepared declaration and loop
+occurrences inside operands, so locally owned cells stay within their selected
+evaluation region. The scan follows eager regions and capture expressions;
+ordinary function bodies and deferred initializers keep separate boundaries.
 [`memo`](./memo/module.f.mjs) owns this shared normalization and cell planning;
 [`control`](./control/module.f.mjs) supplies lexical dependency facts. The former
 graph-owner module paths retain compatibility exports.

@@ -9,6 +9,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { prepare, prepareFunction } from './module.f.mjs'
+import { _tailFunction } from '../../../edag/to_fast/tail_calls/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -59,6 +60,54 @@ export const proof = {
             assertEq(prepared.body.exit[0], 'return')
             assert(keepsReturn(prepared.body), { value, prepared })
         }
+    },
+    unconditionalTailLoopsHaveNoResultSuffix: () => {
+        for (const arity of /** @type {const} */ ([0, 1, 2])) {
+            const fn = _tailFunction(['=>', arity, [], ['()', ['self'], Array.from({ length: arity }, (_, index) => ['arg', index])]])
+            const prepared = prepareFunction(fn)
+            assertEq(prepared.parameters.length, arity)
+            assertStructurallySame(prepared.body.exit, ['yield', []])
+            const loop = loopStatement(prepared.body)
+            assertEq(prepared.body.statements.at(-1), loop)
+            assertStructurallySame(loop[2].exit, ['continue', loop[1]])
+            assertEq(prepared.body.statements.filter(statement => statement[0] === 'slot').length, arity)
+        }
+    },
+    allTailBranchesAndThrowingBasesHaveNoResultSuffix: () => {
+        const call = /** @type {const} */ (['()', ['self'], [['arg', 0]]])
+        for (const otherwise of /** @type {const} */ ([['()', ['self'], [['arg', 0]]], ['throw', 'terminal tail base']])) {
+            const prepared = prepareFunction(_tailFunction(['=>', 1, [], ['?:', ['arg', 0], call, otherwise]]))
+            assertStructurallySame(prepared.body.exit, ['yield', []])
+            assertEq(prepared.body.statements.at(-1)?.[0], 'loop')
+            assertEq(prepared.body.statements.filter(statement => statement[0] === 'slot').length, 1)
+        }
+    },
+    failingBaseExpressionsKeepTheirSyntacticBreakResult: () => {
+        const fn = _tailFunction(['=>', 1, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1]]], ['=>', 0, [['throw', 1]], ['frame', 0]]]])
+        const prepared = prepareFunction(fn)
+        assertEq(prepared.body.exit[0], 'return')
+        assertEq(prepared.body.statements.at(-1)?.[0], 'define')
+        assertEq(prepared.body.statements.filter(statement => statement[0] === 'slot').length, 2)
+    },
+    onlyReachedBreaksOfTheExactLoopCanFinishIt: () => {
+        const outer = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const result = id(0)
+        const nested = /** @type {Loop} */ ({ target: inner, parameters: [], initial: [], results: [], body: { statements: [], exit: ['break', inner, []] } })
+        const source = /** @type {Loop} */ ({ target: outer, parameters: [], initial: [], results: [result], body: {
+            statements: [
+                ['loop', nested],
+                ['if', [], true, { statements: [], exit: ['continue', outer, []] }, { statements: [], exit: ['continue', outer, []] }],
+            ],
+            exit: ['break', outer, [7]],
+        } })
+        const prepared = prepare({ statements: [['loop', source]], exit: ['yield', [['ref', result]]] })
+        assertStructurallySame(prepared.statements.map(statement => statement[0]), ['loop'])
+        assertStructurallySame(prepared.exit, ['yield', []])
+        const loop = loopStatement(prepared)
+        assertStructurallySame(loop[2].statements.map(statement => statement[0]), ['loop', 'if'])
+        assertStructurallySame(loop[2].exit, ['yield', []])
     },
     deferredReturnKeepsItsFunctionOwner: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -217,7 +266,7 @@ export const proof = {
         assertStructurallySame(next.statements.map(statement => statement[0]), ['define', 'define', 'write', 'write'])
         assertStructurallySame(next.exit, ['continue', target])
         assertStructurallySame(conditional[3].exit, ['break', target])
-        assertStructurallySame(loop[2].exit, ['return', functionTarget, 0])
+        assertStructurallySame(loop[2].exit, ['yield', []])
         assertEq(loop[2].statements[0][1], a)
         assertEq(loop[2].statements[1][1], b)
     },
