@@ -1,6 +1,7 @@
 /**
- * Ordered first demands before intervening unowned graph work. A matched node
- * establishes its entire computation; later reads of that identity are stable.
+ * Ordered first demands before intervening unowned graph work. A matched or
+ * completed node establishes its guaranteed eager dependencies, including
+ * operands past execution barriers it has already crossed.
  * Function bodies and conditionally selected operands retain their boundaries.
  *
  * @module
@@ -9,8 +10,9 @@
  */
 
 import { isSpread } from '../../js/ast/module.f.mjs'
+import { eagerOperandsOf } from '../sharing/module.f.mjs'
 
-/** @type {(steps: readonly _Step[], tail: _Work | null) => _Work | null} */
+/** @type {<T>(steps: readonly T[], tail: _Work<T> | null) => _Work<T> | null} */
 const prepend = (steps, tail) => steps.reduceRight((tail, first) => ({ first, tail }), tail)
 
 /** Expansion executes after its operand and before the next item. @type {(items: readonly Items[]) => readonly _Step[]} */
@@ -50,11 +52,25 @@ const prefix = node => {
     return [...values(/** @type {readonly Exp[]} */ (node.slice(1))), null]
 }
 
+/** Completed parents establish their guaranteed eager dependencies. @type {(available: readonly unknown[], values: readonly unknown[]) => readonly unknown[]} */
+const establish = (available, values) => {
+    let pending = prepend(values, null)
+    while (pending !== null) {
+        const { first: node, tail } = pending
+        pending = tail
+        if (!(node instanceof Array) || available.includes(node)) { continue }
+        available = [...available, node]
+        pending = prepend(eagerOperandsOf(node), pending)
+    }
+    return available
+}
+
 /**
  * Whether graph-node identities are established in the requested order before
  * any intervening unowned work. Already established values stop traversal and
- * satisfy repeated requested identities. Primitive occurrences cannot name a
- * required computation, so a nonempty request containing one is refused.
+ * satisfy repeated requested identities, including their guaranteed eager
+ * dependencies. Primitive occurrences cannot name a required computation,
+ * so a nonempty request containing one is refused.
  *
  * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[]) => boolean}
  */
@@ -63,7 +79,7 @@ export const demandsInOrder = (exp, required, established = []) => {
     if (required.some(value => !(value instanceof Array))) { return false }
     /** @type {_Work | null} */
     let pending = { first: [exp], tail: null }
-    let available = established
+    let available = establish([], established)
     let index = 0
     while (index < required.length && available.some(value => Object.is(value, required[index]))) { ++index }
     if (index === required.length) { return true }
@@ -74,7 +90,7 @@ export const demandsInOrder = (exp, required, established = []) => {
         if (first === null) { return false }
         const node = first[0]
         if (Object.is(node, required[index])) {
-            available = [...available, node]
+            available = establish(available, [node])
             while (index < required.length && available.some(value => Object.is(value, required[index]))) { ++index }
             if (index === required.length) { return true }
         } else if (!available.some(value => Object.is(value, node)) && node instanceof Array) {

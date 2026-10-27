@@ -112,7 +112,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.loop-body` | a nested `while`, conditional statement, `return` or `throw` inside a loop's block | planned ([let](./3220-let.md), "General loops"; current admission: [loops](../control-flow/loops/README.md)) |
+| `st.loop-body` | `return` or `throw` inside a loop's block | planned ([let](./3220-let.md), "General loops"; nested loops and conditionals are admitted ([loops](../control-flow/loops/README.md))) |
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |

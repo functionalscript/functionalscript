@@ -153,6 +153,13 @@ General plain-loop output computes the normal result after iteration. Parsing
 the first emitted source introduces that scalar-loop/result boundary and can
 change the original graph. The source-normalized graph and canonical spelling
 then stabilize; repeated output adds no helpers or unused projection demands.
+Copied condition projections follow their first body reads, with dependencies
+before users. Construction may omit a required anchor suffix that the result
+already demands after the retained prefix has executed. This can change initial
+graph bytes/hashes and first-emission temporaries, including an arithmetic
+state update that now appears directly in the next-state array. The
+source-normalized graph and canonical spelling retain their exact fixed-point
+contract; established raw scalar fixtures remain unchanged.
 
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common

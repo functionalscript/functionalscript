@@ -32,6 +32,35 @@ const fn = source => {
 }
 
 export const proof = {
+    nestedLoopSignaturesSelectEnclosingStateAndKeepLocals: () => {
+        const normalized = fn('export default n=>{let i=0;let sum=0;while(i<n){let j=0;while(j<2){sum=sum+i+j;j=j+1;}i=i+1;}return [i,sum];};')
+        const outer = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(outer !== undefined && outer[0] === 'loop')
+        assertEq(outer[1].parameters.length, 2)
+        const guard = outer[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const inner = guard[3].statements.find(statement => statement[0] === 'loop')
+        assert(inner !== undefined && inner[0] === 'loop')
+        // i is read-only in the inner loop; sum and j are written. The local
+        // j is carried only by that inner loop, in source introduction order.
+        assertEq(inner[1].parameters.length, 3)
+        assertEq(inner[1].results.length, 3)
+        assertEq(outer[1].results.length, 2)
+        assert(outer[1].target !== inner[1].target)
+        assertStructurallySame(inner[1].initial.slice(0, 2), outer[1].parameters.map(id => ['ref', id]))
+        assertStructurallySame(result('export default (n=>{let i=0;let sum=0;while(i<n){let j=0;while(j<2){sum=sum+i+j;j=j+1;}i=i+1;}return [i,sum];})(3);'), { default: [3, 9] })
+    },
+    nestedLoopEntriesAndSnapshotsRemainFresh: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let j=0;while(j<2){let local=1;local=local+j;sum=sum+local;j=j+1;}i=i+1;}return [i,sum];})();', [3, 9]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let j=0;while(j<1){i=i+1;j=j+1;}sum=sum+i;}return [i,sum];})();', [3, 6]],
+            ['export default (()=>{let i=0;let saved=null;while(i<2){let j=0;while(j<2){const snapshot=[i,j];saved=()=>snapshot;j=j+1;}i=i+1;}return [saved(),saved()===saved()];})();', [[1, 1], true]],
+            ['export default (()=>{let i=0;let sum=0;while(i<2){if(i===0){let j=0;while(j<2){sum=sum+1;j=j+1;}}else{let j=0;while(j<3){sum=sum+10;j=j+1;}}i=i+1;}return [i,sum];})();', [2, 32]],
+            ['export default (()=>{let i=0;while(i<2){while(false){const skipped=null.x;}i=i+1;}return i;})();', 2],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
     identities: () => {
         const ast = assertOk(parse('')('const a = [1]; const b = a; export default [a, b];'))
         const fast = normalize(ast, [])

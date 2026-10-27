@@ -101,6 +101,58 @@ export const proof = /** @type {const} */ ({
         assertEq(demandsInOrder(['[]', [read, second]], [second], [read]), true)
         assertEq(demandsInOrder(['[]', [first, second]], [second], [['.', null, 'first']]), false)
     },
+    completedParentsEstablishEagerDependencies: () => {
+        /** @type {Exp} */
+        const state = ['arg', 0]
+        /** @type {Exp} */
+        const read = ['.', state, 0]
+        /** @type {Exp} */
+        const predicate = ['>', read, 0]
+        assertEq(demandsInOrder(['[]', [read, second]], [second], [predicate]), true)
+        /** @type {Exp} */
+        const owner = ['[]', [first]]
+        assertEq(demandsInOrder(['[]', [owner, second]], [owner, first, second]), true)
+        /** @type {Exp} */
+        const key = ['String', first]
+        /** @type {readonly Exp[]} */
+        const parents = [
+            ['[]', [['...', first], second]],
+            ['()', fn, [['...', first], second]],
+            ['{}', [[':', key, second]]],
+        ]
+        for (const parent of parents) {
+            assertEq(demandsInOrder(0, [first, second], [parent]), true)
+            assertEq(demandsInOrder(['[]', [parent, second]], [parent, first, second]), true)
+        }
+        assertEq(demandsInOrder(0, [key], [parents[2]]), true)
+    },
+    completedParentsKeepLazyAndFunctionBoundaries: () => {
+        /** @type {Exp} */
+        const test = ['===', first, 0]
+        /** @type {readonly ['Number', Exp]} */
+        const key = ['Number', second]
+        /** @type {readonly (readonly [Exp, readonly Exp[], readonly Exp[]])[]} */
+        const cases = [
+            [['?:', test, second, fn], [test, first], [second, fn]],
+            [['=>', 0, [first], second], [first], [second]],
+            [['?.', first, key], [first], [key, second]],
+            [['?.()', first, [second]], [first], [second]],
+            [['.', first, 'method', ['|()', [second]]], [first], [second]],
+        ]
+        for (const [parent, reached, skipped] of cases) {
+            for (const value of reached) { assertEq(demandsInOrder(0, [value], [parent]), true) }
+            for (const value of skipped) { assertEq(demandsInOrder(0, [value], [parent]), false) }
+        }
+        /** @type {Exp} */
+        const other = ['.', null, 'first']
+        assertEq(demandsInOrder(0, [other], [['[]', [first]]]), false)
+    },
+    deepSharedCompletedParents: () => {
+        /** @type {Exp} */
+        let parent = first
+        for (let depth = 0; depth < 20_000; ++depth) { parent = ['[]', [parent, parent]] }
+        assertEq(demandsInOrder(0, [first], [parent]), true)
+    },
     deepContainers: () => {
         /** @type {Exp} */
         let exp = first

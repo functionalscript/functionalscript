@@ -36,8 +36,12 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** Establish a region's required evaluations before its result. @type {(value: Lowered) => Exp} */
-export const anchored = value => demandsInOrder(value.exp, value.anchors) ? value.exp : [',', [...value.anchors, value.exp]]
+/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered) => Exp} */
+export const anchored = value => {
+    let count = 0
+    while (!demandsInOrder(value.exp, value.anchors.slice(count), value.anchors.slice(0, count))) { ++count }
+    return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
+}
 
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */
 const floated = values => values.flatMap(value => value.anchors)

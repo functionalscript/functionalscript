@@ -42,6 +42,22 @@ const prefixFor = (prefix, block) => {
 }
 
 /**
+ * Independent copies follow the body's first reads, while each read keeps its
+ * transitive prerequisites in dependency order. The condition has already
+ * established these projections; its own required prefix stays unchanged.
+ * @type {(prefix: readonly Definition[], block: Block) => readonly Definition[]}
+ */
+const prefixForUses = (prefix, block) => {
+    /** @type {readonly Definition[]} */
+    let selected = []
+    for (const id of freeBindings(block)) {
+        const remaining = prefix.filter(definition => !selected.some(previous => previous[1] === definition[1]))
+        selected = [...selected, ...prefixFor(remaining, { statements: [], exit: ['yield', [['ref', id]]] })]
+    }
+    return selected
+}
+
+/**
  * Copies read values already established by the condition. Keep them beside
  * their first body use so they do not acquire required anchors ahead of
  * unrelated initializers or selected branch results during a source parse.
@@ -52,7 +68,7 @@ const withPrefix = (prefix, step) => {
     /** @type {readonly Definition[]} */
     let statements = []
     for (const statement of step.statements) {
-        const needed = prefixFor(remaining, { statements: [statement], exit: ['yield', []] })
+        const needed = prefixForUses(remaining, { statements: [statement], exit: ['yield', []] })
         statements = [...statements, ...needed, statement]
         remaining = remaining.filter(definition => !needed.some(required => required[1] === definition[1]))
     }

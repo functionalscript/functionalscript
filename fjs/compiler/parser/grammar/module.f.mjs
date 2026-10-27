@@ -45,7 +45,7 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | loopIfStatement | bodyNameStatement
+ * loopStatement ::= const | let | loopIfStatement | whileStatement | bodyNameStatement
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
@@ -1245,12 +1245,12 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
 
 /**
- * A statement of a loop's block: a declaration, a normal conditional,
- * `if (condition) loopBlock`, or what begins with a name. The conditional
- * resumes with the following statement whether its block runs or is skipped.
- * Its block may hold further conditionals, using this same rule, and owns its
- * declarations. An `else` selects another block or conditional. Explicit exits
- * and nested loops remain follow-ups.
+ * A statement of a loop's block: a declaration, a normal conditional, a
+ * nested loop, or what begins with a name. A conditional resumes with the
+ * following statement after its selected arm; a nested loop resumes after
+ * normal completion. Every block uses this same rule and owns its declarations.
+ * An `else` selects another block or conditional. Explicit exits remain
+ * follow-ups.
  *
  * @type {LoopStatement}
  */
@@ -1259,13 +1259,14 @@ export const loopStatement = () => ['const', {
     if: loopIfStatement,
     let: letStatement,
     name: bodyNameStatement,
+    while: whileStatement,
 }]
 
 /**
  * A loop's block, `{ const x = …; r = …; }`: any number of
  * {@link loopStatement}s and no terminator, since reaching the `}`
- * continues the loop. Normal conditionals keep their own lexical blocks and
- * resume here. A `return` or a `throw` in it, and a nested loop, are follow-ups.
+ * continues the loop. Conditionals and nested loops keep their lexical blocks
+ * and resume here after normal completion. Explicit exits remain follow-ups.
  *
  * @type {LoopBlock}
  */
