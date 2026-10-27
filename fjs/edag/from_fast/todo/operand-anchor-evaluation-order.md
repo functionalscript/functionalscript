@@ -1,7 +1,7 @@
 ## Keep value-block anchors after earlier operand work
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 `fromFast` can float a later operand's required evaluations before an earlier
 operand that fails or diverges. Required work inside a value block must remain
