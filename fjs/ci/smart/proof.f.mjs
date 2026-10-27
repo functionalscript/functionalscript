@@ -162,7 +162,7 @@ export const proof = /** @type {const} */ ({
             mise, rustToolchain, rustVersion, multilib, spidermonkeyLock, spidermonkeyInstall, nodeVersion,
             { run: 'test "$(mise exec -- wasmtime --version)" = "wasmtime 50.0.0"' },
             { run: 'test "$(mise exec -- wasmer --version)" = "wasmer 7.5.0"' },
-            { run: 'test "$(mise -E spidermonkey exec -- js --version)" = "JavaScript-C140.17.0"' },
+            { run: 'test "$(mise -E spidermonkey exec -- js --version)" = "JavaScript-C153.6.0"' },
             install, { run: 'cargo test' }, { run: 'cargo clippy -- -D warnings' },
             suite, { run: 'node --test ./fjs/emergent_testing/js-only.mjs' },
             { run: 'mise -E spidermonkey exec -- npm run sm c' }, { run: 'mise -E spidermonkey exec -- npm run sm t' },
