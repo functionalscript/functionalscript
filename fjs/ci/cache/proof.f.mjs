@@ -167,7 +167,7 @@ export const proof = /** @type {const} */ ({
     committedFiles: () => {
         assertStructurallySame(assertOk(enumerated(sourceListing)), [['package.json', vecToCBase32(sourceId)]])
         assertStructurallySame(assertOk(enumerated('')), [])
-        const path = ' fjs/café\tline\nmodule.f.js \n'
+        const path = /** @type {const} */ (' fjs/café\tline\nmodule.f.js \n')
         assertStructurallySame(assertOk(enumerated(`${sourceListing}100755 blob ${hexText(sourceId)}\t${path}\0`)), [
             ['package.json', vecToCBase32(sourceId)], [path, vecToCBase32(sourceId)],
         ])
