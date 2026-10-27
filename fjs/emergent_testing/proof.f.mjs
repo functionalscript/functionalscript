@@ -1088,6 +1088,7 @@ export const mainSelectsAuthoredOnly = () => {
 
 /** Selective registration shares adapters and excludes imports before evaluation. */
 export const registerSelectsProofClass = () => {
+    /** @type {readonly string[]} */
     const files = ['a.f.mjs', 'b.f.js', 'proof.mjs', 'old.f.ts', 'ordinary.mjs']
     for (const select of [isAuthored, isHostProof]) {
         const calls = runRegister(registerNoopCtx, files, path => {

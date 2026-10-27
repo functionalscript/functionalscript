@@ -217,6 +217,7 @@ export const loadModuleMap = ({ env, engine }, select = shouldLoad) => {
 
 export const proof = {
     selectiveDiscovery: () => {
+        /** @type {readonly string[]} */
         const files = ['a.f.mjs', 'b.f.js', 'old.f.ts', 'old.f.mts',
             'proof.mjs', 'proof.js', 'proof.ts', 'proof.mts', 'ordinary.mjs']
         for (const select of [isAuthored, isHostProof]) {
