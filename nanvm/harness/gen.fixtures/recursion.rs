@@ -8,10 +8,12 @@ use nanvm_lib::vm::{Any, Array, Function, IStaticFunction, ToAny, ToArray, ToObj
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b7: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((Any::lt(_args.argument(0), f64_any(0x4000000000000000)))?) { Ok(f64_any(0x3ff0000000000000)) } else { _args.argument(0) * (Any::call(Function::new(_self.clone()).to_any(), [(_args.argument(0) - f64_any(0x3ff0000000000000))?].to_array().to_any()))? } }, 1, Array::default(), Some("(function $0($1){return $1<2?1:$1*$0($1-1);})")).to_any();
     let _b11: Any<A> = A::static_function(|_self, _args| { strict_eq(Function::new(_self.clone()).to_any(), Function::new(_self.clone()).to_any()) }, 0, Array::default(), Some("(function $0(){return $0===$0;})")).to_any();
-    let _b24: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { if Any::<A>::to_boolean((Any::lt(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)))?) { Ok(f64_any(0x0000000000000000)) } else {
+    let _b24: Any<A> = A::static_function(|_self, _args| { Ok(A::static_function(|_self, _args| { if Any::<A>::to_boolean((Any::lt(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)))?) { Ok(f64_any(0x0000000000000000)) } else { ({
         let _b19: Any<A> = (Any::call(A::frame(_self)[1].clone(), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()))?;
-        (Any::call(_b19.clone(), Array::default().to_any()))? + f64_any(0x3ff0000000000000)
-    } }, 0, [_args.argument(0), Function::new(_self.clone()).to_any()].to_array(), Some("()=>$0<1?0:(()=>{const $2=$1($0-1);return $2()+1;})()")).to_any()) }, 1, Array::default(), Some("(function $0($1){return ()=>$1<1?0:(()=>{const $2=$0($1-1);return $2()+1;})();})")).to_any();
-    let _b25: Any<A> = (Any::call(_b24.clone(), [f64_any(0x4008000000000000)].to_array().to_any()))?;
-    Ok([(string_key("default"), [(Any::call(_b7.clone(), [f64_any(0x4014000000000000)].to_array().to_any()))?, (Any::call(_b11.clone(), Array::default().to_any()))?, (Any::call(_b25.clone(), Array::default().to_any()))?].to_array().to_any())].to_object().to_any())
+        (Any::call(_b19.clone(), Array::default().to_any()))?
+    }) + f64_any(0x3ff0000000000000) } }, 0, [_args.argument(0), Function::new(_self.clone()).to_any()].to_array(), Some("()=>$0<1?0:(()=>{const $2=$1($0-1);return $2();})()+1")).to_any()) }, 1, Array::default(), Some("(function $0($1){return ()=>$1<1?0:(()=>{const $2=$0($1-1);return $2();})()+1;})")).to_any();
+    Ok([(string_key("default"), [(Any::call(_b7.clone(), [f64_any(0x4014000000000000)].to_array().to_any()))?, (Any::call(_b11.clone(), Array::default().to_any()))?, {
+        let _b25: Any<A> = (Any::call(_b24.clone(), [f64_any(0x4008000000000000)].to_array().to_any()))?;
+        (Any::call(_b25.clone(), Array::default().to_any()))?
+    }].to_array().to_any())].to_object().to_any())
 }

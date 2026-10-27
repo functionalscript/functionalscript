@@ -10,6 +10,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b60: Any<A> = _args.rest(0).to_any();
         Ok(_b60.clone())
     }, 0, Array::default(), Some("(...$0)=>$0")).to_any()) }, 0, Array::default(), Some("()=>(...$0)=>$0")).to_any();
-    let _b3: Any<A> = (Any::call(_b2.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?;
-    Ok([(string_key("default"), (Any::call(_b3.clone(), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any()))?)].to_object().to_any())
+    Ok([(string_key("default"), {
+        let _b3: Any<A> = (Any::call(_b2.clone(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?;
+        (Any::call(_b3.clone(), [f64_any(0x4000000000000000), f64_any(0x4008000000000000)].to_array().to_any()))?
+    })].to_object().to_any())
 }

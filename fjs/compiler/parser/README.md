@@ -1,10 +1,10 @@
 # Module Parser
 
 Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
-ordinary and exported `const` statements, `let` statements and assignments,
-with an optional final `export default`.
-Every statement ends with `;`, or where JavaScript inserts one, and at least
-one export is required.
+ordinary and exported `const` statements, `let` statements, assignments and
+plain `while` loops, with an optional final `export default` or terminal throw.
+A loop ends at its closing `}`. Other statements end with `;`, or where
+JavaScript inserts one; a module that does not throw needs at least one export.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into a `ResolvedModule`. Both layers are an LL(1)
@@ -50,6 +50,12 @@ They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
 
+Module loops enter the same resolution worklist and lexical loop regions as
+body loops. Their completed source packet resumes the module declaration/export
+fold without introducing a function or a value-region write boundary. Statements
+and named exports retain their written initialization order; sugar uses the same
+state/result path and keeps earlier exported constants as snapshots.
+
 These facts decide the capture policy: a variable assigned anywhere in its
 scope, a `let`'s or a parameter's, is refused to a function held as a value,
 while a function called where it is written, by a plain or an optional call,
@@ -74,7 +80,7 @@ concern and adds no synthetic source reads.
 
 ```
 module ::= import* moduleStatement* last eof
-moduleStatement ::= const | let | bodyNameStatement
+moduleStatement ::= const | let | while | bodyNameStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
@@ -82,9 +88,10 @@ binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
 let    ::= 'let' target '=' value end
 target ::= id | array | object
-last   ::= 'export' ( 'default' value end | const const* [ last ] )
+last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
          | 'throw' value end
 end    ::= [ ';' ]
+while  ::= 'while' '(' value ')' loopBlock
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
          | (primitive | template | array | object) access* powTail tail
@@ -258,9 +265,9 @@ the backtracking grammar this replaced had
   nothing follows.
 
 Two rules that were once code are shape. Statement ordering — every `import`
-before every ordinary or exported `const` — is in the grammar, and a late
+before every ordinary statement or exported `const` — is in the grammar, and a late
 `import` is a token it cannot use. The `export` rule factors the common keyword:
-`default` ends the module, while `const` can be followed by ordinary declarations
+`default` ends the module, while `const` can be followed by ordinary statements
 and another export. Its optional tail permits a named-only module. A reserved literal — `true`, `false`, `null`,
 `undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
 rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a

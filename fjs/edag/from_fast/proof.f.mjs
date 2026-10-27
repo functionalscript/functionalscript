@@ -184,6 +184,108 @@ export const _collectingMemo = collectingMemo
 export const _collectedMemo = collectedMemo
 
 export const proof = {
+    distinctThrownValuesRetainInitializationOrder: () => {
+        const first = id(0), second = id(0)
+        const initial = /** @type {Value} */ (['block', { statements: [], exit: ['throw', 1] }])
+        for (const later of /** @type {readonly Value[]} */ ([['block', { statements: [], exit: ['throw', 2] }], ['.', null, 'x']])) {
+            for (const before of [false, true]) {
+                const loop = counting(0, 0)
+                const definitions = /** @type {readonly Statement[]} */ ([['define', first, initial, 'required'], ['define', second, later, 'required']])
+                const graph = fromFast(result(['array', [ref(second), ref(first)]], before
+                    ? [['loop', loop], ...definitions] : [...definitions, ['loop', loop]]))
+                assertStructurallySame(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), 1)
+            }
+        }
+        const graph = fromFast(result(['array', [ref(second), ref(first)]], [
+            ['define', first, ['.', null, 'x'], 'required'], ['define', second, ['block', { statements: [], exit: ['throw', 2] }], 'required'],
+        ]))
+        assertStructurallySame(assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] })), ['undefined'])
+    },
+    wholeAnchorListDemands: () => {
+        const first = /** @type {Exp} */ (['.', null, 'first'])
+        const second = /** @type {Exp} */ (['.', null, 'second'])
+        const fn = /** @type {Exp} */ (['=>', 0, [], 0])
+        for (const [exp, anchors, natural] of /** @type {readonly (readonly [Exp, readonly Exp[], boolean])[]} */ ([
+            [['[]', [first, second]], [first, second], true],
+            [['[]', [second, first]], [first, second], false],
+            [['[]', [first, first, second]], [first, second, first], true],
+            [[',', [first, second]], [first, second], true],
+            [['=>', 0, [first, second], 0], [first, second], true],
+            [['=>', 0, [], first], [first], false],
+            [['{}', [[':', 'a', first], [':', 'b', second]]], [first, second], true],
+            [['{}', [[':', ['String', second], first]]], [first], false],
+            [['{}', [['...', second], [':', 'a', first]]], [first], false],
+            [['[]', [['...', second], first]], [first], false],
+            [['()', fn, [first, second]], [first, second], true],
+            [['()', fn, [['...', second], first]], [first], false],
+            [['[]', [['()', fn, []], first]], [first], false],
+            [['?.()', first, [second]], [first], true],
+            [['?.', first, 'x'], [first], true],
+            [['.', first, 'x'], [first], true],
+            [['?:', first, second, 0], [first], true],
+            [['instanceof', first, 'Array'], [first], true],
+            [['!', first], [first], true],
+            [['typeof', first], [first], true],
+            [['===', first, second], [first, second], true],
+            [['!==', first, second], [first, second], true],
+            [['[]', [['undefined'], ['arg', 0], ['frame', 0], first]], [first], true],
+            [0, [first], false],
+            [1, [1], false],
+            [null, [null], false],
+            [1n, [1n], false],
+        ])) {
+            const value = anchored({ exp, anchors })
+            assertEq(value === exp, natural)
+        }
+    },
+    wideRequiredUpdatesNormalizeTogether: () => {
+        const parameters = Array.from({ length: 18 }, (_, index) => id(index))
+        const next = parameters.map((_, index) => id(index))
+        const results = parameters.map((_, index) => id(index))
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const loop = /** @type {Loop} */ ({
+            target, parameters, initial: parameters.map((_, index) => index), results,
+            body: body(['continue', target, parameters.map(ref)], [
+                ['if', [], ['<', ref(parameters[0]), 3], body(['continue', target, next.map(ref)],
+                    parameters.map((parameter, index) => ['define', next[index], ['+', ref(parameter), 1], 'required'])),
+                body(['break', target, parameters.map(ref)])],
+            ]),
+        })
+        const graph = fromFast(afterLoop(loop, ['array', [ref(results[0]), ref(results[17])]]))
+        assertStructurallySame(evaluate(graph), [3, 20])
+        const second = fromFast(assertOk(toFast(graph)))
+        const third = fromFast(assertOk(toFast(second)))
+        assertStructurallySame(assertOk(identityAnalysis(second)), assertOk(identityAnalysis(graph)))
+        assertStructurallySame(assertOk(identityAnalysis(third)), assertOk(identityAnalysis(second)))
+    },
+    fieldOnlyContinuation: () => {
+        assertEq(evaluate(fromFast(result(['?.', null, 'x', ['|.', 'y', ['|.', 'z']]]))), undefined)
+    },
+    requiredInitializationOrder: () => {
+        const failed = id(0), loop = counting()
+        const value = lowerBlock(result(ref(failed), [
+            ['define', failed, ['.', null, 'x'], 'required'], ['loop', loop],
+        ]))
+        assertStructurallySame(value.anchors[0], ['.', null, 'x'])
+        assertEq(value.anchors.length, 2)
+        assertEq(value.exp, value.anchors[0])
+        const initial = id(0), dependent = counting(ref(initial))
+        const naturallyOrdered = lowerBlock(result(ref(dependent.results[0]), [
+            ['define', initial, ['.', null, 'x'], 'required'], ['loop', dependent],
+        ]))
+        assertEq(naturallyOrdered.anchors.length, 0)
+    },
+    orderedLoopResults: () => {
+        const first = counting(), second = counting(0, ['.', null, 'x'])
+        const value = lowerBlock(result(['array', [ref(second.results[0]), ref(first.results[0])]], [
+            ['loop', first], ['loop', second],
+        ]))
+        assertEq(value.anchors.length, 1)
+        assert(value.exp instanceof Array && value.exp[0] === '[]')
+        assertEq(value.anchors[0], value.exp[1][1])
+        const naturallyOrdered = lowerBlock(result(ref(first.results[0]), [['loop', first]]))
+        assertEq(naturallyOrdered.anchors.length, 0)
+    },
     memberPresent: () => {
         const receiver = id(0), key = id(0)
         const graph = /** @type {Exp} */ (['[]', [4]])
@@ -371,8 +473,8 @@ export const proof = {
         const a = id(0)
         const b = id(1)
         const pair = /** @type {Block} */ ({ statements: [], exit: ['yield', [1, 2]] })
-        assertStructurallySame(fromFast(result(['array', [ref(a), ref(b)]], [['block', [a, b], pair]])), [',', [['[]', [1, 2]], ['[]', [['.', ['[]', [1, 2]], 0], ['.', ['[]', [1, 2]], 1]]]]])
-        assertStructurallySame(fromFast(result(ref(a), [['if', [a], true, result(1), result(2)]])), [',', [['?:', true, 1, 2], ['?:', true, 1, 2]]])
+        assertStructurallySame(fromFast(result(['array', [ref(a), ref(b)]], [['block', [a, b], pair]])), ['[]', [['.', ['[]', [1, 2]], 0], ['.', ['[]', [1, 2]], 1]]])
+        assertStructurallySame(fromFast(result(ref(a), [['if', [a], true, result(1), result(2)]])), ['?:', true, 1, 2])
         assertStructurallySame(fromFast(result(1, [['block', [], { statements: [], exit: ['yield', []] }]])), [',', [['[]', []], 1]])
         assertStructurallySame(fromFast(result(['block', result(2)])), 2)
         assertStructurallySame(lowerBlock({ statements: [], exit: ['return', target, 5] }), { exp: 5, anchors: [] })

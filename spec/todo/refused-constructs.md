@@ -112,7 +112,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.loop-variables` | a `while` whose block assigns no variable declared outside it, `while (r < n) { }`, or a second, `while (r < n) { r = r + 1; s = s + 1; }`; a loop at module level | planned ([let](./3220-let.md), "General loops"; the one-variable form is [loops](../control-flow/loops/README.md)) |
+| `st.loop-body` | a nested `while`, conditional statement, `return` or `throw` inside a loop's block | planned ([let](./3220-let.md), "General loops"; current admission: [loops](../control-flow/loops/README.md)) |
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |

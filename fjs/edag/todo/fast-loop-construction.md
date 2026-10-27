@@ -20,6 +20,22 @@ loop parameters and initial values, result signatures, immutable references,
 and resolved break/continue/return targets. Branch results and required
 evaluations are already explicit.
 
+Required initializers and loop statements retain their execution order even
+when only following code or module exports read their values. A reached failure
+before a divergent loop must still fail; an earlier divergent loop cannot move
+past a later failure. Explicit throws preserve their first failure payload.
+Graph construction retains the necessary ordered demands,
+including imported computations, lazy first demands, spread/key conversion and
+represented coercion callbacks. Values already demanded at the required point
+need no duplicate anchor. Adding a previously missing demand can change a graph's
+bytes/hash; its normalized conversion and source spelling must then stabilize.
+
+An externally supplied graph substitution is not necessarily a total binding
+read: a required import read can still execute the imported module's load.
+Inside an ordinary function, parameters, captures and self are established
+values; construction-time effects belong to its caller, not to frame reads in
+its body.
+
 AST-to-FAST chooses which source bindings travel through a loop. This
 conversion neither searches for outer mutable names nor performs liveness
 analysis. Immutable free values use ordinary captures. Internal producers

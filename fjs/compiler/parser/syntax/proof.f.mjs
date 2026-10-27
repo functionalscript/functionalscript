@@ -53,6 +53,33 @@ const returned = node => {
 }
 
 export const proof = {
+    moduleLoopsKeepTheirOwnStatementRecord: () => {
+        const module = unwrap(parseSyntax(tokenizeString('let i=0;\nexport const before=i;\nwhile(i<2){i=i+1;}\nexport const after=i;\nexport default i;')))
+        assertStructurallySame(module.statements.map(statement => statement[0]), ['let', 'const', 'while', 'const'])
+        const loop = module.statements[2]
+        assert(loop[0] === 'while')
+        assertStructurallySame(Object.keys(loop[1]).toSorted(), ['block', 'condition', 'start'])
+        assertStructurallySame(loop[1].start.token, { kind: 'id', value: 'while' })
+        assertEq(loop[1].start.metadata.line, 3)
+        assertEq(loop[1].condition[0], '<')
+        assertEq(loop[1].block[0], 'loop')
+        assertEq(loop[1].block[1].length, 1)
+        const assignment = loop[1].block[1][0]
+        assert(assignment[0] === 'assign')
+        assertEq(assignment[1].value[0], '+')
+        const before = module.statements[1]
+        const after = module.statements[3]
+        assert(before[0] === 'const' && after[0] === 'const')
+        assertEq(before[1].exported, true)
+        assertEq(after[1].exported, true)
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default ()=>{while(false){}return 7;};')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        const nested = body[1][0]
+        assert(nested[0] === 'while')
+        assertEq(nested[1].block[1].length, 0)
+    },
     templates: () => {
         const plain = unwrap(parseSyntax(tokenizeString('export default `plain`;')))
         assert(plain.exported !== null)
@@ -201,7 +228,7 @@ export const proof = {
         assert(source.thrown.value[0] === 'ref')
         assertEq(source.thrown.semicolon, false)
         assertEq(source.thrown.start.metadata.line, 2)
-        assertStructurallySame(source.statements.map(s => s[0] === 'assign' ? null : s[1].exported), [true])
+        assertStructurallySame(source.statements.map(s => s[0] === 'const' || s[0] === 'let' ? s[1].exported : null), [true])
         const plain = unwrap(parseSyntax(tokenizeString('throw 1;')))
         assertStructurallySame([plain.exported, plain.statements], [null, []])
         assert(plain.thrown !== null)
@@ -308,7 +335,7 @@ export const proof = {
             const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; let y=a; y=x; export const b=y;')))
             assertEq(source.exported, null)
             assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const'])
-            assertStructurallySame(source.statements.map(s => s[0] === 'assign' ? s[1].name.token : [s[1].exported, s[1].declaration.target[1].token]), [
+            assertStructurallySame(source.statements.map(s => s[0] === 'const' || s[0] === 'let' ? [s[1].exported, s[1].declaration.target[1].token] : s[0] === 'assign' ? s[1].name.token : null), [
                 [false, { kind: 'id', value: 'x' }], [true, { kind: 'id', value: 'a' }], [false, { kind: 'id', value: 'y' }], { kind: 'id', value: 'y' }, [true, { kind: 'id', value: 'b' }],
             ])
         },
