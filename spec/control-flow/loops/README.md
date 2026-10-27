@@ -36,21 +36,26 @@ the preceding round's values; a failed test or body computation does not
 complete the loop normally.
 
 An `if (condition) { ... }` inside a loop executes its block when the condition
-is truthy and then continues with the following statement. Assignments in the
-block update the enclosing loop's variables; a skipped block leaves their
-values unchanged. Its declarations belong to that block, including nested
-conditional blocks.
+is truthy. An optional `else` block runs when it is falsy; `else if` tests the
+next condition only when preceding conditions were falsy. The selected block
+continues with the following statement. Assignments update the enclosing loop's
+variables; an arm that leaves a variable unassigned preserves its preceding
+value. Each block owns its declarations, including nested conditional blocks.
 
 ```js
 while (i < n) {
-    if (i > 3) {
+    if (i < 2) {
         sum = sum + i;
+    } else if (i < 4) {
+        sum = sum + 2 * i;
+    } else {
+        sum = sum + 3 * i;
     }
     i = i + 1;
 }
 ```
 
-The current body grammar excludes `else`, switches, nested loops, `break`,
+The current body grammar excludes switches, nested loops, `break`,
 `continue`, `return` and `throw` statements. These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
@@ -76,9 +81,11 @@ order. These become explicit FAST input and normal-result signatures, with no
 fixed-parameter limit on loop state. Immutable outer values remain references;
 local declarations stay in the body. Each iteration transfers the current
 values simultaneously after its source assignments have run in order.
-Conditional blocks supply explicit FAST results for the enclosing bindings they
-assign. Their true arm supplies the updated values and their false arm supplies
-the preceding values; later statements read the selected results.
+Conditional blocks supply explicit FAST results for the union of enclosing
+bindings assigned by either arm, in declaration-introduction order. Both arms
+start with the same incoming values and supply their latest versions; an arm
+that leaves a binding unchanged supplies its preceding value. Later statements
+read the selected results. An omitted `else` supplies the incoming values.
 
 The established scalar shape keeps its recursive graph and exact graph round
 trip. General state uses the shared aggregate helper. Source serialization

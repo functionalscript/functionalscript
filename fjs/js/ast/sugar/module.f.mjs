@@ -357,16 +357,17 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             continue
         }
         if (statement[0] === 'if') {
-            // The branch's final versions must survive alias pruning before
+            // Both arms' final versions must survive alias pruning before
             // the changed outer names become its explicit result signature.
             const outer = context.bindings.filter(fact => inner.some(([id]) => id === fact.id)).map(fact => fact.id)
             const branch = normalizedBlock(statement[2], inner, context, outer)
-            const writes = branch.environment.slice(inner.length).map(([id]) => id)
+            const otherwise = normalizedBlock(statement[3], inner, context, outer)
+            const writes = [...branch.environment.slice(inner.length), ...otherwise.environment.slice(inner.length)].map(([id]) => id)
             const sources = outer.filter(id => writes.includes(id))
             const results = sources.map(source => binding(source.index))
             statements = [...statements, ['if', results, normalizedValue(inner, context)(statement[1]),
                 { ...branch.block, exit: ['yield', sources.map(source => lookup(branch.environment, source))] },
-                { statements: [], exit: ['yield', sources.map(source => lookup(inner, source))] },
+                { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] },
             ]]
             inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
             continue
