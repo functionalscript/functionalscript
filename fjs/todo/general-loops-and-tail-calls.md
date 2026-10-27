@@ -184,6 +184,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       ([output contract](../edag/todo/tail-call-loop.md#remaining-general-source-output)).
       Module loops now reuse source loop resolution and state selection,
       preserving initialization order and named-export snapshots.
+      Next increment: conditional statements inside loop bodies preserve
+      assigned outer bindings through explicit FAST branch results, including
+      unchanged values on the skipped arm and following body statements.
       Structured/nested bodies and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
