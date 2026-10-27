@@ -11,8 +11,9 @@
 import { throws } from 'node:assert/strict'
 import { runInNewContext } from 'node:vm'
 
-import { assertEq, assertOk } from '../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { toFast } from './module.f.mjs'
+import { _snapshotCases } from './proof.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { stringify } from '../../js/ast/serializer/module.f.mjs'
@@ -24,6 +25,18 @@ import { _defaultExport, unresolved } from '../../compiler/edag/module.f.mjs'
 const execute = graph => Function(`"use strict";return (${stringify(prepare(assertOk(toFast(graph))), 'expression', true)});`)()
 
 export const proof = {
+    snapshotsKeepEarlierLazyDependencies: () => {
+        for (const initial of _snapshotCases()) {
+            let graph = initial
+            for (let round = 0; round < 4; round += 1) {
+                const values = execute(graph)
+                assertStructurallySame(values, [['x', [3]], [3], 'x,31', 'x,31'])
+                assert(Array.isArray(values) && Array.isArray(values[0]))
+                assertEq(values[0][1], values[1])
+                graph = fromFast(assertOk(toFast(graph)))
+            }
+        }
+    },
     laterSharedFailuresStayAfterDivergence: () => {
         const forever = /** @type {const} */ (['()', ['=>', 0, [], ['()', ['self'], []]], []])
         const failure = /** @type {const} */ (['throw', 2])
