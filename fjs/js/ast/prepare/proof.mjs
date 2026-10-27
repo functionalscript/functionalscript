@@ -21,6 +21,42 @@ const compile = fn => Function(`"use strict";return (${functionStringify(prepare
 const standalone = source => Function(`"use strict";return (${functionStringify({ ...source, captures: [], body: prepare(source.body) })});`)()
 
 export const proof = {
+    plainLoopConditionAndFinalCaptureLifetimes: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 1 })
+        const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const limit = id(0), state = id(1), result = id(2), count = id(3), minted = id(4), captured = id(5)
+        const closure = /** @type {FastValue} */ (['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: captured, value: ['ref', state] }],
+            body: { statements: [], exit: ['return', child, ['ref', captured]] },
+        }])
+        /** @type {(normal: FastValue, prefix?: FastValue) => FastFunction} */
+        const source = (normal, prefix = ['array', [['ref', count]]]) => ({
+            target, parameters: [limit], rest: null, self: null, captures: [], body: {
+                statements: [['loop', { target: loop, parameters: [state], initial: [['array', [0]]], results: [result], body: {
+                    statements: [
+                        ['define', count, ['.', ['ref', state], 0], 'required'],
+                        ['define', minted, prefix, 'required'],
+                        ['if', [], ['?:', ['<', ['ref', count], ['ref', limit]], ['===', ['ref', minted], ['ref', minted]], false],
+                            { statements: [], exit: ['continue', loop, [['array', [['+', ['ref', count], 1]]]]] },
+                            { statements: [], exit: ['break', loop, [normal]] },
+                        ],
+                    ], exit: ['yield', []],
+                } }]], exit: ['return', target, ['ref', result]],
+            },
+        })
+        for (const render of [compile, standalone]) {
+            // Condition-only allocations are shared within one test, and the
+            // final closure captures the final immutable state snapshot.
+            assertStructurallySame(render(source(closure))(3)(), [3])
+            const packed = render(source(['array', [closure, ['ref', state]]]))(3)
+            assertEq(packed[0](), packed[1])
+            assertStructurallySame(packed[1], [3])
+            assertStructurallySame(render(source(['ref', state]))(100_000), [100_000])
+            throws(() => render(source(['ref', state], ['.', null, 0]))(0), TypeError)
+            throws(() => render(source(['.', null, 'x']))(3), TypeError)
+        }
+    },
     objectSpreadReturnOperands: () => {
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
         const child = /** @type {const} */ ({ kind: 'function', index: 0 })

@@ -17,14 +17,16 @@ tail-call analysis in F. The implemented contracts below stay historical.
 
 ### Remaining general source output
 
-The first H increment admits plain source loops with zero or multiple state
-values. Code-only JavaScript and Rust emit their aggregate helpers with bounded
-stack. Source `.js`/`.mjs` output still reifies general aggregate helpers as
-recursive functions so the result remains accepted source and round trips
-stably. It does not yet spell these helpers as plain `while` statements.
+Plain source loops with zero or multiple state values now have bounded-stack
+`.js`/`.mjs` output, as code-only JavaScript and Rust do. The shared
+[`plain-loop plan`](../../js/ast/loop/plain/module.f.mjs) recognizes rest-free
+one-state aggregate helpers whose terminal conditional continues the loop or
+supplies one normal result. Required condition-only computations stay in the
+condition, and only transitive identity-free projection dependencies are copied
+into the body or result. An immutable final snapshot preserves result captures.
 
-For example, serialize this newly admitted program to `.js`, then call its
-default export with `100000` on V8:
+For example, serializing this program to `.js` and calling its default export
+with `100000` on V8 now completes as `[100000, 4999950000]`:
 
 ```js
 export default n => {
@@ -35,12 +37,18 @@ export default n => {
 };
 ```
 
-The emitted source overflows the stack, although code-only JavaScript, Rust and
-the source input's own `while` complete. H must connect shared plain-loop
-recognition/preparation to source serialization for aggregate helpers, including
-projection prefixes and normal-result computation. Preserve evaluation,
-identity, capture and stable graph/source conversion contracts. This is the
-next output increment; no per-writer state or source-write analysis is needed.
+The first emitted source separates the scalar loop from normal-result
+computation, so parsing it can change graph bytes and hashes once. Its
+source-normalized graph and canonical text then stabilize without helper or
+projection growth. Existing canonical scalar-loop graphs and spelling stay
+unchanged; condition-only required prefixes gain ordinary `while` output.
+
+Other canonical invocation roots retain recursive source spelling: multiple
+physical inputs, observed rest, structured transfers or a prefix computation
+that creates identity and must also be read in the body/result. Broader source
+placement, structured bodies and explicit exits remain H work. The source
+adapter uses shared recognition and preparation, with no writer-specific state
+or source-write analysis.
 
 ### Problem
 

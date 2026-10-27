@@ -1234,15 +1234,13 @@ export const proof = {
             'export default ()=>{const $0=[3];const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $0;})()){const $5=$3;const $6=$0;$3=$6;}return $3;};return $1($0);};')
         writes(['=>', 0, [], ['()', loop([['self']], true, call(['()', ['frame', 0], []])), [0]]],
             'const $0=()=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return true;})()){const $5=$3;const $6=$0();$3=$6;}return $3;};return $1(0);};export default $0;')
-        // what the template admits and this text does not keeps the
-        // recursion: a loop at the module level, one reached by two edges,
-        // an assert before the condition, a next value that throws, and a
-        // function of the shape called some other way
+        // Named helpers retain their loop spelling at module call sites and
+        // when shared. Required condition-only work runs inside each test.
         writes(['()', loop([], ['<', ['arg', 0], 9], call(['+', ['arg', 0], 2])), [0]], 'const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return $3<9;})()){const $4=$2;const $5=$4+2;$2=$5;}return $2;};export default $0(0);')
         writes(['=>', 1, [], ['[]', [['()', counting, [0]], ['()', counting, [1]]]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<$0;})()){const $5=$3;const $6=$5+2;$3=$6;}return $3;};return [$1(0),$1(1)];};')
         writes(['=>', 0, [], ['()', ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), ['arg', 0]]]]], [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[];return true?$0(0):$2;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=[];return true;})()){const $5=$2;const $6=0;$2=$6;}return $2;};return $0(0);};')
         // a next value that throws is assigned as the applied function a
         // throw is spelled as in expression position, never as the `throw`
         // statement a block refuses
@@ -1286,10 +1284,8 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?[$5][0]:true;$3=$6;}return $3;};return $1(0);};')
         writes(['=>', 1, [], ['()', loop([], conditional('&&', one, ['===', one, one]), call(['+', ['arg', 0], 1])), [0]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;const $5=[1];return $5?$5===$5:$5;})()){const $6=$3;const $7=$6+1;$3=$7;}return $3;};return $1(0);};')
-        // a loop called in another loop's block — as an assert, or as the
-        // next value — keeps the recursion there, since the block holds
-        // `const`s and assignments alone; called in a lazy operand's block,
-        // a function body, it is the loop
+        // A named helper keeps each loop in its own function body when called
+        // from another loop's block or a lazy operand's function body.
         /** @type {(limit: number) => Exp} */
         const countTo = limit => ['()', loop([], ['<', ['arg', 0], limit], call(['+', ['arg', 0], 1])), [0]]
         writes(['=>', 1, [], ['()', loop([], ['<', ['arg', 0], 3], [',', [countTo(2), call(['+', ['arg', 0], 1])]]), [0]]],

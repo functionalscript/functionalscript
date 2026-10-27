@@ -35,11 +35,22 @@ the condition. This removes the former inline writer's capture-order refusal
 using the existing source grammar.
 
 General fixed-parameter tail calls use loops in code-only JavaScript and Rust.
-Source output reifies nonscalar canonical invocation loops as recursion using
-the existing root transfer resolver, then performs source admission. This keeps
-previously supported source round trips while broader loop syntax waits for H;
-it does not repeat graph placement or tail eligibility. Required function owners
-remain in the common plan so the source recursive name is established.
+Source output retains rest-free canonical invocation roots recognized by the
+shared scalar or plain-loop plan. This includes aggregate helpers for zero or
+multiple source state values. Common preparation emits ordinary `while`
+statements and computes their normal result after the final false test. Other
+canonical invocation roots retain recursive source spelling through the
+existing transfer resolver. The adapter repeats no graph placement or tail
+eligibility analysis; required function owners retain recursive names where
+needed.
+
+The plain-loop spelling separates iteration from normal-result computation.
+Parsing its first output can therefore introduce a scalar helper boundary and
+change graph bytes/hashes. That source-normalized graph and its canonical text
+stabilize on subsequent conversions without accumulating helpers or projection
+demands. Existing canonical scalar-loop cases keep their exact graphs and source
+spelling. Condition-only required prefix work can now use an ordinary `while`
+where output previously used recursion or the general labelled loop.
 
 Missing, extra and spread tail arguments normalize to fixed invocation inputs.
 Parsing the first source output can inline one-use argument setup; serialization of the

@@ -23,6 +23,7 @@
 
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
+import { plainLoopOf } from '../loop/plain/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -392,6 +393,53 @@ const statementTask = (statement, context) => call(() => {
                         }]],
                         next: body.next,
                     }))
+                })
+            })
+        }
+        const plain = plainLoopOf(loop)
+        if (plain !== null && !nonlocalValue(plain.condition, context) && !nonlocalValue(plain.next, context)
+            && !nonlocalValue(plain.result, context) && plain.prefix.every(statement => !nonlocalValue(statement[2], context))
+            && plain.step.statements.every(statement => !nonlocalValue(statement[2], context))) {
+            return bind(prepareValue(loop.initial[0], context), initial => {
+                const computed = !(plain.result instanceof Array && plain.result[0] === 'ref' && plain.result[1] === loop.parameters[0])
+                const [slot, conditionParameter, finalState, finalParameter] = fresh(initial.next, computed ? 4 : 2)
+                const conditionBlock = /** @type {NormalValue} */ (['block', { statements: plain.prefix, exit: ['yield', [plain.condition]] }])
+                return bind(prepareValue(conditionBlock, {
+                    ...context,
+                    next: initial.next + (computed ? 4 : 2),
+                    reads: [...context.reads, [loop.parameters[0], conditionParameter]],
+                }), condition => {
+                    const mutable = !(plain.next instanceof Array && plain.next[0] === 'ref' && plain.next[1] === loop.parameters[0])
+                    const step = /** @type {NormalBlock} */ ({ statements: plain.step.statements, exit: ['yield', mutable ? [plain.next] : []] })
+                    return bind(prepareBlock({ ...step, statements: [...plain.stepPrefix, ...step.statements] }, {
+                        ...context,
+                        next: condition.next,
+                        yields: mutable ? [slot] : null,
+                    }), body => {
+                        const physical = /** @type {Statement} */ (['while', {
+                            target: loop.target,
+                            slot,
+                            initial: initial.value,
+                            condition: ['block', { statements: [['define', conditionParameter, ['ref', slot]], ...condition.statements], exit: ['yield', [condition.value]] }],
+                            body: { statements: [['define', loop.parameters[0], ['ref', slot]], ...body.value.statements], exit: body.value.exit },
+                            result: computed ? finalState : loop.results[0],
+                            mutable,
+                        }])
+                        if (!computed) { return done({ value: [...initial.statements, physical], next: body.next }) }
+                        const normal = /** @type {NormalBlock} */ ({ statements: [], exit: ['yield', [plain.result]] })
+                        const resultBlock = /** @type {NormalValue} */ (['block', {
+                            statements: [['define', finalParameter, ['ref', finalState], 'required'], ...plain.resultPrefix],
+                            exit: normal.exit,
+                        }])
+                        return bind(prepareValue(resultBlock, {
+                            ...context,
+                            next: body.next,
+                            reads: [...context.reads, [loop.parameters[0], finalParameter]],
+                        }), result => done({
+                            value: [...initial.statements, physical, ...result.statements, ['define', loop.results[0], result.value]],
+                            next: result.next,
+                        }))
+                    })
                 })
             })
         }

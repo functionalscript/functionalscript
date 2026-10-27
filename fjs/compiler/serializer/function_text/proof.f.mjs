@@ -49,10 +49,10 @@ export const proof = {
         // numbered before the parameter
         assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
             '($1)=>{let $2=$1;while((()=>{const $3=$2;return $0;})()){const $4=$2;const $5=$0;$2=$5;}return $2;}')
-        // Generic transitions keep root work and condition/arm sharing in
-        // one iteration. A rest read gets a fresh array at each transition.
+        // Condition-only root work runs in each test. Condition/arm sharing
+        // retains the general loop; rest arrays refresh at each transition.
         assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, call(0), ['arg', 0]]]]]),
-            '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[1];if(true){const $6=0;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
+            '($0)=>{let $1=$0;while((()=>{const $2=$1;const $3=[1];return true;})()){const $4=$1;const $5=0;$1=$5;}return $1;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
             '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[$4];if($5[0]){const $6=$5.length;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),

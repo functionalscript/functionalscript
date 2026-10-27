@@ -65,14 +65,16 @@ trip. General state uses the shared aggregate helper. Source serialization
 round trips through the same graph conversion and stabilizes under its declared
 normalization, rather than preserving the written variable names or count.
 
-Code-only JavaScript/function text and Rust emit general helpers as loops and
-run with bounded stack. Source `.js`/`.mjs` serialization currently emits
-general aggregate helpers as recursive functions. Deep new multi-state source
-outputs can therefore overflow on hosts without proper tail calls; connecting
-their plain `while` spelling is the next
-[source-output step](../../../fjs/edag/todo/tail-call-loop.md#remaining-general-source-output).
-Existing scalar source output retains its bounded-stack loop spelling,
-including loops that read an unchanged outer mutable value.
+Source `.js`/`.mjs`, code-only JavaScript/function text and Rust emit eligible
+plain aggregate helpers as loops and run with bounded stack. Required condition
+computations run at every test; the normal result is computed once after the
+final false test. Its closures capture immutable final values. The source
+spelling can introduce a scalar helper boundary on its first round trip; its
+normalized graph and canonical text then stabilize. Existing scalar source
+output retains its graph and bounded-stack spelling, including loops that read
+an unchanged outer mutable value. The
+[output contract](../../../fjs/edag/todo/tail-call-loop.md#remaining-general-source-output)
+records the eligible helper shape and recursive fallback for other graphs.
 
 ## Examples
 
