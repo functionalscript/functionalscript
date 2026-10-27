@@ -114,7 +114,7 @@ recursion keep their recursive representation; eligibility belongs to the
 [shared conversion](./to_fast/README.md), rather than to an individual writer.
 
 Shared conversion also lowers direct terminal self-call evaluations with zero
-through sixteen fixed parameters without observed rest. Either
+through sixteen fixed parameters, with or without observed rest. Either
 conditional arm and the final sequence operand can transition; arbitrary base
 results return directly. Each argument is established before simultaneous state
 updates, and immutable iteration snapshots preserve escaped captures. Required
@@ -130,8 +130,10 @@ its existing source round-trip domain. Missing fixed arguments become
 `undefined`, and unused extra arguments retain their required evaluation before
 the transition. This extension deliberately changes the text of these newly
 eligible functions as well. Spread calls materialize their arguments before the
-transition, including required expansion and unused extras. Observed rest
-bindings keep ordinary calls in this increment.
+transition, including required expansion and unused extras. Rest transitions
+create a fresh rest array per invocation while preserving sharing within it and
+captured snapshots. Lowered default/destructuring setup runs each iteration.
+The internal rest input does not change the function's public fixed arity.
 
 A source call to such a function may retain a named callable whose own body
 contains the loop. It need not be inlined into the caller's body. Source

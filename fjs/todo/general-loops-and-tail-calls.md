@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-E construction implemented; generalized tail calls and their
-stack-safety integration are next in F, followed by source bindings and loops
+**Status:** wip — A-F shared construction and tail calls implemented;
+source bindings and loops remain in G/H
 
 ### Goal
 
@@ -149,7 +149,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Deferred-initializer helper crossings select their caller-owned cells
       even without an eager caller loop, preserving declaration-time scope and
       first-demand evaluation through nested recipes.
-- [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
+- [x] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
       Fixed-parameter tail evaluations in either conditional arm and final
@@ -158,8 +158,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       including deep JavaScript/Rust execution of repeated nested E helpers.
       Missing and extra spread-free recursive arguments preserve required
       evaluation and simultaneous state updates. Spread arguments expand before
-      transitions through the same private invocation array. Observed-rest
-      preparation remains; H owns new source loop spelling.
+      transitions through the same private invocation array. Observed rest uses
+      a fresh array each invocation while preserving sharing, captures and
+      lowered default/destructuring setup. Canonical rest recipes reconstruct
+      original arguments without wrapper growth, including sixteen fixed
+      parameters plus rest without changing public arity. H owns new source
+      loop spelling.
 - [ ] **G — General bindings.** Implement the language owner's admission and
       AST-to-FAST rules after approval using the existing analysis, a pattern
       after `let` included; migrate the post-loop and immediate-call capture

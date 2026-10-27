@@ -203,7 +203,7 @@ export const proof = {
          * once per invocation. The established scalar template keeps its
          * spelling, including shared operations in the test and round.
          * Missing, extra and spread arguments use that same loop.
-         * Rest and established call-result reads stay calls.
+         * Rest gets fresh invocation state; established call-result reads stay calls.
          */
         recursion: () => {
             /** @type {Exp} */
@@ -228,6 +228,7 @@ export const proof = {
                 ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
                 loop(true, ['()', ['self'], [1, 2]]),
                 loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
+                loop(['rest'], c),
             ]
             for (const e of general) {
                 const lines = scoped(e)
@@ -236,7 +237,6 @@ export const proof = {
             }
             /** @type {readonly Exp[]} */
             const recursive = [
-                loop(['rest'], c),
                 // A call already evaluated into a shared binding is
                 // a result read rather than a terminal evaluation.
                 loop(true, [',', [c, c]]),

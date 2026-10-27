@@ -1,8 +1,8 @@
 ## Write a tail self-call as a loop
 
 **Priority:** P2
-**Status:** wip — fixed-parameter tail evaluations use canonical invocation loops;
-broader argument/rest preparation and source syntax remain in F/H
+**Status:** wip — F shared tail-call lowering is implemented;
+connecting the broader source spellings remains in H
 
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
@@ -383,19 +383,19 @@ preparation; connecting the source feature later does not rewrite it.
       missing and unused extra values, required failures, lazy demands and
       captures using common preparation. Keep normalized graph/source fixed
       points and bounded-stack JavaScript/Rust execution.
-- [ ] Produce the canonical invocation loop and common prepared output. Cover
+- [x] Produce the canonical invocation loop and common prepared output. Cover
       observed rest, including its missing/extra/failing argument
       behavior, defaults/destructuring, arity and self identity.
-- [ ] Carry capture snapshots and per-invocation memo/object/function lifetimes
+- [x] Carry capture snapshots and per-invocation memo/object/function lifetimes
       through the remaining invocation forms and all consumers; no
       backend-specific eligibility or placement.
-- [ ] Verify EDAG -> normalized FAST -> EDAG for the declared graph domain,
+- [x] Verify EDAG -> normalized FAST -> EDAG for the declared graph domain,
       extending stable repeated conversion and one-time setup to those forms.
-- [ ] Prove generalized tail-only cases and repeated nested generated loops
+- [x] Prove generalized tail-only cases and repeated nested generated loops
       stack-safe across the remaining invocation forms in shared JS/Rust output.
       Lexical nesting may add stack depth; iteration count must not. Ordinary
       non-tail user recursion stays ordinary.
-- [ ] Connect newly admitted source spellings in H with end-to-end source
+- [ ] **H integration:** connect newly admitted source spellings with end-to-end source
       round-trip and execution proofs, using this same shared path.
 
 ### Related

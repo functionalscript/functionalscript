@@ -1244,11 +1244,10 @@ export const proof = {
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(0,1);};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(...[0]);};')
-        // a function reading its rest array keeps the recursion, which
-        // gives each round the empty array a call of one argument leaves;
-        // `let` and `while` bind no rest array
+        // Source keeps recursive spelling for rest invocation loops,
+        // preserving the fresh array each reconstructed call creates.
         writes(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]],
-            'export default ()=>{const $0=($1,...$2)=>$2.length?$0(0):$1;return $0(0);};')
+            'export default ()=>{const $0=($1,...$2)=>{const $3=$1;const $4=$2;return $4.length?$0(0):$3;};return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
         refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')

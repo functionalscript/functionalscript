@@ -334,8 +334,8 @@ array, and the loop enters with that current argument. Reuse keeps the same
 frame and self identity. One-time setup, a different invocation layout or
 following result processing retains a separate helper.
 
-The next supported root domain generalizes the fixed invocation signature:
-zero through sixteen fixed parameters, no rest binding, and one opaque public
+The next supported root domain generalizes the invocation signature:
+zero through sixteen fixed parameters, optional rest, and one opaque public
 result. [`loop/root`](./loop/root/module.f.mjs) checks that each loop entry
 aliases the corresponding current argument and the function directly returns
 that loop's one result. The shared invocation-alias inventory also admits
@@ -350,6 +350,16 @@ an original function parameter or its transitive prefix alias prevents reuse:
 self calls would otherwise replace that retained entry value. Both scalar and
 general root matching use the same scoped dependency check. Existing scalar
 helpers preserve supported retained values through captures; other forms refuse.
+
+A rest root adds one internal state position after the fixed parameters, without
+changing public arity. Entry rest follows its own alias lineage. Each reached
+continue must use the shared [`invocation`](../../js/ast/invocation/module.f.mjs)
+recipe: a final required private argument array, its fixed-prefix projections,
+and a fresh rest slice. Reconstruction removes that private array and restores
+the original call arguments, avoiding repeated wrapper growth. An arbitrary
+borrowed array is not a rest-invocation recipe: reconstructing it as a call
+would allocate a different rest array and lose sharing. Such loops keep the
+general helper path. Unsupported hidden transfers also prevent rest-root reuse.
 
 Within a matched general root, an owning `continue` constructs a direct self
 call with all next values evaluated in the current invocation. An owning
@@ -383,9 +393,9 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-E's construction domain is implemented. F now lowers fixed-parameter terminal
-self-call evaluations through canonical invocation roots; broader invocation
-preparation, including rest and spread transitions, remains F work. Unsupported
+E's construction domain is implemented. F lowers terminal self-call evaluations
+through canonical invocation roots, including spread and observed-rest
+invocations with per-iteration parameter setup. Unsupported
 forms are refused explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
 function-return targets and loop-body normal yields. Standalone block
 construction has no source function to own helper returns. A deferred free

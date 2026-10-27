@@ -81,8 +81,9 @@ export const namesBinding = (value, binding) => value instanceof Array && value[
  * @type {(fn: FastFunction, before: readonly Statement[]) => readonly (readonly BindingId[])[] | null}
  */
 export const invocationAliases = (fn, before) => {
-    let aliases = fn.parameters.map(parameter => [parameter])
-    let established = [...fn.parameters, ...fn.captures.map(capture => capture.binding), ...(fn.self === null ? [] : [fn.self])]
+    const inputs = /** @type {readonly BindingId[]} */ ([...fn.parameters, ...(fn.rest === null ? [] : [fn.rest])])
+    let aliases = inputs.map(parameter => [parameter])
+    let established = [...inputs, ...fn.captures.map(capture => capture.binding), ...(fn.self === null ? [] : [fn.self])]
     for (const statement of before) {
         if (statement[0] !== 'define') { return null }
         const value = statement[2]

@@ -265,16 +265,19 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             const body = terminal(raw)
             const rest = scopeHolds(a, i, 'rest') ? context.rest : null
             const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
-            const tail = rest === null ? _tailCalls(body, context.parameters, context.self, target) : null
+            const tail = _tailCalls(body, context.parameters, context.self, target, rest)
             if (tail !== null) {
                 // Entry parameters and current iteration values have different
                 // identities, even where their presentation indices agree.
                 const parameters = context.parameters.map(binding => ({ ...binding }))
+                const entryRest = rest === null ? null : { ...rest }
+                const iteration = /** @type {readonly BindingId[]} */ ([...context.parameters, ...(rest === null ? [] : [rest])])
+                const inputs = /** @type {readonly BindingId[]} */ ([...parameters, ...(entryRest === null ? [] : [entryRest])])
                 return deliver(done, {
-                    parameters, rest: null, named: true,
-                    self: freeBindings(tail, context.parameters).includes(context.self) ? context.self : null,
+                    parameters, rest: entryRest, named: true,
+                    self: freeBindings(tail, iteration).includes(context.self) ? context.self : null,
                     body: {
-                        statements: [['loop', { target, parameters: context.parameters, initial: parameters.map(binding => /** @type {const} */ (['ref', binding])), results: [context.result], body: tail }]],
+                        statements: [['loop', { target, parameters: iteration, initial: inputs.map(binding => /** @type {const} */ (['ref', binding])), results: [context.result], body: tail }]],
                         exit: ['return', context.target, ['ref', context.result]],
                     },
                 })

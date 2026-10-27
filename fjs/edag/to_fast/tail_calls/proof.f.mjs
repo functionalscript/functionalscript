@@ -191,11 +191,11 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(values[1], [0])
         assertStructurallySame(values[0][1], [1])
     },
-    spreadCallsRetainObservedRestAndNonTailEvaluationBoundaries: () => {
+    spreadCallsRetainRestValuesAndNonTailEvaluationBoundaries: () => {
         const rest = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
             recur([['...', ['[]', [['-', arg(0), 1], 'recursive rest']]]]), ['rest']]])
-        assert(!loops(_tailFunction(rest)))
-        assert(_tailFunction(rest).rest !== null && _tailFunction(rest).self !== null)
+        assert(loops(_tailFunction(rest)))
+        assert(_tailFunction(rest).rest !== null && _tailFunction(rest).self === null)
         assertStructurallySame(run(rest, [2, 'initial rest']), ['recursive rest'])
         const call = recur([['...', ['[]', [['-', arg(0), 1]]]]])
         const ordinary = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], ['+', call, 1], 0]])
@@ -294,13 +294,123 @@ export const proof = /** @type {const} */ ({
     restReadsSeeTheRecursiveInvocationInsteadOfTheInitialRest: () => {
         const fn = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1]]), ['rest']]])
         const normalized = _tailFunction(fn)
-        assert(!loops(normalized))
-        assert(normalized.rest !== null && normalized.self !== null)
+        assert(loops(normalized))
+        assert(normalized.rest !== null && normalized.self === null)
         const prepared = prepareFunction(normalized)
         assertEq(prepared.rest, normalized.rest)
         assertEq(prepared.self, normalized.self)
         assertStructurallySame(run(fn, [2, 7, 8]), [])
         assertStructurallySame(run(fn, [0, 7, 8]), [7, 8])
+    },
+    restArraysAreFreshPerIterationAndSharedWithinIt: () => {
+        const fn = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], ['rest'], ['...', ['rest']]]),
+            ['[]', [arg(1), ['rest'], ['rest'], ['===', arg(1), ['rest']]]]]])
+        const normalized = _tailFunction(fn)
+        assert(loops(normalized))
+        assertEq(normalized.parameters.length, 2)
+        assert(normalized.rest !== null)
+        const values = run(fn, [3, null, 7, 8])
+        assert(values instanceof Array)
+        assertStructurallySame(values, [[7, 8], [7, 8], [7, 8], false])
+        assertEq(values[1], values[2])
+        assert(values[0] !== values[1])
+        const fresh = run(fn, [0, null, 7, 8])
+        assert(fresh instanceof Array)
+        assertEq(fresh[1], fresh[2])
+        assert(values[1] !== fresh[1])
+    },
+    restCapturesRetainTheCreatingInvocation: () => {
+        const saved = /** @type {Exp} */ (['=>', 0, [['rest']], ['frame', 0]])
+        const fn = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], saved, arg(0)]), ['[]', [['()', arg(1), []], ['rest']]]]])
+        assert(loops(_tailFunction(fn)))
+        assertStructurallySame(run(fn, [3, null, 99]), [[2], [1]])
+    },
+    loweredRestParameterSetupRunsAgainEachIteration: () => {
+        const input = /** @type {Exp} */ (['.', ['rest'], 0])
+        const value = /** @type {Exp} */ (['?:', ['===', input, ['undefined']], ['[]', []], input])
+        const defaults = /** @type {Exp} */ (['=>', 1, [], [',', [value,
+            ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1], ['undefined'], value]),
+                ['[]', [value, ['.', ['rest'], 1], ['===', value, ['.', ['rest'], 1]]]]],
+        ]]])
+        assert(loops(_tailFunction(defaults)))
+        const values = run(defaults, [2])
+        assert(values instanceof Array)
+        assertStructurallySame(values, [[], [], false])
+        assert(values[0] !== values[1])
+        const failedDefault = /** @type {Exp} */ (['?:', ['===', input, ['undefined']], ['throw', 'required default'], input])
+        const failing = /** @type {Exp} */ (['=>', 1, [], [',', [failedDefault,
+            ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1]]), 7],
+        ]]])
+        assert(loops(_tailFunction(failing)))
+        assertEq(run(failing, [0, 9]), 7)
+        failure(['()', stable(failing), [1, 9]])
+        const item = /** @type {Exp} */ (['.', input, 0])
+        const pattern = /** @type {Exp} */ (['=>', 1, [], [',', [item,
+            ['?:', ['>', arg(0), 0], recur([['-', arg(0), 1]]), item],
+        ]]])
+        assert(loops(_tailFunction(pattern)))
+        assertEq(run(pattern, [0, ['[]', [9]]]), 9)
+        failure(['()', stable(pattern), [1, ['[]', [9]]]])
+    },
+    restInvocationsKeepMissingArgumentsSpreadsAndFailures: () => {
+        const fn = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', arg(0), 0],
+            recur([['...', ['[]', [['-', arg(0), 1]]]]]), ['[]', [arg(1), ['rest']]]]])
+        assert(loops(_tailFunction(fn)))
+        assertStructurallySame(run(fn, [3, 8, 9]), [undefined, []])
+        assertStructurallySame(run(fn, [0, 8, 9]), [8, [9]])
+        const failing = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([0, ['throw', 'required rest argument']]), ['rest']]])
+        assert(loops(_tailFunction(failing)))
+        assertStructurallySame(run(failing, [0]), [])
+        failure(['()', stable(failing), [1]])
+        const invalid = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([0, ['...', null]]), ['rest']]])
+        assert(loops(_tailFunction(invalid)))
+        assertStructurallySame(run(invalid, [0]), [])
+        failure(['()', stable(invalid), [1]])
+    },
+    zeroAndSixteenFixedParametersRetainTheirRestAndArity: () => {
+        const zero = /** @type {Exp} */ (['=>', 0, [], ['?:', ['>', ['.', ['rest'], 0], 0],
+            recur([['-', ['.', ['rest'], 0], 1], ['...', ['()', ['slice'], [['rest'], 1]]]]), ['rest']]])
+        const normalizedZero = _tailFunction(zero)
+        assert(loops(normalizedZero))
+        assertEq(normalizedZero.parameters.length, 0)
+        assert(normalizedZero.rest !== null)
+        assertEq(evaluate(['.', stable(zero), 'length']), 0)
+        assertStructurallySame(run(zero, [3, 7, 8]), [0, 7, 8])
+        const many = /** @type {Exp} */ (['=>', 16, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], ...Array.from({ length: 15 }, (_, index) => arg(index + 1)), ['...', ['rest']]]),
+            ['[]', [arg(15), ['rest']]]]])
+        const normalized = _tailFunction(many)
+        assert(loops(normalized))
+        assertEq(normalized.parameters.length, 16)
+        assert(normalized.rest !== null)
+        const loop = normalized.body.statements[0]
+        assert(loop[0] === 'loop')
+        assertEq(loop[1].parameters.length, 17)
+        assertEq(evaluate(['.', stable(many), 'length']), 16)
+        assertStructurallySame(run(many, [3, ...Array.from({ length: 15 }, (_, index) => index + 1), 99]), [15, [99]])
+    },
+    restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls: () => {
+        const mixed = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 1],
+            recur([['-', arg(0), 1], ['...', ['rest']]]), ['?:', ['===', arg(0), 1], ['+', recur([0]), 10], ['.', ['rest'], 'length']]]])
+        const normalized = _tailFunction(mixed)
+        assert(loops(normalized))
+        assert(normalized.rest !== null && normalized.self !== null)
+        assertEq(run(mixed, [3, 7, 8]), 10)
+        const returned = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            recur([['-', arg(0), 1], ['...', ['rest']]]), ['[]', [['self'], ['rest']]]]])
+        const graph = stable(returned)
+        assert(_tailFunction(returned).self !== null)
+        assertEq(evaluate(['===', ['.', ['()', graph, [3, 7]], 0], graph]), true)
+        const call = recur([['-', arg(0), 1]])
+        const established = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0],
+            ['?:', ['===', call, 0], call, 1], ['.', ['rest'], 'length']]])
+        assert(!loops(_tailFunction(established)))
+        assert(_tailFunction(established).rest !== null && _tailFunction(established).self !== null)
+        assertEq(run(established, [3]), 0)
     },
     capturedParametersKeepTheirIterationAndOuterValueSnapshots: () => {
         const captured = /** @type {Exp} */ (['[]', [4]])
@@ -421,8 +531,8 @@ export const proof = /** @type {const} */ ({
         assertEq(rawRest.parameters, source.parameters)
         const restGraph = fromFast(result(['function', restSource]))
         const normalRest = _tailFunction(restGraph)
-        assert(!loops(normalRest))
-        assert(normalRest.rest !== null && normalRest.self !== null)
+        assert(loops(normalRest))
+        assert(normalRest.rest !== null && normalRest.self === null)
         const preparedRest = prepareFunction(normalRest)
         assertEq(preparedRest.rest, normalRest.rest)
         assertEq(preparedRest.self, normalRest.self)
