@@ -9,7 +9,8 @@
 is a Rust program that copies the demo WASM and produces each sample's WAT.
 Move this workflow into an FJS script, keeping the WebAssembly processing
 reusable outside the demos. The migration should land before we implement
-our own binary parser.
+our own binary parser. Once that parser and its AST-based WAT serializer
+are available, the browser demo should generate the WAT it displays.
 
 ### Tasks
 
@@ -45,18 +46,32 @@ Complete the stages in order.
       generated demo modules, using `wasm-tools` as a reference during the
       transition.
 
+#### Stage 3: Generate WAT directly in the demo
+
+- [ ] Reuse the FJS binary parser, AST, sample selection, and WAT serializer
+      from stage 2 in the browser demo: load the `.wasm`, parse it, and
+      generate and display the selected sample's WAT directly.
+- [ ] Replace fetching pre-generated `.wat` files with this in-demo
+      generation, then remove those files from the publishing step.
+      Continue publishing the `.wasm` the demo loads.
+- [ ] Verify that the displayed WAT comes from the same WASM module the demo
+      executes, with the same readable names and sample filtering. Keep
+      parsing and WAT generation outside timed sample execution.
+
 ### Behavior to preserve
 
 - Copy the original WASM bytes to `nanvm/demos/wasm/nanvm_demos.wasm`.
-- Write `nanvm/demos/wasm/<sample>.wat` for each listed sample, containing
-  that sample's functions with readable, demangled Rust names. These are
-  display fragments; they do not need to be standalone WebAssembly modules.
-- Create the output directories and remove stale sample `.wat` files while
-  preserving unrelated files.
+- Show each sample's functions with readable, demangled Rust names. The WAT
+  listings are display fragments; they do not need to be standalone
+  WebAssembly modules.
+- During stages 1 and 2, write `nanvm/demos/wasm/<sample>.wat`, create output
+  directories, and remove stale sample `.wat` files while preserving
+  unrelated files. Stage 3 replaces these WAT artifacts with text generated
+  in the browser demo.
 - Report unreadable or invalid input and samples with no matching functions
   as failures.
-- Keep the website consuming these build artifacts; publishing remains a
-  separate build step.
+- Keep compiling and publishing the WASM binary as a separate build step;
+  stage 3 moves WAT generation into the demo.
 
 ### Related
 
