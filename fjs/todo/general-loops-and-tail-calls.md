@@ -189,6 +189,9 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       skipped arm and following body statements. Nested conditional blocks keep
       their lexical scopes. Existing shared loop output emits these branch
       computations with bounded stack.
+      Next increment: `else` and `else if` loop-body arms share explicit FAST
+      results for the union of their outer writes, retaining preceding values
+      in an arm that leaves a binding unchanged.
       Nested loops, switches and explicit exits remain.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
