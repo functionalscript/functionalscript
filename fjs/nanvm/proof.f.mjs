@@ -51,6 +51,7 @@ import {
     valuesExp,
 } from './module.f.mjs'
 import { conditional } from '../edag/testlib.f.js'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 const { fromEntries, is } = Object
 
@@ -126,7 +127,7 @@ const methodReference = method => (r, ...a) => r[method](...a)
  *
  * @type {(g: Group) => ((...args: readonly any[]) => unknown) | undefined}
  */
-const referenceOf = g => 'method' in g ? methodReference(g.method) : js[groupKey(g)]
+const referenceOf = g => hasEntry(g, 'method') ? methodReference(g.method) : js[groupKey(g)]
 
 /**
  * The operation a key names. A key with no entry is a gap in this module, not

@@ -30,6 +30,7 @@ import { _casMcpSession } from './module.f.mjs'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 // `cas_get`'s result JSON. As an rtti schema it both describes the shape and
 // checks it, so reading a field needs neither a hand-written type nor an `as`
@@ -153,9 +154,9 @@ const runStdio =
  */
 /** @type {(resp: unknown) => ToolsCallResult} */
 const resultOf = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'result'), resp)
     const { result } = resp
-    assert(typeof result === 'object' && result !== null && 'content' in result, result)
+    assert(typeof result === 'object' && result !== null && hasEntry(result, 'content'), result)
     const { content } = result
     assert(content instanceof Array, content)
     return /** @type {ToolsCallResult} */ (result)
@@ -181,13 +182,13 @@ const textOf = resp => {
 
 /** Whether `resp` is an object carrying `key`. */
 /** @type {(resp: unknown, key: 'error' | 'result') => boolean} */
-const has = (resp, key) => typeof resp === 'object' && resp !== null && key in resp
+const has = (resp, key) => typeof resp === 'object' && resp !== null && hasEntry(resp, key)
 
 /** @type {(resp: unknown) => number} */
 const errorCode = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'error' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'error'), resp)
     const { error } = resp
-    assert(typeof error === 'object' && error !== null && 'code' in error, error)
+    assert(typeof error === 'object' && error !== null && hasEntry(error, 'code'), error)
     const { code } = error
     assert(typeof code === 'number', code)
     return code
@@ -195,23 +196,23 @@ const errorCode = resp => {
 
 /** @type {(resp: unknown) => unknown} */
 const idOf = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'id' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'id'), resp)
     return resp.id
 }
 
 /** The `name` and `inputSchema.type` of each tool in a `tools/list` result. */
 /** @type {(resp: unknown) => readonly { readonly name: string, readonly schemaType: unknown }[]} */
 const toolsOf = resp => {
-    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    assert(typeof resp === 'object' && resp !== null && hasEntry(resp, 'result'), resp)
     const { result } = resp
-    assert(typeof result === 'object' && result !== null && 'tools' in result, result)
+    assert(typeof result === 'object' && result !== null && hasEntry(result, 'tools'), result)
     const { tools } = result
     assert(tools instanceof Array, tools)
     return tools.map(t => {
-        assert(typeof t === 'object' && t !== null && 'name' in t && 'inputSchema' in t, t)
+        assert(typeof t === 'object' && t !== null && hasEntry(t, 'name') && hasEntry(t, 'inputSchema'), t)
         const { name, inputSchema } = t
         assert(typeof name === 'string', name)
-        assert(typeof inputSchema === 'object' && inputSchema !== null && 'type' in inputSchema, inputSchema)
+        assert(typeof inputSchema === 'object' && inputSchema !== null && hasEntry(inputSchema, 'type'), inputSchema)
         return { name, schemaType: inputSchema.type }
     })
 }
