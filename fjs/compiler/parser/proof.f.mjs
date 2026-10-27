@@ -25,6 +25,7 @@ import { textOfResult } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../website/demo/highlight/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -197,7 +198,7 @@ export const proof = {
             assertEq(exported.semicolon, false)
             const body = exported.value[2]
             assert(body[0] === 'block')
-            assertStructurallySame(body[1].map(([, statement]) => 'semicolon' in statement && statement.semicolon), [false, false])
+            assertStructurallySame(body[1].map(([, statement]) => hasEntry(statement, 'semicolon') && statement.semicolon), [false, false])
             assertEq(parseFromTokens(tokenizeString('export default () => {\n    const x = 1\n    return x\n}'))[0], 'ok')
             assertEq(parseFromTokens(tokenizeString('export default () => { return 7 };'))[0], 'ok')
             const sameLine = 'export default () => { const x = 1 return x; };'

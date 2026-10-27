@@ -12,6 +12,7 @@ import { examples, lessons, projectSchemas } from './demo.f.mjs'
 import { _readersOf } from './schema-demo/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 /** @type {StringMap<readonly unknown[]>} */
 const tests = {
@@ -74,7 +75,7 @@ const demoProof = /** @type {const} */ ({
     projectValuesAccepted: () => {
         for (const e of projectSchemas) {
             const r = _readersOf(e.schemas[0].schema)(e.value)
-            assert(!('error' in r) && r.parse.ok && r.validate.ok, `${e.name}: ${JSON.stringify(r)}`)
+            assert(!hasEntry(r, 'error') && r.parse.ok && r.validate.ok, `${e.name}: ${JSON.stringify(r)}`)
         }
     },
 })

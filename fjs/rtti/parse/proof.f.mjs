@@ -10,6 +10,7 @@
 import { parse } from './module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 import {
     assert,
     assertEq,
@@ -317,7 +318,7 @@ export const proof = {
         },
         structDropsTheKey: () => {
             const built = unwrap(parse({ a: number, b: or(option, string) })({ a: 1 }))
-            assert(!('b' in built), 'an absent key is not materialized')
+            assert(!hasEntry(built, 'b'), 'an absent key is not materialized')
         },
         // An odd segment count: hole, present, present — three segments, two
         // pairwise join rounds, the tail segment carried once unpaired.

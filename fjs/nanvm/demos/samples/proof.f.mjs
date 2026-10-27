@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { functionPlaceAt, placeAt, samples } from './module.f.js'
+import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 export const proof = {
     // A name is the sample's WASM export, so no two may share one, nor two a directory.
@@ -10,7 +11,7 @@ export const proof = {
     // A function sample lists at least one call, each input once.
     calls: () => {
         for (const place of samples) {
-            if (!('calls' in place)) { continue }
+            if (!hasEntry(place, 'calls')) { continue }
             assert(place.calls.length > 0, place.name)
             assertEq(new Set(place.calls.map(([input]) => input)).size, place.calls.length)
         }

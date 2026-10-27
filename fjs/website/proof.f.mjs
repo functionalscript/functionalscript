@@ -19,6 +19,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
 import { repository } from './page/module.f.mjs'
+import { hasEntry } from '../types/object/entry/module.f.js'
 
 /**
  * A file in the virtual tree, from its text.
@@ -561,9 +562,9 @@ export const proof = {
                 a: { b: { 'module.f.mjs': file('export const x = 1') } },
             })
             const dir = /** @type {Dir} */ (generated.root['a'])
-            assert('index.html' in generated.root, 'expected a root page')
-            assert('index.html' in dir, 'expected a page for the module-less directory')
-            assert('index.html' in /** @type {Dir} */ (dir['b']), 'expected a page for the module directory')
+            assert(hasEntry(generated.root, 'index.html'), 'expected a root page')
+            assert(hasEntry(dir, 'index.html'), 'expected a page for the module-less directory')
+            assert(hasEntry(/** @type {Dir} */ (dir['b']), 'index.html'), 'expected a page for the module directory')
         },
         /**
          * **A file list only where a `module.f.mjs` is**, and the generator's
@@ -617,7 +618,7 @@ export const proof = {
             const page = textOf(dir['index.html'], 'the page')
             assert(page.includes('<span data-priority="P3">P3</span> <a href="/a/todo/open.md" data-kind="issue" data-issue-status="open">open.md</a>'), page)
             assert(!page.includes('>todo/</a>'), page)
-            assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
+            assert(!hasEntry(/** @type {Dir} */ (dir['todo']), 'index.html'), 'expected no page for todo/')
         },
         /**
          * **An issue is a markdown file.** A `todo/` may hold something else
@@ -652,9 +653,9 @@ export const proof = {
             })
             const todo = /** @type {Dir} */ (generated.root['todo'])
             const plan = /** @type {Dir} */ (todo['plan'])
-            assert(!('index.html' in todo), 'expected no page for todo/')
-            assert(!('index.html' in plan), 'expected no page for todo/plan/')
-            assert(!('index.html' in /** @type {Dir} */ (plan['deep'])),
+            assert(!hasEntry(todo, 'index.html'), 'expected no page for todo/')
+            assert(!hasEntry(plan, 'index.html'), 'expected no page for todo/plan/')
+            assert(!hasEntry(/** @type {Dir} */ (plan['deep']), 'index.html'),
                 'expected no page for todo/plan/deep/')
         },
         /**
@@ -760,7 +761,7 @@ export const proof = {
         ignoredDirectoriesGetNoPage: () => {
             const [generated] = run({ node_modules: { a: { 'module.f.mjs': file('export const x = 1') } } })
             assert(
-                !('index.html' in /** @type {Dir} */ (generated.root['node_modules'])),
+                !hasEntry(/** @type {Dir} */ (generated.root['node_modules']), 'index.html'),
                 'expected no page inside node_modules')
         },
         /**

@@ -5,6 +5,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
     templates: {
@@ -12,7 +13,7 @@ export const proof = {
             const tokens = toArray(tokenize(stringToList('`a${1}b${2}c`'))('template.f.js'))
             assertEq(tokens.map(({ token }) => token.kind).join(' '), 'templateHead number templateMiddle number templateTail eof')
             assertEq(tokens.map(({ metadata }) => metadata.column).join(' '), '1 5 6 10 11 14')
-            assertEq(tokens.flatMap(({ token }) => 'source' in token ? [token.value] : []).join('|'), 'a|b|c')
+            assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join('|'), 'a|b|c')
             assertEq(toArray(tokenize(stringToList('`\\` \\${x} \\n \\u0041`'))('')).map(({ token }) => token.kind).join(' '), 'noSubstitutionTemplate eof')
         },
         refusedEscapes: () => {
