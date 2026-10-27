@@ -61,13 +61,12 @@ cannot build ([what the readers assume of a
 value](../guide/readers/assumptions/README.md)). An index at or above
 `length` is not answered either, on any reader.
 
-A *declared* member's presence is asked with `in` (HasProperty), because
-`getItem` reads through the prototype. The two questions differ even on a
-DataJS value when a struct declares a name `Object.prototype` carries:
-`{ toString: or(option, number) }` refuses `{}`, since `'toString' in {}` and
-the inherited function is no `number`
-([`inherited-declared-member`](../todo/inherited-declared-member.md)). For
-every other declared name an own member and a readable one are the same thing.
+A *declared* member's presence is asked by the same rule: it is present when
+it is an enumerable own entry of the value, `hasEntry`, and a struct member is
+read with `entry`, the pair FunctionalScript reads a run-time key with. So a
+struct that declares a name `Object.prototype` carries sees no such member on
+a plain object: `{ toString: or(option, number) }` accepts `{}`, as its
+`Ts<>` does, and `{ constructor: number }` refuses it as a missing member.
 
 ## Why a bare tuple is closed
 

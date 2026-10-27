@@ -53,6 +53,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
 import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
 import { arrayIndex } from '../../js/array_index/module.f.js'
+import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 
 /** Builds an error result with empty path and the given message. */
 /** @type {(message: string) => Error<ValidationError>} */
@@ -374,7 +375,7 @@ export const noAccumulate = () => undefined
  *
  * @type {<A>(cons: Reader<A>['cons'], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => Reader<A>['cons']}
  */
-const consPresent = (cons, value) => (acc, k, v) => k in value ? cons(acc, k, v) : acc
+const consPresent = (cons, value) => (acc, k, v) => hasEntry(value, k) ? cons(acc, k, v) : acc
 
 /**
  * The container handler for `array` and `record` schemas: every member of the
@@ -386,10 +387,8 @@ const consPresent = (cons, value) => (acc, k, v) => k in value ? cons(acc, k, v)
  * schema such as `const list = () => ['array', list]` does not recurse forever.
  *
  * The members are `undeclaredMembers`', not `Object.entries`': `array(t)` is
- * `rest([], t)`, so the two have to walk a value the same way. An own-entry
- * walk here skipped an index the prototype supplies while the data form's
- * reader found it, which broke the acceptance agreement the three readers are
- * pinned on.
+ * `rest([], t)`, so the two have to walk a value the same way, and one walk
+ * does that by construction.
  *
  * `restFits` bounds the array kind's length when its element set admits
  * nothing, which is what the data form says by normalizing such a `rest`
@@ -436,10 +435,10 @@ export const containerRead =
  * prefix is no member and would slip through the member check alone, so the
  * array kind answers with its length as well.
  *
- * A declared member is **absent** when its key or index is neither an own
- * property nor an inherited one — HasProperty, since `getItem` reads through
- * the prototype, so a member the prototype supplies is still held to what the
- * schema says a present value is. Absence is decided here, before dispatch:
+ * A declared member is **absent** when its key or index is no enumerable own
+ * entry of the value ({@link hasEntry}), which is what `getItem` reads: a name
+ * only a prototype supplies, such as `toString` on a plain object, is absent,
+ * as it is to the undeclared-member walk. Absence is decided here, before dispatch:
  * the recursive reader is handed only the value read, and an absent key reads
  * `undefined`, so it cannot tell `{}` from `{ a: undefined }`. An absent
  * member is legal exactly when its schema admits absence ({@link admitsAbsence})
@@ -504,14 +503,14 @@ export const constContainerRead =
             // The pass carries nothing forward, so it stops at the first
             // illegal absence having touched only the members before it: a
             // 500 000-position schema against `[]` answers at index 0. The
-            // reading walk asks `in` again — to read a member and to collect
-            // it — rather than being handed a recorded flag: a `HasProperty`
-            // on a value whose reads have no effect, which is the assumption
-            // stated in `../guide/readers/assumptions/README.md`, and cheaper
-            // than a list the short-circuit would waste.
+            // reading walk asks `hasEntry` again — to read a member and to
+            // collect it — rather than being handed a recorded flag: a
+            // question of a value whose reads have no effect, which is the
+            // assumption stated in `../guide/readers/assumptions/README.md`,
+            // and cheaper than a list the short-circuit would waste.
             const a = eachEntry(
                 rttiEntries,
-                (k, t) => k in value ? ok(undefined) : absentMember(t),
+                (k, t) => hasEntry(value, k) ? ok(undefined) : absentMember(t),
                 undefined,
                 noAccumulate,
             )
@@ -522,7 +521,7 @@ export const constContainerRead =
             const r = eachEntry(
                 rttiEntries,
                 // Absence is settled above, so an absent member here is legal.
-                (k, t) => k in value ? read(t)(getItem(value, k)) : ok(undefined),
+                (k, t) => hasEntry(value, k) ? read(t)(getItem(value, k)) : ok(undefined),
                 empty,
                 consPresent(cons, value),
             )
@@ -573,7 +572,7 @@ export const restContainerRead =
             }
             const d = eachEntry(
                 rttiEntries,
-                (k, t) => k in value ? read(t)(getItem(value, k)) : absentMember(t),
+                (k, t) => hasEntry(value, k) ? read(t)(getItem(value, k)) : absentMember(t),
                 empty,
                 consPresent(cons, value),
             )
@@ -671,7 +670,7 @@ const objectFits = () => true
 const tupleItem = (value, k) => value[Number(k)]
 
 /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
-const structItem = (value, k) => value[k]
+const structItem = (value, k) => entry(value, k)
 
 /**
  * A schema-form reader, whole: from what it collects of a container's members
