@@ -13,7 +13,7 @@
 
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeFiles } from '../effects/node/module.f.mjs'
-import { functionalscript, images, node } from './config/module.f.js'
+import { images, node } from './config/module.f.js'
 import {
     _workflowsDirectory,
     architecture,
@@ -68,7 +68,7 @@ const shellPlatformSteps = (rust, o, a) => [
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
-        'node --test',
+        'node --test ./fjs/emergent_testing/js-only.mjs',
         ...shellSpiderMonkeyCommands(o, a),
     ]),
 ]
@@ -81,7 +81,7 @@ const intelMacSteps = rust => [
     test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
-    test({ run: 'node --test' }),
+    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**
@@ -153,7 +153,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...platformNodeSteps(functionalscript),
+            ...platformNodeSteps(),
             ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'

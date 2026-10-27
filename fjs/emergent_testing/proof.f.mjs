@@ -13,7 +13,7 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, virtualAt } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.js'
 import {
-    testAll, fmtPath, fmtImport, ghEscape,
+    testAll, runEntries, zeroState, fmtPath, fmtImport, ghEscape,
     registerModule, parseTestSet,
     addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
@@ -1099,7 +1099,30 @@ export const registerSelectsProofClass = () => {
     }
 }
 
+/** An unreadable returned tree fails its producing leaf without aborting the run. */
+const returnedTreeReadFailure = () => {
+    const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch, undefined>>[0]} */ ({
+        catch: _read => state => [state, ok(error('unreadable returned tree'))],
+    }))
+    const effect = runEntries({
+        start: () => pureOk(undefined),
+        test: () => pureOk({ result: ok({}), duration: 7 }),
+        result: (test, sandbox) => {
+            assertEq(test.status, 'failed')
+            assertEq(sandbox.result[0], 'error')
+            assertEq(sandbox.duration, 7)
+            return pureOk(undefined)
+        },
+    })('./fixture.f.mjs', [[['leaf'], { fn: () => undefined, throws: false }]])(zeroState)
+    const [, result] = runner(undefined)(effect)
+    const state = unwrap(result)
+    assertEq(state.totals.failed, 1)
+    assertEq(state.totals.passed, 0)
+    assertEq(state.aborted, null)
+}
+
 export const proof = {
+    returnedTreeReadFailure,
     mainSelectsAuthoredOnly,
     registerSelectsProofClass,
     testResult: testResultProofs,

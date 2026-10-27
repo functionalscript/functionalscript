@@ -119,7 +119,7 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
 | `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
-| `npm run cov`                           | Node pin | no             | `node --test` plus coverage.             |
+| `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |

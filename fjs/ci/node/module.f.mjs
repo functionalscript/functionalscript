@@ -9,7 +9,7 @@
  */
 
 import { node, typescript } from '../config/module.f.js'
-import { install, npmGlobalInstall, test, ubuntuArm, uses } from '../common/module.f.mjs'
+import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
@@ -36,8 +36,6 @@ export const packageJobId = jobId(node)
 export const installNode = inputs =>
     uses('actions/setup-node', { ...inputs, 'node-version': node })
 
-const fjsGlobalInstall = npmGlobalInstall('functionalscript')
-
 /**
  * @type {() => MetaStep}
  */
@@ -49,27 +47,14 @@ const tscVersionStep = environmentVersionStep(
     'tsc --version', `Version ${typescript.version}`)
 
 /**
- * The platform matrix's Node half: install the pinned Node, install a published
- * FunctionalScript globally, run the suite with it.
+ * The Windows platform jobs run host-JS proofs from the checked-out source.
+ * No global CLI or runtime dependencies are needed; Node supplies the host.
  *
- * No `npm ci`. These six jobs exercise the *published* CLI against this working
- * tree, and the tree has no runtime dependency to install — `package.json`
- * declares none, and its one `devDependency` is `@types/node`, which is types
- * and so is never loaded by anything running here. The step used to bring the
- * compiler too; that moved to the flakes, and what was left installed a
- * directory nothing opens.
- *
- * The Node jobs still run `npm ci`, inside their shells, because they are the
- * ones that type-check, pack and publish — and because `npm ci` is itself worth
- * exercising once against the lockfile. Six more copies of it on six runner
- * images were not adding a seventh thing to that.
- *
- * @type {(version: string) => readonly MetaStep[]}
+ * @type {() => readonly MetaStep[]}
  */
-export const platformNodeSteps = version => [
+export const platformNodeSteps = () => [
     install(installNode()),
-    fjsGlobalInstall(version),
-    test({ run: 'fjs test' }),
+    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**

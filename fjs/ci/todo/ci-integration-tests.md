@@ -54,10 +54,11 @@ Open questions:
       at 0.
 - [ ] Implement scenario job generation: obtain the tarball (per the task
       above), install, run `main`.
-- [ ] Port the remaining published-CLI smoke step (`fjs test` on the two Windows
-      jobs) to the scenario model. The `deno run … t` and `bunx … t` steps are
-      already gone.
 - [ ] Document the scenario authoring convention.
+
+The Windows jobs now test host-JS proofs from the checkout with Node; the former
+installed-CLI smoke step has been removed. Installed-package scenarios remain
+part of this integration-test proposal.
 
 ### Related
 

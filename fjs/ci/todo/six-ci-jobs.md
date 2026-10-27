@@ -139,7 +139,8 @@ duration; it does not require an additional job.
 - [x] Complete [the runner split](../../emergent_testing/README.md#selecting-fjs-or-host-js-with-a-native-runner):
       restrict `fjs t` to `.f.mjs` and `.f.js`, and add FJS-only and JS-only
       native-runner entries alongside the existing combined entry.
-- [ ] Wire the selective entries into CI and update the affected cache inputs.
+- [x] Wire selective entries into the current nine-job CI; retain conservative
+      cache input rungs until their dependency audit.
 - [ ] Run Node coverage through the FJS-only entry, following
       [FJS-only coverage](../../emergent_testing/todo/coverage-over-fjs-only.md).
 - [ ] Restructure runtime steps so platform jobs share setup without duplicate
