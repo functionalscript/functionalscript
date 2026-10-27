@@ -7,33 +7,35 @@
 
 [`nanvm/demos/publish`](../../../../nanvm/demos/publish/src/main.rs)
 is a Rust program that copies the demo WASM and produces each sample's WAT.
-Create reusable FJS tools for parsing and writing binary WebAssembly first,
-then use them to replace the publisher with an FJS implementation.
+Create reusable FJS tools for parsing binary WebAssembly and writing both
+binary WASM and WAT first, then use them to replace the publisher with an
+FJS implementation.
 
 ### Tasks
 
 Complete the steps in order.
 
-#### Step 1: Parse and write WASM files
+#### Step 1: WASM parser and WASM/WAT writers
 
 - [ ] Define a reusable WebAssembly AST and implement an FJS parser from
       binary `.wasm` bytes to that AST.
-- [ ] Implement the corresponding FJS writer from the AST to binary
-      `.wasm` bytes. Keep parsing and writing separate, with no dependency
+- [ ] Implement an FJS writer from the AST to binary `.wasm` bytes.
+- [ ] Implement an FJS writer from the same AST to `.wat` text. Keep the
+      parser and both writers separate and reusable, with no dependency
       on the demo publisher.
 - [ ] Support the module structure needed by the demo modules, including
       imported and defined functions and their name metadata.
-- [ ] Verify that parser/writer round trips preserve the represented module,
-      using focused fixtures and the generated demo modules.
+- [ ] Verify that binary parser/writer round trips preserve the represented
+      module, and check WAT output using focused fixtures and the generated
+      demo modules.
 
 #### Step 2: Replace the demo publisher with FJS
 
 - [ ] Replace `nanvm/demos/publish` with an FJS implementation using the
       existing effects interface for files and the reusable WASM modules
       where needed.
-- [ ] Use the AST to select each sample's functions and generate its WAT
-      with readable, demangled Rust names. Keep this WAT text serializer
-      separate from the binary `.wasm` writer.
+- [ ] Use the AST to select each sample's functions and reuse the WAT writer
+      from step 1 to render them with readable, demangled Rust names.
 - [ ] Update the [build-script generator](../module.f.mjs) to invoke the FJS
       implementation and regenerate its output.
 - [ ] Verify the demo outputs and failure behavior, then remove the replaced
