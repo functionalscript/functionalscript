@@ -7,10 +7,18 @@
  * @module
  * @import { Exp, ExpOp, Items } from '../types.ts'
  * @import { _Step, _Work } from './private.ts'
+ * @import { PersistentSet } from '../../types/set/types.ts'
  */
 
 import { isSpread } from '../../js/ast/module.f.mjs'
 import { eagerOperandsOf } from '../sharing/module.f.mjs'
+import { add, empty, has } from '../../types/set/module.f.mjs'
+
+/** @type {(value: unknown) => (set: PersistentSet<unknown>) => boolean} */
+const known = has
+
+/** @type {(value: unknown) => (set: PersistentSet<unknown>) => PersistentSet<unknown>} */
+const include = add
 
 /** @type {<T>(steps: readonly T[], tail: _Work<T> | null) => _Work<T> | null} */
 const prepend = (steps, tail) => steps.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -52,17 +60,40 @@ const prefix = node => {
     return [...values(/** @type {readonly Exp[]} */ (node.slice(1))), null]
 }
 
-/** Completed parents establish their guaranteed eager dependencies. @type {(available: readonly unknown[], values: readonly unknown[]) => readonly unknown[]} */
+/** Completed parents establish their guaranteed eager dependencies. @type {(available: PersistentSet<unknown>, values: readonly unknown[]) => PersistentSet<unknown>} */
 const establish = (available, values) => {
     let pending = prepend(values, null)
     while (pending !== null) {
         const { first: node, tail } = pending
         pending = tail
-        if (!(node instanceof Array) || available.includes(node)) { continue }
-        available = [...available, node]
+        if (!(node instanceof Array) || known(node)(available)) { continue }
+        available = include(node)(available)
         pending = prepend(eagerOperandsOf(node), pending)
     }
     return available
+}
+
+/** A requested suffix after already completed values. @type {(exp: Exp, required: readonly Exp[], index: number, available: PersistentSet<unknown>) => boolean} */
+const demandsFrom = (exp, required, index, available) => {
+    /** @type {_Work | null} */
+    let pending = { first: [exp], tail: null }
+    while (index < required.length && known(required[index])(available)) { ++index }
+    if (index === required.length) { return true }
+    while (pending !== null) {
+        const current = /** @type {_Work} */ (pending)
+        const first = current.first
+        pending = current.tail
+        if (first === null) { return false }
+        const node = first[0]
+        if (Object.is(node, required[index])) {
+            available = establish(available, [node])
+            while (index < required.length && known(required[index])(available)) { ++index }
+            if (index === required.length) { return true }
+        } else if (!known(node)(available) && node instanceof Array) {
+            pending = prepend(prefix(node), pending)
+        }
+    }
+    return false
 }
 
 /**
@@ -77,25 +108,24 @@ const establish = (available, values) => {
 export const demandsInOrder = (exp, required, established = []) => {
     if (required.length === 0) { return true }
     if (required.some(value => !(value instanceof Array))) { return false }
-    /** @type {_Work | null} */
-    let pending = { first: [exp], tail: null }
-    let available = establish([], established)
-    let index = 0
-    while (index < required.length && available.some(value => Object.is(value, required[index]))) { ++index }
-    if (index === required.length) { return true }
-    while (pending !== null) {
-        const current = /** @type {_Work} */ (pending)
-        const first = current.first
-        pending = current.tail
-        if (first === null) { return false }
-        const node = first[0]
-        if (Object.is(node, required[index])) {
-            available = establish(available, [node])
-            while (index < required.length && available.some(value => Object.is(value, required[index]))) { ++index }
-            if (index === required.length) { return true }
-        } else if (!available.some(value => Object.is(value, node)) && node instanceof Array) {
-            pending = prepend(prefix(node), pending)
-        }
+    return demandsFrom(exp, required, 0, establish(empty, established))
+}
+
+/**
+ * Length of the shortest required prefix whose remaining suffix is demanded in
+ * order by the result. Retained roots establish their eager dependencies once;
+ * unsuccessful demand trials keep their newly matched values local. Primitive
+ * occurrences remain in the prefix because they cannot name computations.
+ *
+ * @type {(exp: Exp, required: readonly Exp[]) => number}
+ */
+export const requiredPrefixLength = (exp, required) => {
+    let index = required.reduce((/** @type {number} */ start, value, at) => value instanceof Array ? start : at + 1, 0)
+    if (index === required.length) { return index }
+    let available = establish(empty, required.slice(0, index))
+    while (!demandsFrom(exp, required, index, available)) {
+        available = establish(available, [required[index]])
+        ++index
     }
-    return false
+    return index
 }

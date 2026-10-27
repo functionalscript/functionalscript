@@ -28,7 +28,7 @@ import { liftReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
-import { demandsInOrder } from '../demand/module.f.mjs'
+import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -38,8 +38,7 @@ const plain = exp => ({ exp, anchors: [] })
 
 /** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered) => Exp} */
 export const anchored = value => {
-    let count = 0
-    while (!demandsInOrder(value.exp, value.anchors.slice(count), value.anchors.slice(0, count))) { ++count }
+    const count = requiredPrefixLength(value.exp, value.anchors)
     return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
 }
 
