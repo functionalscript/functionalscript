@@ -10,11 +10,11 @@
 
 import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.mjs'
 import { sha1 } from '../../../crypto/sha1/module.f.mjs'
-import { uint } from '../../../types/bit_vec/module.f.mjs'
-import { utf8 } from '../../../text/module.f.mjs'
+import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.mjs'
+import { tryUtf8 } from '../../../text/module.f.mjs'
 import { codeBlock } from '../code/module.f.js'
 import { tryShellQuote } from '../../../text/shell/module.f.js'
-import { caption } from '../module.f.mjs'
+import { caption, option, refusal } from '../module.f.mjs'
 import { encodeScalar } from '../../../basen/base16/module.f.mjs'
 
 /** Format a hash's bits as hex, preserving its complete width.
@@ -25,13 +25,16 @@ export const hexOf = hash => {
     return bits => hex(uint(bits))
 }
 
-/** The hex digest of UTF-8 text, including every leading zero.
- * @type {<S>(hash: Hash<S>) => (text: string) => string}
+/** The hex digest of UTF-8 text, or null when its bytes exceed the vector limit.
+ * @type {<S>(hash: Hash<S>) => (text: string) => string | null}
  */
 export const digestOf = hash => {
     const compute = computeSync(hash)
     const hex = hexOf(hash)
-    return text => hex(compute([utf8(text)]))
+    return text => {
+        const bytes = tryUtf8(text)
+        return bytes === null ? null : hex(compute([bytes]))
+    }
 }
 
 /** Shared shell verification; refuse the command if any argument contains NUL.
@@ -56,11 +59,14 @@ export const opensslVerification = (args, command) => {
  */
 export const hashOutput = ({ name, hash, openssl }) => {
     const digest = digestOf(hash)
-    return text => [
-        caption(`${name}, hex:`),
-        codeBlock(digest(text), 'Copy digest'),
-        ...opensslVerification([text], ([quoted]) => `printf '%s' ${quoted} | openssl dgst -${openssl}`),
-    ]
+    return text => {
+        const value = digest(text)
+        return value === null ? [refusal(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`)] : [
+            caption(`${name}, hex:`),
+            codeBlock(value, 'Copy digest'),
+            ...opensslVerification([text], ([quoted]) => `printf '%s' ${quoted} | openssl dgst -${openssl}`),
+        ]
+    }
 }
 
 export const sha1Algorithm = { name: 'SHA-1', hash: sha1, openssl: 'sha1' }
@@ -92,4 +98,4 @@ export const algorithmOf = list => name => {
  * @type {(a: { readonly name: string }, picked: { readonly name: string }) => Element}
  */
 export const algorithmOption = (a, picked) =>
-    ['option', a.name === picked.name ? { value: a.name, selected: '' } : { value: a.name }, a.name]
+    option(a.name, a.name, a.name === picked.name)

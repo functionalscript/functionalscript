@@ -9,17 +9,19 @@
  *
  * @module
  *
+ * @import { RequiredMap } from '../../types/object/types.ts'
+ * @import { Sharing } from '../../website/demo/sharing/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Curve, Point2D } from '../secp/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { DemoCurve, DemoSigned, DemoState, DemoDraft, DemoPacket, DemoIntercepted, DemoAttack, DemoReceived } from './types.ts'
+ * @import { DemoCurve, DemoSigned, DemoState, DemoDraft, DemoPacket, DemoIntercepted, DemoAttack, DemoReceived, DemoNonceReuse } from './types.ts'
  */
 
 import { secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../secp/module.f.mjs'
 import { computeK, fromCurve, sign, verify } from './module.f.mjs'
-import { algorithmOf, algorithmOption, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
-import { caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
+import { algorithmOf, algorithmOption, opensslVerification, sha2Algorithms } from '../../website/demo/hash/module.f.mjs'
+import { button, selectField, caption, inputField, refusal, textField } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import {
     resultMarker,
@@ -38,16 +40,24 @@ import {
 } from '../../website/style/module.f.js'
 import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
+import { encode, encodeRaw, constructedSequence, integer, objectIdentifier } from '../../asn.1/module.f.mjs'
+import { encode as base64 } from '../../basen/base64/module.f.mjs'
+import { msb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { reuse } from './nonce_reuse/module.f.mjs'
+import { sha256 } from '../sha2/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 
+const { listToVec } = msb
+
 /** A named curve, bound once.
- * @type {(name: string, curve: Curve) => DemoCurve}
+ * @type {(name: string, curve: Curve, oid: readonly bigint[]) => DemoCurve}
  */
-const namedCurve = (name, curve) => ({
+const namedCurve = (name, curve, oid) => ({
+    oid,
     name,
     curve,
     sign: sign(curve),
@@ -60,11 +70,11 @@ const namedCurve = (name, curve) => ({
 
 /** @type {readonly DemoCurve[]} */
 const curves = [
-    namedCurve('P-192 (secp192r1)', secp192r1),
-    namedCurve('P-256 (secp256r1)', secp256r1),
-    namedCurve('P-384 (secp384r1)', secp384r1),
-    namedCurve('P-521 (secp521r1)', secp521r1),
-    namedCurve('secp256k1', secp256k1),
+    namedCurve('P-192 (secp192r1)', secp192r1, [1n, 2n, 840n, 10045n, 3n, 1n, 1n]),
+    namedCurve('P-256 (secp256r1)', secp256r1, [1n, 2n, 840n, 10045n, 3n, 1n, 7n]),
+    namedCurve('P-384 (secp384r1)', secp384r1, [1n, 3n, 132n, 0n, 34n]),
+    namedCurve('P-521 (secp521r1)', secp521r1, [1n, 3n, 132n, 0n, 35n]),
+    namedCurve('secp256k1', secp256k1, [1n, 3n, 132n, 0n, 10n]),
 ]
 const curveOf = algorithmOf(curves)
 const hashOf = algorithmOf(sha2Algorithms)
@@ -174,6 +184,10 @@ const aliceInput = (state, name, value) =>
  */
 const update = state => event => {
     if (event.kind === 'input') {
+        if (event.name === 'reuse-key') { return pureOk({ ...state, reuse: { ...state.reuse, key: event.value } }) }
+        if (event.name === 'reuse-nonce') { return pureOk({ ...state, reuse: { ...state.reuse, nonce: event.value } }) }
+        if (event.name === 'reuse-message1') { return pureOk({ ...state, reuse: { ...state.reuse, message1: event.value } }) }
+        if (event.name === 'reuse-message2') { return pureOk({ ...state, reuse: { ...state.reuse, message2: event.value } }) }
         const eve = state.eve
         if (eve !== null) {
             if (event.name === 'attack') {
@@ -211,14 +225,8 @@ const update = state => event => {
 }
 
 /** @type {(name: string, label: string, options: readonly { readonly name: string }[], picked: string) => Element} */
-const select = (name, label, options, picked) => ['p',
-    ['label', { for: name }, label],
-    ' ',
-    ['select', { id: name, name }, ...options.map(o => algorithmOption(o, { name: picked }))],
-]
-
-/** @type {(name: string, label: string, disabled: boolean) => Element} */
-const button = (name, label, disabled) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
+const select = (name, label, options, picked) =>
+    selectField({ name, label }, options.map(o => algorithmOption(o, { name: picked })))
 
 /** @type {(text: string) => Element} */
 const paragraph = text => ['p', text]
@@ -293,6 +301,46 @@ const eveView = eve => {
     ]
 }
 
+const zeroUnusedBits = vec8(0n)
+const uncompressedPointMarker = vec8(0x04n)
+
+/** DER SubjectPublicKeyInfo, with an uncompressed SEC 1 point. Each
+ * coordinate occupies the field width, including leading zero octets.
+ * @type {(c: DemoCurve, key: Point2D) => string}
+ */
+const publicKeyPem = ({ coordinateDigits, oid }, [x, y]) => {
+    const coordinate = vec(BigInt(Math.ceil(coordinateDigits / 2)) * 8n)
+    // BIT STRING: zero unused bits, then the uncompressed-point marker.
+    const point = encodeRaw([0x03n, listToVec([zeroUnusedBits, uncompressedPointMarker, coordinate(x), coordinate(y)])])
+    const spki = encode([constructedSequence, [
+        [constructedSequence, [
+            [objectIdentifier, [1n, 2n, 840n, 10045n, 2n, 1n]],
+            [objectIdentifier, oid],
+        ]],
+        point,
+    ]])
+    const text = assertNotNullish(base64(spki), 'SPKI is not whole bytes')
+    let pem = '-----BEGIN PUBLIC KEY-----\n'
+    for (let i = 0; i < text.length; i += 64) { pem += `${text.slice(i, i + 64)}\n` }
+    return `${pem}-----END PUBLIC KEY-----\n`
+}
+
+/** A literal Bash command over Bob's delivered snapshot and trusted key.
+ * @type {(bob: DemoReceived) => readonly Node[]}
+ */
+const opensslCheck = ({ packet, trusted }) => {
+    const { curve, hash, message, r, s } = packet
+    const signature = encode([constructedSequence, [[integer, r], [integer, s]]])
+    return [
+        paragraph('Run in Bash with OpenSSL. This checks the received packet against Alice’s saved trusted public key. Expect Verified OK or a verification failure matching Bob’s verdict.'),
+        ...opensslVerification([
+            message,
+            publicKeyPem(curveOf(curve), trusted),
+            assertNotNullish(base64(signature), 'signature is not whole bytes'),
+        ], ([m, key, sig]) => `printf '%s' ${m} | openssl dgst -${hashOf(hash).openssl} -verify <(printf '%s' ${key}) -signature <(printf '%s' ${sig} | openssl base64 -d -A)`),
+    ]
+}
+
 /** Bob renders only his last delivered snapshot and its stored verdicts.
  * @type {(bob: DemoReceived | null) => readonly Node[]}
  */
@@ -311,6 +359,7 @@ const bobView = bob => {
             : 'Invalid — this packet does not authenticate as Alice under her trusted public key.'),
         ...(packet.r === 0n || packet.s === 0n || packet.r >= c.q || packet.s >= c.q
             ? [refusal('Signature r and s must be at least 1 and less than the curve order q.')] : []),
+        ...opensslCheck(bob),
         ...(receivedValid === null ? [] : [
             verdict(receivedValid, receivedValid
                 ? 'Valid under the received key — mathematical validity alone does not authenticate the sender.'
@@ -366,16 +415,103 @@ const exchangeScheme = ['figure', { [signSchemeMarker]: '', 'aria-label': 'ECDSA
 /** @type {(title: string, role: string) => Element} */
 const stageHeader = (title, role) => ['header', { [signStageHeaderMarker]: '' }, ['h3', title], ['span', { [signRoleMarker]: '' }, role]]
 
+const reuseP256 = reuse(secp256r1)(sha256)
+const nonceScalar = encodeScalar(64)
+const parseDemoKey = parseHexField('the demo private key', 64)
+const parseSharedNonce = parseHexField('the shared nonce', 64)
+
+/** Validate the independent nonce experiment before signing.
+ * @type {(draft: DemoNonceReuse) => ReturnType<typeof reuseP256>}
+ */
+export const nonceReuse = ({ key: keyText, nonce: nonceText, message1, message2 }) => {
+    const [keyTag, key] = parseDemoKey(keyText)
+    if (keyTag === 'error') { return error(key) }
+    const [nonceTag, nonce] = parseSharedNonce(nonceText)
+    if (nonceTag === 'error') { return error(nonce) }
+    const first = tryUtf8(message1)
+    const second = tryUtf8(message2)
+    if (first === null || second === null) { return error(`Each message must be at most ${maxLengthBytes} UTF-8 bytes.`) }
+    return reuseP256(key, nonce, [first, second])
+}
+
+/** Public signature scalars remain visible when equal hashes prevent recovery.
+ * @type {(result: ReturnType<typeof nonceReuse>) => readonly Node[]}
+ */
+const nonceReuseOutput = result => {
+    const [tag, value] = result
+    if (tag === 'error') { return [refusal(value)] }
+    const { q, key, signatures, recovered } = value
+    const [recoveredTag, recoveredValue] = recovered
+    return [
+        caption('Curve order q, hex:'), codeBlock(nonceScalar(q), 'Copy nonce reuse curve order'),
+        ...signatures.flatMap(({ h, r, s }, i) => [
+            caption(`Message ${i + 1}: h = bits2int(SHA-256(message)) mod q. Values in hex:`),
+            codeBlock(`h = ${nonceScalar(h)}\nr = ${nonceScalar(r)}\ns = ${nonceScalar(s)}`, `Copy message ${i + 1} signature`),
+        ]),
+        ...(recoveredTag === 'error' ? [refusal(recoveredValue)] : [
+            caption('Recovered private key x, hex:'),
+            codeBlock(nonceScalar(recoveredValue), 'Copy recovered private key'),
+            paragraph(`Matches original demo private key: ${recoveredValue === key}.`),
+        ]),
+    ]
+}
+
+/** An interactive, deliberately broken signer, separate from Alice's exchange.
+ * @type {(draft: DemoNonceReuse) => Element}
+ */
+const nonceReuseView = draft => {
+    const { key, nonce, message1, message2 } = draft
+    return ['section',
+        ['h3', 'Why nonce reuse reveals the private key'],
+        paragraph('Experiment with two messages signed using one shared nonce. P-256 / SHA-256 stays fixed in this section. Change any input to recalculate both signatures and recover the private key from their public scalars.'),
+        inputField({ name: 'reuse-key', label: 'Demo-only private key x, hex' }, key),
+        inputField({ name: 'reuse-nonce', label: 'Shared nonce k for both messages, hex' }, nonce),
+        textField({ name: 'reuse-message1', label: 'Message 1 (UTF-8)', rows: 2 }, message1),
+        textField({ name: 'reuse-message2', label: 'Message 2 (UTF-8)', rows: 2 }, message2),
+        paragraph('The same k gives the same r. From s₁k = h₁ + rx and s₂k = h₂ + rx, eliminate k to recover x using only the two signatures and message hashes. All scalar arithmetic is modulo q.'),
+        codeBlock('x = (s1·h2 − s2·h1) / (r·(s2 − s1)) mod q', 'Copy key recovery formula'),
+        ...nonceReuseOutput(nonceReuse(draft)),
+        paragraph('Recovery needs distinct hashes modulo q and a nonzero denominator. Try making both messages identical to see why repeating one signature does not provide two independent equations.'),
+        paragraph('Keep k secret and never reuse it across different message hashes. Alice’s signer above uses RFC 6979 to derive k from the private key and message; signing the same message again deterministically is safe.'),
+    ]
+}
+
+/** @type {DemoState} */
+const initial = {
+    curve: 'P-256 (secp256r1)',
+    hash: 'SHA-256',
+    key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
+    message: 'sample',
+    eve: null,
+    bob: null,
+    reuse: { key: '12345678', nonce: '7', message1: 'sample', message2: 'test' },
+}
+
+/** @type {Sharing<DemoState>} */
+const sharing = {
+    fields: {
+        curve: { default: initial.curve, choices: curves.map(c => c.name) },
+        hash: { default: initial.hash, choices: sha2Algorithms.map(a => a.name) },
+        key: { default: initial.key }, message: { default: initial.message },
+        'reuse-key': { default: initial.reuse.key }, 'reuse-nonce': { default: initial.reuse.nonce },
+        'reuse-message1': { default: initial.reuse.message1 }, 'reuse-message2': { default: initial.reuse.message2 },
+    },
+    examples: [],
+    read: state => ({ curve: state.curve, hash: state.hash, key: state.key, message: state.message,
+        'reuse-key': state.reuse.key, 'reuse-nonce': state.reuse.nonce,
+        'reuse-message1': state.reuse.message1, 'reuse-message2': state.reuse.message2 }),
+    restore: inputs => {
+        // The restore boundary receives these finite, validated fields.
+        const values = /** @type {RequiredMap<'curve' | 'hash' | 'key' | 'message' | 'reuse-key' | 'reuse-nonce' | 'reuse-message1' | 'reuse-message2', string>} */ (inputs)
+        return { ...initial, curve: values.curve, hash: values.hash, key: values.key, message: values.message,
+            reuse: { key: values['reuse-key'], nonce: values['reuse-nonce'], message1: values['reuse-message1'], message2: values['reuse-message2'] } }
+    },
+}
+
 /** @type {Demo<DemoState, DemoEvent>} */
 export const demo = {
-    init: {
-        curve: 'P-256 (secp256r1)',
-        hash: 'SHA-256',
-        key: 'c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721',
-        message: 'sample',
-        eve: null,
-        bob: null,
-    },
+    init: initial,
+    sharing,
     update,
     view: state => {
         const result = signed(state)
@@ -395,6 +531,7 @@ export const demo = {
             ],
             ['section', { [signStageMarker]: 'eve' }, stageHeader('Eve — Intercept & Attack', 'Interceptor'), ...eveView(state.eve)],
             ['section', { [signStageMarker]: 'bob' }, stageHeader('Bob — Receive & Verify', 'Verifier'), ...bobView(state.bob)],
+            nonceReuseView(state.reuse),
         ]
     },
 }

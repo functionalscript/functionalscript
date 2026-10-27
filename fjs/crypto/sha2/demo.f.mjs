@@ -17,8 +17,9 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { sha256 } from './module.f.mjs'
-import { textField, fieldUpdate } from '../../website/demo/module.f.mjs'
+import { selectField, textField, fieldUpdate } from '../../website/demo/module.f.mjs'
 import { digestOf, hashOutput, sha2Algorithms, algorithmOf, algorithmOption } from '../../website/demo/hash/module.f.mjs'
 
 const algorithms = sha2Algorithms.map(a => ({ name: a.name, output: hashOutput(a) }))
@@ -26,27 +27,25 @@ const selectedAlgorithm = algorithmOf(algorithms)
 
 /**
  * The SHA-256 hex digest of a string's UTF-8 bytes. Kept as the exported
- * reader used by this module's proof.
+ * reader used by this module's proof; null when the input is too long.
  *
- * @type {(text: string) => string}
+ * @type {(text: string) => string | null}
  */
 export const digest = digestOf(sha256)
 
 /** @type {Demo<{ readonly algorithm: string, readonly text: string }, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { algorithm: 'SHA-256', text: '' },
     update: fieldUpdate,
     view: state => {
         const algorithm = selectedAlgorithm(state.algorithm)
         return ['div',
             ['p', 'Hashes UTF-8 text with the selected SHA-2 algorithm and shows the digest in hexadecimal. Use the OpenSSL command below the result to check it independently.'],
-            ['p',
-                ['label', { for: 'algorithm' }, 'Algorithm '],
-                ['select', { id: 'algorithm', name: 'algorithm' },
-                    ...algorithms.map(a => algorithmOption(a, algorithm))],
-            ],
+            selectField({ name: 'algorithm', label: 'Algorithm' }, algorithms.map(a => algorithmOption(a, algorithm))),
             textField({ name: 'text', label: 'Text' }, state.text),
             ...algorithm.output(state.text),
         ]
     },
 }
+
+export const demo = withInputs(definition, ['algorithm', 'text'], { algorithm: algorithms.map(a => a.name) })

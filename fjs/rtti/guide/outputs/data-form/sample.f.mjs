@@ -12,6 +12,7 @@ import { number } from '../../../module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'subset',
         name: 'Subset',
         about: 'Every value of { a: 42 } is a value of { a: number }, and not the other way round: the comparison under the graph says so. Type {"a":7} to see only the second accept it.',
         schemas: [

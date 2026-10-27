@@ -128,9 +128,10 @@ export type State<V> = {
 
 /**
  * A preset: its name, the keys whose inserts build its starting version,
- * the key it puts in the field, and the hint naming the button to press.
+ * the key it puts in the field, the hint naming the button to press, and
+ * its stable example ID (independent of its name and position).
  */
-export type Preset = readonly [name: string, keys: readonly number[], key: number, hint: string]
+export type Preset = readonly [name: string, keys: readonly number[], key: number, hint: string, id: string]
 
 /**
  * How many nodes a step built, how many both versions hold, and how many

@@ -50,13 +50,14 @@
  * @import { _DemoState, _DemoStripes, _DemoUnit, EncodeState } from './types.ts'
  */
 
+import { withInputs } from '../website/demo/sharing/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 import { levels } from './level/literal/module.f.mjs'
 import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
 import { byteChars } from '../website/demo/bits/module.f.mjs'
 import { caption, fieldUpdate, inputField, radios, refusal } from '../website/demo/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'
-import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
+import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.mjs'
 import { pureOk } from '../effects/module.f.mjs'
 import { asBase } from '../types/nominal/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
@@ -231,18 +232,18 @@ const intro = 'Cuts bits into SUL words, level by level, up to one symbol, the r
  * @type {Examples}
  */
 export const examples = [
-    ['Overview', 'Hello, world! SUL is a universal encoding.'],
-    ['Two bytes', 'Hi'],
-    ['A word', 'Hello'],
-    ['The longest text', 'SUL maps any finite sequence of bits to one root: bits make words, words make symbols, and once a word is too long it is hashed.'],
-    ['Characters of several bytes', 'é € 😀'],
-    ['Empty', ''],
+    ['Overview', 'Hello, world! SUL is a universal encoding.', 'overview'],
+    ['Two bytes', 'Hi', 'two-bytes'],
+    ['A word', 'Hello', 'a-word'],
+    ['The longest text', 'SUL maps any finite sequence of bits to one root: bits make words, words make symbols, and once a word is too long it is hashed.', 'the-longest-text'],
+    ['Characters of several bytes', 'é € 😀', 'characters-of-several-bytes'],
+    ['Empty', '', 'empty'],
 ]
 
 const picker = examplePicker(examples)
 
 /** @type {Demo<_DemoState, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { input: 'text', text: picker.pick('Overview'), bits: '0100100001101001' },
     // A pick is a text: it fills the text field and shows it.
     update: state => event => event.kind === 'input' && event.name === exampleName
@@ -262,3 +263,5 @@ export const demo = {
         ]
     },
 }
+
+export const demo = withInputs(definition, ['input', 'text', 'bits'], { input: ['text', 'bits'] }, examples.map(([, text, id]) => ({ id, inputs: { input: 'text', text } })))

@@ -65,6 +65,15 @@ export const proof = {
             assert(text(value, true).length > 0)
         }
     },
+    memberPresence: () => {
+        assertEq(text(['memberPresent', ['array', []], 'at'], true), 'Any::member_present(Array::default().to_any(), string_any("at"), &runtime)')
+        assertEq(text(['memberPresent', ['array', []], 0]), '(Any::member_present(Array::default().to_any(), f64_any(0x0000000000000000), &runtime))?')
+        assertEq(text(['memberPresent', ['array', [1]], ['Number', '0']], true), 'Any::member_present([f64_any(0x3ff0000000000000)].to_array().to_any(), (Any::number(string_any("0")))?, &runtime)')
+        const captured = text(['function', { ...fn, rest: null, self: null, body: yielding([['memberPresent', ['array', []], 'at']]) }])
+        assert(captured.includes('runtime.clone()'))
+        assert(captured.includes('&A::frame(_self)[0]'))
+        assertStructurallySame(valueTagged(['memberPresent', null, 'a'], { ...options, runtime: null }), ['error', ['a member presence query with no runtime in scope; the core may not use what it defines', ['memberPresent', null, 'a']]])
+    },
     regions: () => {
         assertEq(text(['block', yielding([1])]), text(1))
         assert(text(['if', true, yielding([1]), yielding([2])]).includes('else'))
@@ -153,6 +162,7 @@ export const proof = {
         }
         const rendered = unwrap(scope(body, options)).lines.join('\n')
         assert(rendered.includes('RefCell::new'))
+        assert(rendered.includes(': &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>>'))
         assert(rendered.includes('continue'))
         assert(rendered.includes('break'))
     },
@@ -218,6 +228,10 @@ export const proof = {
         assertEq(text(regions), text(1))
     },
     throw: {
+        // A value or a statement no case names is refused, not spelled as
+        // `undefined`.
+        unknownPrimitive: () => valueTagged(/** @type {never} */ ({}), options),
+        unknownStatement: () => scope({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }, options),
         unsupportedStaticWithoutRuntime: () => unwrap(valueTagged(['Object.is'], { ...options, runtime: null })),
         memberWithoutRuntime: () => unwrap(valueTagged(['.', ['array', []], 'slice', ['|()', []]], { ...options, runtime: null })),
     },

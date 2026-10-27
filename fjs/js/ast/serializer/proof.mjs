@@ -31,6 +31,59 @@ const run = value => runBlock(yielding(value))
 const compile = (fn, external = []) => Function(...external.map((_, index) => `$${index}`), `"use strict";return (${functionStringify(fn)});`)(...external)
 
 export const proof = {
+    memberPresence: () => {
+        /** @type {readonly (readonly [Value, string | number, boolean])[]} */
+        const cases = [
+            [['object', []], 'x', false],
+            [['object', [[':', 'x', null]]], 'x', false],
+            [['object', [[':', 'x', undefined]]], 'x', false],
+            [['object', [[':', 'x', 0]]], 'x', true],
+            [['object', [[':', 'x', false]]], 'x', true],
+            [['object', [[':', 'x', '']]], 'x', true],
+            [['object', [[':', 'x', ['entry']]]], 'x', true],
+            [['object', [[':', 'slice', undefined]]], 'slice', false],
+            [['object', [[':', 'toString', null]]], 'toString', false],
+            [['object', [[':', 'constructor', 0]]], 'constructor', true],
+            [['object', [[':', '__proto__', false]]], '__proto__', true],
+            [['object', []], 'constructor', false],
+            [['object', []], 'valueOf', false],
+            [['object', []], '__proto__', false],
+            [['object', []], 'toString', true],
+            [['object', [[':', 'length', undefined]]], 'length', false],
+            [['object', [[':', 'length', 0]]], 'length', true],
+            [['array', []], 'length', true],
+            ['', 'length', true],
+            [['entry'], 'length', true],
+            [['Object.is'], 'length', true],
+            [['entry'], 'name', false],
+            [['entry'], 'arguments', false],
+            [['entry'], 'caller', false],
+            [['entry'], 'toString', true],
+            [['array', [null, 0]], 0, false],
+            [['array', [null, 0]], 1, true],
+            [['array', []], 'map', true],
+            [['array', []], 'constructor', false],
+            ['abc', 0, true],
+            ['abc', 'slice', true],
+            ['abc', 'startsWith', true],
+            ['abc', 'codePointAt', true],
+            [0, 'toFixed', true],
+            [false, 'toString', true],
+            [0n, 'toString', true],
+            [0, 'length', false],
+            ['abc', 'valueOf', false],
+        ]
+        for (const [receiver, key, expected] of cases) { assertEq(run(['memberPresent', receiver, key]), expected) }
+        assertEq(run(['memberPresent', ['array', [3]], ['Number', '0']]), true)
+        assertEq(run(['memberPresent', ['object', [[':', 'NaN', 3]]], ['Number', 'x']]), true)
+        throws(() => run(['memberPresent', null, 'x']), TypeError)
+        throws(() => run(['memberPresent', undefined, ['Number', 1]]), TypeError)
+        const failure = /** @type {Value} */ (['block', { statements: [], exit: ['throw', 'key'] }])
+        throws(() => run(['memberPresent', null, ['Number', failure]]), value => value === 'key')
+        assertEq(run(['if', false, yielding(['memberPresent', null, ['Number', failure]]), yielding(7)]), 7)
+        assertEq(run(['if', ['memberPresent', ['object', [[':', 'x', undefined]]], 'x'], yielding(failure), yielding(8)]), 8)
+        assertEq(run(['if', ['memberPresent', ['object', [[':', 'x', 0]]], 'x'], yielding(9), yielding(failure)]), 9)
+    },
     expressions: () => {
         const andValue = choice(true, 1, true)
         const nullishValue = choice(choice(['===', undefined, null], true, ['===', undefined, undefined]), 2, undefined)

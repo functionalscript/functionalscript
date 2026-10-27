@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, nodeExtra, packageConsumer } from './module.f.mjs'
+import { main, packageConsumer } from './module.f.mjs'
 import { ci, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -32,23 +32,17 @@ const workflowOf = program => {
 }
 
 export const proof = {
-    // This repository's generation is `ci` with its consumer and the WASM
-    // demos' rebuild and smart cache: the same text, so a change to what
+    // This repository's generation is `ci` with its consumer and smart
+    // cache: the same text, so a change to what
     // `main` passes shows here.
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra, packageConsumer, smart: true })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true })))
     },
-    // The rebuild runs on Intel Linux alone, where the module is reproduced,
-    // and the drift check follows it.
-    rebuildsTheWasmDemos: () => {
-        assertEq(JSON.stringify(nodeExtra('ubuntu', 'intel').map(s => s.type === 'rust' ? '' : s.step.run)),
-            JSON.stringify(['sh ./nanvm/demos/gen.build.sh', 'git add -A && git diff --cached --exit-code']))
-        for (const [o, a] of /** @type {const} */ ([['ubuntu', 'arm'], ['macos', 'intel'], ['macos', 'arm'], ['windows', 'intel'], ['windows', 'arm']])) {
-            assertEq(nodeExtra(o, a).length, 0)
-        }
-        assert(workflowOf(main()).includes('sh ./nanvm/demos/gen.build.sh'), 'expected the rebuild in the workflow')
+    // Website-only assets are built by Cloudflare, outside the Node CI job.
+    leavesWasmToCloudflare: () => {
+        assert(!workflowOf(main()).includes('sh ./nanvm/demos/gen.build.sh'), 'unexpected website asset build in CI')
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two
@@ -57,6 +51,8 @@ export const proof = {
         const own = workflowOf(main())
         assert(own.includes(`packed/${packageConsumer.module}`), 'expected the consumer module imported')
         assert(own.includes(' good.mts'), 'expected the consumer steps')
+        assert(own.includes('jdx/mise-action@'), 'expected repository mise setup')
+        assert(!own.includes('cachix/install-nix-action@'), 'unexpected Nix in repository CI')
         const generic = workflowOf(builtIn())
         assert(!generic.includes(' good.mts'), 'expected no consumer step from the built-in command')
         // Nor does it gate a job on the merge queue: a project without one

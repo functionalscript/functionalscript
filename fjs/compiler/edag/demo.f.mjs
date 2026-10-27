@@ -76,8 +76,8 @@
  *
  * **Recursion is an arrow back to the function.** `self` is the innermost
  * function whose body holds it, so it draws as a back edge to the nearest
- * `=>` the walk entered through its `body` port, routed around the
- * graph. A `self` in a slot a nested function captures belongs to the
+ * `=>` the walk entered through its `body` port, routed within its cyclic
+ * group. Returns to one function share their trunk and arrowhead. A `self` in a slot a nested function captures belongs to the
  * enclosing function, and the `=>` it is entered through is skipped
  * because its port is that slot, not `body`.
  *
@@ -402,7 +402,7 @@ const drawn = module => {
 export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
 
 /**
- * The drop-down is [the compiler's shared list](../examples/module.f.js), one
+ * The drop-down is [the compiler's shared list](../examples/module.f.mjs), one
  * program followed down the pipeline: a program picked here is found under
  * the same name on the tokenizer's, parser's, serializer's, Rust and
  * side-by-side pages. What this drawing makes of the ones written for it:
@@ -439,11 +439,10 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * - **Closure** is a function that captures its enclosing parameter and a
  *   module `const`, each read inside the body through a frame slot.
  * - **Recursion** draws the recursive call's `callee` as an arrow back to
- *   the `=>`, routed around the graph rather than through it.
- *   **Recursion: Ackermann** has three such arrows, one lane each below the
- *   graph. The inner `ack(m, n - 1)` is the outer call's argument, so its
- *   arrow spans more ranks and runs outside the other two rather than
- *   across them.
+ *   the `=>`, routed within its cyclic group.
+ *   **Recursion: Ackermann** has three such connections. Their source
+ *   branches join a shared return trunk and one arrowhead. Hovering the
+ *   shared trunk traces all three calls; each source port traces its own.
  * - **Methods and properties** draws a method call as one node of two
  *   links: `.` beside the receiver in `obj` and `"at"` in `key`, and `()`
  *   beside its arguments, a `[]` node.
@@ -494,9 +493,9 @@ export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(a
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = stageDemo({
-    intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated.',
+    intro: 'Lowers a FunctionalScript module to an expression graph. Arrows point to operands, multiple arrows to one node show sharing, and dashed arrows mark operands that may not be evaluated. Hover an operand name or reference to follow its arrow; hover a node title to see its incoming uses. Click an arrow to keep it selected, or use Tab to move between connections.',
     name: 'edag',
 })(text => {
     const [kind, value] = graphOfText(text)
-    return [kind === 'ok' ? graphSvg(value) : refusal(value)]
+    return [kind === 'ok' ? graphSvg({ ...value, trace: true }) : refusal(value)]
 })

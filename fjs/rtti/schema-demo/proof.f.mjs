@@ -124,11 +124,11 @@ const demoProof = /** @type {const} */ ({
         picker: () => {
             const html = page('Recursion')
             for (const e of examples) { assert(html.includes(`>${e.name}</option>`), e.name) }
-            assert(html.includes('<option value="Recursion" selected="">'), html)
-            assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open">'), html)
-            assert(html.includes('<optgroup label="Readers"><option value="Built or handed back">'), html)
-            assert(html.includes('<optgroup label="Outputs"><option value="Optional or undefined">'), html)
-            assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request">'), html)
+            assert(html.includes('<option value="Recursion" selected="" data-example-id="recursion">'), html)
+            assert(html.includes('<optgroup label="Schemas"><option value="Closed vs open" data-example-id="closed-vs-open">'), html)
+            assert(html.includes('<optgroup label="Readers"><option value="Built or handed back" data-example-id="built-or-handed-back">'), html)
+            assert(html.includes('<optgroup label="Outputs"><option value="Optional or undefined" data-example-id="optional-or-undefined">'), html)
+            assert(html.includes('<optgroup label="Used in this project"><option value="JSON-RPC request" data-example-id="json-rpc-request">'), html)
         },
         // A project schema shows where it comes from as the import a user of
         // the package writes, its module specifier a link to the module's
@@ -414,6 +414,21 @@ const demoProof = /** @type {const} */ ({
             assertStructurallySame(g.edges.filter(e => e.back).map(e => [e.from, e.to]), [[1, 1], [2, 2]])
             assertEq(_crossings(g), 0)
         },
+        // The dense project schema keeps every original connection while
+        // its largest destination bundle is drawn and hovered as one trunk.
+        bundledEdagValue: () => {
+            const g = _graphOf(exampleNamed('Evaluated EDAG value').schemas[0].schema)
+            const returns = g.edges.flatMap((edge, index) => edge.back === true ? [{ edge, index }] : [])
+            const targets = [...new Set(returns.map(({ edge }) => edge.to))]
+            const largest = targets.map(to => returns.filter(({ edge }) => edge.to === to).map(({ index }) => index))
+                .toSorted((a, b) => b.length - a.length)[0]
+            const html = htmlToString(graphSvg(g))
+            const shared = html.split('data-graph-members="').slice(1).map(after => after.slice(0, after.indexOf('"')).split(' ').map(Number))
+            assert(largest.length > 1, 'the example has a crowded destination')
+            assert(shared.some(ids => ids.length === largest.length && largest.every(id => ids.includes(id))), 'one segment represents every return into that destination')
+            assertEq(occurrences('marker-end="url(#graph-return-arrow)"')(html), targets.length)
+            assertEq(occurrences('tabindex="0"')(html), g.edges.filter(edge => typeof edge.to === 'number').length)
+        },
         // A named thunk that is not a const is labelled with its name too.
         namedArray: () => {
             /** @type {import('../types.ts').Type} */
@@ -455,9 +470,26 @@ const demoProof = /** @type {const} */ ({
 })
 
 /** A demo of one example with one schema. */
-const single = schemaDemo([['One', [{ name: 'n', about: 'a number', schemas: [{ source: 'number', schema: number }], value: 'export default 1;' }]]])
+const single = schemaDemo([['One', [{ id: 'number', name: 'n', about: 'a number', schemas: [{ source: 'number', schema: number }], value: 'export default 1;' }]]])
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        for (const example of sharing.examples) {
+            const restored = sharing.restore(example.inputs)
+            assertStructurallySame(sharing.read(restored), example.inputs)
+        }
+        const inputs = sharing.read(demo.init)
+        const paired = sharing.examples.find(e => e.id === 'closed-vs-open')
+        const pair = assertNotNullish(paired).inputs
+        assertEq(sharing.validate?.({ ...pair, schema: '1' }), null)
+        const second = sharing.restore({ ...pair, schema: '1', compare: '' })
+        assertEq(second.shown, 1)
+        assertEq(sharing.read(second).compare, '')
+        assertEq(sharing.validate?.(inputs), null)
+        const one = assertNotNullish(single.sharing)
+        assertEq(one.validate?.({ ...one.read(single.init), schema: '1' }), 'This example has only one schema')
+    },
     demo: demoProof,
     // A demo needs an example to open on.
     throw: () => schemaDemo([['None', []]]),

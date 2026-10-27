@@ -14,7 +14,9 @@
  * `(1).length()` and `[].length()` throw. This module crosses every known
  * name with each type's prototype and sorts every pair into one of four
  * rows, which
- * [`generate`](#generate) prints as Rust:
+ * [`generate`](#generate) prints as Rust. The same generated module exposes
+ * runtime-only admitted pairs to member resolution, derived from the existing
+ * interpreter fallback profile and these prototypes:
  *
  * - **answered** — allowed, and the VM has an entry;
  * - **pending** — allowed, and the VM has no entry yet: {@link pending},
@@ -48,6 +50,7 @@ import {
 } from '../../js/prototype/module.f.js'
 import { entry } from '../../types/object/entry/module.f.js'
 import { statics } from '../../js/static/module.f.js'
+import { _runtimeOnly } from '../../edag/value/method/module.f.mjs'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
 import { mapOk, okList, unwrap } from '../../types/result/module.f.js'
@@ -154,7 +157,7 @@ const pathRow = path => mapOk((/** @type {readonly string[]} */ keys) => `&[${ke
  *
  * @type {(name: string, doc: string, pairs: readonly (readonly[string, string])[]) => readonly string[]}
  */
-const table = (name, doc, pairs) => [unwrap(constSlice(doc, name, '(&str, &str)', pairs, pairRow)), '']
+const table = (name, doc, pairs) => ['#[cfg(test)]', unwrap(constSlice(doc, name, '(&str, &str)', pairs, pairRow)), '']
 
 /**
  * The admitted static paths as Rust, each a slice of keys: what the VM must
@@ -164,6 +167,7 @@ const table = (name, doc, pairs) => [unwrap(constSlice(doc, name, '(&str, &str)'
  * @type {() => readonly string[]}
  */
 const staticTable = () => [
+    '#[cfg(test)]',
     unwrap(constSlice('Admitted static paths, `fjs/js/static`\'s: the VM binds each one.', 'STATICS', '&[&str]', statics, pathRow)),
     '',
 ]
@@ -176,8 +180,11 @@ const staticTable = () => [
  */
 export const generate = () => {
     const r = rows(pending)
+    const runtimeOnly = [...r.answered, ...r.pending].filter(([, name]) => _runtimeOnly.includes(name))
     return [
         generatedHeader('`npm run gen` from `fjs/nanvm/methods/module.f.mjs`', 'change the pending list there and regenerate'),
+        '',
+        unwrap(constSlice('Admitted pairs whose ordinary member resolution requires a runtime implementation.', 'RUNTIME_ONLY', '(&str, &str)', runtimeOnly, pairRow)),
         '',
         ...table('ANSWERED', 'Allowed, and answered: `method` has an entry.', r.answered),
         ...table('PENDING', 'Allowed, and not answered yet: `method` has no entry.', r.pending),

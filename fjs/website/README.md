@@ -16,7 +16,7 @@ it does it that way, is in its own JSDoc.
 the directory it describes, and `.gitignore` keeps `index.html` and the
 `_`-prefixed files out of the tree.
 
-The one build that does not run in the repository's Nix shell is this one.
+The one build that does not run in the repository's development environment is this one.
 Cloudflare's Workers Builds generates the site on its own image and takes
 its Node version from [`.node-version`](../../.node-version) at the repository
 root — the file exists for that reader alone, and nothing else in the
@@ -34,6 +34,46 @@ JavaScript only and deliberately does *not* serve the working tree. That is
 that issue's concern, for automated runners. Module pages do not depend on it,
 and moving the site under such a root would break every fetch they make — so
 the two are separate, and this one is not quietly migrated into the other.
+
+## Shareable demo links
+
+Two controls beside Demo distinguish **Copy section link** (plain chain) from
+**Copy with inputs** (chain with a visible text label). The section link always
+copies `#demo` without a query; input links use `#demo` for defaults. Example links
+such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
+custom inputs use individual query parameters such as `?compiler=source#demo`.
+Restore validates all inputs before replacing state and never presses action
+buttons. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
+atomic sharing adapter; `textDemo` supplies one automatically. See the
+[sharing contract](./demo/sharing/README.md) for encodings, validation,
+clipboard feedback, startup edits and history navigation.
+
+## Section links
+
+Generated module pages expose `#demo` and `#emergent-testing` targets. README
+headings keep their GitHub-style IDs, including numeric suffixes for repeated
+headings. The page reserves `demo`, `emergent-testing`, `directory-drawer`, and
+`drawer-title`; a conflicting README heading gets the first available numeric
+suffix. Empty heading slugs start at `section`. Heading text is unchanged. Demo IDs and local references use a separate,
+per-instance namespace at prerender and runtime; see
+[DOM identifiers](./demo/README.md#dom-identifiers-and-repeated-instances).
+
+A native permalink beside each documentation or main section heading works
+without JavaScript. Once the shared fragment runtime binds, a keyboard-accessible
+**Copy link** button replaces that fallback. It copies the current page URL with
+the heading fragment, reports clipboard success or failure, and leaves both the
+address bar and section's open state alone. Controls sit outside the heading's
+accessible name.
+
+Initial fragment navigation, hash changes, back/forward navigation, and repeated
+links to the current fragment open collapsed ancestors before scrolling. Encoded
+IDs are decoded once; malformed escapes and missing targets leave the page
+usable. Navigating to Emergent Testing never presses Run or starts tests.
+
+[Shareable demo inputs](./demo/sharing/README.md) use query parameters, leaving
+fragments for section navigation. The navigation layer reveals the target immediately; the restoration runtime calls
+`revealFragment` again after applying the complete input set so scrolling uses
+the final layout.
 
 ## CLI reference
 
@@ -179,12 +219,13 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
 script: it installs what the build image lacks, then runs
-`npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
+the WASM demo build, `npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes
 the Rust API reference ([the Rust API reference](#the-rust-api-reference)). The command itself is set in the Cloudflare dashboard, so
 the script is what keeps its steps in the repository, where they are reviewed
 and have a history. `npm run website` stays the generator alone: a checkout
-builds the site with it exactly as before, and only the deploy carries the
-installs. The dashboard's command falls back to `npm run website` where the
+first builds the WASM assets with
+`./dev.sh sh ./nanvm/demos/gen.build.sh`, then runs `npm run website`.
+Only the deploy carries the installs. The dashboard's command falls back to `npm run website` where the
 script is absent ([Configure Cloudflare](#configure-cloudflare)), so a branch
 from before the script keeps its preview.
 
@@ -193,8 +234,7 @@ Rust, and the script installs one with `rustup`'s installer, at exactly `rust`
 from [`fjs/ci/config/module.f.js`](../ci/config/module.f.js) — the one
 constant the shared shell and the platform matrix also take. The script is
 generated from that constant by
-[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), as `gen.nix/flake.nix`
-is, so the version is written in the script in full, a bump of the pin is a
+[`cloudflare/module.f.mjs`](./cloudflare/module.f.mjs), so the version is written in the script in full, a bump of the pin is a
 diff the drift check guards, and nothing in the dashboard names a version
 that could drift. The toolchain goes into the build container's home, and
 its `cargo` is on the script's `PATH`. `target/`, which `cargo doc` writes
@@ -202,14 +242,12 @@ beside the docs, is in [`.assetsignore`](../../.assetsignore) and never
 served.
 
 Installing Rust in the build was chosen over the alternative, building and
-deploying from CI in the Nix shell with `wrangler`, for what it keeps:
+deploying from CI in the development environment with `wrangler`, for what it keeps:
 Cloudflare builds every branch and gives each its preview URL, and no
 Cloudflare token goes to GitHub. The alternative would have one environment
 for everything, but would move branch previews into the generated workflow
 and leave a fork's pull request, which gets no secrets, without one. The
-build image cannot hold the shell itself: it ships no Nix, a build runs
-unprivileged and cannot create `/nix`, and the shell's closure would be
-fetched whole on every deploy against a twenty-minute limit. What this
+build installs only the tools it needs within the deployment time limit. What this
 choice costs is `rustup`'s download and install on every deploy. The repository owner approved the script's
 invocation of `curl`, `rustup`'s installer, `npm` and `cargo`
 ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
@@ -707,9 +745,14 @@ also distinguish the selection; labels keep their normal text colours.
 The tint is opaque, so several incoming connections cannot darken the same
 title by stacking translucent fills.
 
-When a row has both a key and a schema reference, only the reference cell
-activates hover and receives the source highlight. A port with no separate
-reference cell keeps its single-cell interaction.
+When a row has both a key and a schema reference, hovering either cell
+activates the connection and highlights both cells as one rounded source
+block. A port with no separate reference cell keeps its single-cell
+interaction. Inline-only values do not activate a connection.
+
+The whole visible title cell, including blank space above and below its
+text, activates incoming-connection highlighting. Its hover area stays
+within the title column and does not cover adjacent port cells.
 
 These tokens are independent of `--value`: selecting a connection must not
 recolour the schema values. Both schemes live in the shared stylesheet,

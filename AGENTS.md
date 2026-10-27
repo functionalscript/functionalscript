@@ -12,11 +12,7 @@ work before starting, and check that no open pull request, draft or not, already
 works on the same `todo/`. Claim a task by opening a draft pull request for it
 at once ([SESSION.md](./doc/SESSION.md#claim-the-task)).
 
-Develop inside the Nix shell `./dev.sh` opens on Linux and ARM macOS, or use
-the same tools installed in the devcontainer. Use the pinned tools directly on
-Intel macOS or bare Windows
-([§2](#2-environment-and-running-tests)). The shell carries every tool below
-at the version CI uses.
+Use mise through `./dev.sh` for development; see §2.
 
 **Check what the change touches, not the whole tree.** CI runs every suite on
 every platform ([§7](#7-continuous-integration)) and gates the merge; a session
@@ -165,86 +161,28 @@ explain the value better than either literal spelling.
 
 ## 2. Environment and running tests
 
-Install [Nix](https://nixos.org/download/) and work inside the repository's
-shell. `gen.nix/` is a flake carrying every tool the project builds and tests
-with — Node, TypeScript, Rust with its WASM targets, Deno, Bun, the WASM
-runtimes — at the versions CI uses. Every CI job runs inside this very shell, so
-what passes in it is what passes there, except the Intel macOS and two Windows
-platform jobs, which install their tools directly, and the publishing workflow,
-which runs on the Node
-`setup-node` installs. The packed-package check that closes `node26` stays out
-of it too, by design: it installs the published tarball with `setup-node`'s
-Node and npm, as a consumer would. On supported Nix platforms, do not install
-those tools by hand or pick their versions; use the shell or the devcontainer's
-profile, generated from the same tool definitions.
-Intel macOS uses the same pins
-directly; see [CONTRIBUTING.md](./CONTRIBUTING.md#direct-tools-on-intel-macos).
+Use mise for development and CI. See [setup](./doc/mise-trial/README.md)
+for platform prerequisites, supported versions and optional runtimes.
 
-During prerelease, each release supports one exact accepted version per tool
-from `fjs/ci/config/module.f.js`, chosen close to the latest usable stable
-release. Updating a pin replaces the supported version. Use an older
-FunctionalScript release with a suitable recorded toolset when an older tool
-is needed; additional support after release remains subject to demand.
-
-```bash
-./dev.sh                      # an interactive shell
-./dev.sh <command>            # one command in it; CI steps run the generated sh ./gen.nix/run <command>
+```sh
+mise trust
+mise install --locked
+./dev.sh node --version
+./dev.sh npm ci
+./dev.sh npm test
 ```
 
-In a Codex session, verify Node before starting work in a user-trusted
-implementation checkout. On Linux, ARM macOS, or inside the Linux devcontainer,
-run `./dev.sh node --version`. On Intel macOS or bare Windows, install the
-pinned tools and run `node --version` directly. In either case, the version
-must match the exact Node pin in `fjs/ci/config/module.f.js`. When reviewing
-untrusted changes, perform this startup check only in a clean, separate
-checkout of a user-trusted base revision; do not run the review worktree's
-`dev.sh`, flake, or shell hooks with broader permissions.
+The startup Node version must match `fjs/ci/config/module.f.js` exactly.
+`./dev.sh <command>` runs one command in the selected environment; no arguments
+opens an interactive shell. Windows users can invoke `mise exec -- <command>`
+directly from PowerShell. The devcontainer installs mise; rebuild it when its
+Dockerfile changes. Native compilers, platform SDKs and 32-bit libc remain host
+prerequisites. Linux x64 needs `gcc-multilib libc6-dev-i386` for i686 checks.
 
-On supported Nix platforms, if a command fails with an explicit sandbox
-permission error, retry the same `./dev.sh` command through `exec_command` with
-`sandbox_permissions="require_escalated"`, subject to the tool's normal approval
-process, only when the command and all code it will execute are already trusted
-for the task. A permission denial does not establish trust, and using a trusted
-`dev.sh` to run untrusted tests does not make those tests trusted. Keep untrusted
-review worktree commands sandboxed. Do not substitute host-installed tools or
-reinstall Nix because of a sandbox denial. If no trusted retry is available, or
-the retry is denied, unavailable, or fails, report the affected command and its
-precise failure. This execution rule does not replace the saved environment setup:
-follow [CONTRIBUTING.md's Codex environment instructions](./CONTRIBUTING.md#openai-codex-environment)
-and verify startup through the same command runner sessions use.
-
-`dev.sh` enables flakes itself, so a stock Nix install needs no configuration.
-On ARM macOS and Linux, install Nix on the host. Intel macOS uses the
-pinned tools directly. Nix does not run natively on
-Windows: open the repository in the devcontainer —
-[`.devcontainer/`](./.devcontainer/devcontainer.json) builds a Debian image
-with the same pinned tools installed on its container-wide `PATH` and runs
-`npm ci`. Extensions, tasks and terminals use them directly; rebuild the
-container when the generated flake or lock changes. Or work in WSL2 with Nix
-installed there and enter the shell through `./dev.sh`. Bare Windows, outside
-both, is on your own: install the tools
-[CONTRIBUTING.md](./CONTRIBUTING.md#requirements)'s table
-names yourself, at the exact versions `fjs/ci/config/module.f.js` pins, which
-are what CI's Windows jobs install. A Claude Code cloud session runs `npm ci` in
-the shell and puts the shell's tools on its `PATH` before its first command,
-from [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh).
-
-Inside the shell, `npm ci` installs Node dependencies and `cargo fetch` the
-Rust ones. `npm test` runs `tsc` plus the FunctionalScript suite,
-`npm start test` the suite alone, the Deno, Bun, and published-CLI
-equivalents the same suite, and `npm run sm t` its authored proofs on
-SpiderMonkey. Run from a directory, the runner tests that
-directory alone
-([CONTRIBUTING.md](./CONTRIBUTING.md#running-tests-under-a-subtree)).
-
-Every equivalent way to run the suite and the dependency-update procedure:
-[CONTRIBUTING.md](./CONTRIBUTING.md). How the shell is generated and why it
-looks the way it does: [fjs/ci/nix/README.md](./fjs/ci/nix/README.md).
-
-Keep any website demos affected by the change working. Contributors may add or
-update demos; check them in the browser and include their preview links in the
-PR description as described in
-[CONTRIBUTING.md](./CONTRIBUTING.md#website-demos).
+Run checks scoped to the changed directory as described above and in
+[CONTRIBUTING.md](./CONTRIBUTING.md). Use the environment's `tsc`; it is not an
+npm dependency of this repository. Verify startup in a user-trusted checkout;
+keep untrusted review code sandboxed.
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 
@@ -362,24 +300,11 @@ is not. Instances predating this rule are not precedent for new ones.
 
 ## 7. Continuous integration
 
-**A CI step runs one command.** Never bundle a job's command sequence into a
-single shell invocation — no `bash -c 'a && b && c'` wrapper, and one
-`nix develop --command` per step rather than one invocation carrying the whole
-job. The step is the unit CI reports on: a bundle collapses to one red result
-naming the wrapper rather than the command that failed, and hides which of the
-commands ran at all.
+The generator in `fjs/ci` owns the committed workflows; run `./dev.sh npm run gen`
+after changing its sources or inputs. All nine jobs use mise, across Linux,
+macOS and Windows on x64 and ARM64. Each native or runtime check remains a
+separate workflow step. The packed-package consumer uses a clean temporary
+directory and `setup-node` outside the repository environment.
 
-Two commands are one step only when the second is meaningless alone and neither
-is separately reportable. Both such pairs in the generated workflow qualify:
-`git add -A && git diff --cached --exit-code` stages so the comparison has
-something to compare, and `sudo apt-get update && sudo apt-get install -y …`
-refreshes indices the install then reads — split, the update's exit status
-reports nothing anyone acts on.
-
-Repeating a wrapper per step costs nothing that matters. Entering a Nix
-development shell re-runs that shell's `shellHook`, so a job-local environment
-is re-established for every step instead of being exported across them.
-
-Both workflows are generated — `.github/workflows/gen.ci.yml` and
-`.github/workflows/gen.npm-publish.yml`. Change `fjs/ci`, run `npm run gen`,
-and commit the result. Never edit either by hand.
+`fjs ci` requires the caller's committed mise manifest and lock. It writes only
+the CI and publishing workflows. See [the generator](./fjs/ci/README.md).

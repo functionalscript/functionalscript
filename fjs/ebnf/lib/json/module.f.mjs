@@ -138,6 +138,7 @@ export const valueCases = ({ array, object, string, number, word }) => node => {
         case 'true': { return word(true) }
         case 'false': { return word(false) }
         case 'null': { return word(null) }
+        default: { throw ['not a JSON value node', node] }
     }
 }
 

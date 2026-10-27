@@ -4,6 +4,7 @@
  * @import { Blocks } from '../../media/markdown/types.ts'
  */
 
+import { linkedHeading } from '../permalink/module.f.js'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { anchors, readmeName, readmeNodes, readmeSection, resolveHref, slug } from './module.f.mjs'
@@ -68,9 +69,19 @@ export const proof = {
     anchorsSkipTaken: () => assertStructurallySame(
         anchors([['heading', 1, [['text', 'A']]], ['heading', 1, [['text', 'A-1']]], ['heading', 1, [['text', 'A']]]]),
         ['a', 'a-1', 'a-2']),
+    reservedAnchors: () => assertStructurallySame(
+        anchors([
+            ['heading', 1, [['text', 'Demo']]],
+            ['heading', 2, [['text', 'Demo']]],
+            ['heading', 2, [['text', 'Emergent Testing']]],
+            ['heading', 2, [['text', '!!!']]],
+            ['heading', 2, [['text', 'Section']]],
+            ['heading', 2, [['text', 'Demo-1']]],
+            ['heading', 2, [['text', 'Drawer title']]],
+        ]), ['demo-1', 'demo-2', 'emergent-testing-1', 'section', 'section-1', 'demo-1-1', 'drawer-title-1']),
     readmeNodes: {
         latin1Heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'µ ª º']]]]),
-            ok([['h2', { id: 'µ-ª-º' }, 'µ ª º']])),
+            ok([linkedHeading(2, 'µ-ª-º', 'µ ª º', ['µ ª º'])])),
         all: () => {
             /** @type {Blocks} */
             const blocks = [
@@ -88,8 +99,8 @@ export const proof = {
                 ['list', true, [[['task', false], ['paragraph', [['text', 'q']]], ['paragraph', [['text', 'r']]]]]],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
-                ['h2', { id: 't' }, 'T'],
-                ['h6', { id: 's' }, 'S'],
+                linkedHeading(2, 't', 'T', ['T']),
+                linkedHeading(6, 's', 'S', ['S']),
                 ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
                 ['pre', ['code', { class: 'language-js' }, 'x']],
                 ['pre', ['code', 'y']],

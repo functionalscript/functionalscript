@@ -78,8 +78,8 @@ const { demo, load, press, move } = versionsDemo({
     intro: 'A list.',
     keys: nibble,
     presets: [
-        ['Three', [1, 2, 3], 4, 'Press Insert to add 0100.'],
-        ['Empty', [], 5, 'Press Insert to add 0101.'],
+        ['Three', [1, 2, 3], 4, 'Press Insert to add 0100.', 'three'],
+        ['Empty', [], 5, 'Press Insert to add 0101.', 'empty'],
     ],
 })
 
@@ -98,7 +98,7 @@ const random = versionsDemo({
     name: 'random',
     noun: 'list',
     intro: '',
-    presets: [['One', [1], 2, '']],
+    presets: [['One', [1], 2, '', 'one']],
     random: { max: 5, count: 3, keys: n => Array.from({ length: n }, (_, i) => i + 1) },
 })
 
@@ -116,6 +116,17 @@ const html = state => htmlToString(demo.view(state))
 const update = event => state => unwrap(assertNotNullish(runPure(demo.update(state)(event))[0]))
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        const inputs = sharing.read(demo.init)
+        assertEq(inputs.example, 'three')
+        const restored = sharing.restore({ ...inputs, key: '1111' })
+        assertEq(restored.key, '1111')
+        assertEq(sharing.read(restored).example, 'three')
+        const custom = sharing.restore({ ...inputs, example: '' })
+        assertEq(sharing.read(custom).example, '')
+        assertEq(custom.versions.after, null)
+    },
     // The default keys: any safe integer, spelled as `String` spells it.
     decimal: () => {
         assertEq(decimal.parse('-12'), -12)
@@ -285,7 +296,7 @@ export const proof = {
             // The field holds the key as the demo's own format spells it.
             assert(h.includes('id="chain-key" name="key" value="0100"'), h)
             assert(h.includes('Press Insert to add 0100.'), h)
-            assert(h.includes('<option value="Three" selected="">'), h)
+            assert(h.includes('<option value="Three" selected="" data-example-id="three">'), h)
             assertEq(occurrences('<svg')(h), 1)
             assertEq(occurrences('data-graph-kind="new"')(h), 0)
             assert(!h.includes('Error'), h)
@@ -321,7 +332,7 @@ export const proof = {
             const has = key => list => list !== null && (list.key === key || has(key)(list.next) !== null) ? list : null
             const front = versionsDemo({
                 structure: { ...chain('depth'), insert: key => list => has(key)(list) ?? { key, next: list } },
-                name: 'front', noun: 'list', intro: '', presets: [['Three', [3, 2, 1], 3, '']],
+                name: 'front', noun: 'list', intro: '', presets: [['Three', [3, 2, 1], 3, '', 'three']],
             })
             const s = front.move(3)(front.demo.init)
             assertEq(JSON.stringify(s.versions.after), '{"key":3,"next":{"key":1,"next":{"key":2,"next":null}}}')
@@ -347,7 +358,7 @@ export const proof = {
             const one = press('insert')(load('Empty'))
             const h = html(one)
             assertEq(occurrences('<svg')(h), 1)
-            assert(!h.includes('empty'), h)
+            assert(!h.includes('The list is empty.'), h)
             const gone = html(press('remove')(one))
             assertEq(occurrences('<svg')(gone), 0)
             assert(gone.includes('The list is empty.'), gone)
@@ -369,7 +380,7 @@ export const proof = {
         },
         // Without a format of its own, a demo takes decimal keys.
         open: () => {
-            const open = versionsDemo({ structure: chain('leaves'), name: 'open', noun: 'list', intro: '', presets: [['One', [1], 2, '']] })
+            const open = versionsDemo({ structure: chain('leaves'), name: 'open', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] })
             assert(htmlToString(open.demo.view(open.demo.init)).includes('<label for="open-key">Key </label>'), '')
             assert(htmlToString(open.demo.view(open.press('insert')({ ...open.demo.init, key: 'x' }))).includes('type an integer.'), '')
             assertEq(open.graphOf(open.demo.init.versions).nodes.length, 1)
@@ -436,7 +447,7 @@ export const proof = {
             assertEq(demo.init.count, '')
             assert(!html(demo.init).includes('name="count"'), '')
             assertEq(update({ kind: 'click', name: 'generate' })(demo.init), demo.init)
-            assertEq(JSON.stringify(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '']] }).generate(demo.init))), JSON.stringify([ok(demo.init)]))
+            assertEq(JSON.stringify(runPure(versionsDemo({ structure: chain('depth'), name: 'none', noun: 'list', intro: '', presets: [['One', [1], 2, '', 'one']] }).generate(demo.init))), JSON.stringify([ok(demo.init)]))
         },
     },
 }

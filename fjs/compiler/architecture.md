@@ -30,6 +30,7 @@ Conversion does not recover source names or formatting.
 | `compiler/source`, `compiler/edag` | Module loading, identity, linking and graph orchestration. |
 | `edag/analysis`, `edag/sharing` | Graph identity, dependency and evaluation analysis. |
 | `edag/to_fast` | Shared binding placement, evaluation regions and tail-loop recovery. |
+| `js/ast/returns` | Owning-return lifting with ordered member resolution and optional continuations. |
 | `js/ast/prepare` | Common temporaries, slots, simultaneous transfers and invocation lifetimes. |
 | `js/ast/serializer`, `rust/serializer` | Prepared FAST rendered in target syntax. |
 | `text/marked` | Language-independent marked text and demarking. |

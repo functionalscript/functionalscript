@@ -35,6 +35,26 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    deferredReturnKeepsItsFunctionOwner: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const deferred = id(0)
+        /** @type {NormalFunction} */
+        const source = { target, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [['define', deferred, ['block', { statements: [], exit: ['return', target, 7] }], 'lazy']],
+            exit: ['return', target, ['ref', deferred]],
+        } }
+        const prepared = prepareFunction(source)
+        assertEq(prepared.target, target)
+        assertEq(prepared.parameters, source.parameters)
+        assertEq(prepared.body.exit[0], 'return')
+        const recipes = prepared.body.statements.flatMap(statement => statement[0] === 'define'
+            && statement[2] instanceof Array && statement[2][0] === 'function' ? [statement[2][1]] : [])
+        assertEq(recipes.length, 1)
+        assert(recipes[0].target !== target)
+        assertEq(recipes[0].body.exit[0], 'return')
+        assert(recipes[0].body.exit[0] === 'return' && recipes[0].body.exit[1] === recipes[0].target)
+        assert(prepared.body.statements.some(statement => statement[0] === 'if'))
+    },
     deepSyntax: () => {
         for (const tag of /** @type {const} */ (['!', '+', '.'])) {
             /** @type {NormalValue} */
@@ -81,6 +101,7 @@ export const proof = {
         assertStructurallySame(prepare(yielding(['block', yielding(3)])), yielding(['block', yielding(3)]))
         assertStructurallySame(prepare(yielding(['if', true, yielding(1), yielding(2)])), yielding(['if', true, yielding(1), yielding(2)]))
         assertStructurallySame(prepare(yielding(['?:', false, 1, 2])), yielding(['if', false, yielding(1), yielding(2)]))
+        assertStructurallySame(prepare(yielding(['memberPresent', ['ref', binding], ['Number', ['+', 1, 2]]])), yielding(['memberPresent', ['ref', binding], ['Number', ['+', 1, 2]]]))
         assertStructurallySame(prepare({ statements: [], exit: ['throw', 9] }), { statements: [], exit: ['throw', 9] })
     },
     memoLifetime: () => {
@@ -311,6 +332,8 @@ export const proof = {
         assertEq(loopStatement(prepare({ statements: [['loop', setup]], exit: ['yield', []] }))[1], target)
     },
     throw: {
+        // A statement no case names is refused, not read as an exit.
+        unknownStatement: () => prepare({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }),
         deferredOptionalKey: () => prepare(yielding(['?.', null, ['Number', ['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]])),
         deferredOptionalCall: () => prepare(yielding(['?.()', undefined, [['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]])),
         deferredMemberCall: () => prepare(yielding(['.', ['object', []], 'x', ['|()', [['block', { statements: [], exit: ['return', { kind: 'function', index: 0 }, 3] }]]]])),

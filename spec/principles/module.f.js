@@ -11,13 +11,13 @@
 
 /** @type {Examples} */
 const overview = [
-    ['Overview', 'const a = 1 + 2;\nconst checked = a.x;\nexport default [a, a, a * 3, a < 4 && a, (...x) => x, undefined];'],
+    ['Overview', 'const a = 1 + 2;\nconst checked = a.x;\nexport default [a, a, a * 3, a < 4 && a, (...x) => x, undefined];', 'overview'],
 ]
 
 /** @type {Examples} */
 const failure = [
-    ['A failure at run time', 'export default [1, 2][5].x;'],
-    ['Parse error', 'export default {bad'],
+    ['A failure at run time', 'export default [1, 2][5].x;', 'a-failure-at-run-time'],
+    ['Parse error', 'export default {bad', 'parse-error'],
 ]
 
 export default { overview, failure, all: [...overview, ...failure] }

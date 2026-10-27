@@ -20,6 +20,7 @@ const workspace = /** @type {const} */ ([
 /** @type {readonly string[]} */
 const sharedFiles = [
     '.gitattributes', '.gitignore', '.node-version', 'dev.sh',
+    'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock',
 ]
 
 // These paths describe tooling or site assets that the cached checks do not
@@ -31,9 +32,12 @@ const excludedFiles = [
     'fjs/website/favicon.svg',
 ]
 
+/** Environment manifests and npm sidecars affect every tool-backed check. */
+const shared = (/** @type {string} */ path) => sharedFiles.includes(path) || path.startsWith('.mise/locks/')
+
 /** The JavaScript rung a path contributes to, independently of Rust. */
 const javascript = (/** @type {string} */ path) => {
-    if (sharedFiles.includes(path) || path === 'package.json' || path === 'deno.json'
+    if (shared(path) || path === 'package.json' || path === 'deno.json'
         || path === 'fjs/module.mjs' || path === 'fjs/spidermonkey.mjs'
         || path === 'fjs/types/result/module.mjs'
         || path.split('/').some(p => p.startsWith('gen.'))
@@ -53,12 +57,12 @@ const javascript = (/** @type {string} */ path) => {
  * @type {(path: string) => readonly Rung[] | null}
  */
 export const select = path => {
-    const ci = path.startsWith('gen.nix/') || path.startsWith('fjs/ci/') || path.startsWith('.github/workflows/')
+    const ci = path.startsWith('fjs/ci/') || path.startsWith('.github/workflows/')
     // CI documents are not build inputs, even under a generated directory.
     if (ci && (path.endsWith('.md') || path.split('/').includes('todo'))) { return [] }
     const js = javascript(path)
     const rust = path === 'Cargo.toml' || path === 'Cargo.lock' || path.startsWith('.cargo/')
-        || workspace.some(p => path.startsWith(p)) || sharedFiles.includes(path)
+        || workspace.some(p => path.startsWith(p)) || shared(path)
         || ci
     if (js !== null) { return rust ? [js, 'rust'] : [js] }
     if (rust) { return ['rust'] }

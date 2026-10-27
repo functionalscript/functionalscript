@@ -19,6 +19,7 @@ import { next, reverse, toArray } from '../../../types/list/module.f.mjs'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'
 import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
+import { _memberPresentChunks } from './member_present/module.f.mjs'
 import { isIntrinsic } from '../../../edag/module.f.mjs'
 
 const keyword = tagged('keyword')
@@ -241,6 +242,12 @@ const operatorText = (context, operator) => {
         case 'object': { return `{${operator[1].map(entry => entry[0] === '...'
             ? `...${expression(context, entry[1])}`
             : `${typeof entry[1] === 'string' && entry[1] !== '__proto__' ? primitive(entry[1]) : `[${expression(context, entry[1])}]`}:${expression(context, entry[2])}`).join(',')}}` }
+        case 'memberPresent': {
+            const helper = taggedChunks(_memberPresentChunks(`helper${context.values.indexOf(operator)}`))
+            const key = operator[2]
+            const converted = key instanceof Array ? `Number(${expression(context, key[1])})` : primitive(key)
+            return `${helper}(${expression(context, operator[1])},${converted})`
+        }
         case '.': case '?.': {
             const base = operator[1]
             const text = expression(context, base, 15)
@@ -249,7 +256,9 @@ const operatorText = (context, operator) => {
         }
         case '()': {
             const callee = expression(context, operator[1], 15)
-            const detached = operator[1] instanceof Array && ['.', '?.'].includes(operator[1][0])
+            let value = syntaxValue(operator[1])
+            while (value instanceof Array && value[0] === ',' && value[1].length === 1) { value = syntaxValue(value[1][0]) }
+            const detached = value instanceof Array && ['.', '?.'].includes(value[0])
             return `${detached ? `(0,${callee})` : callee}(${itemText(context, operator[2])})`
         }
         case '?.()': {
@@ -329,7 +338,8 @@ const functionText = (context, fn) => {
     const captured = context.runtime && !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
     const aliases = captured || context.external ? context.aliases : [
         ...context.aliases,
-        ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]])),
+        ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]]))
+            .filter(([binding, source]) => binding !== source),
     ]
     const self = fn.self === null || context.binding === null || context.runtime ? [] : [/** @type {const} */ ([fn.self, context.binding])]
     let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
@@ -373,6 +383,7 @@ const statementText = (context, statement) => {
             const unchanged = loop.mutable ? '' : `${name(context, loop.slot)}=${name(context, loop.slot)};`
             return `${keyword('let')} ${declared(context, loop.slot)}=${expression(context, loop.initial)};${keyword('while')}(${expression(context, loop.condition)}){${blockText(context, loop.body, 'none')}${unchanged}}`
         }
+        default: { throw ['not a statement', statement] }
     }
 }
 
@@ -387,6 +398,7 @@ const blockText = (outer, input, normal) => {
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
         case 'break': case 'continue': { return `${before}${keyword(exit[0])} L${context.loops.indexOf(exit[1])};` }
+        default: { throw ['not an exit', exit] }
     }
 }
 

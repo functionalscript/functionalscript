@@ -287,6 +287,7 @@ const primitiveExpr = v => {
         case 'number': { return ok(numberExpr(v)) }
         case 'string': { return ok(stringCall('string_any')(v)) }
         case 'bigint': { return ok(bigintExpr(v)) }
+        default: { throw ['not a primitive', v] }
     }
 }
 
@@ -495,6 +496,10 @@ const operation = (s, n, result) => {
         case 'array': { return array(s, n[1], result) }
         case 'object': { return map1(pure(result))(object(s, n[1])) }
         case '()': { return map1(fallible(result))(map2((fn, args) => `Any::call(${fn}, ${args})`)(expression(s, n[1], false), array(s, n[2]))) }
+        case 'memberPresent': {
+            if (s.runtime === null) { return error(['a member presence query with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(map2((v, k) => `Any::member_present(${v}, ${k}, &${s.runtime})`)(expression(s, n[1], false), key(s, n[2])))
+        }
         case '.': case '?.': case '?.()': {
             const open = tag === '.' ? map2((v, k) => `Any::dot(${v}, ${k})`)(expression(s, n[1], false), key(s, /** @type {Key<Value>} */ (n[2])))
                 : tag === '?.' ? map2((v, k) => `Any::option_dot(${v}, ${k})`)(expression(s, n[1], false), keyThunk(s, /** @type {Key<Value>} */ (n[2])))
@@ -519,10 +524,10 @@ const operation = (s, n, result) => {
     }
 }
 
-/** A prepared memo's storage and demand callable. @type {(s: _Context, m: Memo) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+/** Borrowed trait objects keep memo dependency diamonds out of closure types. @type {(s: _Context, m: Memo) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
     `${kw('let')} ${binding(s, m.valueSlot)} = std::cell::RefCell::new(None::<Any<A>>);`,
-    `${kw('let')} ${binding(s, m.binding)} = || -> Result<Any<A>, Any<A>> ${braced([
+    `${kw('let')} ${binding(s, m.binding)}: &${kw('dyn')} Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> ${braced([
         `${kw('if')} ${kw('let')} Some(value) = ${binding(s, m.valueSlot)}.borrow().as_ref() { ${kw('return')} Ok(value.clone()); }`,
         `${kw('let')} value: Any<A> = ${braced(body)};`,
         `*${binding(s, m.valueSlot)}.borrow_mut() = Some(value.clone());`,
@@ -542,7 +547,8 @@ const statementReady = (s, st) => {
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
         case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
         case 'loop': { return map1(parts => [`'${loopLabel(s, st[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, st[2], false)) }
-        case 'while': {
+        // `'while'`, the one statement left: `children` refuses any other
+        default: {
             const w = st[1]
             return map3((initial, condition, body) => [
                 `${kw('let')} ${w.mutable ? `${kw('mut')} ` : ''}${binding(s, w.slot)}: Any<A> = ${initial};`,
@@ -625,6 +631,7 @@ const operationTasks = (context, n, result) => {
         case 'array': { return itemTasks(context, n[1]) }
         case 'object': { return n[1].flatMap(e => e[0] === '...' ? [valueTask(context, e[1])] : [...(typeof e[1] === 'string' ? [] : [valueTask(context, e[1])]), valueTask(context, e[2])]) }
         case '()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2])] }
+        case 'memberPresent': { return [valueTask(context, n[1]), ...keyTasks(context, n[2])] }
         case '.': case '?.': { return [valueTask(context, n[1]), ...keyTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
@@ -671,9 +678,11 @@ const children = task => {
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
                 case 'loop': { return [blockTask(s, st[2])] }
                 case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
+                default: { throw ['not a statement', st] }
             }
         }
-        case 'steps': {
+        // `'steps'`, the one kind left: every task is built in this module
+        default: {
             const step = task.step
             if (step === undefined) { return [] }
             if (step[0] === '|.') { return [...keyTasks(s, step[1]), stepTask(s, step[2], false, true)] }
@@ -700,7 +709,8 @@ const completed = (task, dependencies, values) => {
         case 'value': { return expressionReady(s, task.value, task.result) }
         case 'block': { return blockReady(s, task.block, task.result, task.functionBody, task.valueBlock) }
         case 'statement': { return statementReady(s, task.statement) }
-        case 'steps': { return stepsReady(s, task.step, task.property, task.member) }
+        // `'steps'`, the one kind left: every task is built in this module
+        default: { return stepsReady(s, task.step, task.property, task.member) }
     }
 }
 

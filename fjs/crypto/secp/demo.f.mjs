@@ -10,18 +10,16 @@
  * @import { State, RealPoint, Construction } from '../../website/demo/secp/types.ts'
  */
 
+import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
-import { inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
+import { option, selectField, button, inputField, caption, refusal, radios, dragAxis } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
 import { toy, points, pointText, pointOf, scalar, sequence, modularLine, addition, negative, realPoint, construction, namedCurves, publicKey } from '../../website/demo/secp/module.f.mjs'
 
 /** @type {(name: string, label: string, options: readonly string[], value: string) => Element} */
-const select = (name, label, options, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
-    ['select', { id: `secp-${name}`, name }, ...options.map(/** @returns {Element} */ o => ['option', { value: o, ...(o === value ? { selected: '' } : {}) }, o])]]
-
-/** @type {(name: string, label: string, disabled?: boolean) => Element} */
-const button = (name, label, disabled = false) => ['button', { type: 'button', name, ...(disabled ? { disabled: '' } : {}) }, label]
+const select = (name, label, options, value) =>
+    selectField({ name, label }, options.map(o => option(o, o, o === value)))
 
 /** @type {(p: Point2D) => string} */
 const pointValue = p => `${p[0]},${p[1]}`
@@ -34,8 +32,8 @@ const paragraph = text => ['p', text]
 const pre = text => ['pre', text]
 
 /** @type {(name: string, label: string, value: string) => Element} */
-const pointSelect = (name, label, value) => ['p', ['label', { for: `secp-${name}` }, `${label} `],
-    ['select', { id: `secp-${name}`, name }, ...pointOptions.map(/** @returns {Element} */ o => ['option', { value: o, ...(value === o ? { selected: '' } : {}) }, pointText(pointOf(o) ?? null)])]]
+const pointSelect = (name, label, value) =>
+    selectField({ name, label }, pointOptions.map(o => option(o, pointText(pointOf(o) ?? null), o === value)))
 
 /** @type {(value: string) => Element} */
 const scalarRange = value => ['p',
@@ -93,7 +91,6 @@ const finiteNegation = (from, result) => from === null || result === null ? [] :
  */
 const finiteLine = line => line.slice(1).flatMap(/** @returns {readonly Element[]} */ (to, i) => {
     const from = line[i]
-    if (from === undefined) { return [] }
     const y1 = Number(from[1])
     const raw = Number(to[1] - from[1])
     const rise = raw > 11 ? raw - 23 : raw < -11 ? raw + 23 : raw
@@ -277,7 +274,7 @@ const productionView = state => {
 }
 
 /** @type {Demo<State, DemoEvent>} */
-export const demo = {
+const definition = {
     init: { view: 'Geometric View', operation: 'kG', k: '3', p: '10,18', q: '13,12', target: 'P', realP: '0', realQ: '1', branchP: '1', branchQ: '1', curve: 'secp256k1', privateKey: '3', generated: null },
     update: state => event => pureOk(transition(state, event)),
     view: state => ['div', { 'data-secp-playground': '' },
@@ -288,3 +285,12 @@ export const demo = {
         ['p', ['a', { href: 'https://github.com/functionalscript/functionalscript/blob/main/fjs/crypto/secp/README.md' }, 'Read the crypto/secp documentation']],
     ],
 }
+
+export const demo = withInputs(definition, ['view', 'operation', 'k', 'p', 'q', 'target', 'realP', 'realQ', 'branchP', 'branchQ', 'curve', 'privateKey'], {
+    view: ['Geometric View', 'Finite Field View', 'Real Curves'],
+    operation: ['kG', 'P + Q', '2P', '−P'],
+    k: Array.from({ length: 30 }, (_, i) => String(i)),
+    p: pointOptions, q: pointOptions, target: ['P', 'Q'],
+    branchP: ['1', '-1'], branchQ: ['1', '-1'],
+    curve: namedCurves.map(c => c.name),
+})

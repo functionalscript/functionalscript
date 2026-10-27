@@ -24,6 +24,19 @@ const as = n => uint(compute([flip(repeat)(a)(n)]))
 
 export const proof = {
     demo: {
+        oversized: () => {
+            // Two bytes per character: pin the byte limit, not string length.
+            const atLimit = 'é'.repeat(Number(maxLengthBytes) / 2)
+            assertEq(digest(atLimit), '51ce1ab15e0019cf0b06f81d5b6f79b1e779cef3')
+            const tooLong = `${atLimit}a`
+            assertEq(digest(tooLong), null)
+            const html = htmlToString(demo.view(tooLong))
+            assert(html.includes('Refused:'))
+            assert(html.includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+            assert(html.includes('name="text"'))
+            assert(!html.includes('Copy digest'))
+            assert(!html.includes('Copy OpenSSL command'))
+        },
         digest: () => {
             assertEq(digest(''), 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
             assertEq(digest('abc'), 'a9993e364706816aba3e25717850c26c9cd0d89d')
@@ -44,13 +57,13 @@ export const proof = {
             assert(empty.includes('<textarea id="text" name="text" rows="8">'), empty)
             assert(empty.startsWith('<!DOCTYPE html><div><p>SHA-1 hashes UTF-8 text and shows the digest in hexadecimal. SHA-1 collision resistance is broken; do not use it to verify authenticity or protect against tampering.</p>'), empty)
             assert(empty.includes('SHA-1, hex:'), empty)
-            assert(empty.includes(digest('')), empty)
+            assert(empty.includes(assertNotNullish(digest(''))), empty)
             assert(empty.includes("<pre>printf '%s' '' | openssl dgst -sha1</pre>"), empty)
             const multiline = htmlToString(demo.view('a\nb'))
             assert(multiline.includes('>a\nb</textarea>'), multiline)
             const nul = htmlToString(demo.view('a\0b'))
             assert(nul.includes('OpenSSL command unavailable:'), nul)
-            assert(nul.includes(digest('a\0b')), nul)
+            assert(nul.includes(assertNotNullish(digest('a\0b'))), nul)
             assert(!nul.includes('Copy OpenSSL command'), nul)
             const quoted = htmlToString(demo.view("a'b $HOME `whoami`"))
             assert(quoted.includes("<pre>printf '%s' 'a'\\''b $HOME `whoami`' | openssl dgst -sha1</pre>"), quoted)

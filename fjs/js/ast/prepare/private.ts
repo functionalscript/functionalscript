@@ -1,15 +1,16 @@
 /** State private to common FAST preparation. @module */
 
-import type { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, Loop, LoopTarget, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
+import type { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, FunctionTarget, Loop, LoopTarget, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
 import type { Block, Statement, Value } from './types.ts'
+import type { Task } from '../task/types.ts'
 
 export type _Link<T> = { readonly first: T; readonly tail: _Link<T> | null }
 
 /** Suspended immutable computations keep syntax depth off the host stack. */
-export type _Task<T> =
-    | { readonly tag: 'done'; readonly value: T }
-    | { readonly tag: 'call'; readonly run: () => _Task<T> }
-    | { readonly tag: 'bind'; readonly first: _Task<unknown>; readonly next: (value: unknown) => _Task<T> }
+export type _Task<T> = Task<T>
+
+/** Evaluation that a required operand snapshot must complete before later control. */
+export type _Snapshot = 'array' | 'object' | 'key' | null
 
 export type _Node =
     | readonly ['value', NormalValue]
@@ -37,6 +38,7 @@ export type _Loop = {
 
 export type _Context = {
     readonly flows: _Flows
+    readonly owner: FunctionTarget | null
     readonly next: number
     readonly memos: readonly BindingId[]
     readonly loops: readonly _Loop[]

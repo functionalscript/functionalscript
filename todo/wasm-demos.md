@@ -31,13 +31,17 @@ bottom:
      interval holds no import, fetch, compile or instantiation. The WASM
      module's startup (fetch, compile and instantiate) is shown on its own
      line, labelled as startup, never added to its running time;
-   - memory, each figure labelled with what it measures, and not set side by
-     side as a comparison: the two are different quantities. For the
+   - memory, each figure labelled with what it measures. For the
      JavaScript run, the change in `performance.memory`'s heap across the
      run, where the browser reports it (Chromium only); that heap is the
      whole page's, so the label says so. For the WASM run, the module's
-     linear memory size. A figure the browser does not report is left out,
-     never a guessed value
+     linear memory size, and how much of it the run added. Where both
+     growths are measured, the comparison shows the WASM one as a multiple
+     of the JavaScript one, as it does the times; "Not available" unless
+     both runs wrote the same output, where the heap did not grow, since a
+     garbage collection during the run can shrink it, or where the linear
+     memory did not grow, since the allocator reusing memory is not a zero. A figure the browser
+     does not report is left out, never a guessed value
      ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 The audience is newcomers first and talks or pitches second, so the page
@@ -54,16 +58,11 @@ output:
   provides.
 - **The generated Rust is committed**: the `.rs` from `fjs compile`, named
   `gen.*`, which `npm run gen` rebuilds, as NaNVM's other generated Rust is.
-- **The `.wasm` and its WAT are committed**, in `nanvm/demos/wasm/`, so
-  building the site takes no Rust for them. `nanvm/demos/gen.build.sh`,
-  generated with the samples' Rust by
-  [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs), builds them with the
-  pinned Rust, which the build is reproducible with; CI runs it on Intel
-  Linux and fails on any difference. Until 2026-10-23 the deployment build
-  made them, and committed nothing; the site needed Rust for them, which it
-  had avoided. The directory is not a `gen.` name, since `npm run gen` does
-  not write it and `gen:clean` must not delete it, and `.gitattributes` keeps
-  `*.wasm` binary.
+- **The `.wasm` and its WAT are built during website deployment**, in
+  ignored `nanvm/demos/wasm/`. `nanvm/demos/gen.build.sh`, generated with
+  the samples' Rust by [`fjs/nanvm/demos`](../fjs/nanvm/demos/module.f.mjs),
+  builds them with the pinned Rust during the Cloudflare build.
+  Local website builds run this script in the shared shell first.
 - **The page fetches** the `.wasm` and the WAT by the paths the build script
   writes them to, as module pages already load files from the served
   tree ([website/README.md](../fjs/website/README.md)).
@@ -86,7 +85,7 @@ built:
   `instantiate`.
 - **The build script** builds `nanvm-demos` for `wasm32-unknown-unknown`,
   and `nanvm-demos-publish` copies the module to `nanvm/demos/wasm/`,
-  committed and served as it is, and prints
+  served after the website build, and prints
   each sample's WAT beside it with the `wasmprinter` crate, which Sasha
   approved. The WAT holds only the functions Rust compiled from the sample's
   module, picked by their names in the module's name section, read with
@@ -121,7 +120,7 @@ built:
     nested inside it.
   - `let` needs a JSDoc type for TypeScript where its tuple mixes `number`
     and `bigint`; a gap of the type check, not of the compiler.
-- **Not yet:** the JavaScript memory figure, and the sample's use of `log` and `utf8`, which
+- **Not yet:** the sample's use of `log` and `utf8`, which
   `fjs compile` cannot compile yet, so the sample builds its `write` command
   by hand.
 
@@ -148,7 +147,8 @@ alternative.
 - [x] Build the demo page: source, disassembly, Run button and stats, with
       one sample, `hello`.
 - [x] Print the WAT in the deployment build.
-- [ ] Report the JavaScript run's memory, where the browser measures it.
+- [x] Report the JavaScript run's memory, where the browser measures it,
+      and compare it with the WASM run's.
 - [x] Add a sorting sample, `sort`, to compare the two routes' running time.
 - [x] Add a sample that computes without allocating, `collatz`.
 - [ ] Find where the WebAssembly route's time goes on `collatz`, which

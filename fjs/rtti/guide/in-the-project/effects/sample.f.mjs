@@ -14,6 +14,7 @@ import { dirent } from '../../../../effects/schema/module.f.mjs'
 /** @type {readonly DemoExample[]} */
 export const lessons = [
     {
+        id: 'directory-entry',
         name: 'Directory entry',
         about: 'An entry readdir answers, described by a data-validation schema in effects/schema. The corresponding handwritten TypeScript operation declarations are checked against schema-derived types.',
         schemas: projectSchema('dirent', 'effects/schema', dirent),

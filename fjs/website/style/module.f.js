@@ -513,6 +513,23 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
+/* Heading links preserve native anchors until clipboard controls are bound. */
+[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
+[data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
+[data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
+[data-permalink] > button, [data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .375rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
+[data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
+[data-permalink] > button:hover, [data-permalink] > a:hover { color: var(--text) }
+[data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+[data-permalink] [hidden] { display: none }
+[data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
+[data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
+[data-permalink]:has(> [data-copy-demo-section]) { gap: .25rem }
+[data-permalink] > button[data-copy-demo] { width: auto; gap: .375rem; white-space: nowrap }
+[data-permalink] > button[data-copy-demo] > svg { flex-shrink: 0 }
+[data-permalink] > button:disabled { opacity: .45; cursor: default }
+[id] { scroll-margin-top: 1rem }
+
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 /* The summary holds the section's h2, so a screen reader lists every section
    among the page's headings. The h2 is inline and takes the summary's own
@@ -640,7 +657,7 @@ svg text { font: inherit }
 [data-graph-kind="new"] { fill: var(--graph-new-bg) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
-[data-graph-connection] { outline: none; pointer-events: none }
+[data-graph-connection], [data-graph-segment] { outline: none; pointer-events: none }
 [data-graph-hit] { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer }
 /* Selection has its own accent; schema values keep their semantic blue. */
 [data-graph-trace] { opacity: 0; fill: none; stroke: var(--graph-highlight); stroke-width: 3.5; pointer-events: none }
@@ -655,6 +672,10 @@ rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
 [data-graph-port-edge], [data-graph-node-name] { cursor: pointer }
 [data-graph-port-edge] { pointer-events: all }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
+/* Returns are secondary to forward flow; laziness remains a separate pattern. */
+[data-graph-edge][data-graph-recursion] { stroke-width: 1.25; stroke-dasharray: 1 4; stroke-linecap: round }
+[data-graph-edge][data-graph-recursion][data-graph-edge-kind="lazy"] { stroke-dasharray: 1 3 5 3 }
+[data-graph-trace][data-graph-recursion] { stroke-dasharray: none }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
 /* The versions demos draw a node's kind as its fill, so a value filling a
@@ -883,6 +904,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-code-block] > button:hover:enabled { background: transparent; color: var(--text) }
 [data-code-block] > button:focus-visible { outline: 2px solid var(--value); outline-offset: 2px }
 [data-code-block] > button > svg { width: 20px; height: 20px }
+[data-demo-link-status]:not([hidden]) { display: block; margin-top: .5rem; overflow-wrap: anywhere; color: var(--muted); font-size: .875rem; font-weight: normal; line-height: 1.5 }
 [data-copy-status] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 [data-code-block] > button > [data-copy-check] { display: none }
 [data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }

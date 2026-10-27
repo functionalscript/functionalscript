@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { examplePicker } from '../../website/demo/examples/module.f.js'
+import { examplePicker } from '../../website/demo/examples/module.f.mjs'
 import { examples } from './module.f.js'
 
 export const proof = {
@@ -8,6 +8,11 @@ export const proof = {
      * shared list is the proof that every demo's drop-down can be built from
      * it, and a pick returns the example's own source.
      */
+    stableHexEscape: () => {
+        const picker = examplePicker(examples)
+        assertEq(picker.idOf(picker.pick('Hex escape')), 'hex-escape')
+        assertEq(picker.sourceOf('hex-escape'), picker.pick('Hex escape'))
+    },
     distinct: () => {
         const picker = examplePicker(examples)
         assertEq(picker.pick(examples[0][0]), examples[0][1])

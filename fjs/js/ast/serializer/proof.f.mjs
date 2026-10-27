@@ -60,6 +60,7 @@ export const proof = {
             ['array', [1, ['...', ['array', [2, 3]]]]],
             ['object', [[':', 'x', 1], [':', '__proto__', 2], [':', ['+', 'x', 'y'], 3], ['...', ['object', [[':', 'z', 4]]]]]],
             ['.', ['array', [2]], 0], ['.', ['object', [[':', 'a-b', 2]]], 'a-b'],
+            ['memberPresent', ['array', [2]], 'map'], ['memberPresent', ['array', [2]], ['Number', '0']],
             ['?.', null, 'key'], ['?.', null, 0], ['?.', null, ['Number', 'x']],
             ['.', ['object', [[':', 'NaN', 3]]], ['Number', 'x']],
             ['()', ['entry'], [['object', [[':', 'x', 3]]], 'x']],
@@ -93,6 +94,36 @@ export const proof = {
         assertEq(expression(['.', ['object', [[':', 'a-b', 2]]], 'a-b']), '{"a-b":2}["a-b"]')
         assertEq(expression(['()', -1, []]), '(-1)()')
         assertEq(expression(['?.()', -1n, []]), '(-1n)?.()')
+    },
+    detachedWrappedCallees: () => {
+        const member = /** @type {Value} */ (['.', 'abc', 'slice'])
+        const optional = /** @type {Value} */ (['?.', null, 'slice'])
+        for (const value of /** @type {readonly Value[]} */ ([member, optional])) {
+            const syntax = expression(value)
+            const block = /** @type {Value} */ (['block', yielding(value)])
+            const nested = /** @type {Value} */ (['block', yielding(['block', yielding(value)])])
+            for (const callee of /** @type {readonly Value[]} */ ([value, block, nested])) {
+                assertEq(expression(['()', callee, [1]]), `(0,${syntax})(1)`)
+            }
+            assertEq(expression(['()', [',', [value]], [1]]), `(0,(${syntax}))(1)`)
+            assertEq(expression(['()', ['block', yielding([',', [['block', yielding(value)]]])], [1]]), `(0,(${syntax}))(1)`)
+            assertEq(expression(['()', [',', [0, value]], [1]]), `(0,${syntax})(1)`)
+            assertEq(expression(['()', choice(true, value, value), [1]]), `(true?${syntax}:${syntax})(1)`)
+        }
+        assertEq(expression(['()', [',', [3]], [1]]), '(3)(1)')
+        assertEq(expression(['()', [',', []], [1]]), '(undefined)(1)')
+        assertEq(expression(['.', 'abc', 'slice', ['|()', [1]]]), '"abc".slice(1)')
+        assertEq(expression(['?.', null, 'slice', ['|()', [1]]]), 'null?.slice(1)')
+    },
+    identityCapture: () => {
+        const outer = id(0)
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const fn = /** @type {PreparedFunction} */ ({ target, parameters: [], rest: null, self: null,
+            captures: [{ binding: outer, value: ['ref', outer] }],
+            body: { statements: [], exit: ['return', target, ['ref', outer]] },
+        })
+        const source = stringify({ statements: [['define', outer, 42]], exit: ['yield', [['function', fn]]] }, 'expression')
+        assert(source.includes('return ()=>$0;'))
     },
     exportsAndModes: () => {
         const binding = id(0)
@@ -184,5 +215,11 @@ export const proof = {
         assert(text.includes('while('))
         assert(text.includes('while(false){$5=$5;}'), text)
         assertEq(untagged(render(block, 'expression')), text)
+    },
+    // A statement or an exit no case names is refused, not written as
+    // `undefined`.
+    throw: {
+        unknownStatement: () => render({ statements: [/** @type {never} */ (['bogus'])], exit: ['yield', []] }),
+        unknownExit: () => render({ statements: [], exit: /** @type {never} */ (['bogus']) }),
     },
 }

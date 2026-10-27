@@ -4,16 +4,18 @@
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.mjs'
-import { name as exampleName } from './examples/module.f.js'
+import { name as exampleName } from './examples/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
+import { demo } from './demo.f.mjs'
+import { decodeQuery, encodeQuery, restoreInputs } from './sharing/module.f.mjs'
 
 /** A demo that echoes its text after the textarea, twice, as siblings. */
 const plain = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: 'a' })(text => [['p', text], ['pre', text]])
 
-const picked = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one'], ['Two', 'two']] })(() => [])
+const picked = textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', rows: 3, init: 'one', examples: [['One', 'one', 'one'], ['Two', 'two', 'two']] })(() => [])
 
 /** @type {(demo: typeof plain) => (state: string) => (event: DemoEvent) => string} */
 const next = demo => state => event => unwrap(assertNotNullish(
@@ -21,6 +23,34 @@ const next = demo => state => event => unwrap(assertNotNullish(
     'expected the demo to reach a value without asking for an operation'))
 
 export const proof = {
+    greetingSharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        assertEq(unwrap(encodeQuery(sharing, sharing.read(demo.init))), '#demo')
+        for (const greeting of ['Hello', 'Hi', 'Welcome']) {
+            const link = unwrap(encodeQuery(sharing, sharing.read(greeting)))
+            const query = unwrap(decodeQuery(link === '#demo' ? '' : link.slice(0, -5)))
+            const restored = sharing.restore(unwrap(restoreInputs(sharing, query)))
+            assertEq(restored, greeting)
+            assert(htmlToString(demo.view(restored)).includes(`<option value="${greeting}" selected="">${greeting}</option>`))
+        }
+        assertEq(restoreInputs(sharing, unwrap(decodeQuery('?greeting=Goodbye')))[0], 'error')
+        assertEq(unwrap(encodeQuery(sharing, sharing.read('Hi'))), '?greeting=Hi#demo')
+    },
+    widgetsDemo: () => {
+        const initial = htmlToString(demo.view(demo.init))
+        assert(initial.includes('<option value="Hello" selected="">Hello</option>'))
+        assert(initial.includes('name="reset" disabled=""'))
+        const greeting = unwrap(assertNotNullish(runPure(demo.update(demo.init)({ kind: 'input', name: 'greeting', value: 'Hi' }))[0]))
+        assertEq(greeting, 'Hi')
+        const changed = htmlToString(demo.view(greeting))
+        assert(changed.includes('<option value="Hi" selected="">Hi</option>'))
+        assert(changed.includes('<button type="button" name="reset">Reset</button>'))
+        assert(changed.includes('<p>Hi!</p>'))
+        assertEq(unwrap(assertNotNullish(runPure(demo.update(greeting)({ kind: 'click', name: 'reset' }))[0])), 'Hello')
+        for (const event of /** @type {readonly DemoEvent[]} */ ([{ kind: 'start' }, { kind: 'input', name: 'other', value: 'Welcome' }, { kind: 'click', name: 'other' }])) {
+            assertEq(unwrap(assertNotNullish(runPure(demo.update(greeting)(event))[0])), greeting)
+        }
+    },
     markers: () => {
         assertEq(codeMarker, 'data-code')
         assertEq(resultMarker, 'data-result')
@@ -97,7 +127,7 @@ export const proof = {
         examples: () => {
             const h = htmlToString(picked.view('two'))
             assert(h.startsWith(`<!DOCTYPE html><div><p>Echo &lt;text&gt; &amp; compare.</p><p><label for="${exampleName}">`), h)
-            assert(h.includes('<option value="Two" selected="">Two</option>'), h)
+            assert(h.includes('<option value="Two" selected="" data-example-id="two">Two</option>'), h)
             assert(h.endsWith('<textarea id="src" name="src" rows="3">two</textarea></p></div>'), h)
         },
     },
@@ -118,9 +148,9 @@ export const proof = {
     // Refused where the demo is built.
     throw: {
         // A repeated example.
-        repeatedExample: () => textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: '', examples: [['A', 'a'], ['A', 'b']] })(() => []),
+        repeatedExample: () => textDemo({ intro: 'Echo <text> & compare.', name: 'src', label: 'Source', init: '', examples: [['A', 'a', 'a'], ['A', 'b', 'another-a']] })(() => []),
         // A textarea named like the drop-down: typing would arrive as a pick.
-        nameCollision: () => textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '', examples: [['A', 'a']] })(() => []),
+        nameCollision: () => textDemo({ intro: 'Echo <text> & compare.', name: exampleName, label: 'Source', init: '', examples: [['A', 'a', 'a']] })(() => []),
     },
     // Without examples, the drop-down's name is free for the textarea.
     exampleNameWithoutExamples: () => assertEq(

@@ -63,6 +63,15 @@ const finish = keys => budget => par => par === null || typeof par === 'number' 
 const keysOf = game => toArray(values(assertNotNullish(game.versions).after))
 
 export const proof = {
+    sharing: () => {
+        const sharing = assertNotNullish(demo.sharing)
+        assertEq(sharing.read(demo.init).level, '2')
+        const restored = sharing.restore({ level: '3', animate: false })
+        assertEq(restored.depth, 3)
+        assertEq(restored.animate, false)
+        assertEq(restored.versions, null)
+        assertEq(sharing.restore({ level: '2', animate: true }).animate, true)
+    },
     // A perfect tree of depth d: 3^d - 1 keys in half as many nodes.
     levels: () => {
         assertEq(JSON.stringify([2, 3, 4].map(d => [keyCount(d), goalNodes(d)])), '[[8,4],[26,13],[80,40]]')
@@ -73,6 +82,11 @@ export const proof = {
         assertEq(JSON.stringify([depthOf(inOrder), nodeCount(inOrder)]), '[3,7]')
         const five = structure.insert(10)(structure.insert(20)(structure.insert(30)(structure.insert(40)(structure.insert(50)(null)))))
         assertEq(JSON.stringify([depthOf(five), nodeCount(five)]), '[2,4]')
+    },
+    throw: {
+        // A node of no B-tree width is refused, not measured as `undefined`.
+        depthOfRejectsWidth: () => depthOf(/** @type {never} */ ([1, 2, 3, 4])),
+        nodeCountRejectsWidth: () => nodeCount(/** @type {never} */ ([1, 2, 3, 4])),
     },
     start: {
         // One `randomInt` per key, and a tree of the level's keys, as both

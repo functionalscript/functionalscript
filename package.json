@@ -18,7 +18,7 @@
     "sm": "js --module ./fjs/spidermonkey.mjs --",
     "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs",
     "gen": "node ./fjs/module.mjs r ./fjs/dev/gen/module.f.mjs",
-    "lock-update": "npm run gen && npm install && deno install && bun install && cargo update && npx --yes @devcontainers/cli@0.89.0 upgrade --workspace-folder .",
+    "lock-update": "mise lock && npm run gen && npm install && deno install && bun install && cargo update",
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs",
     "rustdoc-bars": "node ./fjs/module.mjs r ./fjs/website/rustdoc-bars/module.f.mjs"
   },

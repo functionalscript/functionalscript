@@ -11,24 +11,24 @@
 
 /** @type {Examples} */
 const index = [
-    ['Laziness', 'const f = x => x > 0 ? x : -x;\nexport default [f(-3), 1 && 2, null ?? 5];'],
+    ['Laziness', 'const f = x => x > 0 ? x : -x;\nexport default [f(-3), 1 && 2, null ?? 5];', 'laziness'],
 ]
 
 /** @type {Examples} */
 const parameters = [
-    ['Function with a rest parameter', 'export default (a, b, ...r) => [a, b, r];'],
+    ['Function with a rest parameter', 'export default (a, b, ...r) => [a, b, r];', 'function-with-a-rest-parameter'],
 ]
 
 /** @type {Examples} */
 const captures = [
-    ['Closure', 'const k = 5;\nexport default x => y => x + y + k;'],
-    ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);'],
-    ['Recursion: Ackermann', 'const ack = (m, n) => m === 0 ? n + 1 : n === 0 ? ack(m - 1, 1) : ack(m - 1, ack(m, n - 1));\nexport default ack(2, 3);'],
+    ['Closure', 'const k = 5;\nexport default x => y => x + y + k;', 'closure'],
+    ['Recursion', 'const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);', 'recursion'],
+    ['Recursion: Ackermann', 'const ack = (m, n) => m === 0 ? n + 1 : n === 0 ? ack(m - 1, 1) : ack(m - 1, ack(m, n - 1));\nexport default ack(2, 3);', 'recursion-ackermann'],
 ]
 
 /** @type {Examples} */
 const callStatements = [
-    ['Call statements', 'const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();\nconst at = (a, i) => {\n    assert(i < a.length, "out of range");\n    return a.at(i);\n};\nexport default at([1, 2, 3], 2);'],
+    ['Call statements', 'const assert = (...a) => a[0] ? undefined : (() => { throw a[1]; })();\nconst at = (a, i) => {\n    assert(i < a.length, "out of range");\n    return a.at(i);\n};\nexport default at([1, 2, 3], 2);', 'call-statements'],
 ]
 
 export default { index, parameters, captures, callStatements, all: [...index, ...parameters, ...captures, ...callStatements] }

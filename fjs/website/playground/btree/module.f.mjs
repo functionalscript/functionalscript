@@ -50,7 +50,7 @@
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { decimal, graphOf, sameShape, shuffled } from '../../demo/versions/module.f.mjs'
 import { graphSvg } from '../../demo/graph/module.f.mjs'
-import { refusal } from '../../demo/module.f.mjs'
+import { button, option, selectField, refusal } from '../../demo/module.f.mjs'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
@@ -75,6 +75,7 @@ export const depthOf = tree => {
     switch (tree.length) {
         case 1: case 2: { return 1 }
         case 3: case 5: { return 1 + depthOf(tree[0]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 
@@ -85,6 +86,7 @@ export const nodeCount = tree => {
         case 1: case 2: { return 1 }
         case 3: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) }
         case 5: { return 1 + nodeCount(tree[0]) + nodeCount(tree[2]) + nodeCount(tree[4]) }
+        default: { throw ['not a B-tree node', tree] }
     }
 }
 
@@ -393,9 +395,21 @@ const board = game => {
             ['div', { 'data-graph-replay': game.shown % 2 === 0 ? 'a' : 'b' }, graphSvg(g)]]
 }
 
+/** @type {Game} */
+const initial = { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null }
+
+/** @type {import('../../demo/sharing/types.ts').Sharing<Game>} */
+const sharing = {
+    fields: { level: { default: String(initial.depth), choices: depths.map(String) }, animate: { default: initial.animate } },
+    examples: [],
+    read: game => ({ level: String(game.depth), animate: game.animate }),
+    restore: inputs => ({ ...initial, depth: Number(inputs.level), animate: inputs.animate === true }),
+}
+
 /** @type {Demo<Game, DemoEvent, RandomInt>} */
 export const demo = {
-    init: { depth: depths[0], animate: true, versions: null, mode: 'still', note: null, base: null, pending: [], shown: 0, moves: 0, par: null, last: null, error: null },
+    init: initial,
+    sharing,
     nextEvent: ({ pending, par }) => pending.length > 0 ? { kind: 'click', name: 'step' }
         : par === null || typeof par === 'number' ? null
         : { kind: 'click', name: 'par' },
@@ -412,13 +426,10 @@ export const demo = {
     },
     view: game => ['div',
         ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. A new tree is its keys inserted in random order.'],
+        selectField({ name: 'level', label: 'Level' },
+            depths.map(d => option(String(d), `Depth ${d}: ${keyCount(d)} keys`, d === game.depth))),
         ['p',
-            ['label', { for: 'level' }, 'Level '],
-            ['select', { id: 'level', name: 'level' }, ...depths.map(d => /** @type {Element} */ (['option',
-                d === game.depth ? { value: String(d), selected: '' } : { value: String(d) },
-                `Depth ${d}: ${keyCount(d)} keys`]))],
-            ' ',
-            ['button', { type: 'button', name: 'new' }, 'New tree'],
+            button('new', 'New tree'),
             ' ',
             ['label',
                 ['input', { type: 'checkbox', name: 'animate', ...(game.animate ? { checked: '' } : {}) }],

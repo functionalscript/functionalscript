@@ -105,6 +105,10 @@ export type DragBounds = {
  * remembered".
  */
 export type Demo<State, Event, O extends Operation = never> = {
+    /** Required for shareable inputs; omit only for a demo with no inputs.
+     * Its pure restore constructs one complete state and never invokes actions.
+     */
+    readonly sharing?: import('./sharing/types.ts').Sharing<State>
     readonly init: State
     readonly update: (state: State) => (event: Event) => Effect<O, State, never>
     readonly view: (state: State) => Element
@@ -142,6 +146,7 @@ export type TextDemoOptions = {
     readonly label: string
     readonly rows?: number | undefined
     readonly init: string
+    /** Explicit [label, source, stable ID] entries; retain IDs across renames. */
     readonly examples?: Examples | undefined
     /**
      * The text as coloured nodes, for a field that holds code: drawn behind

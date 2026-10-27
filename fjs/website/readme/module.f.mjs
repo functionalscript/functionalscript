@@ -26,7 +26,10 @@
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
+
+const { length: reservedIdCount } = reservedIds
 
 /** The file a directory documents itself in. @type {string} */
 export const readmeName = 'README.md'
@@ -164,22 +167,24 @@ export const slug = spans => anchorSource(spans)
 /**
  * Every heading's anchor, in order. A repeated one gets the first of `-1`,
  * `-2` and so on that no heading before it has, as GitHub numbers them.
+ * Page-section and drawer IDs are reserved;
+ * an empty slug starts at `section`. All other heading anchors stay unchanged.
  *
  * @type {(blocks: Blocks) => readonly string[]}
  */
 export const anchors = blocks => {
     /** @type {readonly string[]} */
-    let used = []
+    let used = reservedIds
     for (const block of blocks) {
         if (block[0] !== 'heading') { continue }
-        const id = slug(block[2])
+        const id = slug(block[2]) || 'section'
         let n = 0
         // A suffixed anchor another heading already has is skipped, as
         // GitHub's slugger skips it: `A`, `A-1`, `A` are `a`, `a-1`, `a-2`.
         while (used.includes(n === 0 ? id : `${id}-${n}`)) { n++ }
         used = [...used, n === 0 ? id : `${id}-${n}`]
     }
-    return used
+    return used.slice(reservedIdCount)
 }
 
 /** A label's span as a node: code, or its text. @type {(label: Label) => Node} */
@@ -296,7 +301,7 @@ export const readmeNodes = href => blocks => {
             const n = nodes(b[0] === 'heading' ? b[2] : b[1])
             if (n[0] === 'error') { return n }
             if (b[0] === 'heading') {
-                out = [...out, [`h${Math.min(b[1] + 1, 6)}`, { id: ids[heading] }, ...n[1]]]
+                out = [...out, linkedHeading(Math.min(b[1] + 1, 6), ids[heading], b[2].map(words).join(''), n[1])]
                 heading++
                 continue
             }

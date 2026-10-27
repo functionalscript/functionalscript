@@ -11,20 +11,20 @@
 
 /** @type {Examples} */
 const constants = [
-    ['Sharing: a const used twice', 'const a = [1];\nexport default [a, a];'],
-    ['Sharing: a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];'],
+    ['Sharing: a const used twice', 'const a = [1];\nexport default [a, a];', 'sharing-a-const-used-twice'],
+    ['Sharing: a repeated expression', 'const a = 1 + 2;\nconst b = 1 + 2;\nexport default [a, a, b];', 'sharing-a-repeated-expression'],
 ]
 
 /** @type {Examples} */
 const variables = [
-    ['Variables', 'export default n => {\n    let r = 0;\n    r = r + n;\n    r = r * 2;\n    return r;\n};'],
-    ['Variables: a snapshot for a closure', 'export default n => {\n    let r = n;\n    r = r + 1;\n    const s = r;\n    return () => s;\n};'],
+    ['Variables', 'export default n => {\n    let r = 0;\n    r = r + n;\n    r = r * 2;\n    return r;\n};', 'variables'],
+    ['Variables: a snapshot for a closure', 'export default n => {\n    let r = n;\n    r = r + 1;\n    const s = r;\n    return () => s;\n};', 'variables-a-snapshot-for-a-closure'],
 ]
 
 /** @type {Examples} */
 const destructuring = [
-    ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];'],
-    ['Destructuring: an elision', 'const [, b, , d] = [1, 2, 3, 4];\nconst second = ([, x]) => x;\nexport default [b, d, second("ab")];'],
+    ['Destructuring', 'const { a, "b": [c, d] } = { a: 1, b: [2, 3] };\nconst [e] = "hi";\nconst f = ([x, { y }], z) => [x, y, z];\nexport default [a, c, d, e, f([4, { y: 5 }], 6)];', 'destructuring'],
+    ['Destructuring: an elision', 'const [, b, , d] = [1, 2, 3, 4];\nconst second = ([, x]) => x;\nexport default [b, d, second("ab")];', 'destructuring-an-elision'],
 ]
 
 export default { constants, variables, destructuring, all: [...constants, ...variables, ...destructuring] }

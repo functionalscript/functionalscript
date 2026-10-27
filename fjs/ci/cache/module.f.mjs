@@ -189,7 +189,7 @@ export const commands = [
         handler: exactArgs('ci report', 1)(report),
     },
     {
-        names: ['publish'], description: 'Publish cache entries, merging concurrent additions',
+        names: ['publish'], description: 'Publish cache entries, squashing concurrent additions',
         usage: 'fjs ci publish', examples: ['npm start ci publish'],
         note: 'Attempts at most ten pushes, merging in a temporary worktree after rejection.', docs: 'fjs/ci/cache/README.md',
         handler: exactArgs('ci publish', 0)(publish),

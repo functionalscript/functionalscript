@@ -246,7 +246,9 @@ const checkFollow = (ruleSet, first, nullable, names) => {
     names.forEach(name => {
         const clash = intersection(matchRule(decision(name))(ruleSet[name]))(follow[name])
         assert(clash.length === 0, ['first/follow conflict', name, clash])
+        return undefined
     })
+    return undefined
 }
 
 /** @type {_Mappers} */
@@ -419,7 +421,8 @@ const build = (ruleSet, empty, entry, mappers) => {
                         : ok(emit(top.name, done))]
                 }
                 case 'variant': { return [pos, ok(emit(top.name, [top.tag, ast]))] }
-                case 'repeat': {
+                // `'repeat'`, the one kind left: every frame is built above
+                default: {
                     return round({ ...top, rounds: concat(top.rounds)([ast]), count: top.count + 1 }, pos)
                 }
             }

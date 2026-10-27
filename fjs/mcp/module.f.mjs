@@ -104,5 +104,8 @@ export const casMcpServer = home => _casMcpSession(home)(stdioTransport)
 export const proof = {
     // casMcpServer is never called in integration tests because it drives a
     // real stdio server; call it here to cover its effect-building body.
-    casMcpServer: () => { casMcpServer('/') },
+    casMcpServer: () => {
+        casMcpServer('/')
+        return undefined
+    },
 }

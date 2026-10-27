@@ -1,0 +1,28 @@
+name: Devcontainer
+on:
+  pull_request:
+    paths:
+      - '.devcontainer/**'
+      - '.github/workflows/devcontainer.yml'
+      - 'mise.toml'
+      - 'mise.lock'
+      - '.mise/locks/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  initialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # The action runs devcontainer up, including postCreateCommand, then exec.
+      - uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: |
+            ./dev.sh node --version
+            ./dev.sh tsc --version
+            ./dev.sh tsc

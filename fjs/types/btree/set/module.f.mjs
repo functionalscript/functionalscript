@@ -18,20 +18,22 @@ const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], 
 
 /** @type {<T>(i: PathItem<T>) => (a: Branch1<T> | Branch3<T>) => Branch1<T> | Branch3<T>} */
 const reduceOp = ([i, x]) => a => {
+    // A path item is `find`'s: `i` is 0, 2 or 4, asserted by `index3` and
+    // `index5`, and `x` a branch of width 3 or 5, the only widths `find` walks.
     switch (i) {
         case 0: {
             switch (x.length) {
                 case 3: { return [[...a, x[1], x[2]]] }
-                case 5: { return b57([...a, x[1], x[2], x[3], x[4]]) }
+                default: { return b57([...a, x[1], x[2], x[3], x[4]]) }
             }
         }
         case 2: {
             switch (x.length) {
                 case 3: { return [[x[0], x[1], ...a]] }
-                case 5: { return b57([x[0], x[1], ...a, x[3], x[4]]) }
+                default: { return b57([x[0], x[1], ...a, x[3], x[4]]) }
             }
         }
-        case 4: {
+        default: {
             return b57([x[0], x[1], x[2], x[3], ...a])
         }
     }
@@ -52,6 +54,9 @@ const nodeSet = c => g => node => {
     //   readonly[1|3, Branch5<T>]
     /** @type {First<T>} */
     const [i, x] = first
+    // `find` asserts `i` (0 to 4) and refuses any other node width, so each
+    // switch below meets only the values its cases name; its last case is
+    // the `default`.
     /** @type {() => Branch1<T> | Branch3<T>} */
     const f = () => {
         switch (i) {
@@ -60,7 +65,7 @@ const nodeSet = c => g => node => {
                 const value = g(null)
                 switch (x.length) {
                     case 1: { return [[value, x[0]]] }
-                    case 2: { return [[value], x[0], [x[1]]] }
+                    default: { return [[value], x[0], [x[1]]] }
                 }
             }
             case 1: {
@@ -69,7 +74,7 @@ const nodeSet = c => g => node => {
                     case 1: { return [[g(x[0])]] }
                     case 2: { return [[g(x[0]), x[1]]] }
                     case 3: { return [[x[0], g(x[1]), x[2]]] }
-                    case 5: { return [[x[0], g(x[1]), x[2], x[3], x[4]]] }
+                    default: { return [[x[0], g(x[1]), x[2], x[3], x[4]]] }
                 }
             }
             case 2: {
@@ -81,7 +86,7 @@ const nodeSet = c => g => node => {
                 assert(xL === 1 || xL === 2)
                 switch (xL) {
                     case 1: { return [[x[0], value]] }
-                    case 2: { return [[x[0]], value, [x[1]]] }
+                    default: { return [[x[0]], value, [x[1]]] }
                 }
             }
             case 3: {
@@ -92,11 +97,11 @@ const nodeSet = c => g => node => {
                 assert(xL === 2 || xL === 5)
                 switch (xL) {
                     case 2: { return [[x[0], g(x[1])]] }
-                    case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
+                    default: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
                 }
             }
-            case 4: {
-                // insert
+            default: {
+                // 4: insert
                 const [v0, v1] = x
                 return [[v0], v1, [g(null)]]
             }

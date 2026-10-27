@@ -125,4 +125,7 @@ const marked = {
     record: () => eqMarked(_taggedPrinter().record('x'), [['{'], ['readonly', 'keyword'], ['['], ['k', 'identifier'], [' '], ['in', 'keyword'], [' '], ['string', 'keyword'], [']?:x}']]),
 }
 
-export const proof = { marked, primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerOptionalField,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }
+/** A value no primitive type admits is refused, not answered with `undefined`. */
+const throw_ = { taggedPrimitiveRejectsObject: () => _taggedPrimitive(/** @type {never} */ ({})) }
+
+export const proof = { marked, throw: throw_, primitiveNull,primitiveBigint,primitiveString,primitiveNumberFinite,primitiveNumberInfinite,primitiveUndefined,primitiveBoolean,unionEmpty,unionSingle,unionMulti,printerReadonlyTuple,printerReadonlyStruct,printerOptionalField,printerReadonlyArray,printerReadonlyRecord,printerMutableTuple,printerMutableStruct,printerMutableArray,printerMutableRecord }

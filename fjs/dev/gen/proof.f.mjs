@@ -1,6 +1,6 @@
 /**
- * Proofs for the regeneration program: its order, its stopping, and its lock
- * step, run against the virtual filesystem with the subprocess slice answered
+ * Proofs for source regeneration,
+ * run against the virtual filesystem with the subprocess slice answered
  * as each proof says.
  *
  * @import { Child, ExitStatus, NodeOp, NodeProgram } from '../../effects/node/types.ts'
@@ -15,7 +15,6 @@ import { ioError } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { errorExit, exitCode, exitStep, log, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../effects/node/virtual/module.f.mjs'
-import { lockUpdatePath } from '../../ci/nix/module.f.mjs'
 import { main as clean } from '../clean/module.f.mjs'
 import { main as ci } from '../../ci/self/module.f.mjs'
 import { main as rustTests } from '../../nanvm/update/module.f.mjs'
@@ -27,7 +26,7 @@ import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
-import { generators, lock, lockEnded, main, sequence } from './module.f.mjs'
+import { generators, main, sequence } from './module.f.mjs'
 
 /** A child as `spawn` would brand one; nothing here looks inside it. @type {Child} */
 const child = asNominal('child')
@@ -35,7 +34,7 @@ const child = asNominal('child')
 /**
  * The virtual runner with the subprocess slice answered as given, since the
  * virtual runner itself has no child to run: `spawn` checks it was asked for
- * the lock script on the terminal and answers `started`, `childWait` answers
+ * the subprocess on the terminal and answers `started`, `childWait` answers
  * `ended`, and `spawned` counts the starts so a proof can tell whether the
  * lock step was reached at all.
  *
@@ -48,8 +47,8 @@ const withSubprocess = (started, ended) => {
         ...virtualOperationMap,
         spawn: (command, args, options) => state => {
             count += 1
-            assertEq(command, 'sh')
-            assertEq(args.join(','), lockUpdatePath)
+            assertEq(command, 'unexpected subprocess')
+            assertEq(args.length, 0)
             assertEq(options.stdio, 'inherit')
             return [state, started]
         },
@@ -109,8 +108,7 @@ const root = {
 const says = s => () => exitStep(log(s))
 
 export const proof = {
-    // The order is the design's: cleanup, then the generators, the one that
-    // writes the flakes before the lock step that reads them.
+    // Source regeneration has a stable order; dependency updates are separate.
     generators: () => {
         assertEq(generators.length, 7)
         assert(generators[0] === clean)
@@ -141,56 +139,14 @@ export const proof = {
             assertEq(exitCode(code), 0)
         },
     },
-    lockEnded: {
-        exitedZero: () => {
-            const [state, code] = virtual(emptyState)(lockEnded(['exited', 0]))
-            assertEq(exitCode(code), 0)
-            assertEq(state.stderr, '')
-        },
-        exitedNonzero: () => {
-            const [state, code] = virtual(emptyState)(lockEnded(['exited', 2]))
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr, `${lockUpdatePath}: exit code 2\n`)
-        },
-        signaled: () => {
-            const [state, code] = virtual(emptyState)(lockEnded(['signaled', 'SIGTERM']))
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr, `${lockUpdatePath}: killed by SIGTERM\n`)
-        },
-    },
-    lock: {
-        // The script on the terminal, waited for, ended well.
-        ok: () => {
-            const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
-            const [state, code] = run(emptyState)(lock)
-            assertEq(exitCode(code), 0)
-            assertEq(spawned(), 1)
-            assertEq(state.stderr, '')
-        },
-        // A script that could not start is the host's failure, reported in the
-        // host's words.
-        cannotStart: () => {
-            const { run } = withSubprocess(error(ioError({ code: 'ENOENT', message: 'no sh' })), ok(['exited', 0]))
-            const [state, code] = run(emptyState)(lock)
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr, 'no sh\n')
-        },
-        failed: () => {
-            const { run } = withSubprocess(ok(child), ok(['exited', 1]))
-            const [state, code] = run(emptyState)(lock)
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr, `${lockUpdatePath}: exit code 1\n`)
-        },
-    },
     main: {
-        // Every generator against a filesystem holding what it reads, then
-        // the lock step: exit `0`, the outputs written, the script started
-        // exactly once and last — the flakes it locks are there by then.
+        // Every source generator runs, outputs are written, and dependency
+        // locking starts no subprocess during CI regeneration.
         regenerates: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run({ ...emptyState, root })(main(defaultNodeProgramOptions))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(spawned(), 1)
+            assertEq(spawned(), 0)
             const github = state.root['.github']
             assert(typeof github === 'object' && !(github instanceof Array))
             assert('workflows' in github)
@@ -202,7 +158,7 @@ export const proof = {
         },
         // A generator that fails stops the regeneration there: the Rust
         // writer cannot compile the runtime from an empty filesystem, and
-        // the lock script is never started.
+        // the subprocess is never started.
         stopsAtAFailedGenerator: () => {
             const { run, spawned } = withSubprocess(ok(child), ok(['exited', 0]))
             const [state, code] = run(emptyState)(main(defaultNodeProgramOptions))

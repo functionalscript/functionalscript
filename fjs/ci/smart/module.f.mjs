@@ -28,22 +28,26 @@ export const platformSchema = /** @type {const} */ ({
     architecture: string,
 })
 
-const shellPrefix = /** @type {const} */ ('sh ./gen.nix/run ')
+const shellPrefixes = /** @type {const} */ (['mise exec -- ', 'mise -E spidermonkey exec -- ', 'env '])
 
 const botIdentity = /** @type {const} */ ({
     GIT_AUTHOR_NAME: 'github-actions[bot]',
     GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
 })
 
-/** The command inside the generated Nix wrapper or an injected step. */
+/** The command inside an environment wrapper or an injected step. */
 /** @type {(step: Step) => string} */
 const command = step => {
     const run = step.env?.FJS_CI_RUN ?? step.run ?? ''
-    return run.startsWith(shellPrefix) ? run.slice(shellPrefix.length) : run
+    const prefix = shellPrefixes.find(value => run.startsWith(value))
+    return prefix === undefined ? run : run.slice(prefix.length)
 }
 
 /** @type {(step: Step, action: string) => boolean} */
 const isAction = (step, action) => step.uses?.startsWith(`${action}@`) === true
+
+/** @type {(step: Step) => boolean} */
+const isEnvironmentSetup = step => isAction(step, 'jdx/mise-action')
 
 /** Each check's terminal work. Installs and version checks are shared below. */
 /** @type {(jobId: string, step: Step) => string | undefined} */
@@ -81,10 +85,13 @@ const dependencies = (jobId, ids, step) => {
     return own !== undefined ? [own]
         : run === 'npm ci' ? ids.filter(id => id !== 'rust' && !id.startsWith('spidermonkey-'))
         : run.startsWith('npm install -g functionalscript@') ? ['suite']
-        : isAction(step, 'dtolnay/rust-toolchain') || run.includes('wasmtime --version') || run.includes('wasmer --version') ? ['rust']
-        : run.includes('js --version') ? ids.filter(id => id.startsWith('spidermonkey-'))
+        : isAction(step, 'dtolnay/rust-toolchain') || run.includes('rustc --version') || run.includes('wasmtime --version') || run.includes('wasmer --version')
+            || run === 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386' ? ['rust']
+        : run.includes('js --version') || run === 'mise -E spidermonkey install --locked http:spidermonkey'
+            || run.startsWith('mise -E spidermonkey lock http:spidermonkey --platform ')
+            ? ids.filter(id => id.startsWith('spidermonkey-'))
         : run.includes('tsc --version') ? ids.filter(id => id === 'tsc' || id === 'package')
-        : isAction(step, 'cachix/install-nix-action') || run.includes('node --version') ? ids
+        : isEnvironmentSetup(step) || run.includes('node --version') ? ids
         : []
 }
 
@@ -127,13 +134,13 @@ const cachedJob = (jobId, source) => {
     const work = source.steps.filter(step =>
         !isAction(step, 'actions/checkout')
         && !(isAction(step, 'actions/setup-node') && step.with?.['package-manager-cache'] !== 'false'))
-    // The generator drift check and demo rebuild stay uncached. Their Nix
+    // The generator drift check and demo rebuild stay uncached. Their environment
     // installation must still run when all of the cacheable checks hit.
     const uncachedShell = work.some(step =>
-        step.run?.startsWith(shellPrefix) === true && dependencies(jobId, ids, step).length === 0)
+        shellPrefixes.some(prefix => step.run?.startsWith(prefix) === true) && dependencies(jobId, ids, step).length === 0)
     const gated = work.flatMap((step, index) => {
         const depends = dependencies(jobId, ids, step)
-        const condition = depends.length === 0 || uncachedShell && (isAction(step, 'cachix/install-nix-action') || command(step).includes('node --version'))
+        const condition = depends.length === 0 || uncachedShell && (isEnvironmentSetup(step) || command(step).includes('node --version'))
             ? {} : { if: misses(depends) }
         const own = checkId(jobId, step)
         const last = own !== undefined && !work.slice(index + 1).some(next => checkId(jobId, next) === own)

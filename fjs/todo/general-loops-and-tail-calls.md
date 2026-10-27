@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-D and fixed-input invocation-root reconstruction implemented
-above #3127; general helper construction and tail-call work remain in E/F
+**Status:** wip — A-E construction implemented; generalized tail calls and their
+stack-safety integration are next in F, followed by source bindings and loops
 
 ### Goal
 
@@ -109,10 +109,46 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       every required consumer before starting D.
 - [x] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
       schema/identity decision and producer/consumer migration.
-- [ ] **E — General graph construction.** Complete the loop-construction owner
+- [x] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
-      Fixed-input invocation roots are implemented; general helpers, operand
-      completions and shared memo transport remain open.
+      Fixed-input invocation roots and nested normal-exit aggregate helpers are
+      implemented, along with statement-level function returns and outer-loop
+      transfers. Helper callers and canonical invocation roots share normal
+      continuations at graph construction. Memo cells preserve caller, iteration
+      and initializer lifetimes through nested normal-exit helpers and owning
+      source-function returns and outer-loop transfers. Direct plain value
+      regions, eager unary/binary and `instanceof` operands, conditional tests,
+      plain calls, non-spread arrays/objects, comma sequences, statement result
+      lists, value-region result packing and member/optional-call operands can
+      lift owning returns. The shared `memberPresent` query retains lookup and
+      receiver semantics; optional skips and forced-call continuations preserve
+      selected memo state. Array/call and object spreads materialize before
+      later control; object keys convert before values. Closure capture
+      expressions retain construction order and the enclosing return owner,
+      while nested bodies keep their own function boundary. Break and continue
+      payloads retain evaluation order, exact targets and simultaneous state
+      updates while exposing owning returns. Loop-entry initializers expose
+      owning returns in enclosing scope before the loop starts, preserving
+      ordered one-time setup and caller/iteration memo lifetimes. Native callees
+      and their wrappers admit argument returns while retaining callee reads
+      before arguments. Wrapped member callees retain selected property reads
+      before arguments and detached invocation. Lazy initializer returns
+      propagate at selected first demands through shared recipe completions,
+      preserving memo lifetimes. Cells declared in initializer-owned loops
+      reset at reached declarations, share within their iteration and nested
+      loops, retain captured values, and propagate source-owned returns.
+      Normal-only memo plans also sequence member and optional calls, preserving
+      optional skips, lookup order, receivers and shared cell lifetimes.
+      Standalone array/call/object spreads and object entries retain reached
+      expansion, copying and key-conversion order. Prepared declaration and loop
+      occurrences expose cells owned entirely inside operands while preserving
+      function and deferred-initializer boundaries.
+      Caller and initializer planning also share an eager lexical inventory for
+      operand loops and computed lazy locals, retaining caller sharing, fresh
+      local lifetimes and separate transfer ownership.
+      Deferred-initializer helper crossings select their caller-owned cells
+      even without an eager caller loop, preserving declaration-time scope and
+      first-demand evaluation through nested recipes.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.

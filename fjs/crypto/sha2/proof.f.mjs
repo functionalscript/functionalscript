@@ -291,6 +291,19 @@ export const proof = {
         assertEq(uint(h), x, h)
     },
     demo: {
+        oversized: () => {
+            // Two bytes per character: pin the byte limit, not string length.
+            const atLimit = 'é'.repeat(Number(maxLengthBytes) / 2)
+            assertEq(digest(atLimit), 'd98095f273e7fc6421a31c287c93720d7e53ff40b6825d1311d730cf8826a593')
+            const tooLong = `${atLimit}a`
+            assertEq(digest(tooLong), null)
+            const html = htmlToString(demo.view({ ...demo.init, text: tooLong }))
+            assert(html.includes('Refused:'))
+            assert(html.includes(`Input too long: more than ${maxLengthBytes} UTF-8 bytes.`))
+            assert(html.includes('name="text"'))
+            assert(!html.includes('Copy digest'))
+            assert(!html.includes('Copy OpenSSL command'))
+        },
         /**
          * **The digest the demo shows is this module's own.** The empty
          * string's is the value `checkEmpty` already pins above, written in
@@ -304,7 +317,7 @@ export const proof = {
             // also what `sha256sum` prints, so the page can be checked from
             // outside this repository.
             assertEq(digest(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
-            assertEq(digest('').length, 64)
+            assertEq(assertNotNullish(digest('')).length, 64)
             assertEq(digest('hello'), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
             // `1234` hashes to `03ac…`, whose leading hex *digit* is zero:
             // four bits, so one digest in sixteen does it. That is the input
@@ -345,7 +358,7 @@ export const proof = {
             assert(empty.startsWith('<!DOCTYPE html><div><p>Hashes UTF-8 text with the selected SHA-2 algorithm and shows the digest in hexadecimal. Use the OpenSSL command below the result to check it independently.</p><p><label'), empty)
             assert(empty.includes('name="algorithm"'), empty)
             assert(empty.includes('name="text"'), empty)
-            assert(empty.includes(digest('')), empty)
+            assert(empty.includes(assertNotNullish(digest(''))), empty)
             assert(empty.includes('openssl dgst -sha256'), empty)
             const multiline = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\nb' }))
             assert(multiline.includes('>a\nb</textarea>'), multiline)
@@ -354,7 +367,7 @@ export const proof = {
             assert(!nul.includes('Copy OpenSSL command'), nul)
             const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))
             assert(typed.includes('>hello</textarea>'), typed)
-            assert(typed.includes(digest('hello')), typed)
+            assert(typed.includes(assertNotNullish(digest('hello'))), typed)
             assert(typed.includes("<pre>printf '%s' 'hello' | openssl dgst -sha256</pre>"), typed)
             assert(typed.includes('aria-label="Copy digest"'), typed)
             assert(typed.includes('aria-label="Copy OpenSSL command"'), typed)

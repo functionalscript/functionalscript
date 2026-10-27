@@ -1,17 +1,15 @@
 /**
  * The Cloudflare build, generated: `gen.cloudflare/build.sh` is the build
  * command Cloudflare's Workers Builds runs. It installs what the build image
- * lacks — Rust today, for `cargo doc` alone — documents the workspace's
+ * lacks — Rust, for the WASM demos and `cargo doc` — documents the workspace's
  * crates with `cargo doc`, and
  * runs `npm run website`, which stays the generator alone, so a checkout
- * builds the site with `npm run website` exactly as before and only the
- * deploy carries the installs.
+ * builds the WASM assets first and only the deploy carries the installs.
  *
  * **Generated rather than written**, because of the version in it. The
  * toolchain it installs is {@link rust} from `fjs/ci/config` — the constant
  * the shared shell and the platform matrix also take. Written out in full, a
- * bump of the pin is a diff in this script that the drift check guards, as it
- * is in `gen.nix/flake.nix`; read at run time, nothing committed would say
+ * bump of the pin is a diff in this script that the drift check guards, rather than reading it at build time; otherwise nothing committed would say
  * which Rust the site is built with.
  *
  * @module
@@ -20,12 +18,13 @@
  * @import { Mkdir, NodeProgram, Rm, WriteBytes, WriteFile } from '../../effects/node/types.ts'
  */
 
+import { buildScriptPath, wasmTarget } from '../../nanvm/demos/module.f.mjs'
 import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 
 /**
- * The generated directory, beside `gen.nix/` at the repository root, where
+ * The generated directory at the repository root, where
  * `wrangler.jsonc`, `.assetsignore` and `.node-version` already are for
  * Cloudflare's sake.
  *
@@ -48,11 +47,8 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
  *
- * **Not the WASM demo pages' module**
- * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): that is committed in
- * `nanvm/demos/wasm/`, with each sample's WAT, and CI rebuilds it and fails on
- * any difference (`../../nanvm/demos/module.f.mjs`), so the site is served
- * as checked out and the deploy builds no `wasm32` target.
+ * Builds the WASM demo module and each sample's WAT before the site reads
+ * them. These are ignored build artifacts in `nanvm/demos/wasm/`.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
@@ -77,16 +73,16 @@ export const buildPath = `${generatedDirectory}/build.sh`
 export const buildText = () => `#!/bin/sh
 set -e
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$HOME/rustup-init.sh"
-sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path
+sh "$HOME/rustup-init.sh" -y --profile minimal --default-toolchain ${rust} --no-modify-path --target ${wasmTarget}
 export PATH="$HOME/.cargo/bin:$PATH"
+sh ./${buildScriptPath}
 npm run rustdoc-bars
 RUSTDOCFLAGS="--html-in-header $PWD/${rustdocHeadPath} --html-before-content $PWD/${rustdocHeaderPath} --html-after-content $PWD/${rustdocFooterPath} --extend-css $PWD/${rustdocStylesheetPath}" cargo doc --no-deps --workspace
 npm run website
 `
 
 /**
- * Writes the script. No mode is set: Cloudflare runs it through `sh`, as CI
- * runs `gen.nix/run`, and the effects layer sets none.
+ * Writes the script. No mode is set: Cloudflare runs it through `sh`.
  *
  * @type {Effect<Mkdir | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
