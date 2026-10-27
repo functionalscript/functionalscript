@@ -1,6 +1,6 @@
 /**
  * Select lazy recipes before helper construction loses their
- * lexical definitions. Values keep their own loop-normalization boundary;
+ * lexical definitions across eager statement and value regions;
  * ordinary function bodies remain opaque. Deferred prerequisites and computed
  * dependents share the same vector, in definition order; lazy
  * reference aliases share their root's cell.
@@ -12,7 +12,7 @@
  * @import { _Link as Link } from '../../control/private.ts'
  * @import { Task } from '../../task/types.ts'
  * @import { MemoLayout, MemoPlan, RecipePlan } from './types.ts'
- * @import { _LoopInfo, _Occurrence, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer, _Visit } from './private.ts'
+ * @import { _DeferredBinding, _DeferredBlock, _DeferredScope, _DeferredSummary, _LoopInfo, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer } from './private.ts'
  */
 
 import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
@@ -46,48 +46,15 @@ export const _hasReturn = (value, target) => {
     return false
 }
 
-/**
- * A shared syntax container still has one declaration per reached occurrence.
- * Give statement regions distinct planning identities without changing values,
- * binding/target identities or source signatures. Terminal statement regions
- * end the active prefix; their following statements and exit are unreachable.
- * Operand regions and function bodies retain their own normalization boundary.
- * @type {(block: Block) => Task<_Occurrence>}
- */
-const occurrenceBlock = block => {
-    /** @type {(index: number, statements: List<Statement>) => Task<_Occurrence>} */
-    const each = (index, statements) => call(() => {
-        if (index === block.statements.length) {
-            return done({ block: { statements: toArray(statements).toReversed(), exit: block.exit }, normal: block.exit[0] === 'yield' })
-        }
-        const statement = block.statements[index]
-        /** @type {(mapped: Statement, normal?: boolean) => Task<_Occurrence>} */
-        const append = (mapped, normal = true) => {
-            const next = /** @type {List<Statement>} */ ({ first: mapped, tail: statements })
-            return normal ? each(index + 1, next)
-                : done({ block: { statements: toArray(next).toReversed(), exit: ['yield', []] }, normal: false })
-        }
-        if (statement[0] === 'define') { return append(['define', statement[1], statement[2], statement[3]]) }
-        if (statement[0] === 'loop') {
-            return bind(occurrenceBlock(statement[1].body), body => append(['loop', { ...statement[1], body: body.block }]))
-        }
-        if (statement[0] === 'block') {
-            return bind(occurrenceBlock(statement[2]), body => append(['block', statement[1], body.block], body.normal))
-        }
-        return bind(occurrenceBlock(statement[3]), then => bind(occurrenceBlock(statement[4]), otherwise =>
-            append(['if', statement[1], statement[2], then.block, otherwise.block], then.normal || otherwise.normal)))
-    })
-    return each(0, null)
-}
-
 /** Established values shadow any enclosing deferred entry. @type {(scope: _Scope, bindings: readonly BindingId[]) => _Scope} */
-const established = (scope, bindings) => new Map([...scope, ...bindings.map(binding => /** @type {const} */ ([binding, null]))])
+const established = (scope, bindings) => bindings.some(binding => scope.has(binding))
+    ? new Map([...scope].filter(([binding]) => !bindings.includes(binding))) : scope
 
 /** @type {(value: Value, scope: _Scope) => readonly _Root[]} */
 const dependencies = (value, scope) => freeBindings({ statements: [], exit: ['yield', [value]] })
     .flatMap(binding => {
         const root = scope.get(binding)
-        return root === undefined || root === null ? [] : [root]
+        return root === undefined ? [] : [root]
     }).filter((root, i, roots) => roots.indexOf(root) === i)
 
 /**
@@ -133,7 +100,7 @@ const loopTransfers = loop => {
 /** Nearest lexical ownership distinguishes shared syntax from sibling targets. @type {(info: _LoopInfo, target: LoopTarget) => Loop | null} */
 const transferLoop = (info, target) => {
     if (info.loop.target === target) { return info.loop }
-    let ancestors = info.ancestors
+    let ancestors = info.owners
     while (ancestors !== null) {
         if (ancestors.first.target === target) { return ancestors.first }
         ancestors = ancestors.tail
@@ -183,74 +150,30 @@ const validateTransfers = (inventory, selected, functionTarget) => {
  * @type {(block: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null, returnsOnly?: boolean) => MemoPlan | null}
  */
 export const memoCells = (block, externalLazyIds = [], functionTarget = null, returnsOnly = false) => {
-    const prepared = run(occurrenceBlock(block)).block
     /** @type {readonly _Root[]} */
     const external = externalLazyIds.map(binding => ({ binding, source: null, dependencies: [] }))
-    /** @type {Link<_Visit> | null} */
-    let pending = { first: { block: prepared, index: 0, scope: new Map(external.map(root => [root.binding, root])), ancestors: null }, tail: null }
-    /** @type {readonly _Root[]} */
-    let roots = external
-    /** @type {readonly (readonly [Definition, _Root])[]} */
-    let definitions = []
-    /** @type {readonly _LoopInfo[]} */
-    let inventory = []
-    while (pending !== null) {
-        const { first: visit, tail } = /** @type {Link<_Visit>} */ (pending)
-        const { block, index, scope, ancestors } = visit
-        pending = tail
-        if (index === block.statements.length) { continue }
-        const statement = block.statements[index]
-        /** @type {_Visit} */
-        const next = { block, index: index + 1, scope, ancestors }
-        if (statement[0] === 'define') {
-            const [, binding, initializer, mode] = statement
-            /** @type {_Root | null} */
-            let root = null
-            if (mode === 'lazy' && initializer !== null && typeof initializer === 'object') {
-                if (initializer[0] === 'ref') { root = scope.get(initializer[1]) ?? null }
-                else {
-                    root = { binding, source: { definition: statement, insideLoop: ancestors !== null, loop: ancestors?.first ?? null }, dependencies: dependencies(initializer, scope) }
-                    roots = [...roots, root]
-                }
-            }
-            if (root !== null) {
-                definitions = [...definitions, [statement, root]]
-            }
-            pending = { first: { ...next, scope: new Map([...scope, [binding, root]]) }, tail }
-            continue
-        }
-        if (statement[0] === 'loop') {
-            const loop = statement[1]
-            const free = freeLoopBindings(loop).flatMap(binding => {
-                const root = scope.get(binding)
-                return root === undefined || root === null ? [] : [root]
-            })
-            inventory = [...inventory, { source: loop, loop, roots: free, ancestors, transfers: loopTransfers(loop) }]
-            pending = {
-                first: { block: loop.body, index: 0, scope: established(scope, loop.parameters), ancestors: { first: loop, tail: ancestors } },
-                tail: { first: { ...next, scope: established(scope, loop.results) }, tail },
-            }
-            continue
-        }
-        const children = statement[0] === 'block' ? [statement[2]] : [statement[3], statement[4]]
-        /** @type {Link<_Visit>} */
-        const rest = { first: { ...next, scope: established(scope, statement[1]) }, tail }
-        pending = children.reduceRight((tail, block) => ({ first: { block, index: 0, scope, ancestors }, tail }), /** @type {Link<_Visit> | null} */ (rest))
-    }
+    const prepared = run(ownedBlock(block, new Map(external.map(root => [root.binding, root])), null, null))
+    const roots = [...external, ...toArray(prepared.owned.roots)]
+    const definitions = toArray(prepared.owned.definitions)
+    const inventory = preparedLoops(prepared.owned)
     const returning = functionTarget === null ? [] : roots.filter(root => root.source !== null && _hasReturn(root.source.definition[2], functionTarget))
     const crossing = inventory.filter(info => info.roots.length !== 0)
-    if (returning.length === 0 && (returnsOnly || crossing.length === 0)) { return null }
-    const cells = dependencyClosure(roots, roots.filter(root => returning.includes(root) || !returnsOnly && crossing.some(info => info.roots.includes(root))))
+    const eager = roots.filter(root => returning.includes(root) || !returnsOnly && crossing.some(info => info.roots.includes(root)))
+    const selectedEager = dependencyClosure(roots, eager)
+    const deferred = returnsOnly ? [] : deferredSeeds(prepared.block, external, definitions,
+        roots.filter(root => root.source !== null && root.dependencies.length !== 0 && !selectedEager.includes(root)))
+    if (selectedEager.length === 0 && deferred.length === 0) { return null }
+    const cells = deferred.length === 0 ? selectedEager : dependencyClosure(roots, [...selectedEager, ...deferred])
     const recipes = cells.map(({ binding, source }) => {
         if (source === null) { throw 'external lazy memo prerequisites require an owned initializer recipe' }
         return { binding, initializer: source.definition[2], definition: source.definition, iterationLocal: source.insideLoop }
     })
     const selected = returnsOnly ? crossing.filter(info => info.roots.some(root => cells.includes(root))) : crossing
     const loops = selectedLoops(inventory, inventory.filter(info => selected.includes(info)
-        || returning.some(root => root.source?.loop === info.loop)))
+        || cells.some(root => root.source?.loop === info.source)))
     validateTransfers(inventory, loops, functionTarget)
     return {
-        block: prepared,
+        block: prepared.block,
         cells: recipes,
         definitions: new Map(definitions.flatMap(([definition, root]) => {
             const index = cells.indexOf(root)
@@ -279,14 +202,17 @@ const mappedExit = (exit, values) => values.every((value, index) => value === ex
 /** @type {(values: readonly Value[], scope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedValues>} */
 const ownedValues = (values, scope, ancestors) => {
     /** @type {(index: number, prepared: List<Value>, owned: _Owned) => Task<_OwnedValues>} */
-    const each = (index, prepared, owned) => call(() => index === values.length
-        ? done({ values: toArray(prepared).toReversed(), owned })
-        : bind(ownedValue(values[index], scope, ancestors), result => each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))))
+    const each = (index, prepared, owned) => call(() => {
+        if (index !== values.length) { return bind(ownedValue(values[index], scope, ancestors), result =>
+            each(index + 1, { first: result.value, tail: prepared }, mergeOwned(owned, result.owned))) }
+        const result = toArray(prepared).toReversed()
+        return done({ values: result.every((value, index) => value === values[index]) ? values : result, owned })
+    })
     return each(0, null, emptyOwned)
 }
 
 /**
- * Prepare the current initializer's eager regions. A lazy definition owns a
+ * Prepare the current caller or initializer's eager regions. A lazy definition owns a
  * later recipe; loop declarations retain their reached iteration lifetime.
  * Ordinary function bodies keep their separate execution boundary.
  * @type {(source: Value, scope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedValue>}
@@ -294,29 +220,31 @@ const ownedValues = (values, scope, ancestors) => {
 const ownedValue = (source, scope, ancestors) => call(() => {
     if (source === null || typeof source !== 'object' || source[0] === 'ref') { return done(/** @type {_OwnedValue} */ ({ value: source, owned: emptyOwned })) }
     if (source[0] === 'block') {
-        return bind(ownedBlock(source[1], scope, ancestors), result => done({ value: ['block', result.block], owned: result.owned }))
+        return bind(ownedBlock(source[1], scope, ancestors, null), result => done({ value: ['block', result.block], owned: result.owned }))
     }
     if (source[0] === 'if') {
         return bind(ownedValue(source[1], scope, ancestors), test =>
-            bind(ownedBlock(source[2], scope, ancestors), then =>
-                bind(ownedBlock(source[3], scope, ancestors), otherwise => done({
+            bind(ownedBlock(source[2], scope, ancestors, null), then =>
+                bind(ownedBlock(source[3], scope, ancestors, null), otherwise => done({
                     value: ['if', test.value, then.block, otherwise.block],
                     owned: mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)),
                 }))))
     }
     if (source[0] === 'function') {
-        return bind(ownedValues(source[1].captures.map(capture => capture.value), scope, ancestors), captures => done({
-            value: ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
+        const values = source[1].captures.map(capture => capture.value)
+        return bind(ownedValues(values, scope, ancestors), captures => done({
+            value: captures.values === values ? source : ['function', { ...source[1], captures: source[1].captures.map((capture, index) => ({ binding: capture.binding, value: captures.values[index] })) }],
             owned: captures.owned,
         }))
     }
-    return bind(ownedValues(operatorOperands(source), scope, ancestors), operands => done({
-        value: mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
+    const values = operatorOperands(source)
+    return bind(ownedValues(values, scope, ancestors), operands => done({
+        value: operands.values === values ? source : mapOperator((_, index) => operands.values[index])(source), owned: operands.owned,
     }))
 })
 
-/** @type {(source: Block, initialScope: _Scope, ancestors: Link<Loop> | null) => Task<_OwnedBlock>} */
-const ownedBlock = (source, initialScope, ancestors) => {
+/** @type {(source: Block, initialScope: _Scope, ancestors: Link<Loop> | null, owners: Link<Loop> | null) => Task<_OwnedBlock>} */
+const ownedBlock = (source, initialScope, ancestors, owners) => {
     /** @type {(index: number, scope: _Scope, statements: List<Statement>, owned: _Owned) => Task<_OwnedBlock>} */
     const each = (index, scope, statements, owned) => call(() => {
         if (index === source.statements.length) {
@@ -355,33 +283,132 @@ const ownedBlock = (source, initialScope, ancestors) => {
             const added = /** @type {_Owned} */ ({
                 roots, definitions: root === null ? null : [[definition, root]], loops: null, pruned: false,
             })
-            return append(definition, new Map([...scope, [binding, root]]), added)
+            return append(definition, root === null ? established(scope, [binding]) : new Map([...scope, [binding, root]]), added)
         }
         if (statement[0] === 'loop') {
             const occurrence = /** @type {Loop} */ ({ ...statement[1] })
             return bind(ownedValues(occurrence.initial, scope, ancestors), initial =>
-                bind(ownedBlock(occurrence.body, established(scope, occurrence.parameters), { first: occurrence, tail: ancestors }), body => {
+                bind(ownedBlock(occurrence.body, established(scope, occurrence.parameters), { first: occurrence, tail: ancestors }, { first: occurrence, tail: owners }), body => {
                     const loop = /** @type {Loop} */ ({ ...occurrence, initial: initial.values, body: body.block })
                     const free = freeLoopBindings(loop).flatMap(binding => {
                         const root = scope.get(binding)
-                        return root === undefined || root === null ? [] : [root]
+                        return root === undefined ? [] : [root]
                     })
-                    const info = /** @type {_LoopInfo} */ ({ source: occurrence, loop, roots: free, ancestors, transfers: loopTransfers(loop) })
+                    const info = /** @type {_LoopInfo} */ ({ source: occurrence, loop, roots: free, ancestors, owners, transfers: loopTransfers(loop) })
                     const owned = /** @type {_Owned} */ ({ ...body.owned, loops: concat([info])(body.owned.loops) })
                     return append(['loop', loop], established(scope, loop.results), mergeOwned(initial.owned, owned))
                 }))
         }
         if (statement[0] === 'block') {
-            return bind(ownedBlock(statement[2], scope, ancestors), result => append(
+            return bind(ownedBlock(statement[2], scope, ancestors, owners), result => append(
                 ['block', statement[1], result.block], established(scope, statement[1]), result.owned, result.normal))
         }
         return bind(ownedValue(statement[2], scope, ancestors), test =>
-            bind(ownedBlock(statement[3], scope, ancestors), then =>
-                bind(ownedBlock(statement[4], scope, ancestors), otherwise => append(
+            bind(ownedBlock(statement[3], scope, ancestors, owners), then =>
+                bind(ownedBlock(statement[4], scope, ancestors, owners), otherwise => append(
                     ['if', statement[1], test.value, then.block, otherwise.block], established(scope, statement[1]),
                     mergeOwned(test.owned, mergeOwned(then.owned, otherwise.owned)), then.normal || otherwise.normal))))
     })
     return each(0, initialScope, null, emptyOwned)
+}
+
+/** Resolve stable occurrence handles to the loops emitted by the common walk. @type {(owned: _Owned) => readonly _LoopInfo[]} */
+const preparedLoops = owned => {
+    const occurrences = toArray(owned.loops)
+    const bySource = new Map(occurrences.map(info => [info.source, info.loop]))
+    /** @type {(links: Link<Loop> | null) => Link<Loop> | null} */
+    const mapped = links => toArray(links).map(loop => assertNotNullish(bySource.get(loop)))
+        .reduceRight((/** @type {Link<Loop> | null} */ tail, first) => ({ first, tail }), null)
+    return occurrences.map(info => ({ ...info, ancestors: mapped(info.ancestors), owners: mapped(info.owners) }))
+}
+
+const emptyDeferred = /** @type {_DeferredSummary} */ ({ dependencies: [], crossed: false, selected: null })
+
+/** @type {(first: _DeferredSummary, second: _DeferredSummary) => _DeferredSummary} */
+const mergeDeferred = (first, second) => ({
+    dependencies: [...new Set([...first.dependencies, ...second.dependencies])],
+    crossed: first.crossed || second.crossed,
+    selected: concat(first.selected)(second.selected),
+})
+
+/**
+ * Inspect deferred syntax once, retaining lexical origins without preparing or
+ * evaluating it. A local lazy value carries its caller dependencies; a required
+ * value is already established before any later helper reads it.
+ * @type {(source: Block, external: readonly _Root[], definitions: readonly (readonly [Definition, _Root])[], candidates: readonly _Root[]) => readonly _Root[]}
+ */
+const deferredSeeds = (source, external, definitions, candidates) => {
+    if (candidates.length === 0) { return [] }
+    const wanted = new Set(candidates)
+    const declared = new Map(definitions)
+    /** @type {(scope: _DeferredScope, bindings: readonly BindingId[]) => _DeferredScope} */
+    const shadowed = (scope, bindings) => bindings.some(binding => scope.has(binding))
+        ? new Map([...scope].filter(([binding]) => !bindings.includes(binding))) : scope
+    /** @type {(input: readonly Value[], scope: _DeferredScope, depth: number) => Task<_DeferredSummary>} */
+    const values = (input, scope, depth) => {
+        /** @type {(index: number, summary: _DeferredSummary) => Task<_DeferredSummary>} */
+        const each = (index, summary) => call(() => index === input.length ? done(summary)
+            : bind(value(input[index], scope, depth), result => each(index + 1, mergeDeferred(summary, result))))
+        return each(0, emptyDeferred)
+    }
+    /** @type {(source: Value, scope: _DeferredScope, depth: number) => Task<_DeferredSummary>} */
+    const value = (source, scope, depth) => call(() => {
+        if (source === null || typeof source !== 'object') { return done(emptyDeferred) }
+        if (source[0] === 'ref') {
+            const binding = scope.get(source[1])
+            return done(binding === undefined ? emptyDeferred : {
+                dependencies: binding.roots, crossed: depth > binding.depth, selected: null,
+            })
+        }
+        if (source[0] === 'block') { return bind(block(source[1], scope, depth), result => done(result.summary)) }
+        if (source[0] === 'if') {
+            return bind(value(source[1], scope, depth), test => bind(block(source[2], scope, depth), then =>
+                bind(block(source[3], scope, depth), otherwise => done(mergeDeferred(test, mergeDeferred(then.summary, otherwise.summary))))))
+        }
+        return values(source[0] === 'function' ? source[1].captures.map(capture => capture.value) : operatorOperands(source), scope, depth)
+    })
+    /** @type {(source: Block, initial: _DeferredScope, depth: number) => Task<_DeferredBlock>} */
+    const block = (source, initial, depth) => {
+        /** @type {(index: number, scope: _DeferredScope, summary: _DeferredSummary) => Task<_DeferredBlock>} */
+        const each = (index, scope, summary) => call(() => {
+            if (index === source.statements.length) { return bind(values(exitValues(source.exit), scope, depth), result =>
+                done({ summary: mergeDeferred(summary, result), normal: source.exit[0] === 'yield' })) }
+            const statement = source.statements[index]
+            /** @type {(added: _DeferredSummary, next: _DeferredScope, normal?: boolean) => Task<_DeferredBlock>} */
+            const append = (added, next, normal = true) => normal ? each(index + 1, next, mergeDeferred(summary, added))
+                : done({ summary: mergeDeferred(summary, added), normal: false })
+            if (statement[0] === 'define') {
+                const [, binding, initializer, mode] = statement
+                const root = declared.get(statement)
+                const computed = root !== undefined && root.source?.definition === statement
+                const inspect = mode === 'required' || !computed || wanted.has(root)
+                return bind(inspect ? value(initializer, scope, depth) : done(emptyDeferred), result => {
+                    /** @type {_DeferredBinding | undefined} */
+                    const marker = mode === 'required' ? undefined
+                        : initializer instanceof Array && initializer[0] === 'ref' ? scope.get(initializer[1])
+                            : computed ? { roots: [root], depth }
+                                : result.dependencies.length === 0 ? undefined : { roots: result.dependencies, depth }
+                    const next = marker === undefined ? shadowed(scope, [binding]) : new Map([...scope, [binding, marker]])
+                    return append(computed && wanted.has(root) && result.crossed
+                        ? { ...result, selected: concat(result.selected)([root]) } : result, next)
+                })
+            }
+            if (statement[0] === 'loop') {
+                const loop = statement[1]
+                return bind(values(loop.initial, scope, depth), initial =>
+                    bind(block(loop.body, shadowed(scope, loop.parameters), depth + 1), body =>
+                        append(mergeDeferred(initial, body.summary), shadowed(scope, loop.results))))
+            }
+            if (statement[0] === 'block') { return bind(block(statement[2], scope, depth), result =>
+                append(result.summary, shadowed(scope, statement[1]), result.normal)) }
+            return bind(value(statement[2], scope, depth), test => bind(block(statement[3], scope, depth), then =>
+                bind(block(statement[4], scope, depth), otherwise => append(mergeDeferred(test, mergeDeferred(then.summary, otherwise.summary)),
+                    shadowed(scope, statement[1]), then.normal || otherwise.normal))))
+        })
+        return each(0, initial, emptyDeferred)
+    }
+    const scope = new Map(external.map(root => [root.binding, { roots: [root], depth: 0 }]))
+    return toArray(run(block(source, scope, 0)).summary.selected)
 }
 
 /**
@@ -399,11 +426,7 @@ export const recipeCells = (value, outer, aliases, functionTarget = null) => {
     const scope = new Map([...aliases].map(([binding, index]) => /** @type {const} */ ([binding, /** @type {_Root} */ (byIndex.get(index))])))
     const prepared = run(ownedValue(value, scope, null))
     const localRoots = toArray(prepared.owned.roots)
-    const occurrences = toArray(prepared.owned.loops)
-    const bySource = new Map(occurrences.map(info => [info.source, info.loop]))
-    const inventory = occurrences.map(info => ({ ...info, ancestors: toArray(info.ancestors)
-        .map(loop => assertNotNullish(bySource.get(loop)))
-        .reduceRight((/** @type {Link<Loop> | null} */ tail, first) => ({ first, tail }), null) }))
+    const inventory = preparedLoops(prepared.owned)
     const crossing = inventory.filter(info => info.roots.length !== 0)
     const returning = functionTarget === null ? [] : localRoots.filter(root => root.source !== null && _hasReturn(root.source.definition[2], functionTarget))
     const selected = dependencyClosure([...borrowed, ...localRoots], [...new Set([...borrowed, ...returning, ...crossing.flatMap(info => info.roots)])])

@@ -1234,7 +1234,7 @@ export const proof = {
         writes(['=>', 1, [], ['[]', [['()', counting, [0]], ['()', counting, [1]]]]],
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<$0;})()){const $5=$3;const $6=$5+2;$3=$6;}return $3;};return [$1(0),$1(1)];};')
         writes(['=>', 0, [], ['()', ['=>', 1, [], [',', [['[]', []], ['?:', true, call(0), ['arg', 0]]]]], [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=[];return true?$0(0):$1;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[];return true?$0(0):$2;};return $0(0);};')
         // a next value that throws is assigned as the applied function a
         // throw is spelled as in expression position, never as the `throw`
         // statement a block refuses
@@ -1293,14 +1293,13 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?(()=>{const $7=($8)=>{let $9=$8;while((()=>{const $10=$9;return $10<2;})()){const $11=$9;const $12=$11+1;$9=$12;}return $9;};return $7([1]);})():true;$3=$6;}return $3;};return $1(0);};')
         // a frame slot no name stands for is refused as it is anywhere
         refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
-        // a value the condition shares with the block that the block would
-        // name keeps the recursion, which establishes it every round where
-        // a `const` before the `while` would establish it once — whether or
-        // not the value reads the variable
+        // Source round trips retain the recursive graph when condition and
+        // arm share an allocation, including its immutable per-call snapshot.
+        // Code-only output can use a generic loop with both inside one round.
         writes(['=>', 0, [], ['()', loop([], ['.', one, 0], call(['.', one, 1])), [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=[1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[1];return $3[0]?$0($3[1]):$2;};return $0(0);};')
         writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=[$1];return $2[0]?$0($2[1]):$1;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[$2];return $3[0]?$0($3[1]):$2;};return $0(0);};')
         // Ordered aliases preserve the capture signature when a condition
         // or transition reads those captures in another order.
         writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], true, call(['[]', [['frame', 1], ['frame', 0]]])), [0]]],
@@ -1328,9 +1327,9 @@ export const proof = {
         // the module writer names it the same way
         assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
         refuses(['self'], 'self outside a function')
-        // code-only text has no `const` to name the function, so it is the
-        // named function expression `function_text` spells
-        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])), '(function $0(){return $0();})')
+        // Code-only text lowers the direct zero-parameter tail call too.
+        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])),
+            '()=>{L0:while(true){continue L0;}}')
     },
     operators: () => {
         /** @type {(b: Exp) => Exp} */

@@ -70,6 +70,34 @@ Functions that require ordinary recursive identity retain their self binding.
 The baseline preparation domain and its explicit deferred control-flow cases
 are described in [`js/ast/prepare`](../../js/ast/prepare/README.md).
 
+General tail lowering follows value placement. A direct self-call evaluated at
+the returned result, either conditional arm or the final sequence operand can
+become a transition. A reference to an established call result stays a read;
+required and lazy definitions keep their original evaluation owners. Nested
+function bodies have their own plans. Function bodies are planned once in graph
+postorder, and naming and emission consume the same private plan.
+
+The first general domain has zero through sixteen fixed parameters, no observed
+rest binding and matching spread-free recursive arguments. Its canonical root
+loop returns one opaque public result. Entry bindings and iteration bindings
+are distinct identities. Common preparation establishes all next arguments
+before slot writes and snapshots current parameters for captures, while local
+objects, functions and memo storage are recreated each iteration. Remaining
+non-tail calls and self references retain the function's recursive identity.
+Missing, extra and spread recursive arguments and observed rest remain ordinary
+calls. Existing scalar graph cases keep their previous shape; general cases
+retain their normalized graph on repeated conversion.
+
+New general loops retain the required function owner previously chosen for
+their recursive form, even when all runtime self reads become transitions.
+This preserves placement and supplies the name needed for recursive source
+spelling. Code-only JavaScript and Rust use the common prepared loop. Until H
+admits general source loops, source spelling reifies nonscalar canonical roots
+with the graph owner's existing transfer resolver. Synthesized invocation-read
+aliases become ordinary required reads, and terminal statement conditionals
+return through source value conditionals. Computed lazy definitions keep their
+existing admission rules. The established scalar source loop remains unchanged.
+
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.

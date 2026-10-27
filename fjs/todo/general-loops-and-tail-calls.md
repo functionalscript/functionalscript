@@ -1,8 +1,8 @@
 ## General loops and tail calls
 
 **Priority:** P2
-**Status:** wip — A-D and fixed-input invocation-root reconstruction implemented
-above #3127; general helper construction and tail-call work remain in E/F
+**Status:** wip — A-E construction implemented; generalized tail calls and their
+stack-safety integration are next in F, followed by source bindings and loops
 
 ### Goal
 
@@ -109,7 +109,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       every required consumer before starting D.
 - [x] **D — Smaller EDAG.** Complete the short-circuit owner's source lowering,
       schema/identity decision and producer/consumer migration.
-- [ ] **E — General graph construction.** Complete the loop-construction owner
+- [x] **E — General graph construction.** Complete the loop-construction owner
       using explicit FAST inputs/results; no source-mutability analysis here.
       Fixed-input invocation roots and nested normal-exit aggregate helpers are
       implemented, along with statement-level function returns and outer-loop
@@ -137,9 +137,26 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       preserving memo lifetimes. Cells declared in initializer-owned loops
       reset at reached declarations, share within their iteration and nested
       loops, retain captured values, and propagate source-owned returns.
+      Normal-only memo plans also sequence member and optional calls, preserving
+      optional skips, lookup order, receivers and shared cell lifetimes.
+      Standalone array/call/object spreads and object entries retain reached
+      expansion, copying and key-conversion order. Prepared declaration and loop
+      occurrences expose cells owned entirely inside operands while preserving
+      function and deferred-initializer boundaries.
+      Caller and initializer planning also share an eager lexical inventory for
+      operand loops and computed lazy locals, retaining caller sharing, fresh
+      local lifetimes and separate transfer ownership.
+      Deferred-initializer helper crossings select their caller-owned cells
+      even without an eager caller loop, preserving declaration-time scope and
+      first-demand evaluation through nested recipes.
 - [ ] **F — General tail calls.** Complete the tail-call owner's evaluation-aware
       eligibility and invocation preparation. Prove bounded stack use for the
       helper shapes E constructs, including repeated nested loops.
+      Fixed-parameter tail evaluations in either conditional arm and final
+      sequence operands now use canonical invocation loops. Simultaneous updates,
+      captures, per-iteration lifetimes and stable graph conversion are proven,
+      including deep JavaScript/Rust execution of repeated nested E helpers.
+      Broader argument/rest preparation remains; H owns new source loop spelling.
 - [ ] **G — General bindings.** Implement the language owner's admission and
       AST-to-FAST rules after approval using the existing analysis, a pattern
       after `let` included; migrate the post-loop and immediate-call capture

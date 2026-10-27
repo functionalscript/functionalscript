@@ -79,13 +79,12 @@ const refusalReason = e => {
 }
 
 export const proof = {
-    // `self` is the closure's `self_` parameter as the `Function` it is,
-    // so a body reading it names that parameter, as a frame read does
+    // A non-tail call still reads the closure's `self_` as a Function.
     self: () => {
         /** @type {Exp} */
-        const loop = ['=>', 0, [], ['()', ['self'], []]]
+        const loop = ['=>', 0, [], ['!', ['()', ['self'], []]]]
         assertStructurallySame(usedBy(loop), { vm: ['Array', 'Function', 'ToAny'], unstable: [] })
-        assertStructurallySame(scoped(loop), ["let _b2: Any<A> = A::static_function(|_self, _args| { Any::call(Function::new(_self.clone()).to_any(), Array::default().to_any()) }, 0, Array::default(), Some(\"(function $0(){return $0();})\")).to_any();","Ok(_b2.clone())"])
+        assertStructurallySame(scoped(loop), ["let _b3: Any<A> = A::static_function(|_self, _args| { <Any<A> as core::ops::Not>::not((Any::call(Function::new(_self.clone()).to_any(), Array::default().to_any()))?) }, 0, Array::default(), Some(\"(function $0(){return !$0();})\")).to_any();","Ok(_b3.clone())"])
     },
     /**
      * The common converter recognizes `r => COND ? self(NEXT) : r` as a
@@ -200,48 +199,73 @@ export const proof = {
             },
         },
         /**
-         * The recursion is kept, `Function::new(self_)` called, for what
-         * is not the template, and for the shapes every writer keeps it
-         * for (`keepsRecursion` in `fjs/edag/loop`, asked of the
-         * function's own table): a root assert, a value minting identity
-         * the condition shares with the round — a container, which bound
-         * in each would be two where the graph has one — a rest read, or
-         * a spread as the next value. A shared operation merges, one
-         * value however many times it is evaluated, and is bound in the
-         * condition and in the round alike.
+         * General tail loops keep shared containers inside the iteration,
+         * once per invocation. The established scalar template keeps its
+         * spelling, including shared operations in the test and round.
+         * Rest, spread and mismatched recursive arguments stay calls, as
+         * does an established call result read from a shared binding.
          */
         recursion: () => {
             /** @type {Exp} */
+            const empty = ['=>', 0, [], ['()', ['self'], []]]
+            assertStructurallySame(usedBy(empty), { vm: ['Array', 'ToAny'], unstable: [] })
+            assertStructurallySame(scoped(empty), ["let _b2: Any<A> = A::static_function(|_self, _args| { '_loop2: loop { continue '_loop2; } }, 0, Array::default(), Some(\"()=>{L0:while(true){continue L0;}}\")).to_any();","Ok(_b2.clone())"])
+            /** @type {Exp} */
             const minted = ['[]', [['arg', 0]]]
-            assertStructurallySame(scoped(loop(['.', minted, 0], call(['.', minted, 'length']))), ["let _b8: Any<A> = A::static_function(|_self, _args| {","    let _b1: Any<A> = [_args.argument(0)].to_array().to_any();","    if Any::<A>::to_boolean((Any::dot(_b1.clone(), f64_any(0x0000000000000000)).end())?) { Any::call(Function::new(_self.clone()).to_any(), [(Any::dot(_b1.clone(), string_any(\"length\")).end())?].to_array().to_any()) } else { Ok(_args.argument(0)) }","}, 1, Array::default(), Some(\"(function $0($1){const $2=[$1];return $2[0]?$0($2.length):$1;})\")).to_any();","Ok(_b8.clone())"])
+            assertStructurallySame(scoped(loop(['.', minted, 0], call(['.', minted, 'length']))), ["let _b8: Any<A> = A::static_function(|_self, _args| {","    let _b357: Any<A> = _args.argument(0);","    let mut _b358: Any<A> = _b357.clone();","    let mut _b359: Any<A> = Nullish::Undefined.to_any();","    '_loop8: loop {","        let _b337_5: Any<A> = _b358.clone();","        let _b1: Any<A> = [_b337_5.clone()].to_array().to_any();","        if Any::<A>::to_boolean((Any::dot(_b1.clone(), f64_any(0x0000000000000000)).end())?) {","            let _b360: Any<A> = (Any::dot(_b1.clone(), string_any(\"length\")).end())?;","            _b358 = _b360.clone();","            continue '_loop8;","        } else {","            let _b361: Any<A> = _b337_5.clone();","            _b359 = _b361.clone();","            break '_loop8;","        }","    }","    let _b356: Any<A> = _b359.clone();","    Ok(_b356.clone())","}, 1, Array::default(), Some(\"($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[$4];if($5[0]){const $6=$5.length;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}\")).to_any();","Ok(_b8.clone())"])
             /** @type {Exp} */
             const n = ['+', ['arg', 0], 1]
             assertStructurallySame(scoped(loop(['<', n, 10], call(n))).slice(2, 8), ["    '_loop7: while Any::<A>::to_boolean({","        let _b309: Any<A> = _b308.clone();","        (Any::lt((_b309.clone() + f64_any(0x3ff0000000000000))?, f64_any(0x4024000000000000)))?","    }) {","        let _b306: Any<A> = _b308.clone();","        let _b310: Any<A> = (_b306.clone() + f64_any(0x3ff0000000000000))?;"])
             /** @type {Exp} */
             const c = call(1)
+            // A required prefix, arbitrary base and unconditional tail
+            // are terminal regions even outside the old scalar template.
             /** @type {readonly Exp[]} */
-            const cases = [
+            const general = [
                 ['=>', 1, [], [',', [['+', 1, 2], ['?:', true, c, ['arg', 0]]]]],
-                loop(['rest'], c),
-                loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
-                // another length, another alternate, a body that is no `?:`
-                ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
                 ['=>', 1, [], ['?:', true, c, 1]],
                 ['=>', 1, [], c],
-                ['=>', 1, [], 1],
-                // a consequent that is no call of `self` with one argument,
-                // and a call shared by the comma around it
-                loop(true, ['()', ['arg', 0], [1]]),
-                loop(true, ['()', 1, [1]]),
+            ]
+            for (const e of general) {
+                const lines = scoped(e)
+                assert(lines.some(line => line.endsWith('loop {')), JSON.stringify(e))
+                assert(!lines.some(line => line.includes('Function::new(_self.clone())')), JSON.stringify(e))
+            }
+            /** @type {readonly Exp[]} */
+            const recursive = [
+                loop(['rest'], c),
+                loop(true, ['()', ['self'], [['...', ['[]', []]]]]),
+                // missing/extra recursive arguments, and a call already
+                // evaluated into a shared binding rather than in tail position
+                ['=>', 2, [], ['?:', true, c, ['arg', 0]]],
                 loop(true, ['()', ['self'], [1, 2]]),
                 loop(true, [',', [c, c]]),
-                // `self` read anywhere else: in the condition, as the next
-                // value, and captured by a nested function
+            ]
+            for (const e of recursive) {
+                const lines = scoped(e)
+                assert(!lines.some(line => line.endsWith('loop {')), JSON.stringify(e))
+                assert(lines.some(line => line.includes('Any::call(Function::new(_self.clone())')), JSON.stringify(e))
+            }
+            /** @type {readonly Exp[]} */
+            const otherCalls = [
+                ['=>', 1, [], 1],
+                loop(true, ['()', ['arg', 0], [1]]),
+                loop(true, ['()', 1, [1]]),
+            ]
+            for (const e of otherCalls) { assert(!scoped(e).some(line => line.endsWith('loop {')), JSON.stringify(e)) }
+            // Scalar loops still retain the function owner for surviving
+            // self reads in a condition, argument value or closure capture.
+            /** @type {readonly Exp[]} */
+            const survivingSelf = [
                 loop(['()', ['self'], [1]], c),
                 loop(true, call(['self'])),
                 loop(true, call(['=>', 0, [['self']], 1])),
             ]
-            for (const e of cases) { assert(!scoped(e).some(line => line.endsWith('loop {')), JSON.stringify(e)) }
+            for (const e of survivingSelf) {
+                const lines = scoped(e)
+                assert(lines.some(line => line.includes(': while ')), JSON.stringify(e))
+                assert(lines.some(line => line.includes('Function::new(_self.clone())')), JSON.stringify(e))
+            }
         },
     },
     /**

@@ -224,6 +224,21 @@ export const proof = {
         assertEq(a, 1)
         assertEq(b, 1)
     },
+    standaloneValuesAndLazyInitializersPlanTheirOwnMemoRegions: () => {
+        const shared = id(0), outer = id(0)
+        const loop = collectingMemo(ref(shared), 2)
+        const region = result(['array', [['block', afterLoop(loop, collectedMemo(ref(loop.results[0])))], ref(shared)]], [
+            ['define', shared, ['array', [4]], 'lazy'],
+        ])
+        const standalone = anchored(lowerValue(['block', region], []))
+        const deferred = fromFast(result(ref(outer), [['define', outer, ['block', region], 'lazy']]))
+        for (const graph of [standalone, deferred]) {
+            const value = evaluate(graph)
+            assert(value instanceof Array)
+            assertStructurallySame(value, [[4], [4]])
+            assertEq(value[0], value[1])
+        }
+    },
     customTransfers: () => {
         const external = id(0)
         const local = id(1)
@@ -1627,6 +1642,47 @@ export const proof = {
         const wrapped = fromFast(result(['function', { ...fn, body: { ...fn.body, statements: [['define', setup, ['array', []], 'required'], ...fn.body.statements] } }]))
         assertStructurallySame(wrapped, ['=>', 1, [], [',', [['[]', []], ['()', ['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]], [['arg', 0]]]]]])
     },
+    loopMemoMemberArgumentDemand: () => {
+        const lazy = id(0)
+        const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])
+        const graph = fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
+        assertError(memo(assertOk(identityAnalysis(graph)))({ args: [] }))
+    },
+    loopMemoOptionalArgumentDemand: () => {
+        for (const initializer of /** @type {readonly Value[]} */ ([['array', [4]], ['.', null, 'x']])) {
+            const lazy = id(0)
+            const loop = collectingMemo(['?.()', null, [ref(lazy)]])
+            assertEq(evaluate(fromFast(result(7, [['define', lazy, initializer, 'lazy'], ['loop', loop]]))), 7)
+        }
+    },
+    loopMemoSpreadDemand: () => {
+        const lazy = id(0)
+        const loop = collectingMemo(['array', [['...', ref(lazy)]]])
+        const statements = /** @type {readonly Statement[]} */ ([['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
+        assertEq(evaluate(fromFast(result(7, statements))), 7)
+        const value = evaluate(fromFast(result(['array', [collectedMemo(ref(loop.results[0])), ref(lazy)]], statements)))
+        assert(value instanceof Array)
+        assertStructurallySame(value, [[4], [4]])
+        assert(value[0] !== value[1])
+    },
+    loopMemoOperandLazyPrerequisite: () => {
+        const external = id(0), dependent = id(0)
+        const loop = collectingMemo(ref(dependent), 2)
+        const statements = /** @type {readonly Statement[]} */ ([['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop]])
+        assertEq(evaluate(fromFast(result(['block', result(7, statements)], [['define', external, ['array', [4]], 'lazy']]))), 7)
+        const local = result(['array', [collectedMemo(ref(loop.results[0]), 1), collectedMemo(ref(loop.results[0])), ref(dependent)]], statements)
+        const value = evaluate(fromFast(result(['array', [['block', local], ref(external)]], [['define', external, ['array', [4]], 'lazy']])))
+        assert(value instanceof Array && value[0] instanceof Array && value[0][0] instanceof Array)
+        assertStructurallySame(value, [[[[4]], [[4]], [[4]]], [4]])
+        assertEq(value[0][0], value[0][1])
+        assertEq(value[0][0], value[0][2])
+        assertEq(value[0][0][0], value[1])
+    },
+    loopMemoOperandOwnerCrossing: () => {
+        const lazy = id(0)
+        const loop = collectingMemo(ref(lazy), 3, false)
+        assertEq(evaluate(fromFast(result(['if', false, afterLoop(loop, 1), result(8)], [['define', lazy, ['.', null, 'x'], 'lazy']]))), 8)
+    },
     throw: {
         unbound: () => { fromFast(result(ref(id(0)))) },
         distinctBindingIdentity: () => { fromFast(result(ref(id(0))), [[id(0), 1]]) },
@@ -1679,17 +1735,6 @@ export const proof = {
             const block = result(7, [['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop]])
             fromFast(block, [[external, ['[]', [4]], 'lazy'], [external, ['[]', [9]]]])
         },
-        loopMemoOperandLazyPrerequisite: () => {
-            const external = id(0), dependent = id(0)
-            const loop = collectingMemo(ref(dependent), 2)
-            const local = result(7, [['define', dependent, ['array', [ref(external)]], 'lazy'], ['loop', loop]])
-            fromFast(result(['block', local], [['define', external, ['array', [4]], 'lazy']]))
-        },
-        loopMemoOperandOwnerCrossing: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(ref(lazy), 3, false)
-            fromFast(result(['if', false, afterLoop(loop, 1), result(8)], [['define', lazy, ['.', null, 'x'], 'lazy']]))
-        },
         loopMemoCustomBlockTransfer: () => {
             const lazy = id(0)
             const loop = collectingMemo(ref(lazy), 2)
@@ -1702,6 +1747,12 @@ export const proof = {
             const block = result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]])
             lowerValue(['block', block], [], () => ({ exp: 7, anchors: [] }))
         },
+        lazyInitializerMemoRewriteKeepsCustomTransferRefusal: () => {
+            const shared = id(0), outer = id(0)
+            const loop = collectingMemo(ref(shared), 2)
+            const initializer = /** @type {Value} */ (['block', result(ref(loop.results[0]), [['define', shared, ['array', [4]], 'lazy'], ['loop', loop]])])
+            lowerBlock(result(7, [['define', outer, initializer, 'lazy']]), [], () => ({ exp: 7, anchors: [] }))
+        },
         loopMemoForeignReturn: () => {
             const lazy = id(0)
             const loop = returningLoop(false, ref(lazy), [7], { ...target })
@@ -1710,21 +1761,6 @@ export const proof = {
                 body: body(['return', target, 9], [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]),
             })
             calledFunction(fn)
-        },
-        loopMemoMemberArgumentDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['.', null, 'x', ['|()', [ref(lazy)]]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
-        },
-        loopMemoOptionalArgumentDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['?.()', null, [ref(lazy)]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
-        },
-        loopMemoSpreadDemand: () => {
-            const lazy = id(0)
-            const loop = collectingMemo(['array', [['...', ref(lazy)]]])
-            fromFast(result(7, [['define', lazy, ['array', [4]], 'lazy'], ['loop', loop]]))
         },
         loopReturnForeignOwner: () => {
             const loop = returningLoop(true, 7, [], { ...target })

@@ -8,15 +8,15 @@
  * @module
  *
  * @import { BindingId, Block, Exit, Function as FastFunction, FunctionTarget, Loop, Operator, Statement, Value } from '../types.ts'
- * @import { List } from '../../../types/list/types.ts'
+ * @import { List, Result as ListResult } from '../../../types/list/types.ts'
  * @import { MemoLayout } from './cells/types.ts'
  * @import { _Block, _Context, _Exit, _Loop, _Recipe, _Value, _Values } from './private.ts'
  * @import { Task } from '../task/types.ts'
  */
 
-import { concat, toArray } from '../../../types/list/module.f.mjs'
+import { concat, next, toArray } from '../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { exitValues, freeBindings, freeLoopBindings } from '../control/module.f.mjs'
+import { exitValues, freeBindings } from '../control/module.f.mjs'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { _exposeOperands, liftReturns } from '../returns/module.f.mjs'
@@ -151,10 +151,39 @@ const demand = (index, context) => {
 /** @type {(operator: Operator<Value>) => boolean} */
 const guarded = operator => operator[0] === '?.' || operator[0] === '?.()' || operator[0] === '.' && operator.length === 4
     || operator[0] === '()' && operator[1] instanceof Array && operator[1][0] === '.'
-/** @type {(operator: Operator<Value>) => boolean} */
-const spreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
-    : operator[0] === 'object' ? operator[1].some(entry => entry[0] === '...')
-        : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
+/** Objects sequence every entry; array and plain-call items need expansion. @type {(operator: Operator<Value>) => boolean} */
+const itemSpreads = operator => operator[0] === 'array' ? operator[1].some(item => item instanceof Array && item[0] === '...')
+    : operator[0] === '()' && operator[2].some(item => item instanceof Array && item[0] === '...')
+
+/** Selected declaration/loop occurrences can be bound entirely inside an operand. @type {(source: Value, plan: MemoLayout) => boolean} */
+const ownsMemo = (source, plan) => {
+    /** @type {List<Value | Block>} */
+    let pending = [source]
+    while (true) {
+        /** @type {ListResult<Value | Block>} */
+        const item = next(pending)
+        if (item === null) { return false }
+        pending = item.tail
+        const value = item.first
+        if (value === null || typeof value !== 'object') { continue }
+        if (!(value instanceof Array)) {
+            if (value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
+                || statement[0] === 'loop' && plan.loops.has(statement[1]))) { return true }
+            /** @type {readonly (Value | Block)[]} */
+            const children = [...value.statements.flatMap(statement => statement[0] === 'define'
+                ? statement[3] === 'required' ? [statement[2]] : []
+                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit)]
+            pending = concat(children)(pending)
+            continue
+        }
+        /** @type {readonly (Value | Block)[]} */
+        const children = value[0] === 'function' ? value[1].captures.map(capture => capture.value)
+            : value[0] === 'block' ? [value[1]] : value[0] === 'if' ? [value[1], value[2], value[3]]
+                : value[0] === 'ref' ? [] : operatorOperands(value)
+        pending = concat(children)(pending)
+    }
+}
 
 /** @type {(test: _Value, then: _Block, otherwise: _Block, source: Value) => _Value} */
 const conditionalValue = (test, then, otherwise, source) => {
@@ -201,15 +230,14 @@ const valueTask = (source, context) => call(() => {
                     return done(conditionalValue(test, a, b, original))
                 })))
     }
-    if (context.completions && (source[0] === 'object' || guarded(source) || spreads(source))
-        && freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id))) {
+    if ((guarded(source) || source[0] === 'object' || itemSpreads(source))
+        && (freeBindings({ statements: [], exit: ['yield', [source]] }).some(id => context.aliases.has(id)) || ownsMemo(source, context.plan))) {
         const value = _exposeOperands(source, binding(), context.sourceOwner)
         if (value.statement === null) { throw 'deferred completion requires an admitted operand region' }
         return valueTask(['block', { statements: [value.statement], exit: ['yield', [value.value]] }], context)
     }
     const operands = operatorOperands(source)
     return bind(valuesTask(operands, context), values => {
-        if (values.usesMemo && (guarded(source) || spreads(source))) { throw 'memo demands across optional, member-call or spread operands are not supported yet' }
         const unchanged = values.values.every((value, i) => value === operands[i])
         return done({ statements: values.statements, value: unchanged ? source : mapOperator((_, index) => values.values[index])(source), memo: values.memo, usesMemo: values.usesMemo })
     })
@@ -238,7 +266,6 @@ const exitTask = (exit, context) => call(() => {
 /** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<_Loop>} */
 const loopTask = (loop, context) => call(() => {
     if (!context.plan.loops.has(loop)) {
-        if (freeLoopBindings(loop).some(id => context.aliases.has(id))) { throw 'memo demands in operand-owned loop helpers are not supported yet' }
         return bind(valuesTask(loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
             const finish = body => done({
@@ -309,9 +336,6 @@ const blockTask = (block, context) => {
                 const initializer = statement[2]
                 const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
                 if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]])) }
-                if (freeBindings({ statements: [], exit: ['yield', [initializer]] }).some(id => aliases.has(id))) {
-                    throw 'computed lazy memo dependencies require their own demand cells'
-                }
                 return resume([statement], memo, false, false, true, shadowed)
             }
             return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([

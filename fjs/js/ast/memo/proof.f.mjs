@@ -11,6 +11,9 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
 import { proof as deferredReturns } from '../../../edag/from_fast/lazy_returns/proof.f.mjs'
 import { proof as initializerLoops } from '../../../edag/from_fast/initializer_loop_cells/proof.f.mjs'
+import { _ownedLoopValue as ownedLoopValue, proof as ownedOperands } from '../../../edag/from_fast/operand_owned_demands/proof.f.mjs'
+import { proof as eagerOperands } from '../../../edag/from_fast/eager_operand_memo/proof.f.mjs'
+import { proof as deferredLoops } from '../../../edag/from_fast/deferred_loop_cells/proof.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -27,6 +30,9 @@ const state = /** @type {const} */ ({ index: 0 })
 const output = /** @type {const} */ ({ index: 0 })
 const loopTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
 const functionTarget = /** @type {const} */ ({ kind: 'function', index: 0 })
+const spreadCallee = /** @type {Value} */ (['function', {
+    target: functionTarget, parameters: [], rest: null, self: null, captures: [], body: body(['return', functionTarget, 0]),
+}])
 
 /** @type {(value: Value) => Loop} */
 const counting = value => ({
@@ -40,6 +46,9 @@ const counting = value => ({
 const crossing = (value = ref(lazy), recipe = ['array', []]) => yielded(['array', [ref(output), ref(lazy)]], [
     ['define', lazy, recipe, 'lazy'], ['loop', counting(value)],
 ])
+
+/** Internally selected cells are absent from the operand's free bindings. @type {(consume: (argument: Value) => Value, initializer?: Value) => Block} */
+const ownedMemoOperand = (consume, initializer = ['array', [4, 5]]) => crossing(ref(lazy), consume(ownedLoopValue(initializer)))
 
 /** A value-owned helper can transfer only within that operand. @type {(escape: boolean) => Block} */
 const initializerOperandTransfer = escape => {
@@ -105,6 +114,102 @@ const loopPacket = (exit, kind, target, values, memo) => {
 export const proof = /** @type {const} */ ({
     deferredReturns,
     initializerLoops,
+    ownedOperands,
+    eagerOperands,
+    deferredLoops,
+    optionalDemand: () => {
+        assertStructurallySame(evaluate(crossing(['?.', ref(lazy), 'length'])), [0, []])
+    },
+    optionalCallDemand: () => {
+        const callable = /** @type {Value} */ (['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [], body: body(['return', functionTarget, 4]) }])
+        const source = crossing(['?.()', ref(lazy), []], callable)
+        assertStructurallySame(evaluate({ ...source, exit: ['yield', [['array', [ref(output), ['===', ref(lazy), ref(lazy)]]]]] }), [4, true])
+        const normalized = normalizeMemo(source)
+        assertEq(readyCells(recipesIn(normalized)[0][1]).length, 1)
+    },
+    continuedMemberDemand: () => {
+        const callable = /** @type {Value} */ (['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [], body: body(['return', functionTarget, 9]) }])
+        const source = crossing(['.', ref(lazy), 'method', ['|()', []]], ['object', [[':', 'method', callable]]])
+        assertStructurallySame(evaluate({ ...source, exit: ['yield', [['array', [ref(output), ['===', ref(lazy), ref(lazy)]]]]] }), [9, true])
+    },
+    immediateMemberDemand: () => {
+        assertStructurallySame(evaluate(crossing(['()', ['.', ['array', [4]], 'at'], [ref(lazy)]], ['+', 0, 0])), [4, 0])
+    },
+    operandOwnedLoop: () => {
+        const innerOutput = id(0)
+        const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {Loop} */ ({
+            target: innerTarget, parameters: [], initial: [], results: [innerOutput], body: body(['break', innerTarget, [ref(lazy)]]),
+        })
+        const operand = /** @type {Value} */ (['block', yielded(ref(innerOutput), [['loop', inner]])])
+        const source = yielded(['array', [operand, ref(lazy), ref(output)]], [
+            ['define', lazy, ['array', []], 'lazy'], ['loop', counting(ref(lazy))],
+        ])
+        const value = evaluate(source)
+        assertStructurallySame(value, [[], [], []])
+        assert(value instanceof Array)
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[2])
+    },
+    operandComputedLazyDependent: () => {
+        const value = evaluate(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
+        assertStructurallySame(value, [[[]], []])
+        assert(value instanceof Array && value[0] instanceof Array)
+        assertEq(value[0][0], value[1])
+    },
+    borrowedOnlyRecipeAliasesKeepTheirCallerCell: () => {
+        const owner = id(0)
+        const value = evaluate(yielded(['array', [ref(output), ref(owner), ref(lazy)]], [
+            ['define', lazy, ['array', [4]], 'lazy'],
+            ['define', owner, ['block', yielded(ref(alias), [['define', alias, ref(lazy), 'lazy']])], 'lazy'],
+            ['loop', counting(ref(owner))],
+        ]))
+        assertStructurallySame(value, [[4], [4], [4]])
+        assert(value instanceof Array)
+        assertEq(value[0], value[1])
+        assertEq(value[0], value[2])
+    },
+    spreadDemand: () => {
+        const value = evaluate(crossing(['array', [['...', ref(lazy)]]]))
+        assertStructurallySame(value, [[], []])
+        assert(value instanceof Array)
+        assert(value[0] !== value[1])
+    },
+    objectSpreadDemand: () => {
+        assertStructurallySame(evaluate(crossing(['object', [['...', ref(lazy)]]])), [{}, []])
+    },
+    callSpreadDemand: () => {
+        assertStructurallySame(evaluate(crossing(['()', spreadCallee, [['...', ref(lazy)]]])), [0, []])
+    },
+    operandOwnedDemandRegions: {
+        optionalCall: () => {
+            assertStructurallySame(evaluate(ownedMemoOperand(argument => ['?.()', null, [argument]],
+                ['block', body(['throw', 'hidden operand demand'])])), [undefined, undefined])
+        },
+        arraySpread: () => {
+            const value = evaluate(ownedMemoOperand(argument => ['array', [['...', argument]]]))
+            assertStructurallySame(value, [[4, 5], [4, 5]])
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+        },
+        callSpread: () => {
+            assertStructurallySame(evaluate(ownedMemoOperand(argument => ['()', spreadCallee, [['...', argument]]])), [0, 0])
+        },
+        objectSpread: () => {
+            const value = evaluate(ownedMemoOperand(argument => ['object', [['...', argument]]]))
+            assertStructurallySame(value, [{ 0: 4, 1: 5 }, { 0: 4, 1: 5 }])
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+        },
+        objectEntry: () => {
+            const value = evaluate(ownedMemoOperand(argument => ['object', [[':', 'key', argument]]]))
+            assertStructurallySame(value, [{ key: [4, 5] }, { key: [4, 5] }])
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+        },
+    },
     initializerValueOwnedLoopKeepsItsLocalTransfer: () => {
         const result = evaluate(initializerOperandTransfer(false))
         assertStructurallySame(result, [[[4]], [[4]]])
@@ -1828,37 +1933,18 @@ export const proof = /** @type {const} */ ({
         assertEq(statement[1].results.length, 2)
         assertEq(current.exit[0], 'yield')
     },
+    deepOperandOwnedRegions: () => {
+        /** @type {Value} */
+        let argument = ownedLoopValue(['array', [4, 5]])
+        for (let depth = 0; depth < 20_000; ++depth) { argument = ['block', yielded(argument)] }
+        const source = crossing(ref(lazy), ['?.()', null, [argument]])
+        assert(normalizeMemo(source) !== source)
+    },
     throw: {
         initializerOperandCannotTransferToContainingLoop: () => evaluate(initializerOperandTransfer(true)),
         deferredSpreadCalleeBoundary: () => normalizeLazyReturns(body(['return', functionTarget,
             ['()', [',', []], [['...', ref(lazy)]]],
         ], [['define', lazy, ['block', body(['return', functionTarget, 7])], 'lazy']]), functionTarget),
-        optionalDemand: () => { normalizeMemo(crossing(['?.', ref(lazy), 'length'])) },
-        optionalCallDemand: () => { normalizeMemo(crossing(['?.()', ref(lazy), []])) },
-        continuedMemberDemand: () => { normalizeMemo(crossing(['.', ref(lazy), 'method', ['|()', []]])) },
-        immediateMemberDemand: () => { normalizeMemo(crossing(['()', ['.', ['array', [4]], 'at'], [ref(lazy)]], ['+', 0, 0])) },
-        spreadDemand: () => { normalizeMemo(crossing(['array', [['...', ref(lazy)]]])) },
-        objectSpreadDemand: () => { normalizeMemo(crossing(['object', [['...', ref(lazy)]]])) },
-        callSpreadDemand: () => {
-            const plain = /** @type {Value} */ (['function', {
-                target: functionTarget, parameters: [], rest: null, self: null, captures: [], body: body(['return', functionTarget, 0]),
-            }])
-            normalizeMemo(crossing(['()', plain, [['...', ref(lazy)]]]))
-        },
-        operandOwnedLoop: () => {
-            const innerOutput = id(0)
-            const innerTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
-            const inner = /** @type {Loop} */ ({
-                target: innerTarget, parameters: [], initial: [], results: [innerOutput], body: body(['break', innerTarget, [ref(lazy)]]),
-            })
-            const source = yielded(['block', yielded(ref(innerOutput), [['loop', inner]])], [
-                ['define', lazy, ['array', []], 'lazy'], ['loop', counting(ref(lazy))],
-            ])
-            normalizeMemo(source)
-        },
-        operandComputedLazyDependent: () => {
-            normalizeMemo(crossing(['block', body(['yield', [ref(alias)]], [['define', alias, ['array', [ref(lazy)]], 'lazy']])]))
-        },
         operandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])])) },
         ownedOperandReturn: () => { normalizeMemo(crossing(['block', body(['return', functionTarget, ref(lazy)])]), [], functionTarget) },
         ownedForeignReturn: () => {
