@@ -301,6 +301,51 @@ export const proof = {
         assertEq(graph[1][count], 0)
         assertStructurallySame(fromFast(block), graph)
     },
+    selectedControlArmsReuseCompletedTests: () => {
+        const parameters = [id(0), id(1), id(2)]
+        const advanced = id(3), left = id(4), right = id(5)
+        /** @type {FastFunction} */
+        const fn = {
+            target, parameters, rest: null, self: null, captures: [],
+            body: body(['return', target, 0], [
+                ['define', advanced, ['+', ref(parameters[0]), 1], 'required'],
+                ['if', [], ['>', ref(advanced), 0],
+                    body(['return', target, ['array', [ref(advanced), ref(left), ref(right)]]], [
+                        ['define', left, ['+', ref(parameters[1]), 1], 'required'],
+                        ['define', right, ['+', ref(parameters[2]), 1], 'required'],
+                    ]),
+                    body(['return', target, 0]),
+                ],
+            ]),
+        }
+        /** @type {Exp} */
+        const next = ['+', ['arg', 0], 1]
+        const graph = fromFast(result(['function', fn]))
+        assertStructurallySame(graph, ['=>', 3, [], ['?:', ['>', next, 0], ['[]', [next, ['+', ['arg', 1], 1], ['+', ['arg', 2], 1]]], 0]])
+        assertStructurallySame(evaluate(calledFunction(fn, [0, 1, 2])), [1, 2, 3])
+        assertEq(evaluate(calledFunction(fn, [-2, 1, 2])), 0)
+    },
+    completedControlTestsDoNotEstablishDeferredDefinitions: () => {
+        const selected = id(0), deferred = id(1)
+        /** @type {FastFunction} */
+        const fn = {
+            target, parameters: [selected], rest: null, self: null, captures: [],
+            body: body(['return', target, 7], [
+                ['define', deferred, ['.', null, 'x'], 'lazy'],
+                ['if', [], ref(selected), body(['yield', []]), body(['throw', ref(deferred)])],
+            ]),
+        }
+        assertEq(evaluate(calledFunction(fn, [true])), 7)
+        assertError(memo(assertOk(identityAnalysis(calledFunction(fn, [false]))))({ args: [] }))
+        const supplied = id(0)
+        const block = result(7, [['if', [], true, body(['throw', ref(supplied)]), body(['yield', []])]])
+        assertError(memo(assertOk(identityAnalysis(fromFast(block, [[supplied, ['.', null, 'x']]]))))({ args: [] }))
+        const required = id(0)
+        /** @type {Value} */
+        const condition = ['block', result(true, [['define', required, ['block', body(['throw', 17])], 'required']])]
+        const tested = result(7, [['if', [], condition, body(['throw', 99]), body(['yield', []])]])
+        assertEq(assertError(memo(assertOk(identityAnalysis(fromFast(tested))))({ args: [] })), 17)
+    },
     wideRequiredUpdatesNormalizeTogether: () => {
         const parameters = Array.from({ length: 18 }, (_, index) => id(index))
         const next = parameters.map((_, index) => id(index))

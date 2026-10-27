@@ -343,6 +343,15 @@ export const proof = {
         assertEq(rows[0]?.message, 'm')
         assertEq(rows[0]?.stack, 'm')
     },
+    // A field that reads `undefined` says nothing, so a value whose two fields
+    // both do is described by its own text, as one without them is.
+    undefinedFieldsSayNothing: () => {
+        const [held] = settled(working([])(runProofs([['a', { x: failWith({ message: undefined }) }]]))[0])
+        const [none] = settled(working([])(runProofs([['a', { x: failWith({}) }]]))[0])
+        assertEq(held?.message, none?.message)
+        assertEq(held?.stack, none?.stack)
+        assert(held?.message !== 'undefined', held?.message)
+    },
     // A value that is not error-shaped is described by its own text.
     plainThrownValueIsPrinted: () => {
         const rows = settled(working([])(runProofs([['a', { x: failWith(42) }]]))[0])

@@ -36,13 +36,16 @@ using the existing source grammar.
 
 General fixed-parameter tail calls use loops in code-only JavaScript and Rust.
 Source output retains rest-free canonical invocation roots recognized by the
-shared scalar or plain-loop plan. This includes aggregate helpers for zero or
-multiple source state values. Common preparation emits ordinary `while`
-statements and computes their normal result after the final false test. Other
-canonical invocation roots retain recursive source spelling through the
-existing transfer resolver. The adapter repeats no graph placement or tail
-eligibility analysis; required function owners retain recursive names where
-needed.
+shared scalar or plain-loop plan, plus one-input/one-result structured loops
+whose transfers target their nearest loop and whose regions the source grammar
+admits. This includes aggregate helpers for zero or multiple source state
+values. Common preparation emits ordinary `while` statements; the plain-loop
+plan computes its normal result after the final false test. The structured
+source profile shares one physical state/result slot, spelling `break` and
+`continue` without labels. Other canonical invocation roots retain recursive
+source spelling through the existing transfer resolver. The adapter repeats no
+graph placement or tail eligibility analysis; required function owners retain
+recursive names where needed.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and

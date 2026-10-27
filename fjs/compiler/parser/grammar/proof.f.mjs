@@ -434,9 +434,8 @@ export const proof = {
         // value ) loopBlock`, two statements the grammar reads where a
         // `const` may stand, each on its own; source resolution and the common
         // sugar pass choose loop state. The loop's block holds `const`s,
-        // `let`s, assignments, normal conditionals, nested loops and call
-        // statements and no terminator; explicit exits stay outside the
-        // grammar. The same loop also stands at module level. No `;`
+        // `let`s, assignments, conditionals, nested loops, transfers and call
+        // statements and no required terminator. The same loop also stands at module level. No `;`
         // follows its `}`.
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { const x = 1; r = x; r = x; } return r; };'), ['ok'])
@@ -473,8 +472,16 @@ export const proof = {
         assertStructurallySame(read('while(false){if(true){while(false){}}else if(false){while(false){}}else{while(false){}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){return 1;}}export default 7;'), ['error', 'return'])
         assertStructurallySame(read('while(false){while(false){throw 1;}}export default 7;'), ['error', 'throw'])
-        assertStructurallySame(read('while(false){while(false){break;}}export default 7;'), ['error', 'break'])
-        assertStructurallySame(read('while(false){while(false){continue;}}export default 7;'), ['error', 'continue'])
+        assertStructurallySame(read('while(false){while(false){break;}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){while(false){continue;}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){break;const x=1;continue;}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){if(true){continue;}else if(false){break}else{continue}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){break\ncontinue\nconst x=1;}export default 7;'), ['ok'])
+        assertStructurallySame(read('export default {break:1,continue:2}.break;'), ['ok'])
+        assertStructurallySame(read('break;export default 7;'), ['error', 'break'])
+        assertStructurallySame(read('continue;export default 7;'), ['error', 'continue'])
+        assertStructurallySame(read('export default ()=>{break;return 7;};'), ['error', 'break'])
+        assertStructurallySame(read('while(false){const f=()=>{continue;return 7;};}export default 7;'), ['error', 'continue'])
         assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['error', 'switch'])
         assertStructurallySame(read('while(false){while(false){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])

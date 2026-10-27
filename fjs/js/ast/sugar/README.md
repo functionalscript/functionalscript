@@ -2,7 +2,7 @@
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
 parameter patterns and defaults, assignments, guards, switches, conditional
-loop statements and `while` loops. These constructs contain no generated
+loop statements, targeted loop exits and `while` loops. These constructs contain no generated
 functions, capture frames or immutable assignment versions. The parser retains source legality and
 diagnostics; representing a construct here does not admit new source syntax.
 
@@ -35,14 +35,17 @@ runs after it, so a write in it is read by the arm alone, as JavaScript reads it
 
 A conditional statement inside a loop instead keeps the surrounding statement
 continuation. Both arms normalize from the same preceding immutable mapping.
-The union of their assigned outer bindings becomes explicit FAST branch results
-in binding-introduction order. Each arm yields its latest immutable versions,
+The union of the normally completing arms' assigned outer bindings becomes
+explicit FAST branch results in binding-introduction order. Each normal arm yields its latest immutable versions,
 retaining preceding versions for names it does not write. An omitted `else`
 is an empty normal arm, preserving the original one-arm normalization.
 Following statements read these results. Branch-local declarations do not
 escape, required work stays inside the reached arm, and aliases needed for
 result values survive pruning. `else if` is a conditional in the false arm;
 nested conditionals use the same rule without a function boundary.
+An abrupt arm retains its targeted transfer and supplies no normal results.
+When both arms exit, the surrounding block has no normal continuation and
+following statements are not normalized into executed work.
 
 A loop selects established outer bindings that are mutable and read or written
 in its source events, in binding-introduction order. Nested function/default
@@ -61,6 +64,20 @@ results update the surrounding immutable mapping before later statements.
 Declarations introduced inside an outer iteration stay local to that iteration;
 an inner loop selects their established values at each reached entry. A binding
 carried read-only by an inner loop does not invent an enclosing write.
+
+Unlabeled `break` and `continue` retain their parser-resolved innermost target.
+The active loop's source signature packages the current immutable versions as
+FAST transfer values in state order. A `continue` returns to the next condition
+test; a `break` supplies normal loop results to following statements. A direct
+exit stops normalization of the rest of that source block, while the parser's
+complete binding facts still include unreachable references and writes.
+Ordinary function boundaries, including immediate calls lowered to value
+regions, clear the active loop before normalizing their own bodies.
+For a literal-true loop with its own explicit exit, the step is already the
+complete core body: no redundant always-true guard is added. This canonical
+form keeps generic structured loop output stable on source reparse. A loop
+without its own exit retains its established graph shape; nested loops and
+ordinary functions do not supply an exit to the surrounding loop.
 
 Ordinary functions consume analyzed source capture facts. Intermediate
 functions forward values needed to construct deeper closures without inventing

@@ -1,20 +1,20 @@
 # Opt in with `mise -E spidermonkey install`; see doc/mise-trial/README.md.
 [tools."http:spidermonkey"]
-version = "140.17.0"
+version = "153.6.0"
 bin_path = "."
 # Publisher checksums are resolved into mise.spidermonkey.lock by `mise lock`.
-checksum_url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/SHA256SUMS"
+checksum_url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/SHA256SUMS"
 
 # Mozilla lists paths relative to the release root, not archive basenames.
 checksum_expr = '"sha256:" + split(trim(filter(split(body, "\n"), { trim(#) endsWith (" jsshell/" + filename) })[0]), " " )[0]'
 
 [tools."http:spidermonkey".platforms]
-linux-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-linux-x86_64.zip" }
-linux-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-linux-aarch64.zip" }
-macos-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-mac.zip" }
-macos-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-mac.zip" }
-windows-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-win64.zip" }
-windows-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/140.17.0esr/jsshell/jsshell-win64-aarch64.zip" }
+linux-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-linux-x86_64.zip" }
+linux-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-linux-aarch64.zip" }
+macos-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-mac.zip" }
+macos-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-mac.zip" }
+windows-x64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-win64.zip" }
+windows-arm64 = { url = "https://archive.mozilla.org/pub/firefox/releases/153.6.0esr/jsshell/jsshell-win64-aarch64.zip" }
 
 [env]
 # Mozilla bundles NSPR next to js on Linux, without an RPATH in js. Keep all

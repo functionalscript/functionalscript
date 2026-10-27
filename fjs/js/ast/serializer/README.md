@@ -11,7 +11,11 @@ simultaneous transfers have already been decided by the common passes.
 `render` emits marked text and `stringify` removes those same marks. Their
 module, expression and factory forms share one spelling. `renderModule`
 preserves named exports. Runtime mode also supports primitive and repeated
-capture values. Code-only `functionStringify` treats capture slots as external
+capture values, and labels general loops and transfers with their exact
+targets. Source mode (`runtime = false`) emits bare `break` and `continue`;
+the source coordinator must first admit their nearest-loop targets and regions.
+The renderer performs no transfer-admission analysis. Code-only
+`functionStringify` treats capture slots as external
 values with positional names, omitting the module wrapper and captured values.
 The public compatibility APIs live in [`compiler/serializer`](../../../compiler/serializer/README.md).
 

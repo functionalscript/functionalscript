@@ -218,4 +218,23 @@ export const proof = /** @type {const} */ ({
         assertEq(requiredPrefixLength(0, required), required.length)
         assertEq(requiredPrefixLength(required[required.length - 1], required), required.length - 1)
     },
+    requiredPrefixesUseOnlyCompletedContext: () => {
+        /** @type {Exp} */
+        const read = ['.', ['arg', 0], 0]
+        /** @type {Exp} */
+        const test = ['>', read, 0]
+        /** @type {Exp} */
+        const a = ['+', ['arg', 1], 1]
+        /** @type {Exp} */
+        const b = ['+', ['arg', 2], 1]
+        /** @type {Exp} */
+        const exp = ['[]', [read, a, b]]
+        assertEq(requiredPrefixLength(exp, [a, b]), 2)
+        assertEq(requiredPrefixLength(exp, [a, b], [test]), 0)
+        assertEq(requiredPrefixLength(exp, [read, 0, a, b], [test]), 2)
+        assertEq(requiredPrefixLength(exp, [a, b], [['>', ['.', ['arg', 0], 0], 0]]), 2)
+        assertEq(requiredPrefixLength(['[]', [a, b]], [b], [['=>', 0, [read], a]]), 1)
+        assertEq(requiredPrefixLength(exp, [a, b], [['?:', true, test, 0]]), 2)
+        assertEq(requiredPrefixLength(exp, [a, b], [['?.()', null, [test]]]), 2)
+    },
 })

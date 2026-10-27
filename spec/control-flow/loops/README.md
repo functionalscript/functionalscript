@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while` bodies with conditionals; explicit exits remain planned
+**Status:** implemented — nested `while` bodies with conditionals, `break` and `continue`
 
 ```js
 export default n => {
@@ -38,10 +38,11 @@ complete the loop normally.
 
 An `if (condition) { ... }` inside a loop executes its block when the condition
 is truthy. An optional `else` block runs when it is falsy; `else if` tests the
-next condition only when preceding conditions were falsy. The selected block
-continues with the following statement. Assignments update the enclosing loop's
-variables; an arm that leaves a variable unassigned preserves its preceding
-value. Each block owns its declarations, including nested conditional blocks.
+next condition only when preceding conditions were falsy. A normally completing
+selected block continues with the following statement. Assignments update the
+enclosing loop's variables; an arm that leaves a variable unassigned preserves
+its preceding value. Each block owns its declarations, including nested
+conditional blocks.
 
 ```js
 while (i < n) {
@@ -74,8 +75,31 @@ while (i < n) {
 }
 ```
 
-The current body grammar excludes switches, `break`,
-`continue`, `return` and `throw` statements. These are remaining parts of
+An unlabeled `break;` finishes the innermost loop with the values established
+before it. Following statements run once after that loop. An unlabeled
+`continue;` starts the next test of the innermost loop's condition with those
+current values. Both skip the rest of their selected body or conditional arm,
+including any enclosing conditional's remaining statements. An inner loop's
+exit leaves its enclosing loop active.
+
+```js
+while (i < n) {
+    i = i + 1;
+    if (i === 3) { continue; }
+    if (i > 5) { break; }
+    sum = sum + i;
+}
+```
+
+Reached initializers and assignments still run before a transfer, even when
+their results are unused. Skipped statements perform no computations. Their
+names, declarations and writes remain subject to the ordinary source checks,
+including the write-based capture rule. A nested function owns its control
+flow; its body cannot break or continue a loop in the enclosing function.
+The usual semicolon insertion rules apply to the unlabeled statements.
+
+The current body grammar excludes switches, `return` and `throw` statements.
+These are remaining parts of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
@@ -99,12 +123,20 @@ mutable bindings read or written by the loop, in declaration-introduction
 order. These become explicit FAST input and normal-result signatures, with no
 fixed-parameter limit on loop state. Immutable outer values remain references;
 local declarations stay in the body. Each iteration transfers the current
-values simultaneously after its source assignments have run in order.
+values simultaneously after its source assignments have run in order. Explicit
+`continue` supplies those current loop inputs; explicit `break` supplies the
+current normal results. Source admission resolves the target, and sugar packs
+the state through the existing FAST transfers.
+For a literal `true` condition and an explicit exit targeting that loop, sugar
+uses the body directly instead of adding an unreachable false-condition arm.
+Loops without their own explicit exits keep their established graph shape.
 Conditional blocks supply explicit FAST results for the union of enclosing
-bindings assigned by either arm, in declaration-introduction order. Both arms
-start with the same incoming values and supply their latest versions; an arm
-that leaves a binding unchanged supplies its preceding value. Later statements
-read the selected results. An omitted `else` supplies the incoming values.
+bindings assigned by normally completing arms, in declaration-introduction
+order. Both arms start with the same incoming values. A normally completing arm
+supplies its latest versions; an unchanged binding retains its preceding value.
+An abrupt arm carries its current state through its own loop transfer instead.
+Later statements read the selected normal results. An omitted `else` supplies
+the incoming values.
 
 The established scalar shape keeps its recursive graph and exact graph round
 trip. General state uses the shared aggregate helper. Source serialization

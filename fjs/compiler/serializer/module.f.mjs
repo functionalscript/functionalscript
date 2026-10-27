@@ -33,7 +33,7 @@ const chunks = text => mapOk((/** @type {import('../../text/marked/types.ts').Ma
 const source = (e, module = false) => okThen(a => {
     const fast = _sourceLoops(fromAnalysis(a))
     const why = sourceReason(a, fast, module)
-    return why === null ? chunks(module ? renderModule(prepare(fast)) : render(prepare(fast))) : error(why)
+    return why === null ? chunks(module ? renderModule(prepare(fast, { sourceLoops: true })) : render(prepare(fast, { sourceLoops: true }))) : error(why)
 })(okThen(checked)(identityAnalysis(e)))
 
 /** A value graph as a FunctionalScript default-export module. @type {(e: Exp) => Document} */

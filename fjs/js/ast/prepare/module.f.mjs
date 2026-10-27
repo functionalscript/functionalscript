@@ -249,8 +249,16 @@ const functionValue = (value, context) => call(() => {
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
     return bind(values(value.captures.map(capture => capture.value), local), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[index] }))
-    return bind(prepareBlock(normalized, { ...local, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body =>
-        done({ value: { ...value, captures, body: body.value }, statements: prepared.statements, next: body.next }))
+    return bind(prepareBlock(normalized, { ...local, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
+        // Source functions require a terminal return even after a loop that
+        // cannot complete. Retaining its result keeps invocation roots exact.
+        const last = body.value.statements.at(-1)
+        const result = /** @type {Value} */ (last !== undefined && last[0] === 'while' ? ['ref', last[1].result] : undefined)
+        const completed = context.sourceLoops && !assertNotNullish(summary.get(normalized)).normal
+            && body.value.exit[0] === 'yield'
+            ? { ...body.value, exit: /** @type {Exit} */ (['return', value.target, result]) } : body.value
+        return done({ value: { ...value, captures, body: completed }, statements: prepared.statements, next: body.next })
+    })
     })
 })
 
@@ -448,26 +456,37 @@ const statementTask = (statement, context) => call(() => {
             const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)
             const parameters = fresh(initial.next + temporaries.length, loop.parameters.length)
-            const results = fresh(initial.next + temporaries.length + parameters.length, normal ? loop.results.length : 0)
+            // Source loop re-entry must preserve one state binding. A break
+            // replaces that slot only immediately before leaving the loop.
+            const shared = context.sourceLoops && parameters.length === 1 && loop.results.length === 1
+            const resultCount = shared ? 0 : normal ? loop.results.length : 0
+            const results = shared ? parameters : fresh(initial.next + temporaries.length + parameters.length, resultCount)
             return bind(prepareBlock(loop.body, {
                 ...context,
-                next: initial.next + temporaries.length + parameters.length + results.length,
+                next: initial.next + temporaries.length + parameters.length + resultCount,
                 loops: [...context.loops, { target: loop.target, parameters, results }],
                 yields: null,
-            }), body => done({
-                value: [
-                    ...initial.statements,
-                    ...initial.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[index], value])),
-                    ...parameters.map((id, index) => /** @type {Statement} */ (['slot', id, ['ref', temporaries[index]], false])),
-                    ...results.map(id => /** @type {Statement} */ (['slot', id, undefined, false])),
-                    ['loop', loop.target, {
-                        statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, ['ref', parameters[index]]])), ...body.value.statements],
-                        exit: body.value.exit,
-                    }],
-                    ...loop.results.slice(0, results.length).map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[index]]])),
-                ],
-                next: body.next,
-            }))
+            }), body => {
+                const block = /** @type {Block} */ ({
+                    statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, ['ref', parameters[index]]])), ...body.value.statements],
+                    exit: body.value.exit,
+                })
+                const physical = /** @type {Statement} */ (shared ? ['while', {
+                    target: loop.target, slot: parameters[0], initial: ['ref', temporaries[0]], condition: true,
+                    body: block, result: loop.results[0], mutable: true,
+                }] : ['loop', loop.target, block])
+                return done({
+                    value: [
+                        ...initial.statements,
+                        ...initial.value.map((value, index) => /** @type {Statement} */ (['define', temporaries[index], value])),
+                        ...shared ? [] : parameters.map((id, index) => /** @type {Statement} */ (['slot', id, ['ref', temporaries[index]], false])),
+                        ...shared ? [] : results.map(id => /** @type {Statement} */ (['slot', id, undefined, false])),
+                        physical,
+                        ...shared ? [] : loop.results.slice(0, results.length).map((id, index) => /** @type {Statement} */ (['define', id, ['ref', results[index]]])),
+                    ],
+                    next: body.next,
+                })
+            })
         })
     }
     const slots = fresh(context.next, statement[1].length)
@@ -517,10 +536,15 @@ const prepareBlock = (block, context) => {
     return each(0, context, null)
 }
 
-/** Prepare one normalized region, retaining its ordinary result signature. @type {(block: NormalBlock) => Block} */
-export const prepare = block => {
+/**
+ * Prepare one normalized region, retaining its ordinary result signature.
+ * Source loop spelling shares single-input/result storage so parsing does not
+ * introduce another state component. Other consumers keep independent slots.
+ * @type {(block: NormalBlock, options?: { readonly sourceLoops?: boolean }) => Block}
+ */
+export const prepare = (block, { sourceLoops = false } = {}) => {
     const summary = flows(['block', block])
-    return run(prepareBlock(block, { flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(prepareBlock(block, { sourceLoops, flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }
 
 /**
@@ -531,5 +555,5 @@ export const prepare = block => {
  */
 export const prepareFunction = value => {
     const summary = flows(['function', value])
-    return run(functionValue(value, { flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(functionValue(value, { sourceLoops: false, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }

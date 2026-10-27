@@ -121,7 +121,11 @@ caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | let | bodyNameStatement
+loopStatement ::= const | let | bodyNameStatement | whileStatement
+                | loopIfStatement | 'break' end | 'continue' end
+whileStatement ::= 'while' '(' value ')' loopBlock
+loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
+loopElse ::= loopBlock | loopIfStatement
 bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
@@ -436,8 +440,12 @@ as checked source blocks and original binding references. `() => 7` and
 condition and two lexical blocks: the written block and the remaining
 statements. A switch retains the discriminant, ordered labels, cases and final
 fallback. A loop retains its condition, lexical body and ordered source binding
-events. The common sugar pass selects state from those events and the shared
-binding facts; the parser creates no helper function or recursive call.
+events. Unlabeled `break` and `continue` resolve to that loop's target, including
+in either conditional arm; nested loops establish their own targets. All later
+source statements still resolve, preserving name, write and capture checks even
+after an unconditional jump. The common sugar pass selects state from those
+events and the shared binding facts; the parser creates no helper function or
+recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
 immutable definitions and explicit loop transfers. The grammar still requires

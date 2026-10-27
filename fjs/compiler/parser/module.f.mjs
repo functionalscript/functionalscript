@@ -1014,7 +1014,7 @@ const functionScope = list => {
 
 /** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | _LoopBodyFrame | null) => _State} */
 const enterLoop = (stack, scope, loop, body) =>
-    [{ top: { loop, body, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
 
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
@@ -1518,11 +1518,11 @@ const returned = (stack, scope, frame, value) => {
         if (frame.condition === null) {
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
-                { block: frame.loop.block[1], index: 0, plan: null, assigned: null, done: null })
+                { block: frame.loop.block[1], target: frame.target, index: 0, plan: null, assigned: null, done: null })
         }
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
-        const loop = /** @type {const} */ ({ target: { kind: 'loop', index: outer.trace.count }, events: completedTrace(scope).events, condition: frame.condition[0], body })
+        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body })
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
         if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [['while', loop]])) }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
@@ -1531,17 +1531,17 @@ const returned = (stack, scope, frame, value) => {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
             return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
-                { block: statement.block[1], index: 0, plan: null, assigned: null, done: null })
+                { block: statement.block[1], target: frame.target, index: 0, plan: null, assigned: null, done: null })
         }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
-        assert(kind !== 'while', 'a loop completes through its own frame')
+        assert(kind !== 'while' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
         const block = regionBlock(value)
         if (frame.then === null && frame.otherwise !== null) {
             return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
-                { block: frame.otherwise[1], index: 0, plan: null, assigned: null, done: null })
+                { block: frame.otherwise[1], target: frame.loopGuard.target, index: 0, plan: null, assigned: null, done: null })
         }
         return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
             frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
@@ -1623,26 +1623,32 @@ const switchReturned = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
  */
 const loopRound = (stack, scope, frame) => {
-    const { block, index } = frame
-    if (index === block.length) {
-        return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
+    while (true) {
+        const { block, index } = frame
+        if (index === block.length) {
+            return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
+        }
+        const [kind, statement] = block[index]
+        if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
+            return [stack, scope, error(unexpectedToken(statement.start))]
+        }
+        if (kind === 'break' || kind === 'continue') {
+            frame = advanced(frame, [[kind, frame.target]])
+            continue
+        }
+        if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+        if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+        if (kind === 'assign') {
+            const [tag, target] = assigned(scope, statement.name)
+            if (tag === 'error') { return [stack, scope, error(target)] }
+            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, target[0], ['enter', statement.value]]
+        }
+        const { target, value } = statement
+        const namespace = namespaceOf(target, value)
+        const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
+        if (tag === 'error') { return [stack, scope, error(plan)] }
+        return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
     }
-    const [kind, statement] = block[index]
-    if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
-        return [stack, scope, error(unexpectedToken(statement.start))]
-    }
-    if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
-    if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
-    if (kind === 'assign') {
-        const [tag, target] = assigned(scope, statement.name)
-        if (tag === 'error') { return [stack, scope, error(target)] }
-        return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, target[0], ['enter', statement.value]]
-    }
-    const { target, value } = statement
-    const namespace = namespaceOf(target, value)
-    const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
-    if (tag === 'error') { return [stack, scope, error(plan)] }
-    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
 
 /** A resolved lexical region payload, including normal and terminal branches. @type {(value: SourceValue) => SourceBlock} */

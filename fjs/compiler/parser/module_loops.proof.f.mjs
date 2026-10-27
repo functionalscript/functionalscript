@@ -45,6 +45,7 @@ export const proof = /** @type {const} */ ({
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
             ['while(false){}export default 7;', { default: 7 }],
+            ['while(false){break;}export default 1;', { default: 1 }],
             ['while(false){while(false){}}export default 1;', { default: 1 }],
             ['let r = 0; while (r) { r = 1; } export default r;', { default: 0 }],
             ['let i=0;let sum=0;export const before=i;while(i<3){sum=sum+i;i=i+1;}export const middle=sum;while(i<5){i=i+1;sum=sum+2;}export const after=i;export default sum;', { after: 5, before: 0, default: 7, middle: 3 }],
@@ -110,7 +111,7 @@ export const proof = /** @type {const} */ ({
             ['export default 1;while(false){}', 'unexpected token'],
             ['while(false){}throw 1;while(false){}', 'unexpected token'],
             ['while(false){if(true){return 1;}}export default 1;', 'unexpected token'],
-            ['while(false){break;}export default 1;', 'unexpected token'],
+            ['while(false){break label;}export default 1;', 'unexpected token'],
         ])) { assertEq(assertError(parse('')(source)).message, expected, source) }
     },
 })

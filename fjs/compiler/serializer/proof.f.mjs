@@ -1345,13 +1345,13 @@ export const proof = {
             'export default ($0)=>{const $1=($2)=>{let $3=$2;while((()=>{const $4=$3;return $4<3;})()){const $5=$3;const $6=true?(()=>{const $7=($8)=>{let $9=$8;while((()=>{const $10=$9;return $10<2;})()){const $11=$9;const $12=$11+1;$9=$12;}return $9;};return $7([1]);})():true;$3=$6;}return $3;};return $1(0);};')
         // a frame slot no name stands for is refused as it is anywhere
         refuses(['=>', 1, [], ['()', loop([1], true, call(0)), [0]]], 'a frame slot holding a primitive')
-        // Source round trips retain the recursive graph when condition and
-        // arm share an allocation, including its immutable per-call snapshot.
-        // Code-only output can use a generic loop with both inside one round.
+        // Source loop exits keep a condition/body allocation inside one round.
+        // This bounded spelling retains its immutable iteration snapshot and
+        // the exact raw graph and source round trip.
         writes(['=>', 0, [], ['()', loop([], ['.', one, 0], call(['.', one, 1])), [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[1];return $3[0]?$0($3[1]):$2;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{const $2=$1;let $3=$2;while(true){const $4=$3;const $5=[1];if($5[0]){const $6=$5[1];$3=$6;continue;}else{const $7=$4;$3=$7;break;}}return $3;};return $0(0);};')
         writes(['=>', 0, [], ['()', loop([], ['.', shared, 0], call(['.', shared, 1])), [0]]],
-            'export default ()=>{const $0=($1)=>{const $2=$1;const $3=[$2];return $3[0]?$0($3[1]):$2;};return $0(0);};')
+            'export default ()=>{const $0=($1)=>{const $2=$1;let $3=$2;while(true){const $4=$3;const $5=[$4];if($5[0]){const $6=$5[1];$3=$6;continue;}else{const $7=$4;$3=$7;break;}}return $3;};return $0(0);};')
         // Ordered aliases preserve the capture signature when a condition
         // or transition reads those captures in another order.
         writes(['=>', 1, [], ['()', loop([['arg', 0], ['[]', []]], true, call(['[]', [['frame', 1], ['frame', 0]]])), [0]]],

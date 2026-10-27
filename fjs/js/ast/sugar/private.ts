@@ -1,18 +1,24 @@
 /** Implementation details of resolved-source normalization. @module */
 
-import type { Binding, BindingId, BindingScope, Block, Operator, Statement, Value } from '../types.ts'
+import type { Binding, BindingId, BindingScope, Block, LoopTarget, Operator, Statement, Value } from '../types.ts'
 import type { LogicalTag, SourceValue } from './source.ts'
 
 export type Environment = readonly (readonly [BindingId, Value])[]
 export type Context = {
     readonly bindings: readonly Binding[]
     readonly scopes: readonly BindingScope[]
+    readonly loop: { readonly target: LoopTarget; readonly sources: readonly BindingId[] } | null
 }
 export type Established = {
     readonly environment: Environment
     readonly statements: readonly Statement[]
 }
-export type Normalized = { readonly block: Block; readonly environment: Environment }
+export type Normalized = {
+    readonly block: Block
+    readonly environment: Environment
+    readonly normal: boolean
+    readonly hasLoopExit: boolean
+}
 export type Work =
     | { readonly kind: 'expand'; readonly value: SourceValue; readonly rest: Work }
     | { readonly kind: 'operator'; readonly value: Operator<SourceValue>; readonly operands: readonly SourceValue[]; readonly rest: Work }

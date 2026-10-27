@@ -180,6 +180,22 @@ export const proof = {
         assertEq(functionStringify(reordered), '()=>[$1,$0]')
         assertEq(expression(['function', { ...plain, parameters: [], body: { statements: [['define', id(8), 0]], exit: ['return', target, ['block', yielding(3)]] } }]), '()=>{const $0=0;return 3;}')
     },
+    runtimeCaptureWrappersRetainValuesAndRepeatedSlots: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const first = id(0), second = id(1), outer = id(2)
+        /** @type {PreparedFunction} */
+        const fn = { target, parameters: [], rest: null, self: null,
+            captures: [{ binding: first, value: ['array', [7]] }],
+            body: { statements: [], exit: ['return', target, ['ref', first]] },
+        }
+        assertEq(stringify(yielding(['function', fn]), 'expression', true), '(($0)=>(()=>$0))([7])')
+        /** @type {PreparedFunction} */
+        const repeated = { ...fn, captures: [{ binding: first, value: ['ref', outer] }, { binding: second, value: ['ref', outer] }],
+            body: { statements: [], exit: ['return', target, ['array', [['ref', first], ['ref', second]]]] },
+        }
+        const block = /** @type {Block} */ ({ statements: [['define', outer, ['array', [7]]]], exit: ['yield', [['function', repeated]]] })
+        assertEq(stringify(block, 'expression', true), '(()=>{const $0=[7];return (($1,$2)=>(()=>[$1,$2]))($0,$0);})()')
+    },
     physicalControl: () => {
         const slot = id(0)
         const memo = id(1)
@@ -209,12 +225,25 @@ export const proof = {
             ],
             exit: ['yield', [['array', [['ref', slot], ['demand', memo], ['ref', whileResult], ['ref', unchangedResult]]]]],
         }
-        const text = stringify(block, 'expression')
+        const text = stringify(block, 'expression', true)
         assert(text.includes('continue L0;'))
         assert(text.includes('break L0;'))
         assert(text.includes('while('))
         assert(text.includes('while(false){$5=$5;}'), text)
-        assertEq(untagged(render(block, 'expression')), text)
+        assertEq(untagged(render(block, 'expression', true)), text)
+    },
+    sourceLoopTransfersHaveNoLabels: () => {
+        const slot = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Block} */
+        const block = { statements: [['slot', slot, 0, true], ['loop', target, {
+            statements: [['if', ['<', ['ref', slot], 2],
+                { statements: [['write', slot, ['+', ['ref', slot], 1]]], exit: ['continue', target] },
+                { statements: [], exit: ['break', target] },
+            ]], exit: ['yield', []],
+        }]], exit: ['yield', [['ref', slot]]] }
+        assertEq(stringify(block, 'expression'), '(()=>{let $0=0;while(true){if($0<2){$0=$0+1;continue;}else{break;}}return $0;})()')
+        assertEq(untagged(render(block, 'expression')), stringify(block, 'expression'))
     },
     // A statement or an exit no case names is refused, not written as
     // `undefined`.

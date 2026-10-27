@@ -41,7 +41,7 @@ export const wasmtime = '50.0.0'
 export const wasmer = '7.5.0'
 
 export const spidermonkey = /** @type {const} */ ({
-    version: '140.17.0',
+    version: '153.6.0',
 })
 
 export const actions = /** @type {const} */({
