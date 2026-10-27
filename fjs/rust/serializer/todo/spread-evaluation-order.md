@@ -1,7 +1,7 @@
 ## Expand array and call spreads before later operands
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 The Rust serializer postpones array/call spread expansion until every item
 operand has evaluated. This can replace a reached spread failure with a later
