@@ -271,8 +271,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
                 // identities, even where their presentation indices agree.
                 const parameters = context.parameters.map(binding => ({ ...binding }))
                 const entryRest = rest === null ? null : { ...rest }
-                const iteration = [...context.parameters, ...(rest === null ? [] : [rest])]
-                const inputs = [...parameters, ...(entryRest === null ? [] : [entryRest])]
+                const iteration = /** @type {readonly BindingId[]} */ ([...context.parameters, ...(rest === null ? [] : [rest])])
+                const inputs = /** @type {readonly BindingId[]} */ ([...parameters, ...(entryRest === null ? [] : [entryRest])])
                 return deliver(done, {
                     parameters, rest: entryRest, named: true,
                     self: freeBindings(tail, iteration).includes(context.self) ? context.self : null,

@@ -11,7 +11,7 @@ const names = (value, binding) => value instanceof Array && value[0] === 'ref' &
 
 /** @type {(length: number, args: readonly Item<Value>[], target: LoopTarget) => Block} */
 export const _restTransition = (length, args, target) => {
-    const binding = { index: target.index }
+    const binding = /** @type {BindingId} */ ({ index: target.index })
     return {
         statements: [['define', binding, ['array', args], 'required']],
         exit: ['continue', target, [
