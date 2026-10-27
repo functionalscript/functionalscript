@@ -11,6 +11,7 @@ import { toFast } from '../../../to_fast/module.f.mjs'
 import { fromFast } from '../../module.f.mjs'
 import { rootLoopOf } from '../module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './module.f.mjs'
+import { _restTransition } from '../../../../js/ast/invocation/module.f.mjs'
 
 /** @type {(index: number) => BindingId} */
 const id = index => ({ index })
@@ -33,6 +34,11 @@ const fixedRoot = length => {
     return { ...root(loop), parameters }
 }
 const again = id(7)
+const entryRest = id(50), currentRest = id(51)
+/** @type {(region: Block) => Loop} */
+const restLoopOf = region => ({ ...loopOf(region), parameters: [x, y, currentRest], initial: [ref(a), ref(b), ref(entryRest)] })
+/** @type {(loop: Loop) => FastFunction} */
+const restRoot = loop => ({ ...root(loop), rest: entryRest })
 /** @type {readonly Statement[]} */
 const entryAliases = [['define', alias, ref(a), 'lazy'], ['define', again, ref(alias), 'required']]
 /** @type {(value: Value, prefix?: readonly Statement[]) => FastFunction} */
@@ -58,6 +64,107 @@ const evaluate = (fn, args) => {
 }
 
 export const proof = {
+    restInvocationsKeepFreshStateAndStableOrdinaryGraphs: () => {
+        const args = /** @type {const} */ ([['-', ref(x), 1], ref(y), ['...', ref(currentRest)]])
+        const loop = restLoopOf(body(['yield', []], [['if', [], ['>', ref(x), 0], _restTransition(2, args, loopTarget),
+            body(['break', loopTarget, [['array', [ref(currentRest), ref(currentRest), ref(y)]]]])]]))
+        const fn = restRoot(loop)
+        assertEq(invocationRootOf(fn), loop)
+        const first = graph(fn)
+        let normalized = first
+        for (let generation = 0; generation < 5; ++generation) {
+            normalized = fromFast(assertOk(toFast(normalized)))
+            assertStructurallySame(assertOk(identityAnalysis(normalized)), assertOk(identityAnalysis(first)))
+        }
+        const result = assertOk(evaluate(fn, [3, 4, 7, 8]))
+        assert(result instanceof Array)
+        assertEq(result[0], result[1])
+        assertStructurallySame(result, [[7, 8], [7, 8], 4])
+        const direct = directInvocationRoot(fn, loop)
+        assertEq(direct.rest, entryRest)
+        assertEq(direct.parameters, fn.parameters)
+        const conditional = direct.body.statements.at(-1)
+        assert(conditional !== undefined && conditional[0] === 'if')
+        assertEq(conditional[3].statements.length, 0)
+        assert(conditional[3].exit[0] === 'return')
+        assertEq(/** @type {Extract<Value, readonly ['()', ...unknown[]]>} */ (conditional[3].exit[2])[2], args)
+    },
+    restEntryAliasesAndPublicArity: () => {
+        const restAlias = id(0)
+        const loop = restLoopOf(body(['break', loopTarget, [ref(currentRest)]]))
+        const entered = { ...loop, initial: [ref(a), ref(b), ref(restAlias)] }
+        const fn = { ...restRoot(entered), body: body(['return', target, ref(output)], [['define', restAlias, ref(entryRest), 'required'], ['loop', entered]]) }
+        assertEq(invocationRootOf(fn), entered)
+        assertStructurallySame(assertOk(evaluate(fn, [1, 2, 3])), [3])
+        const zero = { ...loop, parameters: [currentRest], initial: [ref(entryRest)] }
+        const zeroFn = { ...restRoot(zero), parameters: [] }
+        assertEq(invocationRootOf(zeroFn), zero)
+        assertStructurallySame(assertOk(evaluate(zeroFn, [1, 2])), [1, 2])
+        const wide = fixedRoot(16)
+        const wideLoop = /** @type {Extract<Statement, readonly ['loop', ...unknown[]]>} */ (wide.body.statements[0])[1]
+        const all = { ...wideLoop, parameters: [...wideLoop.parameters, currentRest], initial: [...wideLoop.initial, ref(entryRest)], body: body(['break', loopTarget, [ref(currentRest)]]) }
+        const wideFn = { ...wide, rest: entryRest, body: body(['return', target, ref(output)], [['loop', all]]) }
+        assertEq(invocationRootOf(wideFn), all)
+        const value = graph(wideFn)
+        assert(value instanceof Array && value[0] === '=>')
+        assertEq(value[1], 16)
+        assertStructurallySame(assertOk(evaluate(wideFn, Array.from({ length: 18 }, (_, index) => index))), [16, 17])
+        assertEq(invocationRootOf({ ...restRoot(loop), body: body(['return', target, ref(output)], [['loop', { ...loop, body: body(['break', loopTarget, [ref(entryRest)]]) }]]) }), null)
+    },
+    restRootsRequireTheExactFreshTransitionRecipe: () => {
+        const recipe = _restTransition(2, [ref(x), ref(y), ['...', ref(currentRest)]], loopTarget)
+        const loop = restLoopOf(recipe)
+        assertEq(invocationRootOf(restRoot(loop)), loop)
+        for (const region of /** @type {readonly Block[]} */ ([
+            body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]]),
+            body(['continue', { ...loopTarget }, [ref(x), ref(y), ref(currentRest)]]),
+            body(['break', { ...loopTarget }, [1]]),
+            body(['yield', []]),
+            { ...recipe, exit: ['continue', loopTarget, [ref(x), ref(y), ['array', []]]] },
+        ])) {
+            const candidate = restRoot(restLoopOf(region))
+            assertEq(invocationRootOf(candidate), region.exit[0] === 'yield' ? candidate.body.statements[0][1] : null)
+        }
+        const unreachable = restLoopOf(body(['continue', loopTarget, [0]], [['block', [], body(['throw', 7])]]))
+        assertEq(invocationRootOf(restRoot(unreachable)), unreachable)
+        const normal = restLoopOf(body(['break', loopTarget, [7]], [
+            ['block', [], body(['yield', []])],
+            ['if', [], ref(x), body(['yield', []]), body(['yield', []])],
+        ]))
+        assertEq(invocationRootOf(restRoot(normal)), normal)
+        const stopped = restLoopOf(body(['break', loopTarget, [7]], [['if', [], ref(x), body(['return', target, 1]), body(['throw', 2])]]))
+        assertEq(invocationRootOf(restRoot(stopped)), stopped)
+        // An arbitrary FAST loop may borrow an existing array as rest state.
+        // Replacing that transition by a call would incorrectly copy it.
+        const borrowed = restLoopOf(body(['yield', []], [['if', [], ['>', ref(x), 0],
+            body(['continue', loopTarget, [['-', ref(x), 1], ref(y), ref(y)]]),
+            body(['break', loopTarget, [['===', ref(currentRest), ref(y)]]])]]))
+        assertEq(invocationRootOf(restRoot(borrowed)), null)
+        assertEq(assertOk(evaluate(restRoot(borrowed), [1, ['array', [7, 8]]])), true)
+    },
+    hiddenRestTransitionsUseTheHelperFallback: () => {
+        const transfer = /** @type {Value} */ (['block', body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]])])
+        const local = id(0)
+        const inner = { ...loopOf(body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]])), target: { ...loopTarget }, initial: [ref(x), ref(y)] }
+        for (const statement of /** @type {readonly Statement[]} */ ([
+            ['define', local, transfer, 'required'],
+            ['define', local, ['array', [transfer]], 'required'],
+            ['define', local, ['if', ref(x), body(['yield', [transfer]]), body(['yield', [0]])], 'required'],
+            ['define', local, capturedValue(transfer), 'required'],
+            ['if', [], transfer, body(['yield', []]), body(['yield', []])],
+            ['loop', inner],
+        ])) { assertEq(invocationRootOf(restRoot(restLoopOf(body(['break', loopTarget, [7]], [statement])))), null) }
+        assertEq(invocationRootOf(restRoot(restLoopOf(body(['break', loopTarget, [transfer]])))), null)
+        const ownLoop = { ...inner, body: body(['break', inner.target, [1]]) }
+        const ordinary = restLoopOf(body(['break', loopTarget, [7]], [
+            ['loop', ownLoop], ['define', local, capturedValue(ref(currentRest)), 'required'],
+            ['define', id(100), ['block', body(['yield', [1]], [
+                ['define', local, ref(currentRest), 'required'], ['block', [], body(['yield', []])],
+                ['if', [], ref(x), body(['yield', []]), body(['yield', []])], ['loop', ownLoop],
+            ])], 'required'],
+        ]))
+        assertEq(invocationRootOf(restRoot(ordinary)), ordinary)
+    },
     transferPayloadReturn: () => {
         const loop = loopOf(body(['break', loopTarget, [['block', body(['return', target, 4])]]]))
         const fn = root(loop)
@@ -400,6 +507,10 @@ export const proof = {
         assertStructurallySame(conditional, ['arg', 0])
     },
     throw: {
+        restTransitionRecipe: () => {
+            const loop = restLoopOf(body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]]))
+            directInvocationRoot(restRoot(loop), loop)
+        },
         fixedArityLimit: () => { graph(fixedRoot(17)) },
         loopBodyYieldZero: () => { const loop = { ...loopOf(body(['yield', []])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },
         loopBodyYieldOne: () => { const loop = { ...loopOf(body(['yield', [3]])), parameters: [], initial: [] }; graph({ ...root(loop), parameters: [] }) },

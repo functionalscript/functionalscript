@@ -77,8 +77,8 @@ required and lazy definitions keep their original evaluation owners. Nested
 function bodies have their own plans. Function bodies are planned once in graph
 postorder, and naming and emission consume the same private plan.
 
-The general domain has zero through sixteen fixed parameters and no observed
-rest binding. Its canonical root
+The general domain has zero through sixteen fixed parameters, with or without
+an observed rest binding. Its canonical root
 loop returns one opaque public result. Entry bindings and iteration bindings
 are distinct identities. Common preparation establishes all next arguments
 before slot writes and snapshots current parameters for captures, while local
@@ -92,7 +92,14 @@ its failures before state updates, even when the fixed prefix is empty or
 already full. This retains lazy demands and capture reads
 without creating discarded reference anchors that move on a later graph conversion.
 The array's identity stays private to the transition.
-Functions with observed rest retain ordinary calls.
+Observed rest adds one internal loop input, independently of public arity.
+Entry rest and iteration rest have separate binding identities. Each rest
+transition uses the shared [`invocation`](../../js/ast/invocation/module.f.mjs)
+recipe: establish the full argument vector, then read the fixed prefix and
+create its fresh rest slice before simultaneous updates. Repeated reads within
+one iteration share that slice; escaped captures retain the creating iteration's
+array. The whole placed body runs inside the loop, including lowered default
+and destructuring setup. Remaining ordinary self uses keep their function owner.
 Existing scalar graph cases keep their previous shape; general cases
 retain their normalized graph on repeated conversion.
 

@@ -10,15 +10,16 @@
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.mjs'
 import { isSpread } from '../../../js/ast/module.f.mjs'
+import { _restTransition } from '../../../js/ast/invocation/module.f.mjs'
 
 /**
  * Convert only reached terminal blocks and conditional arms. Other expressions
  * remain complete base results, including references to established calls.
  * Calls transition the fixed invocation signature. Missing values become
  * undefined; spreads and extra arguments finish evaluation before transfer.
- * @type {(source: Block, parameters: readonly BindingId[], self: BindingId, target: LoopTarget) => Block | null}
+ * @type {(source: Block, parameters: readonly BindingId[], self: BindingId, target: LoopTarget, rest?: BindingId | null) => Block | null}
  */
-export const _tailCalls = (source, parameters, self, target) => {
+export const _tailCalls = (source, parameters, self, target, rest = null) => {
     /** @type {(value: Value) => Task<_Result>} */
     const valueTask = value => call(() => {
         if (value instanceof Array) {
@@ -36,6 +37,7 @@ export const _tailCalls = (source, parameters, self, target) => {
             }
             if (value[0] === '()' && value[1] instanceof Array && value[1][0] === 'ref' && value[1][1] === self) {
                 const args = value[2]
+                if (rest !== null) { return done({ block: _restTransition(parameters.length, args, target), changed: true }) }
                 if (args.length > parameters.length || args.some(isSpread)) {
                     // Materialize the invocation before reading its fixed
                     // prefix. Every extra value and lazy demand stays reached.

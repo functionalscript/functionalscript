@@ -9,6 +9,8 @@ import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText } from '../module.f.mjs'
+import { parse } from '../../transpiler/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */
 const compile = (e, captures = []) => Function(
@@ -56,8 +58,8 @@ export const proof = {
         /** @type {(next: Exp) => Exp} */
         const call = next => ['()', ['self'], [next]]
         assertEq(compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 1_000_000], call(['+', ['arg', 0], 1]), ['arg', 0]]])(0), 1_000_000)
-        // a function reading its rest array keeps the recursion, which gives
-        // each round the empty array a call of one argument leaves
+        // A function reading rest gets the current invocation's array,
+        // including the empty array a one-argument transition leaves.
         const sum = compile(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['+', ['arg', 0], ['.', ['rest'], 0]]), ['arg', 0]]])
         assertEq(sum(1, 2, 3), 3)
         assertEq(sum(1), 1)
@@ -119,6 +121,40 @@ export const proof = {
             ['()', ['self'], [['...', ['[]', [0, ['throw', 'expanded extra']]]]]], 7]])
         assertEq(extra(0), 7)
         throws(() => extra(1), e => e === 'expanded extra')
+    },
+    restTailInvocations: () => {
+        const rest = /** @type {Exp} */ (['rest'])
+        const fresh = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], rest, ['...', rest]]],
+            ['[]', [['===', ['arg', 1], rest], ['===', rest, rest], rest]]]])
+        assertEq(fresh.length, 2)
+        assertStructurallySame(fresh(100_000, null, 7, 8), [false, true, [7, 8]])
+        const snapshot = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['=>', 0, [rest], ['frame', 0]], ['arg', 0]]], ['arg', 1]]])
+        assertStructurallySame(snapshot(100_000, null, 9)(), [2])
+        const n = /** @type {Exp} */ (['.', rest, 0])
+        const count = compile(['=>', 0, [], ['?:', ['>', n, 0],
+            ['()', ['self'], [['-', n, 1], ['+', ['.', rest, 1], 1]]], rest]])
+        assertEq(count.length, 0)
+        assertStructurallySame(count(100_000, 0), [0, 100_000])
+    },
+    defaultAndDestructuringTailSetup: () => {
+        /** @type {(source: string) => (...args: readonly unknown[]) => any} */
+        const fromSource = source => {
+            const fn = _defaultExport(unresolved(assertOk(parse('/defaults.f.js')(source))).edag)
+            assert(fn instanceof Array && fn[0] === '=>')
+            return compile(fn)
+        }
+        const fresh = fromSource('const f=(n,prev,value=[])=>n===0?[prev===value,value===value]:f(n-1,value);export default f;')
+        assertEq(fresh.length, 2)
+        assertStructurallySame(fresh(100_000, null), [false, true])
+        const destructured = fromSource('const f=(n,{value}={value:0})=>n===0?value:f(n-1,{value:value+1});export default f;')
+        assertEq(destructured.length, 1)
+        assertEq(destructured(100_000), 100_000)
+        const failing = fromSource('const f=(n,value=null.x)=>n===0?7:f(n-1);export default f;')
+        assertEq(failing(0, 9), 7)
+        throws(() => failing(1, 9))
+        throws(() => failing(0))
     },
     captures: () => {
         const captured = Object.freeze([9])

@@ -47,6 +47,12 @@ normalized graph has that canonical spelling and reaches a source fixed point.
 This initial graph/text migration preserves evaluation and source admission;
 the existing exact-graph source domain keeps its round-trip checks.
 
+Rest invocation loops use the shared fresh-rest argument recipe. Internal rest
+state does not add a public fixed parameter. Source reconstruction restores the
+original argument list instead of retaining private argument-vector wrappers,
+preserving fresh rest identity and stable normalized graphs. Default and
+destructuring setup lowered into the function body runs each iteration.
+
 Source output continues to refuse frame layouts and lazy graphs the parser
 cannot represent. The existing source proofs retain every graph fixture and
 check graph normalization, text fixed points and agreement between token marks

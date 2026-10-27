@@ -7,9 +7,9 @@
  * Nonroot helpers and nonlocal value operands have separate construction owners.
  *
  * @module
- * @import { Block, Exit, Function as FastFunction, Loop, Statement } from '../../../../js/ast/types.ts'
- * @import { List } from '../../../../types/list/types.ts'
- * @import { _Owner, _Result } from './private.ts'
+ * @import { Block, Exit, Function as FastFunction, Loop, LoopTarget, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { Link } from '../../private.ts'
+ * @import { _Owner, _RestResult, _Result } from './private.ts'
  * @import { Task } from '../../../../js/ast/task/types.ts'
  */
 
@@ -17,29 +17,91 @@ import { toArray } from '../../../../types/list/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
+import { _restArguments } from '../../../../js/ast/invocation/module.f.mjs'
+import { exitValues } from '../../../../js/ast/control/module.f.mjs'
+import { operatorOperands } from '../../../../js/ast/module.f.mjs'
+import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /**
- * A fixed invocation layout with its whole public result returned directly.
+ * Values and nested loops are separate transfer owners. A rest root with a
+ * transfer hidden there uses the ordinary helper path instead of reconstructing
+ * an unverified rest transition. Ordinary function bodies remain opaque.
+ * @type {(root: Value | Block, target: LoopTarget) => boolean}
+ */
+const hiddenTransfer = (root, target) => {
+    /** @type {Link<Value | Block> | null} */
+    let work = { first: root, tail: null }
+    while (work !== null) {
+        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
+        work = tail
+        if (node === null || typeof node !== 'object') { continue }
+        /** @type {readonly (Value | Block)[]} */
+        let children
+        if (node instanceof Array) {
+            children = node[0] === 'ref' ? [] : node[0] === 'function' ? node[1].captures.map(capture => capture.value)
+                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
+        } else {
+            const exit = node.exit
+            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target) { return true }
+            children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
+                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit)]
+        }
+        work = children.reduceRight((tail, first) => ({ first, tail }), work)
+    }
+    return false
+}
+
+/** Validate reached statement transfers without crossing hidden transfer owners. @type {(block: Block, length: number, target: LoopTarget) => Task<_RestResult>} */
+const restBlockTask = (block, length, target) => {
+    /** @type {(index: number) => Task<_RestResult>} */
+    const each = index => call(() => {
+        if (index < block.statements.length) {
+            const statement = block.statements[index]
+            if (statement[0] === 'define' || statement[0] === 'loop') {
+                const values = statement[0] === 'define' ? [statement[2]] : [...statement[1].initial, statement[1].body]
+                return values.some(value => hiddenTransfer(value, target)) ? done({ valid: false, normal: false }) : each(index + 1)
+            }
+            /** @type {(result: _RestResult) => Task<_RestResult>} */
+            const resume = result => result.valid && result.normal ? each(index + 1) : done(result)
+            if (statement[0] === 'block') { return bind(restBlockTask(statement[2], length, target), resume) }
+            if (hiddenTransfer(statement[2], target)) { return done({ valid: false, normal: false }) }
+            return bind(restBlockTask(statement[3], length, target), then => bind(restBlockTask(statement[4], length, target), otherwise =>
+                resume({ valid: then.valid && otherwise.valid, normal: then.normal || otherwise.normal })))
+        }
+        const exit = block.exit
+        const valid = !exitValues(exit).some(value => hiddenTransfer(value, target))
+            && (exit[0] !== 'continue' || exit[1] === target && _restArguments(block, length, target) !== null)
+            && (exit[0] !== 'break' || exit[1] === target)
+        return done({ valid, normal: exit[0] === 'yield' })
+    })
+    return each(0)
+}
+
+/**
+ * An invocation layout with its whole public result returned directly.
  * Established capture/self aliases are harmless prefix reads. Only parameter
  * lineages retain an input position; equal debug indices never merge slots.
- * Rest invocation transitions belong to the shared argument recipe owner.
+ * A rest input follows the fixed inputs and uses the shared fresh-rest recipe.
  * @type {(fn: FastFunction) => Loop | null}
  */
 export const invocationRootOf = fn => {
     const { body } = fn
     const exit = body.exit
-    if (fn.parameters.length > maxLength || fn.rest !== null || exit[0] !== 'return' || exit[1] !== fn.target) { return null }
+    if (fn.parameters.length > maxLength || exit[0] !== 'return' || exit[1] !== fn.target) { return null }
     const last = body.statements.at(-1)
     if (last === undefined || last[0] !== 'loop') { return null }
     const loop = last[1]
-    if (loop.parameters.length !== fn.parameters.length || loop.initial.length !== fn.parameters.length
+    const length = fn.parameters.length + (fn.rest === null ? 0 : 1)
+    if (loop.parameters.length !== length || loop.initial.length !== length
         || loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0])) { return null }
     const aliases = invocationAliases(fn, body.statements.slice(0, -1))
     return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => namesBinding(value, binding)))
-        && !readsEntryParameters(loop, aliases) ? loop : null
+        && !readsEntryParameters(loop, aliases)
+        && (fn.rest === null || run(restBlockTask(loop.body, fn.parameters.length, loop.target)).valid) ? loop : null
 }
 
-/** Finish a region from reverse-collected statements. @type {(statements: List<Statement>, exit: Exit, normal: boolean) => Task<_Result>} */
+/** Finish a region from reverse-collected statements. @type {(statements: Link<Statement> | null, exit: Exit, normal: boolean) => Task<_Result>} */
 const finished = (statements, exit, normal) => done({ block: { statements: toArray(statements).toReversed(), exit }, normal })
 
 /**
@@ -50,14 +112,14 @@ const finished = (statements, exit, normal) => done({ block: { statements: toArr
  * @type {(block: Block, owner: _Owner, expected: number | null) => Task<_Result>}
  */
 const blockTask = (block, owner, expected) => {
-    /** @type {(index: number, statements: List<Statement>) => Task<_Result>} */
+    /** @type {(index: number, statements: Link<Statement> | null) => Task<_Result>} */
     const each = (index, statements) => call(() => {
         if (index !== block.statements.length) {
             const statement = block.statements[index]
             if (statement[0] === 'define' || statement[0] === 'loop') { return each(index + 1, { first: statement, tail: statements }) }
             /** @type {(mapped: Statement, normal: boolean) => Task<_Result>} */
             const resume = (mapped, normal) => {
-                const next = /** @type {List<Statement>} */ ({ first: mapped, tail: statements })
+                const next = /** @type {Link<Statement>} */ ({ first: mapped, tail: statements })
                 return normal ? each(index + 1, next) : finished(next, block.exit, false)
             }
             if (statement[0] === 'block') {
@@ -82,6 +144,11 @@ const blockTask = (block, owner, expected) => {
         if (exit[0] === 'break') {
             if (exit[2].length !== 1) { throw 'an invocation loop has one whole public result' }
             return finished(statements, ['return', owner.fn.target, exit[2][0]], false)
+        }
+        if (owner.fn.rest !== null) {
+            const args = _restArguments(block, owner.fn.parameters.length, owner.loop.target)
+            if (args === null) { throw 'invalid canonical rest invocation transition' }
+            return finished(assertNotNullish(statements).tail, ['return', owner.fn.target, ['()', owner.self, args]], false)
         }
         if (exit[2].length !== owner.fn.parameters.length) { throw 'invalid canonical invocation transition signature' }
         return finished(statements, ['return', owner.fn.target, ['()', owner.self, exit[2]]], false)

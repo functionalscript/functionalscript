@@ -50,13 +50,13 @@ export const proof = {
         assertEq(render(['=>', 1, [['[]', []]], ['?:', ['frame', 0], call(['frame', 0]), ['arg', 0]]]),
             '($1)=>{let $2=$1;while((()=>{const $3=$2;return $0;})()){const $4=$2;const $5=$0;$2=$5;}return $2;}')
         // Generic transitions keep root work and condition/arm sharing in
-        // one iteration. A rest read retains ordinary recursive invocation.
+        // one iteration. A rest read gets a fresh array at each transition.
         assertEq(render(['=>', 1, [], [',', [['[]', [1]], ['?:', true, call(0), ['arg', 0]]]]]),
             '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[1];if(true){const $6=0;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', shared, 0], call(['.', shared, 'length']), ['arg', 0]]]),
             '($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=[$4];if($5[0]){const $6=$5.length;$2=$6;continue L0;}else{const $7=$4;$3=$7;break L0;}}const $8=$3;return $8;}')
         assertEq(render(['=>', 1, [], ['?:', ['.', ['rest'], 'length'], call(['arg', 0]), ['arg', 0]]]),
-            '(function $0($1,...$2){return $2.length?$0($1):$1;})')
+            '($0,...$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;if($8.length){const $9=[$7];const $10=$9[0];const $11=(($12,$13,$14)=>$12.slice($13,$14))($9,1);$4=$10;$5=$11;continue L0;}else{const $15=$7;$6=$15;break L0;}}const $16=$6;return $16;}')
         // a next value that throws is assigned as the applied function a
         // throw is spelled as anywhere, and throws there
         assertEq(render(['=>', 1, [], ['?:', true, call(['throw', 1]), ['arg', 0]]]),
