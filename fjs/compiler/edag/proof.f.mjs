@@ -603,9 +603,9 @@ export const proof = {
             expectEdag(compile('const f = () => { const g = f; return g(); }; export default f;').edag, ['=>', 0, [], ['()', ['self'], []]])
         },
         // What the body anchors — the `const`s its value does not reach —
-        // floats to the nearest block root: the scope's root through eager
-        // positions, and a lazy operand, which is established only when
-        // the operator decides to and so takes the comma itself.
+        // floats to the nearest block root only when it crosses no earlier
+        // eager work. Otherwise it stays in the operand's comma. A lazy
+        // operand retains its selected block root.
         anchors: () => {
             /** @type {Exp} */
             const x = ['.', null, 'x']
@@ -618,7 +618,8 @@ export const proof = {
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() && 2;').edag, [',', [x, ['?:', 1, 2, 1]]])
             expectEdag(compile('export default (() => { const x = null.x; return 1; })() ? 2 : 3;').edag, [',', [x, ['?:', 1, 2, 3]]])
             expectEdag(compile('const f = (...a) => 1; export default f((() => { const x = null.x; return 2; })());').edag, [',', [x, ['()', ['=>', 0, [], 1], [2]]]])
-            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, [',', [x, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [2]]]]])
+            // Member lookup precedes the argument's required initializer.
+            expectEdag(compile('const o = { b: 1 }; export default o.b((() => { const x = null.x; return 2; })());').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', [[',', [x, 2]]]]])
             // a lazy operand is a block root: the anchor stays under it
             expectEdag(compile('export default 1 && (() => { const x = null.x; return 2; })();').edag, ['?:', 1, [',', [x, 2]], 1])
             expectEdag(compile('export default 1 || (() => { const x = null.x; return 2; })();').edag, ['?:', 1, 1, [',', [x, 2]]])
@@ -744,13 +745,12 @@ export const proof = {
         expectEdag(compile('const f = [(...x) => x]; export default f[Number("0")](7);').edag, ['.', ['[]', [['=>', 0, [], ['rest']]]], ['Number', '0'], ['|()', [7]]])
         assertStructurallySame(execute(compile('const xs = [10, 20]; export default [xs[Number("1")], null?.[Number(null.x)]];').edag), [20, undefined])
         // a computed object key is the property's own key operand, lowered
-        // as its value is: eager, so an inlined body's anchors float to the
-        // object's root from the key as from the value, and a `const` read
-        // there alone is inlined there
+        // as its value is. Key conversion stays before a following value's
+        // local prefix; a `const` read there alone is inlined there.
         expectEdag(compile('const c = [1]; export default {[c]: 2};').edag, ['{}', [[':', ['[]', [1]], 2]]])
         expectEdag(compile('export default {[1 + 1]: 2, ["a"]: 3};').edag, ['{}', [[':', ['+', 1, 1], 2], [':', 'a', 3]]])
         expectEdag(compile('export default {[(() => { const x = [7]; return 0; })()]: 1};').edag, [',', [['[]', [7]], ['{}', [[':', 0, 1]]]]])
-        expectEdag(compile('export default {[1 + 1]: (() => { const x = [7]; return 0; })()};').edag, [',', [['[]', [7]], ['{}', [[':', ['+', 1, 1], 0]]]]])
+        expectEdag(compile('export default {[1 + 1]: (() => { const x = [7]; return 0; })()};').edag, ['{}', [[':', ['+', 1, 1], [',', [['[]', [7]], 0]]]]])
         assertStructurallySame(execute(compile('const k = "a"; export default {[k + "b"]: 1, [null]: 2, [[1, 2]]: 3}["ab"];').edag), 1)
         // unary `-` still folds over a numeric literal, even nested inside
         // a binary operator the lowering does not fold

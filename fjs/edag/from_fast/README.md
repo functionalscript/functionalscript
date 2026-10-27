@@ -36,6 +36,24 @@ whole list in order before intervening work. Unknown operations retain the
 list. This keeps wide state updates stable without independently dropping an
 earlier demand while retaining a later one.
 
+Eager operands retain their own required evaluations when floating them would
+cross earlier work. Construction tests the actual parent with each child's
+anchors in place; only a proven ordered demand prefix permits those anchors to
+float outward. Otherwise an operand-local comma preserves its execution point,
+including after spread expansion, object-key conversion and member lookup.
+Function captures and multiple yielded results use the same rule. A direct
+member callee retains its receiver; a wrapped member value remains detached.
+Established loop helper values follow the same call-operand boundary.
+
+Source output now admits unshared operand-local commas through ordinary value
+blocks and IIFEs. This newly admitted graph domain can normalize on its first
+source parse: safe declaration anchors can move to an enclosing scope, and
+equivalent capture slots can compact. Its source-normalized graph and text must
+then remain exact on subsequent rounds. Existing admitted-domain identity and
+source fixed-point proofs retain their original contracts. Shared commas outside
+canonical scopes retain their explicit source refusal; linked shared-module
+sequences remain in their [separate task](../../compiler/serializer/todo/shared-linked-comma.md).
+
 Required-order anchors extend graph normalization. Memo metadata and completion
 graphs can gain explicit demands when placement exposes a formerly implicit
 ordering constraint. These fixtures normalize with two placement/construction

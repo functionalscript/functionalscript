@@ -76,7 +76,7 @@ const graphReason = (a, module) => {
         if (node[0] === 'memberPresent') { return 'an internal member-presence query' }
         if (node[0] === '+' && node.length === 2) { return 'a unary + node' }
         if (node[0] === ',') {
-            if (!current.region && !current.module) { return 'a comma outside a scope' }
+            if (!current.region && !current.module && shared.has(index)) { return 'a shared comma outside a scope' }
             if (node[1].length < 2) { return 'a comma with fewer than two operands' }
             if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[value[1]][0]))) { return 'an anchor that is a name' }
             pending = [...node[1].map(value => ({ value, region: false, module: current.module })), ...rest]
