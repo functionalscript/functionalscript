@@ -5,6 +5,7 @@
  */
 
 import type { Group } from '../../../website/demo/graph/types.ts'
+import type { BindingId } from '../types.ts'
 
 /** An edge of the drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */
 export type _Child = readonly [label: string, value: unknown, kind?: 'lazy']
@@ -21,3 +22,6 @@ export type _Chain = {
     readonly groups: readonly Group[]
     readonly lazy: boolean
 }
+
+/** A binding a module defines, and the edges its node draws: what defines it. */
+export type _Definition = readonly [id: BindingId, children: readonly _Child[]]

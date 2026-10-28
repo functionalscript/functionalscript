@@ -1,13 +1,35 @@
 /**
  * Shared operator shape proofs: the EDAG's spelling, which the EDAG demo
  * draws, and FAST's, which differs only in the array and object tags.
+ * Then the FAST walker, over modules from source and, where no source
+ * reaches a form yet, built by hand.
  *
- * @import { NodeShape } from '../../../website/demo/graph/types.ts'
+ * @import { Graph, NodeShape } from '../../../website/demo/graph/types.ts'
+ * @import { BindingId, LoopTarget } from '../types.ts'
+ * @import { Module } from '../sugar/types.ts'
  */
 
-import { operatorShape, unsupported } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
+import { fastGraph, operatorShape, unsupported } from './module.f.mjs'
+import { normalize } from '../sugar/module.f.mjs'
+import { parse } from '../../../compiler/transpiler/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
+
+/** `text` as the graph of its FAST. @type {(text: string) => Graph} */
+const ofText = text => fastGraph(normalize(assertOk(parse('')(text)), []))
+
+/** The id of the one node labelled `label`. @type {(g: Graph, label: string) => number} */
+const nodeOf = (g, label) => {
+    const found = g.nodes.filter(n => n.label === label)
+    assertEq(found.length, 1, label)
+    return found[0].id
+}
+
+/** The edges out of a node. @type {(g: Graph, id: number) => Graph['edges']} */
+const from = (g, id) => g.edges.filter(e => e.from === id)
+
+/** The edges into a node. @type {(g: Graph, id: number) => Graph['edges']} */
+const into = (g, id) => g.edges.filter(e => e.to === id)
 
 const edag = operatorShape({ array: '[]', object: '{}' })(unsupported)
 
@@ -341,12 +363,102 @@ export const proof = {
     fast: {
         array: () => assertStructurallySame(fast(['array', [1, ['...', ['a']]]]), { kind: 'op', label: '[]', children: [['0', 1], ['...1', ['a']]] }),
         object: () => assertStructurallySame(fast(['object', [[':', 'x', 1]]]), { kind: 'op', label: '{}', children: [['x', 1]] }),
+        memberPresent: () => assertStructurallySame(
+            fast(['memberPresent', ['a'], 'x']),
+            { kind: 'op', label: 'memberPresent', children: [['obj', ['a']], ['key', 'x']] }),
         call: () => assertStructurallySame(
             fast(['()', ['a'], [1]]),
             { kind: 'op', label: '()', children: [['callee', ['a']], ['...', ['array', [1]]]] }),
         edagTags: () => {
             assertStructurallySame(fast(['[]', []]), { kind: 'unsupported', label: '[] (not yet drawn)', children: [] })
             assertStructurallySame(fast(['{}', []]), { kind: 'unsupported', label: '{} (not yet drawn)', children: [] })
+        },
+    },
+    walk: {
+        // A binding is one node however many references reach it: `a` is
+        // defined once, captured by `f` and passed to it, so its node has
+        // three edges in. The capture is a binding of `f`'s own, its node
+        // an edge to the `a` it captures.
+        closure: () => {
+            const g = ofText('const a = [1]; const f = x => x && a; export default f(a);')
+            const [a, f, , captured] = ['$0', '$1', '$2', '$3'].map(label => nodeOf(g, label))
+            assertStructurallySame(into(g, a).map(e => e.label), ['define', 'captured', '0'])
+            assertStructurallySame(from(g, captured).map(e => [e.label, e.to]), [['captured', a]])
+            assertStructurallySame(from(g, f).map(e => e.label), ['value'])
+            const fn = nodeOf(g, '=>')
+            assertStructurallySame(from(g, fn).map(e => [e.label, e.kind]), [['param 0', undefined], ['capture 0', undefined], ['body', 'lazy']])
+            // `&&` is a conditional, its arms lazy
+            assertStructurallySame(from(g, nodeOf(g, 'if')).map(e => [e.label, e.kind]), [['cond', undefined], ['then', 'lazy'], ['else', 'lazy']])
+            // the return is an arrow back to its function
+            assertStructurallySame(from(g, nodeOf(g, 'return')).map(e => [e.label, e.to, e.back]), [['to', fn, true], ['value', nodeOf(g, 'if'), undefined]])
+        },
+        // A lazy binding's value is a dashed edge from its node.
+        lazy: () => {
+            const g = ofText('export default n => { let r = n; r = r + 1; const s = r; return () => s; };')
+            assert(g.edges.some(e => e.label === 'value' && e.kind === 'lazy'), 'a lazy value')
+        },
+        // `rest` and `self` are rows of the function, bindings it defines.
+        restAndSelf: () => {
+            const g = ofText('const f = (n, ...r) => n < 1 ? r : f(n - 1); export default f;')
+            assertStructurallySame(from(g, nodeOf(g, '=>')).map(e => e.label), ['param 0', 'rest', 'self', 'body'])
+        },
+        // `continue` and `break` arrow back to their loop, beside the
+        // values they carry: `value` for one, numbered for several.
+        loop: () => {
+            const one = ofText('export default n => { let i = 0; while (i < n) { i = i + 1; } return i; };')
+            const loop = nodeOf(one, 'loop')
+            assertStructurallySame(from(one, loop).map(e => e.label), ['param 0', 'initial 0', 'result 0', 'body'])
+            assertStructurallySame(from(one, nodeOf(one, 'continue')).map(e => [e.label, e.to, e.back]).slice(0, 1), [['to', loop, true]])
+            assertStructurallySame(from(one, nodeOf(one, 'break')).map(e => e.label), ['to', 'value'])
+            const two = ofText('export default n => { let i = 0; let s = 0; while (i < n) { s = s + i; i = i + 1; } return [i, s]; };')
+            assertStructurallySame(from(two, nodeOf(two, 'break')).map(e => e.label), ['to', 'value 0', 'value 1'])
+        },
+        // A block's exit: a `throw` is a row, as a `yield` is.
+        throws: () => {
+            const g = ofText("export default () => { throw 'no'; };")
+            assert(g.edges.some(e => e.label === 'throw'), 'a throw row')
+        },
+        // An import is a parameter of the module.
+        imports: () => {
+            const g = ofText("import b from './b.f.js'; export default b;")
+            assertStructurallySame(from(g, nodeOf(g, 'module')).map(e => e.label), ['import 0', 'body'])
+        },
+        /**
+         * Forms no source reaches yet, built by hand: a block statement and
+         * an `if` statement with results, a yield of two values, a block
+         * value, and a tuple FAST does not have, drawn as itself.
+         */
+        handBuilt: () => {
+            /** @type {(index: number) => BindingId} */
+            const id = index => ({ index })
+            const [x, r, y, z] = [id(0), id(0), id(0), id(0)]
+            /** @type {Module} */
+            const module = {
+                parameters: [x],
+                body: {
+                    statements: [
+                        ['block', [r], { statements: [], exit: ['yield', [['ref', x]]] }],
+                        ['if', [y, z], ['ref', r], { statements: [], exit: ['yield', [1, 2]] }, { statements: [], exit: ['yield', [3, 4]] }],
+                    ],
+                    exit: ['yield', [['block', { statements: [], exit: ['yield', [['ref', z]]] }]]],
+                },
+            }
+            const g = fastGraph(module)
+            assertStructurallySame(g.nodes.filter(n => n.kind === 'binding').map(n => n.label), ['$0', '$1', '$2', '$3'])
+            const statement = g.nodes.filter(n => n.label === 'block' && n.kind === 'op')
+            assertEq(statement.length, 1)
+            assertStructurallySame(from(g, statement[0].id).map(e => e.label), ['result 0', 'body'])
+            assertStructurallySame(from(g, nodeOf(g, 'if')).map(e => e.label), ['result 0', 'result 1', 'cond', 'then', 'else'])
+            assert(g.edges.some(e => e.label === 'yield 1'), 'a yield of two values')
+            const unknown = fastGraph({ parameters: [], body: { statements: [], exit: ['yield', [/** @type {any} */ (['new', 1])]] } })
+            assert(unknown.nodes.some(n => n.label === 'new (not yet drawn)'), 'drawn as itself')
+        },
+        // A reference to a binding the module does not define is refused,
+        // not drawn as an empty box.
+        throw: {
+            unbound: () => {
+                fastGraph({ parameters: [], body: { statements: [], exit: ['yield', [['ref', { index: 0 }]]] } })
+            },
         },
     },
 }

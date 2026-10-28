@@ -79,7 +79,7 @@ What the drawing shows:
 | Thing | Drawn as |
 | ----- | -------- |
 | block | a node with one row per statement and an `exit` row |
-| binding (`BindingId`) | one node per identity, labeled with its source name from the parser's `origins`, or `#index` for a compiler temporary |
+| binding (`BindingId`) | one node per identity, holding what defines it. The source pane labels it with its name from the parser's `origins`; FAST has no names, so the FAST pane numbers it `$n` in definition order |
 | operator | a node labeled with its tag, one port per operand |
 | primitive | inline in its parent's port |
 | lazy operand, `lazy` define | `lazy` edge, drawn dashed |
@@ -99,8 +99,13 @@ the drawing.
 
 - [x] The shared `Operator<V>` shape, extracted from the EDAG demo with its
       proofs, and the EDAG demo drawing through it unchanged.
-- [ ] The FAST walker, with its proof: shared bindings, lazy defines,
+- [x] The FAST walker, with its proof: shared bindings, lazy defines,
       captures, loops with their exits, `return` to an outer function.
+- [ ] Name FAST bindings after their source. FAST carries no names, and a
+      `BindingId`'s index is diagnostic: today most are `0`. So the walker
+      numbers bindings `$0`, `$1`… in definition order. Showing `n` for a
+      binding `n` was declared as needs `normalize` to keep each FAST
+      binding's source origin, a compiler change of its own.
 - [ ] The source walker, with its proof: the logical binaries, expansion
       plans, `initialize`/`write`, `while`, `switch`.
 - [ ] The demo page with both panes, the refusals and the DataJS listings;
