@@ -27,8 +27,9 @@ const buildMetadata = {
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * read-only job runs on the CI workflow's pull-request and merge-group events,
- * including forks, and branch pushes. It runs independently of the test jobs
+ * read-only job runs on branch pushes, fork pull requests and merge-group
+ * entries. Same-repository pull requests reuse their branch's push build.
+ * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
  * and keeps deployment credentials confined to preview uploads.
  * Production uploads are omitted until cutover. Mise installs the committed lock,
@@ -39,6 +40,7 @@ export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read' },
+    if: "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository",
     steps: [
         uses('actions/checkout'),
         miseInstall.step,
