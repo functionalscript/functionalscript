@@ -4,6 +4,13 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
+**Current increment:** retain zero-input tail roots with required define-only
+base-case work in either conditional orientation. Reuse the shared result-block
+normalizer and private unchanged slot, preserving empty public arity,
+once-after-final-test execution, sharing, captures, reached failures and exact
+graph/text cycles from the first source parse. Lazy and structured normal-arm
+prefixes remain outside this increment; H/I stay open.
+
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
