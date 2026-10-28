@@ -40,8 +40,9 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The `website` job now runs on repository branch pushes, pull requests and
-merge-group entries. It runs independently of the platform matrix and test jobs,
+The `website` job runs on repository branch pushes, fork pull requests and
+merge-group entries. Same-repository pull-request runs skip this job to avoid
+duplicating their branch's push build. It runs independently of the platform matrix and test jobs,
 reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`

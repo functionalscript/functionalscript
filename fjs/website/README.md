@@ -224,8 +224,10 @@ The generated CI workflow now supports building and deploying in the separate
 `website` job. It runs independently of test jobs and builds the WASM demos, styled Rust
 documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests and
-merge-group entries build without uploading. Only pushes to branches in this
+and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Same-repository
+pull-request runs skip the website job because push runs already build it.
+Fork pull requests and merge-group entries build without uploading.
+Only pushes to branches in this
 repository can upload; fork pull requests receive no deployment credentials.
 
 The owner requested automatic preview uploads with Wrangler while production

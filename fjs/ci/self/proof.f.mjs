@@ -53,6 +53,7 @@ export const proof = {
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read' })
         assertEq(generated.jobs.website?.needs, undefined)
+        assertEq(generated.jobs.website?.if, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository")
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',

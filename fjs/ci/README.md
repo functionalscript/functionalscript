@@ -36,8 +36,10 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-This repository also adds a separate `website` job on branch pushes, pull
-requests and merge-group entries. It builds the WASM demos, styled Rust API documentation
+This repository also adds a separate `website` job on branch pushes, fork pull
+requests and merge-group entries. Same-repository pull requests skip this job
+because their branch's push run already builds the website.
+It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
 The job has read-only GitHub permissions, runs independently of test jobs, and always
 builds its assets outside the successful-check cache. It passes the checked-out SHA
@@ -69,8 +71,8 @@ repository's website build out of other projects' workflows.
 
 Optional `pushBranches` enables CI on pushes to those branches. This repository
 uses `['**']` to build previews on every branch push; generic `fjs ci`
-remains pull-request and merge-group only. A branch with a pull request may
-therefore receive both push and pull-request checks; only its push run uploads.
+remains pull-request and merge-group only. The website job skips same-repository
+pull-request runs to avoid building twice; only push runs upload previews.
 
 Publishing retains its separate `setup-node` workflow and npm provenance.
 See [platform setup](../../doc/mise-trial/README.md) and
