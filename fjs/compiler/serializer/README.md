@@ -158,6 +158,16 @@ This path keeps earlier source profiles and default JavaScript/function-text/
 Rust layouts unchanged. The first parsed source graph establishes the scalar
 helper boundary, and later graph/text cycles remain exact.
 
+Fixed multi-input and observed-rest roots also retain terminal trees whose
+every leaf continues the exact loop with its complete next-input vector.
+Required prefixes and selected arguments finish before the existing packed or
+scalar state update. There is no normal completion result to compute. Shared
+allocations, creating-iteration captures, fresh rest and reached failures keep
+their iteration lifetime. Earlier zero-input and ordinary scalar divergent
+spellings stay unchanged, as do default layouts and logical graph contracts.
+Direct and conditional continuations preserve exact first-parse graph/text
+cycles; general lazy regions and other terminal exits keep their admission.
+
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
 loop profile. Raw zero-input or multi-input roots outside the admitted plain

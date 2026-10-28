@@ -40,6 +40,7 @@ export const terminalTree = (block, leaf, branch) => call(() => {
  * Every leaf supplies one exact result or the complete input vector. Required
  * prefixes keep their body lifetime, so values shared by a test, transition or
  * result are established once. Empty-input continuations retain an empty vector.
+ * Nonempty inputs may also continue at every leaf, with no normal completion.
  * @type {(loop: Loop) => boolean}
  */
 export const isTerminalLoop = loop => {
@@ -50,7 +51,8 @@ export const isTerminalLoop = loop => {
         if (exit[0] === 'break' && exit[1] === loop.target && exit[2].length === 1) { return 0x1 }
         return exit[0] === 'continue' && exit[1] === loop.target && exit[2].length === loop.parameters.length ? 0x2 : null
     }
-    // Both transfer kinds must occur; a diverging or result-only tree is distinct.
+    // Empty-input divergence keeps its earlier source plan; a result-only tree
+    // has no transition. Nonempty inputs may continue at every selected leaf.
     const kinds = run(terminalTree(loop.body, leaf, (_prefix, _test, then, otherwise) => then | otherwise))
-    return kinds === 0x3
+    return kinds === 0x3 || kinds === 0x2 && loop.parameters.length !== 0
 }

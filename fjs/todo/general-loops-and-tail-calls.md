@@ -175,10 +175,6 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
-      Next increment: retain fixed multi-input and observed-rest tail roots
-      whose terminal leaves only continue. Reuse source state preparation,
-      preserving simultaneous arguments, captures, fresh rest, reached work
-      and exact first-parse graph/text cycles without changing prior layouts.
       Plain bodies now admit zero/multiple state values, sequential loops and
       loops in terminal guard/case blocks. Shared binding events select state;
       source JavaScript, code-only JavaScript and Rust execute eligible plain
@@ -303,6 +299,16 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       immediate completion and required unused arguments before continuation.
       Earlier plain zero-input loops retain their unchanged-slot spelling;
       default layouts and exact first-parse graph/text cycles remain intact.
+      Fixed multi-input and observed-rest roots now also retain terminal trees
+      whose every leaf continues the exact loop with its complete input vector.
+      The same required-prefix analysis and packed/scalar state preparation
+      preserve simultaneous updates, creating-iteration captures, fresh rest
+      and reached failures without inventing normal completion. Earlier
+      zero-input and ordinary scalar divergent spellings stay unchanged.
+      Direct and conditional continuations retain exact graph/text cycles from
+      the first source parse; default layouts and logical contracts remain
+      intact. General lazy regions and other terminal exits keep their prior
+      admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

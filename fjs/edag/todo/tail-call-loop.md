@@ -241,6 +241,19 @@ survive, including immediate completion. Earlier plain zero-input plans keep
 their unchanged-slot spelling. Default layouts and exact first-parse
 graph/text cycles retain their contracts.
 
+Fixed multi-input and observed-rest roots now also retain terminal trees whose
+every leaf continues the exact loop with its complete input vector. Shared
+terminal analysis still requires prefixes of required definitions and
+result-free decisions; the same packed/scalar preparation evaluates selected
+work and arguments before state updates. No normal completion is invented.
+Simultaneous updates, shared allocations, creating-iteration captures, fresh
+rest and reached failures keep
+their existing contracts. Earlier zero-input and ordinary scalar divergent
+source spellings remain unchanged. Direct and conditional continuations keep
+exact first-parse graph/text cycles, with unchanged default layouts and logical
+graph contracts. General lazy regions and other terminal exits retain their
+previous admission.
+
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or
 other structured normal-arm prefixes, retain their previous admission and

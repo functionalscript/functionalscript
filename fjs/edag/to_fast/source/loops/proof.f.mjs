@@ -25,23 +25,82 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
+const lazyBinding = /** @type {const} */ ({ index: 1_000 })
+
+/** A lazy allocation demanded by both the terminal test and repeated result. @returns {FastFunction} */
+const lazyPrefixFunction = () => {
+    const fn = _tailFunction(counter)
+    const statement = fn.body.statements.at(-1)
+    assert(statement !== undefined && statement[0] === 'loop')
+    const terminal = statement[1].body.statements.at(-1)
+    assert(terminal !== undefined && terminal[0] === 'if')
+    /** @type {Block} */
+    const normal = { ...terminal[4], exit: ['break', statement[1].target, [['array', [['ref', lazyBinding], ['ref', lazyBinding]]]]] }
+    return { ...fn, body: { ...fn.body,
+        statements: [...fn.body.statements.slice(0, -1), ['loop', { ...statement[1], body: { ...statement[1].body,
+            statements: [['define', lazyBinding, ['array', [['ref', statement[1].parameters[0]]]], 'lazy'],
+                ...statement[1].body.statements.slice(0, -1), ['if', terminal[1], ['>', ['.', ['ref', lazyBinding], 0], 0], terminal[3], normal]],
+        } }]],
+    } }
+}
+
 export const proof = /** @type {const} */ ({
+    continuingOnlyRootsKeepFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(a,b)=>f(b,a);export default f;',
+            'const f=(a,b)=>a>0?f(b,a):f(b+1,a);export default f;',
+            'const f=(n,a,b)=>{const pair=[n,a,b];const read=()=>[pair,f];return read()[0][0]>0?f(n+1,b,a):f(n+1,a,b);};export default f;',
+            'const f=(a,...xs)=>f(xs[0],a);export default f;',
+            'const f=(a,...xs)=>a>0?f(xs[0],a):f(xs[0]+1,a);export default f;',
+            'const f=(...xs)=>f(xs[1],xs[0]);export default f;',
+            'const f=(...xs)=>xs[0]>0?f(xs[1],xs[0]):f(xs[1]+1,xs[0]);export default f;',
+            'const f=(a,...xs)=>{const read=()=>xs;return f(a,...read());};export default f;',
+            'const f=(...xs)=>{const read=()=>xs;return f(...read());};export default f;',
+        ])) {
+            const original = graph(source)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            const logical = fromFast(assertOk(toFast(original)))
+            assertStructurallySame(assertOk(identityAnalysis(fromFast(assertOk(toFast(logical))))), assertOk(identityAnalysis(logical)), source)
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    continuingOnlyRootsKeepFiniteFailuresAndArgumentOrder: () => {
+        const stop = /** @type {const} */ ('const stop=n=>{if(n===0){throw 7;}return n;};')
+        for (const source of [
+            `${stop}const f=(n,a,b)=>{const pair=[n,a,b];const read=()=>pair;stop(read()[0]);return n%2===0?f(n-1,b,a):f(n-1,a,b);};export default f(3,7,9);`,
+            `${stop}const f=(n,...xs)=>{const pair=[n,xs];const read=()=>pair;stop(read()[0]);return n%2===0?f(n-1,xs[1],xs[0]):f(n-1,...xs);};export default f(3,7,9);`,
+            `${stop}const f=(...xs)=>{const pair=[xs];const read=()=>pair;stop(read()[0][0]);return xs[0]%2===0?f(xs[0]-1,xs[2],xs[1]):f(xs[0]-1,...xs.slice(1));};export default f(3,7,9);`,
+            'const f=(a,b)=>f(b,a,null.extra);export default f(7,9);',
+            'const f=(a,b)=>f(b,a,...null);export default f(7,9);',
+            'const f=(a,b)=>{const required=null.prefix;return f(b,a);};export default f(7,9);',
+            'const f=(a,b)=>null.condition?f(b,a):f(b+1,a);export default f(7,9);',
+        ]) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
     lazyTerminalPrefixesRetainTheirRecursiveSourceFallback: () => {
-        const fn = _tailFunction(counter)
-        const statement = fn.body.statements.at(-1)
-        assert(statement !== undefined && statement[0] === 'loop')
-        const terminal = statement[1].body.statements.at(-1)
-        assert(terminal !== undefined && terminal[0] === 'if')
-        const binding = /** @type {const} */ ({ index: 1_000 })
-        /** @type {Block} */
-        const normal = { ...terminal[4], exit: ['break', statement[1].target, [['array', [['ref', binding], ['ref', binding]]]]] }
-        /** @type {FastFunction} */
-        const fallback = { ...fn, body: { ...fn.body,
-            statements: [...fn.body.statements.slice(0, -1), ['loop', { ...statement[1], body: { ...statement[1].body,
-                statements: [['define', binding, ['array', [['ref', statement[1].parameters[0]]]], 'lazy'],
-                    ...statement[1].body.statements.slice(0, -1), ['if', terminal[1], ['>', ['.', ['ref', binding], 0], 0], terminal[3], normal]],
-            } }]],
-        } }
+        const binding = lazyBinding
+        const fallback = lazyPrefixFunction()
         const original = yielded(['function', fallback])
         const converted = assertOk(_sourceLoops(original))
         assert(converted !== original)
@@ -1634,9 +1693,9 @@ export const proof = /** @type {const} */ ({
         }
     },
     nestedSourceValuesRetainTheirExecutionRegions: () => {
-        // Nonplain observed-rest roots retain recursive source, so every
-        // containing value must still be traversed after plain roots keep loops.
-        const fn = _tailFunction(['=>', 2, [], ['()', ['self'], [['arg', 0], ['arg', 1], ['...', ['rest']]]]])
+        // A demanded lazy prefix retains recursive source, so every containing
+        // value still needs traversal after required terminal roots keep loops.
+        const fn = lazyPrefixFunction()
         const inner = /** @type {Value} */ (['function', fn])
         const binding = /** @type {const} */ ({ index: 0 })
         const parameter = /** @type {const} */ ({ index: 0 })

@@ -555,6 +555,222 @@ export const proof = {
             }
         }
     },
+    continuingOnlyTailRootsKeepOrderIdentityAndBoundedStack: async () => {
+        const tokenA = /** @type {const} */ ([7])
+        const tokenB = /** @type {const} */ ([9])
+        for (const [arity, parameters, n, a, b, rest] of /** @type {const} */ ([
+            [3, 'n,a,b', 'n', 'a', 'b', 'null'],
+            [1, 'n,...xs', 'n', 'xs[0]', 'xs[1]', 'xs'],
+            [0, '...xs', 'xs[0]', 'xs[1]', 'xs[2]', 'xs'],
+        ])) {
+            const hasRest = rest !== 'null'
+            for (const [branched, inverted] of /** @type {const} */ ([[false, false], [true, false], [true, true]])) {
+                const values = /** @type {const} */ ('pair,object,read,established')
+                const suffix = hasRest ? `,...spread(${values})` : `,ignored(${values}),...spread(${values})`
+                const swap = `f(argument(0,${n}+1,${values}),argument(1,${b},${values}),argument(2,${a},${values})${suffix})`
+                const keep = `f(argument(0,${n}+1,${values}),argument(1,${a},${values}),argument(2,${b},${values})${suffix})`
+                const next = branched ? inverted ? `!choose(${values})?${keep}:${swap}` : `choose(${values})?${swap}:${keep}` : swap
+                const source = `export default(before,choose,argument,ignored,spread)=>{const f=(${parameters})=>{const pair=[${n},${a},${b},${rest},f];const object={pair};const read=()=>[pair,object,${n},${a},${b},${rest},f];const established=before(pair,object,read);return ${next};};return f;};`
+                const [, interpreted] = virtualAt({ main: [utf8(source)] })(interpret(noRuntime)('main'))
+                const graph = assertOk(interpreted)
+                for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                    assert(text.includes('while('), text)
+                    const make = (await load(text)).default
+                    const stopped = new Error('stop after the selected continuing-only path')
+                    let limit = 0
+                    let start = 0
+                    let visits = 0
+                    let steps = 0
+                    let phase = 'prefix'
+                    let mode = 'stop'
+                    let selected = true
+                    /** @type {unknown} */
+                    let expectedA = tokenA
+                    /** @type {unknown} */
+                    let expectedB = tokenB
+                    /** @type {readonly unknown[] | undefined} */
+                    let previousPair
+                    /** @type {unknown} */
+                    let previousObject
+                    /** @type {(() => readonly unknown[]) | undefined} */
+                    let previousRead
+                    /** @type {unknown} */
+                    let previousRest
+                    /** @type {(() => readonly unknown[]) | undefined} */
+                    let firstRead
+                    /** @type {string[]} */
+                    let events = []
+                    /** @param {string} name */
+                    const event = name => {
+                        if (limit < 10) { events.push(`${visits}:${name}`) }
+                        if (mode === name && visits === 2) { throw stopped }
+                    }
+                    /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => void} */
+                    const shared = (pair, object, read, established) => {
+                        assertEq(pair, previousPair)
+                        assertEq(object, previousObject)
+                        assertEq(read, previousRead)
+                        assertEq(established, object)
+                        assertEq(read()[0], pair)
+                        assertEq(read()[1], object)
+                        assertEq(read()[2], pair[0])
+                        assertEq(read()[3], pair[1])
+                        assertEq(read()[4], pair[2])
+                        assertEq(read()[5], pair[3])
+                        assertEq(read()[6], run)
+                    }
+                    const run = make(
+                        /** @type {(pair: readonly unknown[], object: { readonly pair: readonly unknown[] }, read: () => readonly unknown[]) => unknown} */ ((pair, object, read) => {
+                            assertEq(phase, 'prefix')
+                            assertEq(pair[0], start + steps)
+                            assertEq(pair[1], expectedA)
+                            assertEq(pair[2], expectedB)
+                            assertEq(pair[4], run)
+                            assertEq(object.pair, pair)
+                            assert(pair !== previousPair)
+                            assert(object !== previousObject)
+                            assert(read !== previousRead)
+                            const currentRest = pair[3]
+                            if (hasRest) {
+                                assert(currentRest instanceof Array)
+                                assert(currentRest !== previousRest)
+                                assertEq(currentRest.length, arity === 0 ? 3 : 2)
+                                assertEq(currentRest[arity === 0 ? 1 : 0], expectedA)
+                                assertEq(currentRest[arity === 0 ? 2 : 1], expectedB)
+                                previousRest = currentRest
+                            } else { assertEq(currentRest, null) }
+                            previousPair = pair
+                            previousObject = object
+                            previousRead = read
+                            if (visits === 0) { firstRead = read }
+                            visits += 1
+                            event('prefix')
+                            if (mode === 'stop' && steps === limit) { throw stopped }
+                            selected = true
+                            phase = branched ? 'choice' : 'argument0'
+                            return object
+                        }),
+                        /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => boolean} */ ((...input) => {
+                            assertEq(phase, 'choice')
+                            shared(...input)
+                            event('choice')
+                            selected = steps % 2 === 0
+                            phase = 'argument0'
+                            return selected
+                        }),
+                        /** @type {(index: number, value: unknown, pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => unknown} */ ((index, value, ...input) => {
+                            assertEq(phase, `argument${index}`)
+                            shared(...input)
+                            assertEq(value, index === 0 ? start + steps + 1 : index === 1 ? selected ? expectedB : expectedA : selected ? expectedA : expectedB)
+                            event(`argument${index}`)
+                            phase = index === 2 ? hasRest ? 'spread' : 'ignored' : `argument${index + 1}`
+                            return value
+                        }),
+                        /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => unknown} */ ((...input) => {
+                            assertEq(phase, 'ignored')
+                            shared(...input)
+                            event('ignored')
+                            phase = 'spread'
+                            return input[1]
+                        }),
+                        /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => readonly unknown[]} */ ((...input) => {
+                            assertEq(phase, 'spread')
+                            shared(...input)
+                            event('spread')
+                            const nextA = selected ? expectedB : expectedA
+                            const nextB = selected ? expectedA : expectedB
+                            expectedA = nextA
+                            expectedB = nextB
+                            steps += 1
+                            phase = 'prefix'
+                            return []
+                        }),
+                    )
+                    assertEq(run.length, arity)
+                    /** @param {number} count @param {number} initial @param {unknown} first @param {unknown} second @param {string} failure */
+                    const invoke = (count, initial, first, second, failure) => {
+                        limit = count
+                        start = initial
+                        visits = 0
+                        steps = 0
+                        phase = 'prefix'
+                        mode = failure
+                        expectedA = first
+                        expectedB = second
+                        previousPair = undefined
+                        previousObject = undefined
+                        previousRead = undefined
+                        previousRest = undefined
+                        firstRead = undefined
+                        events = []
+                        throws(() => run(initial, first, second), error => error === stopped)
+                    }
+                    invoke(100_000, 0, tokenA, tokenB, 'stop')
+                    assertEq(steps, 100_000)
+                    assertEq(visits, 100_001)
+                    const heldFirst = firstRead, heldLast = previousRead
+                    assert(heldFirst !== undefined && heldLast !== undefined)
+                    const firstSnapshot = heldFirst(), lastSnapshot = heldLast()
+                    invoke(0, 10, [11], [12], 'stop')
+                    assertEq(steps, 0)
+                    assertEq(visits, 1)
+                    assert(previousPair !== firstSnapshot[0])
+                    for (const [read, snapshot] of /** @type {const} */ ([[heldFirst, firstSnapshot], [heldLast, lastSnapshot]])) {
+                        const captured = read()
+                        for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], snapshot[index]) }
+                    }
+                    /** @type {readonly string[]} */
+                    const names = ['prefix', ...branched ? ['choice'] : [], 'argument0', 'argument1', 'argument2', ...hasRest ? [] : ['ignored'], 'spread']
+                    for (const failure of names) {
+                        invoke(3, 0, tokenA, tokenB, failure)
+                        assertEq(steps, 1)
+                        assertEq(visits, 2)
+                        assertStructurallySame(events, [...names.map(name => `1:${name}`), ...names.slice(0, names.indexOf(failure) + 1).map(name => `2:${name}`)])
+                    }
+                }
+            }
+        }
+    },
+    continuingOnlyRestRootsKeepFreshEmptyRest: async () => {
+        for (const [arity, parameters, next] of /** @type {const} */ ([[1, 'n,...xs', 'n+1'], [0, '...xs', '']])) {
+            const source = `export default visit=>{const f=(${parameters})=>{const read=()=>xs;visit(xs,read,f);return f(${next});};return f;};`
+            const [, interpreted] = virtualAt({ main: [utf8(source)] })(interpret(noRuntime)('main'))
+            const graph = assertOk(interpreted)
+            for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                assert(text.includes('while('), text)
+                const make = (await load(text)).default
+                const stopped = new Error('stop an empty-rest continuing-only root')
+                let visits = 0
+                let limit = 100_000
+                /** @type {readonly unknown[] | undefined} */
+                let previous
+                /** @type {(() => readonly unknown[]) | undefined} */
+                let held
+                const run = make(/** @type {(rest: readonly unknown[], read: () => readonly unknown[], self: unknown) => void} */ ((rest, read, self) => {
+                    assertEq(self, run)
+                    assertEq(read(), rest)
+                    assertEq(rest.length, 0)
+                    assert(rest !== previous)
+                    previous = rest
+                    if (visits === 0) { held = read }
+                    visits += 1
+                    if (visits > limit) { throw stopped }
+                }))
+                assertEq(run.length, arity)
+                throws(() => arity === 0 ? run() : run(0), error => error === stopped)
+                assertEq(visits, 100_001)
+                const saved = held
+                assert(saved !== undefined)
+                const rest = saved()
+                visits = 0
+                limit = 0
+                previous = undefined
+                throws(() => arity === 0 ? run() : run(0), error => error === stopped)
+                assertEq(visits, 1)
+                assert(saved() === rest && rest !== previous)
+            }
+        }
+    },
     zeroInputTerminalPrefixesKeepOrderIdentityAndBoundedStack: async () => {
         const seed = /** @type {const} */ ([9])
         for (const [mixed, earlyFirst] of /** @type {const} */ ([[false, false], [true, false], [true, true]])) {

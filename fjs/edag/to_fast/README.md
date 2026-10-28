@@ -276,6 +276,17 @@ completion writes its selected scalar to the slot before exit. Empty public
 arity, shared allocations, held captures and own-function identity survive.
 Earlier plain zero-input plans retain precedence and their source spelling.
 
+For nonempty semantic inputs, the terminal analysis also accepts a tree whose
+every leaf continues the exact root with its complete next-input vector.
+Fixed multi-input and observed-rest roots therefore retain source loops even
+without normal completion. Required definitions stay in their selected lexical
+regions; the existing packed or scalar state path preserves simultaneous
+updates, captures, fresh rest and reached failures. No completion or graph
+metadata is added. Earlier zero-input and ordinary scalar divergent spellings
+stay unchanged. Direct and conditional continuations retain exact graph/text
+cycles from the first source parse, while general lazy regions and other
+terminal exits keep their previous admission.
+
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be
 restored to recursive source. Such supplied zero-input, multi-input or observed

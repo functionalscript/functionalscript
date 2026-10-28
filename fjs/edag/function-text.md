@@ -227,6 +227,16 @@ and text stabilize exactly. Original logical function text, default JavaScript/
 Rust layouts and prior source profiles remain unchanged; general lazy regions
 retain their existing admission.
 
+Fixed multi-input and observed-rest roots with only continuation leaves use
+the same source plan. Every leaf supplies the complete next-input vector to
+the exact loop; selected required work finishes before its packed or scalar
+state update. No normal completion is introduced. Immutable iteration values
+retain allocations, captures, own-function identity and fresh rest, including
+when reached work fails. Earlier zero-input and ordinary scalar divergent
+source spellings, default layouts and logical graph contracts stay unchanged.
+Direct and conditional continuations keep exact first-parse graph/text cycles;
+general lazy regions and other terminal exits retain their admission.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function
