@@ -165,6 +165,60 @@ NaNVM with a closure over `Any::entries` in the runtime value, which the
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 
+##### `Object.fromEntries` proposal
+
+**Status:** proposed — formal, explicit approval of a language designer
+pending ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+
+**Problem.** `Object.entries` takes an object apart; nothing admitted puts
+one together from keys known only at run time. The one spelling that
+compiles is a spread with a computed key,
+`entries.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})`, which copies the
+whole object at every entry: O(n²) for n keys. The authored modules write
+`Object.fromEntries` instead — 58 uses in 23 non-proof modules, among them
+`fjs/rtti/data` (8) and `fjs/rtti/parse`, `fjs/types/object` (which
+destructures it from `Object`), `fjs/compiler/parser/grammar`,
+`fjs/edag/value/object` and `fjs/media/json` — and none of them can be
+renamed `.f.js` while it does.
+
+**Proposal.** Admit `Object.fromEntries` as a static function beside
+`Object.entries`, read in the same spellings and through
+`const { fromEntries } = Object`, with the EDAG node
+`['Object.fromEntries']` and `length` `1`. Its answer is JavaScript's for
+the one iterable the language builds, an array: a fresh plain object with,
+for each element in order, the element's `[0]` converted to a property key
+and its `[1]` as the value, defined as an own data property
+(CreateDataProperty, so `__proto__` is a key like any other); a later
+duplicate key replaces the value and keeps the first key's position. An
+element that is not an object fails, as JavaScript's TypeError does.
+
+A body in FunctionalScript is possible, the reduce above with that failure
+added, so the runtime's `static` section could hold it as it holds
+`Object.is`'s; an executor may still answer the node natively, as NaNVM
+answers `Object.entries`, to avoid the quadratic copy. Which, and the
+function's text, are the implementation's to settle, under the rules the
+`Object.entries` record above set.
+
+**Benefits.** The JavaScript spelling for what 23 modules already do,
+linear where the executor makes it so, and the inverse of the enumeration
+the language already has: keys, values and filtered copies are then
+round trips over arrays.
+
+**Drawbacks.** One more static, and with it one more name the namespace
+admits in a pattern. A non-array iterable — a `Map`, a generator — is no
+value FunctionalScript builds, so the admitted function answers only for
+arrays; a host that passes another iterable gets JavaScript's answer on
+the host and is outside what the language promises.
+
+**Tasks.**
+
+- [ ] Formal language-design approval, recorded here with a link.
+- [ ] `Object.fromEntries` through every executor, with harness fixtures
+      holding them to Node, and the
+      [built-in static functions](../built-ins/static-functions/README.md)
+      page updated.
+- [ ] Recount the modules this unblocks and rename those that then compile.
+
 #### Number and Math
 
 - [x] `Number` — the call `Number(exp)`, the conversion
