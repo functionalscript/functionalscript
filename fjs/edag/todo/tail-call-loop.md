@@ -4,6 +4,14 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
+The current H increment extends required base-case definitions to canonical
+rest-only tail functions in both conditional orientations. Shared result-block
+normalization and orientation must retain the final rest array, once-after-test
+base evaluation, sharing, captures and reached failures without changing public
+arity or default JavaScript/Rust layouts. Exact graph/text stability starts at
+the first parsed source output. Zero-input and structured normal-arm profiles
+remain separate work.
+
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
