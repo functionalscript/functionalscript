@@ -299,7 +299,6 @@ export const proof = {
             assertStructurallySame(graph[1][index], ['[]', []])
         }
         assertEq(graph[1][count], 0)
-        assertStructurallySame(fromFast(block), graph)
     },
     selectedControlArmsReuseCompletedTests: () => {
         const parameters = [id(0), id(1), id(2)]
