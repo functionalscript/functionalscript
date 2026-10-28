@@ -13,7 +13,8 @@ mise install --locked
 ./dev.sh npm start test
 ```
 
-`./dev.sh` opens a shell; arguments run one command in the selected environment.
+`./dev.sh` opens a Bash shell with `FJS ` prepended to the usual prompt after
+loading `~/.bashrc`. Arguments run one command in the selected environment.
 On Windows PowerShell, use `dev.ps1`:
 
 ```powershell
