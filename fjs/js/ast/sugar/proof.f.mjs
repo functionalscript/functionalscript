@@ -56,6 +56,7 @@ export const proof = {
             ['export default (()=>{let value=0;while(value<2){value=value+1;if(value===1){value=value+1;}else{return 9;}}return value;})();', 2],
         ]
         for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        /** @type {readonly string[]} */
         const failures = [
             'export default (()=>{while(true){const reached=null.x;return 7;}return 0;})();',
             'export default (()=>{let value=0;while(true){value=null.x;value=1;return value;}return 0;})();',

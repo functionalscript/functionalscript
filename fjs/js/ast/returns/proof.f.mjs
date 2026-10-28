@@ -48,6 +48,7 @@ export const proof = /** @type {const} */ ({
         const before = /** @type {Statement} */ (['define', id(), ['array', []], 'required'])
         const conditional = /** @type {Statement} */ (['if', [value], true, yielded([7], [prefix]), returned(8)])
         const source = returned(ref(value))
+        /** @type {Block} */
         const block = { ...source, statements: [before, conditional] }
         const forwarded = _forwardReturns(block, owner)
         assertEq(forwarded.statements[0], before)

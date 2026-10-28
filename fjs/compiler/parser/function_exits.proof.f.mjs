@@ -146,7 +146,7 @@ export const proof = /** @type {const} */ ({
         const loop = fn[1].body.statements[0]
         assert(loop[0] === 'while')
         assertEq(loop[1].body.statements.length, 8192)
-        const depth = 2048
+        const depth = /** @type {const} */ (2048)
         assertOk(parseFromTokens(tokenizeString(`const f=()=>{while(false){${'if(true){'.repeat(depth)}return 0;${'}'.repeat(depth)}}return 0;};export default f;`)))
     },
 })

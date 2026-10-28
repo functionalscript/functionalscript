@@ -43,7 +43,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     sharedNormalRecipesKeepRequiredCallsAfterTheDecision: () => {
-        const prefix = 'const f=x=>{if(x[0]===3){throw 7;}return x[0];};let i=0;let sum=0;'
+        const prefix = /** @type {const} */ ('const f=x=>{if(x[0]===3){throw 7;}return x[0];};let i=0;let sum=0;')
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [
             ['let i=0;let sum=0;while(i<10){i=i+1;if(i===1){sum=sum+10;}else if(i===3){return [i,sum];}else{sum=sum+i;}const result=[i,sum];return result;}return null;', [1, 10]],
