@@ -16,6 +16,11 @@
  * refuses, so the README stays the file link to GitHub it was, with the
  * reason beside it.
  *
+ * **A Mermaid flowchart is drawn, as on GitHub,** by the site's own graph
+ * renderer ([`mermaid`](../mermaid/module.f.mjs)). A `mermaid` fence it
+ * cannot draw stays its source, as every fence did before: the author's
+ * own text, not a wrong picture.
+ *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
  * ([`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
@@ -38,6 +43,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
+import { flowchartSvg } from '../mermaid/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
 
 const { length: reservedIdCount } = reservedIds
@@ -301,6 +307,11 @@ export const readmeNodes = href => blocks => {
                 continue
             }
             if (b[0] === 'code') {
+                const drawn = b[1] === 'mermaid' ? flowchartSvg(b[2]) : null
+                if (drawn !== null && drawn[0] === 'ok') {
+                    out = [...out, drawn[1]]
+                    continue
+                }
                 const text = fenceNodes(b[1])(b[2])
                 /** @type {Element} */
                 const code = b[1] === '' ? ['code', ...text] : ['code', { class: `language-${b[1]}` }, ...text]

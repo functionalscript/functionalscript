@@ -136,6 +136,14 @@ export const proof = {
                     ['span', { 'data-token': 'identifier' }, 'type'], ': ',
                     ['span', { 'data-token': 'number' }, '1'], ' }']],
             ])),
+            // A flowchart is drawn; a Mermaid fence the site cannot draw
+            // stays its source.
+            mermaid: () => {
+                const r = readmeNodes(href)([['code', 'mermaid', 'flowchart LR\na --> b\n']])
+                assertStructurallySame(r[0] === 'ok' ? r[1][0].slice(0, 2) : null, ['div', { 'data-graph': '' }])
+            },
+            mermaidSource: () => assertStructurallySame(readmeNodes(href)([['code', 'mermaid', 'pie\n']]),
+                ok([['pre', ['code', { class: 'language-mermaid' }, 'pie\n']]])),
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
                 ok([['pre', ['code', { class: 'language-rust' }, 'let a = 1;']]])),
             // Text the tokenizer refuses is not partly coloured.

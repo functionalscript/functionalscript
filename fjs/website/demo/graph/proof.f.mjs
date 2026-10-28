@@ -212,6 +212,18 @@ export const proof = {
             ]
             assertEq(ranked(nodes, edges).find(n => n.id === 2)?.rank, 2)
         },
+        // Each source starts at rank 0, so a diagram with two starting
+        // points ranks both, and a node they share by the longer path.
+        sources: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'a' },
+                { id: 1, kind: 'a', label: 'b' },
+                { id: 2, kind: 'a', label: 'c' },
+                { id: 3, kind: 'a', label: 'd' },
+            ]
+            const edges = [{ from: 0, to: 3, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' }]
+            assertStructurallySame(ranked(nodes, edges).map(n => n.rank), [0, 0, 1, 2])
+        },
         // A back edge is not a path, so it ranks nothing.
         back: () => {
             const nodes = [{ id: 0, kind: 'a', label: 'f' }, { id: 1, kind: 'a', label: 'g' }]
