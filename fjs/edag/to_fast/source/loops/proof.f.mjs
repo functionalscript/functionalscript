@@ -26,6 +26,40 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    lazyTerminalPrefixesRetainTheirRecursiveSourceFallback: () => {
+        const fn = _tailFunction(counter)
+        const statement = fn.body.statements.at(-1)
+        assert(statement !== undefined && statement[0] === 'loop')
+        const terminal = statement[1].body.statements.at(-1)
+        assert(terminal !== undefined && terminal[0] === 'if')
+        const binding = /** @type {const} */ ({ index: 1_000 })
+        /** @type {Block} */
+        const normal = { ...terminal[4], exit: ['break', statement[1].target, [['array', [['ref', binding], ['ref', binding]]]]] }
+        /** @type {FastFunction} */
+        const fallback = { ...fn, body: { ...fn.body,
+            statements: [...fn.body.statements.slice(0, -1), ['loop', { ...statement[1], body: { ...statement[1].body,
+                statements: [['define', binding, ['array', [['ref', statement[1].parameters[0]]]], 'lazy'],
+                    ...statement[1].body.statements.slice(0, -1), ['if', terminal[1], ['>', ['.', ['ref', binding], 0], 0], terminal[3], normal]],
+            } }]],
+        } }
+        const original = yielded(['function', fallback])
+        const converted = assertOk(_sourceLoops(original))
+        assert(converted !== original)
+        assert(converted.exit[0] === 'yield')
+        const value = converted.exit[1][0]
+        assert(value instanceof Array && value[0] === 'function')
+        assert(value[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === binding && statement[3] === 'lazy'))
+        const exit = value[1].body.exit
+        assert(exit[0] === 'return' && exit[2] instanceof Array && exit[2][0] === 'if')
+        for (const candidate of [original, converted]) {
+            for (const input of /** @type {const} */ ([3, 0])) {
+                const result = evaluate(['()', fromFast(candidate), [input, 0]])
+                assertStructurallySame(result, [[0], [0]])
+                assert(result instanceof Array)
+                assertEq(result[0], result[1])
+            }
+        }
+    },
     unsupportedFactoredInvocationProfilesReturnReasons: () => {
         const call = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]])
         const prefix = /** @type {Exp} */ ([',', [['[]', [['arg', 0]]], call]])
@@ -786,6 +820,62 @@ export const proof = /** @type {const} */ ({
                 current = graph(canonical)
             }
         }
+    },
+    sharedRequiredPrefixesKeepIdentityAndFirstParseFixedPoints: () => {
+        for (const [parameters, prefix, test, recur, normal, args, observe, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, string, unknown])[]} */ ([
+            ['n,a', 'const pair=[n,a];', 'pair[0]>0', 'f(n-1,pair[1]+1)', 'pair', '3,7', 'export default first;', [0, 10]],
+            ['n,a', 'const pair=[f,n,a];', 'n>0', 'f(n-1,pair[2]+1)', 'pair', '3,4', 'export default[first[0]===f,first[1],first[2]];', [true, 0, 7]],
+            ['n,a,b', 'const pair=[n,a,b];const object={pair};const read=()=>[pair,object,n,a,b];', 'read()[0][0]>0', 'f(n-1,object.pair[2],pair[1])', '[pair,pair,object,read]', '3,1,2', 'const held=first[3]();const other=f(2,5,6);export default[first[0]===first[1],first[2]===held[1],first[0]===held[0],first[0]===other[0],first[3]()[0]===held[0],first[0],held[2],held[3],held[4]];', [true, true, true, false, true, [0, 2, 1], 0, 2, 1]],
+            ['n,...xs', 'const pair=[n,xs];const object={pair};const read=()=>[pair,object,n,xs];', 'read()[0][0]>0', 'f(n-1,...object.pair[1])', '[pair,pair,object,read]', '3,7,8', 'const held=first[3]();const other=f(2,9);export default[first[0]===first[1],first[2]===held[1],first[0][1]===held[3],first[0][1]===other[0][1],first[0]];', [true, true, true, false, [0, [7, 8]]]],
+            ['n,...xs', 'const pair=[n,xs];const read=()=>pair;', 'read()[0]>0', 'f(n-1)', '[pair,read]', '3,7', 'const held=first[1]();const other=f(2);export default[first[0]===held,first[0][1]===other[0][1],held];', [true, false, [0, []]]],
+            ['...xs', 'const pair=[xs];const object={pair};const read=()=>[pair,object,xs];', 'read()[2][0]>0', 'f(object.pair[0][0]-1,...pair[0].slice(1))', '[pair,pair,object,read]', '3,7,8', 'const held=first[3]();const other=f(2,9);export default[first[0]===first[1],first[2]===held[1],first[0][0]===held[2],first[0][0]===other[0][0],held[2]];', [true, true, true, false, [0, 7, 8]]],
+        ])) {
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                const source = `const f=(${parameters})=>{${prefix}return ${baseFirst ? `!(${test})?${normal}:${recur}` : `${test}?${recur}:${normal}`};};const first=f(${args});${observe}`
+                const original = graph(source)
+                assertStructurallySame(evaluate(original), expected, source)
+                const output = assertOk(tryStringify(original))
+                assert(output.includes('while('), output)
+                const normalized = graph(output)
+                const canonical = assertOk(tryStringify(normalized))
+                let current = normalized
+                for (let generation = 0; generation < 7; ++generation) {
+                    assertStructurallySame(evaluate(current), expected, source)
+                    assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                    assertEq(assertOk(tryStringify(current)), canonical, source)
+                    current = graph(canonical)
+                }
+            }
+        }
+    },
+    sharedRequiredPrefixesKeepFailuresBeforeTheirUses: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>{const pair=[n,a];const reached=null.prefix;return pair[0]>0?f(n-1,pair[1]+1):pair;};export default f(3,0);',
+            'const f=(n,a)=>{const pair=[n,a];return null.condition?f(n-1,pair[1]+1):pair;};export default f(3,0);',
+            'const f=(n,a)=>{const pair=[n,a];return pair[0]>0?f(null.first,pair[1]+1):pair;};export default f(3,0);',
+            'const f=(n,a)=>{const pair=[n,a];return pair[0]>0?f(n-1,null.second):pair;};export default f(3,0);',
+            'const f=(n,a)=>{const pair=[n,a];return pair[0]>0?f(n-1,pair[1]+1,null.ignored):pair;};export default f(3,0);',
+            'const f=(n,a)=>{const pair=[n,a];return pair[0]>0?f(n-1,pair[1]+1):null.base;};export default f(3,0);',
+            'const f=(n,...xs)=>{const pair=[n,xs];return pair[0]>0?f(n-1,...null):pair;};export default f(3,0);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+        const skipped = /** @type {const} */ ('const f=(n,a)=>{const pair=[n,a];return pair[0]>0?f(n-1,pair[1]+1,null.skipped):pair;};export default f(0,7);')
+        const output = assertOk(tryStringify(graph(skipped)))
+        assert(output.includes('while('), output)
+        assertStructurallySame(evaluate(graph(output)), [0, 7])
     },
     mixedTailLeavesKeepSelectedResultsAndFirstParseFixedPoints: () => {
         for (const [parameters, test, early, recur, normal, args, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, unknown])[]} */ ([

@@ -555,6 +555,186 @@ export const proof = {
             }
         }
     },
+    sharedRequiredPrefixesKeepOncePerInvocationOrderAndSnapshots: async () => {
+        const tokenA = /** @type {const} */ ([1])
+        const tokenB = /** @type {const} */ ([2])
+        const token = /** @type {const} */ ([7])
+        for (const [arity, parameters, n, a, b, rest, tail] of /** @type {const} */ ([
+            [3, 'n,a,b', 'n', 'a', 'b', 'null', ''],
+            [3, 'n,a,b,...xs', 'n', 'a', 'b', 'xs', ',...xs'],
+            [0, '...xs', 'xs[0]', 'xs[1]', 'xs[2]', 'xs', ',...xs.slice(3)'],
+        ])) {
+            const hasRest = rest !== 'null'
+            const recur = `f(argument(0,${n}-1,pair,object,read),argument(1,${b},pair,object,read),argument(2,${a},pair,object,read)${tail})`
+            const normal = /** @type {const} */ ('finish(pair,object,read,established)')
+            const test = /** @type {const} */ ('test(pair,object,read,established)')
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                const source = `export default(before,test,argument,finish)=>{const f=(${parameters})=>{const pair=[${n},${a},${b},${rest}];const object={pair};const read=()=>[pair,object,${n},${a},${b},${rest}];const established=before(pair,object,read);return ${baseFirst ? `!${test}?${normal}:${recur}` : `${test}?${recur}:${normal}`};};return f;};`
+                const [, interpreted] = virtualAt({ main: [utf8(source)] })(interpret(noRuntime)('main'))
+                const graph = assertOk(interpreted)
+                for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                    assert(text.includes('while('), text)
+                    const make = (await load(text)).default
+                    const stopped = new Error('stop at a shared required invocation prefix')
+                    let start = 0
+                    let prefixes = 0
+                    let tests = 0
+                    let argumentsSeen = 0
+                    let steps = 0
+                    let finishes = 0
+                    let phase = 'prefix'
+                    let mode = 'normal'
+                    /** @type {readonly number[]} */
+                    let expectedA = tokenA
+                    /** @type {readonly number[]} */
+                    let expectedB = tokenB
+                    /** @type {readonly unknown[] | undefined} */
+                    let previousPair
+                    /** @type {{ readonly pair: readonly unknown[] } | undefined} */
+                    let previousObject
+                    /** @type {(() => readonly unknown[]) | undefined} */
+                    let previousRead
+                    /** @type {{ readonly read: () => readonly unknown[], readonly snapshot: readonly unknown[] } | undefined} */
+                    let held
+                    const run = make(
+                        /** @type {(pair: readonly unknown[], object: { readonly pair: readonly unknown[] }, read: () => readonly unknown[]) => unknown} */ ((pair, object, read) => {
+                            assertEq(phase, 'prefix')
+                            assertEq(prefixes, steps)
+                            assertEq(tests, steps)
+                            assertEq(pair[0], start - steps)
+                            assertEq(pair[1], expectedA)
+                            assertEq(pair[2], expectedB)
+                            assertEq(object.pair, pair)
+                            assert(pair !== previousPair)
+                            assert(object !== previousObject)
+                            assert(read !== previousRead)
+                            if (hasRest && previousPair !== undefined) { assert(pair[3] !== previousPair[3]) }
+                            const captured = read()
+                            assertEq(captured[0], pair)
+                            assertEq(captured[1], object)
+                            assertEq(captured[2], pair[0])
+                            assertEq(captured[3], pair[1])
+                            assertEq(captured[4], pair[2])
+                            assertEq(captured[5], pair[3])
+                            if (prefixes === 0) { held = { read, snapshot: captured } }
+                            previousPair = pair
+                            previousObject = object
+                            previousRead = read
+                            prefixes += 1
+                            if (mode === 'prefix' && prefixes === 2) { throw stopped }
+                            phase = 'condition'
+                            return object
+                        }),
+                        /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => boolean} */ ((pair, object, read, established) => {
+                            assertEq(phase, 'condition')
+                            assertEq(pair, previousPair)
+                            assertEq(object, previousObject)
+                            assertEq(read, previousRead)
+                            assertEq(established, object)
+                            assertEq(read()[0], pair)
+                            tests += 1
+                            if (mode === 'condition' && tests === 2) { throw stopped }
+                            phase = start - steps > 0 ? 'argument0' : 'base'
+                            return start - steps > 0
+                        }),
+                        /** @type {(index: number, value: unknown, pair: readonly unknown[], object: unknown, read: () => readonly unknown[]) => unknown} */ ((index, value, pair, object, read) => {
+                            assertEq(phase, `argument${index}`)
+                            assertEq(pair, previousPair)
+                            assertEq(object, previousObject)
+                            assertEq(read, previousRead)
+                            assertEq(read()[0], pair)
+                            assertEq(read()[1], object)
+                            assertEq(value, index === 0 ? start - steps - 1 : index === 1 ? expectedB : expectedA)
+                            argumentsSeen += 1
+                            if (mode === `argument${index}` && tests === 2) { throw stopped }
+                            phase = index === 2 ? 'prefix' : `argument${index + 1}`
+                            if (index === 2) {
+                                const before = expectedA
+                                expectedA = expectedB
+                                expectedB = before
+                                steps += 1
+                            }
+                            return value
+                        }),
+                        /** @type {(pair: readonly unknown[], object: unknown, read: () => readonly unknown[], established: unknown) => readonly unknown[]} */ ((pair, object, read, established) => {
+                            assertEq(phase, 'base')
+                            assertEq(pair, previousPair)
+                            assertEq(object, previousObject)
+                            assertEq(read, previousRead)
+                            assertEq(established, object)
+                            assertEq(pair[0], 0)
+                            assertEq(prefixes, start + 1)
+                            assertEq(tests, start + 1)
+                            assertEq(argumentsSeen, start * 3)
+                            assertEq(finishes, 0)
+                            finishes += 1
+                            if (mode === 'base') { throw stopped }
+                            return [pair, object, read, established]
+                        }),
+                    )
+                    assertEq(run.length, arity)
+                    /** @param {number} count */
+                    const reset = count => {
+                        start = count
+                        prefixes = 0
+                        tests = 0
+                        argumentsSeen = 0
+                        steps = 0
+                        finishes = 0
+                        phase = 'prefix'
+                        mode = 'normal'
+                        expectedA = tokenA
+                        expectedB = tokenB
+                        previousPair = undefined
+                        previousObject = undefined
+                        previousRead = undefined
+                        held = undefined
+                    }
+                    for (const nonempty of /** @type {const} */ ([false, true])) {
+                        const supplied = nonempty ? [token] : []
+                        /** @param {number} count */
+                        const invoke = count => {
+                            reset(count)
+                            const value = run(count, tokenA, tokenB, ...supplied)
+                            assertEq(steps, count)
+                            assertEq(finishes, 1)
+                            assertEq(value[0], previousPair)
+                            assertEq(value[1], previousObject)
+                            assertEq(value[1], value[3])
+                            assertEq(value[2]()[0], value[0])
+                            if (hasRest) {
+                                const finalRest = value[0][3]
+                                assertEq(finalRest.length, supplied.length + (arity === 0 ? 3 : 0))
+                                if (nonempty) { assertEq(finalRest[arity === 0 ? 3 : 0], token) }
+                            }
+                            return value
+                        }
+                        const first = invoke(100_000)
+                        const saved = held
+                        assert(saved !== undefined)
+                        const second = invoke(0)
+                        assert(first !== second)
+                        assert(first[0] !== second[0])
+                        assert(first[1] !== second[1])
+                        const captured = saved.read()
+                        for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], saved.snapshot[index]) }
+                        assertEq(first[2]()[0], first[0])
+                        assertEq(first[2]()[1], first[1])
+                        if (hasRest) { assert(first[0][3] !== second[0][3]) }
+                        for (const failureAt of /** @type {const} */ (['prefix', 'condition', 'argument0', 'argument1', 'argument2', 'base'])) {
+                            reset(3)
+                            mode = failureAt
+                            throws(() => run(3, tokenA, tokenB, ...supplied), error => error === stopped)
+                            assertEq(prefixes, failureAt === 'base' ? 4 : 2)
+                            assertEq(tests, failureAt === 'base' ? 4 : failureAt === 'prefix' ? 1 : 2)
+                            assertEq(argumentsSeen, failureAt === 'base' ? 9 : failureAt === 'argument0' ? 4 : failureAt === 'argument1' ? 5 : failureAt === 'argument2' ? 6 : 3)
+                            assertEq(finishes, failureAt === 'base' ? 1 : 0)
+                        }
+                    }
+                }
+            }
+        }
+    },
     mixedTailLeavesKeepCompletionOrderAndInvocationSnapshots: async () => {
         const tokenA = /** @type {const} */ ([1])
         const tokenB = /** @type {const} */ ([2])

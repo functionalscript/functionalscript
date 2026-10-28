@@ -245,13 +245,17 @@ previous layouts. No graph metadata or writer-specific transfer analysis is adde
 General lazy prefixes retain their existing admission.
 
 Source admission also retains fixed multi-input and observed-rest roots with
-a nested terminal decision that mixes completion and continuation. Shared
+a terminal decision that mixes completion and continuation. Shared
 terminal analysis accepts required-definition prefixes, result-free decisions
 and exact transfers: every completed leaf supplies one loop result, and every
 continued leaf supplies the complete invocation input vector. The adapter
 keeps the original body and targets; required work, allocations and captures
 retain their lexical regions rather than moving across condition/result
-boundaries.
+boundaries. A single terminal condition can therefore retain required work
+shared with its continued arguments or completed result, including arrays,
+objects, closures and calls. The prefix executes once before each test and
+retains the final visit's values. Earlier plain and branching plans are selected
+first, preserving their established source spelling.
 
 Common preparation uses one private state/result slot in `while(true)`.
 Multi-input roots pack the initial values and each selected next-input vector
