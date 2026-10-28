@@ -19,7 +19,7 @@ const workspace = /** @type {const} */ ([
 // These files control checkout or the shell that executes every check.
 /** @type {readonly string[]} */
 const sharedFiles = [
-    '.gitattributes', '.gitignore', '.node-version', 'dev.sh', 'dev.ps1',
+    '.gitattributes', '.gitignore', '.node-version', 'dev.sh', 'dev.ps1', 'dev.bashrc',
     'mise.toml', 'mise.lock', 'mise.spidermonkey.toml', 'mise.spidermonkey.lock',
 ]
 

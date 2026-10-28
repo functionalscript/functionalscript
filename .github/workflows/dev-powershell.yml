@@ -55,10 +55,12 @@ jobs:
           interactive = run([], stdin=(
               "node -e \"console.log('DEV_PS1_NODE=' + process.version)\"\n"
               "Write-Output ('DEV_PS1_EDITION=' + $PSVersionTable.PSEdition)\n"
+              "Write-Output ('DEV_PS1_PROMPT=' + (prompt))\n"
               "exit 0\n"
           ))
           assert interactive.returncode == 0, interactive.returncode
           assert 'DEV_PS1_NODE=v26.12.1' in interactive.stdout, interactive.stdout
+          assert 'DEV_PS1_PROMPT=FJS ' in interactive.stdout, interactive.stdout
           edition = 'Core' if shell == 'pwsh' else 'Desktop'
           assert 'DEV_PS1_EDITION=' + edition in interactive.stdout, interactive.stdout
 
