@@ -52,11 +52,11 @@ export const proof = /** @type {const} */ ({
         assertEq(loopBreak[1], outer[1].target)
     },
     selectedCasesResumeWithCurrentState: () => {
-        const source = 'const f=n=>{let i=0;let sum=0;while(i<n){i=i+1;switch(i){case 1:case 2:{sum=sum+10;break;}case 3:{continue;}case 4:{return [i,sum];}default:{sum=sum+i;break;}}sum=sum+100;}return [i,sum];};export default [f(0),f(1),f(2),f(3),f(5)];'
+        const source = /** @type {const} */ ('const f=n=>{let i=0;let sum=0;while(i<n){i=i+1;switch(i){case 1:case 2:{sum=sum+10;break;}case 3:{continue;}case 4:{return [i,sum];}default:{sum=sum+i;break;}}sum=sum+100;}return [i,sum];};export default [f(0),f(1),f(2),f(3),f(5)];')
         assertStructurallySame(assertOk(toData(_evaluate(assertOk(parseFromTokens(tokenizeString(source)))))), { default: [[0, 0], [1, 110], [2, 220], [3, 220], [4, 220]] })
-        const noDefault = 'let i=0;let sum=0;while(i<3){i=i+1;switch(i){case 2:{sum=sum+10;break;}}sum=sum+i;}export default [i,sum];'
+        const noDefault = /** @type {const} */ ('let i=0;let sum=0;while(i<3){i=i+1;switch(i){case 2:{sum=sum+10;break;}}sum=sum+i;}export default [i,sum];')
         assertStructurallySame(assertOk(toData(_evaluate(assertOk(parseFromTokens(tokenizeString(noDefault)))))), { default: [3, 16] })
-        const nested = 'let i=0;let sum=0;while(i<2){i=i+1;if(i===1){switch(i){case 1:{switch(i){case 2:{sum=99;break;}default:{sum=sum+3;break;}}sum=sum+4;break;}}}sum=sum+10;}export default sum;'
+        const nested = /** @type {const} */ ('let i=0;let sum=0;while(i<2){i=i+1;if(i===1){switch(i){case 1:{switch(i){case 2:{sum=99;break;}default:{sum=sum+3;break;}}sum=sum+4;break;}}}sum=sum+10;}export default sum;')
         assertStructurallySame(assertOk(toData(_evaluate(assertOk(parseFromTokens(tokenizeString(nested)))))), { default: 27 })
     },
     labelsAndDiscriminantsRetainReachedEvaluation: () => {
@@ -126,7 +126,7 @@ export const proof = /** @type {const} */ ({
         assertOk(parseFromTokens(tokenizeString(`while(false){switch(0){${labels}{break;}}}export default 0;`)))
         const conditions = 'if(true){}else{}'.repeat(512)
         assertOk(parseFromTokens(tokenizeString(`while(false){switch(0){case 0:{${conditions}break;}}}export default 0;`)))
-        const depth = 512
+        const depth = /** @type {const} */ (512)
         assertOk(parseFromTokens(tokenizeString(`while(false){switch(0){case 0:{${'if(true){'.repeat(depth)}break;${'}else{break;}'.repeat(depth)}}}}export default 0;`)))
     },
 })
