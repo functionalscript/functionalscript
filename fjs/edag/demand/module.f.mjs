@@ -34,8 +34,8 @@ const itemPrefix = items => {
     return steps
 }
 
-/** Eager operands precede each operation's own execution barrier. @type {(node: ExpOp) => readonly _Step[]} */
-const prefix = node => {
+/** Eager operands precede each operation's own execution barrier. @type {(node: ExpOp, selected: readonly (readonly [Exp, boolean])[]) => readonly _Step[]} */
+const prefix = (node, selected) => {
     /** @type {(values: readonly Exp[]) => readonly _Step[]} */
     const values = values => values.map(value => [value])
     if (node.length === 1 || node[0] === 'arg' || node[0] === 'frame') { return [] }
@@ -54,7 +54,11 @@ const prefix = node => {
     }
     if (node[0] === '()') { return [[node[1]], ...itemPrefix(node[2]), null] }
     if (node[0] === '.' || node[0] === 'memberPresent') { return [[node[1]], [node[2]], null] }
-    if (node[0] === '?.' || node[0] === '?.()' || node[0] === '?:') { return [[node[1]], null] }
+    if (node[0] === '?:') {
+        const known = selected.findLast(([test]) => Object.is(test, node[1]))
+        return known === undefined ? [[node[1]], null] : [[node[1]], [node[known[1] ? 2 : 3]]]
+    }
+    if (node[0] === '?.' || node[0] === '?.()') { return [[node[1]], null] }
     if (node[0] === 'instanceof') { return [[node[1]]] }
     if (['!', 'typeof', '===', '!=='].includes(node[0])) { return values(/** @type {readonly Exp[]} */ (node.slice(1))) }
     return [...values(/** @type {readonly Exp[]} */ (node.slice(1))), null]
@@ -73,8 +77,8 @@ const establish = (available, values) => {
     return available
 }
 
-/** A requested suffix after already completed values. @type {(exp: Exp, required: readonly Exp[], index: number, available: PersistentSet<unknown>) => boolean} */
-const demandsFrom = (exp, required, index, available) => {
+/** A requested suffix after already completed values. @type {(exp: Exp, required: readonly Exp[], index: number, available: PersistentSet<unknown>, selected: readonly (readonly [Exp, boolean])[]) => boolean} */
+const demandsFrom = (exp, required, index, available, selected) => {
     /** @type {_Work | null} */
     let pending = { first: [exp], tail: null }
     while (index < required.length && known(required[index])(available)) { ++index }
@@ -90,7 +94,7 @@ const demandsFrom = (exp, required, index, available) => {
             while (index < required.length && known(required[index])(available)) { ++index }
             if (index === required.length) { return true }
         } else if (!known(node)(available) && node instanceof Array) {
-            pending = prepend(prefix(node), pending)
+            pending = prepend(prefix(node, selected), pending)
         }
     }
     return false
@@ -103,12 +107,16 @@ const demandsFrom = (exp, required, index, available) => {
  * dependencies. Primitive occurrences cannot name a required computation,
  * so a nonempty request containing one is refused.
  *
- * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[]) => boolean}
+ * Selected facts name tests already evaluated on the current control path.
+ * They permit only that exact conditional's selected operand, not other lazy
+ * operations or a condition with merely equal structure.
+ *
+ * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[], selected?: readonly (readonly [Exp, boolean])[]) => boolean}
  */
-export const demandsInOrder = (exp, required, established = []) => {
+export const demandsInOrder = (exp, required, established = [], selected = []) => {
     if (required.length === 0) { return true }
     if (required.some(value => !(value instanceof Array))) { return false }
-    return demandsFrom(exp, required, 0, establish(empty, established))
+    return demandsFrom(exp, required, 0, establish(empty, [...established, ...selected.map(([test]) => test)]), selected)
 }
 
 /**
@@ -119,13 +127,13 @@ export const demandsInOrder = (exp, required, established = []) => {
  * Previously completed roots supply the same eager-dependency guarantee as
  * the optional established values accepted by demandsInOrder.
  *
- * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[]) => number}
+ * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[], selected?: readonly (readonly [Exp, boolean])[]) => number}
  */
-export const requiredPrefixLength = (exp, required, established = []) => {
+export const requiredPrefixLength = (exp, required, established = [], selected = []) => {
     let index = required.reduce((/** @type {number} */ start, value, at) => value instanceof Array ? start : at + 1, 0)
     if (index === required.length) { return index }
-    let available = establish(establish(empty, established), required.slice(0, index))
-    while (!demandsFrom(exp, required, index, available)) {
+    let available = establish(establish(empty, [...established, ...selected.map(([test]) => test)]), required.slice(0, index))
+    while (!demandsFrom(exp, required, index, available, selected)) {
         available = establish(available, [required[index]])
         ++index
     }

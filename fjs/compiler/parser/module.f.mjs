@@ -256,13 +256,13 @@ const initialized = (scope, plan) => traced({
 /** @type {() => _Scope} */
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, selfVariable: false, captures: [], region: false,
+    self: null, selfBinding: null, selfVariable: false, captures: [], region: false, inFunction: false,
     trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
 const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true,
+    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true, inFunction: outer.inFunction,
     trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
@@ -1443,7 +1443,7 @@ const entered = (stack, scope, node, self) => {
     const target = /** @type {const} */ ({ kind: 'function', index: scope.trace.count + 1 })
     /** @type {_Scope} */
     const inner = {
-        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false,
+        names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false, inFunction: true,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
         trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
@@ -1534,6 +1534,8 @@ const returned = (stack, scope, frame, value) => {
                 { block: statement.block[1], target: frame.target, index: 0, plan: null, assigned: null, done: null })
         }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
+        if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
+        if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
         assert(kind !== 'while' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
@@ -1635,6 +1637,11 @@ const loopRound = (stack, scope, frame) => {
         if (kind === 'break' || kind === 'continue') {
             frame = advanced(frame, [[kind, frame.target]])
             continue
+        }
+        if (kind === 'return' || kind === 'throw') {
+            if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(statement.first))] }
+            return [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
         }
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }

@@ -9,11 +9,13 @@
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
- * @import { Context, Environment, Established, Normalized, NormalizedStatement, ReferenceTask, RegionExit, Results, Work } from './private.ts'
+ * @import { Context, Environment, Established, Normalized, NormalizedStatement, ReferenceTask, Results, Work } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
+import { exitValues } from '../control/module.f.mjs'
+import { _hasReturn } from '../memo/cells/module.f.mjs'
 import { logicalValue } from './logical/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
@@ -108,9 +110,7 @@ const references = root => {
             const statements = /** @type {readonly NormalizedStatement[]} */ (block.statements).flatMap(statement => statement[0] === 'define' ? [valueTask(statement[2])]
                 : statement[0] === 'if' ? [valueTask(statement[2]), blockTask(statement[3]), blockTask(statement[4])]
                 : [...statement[1].initial.map(valueTask), blockTask(statement[1].body)])
-            const exit = /** @type {RegionExit} */ (block.exit)
-            const values = exit[0] === 'yield' ? exit[1] : exit[0] === 'continue' || exit[0] === 'break' ? exit[2] : [exit[1]]
-            pending = [...statements, ...values.map(valueTask), ...rest]
+            pending = [...statements, ...exitValues(block.exit).map(valueTask), ...rest]
             continue
         }
         const { value } = task
@@ -270,7 +270,7 @@ const leaf = (environment, context, value) => {
     if (value[0] === '()' && value[2].length === 0 && value[1] instanceof Array && value[1][0] === 'function') {
         const source = value[1][1]
         const fn = functionValue(source, environment, context)
-        if (fn.parameters.length === 0 && fn.rest === null) {
+        if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', { ...fn.body, exit: ['yield', exitValues(fn.body.exit)] }], fn.target)) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
             return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null })] }
         }
@@ -344,12 +344,18 @@ const normalizedBlock = (source, environment, context, retained = []) => {
     /** @type {readonly Statement[]} */
     let statements = []
     let hasLoopExit = false
+    let hasFunctionExit = false
     for (const statement of source.statements) {
+        if (statement[0] === 'return' || statement[0] === 'throw') {
+            const value = normalizedValue(inner, context)(statement[0] === 'return' ? statement[2] : statement[1])
+            const exit = statement[0] === 'return' ? /** @type {const} */ (['return', statement[1], value]) : /** @type {const} */ (['throw', value])
+            return { block: pruneAliases({ statements, exit }, []), environment: inner, normal: false, hasLoopExit: true, hasFunctionExit: true }
+        }
         if (statement[0] === 'break' || statement[0] === 'continue') {
             const loop = assertNotNullish(context.loop, 'a source loop exit has no loop')
             assert(loop.target === statement[1], 'a source loop exit targets another loop')
             const values = loop.sources.map(source => lookup(inner, source))
-            return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false, hasLoopExit: true }
+            return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false, hasLoopExit: true, hasFunctionExit }
         }
         if (statement[0] === 'initialize') {
             const made = expanded(statement[1], normalizedValue(inner, context)(statement[2]), inner, false)
@@ -371,6 +377,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const branch = normalizedBlock(statement[2], inner, context, outer)
             const otherwise = normalizedBlock(statement[3], inner, context, outer)
             hasLoopExit = hasLoopExit || branch.hasLoopExit || otherwise.hasLoopExit
+            hasFunctionExit = hasFunctionExit || branch.hasFunctionExit || otherwise.hasFunctionExit
             const writes = [...(branch.normal ? branch.environment.slice(inner.length) : []), ...(otherwise.normal ? otherwise.environment.slice(inner.length) : [])].map(([id]) => id)
             const sources = outer.filter(id => writes.includes(id))
             const results = sources.map(source => binding(source.index))
@@ -378,7 +385,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
                 branch.normal ? { ...branch.block, exit: ['yield', sources.map(source => lookup(branch.environment, source))] } : branch.block,
                 otherwise.normal ? { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] } : otherwise.block,
             ]]
-            if (!branch.normal && !otherwise.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit } }
+            if (!branch.normal && !otherwise.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
             inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
             continue
         }
@@ -389,6 +396,8 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         const results = sources.map(source => binding(source.index))
         const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
         const step = normalizedBlock(loop.body, scope, { ...context, loop: { target: loop.target, sources } }, sources)
+        hasLoopExit = hasLoopExit || step.hasFunctionExit
+        hasFunctionExit = hasFunctionExit || step.hasFunctionExit
         const condition = normalizedValue(scope, context)(loop.condition)
         /** @type {Block} */
         const continuing = step.normal ? { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] } : step.block
@@ -407,7 +416,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         inner = [...inner, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])]
     }
     const terminal = normalizedExit(source.exit, inner, context)
-    return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner, normal: terminal.exit[0] === 'yield', hasLoopExit }
+    return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner, normal: terminal.exit[0] === 'yield', hasLoopExit, hasFunctionExit }
 }
 
 /**

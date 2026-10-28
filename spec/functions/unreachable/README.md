@@ -7,6 +7,12 @@
 
 Nothing after `return`, `throw`, or a `switch` with a `default` ever runs. JavaScript admits the text and ignores it; FunctionalScript refuses it, since code that cannot run is a mistake or a leftover, and a reader should not have to work out that it is dead ([functions](../README.md)).
 
+This refusal applies after terminal statements in function bodies, guards and
+cases. [Loop bodies](../../control-flow/loops/README.md) retain statements after
+their explicit exits, including `return` and `throw`, so the same source checks
+apply after every loop transfer. Those statements perform no computations, but
+their declarations, references and writes still determine source legality.
+
 The row `st.unreachable` of [refused constructs](../../todo/refused-constructs.md)
 registers the refusal, and [functions](../README.md) gives its reason.
 

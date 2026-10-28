@@ -481,11 +481,11 @@ export const proof = /** @type {const} */ ({
             assertEq(run(fn, [4]), 0)
         }
     },
-    aSharedLazyCallDemandDoesNotBecomeAnotherTransition: () => {
+    aSharedCallWithOnlyTerminalDemandsBecomesOneTransition: () => {
         const call = recur([['-', arg(0), 1]])
         const fn = /** @type {Exp} */ (['=>', 1, [], ['?:', ['>', arg(0), 0], ['?:', ['===', ['%', arg(0), 2], 0], call, call], 'done']])
-        assert(!loops(_tailFunction(fn)))
-        assert(_tailFunction(fn).self !== null)
+        assert(loops(_tailFunction(fn)))
+        assertEq(_tailFunction(fn).self, null)
         assertEq(run(fn, [5]), 'done')
     },
     nestedFunctionBodiesOwnTheirSelfCalls: () => {

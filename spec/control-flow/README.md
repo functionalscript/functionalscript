@@ -1,6 +1,9 @@
 # Control Flow
 
-The statements of a function body: terminating `if` guards, `return`, `throw`, the one-variable `while` loop, and the terminating `switch`.
+Function bodies support terminating `if` guards, `return`, `throw`, `while`
+loops and terminating switches. Loops retain multiple state values and may
+contain nested loops, conditional arms, `break`, `continue`, owning-function
+returns and throws.
 
 ## Pages
 

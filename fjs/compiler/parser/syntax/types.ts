@@ -159,8 +159,8 @@ export type LoopIf = {
     readonly otherwise: LoopBlock | null
 }
 
-/** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop or unlabeled transfer. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['break', Statement] | readonly ['continue', Statement]
+/** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the

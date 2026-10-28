@@ -84,6 +84,21 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
+    loopFunctionExitsRetainStatementBoundaries: () => {
+        for (const source of [
+            'export default n=>{while(n){return n;const skipped=1;throw skipped;}return 0;};',
+            'export default n=>{while(n){if(n){return 1;}else if(n){throw 2;}else{return 3;}}return 0;};',
+            'export default n=>{while(n){while(n){throw n;return n;}}return 0;};',
+            'while(false){return 1;throw 2;const skipped=3;}export default 0;',
+            'while(false){return\n1;throw\n2;}export default 0;',
+        ]) {
+            assertStructurallySame(read(source), ['ok'])
+        }
+        assertStructurallySame(read('while(false){return;}export default 0;'), ['error', ';'])
+        assertStructurallySame(read('while(false){throw;}export default 0;'), ['error', ';'])
+        assertStructurallySame(read('return 1;export default 0;'), ['error', 'return'])
+        assertStructurallySame(read('export default ()=>{return 1;throw 2;};'), ['error', 'throw'])
+    },
     // The grammar is LL(1): each rule builds in its own proof, keeping the
     // external runner's per-test timeout independent of the rule count.
     // Discard each parser so the returned reader is not a nested proof.
@@ -445,8 +460,8 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { let from = 0; while (from) { from = 1; } return from; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { while (a) { } return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; return r; };'), ['ok'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { return r; } return r; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { return 1; } } return r; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { return r; } return r; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { return 1; } } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { r = 1; } r = 2; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { if (r) { if (r) {} } } return r; };'), ['ok'])
         assertStructurallySame(read('let r=0;while(r<2){if(r===0){r=r+1}r=r+1;}export default r;'), ['ok'])
@@ -458,11 +473,11 @@ export const proof = {
         assertStructurallySame(read('while(false){if(true){}else value=1;}export default 7;'), ['error', 'value'])
         assertStructurallySame(read('while(false){if(true){}else{}else{}}export default 7;'), ['error', 'else'])
         assertStructurallySame(read('while(false){if(true){};else{}}export default 7;'), ['error', ';'])
-        assertStructurallySame(read('while(false){if(true){}else{return 1;}}export default 7;'), ['error', 'return'])
+        assertStructurallySame(read('while(false){if(true){}else{return 1;}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){}else{while(false){}}}export default 7;'), ['ok'])
         assertStructurallySame(read('export default {else:1}.else;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){};}export default 7;'), ['error', ';'])
-        assertStructurallySame(read('while(false){if(true){throw 1;}}export default 7;'), ['error', 'throw'])
+        assertStructurallySame(read('while(false){if(true){throw 1;}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){while(false){}}}export default 7;'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { let x = 1; } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let [r, { s }] = a; while (r) { r = 1; } return r; };'), ['ok'])
@@ -470,8 +485,8 @@ export const proof = {
         assertStructurallySame(read('while(false){while(false){}while(false){}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){while(false){}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){if(true){while(false){}}else if(false){while(false){}}else{while(false){}}}export default 7;'), ['ok'])
-        assertStructurallySame(read('while(false){while(false){return 1;}}export default 7;'), ['error', 'return'])
-        assertStructurallySame(read('while(false){while(false){throw 1;}}export default 7;'), ['error', 'throw'])
+        assertStructurallySame(read('while(false){while(false){return 1;}}export default 7;'), ['ok'])
+        assertStructurallySame(read('while(false){while(false){throw 1;}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){break;}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){continue;}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){break;const x=1;continue;}export default 7;'), ['ok'])
@@ -507,7 +522,8 @@ export const proof = {
         // and stands where a name does elsewhere, a key and a property
         assertStructurallySame(read('export default { var: 1 }.var;'), ['ok'])
         // Plain loops share their grammar at module and function scope,
-        // including between named exports. Their bodies still stay plain.
+        // including between named exports. The source fold checks whether a
+        // return in the shared body grammar owns an ordinary function.
         assertStructurallySame(read('let r = 0; while (r) { r = 1; } export default r;'), ['ok'])
         assertStructurallySame(read('while (false) {} export default 7;'), ['ok'])
         assertStructurallySame(read('let r=0;export const before=r;while(r<2){r=r+1;}export const after=r;'), ['ok'])
@@ -515,7 +531,7 @@ export const proof = {
         assertStructurallySame(read('while (false) {}; export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default 7; while (false) {}'), ['error', 'while'])
         assertStructurallySame(read('throw 7; while (false) {}'), ['error', 'while'])
-        assertStructurallySame(read('while (false) { return 7; } export default 7;'), ['error', 'return'])
+        assertStructurallySame(read('while (false) { return 7; } export default 7;'), ['ok'])
         assertStructurallySame(read('while (false) { while (false) {} } export default 7;'), ['ok'])
         assertStructurallySame(read('export let r = 0; export default r;'), ['error', 'let'])
         // `let` begins a declaration in a loop's block as in a body, so what

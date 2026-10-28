@@ -50,6 +50,15 @@ They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
 
+Loop bodies and their conditional arms retain valued `return` and `throw` as
+source statements, including all syntax after them. A return names its owning
+ordinary function; lexical regions preserve that identity, while a nested
+function establishes another one. Module loops have no return owner and refuse
+`return`, even in an unreached arm. A module loop may throw. Name, declaration,
+write and capture checks still inspect statements after either exit; sugar skips
+their computations when the exit is selected. These exits use the same valued
+spelling and line-terminator checks as a function body's terminal exit.
+
 Module loops enter the same resolution worklist and lexical loop regions as
 body loops. Their completed source packet resumes the module declaration/export
 fold without introducing a function or a value-region write boundary. Statements
@@ -123,6 +132,7 @@ afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
 loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | let | bodyNameStatement | whileStatement
                 | loopIfStatement | 'break' end | 'continue' end
+                | 'return' value end | 'throw' value end
 whileStatement ::= 'while' '(' value ')' loopBlock
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
