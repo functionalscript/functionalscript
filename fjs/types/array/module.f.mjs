@@ -7,7 +7,6 @@
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
-import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
 
 /**
@@ -48,7 +47,7 @@ const uncheckHead = a => a.slice(0, -1)
 /**
  * @type {(i: number) => <T>(a: readonly T[]) => T | null}
  */
-export const at = i => a => fromUndefined(a[i])
+export const at = i => a => fromUndefined(a[Number(i)])
 
 export const first = at(0)
 
@@ -95,7 +94,7 @@ export const head = onNonEmpty(uncheckHead)
 /**
  * @type {<T>(a: readonly T[]) => readonly [readonly T[], T]}
  */
-const uncheckSplitLast = a => [uncheckHead(a), a[a.length - 1]]
+const uncheckSplitLast = a => [uncheckHead(a), a[Number(a.length - 1)]]
 
 /** @type {<T>(a: readonly T[]) => readonly [readonly T[], T] | null} */
 export const splitLast = onNonEmpty(uncheckSplitLast)
@@ -134,7 +133,17 @@ export const repeat =
      * @param {T} v
      * @return {FixedArray<N, T>}
      */
-    v => /**@type{any}*/(toArray(listRepeat(v)(n)))
+    v => {
+        /** @type {readonly T[]} */
+        let result = []
+        /** @type {number} */
+        let count = n
+        while (count > 0) {
+            result = [...result, v]
+            count = count - 1
+        }
+        return /** @type {any} */ (result)
+    }
 
 /**
  * The array without repeated items, each kept at its first position. Items are
