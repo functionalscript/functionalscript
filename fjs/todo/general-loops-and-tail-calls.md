@@ -307,8 +307,16 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       zero-input and ordinary scalar divergent spellings stay unchanged.
       Direct and conditional continuations retain exact graph/text cycles from
       the first source parse; default layouts and logical contracts remain
-      intact. General lazy regions and other terminal exits keep their prior
-      admission.
+      intact. General lazy regions keep their prior admission.
+      Explicit throw leaves now share this terminal analysis. A selected throw
+      evaluates required work and its payload once, then exits without a
+      state or normal-result write. Nonempty inputs may mix throw and
+      continuation; empty-input mixed return/throw/continue trees reuse the
+      private result slot. Earlier zero-input throw/continue and ordinary
+      scalar plans retain their layouts. Deep transfers followed by the
+      selected throw, reached evaluation order, held iteration captures, fresh
+      rest and exact first-parse graph/text cycles reuse existing preparation.
+      Default layouts and logical graph contracts stay unchanged.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
@@ -348,7 +356,3 @@ formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);
 the original single-variable approval does not authorize the broader source
 semantics.
-
-Current increment: explicit throw leaves in required-prefix terminal loop
-decisions. Reuse existing preparation, retain zero-input divergent layouts,
-and prove deep throw exits, transfer order and stable source round trips.

@@ -36,8 +36,8 @@ export const terminalTree = (block, leaf, branch) => call(() => {
 })
 
 /**
- * A terminal decision can complete this loop or continue its invocation.
- * Every leaf supplies one exact result or the complete input vector. Required
+ * A terminal decision can complete this loop, throw or continue its invocation.
+ * Non-throw leaves supply one exact result or the complete input vector. Required
  * prefixes keep their body lifetime, so values shared by a test, transition or
  * result are established once. Empty-input continuations retain an empty vector.
  * Nonempty inputs may also continue at every leaf, with no normal completion.
@@ -48,11 +48,12 @@ export const isTerminalLoop = loop => {
     /** @type {(block: Block) => number | null} */
     const leaf = block => {
         const exit = block.exit
+        if (exit[0] === 'throw') { return 0x4 }
         if (exit[0] === 'break' && exit[1] === loop.target && exit[2].length === 1) { return 0x1 }
         return exit[0] === 'continue' && exit[1] === loop.target && exit[2].length === loop.parameters.length ? 0x2 : null
     }
-    // Empty-input divergence keeps its earlier source plan; a result-only tree
-    // has no transition. Nonempty inputs may continue at every selected leaf.
+    // Empty-input loops without normal completion keep their earlier source
+    // plan. Every admitted tree retains at least one exact continuation.
     const kinds = run(terminalTree(loop.body, leaf, (_prefix, _test, then, otherwise) => then | otherwise))
-    return kinds === 0x3 || kinds === 0x2 && loop.parameters.length !== 0
+    return kinds !== null && (kinds & 0x2) !== 0 && (loop.parameters.length !== 0 || (kinds & 0x1) !== 0)
 }

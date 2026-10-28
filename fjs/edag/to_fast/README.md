@@ -284,8 +284,18 @@ regions; the existing packed or scalar state path preserves simultaneous
 updates, captures, fresh rest and reached failures. No completion or graph
 metadata is added. Earlier zero-input and ordinary scalar divergent spellings
 stay unchanged. Direct and conditional continuations retain exact graph/text
-cycles from the first source parse, while general lazy regions and other
-terminal exits keep their previous admission.
+cycles from the first source parse, while general lazy regions keep their
+previous admission.
+
+The terminal leaf analysis also recognizes explicit throws. At least one leaf
+must continue the exact loop, and empty semantic inputs require a normal
+completion leaf as well. This admits nonempty throw/continue trees and mixed
+return/throw/continue trees while retaining earlier zero-input throwing or
+divergent plans. The adapter keeps the original throw and its payload in the
+selected body region; existing preparation emits it after required work,
+without a state or normal-result write. Evaluation order, captures, rest
+identity and first-parse graph/text stability retain their contracts. Default
+JavaScript/function-text/Rust output and logical graph metadata are unchanged.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

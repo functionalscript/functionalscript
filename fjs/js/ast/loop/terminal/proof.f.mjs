@@ -19,6 +19,41 @@ const decision = (then, otherwise, statements = []) => ({ statements: [...statem
 const loop = body => ({ target, parameters: [state, other], initial: [0, 1], results: [result], body })
 
 export const proof = {
+    explicitThrowsRetainTransitionsAndNormalCompletionRequirements: () => {
+        /** @type {Block} */
+        const failed = { statements: [], exit: ['throw', ['ref', shared]] }
+        /** @type {Definition} */
+        const required = ['define', shared, ['array', [['ref', state], ['ref', other]]], 'required']
+        for (const body of [
+            decision(failed, step, [required]),
+            decision(step, failed, [required]),
+            decision(decision(normal, failed), step, [required]),
+            decision(step, decision(failed, normal), [required]),
+            decision(decision(failed, step), decision(step, failed), [required]),
+        ]) {
+            const source = loop(body)
+            assert(isTerminalLoop(source))
+            assertEq(source.body, body)
+            assertEq(source.body.statements[0], required)
+        }
+        /** @type {Block} */
+        const empty = { statements: [], exit: ['continue', target, []] }
+        for (const body of [
+            decision(empty, decision(failed, normal), [required]),
+            decision(decision(normal, failed), empty, [required]),
+        ]) { assert(isTerminalLoop({ ...loop(body), parameters: [], initial: [] })) }
+        for (const body of [
+            empty,
+            failed,
+            decision(empty, failed, [required]),
+            decision(failed, empty, [required]),
+        ]) { assertEq(isTerminalLoop({ ...loop(body), parameters: [], initial: [] }), false) }
+        assertEq(isTerminalLoop(loop(failed)), false)
+        assertEq(isTerminalLoop(loop(decision(failed, normal))), false)
+        assertEq(isTerminalLoop(loop(decision(failed, { ...step, exit: ['continue', target, []] }))), false)
+        assertEq(isTerminalLoop(loop(decision(failed, { ...step, statements: [['define', shared, 0, 'lazy']] }))), false)
+        assertEq(isTerminalLoop({ ...loop(decision(failed, step)), results: [] }), false)
+    },
     continuingOnlyTreesKeepExactNonemptyInvocationVectors: () => {
         /** @type {Definition} */
         const required = ['define', shared, ['array', [['ref', state], ['ref', other]]], 'required']
@@ -124,7 +159,6 @@ export const proof = {
         const required = ['define', shared, 0, 'required']
         for (const rejected of /** @type {readonly Block[]} */ ([
             { statements: [], exit: ['yield', []] },
-            { statements: [], exit: ['throw', 0] },
             { statements: [], exit: ['return', { kind: 'function', index: 0 }, 0] },
             { ...normal, exit: ['break', { kind: 'loop', index: 0 }, [0]] },
             { ...normal, exit: ['break', target, []] },
