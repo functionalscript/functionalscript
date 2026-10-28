@@ -570,10 +570,10 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
-    baseFirstRestOnlyKeepsItsEstablishedRecursiveFallback: () => {
+    baseFirstRestOnlyKeepsArityFreshSnapshotsAndFirstParseFixedPoints: () => {
         const original = graph('const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1,xs[1]+1);export default f;')
         const first = assertOk(tryStringify(original))
-        assert(!first.includes('while('), first)
+        assert(first.includes('while('), first)
         const normalized = graph(first)
         const canonical = assertOk(tryStringify(normalized))
         let current = normalized
@@ -583,6 +583,57 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
             assertEq(assertOk(tryStringify(current)), canonical)
             current = graph(canonical)
+        }
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const sum=(...xs)=>xs[0]===0?xs[1]:sum(xs[0]-1,xs[1]+xs[0]);export default sum(4,0);', 10],
+            ['const f=(...xs)=>{const n=xs[0];return n===0?xs:f(n-1,xs[1]+1);};export default f(3,0);', [0, 3]],
+            ['const f=(...xs)=>xs.length===0?xs:f();const a=f(1);const b=f(1);export default [a===b,a,b];', [false, [], []]],
+            ['const f=(...xs)=>xs[0]===0?[xs[2]===xs,xs===xs,xs[1]]:f(xs[0]-1,xs[1]+1,xs);export default f(3,0,null);', [false, true, 3]],
+            ['const f=(...xs)=>xs[0]===0?[xs[1]()===xs[2],xs[1]()===xs,xs[1]()[0]]:f(xs[0]-1,()=>xs,xs);export default f(3,null,null);', [true, false, 1]],
+            ['const seed=[9];const f=(...xs)=>xs[0]===0?[xs[1]===seed,xs[1]]:f(...[xs[0]-1,xs[1]]);export default f(3,seed);', [true, [9]]],
+            ['const f=(...xs)=>xs[0]===0?xs:f(0,..."A𝄞",99);export default f(1);', [0, 'A', '𝄞', 99]],
+            ['const f=(...xs)=>xs[0]?xs[1]:f({done:true},7);export default [f(false,4),f(null,1),f([],9)];', [7, 7, 9]],
+            ['const f=(...xs)=>xs[0]===0?7:f(0,null.x);export default f(0);', 7],
+        ]
+        for (const [source, expected] of cases) {
+            const initial = graph(source)
+            assertStructurallySame(evaluate(initial), expected, source)
+            const output = assertOk(tryStringify(initial))
+            assert(output.includes('while('), output)
+            const parsed = graph(output)
+            const stable = assertOk(tryStringify(parsed))
+            let current = parsed
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(parsed)), source)
+                assertEq(assertOk(tryStringify(current)), stable, source)
+                current = graph(stable)
+            }
+        }
+    },
+    baseFirstRestOnlyKeepsReachedFailuresAndFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1,null.x);export default f(1);',
+            'const f=(...xs)=>xs[0]===0?xs:f(...null);export default f(1);',
+            'const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1);export default f(0,null.x);',
+            'const f=(...xs)=>{const required=null.x;return xs[0]===0?xs:f(0);};export default f(0);',
+            'const f=(...xs)=>xs[0]===0?xs[1].x:f(xs[0]-1);export default f(0,null);',
+            'const f=(...xs)=>xs[0].x?xs:f(0);export default f(null);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
         }
     },
     multiInputIgnoredArgumentsKeepSharedPairOrdering: () => {

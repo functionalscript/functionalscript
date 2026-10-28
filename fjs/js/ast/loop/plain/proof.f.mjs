@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { plainLoopOf } from './module.f.mjs'
+import { continueFirstPlainLoopOf, plainLoopOf } from './module.f.mjs'
 
 const state = /** @type {const} */ ({ index: 0 })
 const result = /** @type {const} */ ({ index: 1 })
@@ -27,6 +27,39 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    baseFirstSingleInputReorientationKeepsRegionsAndDefaultDomain: () => {
+        /** @type {Definition} */
+        const projected = ['define', alias, ['.', ['ref', state], 0], 'required']
+        /** @type {Block} */
+        const normal = { statements: [], exit: ['break', target, [['ref', alias]]] }
+        const original = /** @type {Loop} */ ({ ...scalar, body: { ...scalar.body,
+            statements: [projected, ['if', [], ['ref', alias], normal, step]],
+        } })
+        assertEq(plainLoopOf(original), null)
+        const oriented = continueFirstPlainLoopOf(original)
+        assertStructurallySame(oriented, { ...original, body: { ...original.body,
+            statements: [projected, ['if', [], ['!', ['ref', alias]], step, normal]],
+        } })
+        assertEq(oriented?.target, original.target)
+        assertEq(oriented?.parameters, original.parameters)
+        assertEq(oriented?.initial, original.initial)
+        assertEq(oriented?.results, original.results)
+        assertEq(oriented?.body.exit, original.body.exit)
+        assertEq(oriented?.body.statements[0], projected)
+        assertStructurallySame(oriented === null ? null : plainLoopOf(oriented)?.iteration.condition, ['!', ['ref', alias]])
+        assertEq(plainLoopOf(original), null)
+        for (const loop of /** @type {readonly Loop[]} */ ([
+            { ...original, parameters: [], initial: [] },
+            { ...scalar, body: { statements: [], exit: ['yield', []] } },
+            { ...scalar, body: { statements: [projected], exit: ['yield', []] } },
+            scalar,
+            { ...original, results: [] },
+            { ...original, body: { ...original.body, statements: [
+                ['define', alias, ['array', [['ref', state]]], 'required'],
+                ['if', [], ['ref', alias], normal, step],
+            ] } },
+        ])) { assertEq(continueFirstPlainLoopOf(loop), null) }
+    },
     multipleInputsPackSimultaneousValuesInEitherArm: () => {
         const reached = /** @type {const} */ ({ index: 4 })
         /** @type {Definition} */

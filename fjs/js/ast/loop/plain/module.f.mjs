@@ -111,3 +111,19 @@ export const plainLoopOf = loop => {
         result: done[2][0],
     }
 }
+
+/**
+ * Reorient a base-first single-input plain loop for source preparation.
+ * The existing planner validates the candidate without changing its default
+ * orientation domain. Prefixes, targets and selected regions keep their owners.
+ * @type {(loop: Loop) => Loop | null}
+ */
+export const continueFirstPlainLoopOf = loop => {
+    const last = loop.body.statements.at(-1)
+    if (loop.parameters.length !== 1 || last === undefined || last[0] !== 'if'
+        || last[3].exit[0] !== 'break') { return null }
+    const oriented = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
+        statements: [...loop.body.statements.slice(0, -1), ['if', last[1], ['!', last[2]], last[4], last[3]]],
+    } })
+    return plainLoopOf(oriented) === null ? null : oriented
+}
