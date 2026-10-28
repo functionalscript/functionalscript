@@ -131,13 +131,16 @@ arm may continue, and conditional base results use the same final-result path.
 The public parameter list and prior ordinary single-input spelling stay intact;
 general lazy prefixes retain their existing admission.
 
-Fixed multi-input and observed-rest roots may also retain nested terminal
+Fixed multi-input and observed-rest roots may also retain terminal
 decisions whose leaves mix normal completion and tail continuation. Shared
 terminal analysis validates required definitions and result-free decisions,
 then keeps each leaf at its exact loop target: one result on completion, or
 the complete next-input vector on continuation. Required work remains in the
 selected body region, including allocations shared by a condition, transition
-and result.
+and result. This includes a single condition whose required prefix creates a
+shared array, object, closure or call result. The prefix runs once per body
+visit, before the condition, including the visit that completes the loop.
+Existing plain and branching plans retain their earlier source spellings.
 
 Common preparation emits `while(true)` with one private state/result slot.
 Multi-input roots initialize and update that slot with one packed vector;

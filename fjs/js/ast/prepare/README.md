@@ -186,12 +186,17 @@ records the exact observed rest-only root target for the single-input case;
 ordinary single-input layouts, including nested functions, remain unchanged.
 Default preparation does not use the source branching plan.
 
-Nested terminal decisions may also mix normal completion and continuation in
+Terminal decisions may also mix normal completion and continuation in
 source fixed multi-input and observed-rest roots. Shared
 [terminal analysis](../loop/terminal/module.f.mjs)
 validates required definitions, result-free decisions and exact loop transfers.
 Preparation keeps the body as one `while(true)` region, preserving required
 allocations shared by its tests, continued arguments and completed results.
+The same analysis admits a single terminal condition with required shared
+prefix work. Arrays, objects, closures and calls are established once before
+each test and retain their identity throughout that visit, including normal
+completion. Existing plain and branching plans take precedence and keep their
+layouts.
 
 The existing generic single-input/result layout supplies one private slot.
 For multiple semantic inputs, preparation packs the initial values into that
