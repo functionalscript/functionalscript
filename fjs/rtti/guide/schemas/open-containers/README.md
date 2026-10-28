@@ -51,10 +51,13 @@ skips it and the index reads `undefined`. An empty rest such as `or()` renders
 no tail, `rest(c, or())` being the bare `c`
 ([how `RestTs` decides](../../../ts/README.md#how-restts-renders-a-rest)).
 
-An **empty rest bounds an array's length**, which is the bare form's rule
-arriving through the other spelling: `array(or())` is the empty array and not
-"any number of holes", and `rest([42], or())` rejects `[42, , ]` exactly as
-`[42]` does.
+An **empty rest admits nothing past the prefix**, which is the bare form's
+rule arriving through the other spelling: `array(or())` is the empty array,
+and `rest([42], or())` rejects `[42, 1]` exactly as `[42]` does. No length
+check is needed for it, since the readers read no array with a hole
+([what the readers assume of a value](../../readers/assumptions/README.md)):
+an array that reaches past the prefix has a member there, and the member
+meets the rest.
 
 ## Examples
 
@@ -75,6 +78,6 @@ its JSON Schema with `items`, and the two readers' answers. The lesson is define
 ## Where it is implemented
 
 `rest` and `open` in [`module.f.mjs`](../../../module.f.mjs); `restContainerRead`
-in [`common`](../../../common/module.f.mjs); `emptyRest` and the rest's
-normalization in [`data`](../../../data/module.f.mjs); `RestTs` in
+in [`common`](../../../common/module.f.mjs); the rest's normalization in
+[`data`](../../../data/module.f.mjs); `RestTs` in
 [`ts/types.ts`](../../../ts/types.ts).

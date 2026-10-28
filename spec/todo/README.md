@@ -124,6 +124,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 9. [x] spread, in an array literal and a call's arguments and in an object
    literal ([spread](../values/arrays/README.md#spread),
    [object spread](../values/objects/README.md#object-spread)).
+10. [ ] [array holes](./2480-array-holes.md) — the elision `[1, , 3]` is
+   refused by design, and valid code builds no sparse array; whether to
+   support one someday, which would change the VM, at P5.
 
 ## 3. Functions
 
