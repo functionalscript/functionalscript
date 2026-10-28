@@ -25,13 +25,13 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { assert } from '../../asserts/module.f.js'
 
 /** Exact CLI pin used by GitHub Actions; legacy Workers Builds keeps its own CLI. */
-export const wranglerVersion = '4.74.0'
+export const wranglerVersion = /** @type {const} */ ('4.74.0')
 
 /** Temporary separation from Workers Builds previews; remove after cutover. */
-const previewPrefix = 'actions-'
+const previewPrefix = /** @type {const} */ ('actions-')
 
 /** The Worker name in wrangler.jsonc shares the alias's DNS-label budget. */
-const workerName = 'functionalscript'
+const workerName = /** @type {const} */ ('functionalscript')
 
 /**
  * Build argv without a shell. Branch names become lowercase DNS aliases,
@@ -44,7 +44,7 @@ const workerName = 'functionalscript'
  */
 export const uploadArgs = (mode, branch) => {
     assert(mode === 'production' || mode === 'preview', 'Expected production or preview deployment mode.')
-    const cli = ['--yes', `wrangler@${wranglerVersion}`]
+    const cli = /** @type {const} */ (['--yes', `wrangler@${wranglerVersion}`])
     if (mode === 'production') { return [...cli, 'deploy'] }
     const alias = branch.toLowerCase().split('')
         .map(c => 'abcdefghijklmnopqrstuvwxyz0123456789'.includes(c) ? c : '-')
