@@ -36,16 +36,25 @@ credentials available only to trusted deployment steps. Preserve the existing
 Worker bindings and encrypted app secret handling. Verify the replacement before
 disabling Workers Builds so the transition does not leave competing deployments.
 
-### Tasks
+### Build job
 
-- [ ] Build the website in a dedicated, read-only CI job on pull requests and
-      merge-queue entries, independently of the platform matrix. Reuse workflow
-      concurrency and pass the checked-out commit and branch to the site builder.
+The first implementation adds a read-only `website` job to the existing CI
+workflow's pull-request and merge-group events. It runs independently of the
+test matrix, reuses workflow concurrency, and does not use the successful-check
+cache. The build runs with no deployment credentials, including on fork pull
+requests. The generator receives the checked-out SHA and source branch through
+the existing `WORKERS_CI_*` metadata variables.
+
+Deployment triggers, dependencies on required checks, preview policy and Wrangler
+pinning remain the next decision before adding uploads. Workers Builds stays
+active during this build-only step.
+
+### Tasks
 
 - [ ] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
-- [ ] Add the dedicated job to the CI generator and its proofs, regenerate the
+- [x] Add the dedicated job to the CI generator and its proofs, regenerate the
       workflows, and build WASM demos, styled Rust documentation and the website
       using the pinned development environment.
 - [ ] Add production deployment and trusted-branch preview uploads, preserving
