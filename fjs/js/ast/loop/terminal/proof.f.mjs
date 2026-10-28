@@ -19,6 +19,30 @@ const decision = (then, otherwise, statements = []) => ({ statements: [...statem
 const loop = body => ({ target, parameters: [state, other], initial: [0, 1], results: [result], body })
 
 export const proof = {
+    emptyInputTerminalTreesKeepExactEmptyContinuations: () => {
+        /** @type {Block} */
+        const continued = { statements: [], exit: ['continue', target, []] }
+        /** @type {Block} */
+        const completed = { statements: [], exit: ['break', target, [['ref', shared]]] }
+        /** @type {Definition} */
+        const required = ['define', shared, ['array', [false]], 'required']
+        for (const body of [
+            decision(continued, completed, [required]),
+            decision(completed, continued, [required]),
+            decision(decision(completed, continued), completed, [required]),
+            decision(completed, decision(continued, completed), [required]),
+        ]) {
+            /** @type {Loop} */
+            const source = { ...loop(body), parameters: [], initial: [] }
+            assert(isTerminalLoop(source))
+            assertEq(source.body, body)
+            assert(continued.exit[0] === 'continue')
+            assertEq(continued.exit[2].length, 0)
+        }
+        assertEq(isTerminalLoop({ ...loop(continued), parameters: [], initial: [] }), false)
+        assertEq(isTerminalLoop({ ...loop(completed), parameters: [], initial: [] }), false)
+        assertEq(isTerminalLoop({ ...loop(decision(step, completed)), parameters: [], initial: [] }), false)
+    },
     sharedRequiredPrefixesRetainOneTerminalTreeOwner: () => {
         const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
         for (const value of /** @type {readonly Value[]} */ ([

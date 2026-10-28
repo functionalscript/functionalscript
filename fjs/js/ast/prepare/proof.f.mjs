@@ -36,6 +36,72 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    sourceZeroInputTerminalTreesUseOnlyAResultSlot: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const result = id(0), pair = id(1), reached = id(2)
+        /** @type {NormalValue} */
+        const allocation = ['array', [false]]
+        /** @type {NormalValue} */
+        const condition = ['.', ['ref', pair], 0]
+        /** @type {NormalBlock} */
+        const normal = { statements: [], exit: ['break', target, [['ref', pair]]] }
+        /** @type {NormalBlock} */
+        const continued = { statements: [['define', reached, ['array', []], 'required']], exit: ['continue', target, []] }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            /** @type {NormalBlock} */
+            const mixed = { statements: [['if', [], condition, baseFirst ? normal : continued, baseFirst ? continued : normal]], exit: ['yield', []] }
+            for (const next of [continued, mixed]) {
+                /** @type {Loop} */
+                const loop = { target, parameters: [], initial: [], results: [result], body: {
+                    statements: [['define', pair, allocation, 'required'],
+                        ['if', [], condition, baseFirst ? normal : next, baseFirst ? next : normal]], exit: ['yield', []],
+                } }
+                /** @type {NormalBlock} */
+                const block = { statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }
+                assert(prepare(block).statements.some(statement => statement[0] === 'loop'))
+                const source = prepare(block, { sourceLoops: true })
+                assertEq(source.statements.length, 1)
+                const physical = source.statements[0]
+                assert(physical[0] === 'while')
+                assertEq(physical[1].initial, undefined)
+                assertEq(physical[1].condition, true)
+                assertEq(physical[1].result, result)
+                assertEq(physical[1].mutable, true)
+                // No semantic-input snapshot or synthetic empty allocation.
+                assertEq(physical[1].body.statements.length, 2)
+                const prefix = physical[1].body.statements[0]
+                assert(prefix[0] === 'define')
+                assertEq(prefix[1], pair)
+                assertStructurallySame(prefix[2], allocation)
+                const terminal = physical[1].body.statements[1]
+                assert(terminal[0] === 'if')
+                assertStructurallySame(terminal[1], condition)
+                const complete = baseFirst ? terminal[2] : terminal[3]
+                const completion = complete.statements[0], write = complete.statements[1]
+                assert(complete.exit[0] === 'break' && completion[0] === 'define' && write[0] === 'write')
+                assertStructurallySame(completion[2], ['ref', pair])
+                assertEq(write[1], physical[1].slot)
+                const selected = baseFirst ? terminal[3] : terminal[2]
+                const nested = selected.statements[0]
+                let step = selected
+                if (next !== continued) {
+                    assert(nested[0] === 'if')
+                    step = baseFirst ? nested[3] : nested[2]
+                }
+                assertEq(step.exit[0], 'continue')
+                assertEq(step.exit[1], target)
+                assertEq(step.statements.length, 1)
+                const required = step.statements[0]
+                assert(required[0] === 'define')
+                assertEq(required[1], reached)
+                assertStructurallySame(required[2], ['array', []])
+                assertEq(loop.parameters.length, 0)
+                assertEq(loop.initial.length, 0)
+                assert(continued.exit[0] === 'continue')
+                assertEq(continued.exit[2].length, 0)
+            }
+        }
+    },
     sourceSharedRequiredPrefixStaysBeforeTheTestAndBothTransfers: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const state = id(0), other = id(1), result = id(2), pair = id(3)

@@ -175,10 +175,6 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
-      Next increment: retain zero-input terminal trees with shared required
-      prefix work or mixed completion/continuation leaves. Reuse one private
-      result slot without adding semantic inputs, and prove empty public arity,
-      iteration identity, reached work and first-parse graph/text stability.
       Plain bodies now admit zero/multiple state values, sequential loops and
       loops in terminal guard/case blocks. Shared binding events select state;
       source JavaScript, code-only JavaScript and Rust execute eligible plain
@@ -285,8 +281,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       shared by tests, transitions and results keep their iteration lifetime;
       selected work, captures, fresh rest, failure order and exact first-parse
       graph/text cycles survive. Prior source profiles, default layouts and
-      logical graph contracts remain unchanged. Zero-input and general lazy
-      regions retain their existing admission.
+      logical graph contracts remain unchanged. General lazy regions retain
+      their existing admission.
       This path also retains a single terminal condition with required shared
       prefix work. Each array, object, closure or call result is established
       once before the condition and remains shared with continued arguments or
@@ -294,6 +290,15 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Existing plain and branching plans retain precedence, preserving prior
       source spelling and default layouts. Reached failures, fresh rest and
       exact first-parse graph/text cycles retain their contracts.
+      Zero-input terminal roots now use this same path, including shared
+      required prefixes and mixed completion/continuation decisions. One
+      private result slot starts as `undefined`; semantic inputs and continued
+      argument vectors stay empty. Completion writes the selected scalar to
+      that slot before leaving the loop. Empty public arity, own-function
+      identity, per-visit allocations and held captures survive, including
+      immediate completion and required unused arguments before continuation.
+      Earlier plain zero-input loops retain their unchanged-slot spelling;
+      default layouts and exact first-parse graph/text cycles remain intact.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

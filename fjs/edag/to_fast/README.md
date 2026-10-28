@@ -176,8 +176,9 @@ retains zero-input roots with one normal result and a conditional continuation
 in either arm. Common preparation puts the result after iteration and supplies
 a private unchanged slot, without changing the function's empty public
 signature. Its first source parse constructs the canonical scalar helper;
-later graph/text cycles stay exact. Other zero-input normal-result shapes
-retain their recursive fallback. Rest-free fixed multi-input roots are retained
+later graph/text cycles stay exact. Zero-input normal-result shapes outside
+the admitted plain and terminal plans retain their recursive fallback.
+Rest-free fixed multi-input roots are retained
 when the same plain-loop plan recognizes their terminal conditional. The source
 profile of common preparation packs those already-selected semantic inputs
 into one private array slot, preserving simultaneous updates, public arity and
@@ -244,8 +245,8 @@ ordinary single-input roots, including those in nested functions, keep their
 previous layouts. No graph metadata or writer-specific transfer analysis is added.
 General lazy prefixes retain their existing admission.
 
-Source admission also retains fixed multi-input and observed-rest roots with
-a terminal decision that mixes completion and continuation. Shared
+Source admission also retains zero-input, fixed multi-input and observed-rest
+roots with a terminal decision that mixes completion and continuation. Shared
 terminal analysis accepts required-definition prefixes, result-free decisions
 and exact transfers: every completed leaf supplies one loop result, and every
 continued leaf supplies the complete invocation input vector. The adapter
@@ -266,6 +267,14 @@ JavaScript/function-text/Rust layouts retain their contracts; no logical graph
 metadata or transfer tags are introduced. The first source parse establishes
 the permitted scalar helper boundary, and subsequent graph/text cycles stay
 exact.
+
+Zero-input terminal roots use the same original-body plan with empty semantic
+input and continuation vectors. Source preparation provides one private
+`undefined`-initialized result slot, so no synthetic argument or state snapshot
+is added. Required work stays before each reached test and empty continuation;
+completion writes its selected scalar to the slot before exit. Empty public
+arity, shared allocations, held captures and own-function identity survive.
+Earlier plain zero-input plans retain precedence and their source spelling.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be
