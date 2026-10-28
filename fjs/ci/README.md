@@ -6,7 +6,7 @@ mise manifest and lock; callers must provide those files. This replaces the
 previous generated environment API. `Setup.environment` is removed because
 this branch has one environment manager.
 
-The nine CI jobs cover Linux, macOS and Windows on x64 and ARM64, plus canonical
+The nine test jobs cover Linux, macOS and Windows on x64 and ARM64, plus canonical
 Node, Deno and Bun suites. Native Rust debug/release tests and Clippy, i686
 Linux/Windows checks, Linux ARM formatting and four WASM targets, SpiderMonkey
 compilation/tests, TypeScript, compilation, coverage and packed-package checks
@@ -36,6 +36,16 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
+This repository also adds a separate `website` job on pull requests and
+merge-group entries. It builds the WASM demos, styled Rust API documentation
+and website using the committed mise lock, in that order after `npm ci`.
+The job is read-only, has no dependency on the test matrix and always builds
+its assets outside the successful-check cache. It passes the checked-out SHA
+and source branch to both the Rustdoc header generator and the website
+generator through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH`
+values. This keeps Rust documentation headers consistent with the site's pages. Deployment remains on Cloudflare Workers Builds
+until the later migration steps are complete.
+
 ## Usage
 
 Run `./dev.sh npm run gen` after changing a generator or input. Commit generated
@@ -47,6 +57,11 @@ it again, so retired generated assets become deletions.
 `smart`, and `mergeQueueOnly`. Injected shell scripts pass unchanged through
 `FJS_CI_RUN` to `bash -e -c` inside the selected environment. The packed consumer
 runs outside that environment, under `runner.temp`, with its own `setup-node`.
+
+Optional `extraJobs` adds fully assembled project jobs after the platform setup
+and check-cache transformations. Callers provide their environment setup and
+use distinct job IDs; the built-in generator adds none. This keeps this
+repository's website build out of other projects' workflows.
 
 Publishing retains its separate `setup-node` workflow and npm provenance.
 See [platform setup](../../doc/mise-trial/README.md) and

@@ -1,6 +1,6 @@
-/** The browser boundary for section navigation and heading clipboard controls. */
+/** The browser boundary for section navigation, heading clipboard controls and README code blocks. */
 
-import { copy } from './copy-runtime.mjs'
+import { bindCopies, copy } from './copy-runtime.mjs'
 
 /** Reveal a fragment's target without running tests or dispatching demo actions.
  * Demo-state restoration may call this again after its render changes layout.
@@ -36,6 +36,8 @@ export const startFragments = doc => {
     const reveal = () => revealFragment(doc)
     view.addEventListener('hashchange', reveal)
     view.addEventListener('load', reveal, { once: true })
+    // A README's code blocks copy as the CLI reference's do.
+    for (const readme of doc.querySelectorAll('[data-readme]')) { bindCopies(readme) }
     for (const button of doc.querySelectorAll('button[data-copy-fragment]')) {
         if (button.hasAttribute('data-copy-demo')) continue
         /** @type {HTMLButtonElement} */ (button).hidden = false

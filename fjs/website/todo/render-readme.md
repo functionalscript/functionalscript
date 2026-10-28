@@ -155,6 +155,8 @@ Every README has a heading, so today's reader renders none of them.
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.
 - [x] Fenced code coloured: JavaScript and JSON, by the demos' tokenizer.
+- [x] A copy button on every fence, as GitHub has: the demos' code block,
+      bound by the page's fragment runtime and hidden without it.
 - [x] Fenced TypeScript coloured, its own keywords included.
 - [ ] TypeScript's primitive type names coloured where a type stands, which
       needs a reader that knows a type's place from a value's.
@@ -163,6 +165,9 @@ Every README has a heading, so today's reader renders none of them.
 - [ ] Numbered lists.
 - [x] Code inside bold, and two-backtick code spans.
 - [x] GitHub task list items, `- [ ]` and `- [x]`, as disabled checkboxes.
+- [x] Images with an `https` source, alone and as a link's label (a
+      badge), and one level of balanced parentheses in a link target: the
+      repository's own `README.md` renders on the site's front page.
 - [ ] Links inside bold, and the other refusals in
       [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
       the READMEs need.

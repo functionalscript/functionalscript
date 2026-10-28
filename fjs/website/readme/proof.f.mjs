@@ -2,9 +2,11 @@
  * Proofs for a README as the top of its page.
  *
  * @import { Blocks } from '../../media/markdown/types.ts'
+ * @import { Element } from '../../media/html/types.ts'
  */
 
 import { linkedHeading } from '../permalink/module.f.js'
+import { codeBlock } from '../demo/code/module.f.js'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { anchors, readmeName, readmeNodes, readmeSection, resolveHref, slug } from './module.f.mjs'
@@ -14,6 +16,9 @@ const isPage = path => path === '.' || path === 'spec' || path === 'spec/a'
 
 /** Links from `spec/a`'s README, in a build with no commit. */
 const local = resolveHref(null)(isPage)('spec/a')
+
+/** A fence as the page draws it: a code block that copies `text`. @type {(text: string, code: Element) => Element} */
+const fence = (text, code) => codeBlock(text, 'Copy code', [code])
 
 /** A link refused for a target named `bad`, and every other kept. */
 const href = (/** @type {string} */ h) => h === 'bad' ? error('no') : ok(h)
@@ -102,8 +107,8 @@ export const proof = {
                 linkedHeading(2, 't', 'T', ['T']),
                 linkedHeading(6, 's', 'S', ['S']),
                 ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
-                ['pre', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]],
-                ['pre', ['code', 'y']],
+                fence('x', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]),
+                fence('y', ['code', 'y']),
                 ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
                 ['table', ['thead', ['tr', ['th', 'h'], ['th', { align: 'center' }]]], ['tbody', ['tr', ['td', ['code', 'c']], ['td', { align: 'center' }, 'd']]]],
                 ['table', ['thead', ['tr', ['th', { align: 'left' }, 'h']]]],
@@ -117,24 +122,25 @@ export const proof = {
         // A fence the tokenizer reads is coloured, in any case of its
         // language's name; any other stays its text.
         fences: {
+            // The copy leaves out the newline that ends the fence's last line.
             js: () => assertStructurallySame(readmeNodes(href)([['code', 'JavaScript', 'const a = 1 // b\n']]), ok([
-                ['pre', ['code', { class: 'language-JavaScript' },
+                fence('const a = 1 // b', ['code', { class: 'language-JavaScript' },
                     ['span', { 'data-token': 'keyword' }, 'const'], ' ',
                     ['span', { 'data-token': 'identifier' }, 'a'], ' = ',
                     ['span', { 'data-token': 'number' }, '1'], ' ',
-                    ['span', { 'data-token': 'comment' }, '// b'], '\n']],
+                    ['span', { 'data-token': 'comment' }, '// b'], '\n']),
             ])),
             json: () => assertStructurallySame(readmeNodes(href)([['code', 'json', '{"a":true}']]), ok([
-                ['pre', ['code', { class: 'language-json' },
-                    '{', ['span', { 'data-token': 'string' }, '"a"'], ':', ['span', { 'data-token': 'literal' }, 'true'], '}']],
+                fence('{"a":true}', ['code', { class: 'language-json' },
+                    '{', ['span', { 'data-token': 'string' }, '"a"'], ':', ['span', { 'data-token': 'literal' }, 'true'], '}']),
             ])),
             // TypeScript's own keywords, where an operand follows them.
             ts: () => assertStructurallySame(readmeNodes(href)([['code', 'ts', 'type A = { type: 1 }']]), ok([
-                ['pre', ['code', { class: 'language-ts' },
+                fence('type A = { type: 1 }', ['code', { class: 'language-ts' },
                     ['span', { 'data-token': 'keyword' }, 'type'], ' ',
                     ['span', { 'data-token': 'identifier' }, 'A'], ' = { ',
                     ['span', { 'data-token': 'identifier' }, 'type'], ': ',
-                    ['span', { 'data-token': 'number' }, '1'], ' }']],
+                    ['span', { 'data-token': 'number' }, '1'], ' }']),
             ])),
             // A flowchart is drawn; a Mermaid fence the site cannot draw
             // stays its source.
@@ -143,20 +149,34 @@ export const proof = {
                 assertStructurallySame(r[0] === 'ok' ? r[1][0].slice(0, 2) : null, ['div', { 'data-graph': '' }])
             },
             mermaidSource: () => assertStructurallySame(readmeNodes(href)([['code', 'mermaid', 'pie\n']]),
-                ok([['pre', ['code', { class: 'language-mermaid' }, 'pie\n']]])),
+                ok([fence('pie', ['code', { class: 'language-mermaid' }, 'pie\n'])])),
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
-                ok([['pre', ['code', { class: 'language-rust' }, 'let a = 1;']]])),
+                ok([fence('let a = 1;', ['code', { class: 'language-rust' }, 'let a = 1;'])])),
             // Text the tokenizer refuses is not partly coloured.
             refused: () => assertStructurallySame(readmeNodes(href)([['code', 'js', 'a …']]),
-                ok([['pre', ['code', { class: 'language-js' }, 'a …']]])),
+                ok([fence('a …', ['code', { class: 'language-js' }, 'a …'])])),
             empty: () => assertStructurallySame(readmeNodes(href)([['code', 'js', '']]),
-                ok([['pre', ['code', { class: 'language-js' }]]])),
+                ok([fence('', ['code', { class: 'language-js' }])])),
         },
+        // An image draws from an https source, alone or as a link's label.
+        images: () => assertStructurallySame(readmeNodes(href)([['paragraph', [
+            ['image', 'a', 'HTTPS://e.x/b.png'],
+            ['link', [['image', 'c', 'https://e.x/d.svg'], ['text', ' e']], 'f'],
+        ]]]), ok([['p', ['img', { src: 'HTTPS://e.x/b.png', alt: 'a' }], ['a', { href: 'f' }, ['img', { src: 'https://e.x/d.svg', alt: 'c' }], ' e']]])),
         // A link it cannot place refuses the README, wherever it stands.
         refuses: {
             letterlike: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'ℂ']]]]),
                 error('a heading character whose anchor GitHub may make otherwise: ℂ')),
             heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['text', 'x']], 'bad']]]]), error('no')),
+            // GitHub serves these itself; a page cannot load them as it does.
+            relativeImage: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['image', 'a', './b.png']]]]),
+                error('an image whose source is not an https address: ./b.png')),
+            httpBadge: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['link', [['image', 'a', 'http://e.x/b.svg']], 'c']]]]),
+                error('an image whose source is not an https address: http://e.x/b.svg')),
+            imageInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'a '], ['image', 'b', 'https://e.x/c.png']]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
+            badgeInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['image', 'b', 'https://e.x/c.png']], 'd']]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),
             list: () => assertStructurallySame(readmeNodes(href)([['list', false, [[['paragraph', [['link', [['text', 'x']], 'bad']]]]]]]), error('no')),
             header: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[['link', [['text', 'x']], 'bad']]], []]]), error('no')),
