@@ -175,6 +175,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
 - [ ] **H — General source loops.** Connect source state/result selection and
       transfer resolution to E/F. Admit and emit each new source form only with
       its complete conversion path and evidence.
+      Next increment: retain zero-input terminal trees with shared required
+      prefix work or mixed completion/continuation leaves. Reuse one private
+      result slot without adding semantic inputs, and prove empty public arity,
+      iteration identity, reached work and first-parse graph/text stability.
       Plain bodies now admit zero/multiple state values, sequential loops and
       loops in terminal guard/case blocks. Shared binding events select state;
       source JavaScript, code-only JavaScript and Rust execute eligible plain
