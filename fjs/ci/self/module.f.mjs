@@ -27,9 +27,12 @@ const buildMetadata = {
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * read-only job runs on the CI workflow's pull-request and merge-group events,
- * including forks. It always builds rather than consulting the check cache,
- * and receives no deployment credentials. Mise installs the committed lock,
+ * read-only job runs on pull requests, including drafts and forks, and
+ * merge-group entries. Same-repository pull requests upload a preview.
+ * It runs independently of the test jobs
+ * and always builds rather than consulting the check cache,
+ * and keeps deployment credentials confined to preview uploads.
+ * Production uploads are omitted until cutover. Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
  */
@@ -54,6 +57,15 @@ export const websiteJob = {
             run: miseDevelop('npm run website'),
             shell: 'bash',
             env: buildMetadata,
+        },
+        {
+            if: "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
+            run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),
+            shell: 'bash',
+            env: {
+                CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+                WORKERS_CI_BRANCH: '${{ github.head_ref }}',
+            },
         },
     ],
 }

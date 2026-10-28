@@ -52,8 +52,9 @@ export const proof = {
             assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read' })
-        assertEq(websiteJob.needs, undefined)
-        assertStructurallySame(websiteJob.steps.slice(2).map(step => step.run), [
+        assertEq(generated.jobs.website?.needs, undefined)
+        assertEq(generated.jobs.website?.if, undefined)
+        assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
             'mise exec -- npm run rustdoc-bars',
@@ -67,8 +68,21 @@ export const proof = {
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
         assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
-        assert(websiteJob.steps.every(step => step.if === undefined))
+        assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
+    },
+    deploymentGates: () => {
+        const preview = websiteJob.steps[7]
+        assertEq(preview?.if, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository")
+        assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
+        assertEq(websiteJob.steps.length, 8)
+        assert(!websiteJob.steps.some(step => step.run?.includes('github-deploy.mjs production')))
+        assertStructurallySame(preview?.env, {
+            CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+            WORKERS_CI_BRANCH: '${{ github.head_ref }}',
+        })
+        const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
+        assertEq(generic.on.push, undefined)
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two

@@ -36,15 +36,21 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-This repository also adds a separate `website` job on pull requests and
-merge-group entries. It builds the WASM demos, styled Rust API documentation
+This repository also adds a separate `website` job on pull requests, including
+drafts and forks, and merge-group entries. Branch pushes without an open PR
+do not run CI or create previews.
+It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
-The job is read-only, has no dependency on the test matrix and always builds
-its assets outside the successful-check cache. It passes the checked-out SHA
-and source branch to both the Rustdoc header generator and the website
-generator through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH`
-values. This keeps Rust documentation headers consistent with the site's pages. Deployment remains on Cloudflare Workers Builds
-until the later migration steps are complete.
+The job has read-only GitHub permissions, runs independently of test jobs, and always
+builds its assets outside the successful-check cache. It passes the checked-out SHA
+and source branch to both the Rustdoc header generator and the website generator
+through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
+Same-repository pull requests upload a preview after the build succeeds.
+Production upload steps are omitted until preview debugging is complete and
+Workers Builds is disabled; enabling production will require a workflow change.
+Fork pull requests and merge-group runs never upload. Deployment secrets are scoped
+to the upload step. No upload-enable variables are used; see
+[the cutover procedure](../website/README.md#github-actions-deployment).
 
 ## Usage
 

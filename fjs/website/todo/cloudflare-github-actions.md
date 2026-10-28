@@ -26,9 +26,11 @@ and GitHub sign-in behavior. The current build sequence is documented in
 repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 
 The proposed deployment policy is production on `main` after required checks
-pass, with version previews for trusted repository branches. Fork pull requests
+pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
 run checks without deployment credentials. Preserve preview branch aliases,
-commit and branch metadata, and the OAuth callback behavior; moving hosts must
+commit and branch metadata, and the OAuth callback behavior. During validation,
+Actions previews temporarily use an `actions-` alias prefix to distinguish them
+from Workers Builds; remove it after cutover. Moving hosts must
 not silently remove these features.
 
 Use a scoped Cloudflare API token held in GitHub Actions secrets, with deployment
@@ -38,31 +40,45 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The first implementation adds a read-only `website` job to the existing CI
-workflow's pull-request and merge-group events. It runs independently of the
-test matrix, reuses workflow concurrency, and does not use the successful-check
-cache. The build runs with no deployment credentials, including on fork pull
-requests. The generator receives the checked-out SHA and source branch through
-the existing `WORKERS_CI_*` metadata variables.
+The `website` job runs on pull requests, including drafts and forks, and
+merge-group entries. There is no push trigger; branches needing a preview open
+a draft PR. It runs independently of the platform matrix and test jobs,
+reuses workflow concurrency, and builds outside the successful-check
+cache. Build steps receive no deployment credentials. The generator receives
+the checked-out SHA and source branch through the existing `WORKERS_CI_*`
+metadata variables.
 
-Deployment triggers, dependencies on required checks, preview policy and Wrangler
-pinning remain the next decision before adding uploads. Workers Builds stays
-active during this build-only step.
+Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
+and `versions upload --preview-alias` after its own successful website build.
+Fork pull requests and merge-group entries never upload. No enable-switch variables
+are used. Production uploads are omitted from the workflow until debugging is
+complete and Workers Builds is disabled. The API token is scoped to the upload
+step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
+and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
+only the API-token secret and sends no empty OAuth overrides. The legacy
+Workers Builds helper keeps its explicit bindings during the transition.
+
+Workers Builds stays active until live verification and cutover. Setup,
+branch-alias rules, cutover and rollback are documented in
+[GitHub Actions deployment](../README.md#github-actions-deployment).
 
 ### Tasks
 
-- [ ] Settle the job's triggers, dependencies on required checks, preview policy,
+- [x] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
 - [x] Add the dedicated job to the CI generator and its proofs, regenerate the
       workflows, and build WASM demos, styled Rust documentation and the website
       using the pinned development environment.
-- [ ] Add production deployment and trusted-branch preview uploads, preserving
+- [x] Add automatic trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
+- [ ] After debugging previews and disabling Workers Builds, add production
+      deployment on `main` in a follow-up PR. Keep it absent until then.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
+- [ ] Remove the temporary `actions-` preview-alias prefix after cutover.
 - [ ] Document the GitHub Actions setup and cutover/rollback procedure, reconcile
       the old Cloudflare-only build script and Node pin with their remaining
       consumers, update related documentation, and disable Workers Builds after
@@ -73,3 +89,4 @@ active during this build-only step.
 - [Run `cargo doc` in the site build](./cargo-doc-build-host.md): the existing
   Rust documentation build must move with the site; its remaining Deno
   documentation work stays tracked there.
+

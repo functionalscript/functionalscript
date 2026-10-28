@@ -1324,6 +1324,15 @@
             "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
             "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
           }
+        },
+        {
+          "if": "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
+          "run": "mise exec -- node ./fjs/website/github-deploy.mjs preview",
+          "shell": "bash",
+          "env": {
+            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+            "WORKERS_CI_BRANCH": "${{ github.head_ref }}"
+          }
         }
       ]
     }

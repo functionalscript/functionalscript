@@ -1,11 +1,32 @@
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { rust } from '../../ci/config/module.f.js'
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { buildPath, buildText, cloudflare, generatedDirectory, main } from './module.f.mjs'
+import { buildPath, buildText, cloudflare, generatedDirectory, main, uploadArgs, wranglerVersion } from './module.f.mjs'
 
 export const proof = {
+    production: () => {
+        assertEq(wranglerVersion, '4.74.0')
+        assertStructurallySame(uploadArgs('production', ''), ['--yes', 'wrangler@4.74.0', 'deploy'])
+    },
+    previews: () => {
+        for (const [branch, alias] of [
+            ['codex/cloudflare-deploy-job', 'actions-codex-cloudflare-deploy-job'],
+            ['Feature/A_1..B', 'actions-feature-a-1-b'],
+            ['--hello--', 'actions-hello'],
+            ['a'.repeat(37) + '-tail', 'actions-' + 'a'.repeat(37)],
+            ['b'.repeat(80), 'actions-' + 'b'.repeat(38)],
+            ['feature/' + 'a'.repeat(45), 'actions-feature-' + 'a'.repeat(30)],
+            ['你好/world', 'actions-world'],
+        ]) {
+            assertStructurallySame(uploadArgs('preview', branch), ['--yes', 'wrangler@4.74.0', 'versions', 'upload', '--preview-alias', alias])
+        }
+    },
+    throw: {
+        unknownMode: () => uploadArgs('invalid', 'branch'),
+        emptyAlias: () => uploadArgs('preview', '---'),
+    },
     // Fixed text: the pin written in full, no pipe to hide a failed download
     // from `set -e`, no tool beyond the four approved, the bars written
     // before `cargo doc` and the site once, after it.
