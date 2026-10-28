@@ -2,12 +2,12 @@
  * Shared operator shape proofs: the EDAG's spelling, which the EDAG demo
  * draws, and FAST's, which differs only in the array and object tags.
  *
- * @import { NodeShape } from '../../../website/demo/graph/types.ts'
+ * @import { NodeShape } from '../../website/demo/graph/types.ts'
  */
 
 import { operatorShape, unsupported } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 const edag = operatorShape({ array: '[]', object: '{}' })(unsupported)
 

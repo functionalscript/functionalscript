@@ -1,10 +1,10 @@
 /**
- * Implementation-private types for `fjs/js/ast/graph/module.f.mjs`.
+ * Implementation-private types for `fjs/compiler/graph/module.f.mjs`.
  *
  * @module
  */
 
-import type { Group } from '../../../website/demo/graph/types.ts'
+import type { Group } from '../../website/demo/graph/types.ts'
 
 /** An edge of the drawing: a port's label, the value it reaches, and `lazy` where the position is one the node may never evaluate. */
 export type _Child = readonly [label: string, value: unknown, kind?: 'lazy']

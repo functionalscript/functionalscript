@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/js/ast/graph/module.f.mjs`: the tags a graph's
+ * Type-level API for `fjs/compiler/graph/module.f.mjs`: the tags a graph's
  * operators spell their containers with.
  *
  * @module

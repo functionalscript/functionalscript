@@ -38,7 +38,7 @@ export const proof = {
         /**
          * `_shapeOf` against hand-built `Exp` values, not source text, for
          * the EDAG's own forms: the operators it shares with FAST are
-         * proved where their shape is, `fjs/js/ast/graph`. A tag no node
+         * proved where their shape is, `fjs/compiler/graph`. A tag no node
          * has is refused, and that path is tested here too.
          */
         shapeOf: {

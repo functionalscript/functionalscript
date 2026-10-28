@@ -64,15 +64,19 @@ plus the logical binaries, and both sides have blocks, statements, exits,
 loops and functions built the same way. The shapes follow that:
 
 - one `Shape` function for the common part (`Operator<V>`, `Step<V>`,
-  `Item<V>`, `Entry<V>`, `Key<V>`), generic over the operand, in
-  `fjs/js/ast/`. The [EDAG demo](../../../compiler/edag/demo.f.mjs) already
+  `Item<V>`, `Entry<V>`, `Key<V>`), generic over the operand. The [EDAG demo](../../../compiler/edag/demo.f.mjs) already
   draws these operators, chains included: the EDAG spells them with the same
   tuples except for the array and object tags (`'[]'`/`'{}'` there,
   `'array'`/`'object'` in FAST). So the shape is extracted from that demo,
   parameterized by the two tags, and the EDAG demo uses it too, rather than
   a second drawing of the same operators being written;
-- a FAST walker in `fjs/js/ast/` and a source walker in `fjs/js/ast/sugar/`,
-  each adding only its own forms.
+- a FAST walker and a source walker, each adding only its own forms.
+
+All of them live in [`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs),
+beside [`fjs/compiler/stage_demo`](../../../compiler/stage_demo/module.f.mjs):
+like it, they serve the compiler's stage pages and nothing else. They draw
+with the website's renderer and read the parser's `ResolvedModule`, which
+`fjs/js/ast`, below the compiler and the website, may not import.
 
 What the drawing shows:
 
