@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** admitting `Object.fromEntries` ([2360](../../../../spec/todo/2360-built-in.md))
+**Blocked by:** admitting `Object.fromEntries`, whose proposal for [2360](../../../../spec/todo/2360-built-in.md) is [functionalscript/functionalscript#3356](https://github.com/functionalscript/functionalscript/pull/3356)
 
 ### Problem
 
@@ -20,7 +20,7 @@ Build the two lookups as plain objects keyed by name and read them with
 `entry`: `Object.fromEntries(positions)` keeps the later of two entries with
 one key, as the `Map` does, so the positions in order give the last
 occurrence and in reverse the first. That waits on admitting
-`Object.fromEntries` ([2360](../../../../spec/todo/2360-built-in.md));
+`Object.fromEntries`, which [functionalscript/functionalscript#3356](https://github.com/functionalscript/functionalscript/pull/3356) proposes;
 a spread with a computed key would make the build quadratic, which is the
 cost this function exists to avoid. Once it lands: rewrite `occurrences`,
 rename the module, then rename `fjs/rtti/module.f.mjs`.
