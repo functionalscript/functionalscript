@@ -508,6 +508,83 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    observedRestPlainLoopsKeepArityFreshArraysAndFirstParseFixedPoints: () => {
+        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const parameters = ['n', ...names, '...xs'].join(',')
+        const updates = ['n-1', ...names.map(name => `${name}+1`), '...xs'].join(',')
+        const arguments_ = ['3', ...names.map((_, index) => `${index}`), '99'].join(',')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const f=(n,...xs)=>n>0?f(n-1,xs[0]+n):xs[0];export default [f.length,f(4,0)];', [1, 10]],
+            ['const f=(n,...xs)=>n===0?xs[0]:f(n-1,xs[0]+n);export default [f.length,f(4,0)];', [1, 10]],
+            ['const f=(...xs)=>xs[0]>0?f(xs[0]-1,xs[1]+1):xs;export default [f.length,f(3,0)];', [0, [0, 3]]],
+            ['const f=(...xs)=>xs[0]>0?f(xs[0]-1,()=>xs[0]):xs[1]();export default f(3,null);', 1],
+            ['const f=(n,previous,...xs)=>n>0?f(n-1,xs,...xs):[previous===xs,xs===xs,xs];export default [f.length,f(3,null,7,8)];', [2, [false, true, [7, 8]]]],
+            ['const f=(n,previous,...xs)=>n===0?[previous===xs,xs]:f(n-1,xs);const a=f(3,null,7);const b=f(3,null,7);export default [a[0],a[1],a[1]===b[1]];', [false, [], false]],
+            ['const f=(n,...xs)=>n>0?f(n-1):xs;const a=f(0);const b=f(0);export default [a===b,f(3,7)];', [false, []]],
+            ['const f=(n,saved,...xs)=>n>0?f(n-1,()=>xs,n):[saved(),xs];export default f(3,null,99);', [[2], [1]]],
+            ['const f=(n,value,...xs)=>n>0?f(...[n-1]):[value,xs];export default f(3,7,8);', [undefined, []]],
+            ['const f=(n,...xs)=>n>0?f(n-1,7,8,9):xs;export default f(3);', [7, 8, 9]],
+            ['const f=(n,...xs)=>n>0?f(0,..."A𝄞",99):xs;export default f(1);', ['A', '𝄞', 99]],
+            ['const seed=[9];const f=(n,...xs)=>n>0?f(n-1,...xs):[xs[0]===seed,xs];export default f(3,seed);', [true, [[9]]]],
+            [`const f=(${parameters})=>n>0?f(${updates}):[x0,x14,xs];export default [f.length,f(${arguments_})];`, [16, [3, 17, [99]]]],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected, source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    observedRestPlainLoopsKeepReachedFailuresAndFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,...xs)=>n>0?f(n-1,null.x):xs;export default f(1);',
+            'const f=(n,...xs)=>n>0?f(n-1,...null):xs;export default f(1);',
+            'const f=(n,...xs)=>n>0?f(n-1,...xs):xs;export default f(0,null.x);',
+            'const f=(n,...xs)=>{const required=null.x;return n>0?f(n-1):xs;};export default f(0,7);',
+            'const f=(n,...xs)=>n>0?f(n-1,...xs):xs[0].x;export default f(0,null);',
+            'const f=(...xs)=>xs[0]>0?f(xs[0]-1,...null):xs;export default f(1);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    baseFirstRestOnlyKeepsItsEstablishedRecursiveFallback: () => {
+        const original = graph('const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1,xs[1]+1);export default f;')
+        const first = assertOk(tryStringify(original))
+        assert(!first.includes('while('), first)
+        const normalized = graph(first)
+        const canonical = assertOk(tryStringify(normalized))
+        let current = normalized
+        for (let generation = 0; generation < 7; ++generation) {
+            assertStructurallySame(evaluate(['()', current, [3, 0]]), [0, 3])
+            assertEq(evaluate(['.', current, 'length']), 0)
+            assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+            assertEq(assertOk(tryStringify(current)), canonical)
+            current = graph(canonical)
+        }
+    },
     multiInputIgnoredArgumentsKeepSharedPairOrdering: () => {
         const observer = /** @type {Exp} */ (['=>', 2, [], ['?:', ['===', ['arg', 0], ['arg', 1]], 0, ['throw', 'lost pair identity']]])
         /** @type {readonly (readonly [string, Exp])[]} */
@@ -770,9 +847,9 @@ export const proof = /** @type {const} */ ({
         }
     },
     nestedSourceValuesRetainTheirExecutionRegions: () => {
-        // Observed rest retains recursive source, so every containing value
-        // must still be traversed even after fixed-input roots keep loops.
-        const fn = _tailFunction(['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['rest']]])
+        // Nonplain observed-rest roots retain recursive source, so every
+        // containing value must still be traversed after plain roots keep loops.
+        const fn = _tailFunction(['=>', 2, [], ['()', ['self'], [['arg', 0], ['arg', 1], ['...', ['rest']]]]])
         const inner = /** @type {Value} */ (['function', fn])
         const binding = /** @type {const} */ ({ index: 0 })
         const parameter = /** @type {const} */ ({ index: 0 })

@@ -1312,10 +1312,11 @@ export const proof = {
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(0,1);};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(...[0]);};')
-        // Source keeps recursive spelling for rest invocation loops,
-        // preserving the fresh array each reconstructed call creates.
-        writes(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]],
-            'export default ()=>{const $0=($1,...$2)=>{const $3=$1;const $4=$2;return $4.length?$0(0):$3;};return $0(0);};')
+        // Plain rest roots now retain loops and the shared fresh-rest slice.
+        // The first parse introduces the scalar helper; subsequent graphs
+        // and text keep the existing strict normalized round-trip checks.
+        assertEq(rewrites(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]]),
+            'export default ()=>{const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $5.length;})()){const $6=$3[0];const $7=$3[1];const $8=[0];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $14;})();return $13;};return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
         refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')

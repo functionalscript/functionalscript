@@ -160,6 +160,13 @@ the scalar helper, changing the associated graph and its reconstructed
 function text under the same exception; canonical graph/text cycles then
 stabilize.
 
+Observed-rest roots admitted by the same plain plan use their existing fresh
+rest transition and scalar or packed source preparation. Public fixed arity
+and rest syntax remain intact. Their first source parse can introduce the
+scalar helper under the same associated-graph/function-text exception; later
+graph and text cycles stay exact. Original logical graph function text and
+default JavaScript/Rust layouts retain their existing contracts.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function
