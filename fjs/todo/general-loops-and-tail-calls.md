@@ -218,8 +218,14 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       plain-loop plan now also compute their normal result after iteration,
       with either conditional arm continuing. A private unchanged slot retains
       empty public arity and the first-parse graph/text fixed point. Other
-      canonical invocation profiles retain their documented fallback. Final
-      integration evidence and public contract reconciliation remain before H/I close.
+      canonical invocation profiles retain their documented fallback. Rest-free
+      fixed multi-input roots in the plain-loop profile now emit source loops
+      with one private array slot and immutable per-input snapshots. Public
+      arity, ordered argument evaluation and simultaneous updates survive;
+      the first source parse establishes a stable scalar-helper normal form.
+      Default JavaScript/Rust layouts and logical loop signatures stay unchanged.
+      Final integration evidence and public contract reconciliation remain before
+      H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

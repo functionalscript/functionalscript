@@ -152,6 +152,14 @@ associated graph and therefore `String(f)` once. That normalized graph and its
 function text then stabilize; ordinary result values, arity, captures and
 required work retain their existing contracts.
 
+The source profile also packs eligible rest-free multi-input tail loops into
+one private array slot, retaining the original public parameter list and fresh
+per-iteration input snapshots. Default code-only and Rust layouts for the
+original logical graph stay unchanged. Its first source parse can introduce
+the scalar helper, changing the associated graph and its reconstructed
+function text under the same exception; canonical graph/text cycles then
+stabilize.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function

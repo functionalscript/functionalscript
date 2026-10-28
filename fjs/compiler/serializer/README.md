@@ -65,10 +65,19 @@ run at every test; only identity-free projection dependencies may be copied
 into the step or result. Other zero-input normal-result shapes retain their
 existing recursive fallback.
 
+Rest-free fixed multi-input roots in that same plain profile also emit source
+loops. Source preparation packs their initial and simultaneous next inputs into
+one private array slot, with immutable projected snapshots for each iteration
+and the final result. Either conditional arm may continue; the normal result
+runs after iteration. The public parameter list stays unchanged. This is a
+physical source layout: normalized logical loops and default JavaScript/Rust
+layouts retain their existing contracts. The first source parse establishes
+the scalar helper and its stable graph/text normal form.
+
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input roots outside the plain-loop plan, multi-input and
-observed-rest graphs keep their existing reifiable recursive forms; unsupported
+loop profile. Raw zero-input or multi-input roots outside the plain-loop plan
+and observed-rest graphs keep their existing reifiable recursive forms; unsupported
 factored profiles return an error instead of asserting or emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.

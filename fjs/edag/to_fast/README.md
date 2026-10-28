@@ -177,7 +177,13 @@ in either arm. Common preparation puts the result after iteration and supplies
 a private unchanged slot, without changing the function's empty public
 signature. Its first source parse constructs the canonical scalar helper;
 later graph/text cycles stay exact. Other zero-input normal-result shapes
-retain their recursive fallback. Other canonical roots use the graph
+retain their recursive fallback. Rest-free fixed multi-input roots are retained
+when the same plain-loop plan recognizes their terminal conditional. The source
+profile of common preparation packs those already-selected semantic inputs
+into one private array slot, preserving simultaneous updates, public arity and
+immutable capture snapshots. This changes the source-normalized graph once;
+later graph/text cycles stay exact. Logical graph conversion and default
+code-only JavaScript/Rust layouts are unchanged. Other canonical roots use the graph
 owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
