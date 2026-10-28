@@ -222,27 +222,6 @@ const readIndices = value => {
 }
 
 /**
- * Whether `value` is an array with a **hole**: an index below its `length`
- * at which it holds nothing. FunctionalScript builds no such array
- * ([arrays](../../../spec/values/arrays/README.md)) and DataJS has none, so
- * every reader refuses one wherever it reads a value, rather than answering
- * for it with a plausible wrong value — `parse` could rebuild it only by
- * shifting the positions after the hole or filling it with `undefined`.
- *
- * @type {(value: Unknown) => boolean}
- */
-export const hasHole = value =>
-    commonIsArray(value) && readIndices(value).length !== value.length
-
-/**
- * `IsContainer` guard for the array kinds: an array with no {@link hasHole}.
- *
- * @param {Unknown} value
- * @returns {value is ReadonlyArray<Unknown>}
- */
-const isDenseArray = value => isArray(value) && !hasHole(value)
-
-/**
  * The members of `value` that `declared` does not admit — every one the
  * schema's `rest` has to answer for, as `[key, value]` pairs.
  *
