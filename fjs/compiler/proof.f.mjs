@@ -735,6 +735,17 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        baseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];return[x,x];})();export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?(()=>{const x=[a];return[x,x];})():f(n-1,a+n);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         // Source logical syntax lowers once to conditionals. Each left value
         // is established once, right-side work stays in the selected arm,
         // and branch-local or captured arrays retain their shared identity.

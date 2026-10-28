@@ -234,6 +234,13 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       JavaScript/Rust layouts retain their contracts. Other
       rest profiles keep their documented fallback, and first-parse graph/text
       fixed points remain exact.
+      Rest-free fixed multi-input roots with required normal-arm definitions now
+      retain source loops in either conditional orientation. A shared normalizer
+      keeps that define-only prefix inside the break-result value block;
+      preparation runs it once after the final test with immutable final-input
+      snapshots. Shared/fresh result identities, captures and required failure
+      order survive without changing prior source or default JavaScript/Rust
+      layouts. Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,

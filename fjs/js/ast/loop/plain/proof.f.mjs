@@ -5,8 +5,8 @@
  * @import { BindingId, Block, Definition, Loop, Value } from '../../types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { continueFirstPlainLoopOf, plainLoopOf } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from './module.f.mjs'
 
 const state = /** @type {const} */ ({ index: 0 })
 const result = /** @type {const} */ ({ index: 1 })
@@ -27,6 +27,71 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    normalArmDefinitionsStayInOnePostLoopResultRegion: () => {
+        const shared = /** @type {const} */ ({ index: 4 })
+        /** @type {Definition} */
+        const projected = ['define', alias, ['.', ['ref', state], 0], 'required']
+        /** @type {Block} */
+        const continuing = { statements: [], exit: ['continue', target, [['ref', state], ['ref', other]]] }
+        /** @type {Block} */
+        const normal = { statements: [['define', shared, ['array', [['ref', alias], ['ref', other]]], 'required']],
+            exit: ['break', target, [['array', [['ref', shared], ['ref', shared]]]]] }
+        /** @type {Loop} */
+        const original = { ...scalar, parameters: [state, other], initial: [0, 1], body: {
+            statements: [projected, ['if', [], true, continuing, normal]], exit: ['yield', []],
+        } }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const source = { ...original, body: { ...original.body,
+                statements: [projected, ['if', [], true, baseFirst ? normal : continuing, baseFirst ? continuing : normal]],
+            } }
+            assertEq(plainLoopOf(source), null)
+            const retained = resultBlockPlainLoopOf(source)
+            assert(retained !== null)
+            assertEq(retained.target, source.target)
+            assertEq(retained.parameters, source.parameters)
+            assertEq(retained.initial, source.initial)
+            assertEq(retained.results, source.results)
+            assertEq(retained.body.exit, source.body.exit)
+            assertEq(retained.body.statements[0], projected)
+            const terminal = retained.body.statements.at(-1)
+            assert(terminal !== undefined && terminal[0] === 'if')
+            assertEq(terminal[2], true)
+            assertEq(baseFirst ? terminal[4] : terminal[3], continuing)
+            const final = baseFirst ? terminal[3] : terminal[4]
+            assertEq(final.statements.length, 0)
+            assert(final.exit[0] === 'break')
+            assertEq(final.exit[1], target)
+            const value = final.exit[2][0]
+            assert(value instanceof Array && value[0] === 'block')
+            assertEq(value[1].statements, normal.statements)
+            assert(value[1].exit[0] === 'yield' && normal.exit[0] === 'break')
+            assertEq(value[1].exit[1], normal.exit[2])
+            assert(plainLoopOf(retained) !== null)
+            assertEq(plainLoopOf(source), null)
+        }
+        for (const source of /** @type {readonly Loop[]} */ ([
+            { ...original, parameters: [state], initial: [0] },
+            { ...original, body: { statements: [], exit: ['yield', []] } },
+            { ...original, body: { statements: [projected], exit: ['yield', []] } },
+            { ...original, body: { ...original.body, statements: [['if', [], true, continuing, continuing]] } },
+            { ...original, body: { ...original.body, statements: [['if', [], true, continuing, { ...normal, statements: [] }]] } },
+            { ...original, body: { ...original.body, statements: [['if', [], true, continuing, {
+                ...normal, statements: [['define', shared, 0, 'lazy']],
+            }]] } },
+            { ...original, body: { ...original.body, statements: [['if', [], true, continuing, {
+                ...normal, statements: [['block', [], { statements: [], exit: ['yield', []] }]],
+            }]] } },
+            { ...original, results: [] },
+            { ...original, body: { ...original.body, statements: [
+                ['define', alias, ['array', [['ref', state]]], 'required'],
+                ['if', [], true, continuing, normal],
+            ] } },
+            { ...original, body: { ...original.body, statements: [['if', [], true, continuing, {
+                ...normal, exit: ['break', { kind: 'loop', index: 1 }, [['ref', shared]]],
+            }]] } },
+        ])) { assertEq(resultBlockPlainLoopOf(source), null) }
+    },
     baseFirstSingleInputReorientationKeepsRegionsAndDefaultDomain: () => {
         /** @type {Definition} */
         const projected = ['define', alias, ['.', ['ref', state], 0], 'required']

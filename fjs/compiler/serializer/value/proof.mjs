@@ -373,6 +373,86 @@ export const proof = {
             }
         }
     },
+    baseCaseDefinitionsRunOnceWithFinalSnapshots: async () => {
+        const recur = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], ['arg', 0]]]])
+        const shared = /** @type {Exp} */ (['[]', [['arg', 1]]])
+        const sum = /** @type {FunctionValue} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], recur, ['[]', [shared, shared]]]])
+        for (const text of [assertOk(tryStringify(sum)), stringify(sum)]) {
+            assert(text.includes('while('), text)
+            const run = await load(text)
+            assertEq(run.length, 2)
+            const first = run(100_000, 0)
+            const second = run(100_000, 0)
+            assertEq(first[0], first[1])
+            assert(first !== second)
+            assert(first[0] !== second[0])
+            assertStructurallySame(first, [[5_000_050_000], [5_000_050_000]])
+        }
+        const snapshot = /** @type {Exp} */ (['[]', [['arg', 0], ['arg', 1]]])
+        const base = /** @type {Exp} */ (['()', ['frame', 1], [snapshot, snapshot, ['frame', 2]]])
+        const read = /** @type {Exp} */ (['=>', 0, [['arg', 0], ['arg', 1], base, ['frame', 2]],
+            ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]])
+        const result = /** @type {Exp} */ (['[]', [base, base, read, ['frame', 2]]])
+        const test = /** @type {Exp} */ (['()', ['frame', 0], [['arg', 0], ['arg', 1]]])
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            const factory = /** @type {FunctionValue} */ (['=>', 2, [], ['=>', 2, [['arg', 0], ['arg', 1], ['[]', [9]]],
+                ['?:', reversed ? ['!', test] : test, reversed ? result : recur, reversed ? recur : result],
+            ]])
+            for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+                assert(text.includes('while('), text)
+                const make = await load(text)
+                let tests = 0
+                let bases = 0
+                let start = 0
+                /** @type {readonly number[] | undefined} */
+                let previous
+                const run = make(
+                    /** @type {(n: number, a: number) => boolean} */ ((n, a) => {
+                        assertEq(n, start - tests)
+                        tests += 1
+                        return n > 0
+                    }),
+                    /** @type {(first: readonly number[], second: readonly number[], seed: readonly number[]) => readonly unknown[]} */ ((first, second, seed) => {
+                        assertEq(tests, start + 1)
+                        assertEq(bases, 0)
+                        assertEq(first, second)
+                        assert(first !== previous)
+                        previous = first
+                        bases += 1
+                        return [first[0], first[1], seed]
+                    }),
+                )
+                assertEq(run.length, 2)
+                /** @param {number} n @param {number} initial @param {number} expected */
+                const invoke = (n, initial, expected) => {
+                    start = n
+                    tests = 0
+                    bases = 0
+                    const value = run(n, initial)
+                    assertEq(tests, n + 1)
+                    assertEq(bases, 1)
+                    assertEq(value[0], value[1])
+                    assertEq(value[0][0], 0)
+                    assertEq(value[0][1], expected)
+                    assertEq(value[0][2], value[3])
+                    const captured = value[2]()
+                    assertStructurallySame(captured.slice(0, 2), [0, expected])
+                    assertEq(captured[2], value[0])
+                    assertEq(captured[3], value[3])
+                    return value
+                }
+                for (const [n, initial, expected] of /** @type {const} */ ([[100_000, 0, 5_000_050_000], [0, 7, 7]])) {
+                    const first = invoke(n, initial, expected)
+                    const second = invoke(n, initial, expected)
+                    assert(first !== second)
+                    assert(first[0] !== second[0])
+                    assert(first[2] !== second[2])
+                    assertEq(first[3], second[3])
+                    assertStructurallySame(first[3], [9])
+                }
+            }
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])

@@ -508,6 +508,67 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    multiInputNormalDefinitionsKeepSharingCapturesAndFirstParseFixedPoints: () => {
+        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const parameters = ['n', ...names].join(',')
+        const updates = ['n-1', ...names.map(name => `${name}+1`)].join(',')
+        const arguments_ = ['3', ...names.map((_, index) => `${index}`)].join(',')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];return [x,x];})();export default [f.length,f(3,0)];', [2, [[6], [6]]]],
+            ['const f=(n,a)=>n===0?(()=>{const x=[a];return [x,x];})():f(n-1,a+n);export default f(3,0);', [[6], [6]]],
+            ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];return [x,x];})();const a=f(0,7);const b=f(0,7);export default [a[0]===a[1],a[0]===b[0],a===b,a];', [true, false, false, [[7], [7]]]],
+            ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];const y=[a];return [x===y,x,x,y];})();export default f(2,0);', [false, [3], [3], [3]]],
+            ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[n,a];return ()=>x;})();const read=f(3,0);export default [read()===read(),read()];', [true, [0, 6]]],
+            ['const seed=[9];const f=(n,a)=>n===0?(()=>{const x=[a,seed];return [x,x];})():f(n-1,a);const result=f(2,seed);export default [result[0]===result[1],result[0][0]===seed,result[0][1]===seed];', [true, true, true]],
+            ['const f=(n,a)=>n>0?f(n-1,a+1):(()=>{const arity=()=>f.length;const x=[arity];return [x,x];})();const result=f(3,0);export default [f.length,result[0]===result[1],result[0][0]()];', [2, true, 2]],
+            ['const f=(n,a)=>n>0?f(...[n-1,a+1]):(()=>{const x={value:a};return [x,x];})();const result=f(3,0);export default [result[0]===result[1],result];', [true, [{ value: 3 }, { value: 3 }]]],
+            ['const f=(n,a)=>n>0?f(n-1):(()=>{const x=[a];return [x,x];})();export default f(2,9);', [[undefined], [undefined]]],
+            ['const f=(n,a)=>n===0?(()=>{const x=[a];return [x,x];})():f(n-1,a,7,8);export default f(2,9);', [[9], [9]]],
+            ['const f=(n,a)=>n>0?f(n-1,a+1):(()=>{const x=[a];const y=()=>x;return [y,y];})();const result=f(3,0);export default [result[0]===result[1],result[0]()===result[1](),result[0]()];', [true, true, [3]]],
+            [`const f=(${parameters})=>n>0?f(${updates}):(()=>{const x=[x0,x14];return [x,x];})();const result=f(${arguments_});export default [f.length,result[0]===result[1],result];`, [16, true, [[3, 17], [3, 17]]]],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected, source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    multiInputNormalDefinitionsKeepRequiredFailuresAndFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>n>0?f(n-1,a):(()=>{const required=null.x;const x=[a];return [x,x];})();export default f(2,7);',
+            'const f=(n,a)=>n===0?(()=>{const x=[a];const required=null.x;return [x,x];})():f(n-1,a);export default f(0,7);',
+            'const f=(n,a)=>n>0?f(n-1,a,null.x):(()=>{const x=[a];return [x,x];})();export default f(1,7);',
+            'const f=(n,a)=>n>0?f(n-1,a,...null):(()=>{const x=[a];return [x,x];})();export default f(1,7);',
+            'const f=(n,a)=>n>0?f(n-1,a):(()=>{const x=[a];return [x,x];})();export default f(0,7,null.x);',
+            'const f=(n,a)=>{const required=null.x;return n>0?f(n-1,a):(()=>{const x=[a];return [x,x];})();};export default f(0,7);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
     observedRestPlainLoopsKeepArityFreshArraysAndFirstParseFixedPoints: () => {
         const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
         const parameters = ['n', ...names, '...xs'].join(',')
