@@ -242,8 +242,15 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       snapshots. Shared/fresh result identities, captures and required failure
       order survive without changing prior source or default JavaScript/Rust
       layouts. Fixed-plus-rest base work retains the final invocation's fresh
-      rest array, including an empty one, without reslicing it. Other normal-arm
-      profiles retain their documented fallback.
+      rest array, including an empty one, without reslicing it. Rest-only roots
+      now use the same result-block normalizer for their one semantic input,
+      composing with the existing orientation helper when the base case comes
+      first. Scalar preparation preserves empty public fixed arity, final rest
+      identity, once-after-test base work and exact first-parse graph/text cycles.
+      Source preparation exposes leading total post-loop constructors in their
+      enclosing region so required allocation order survives later rest
+      projections and held base captures from the first parse.
+      Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,

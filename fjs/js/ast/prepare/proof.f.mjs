@@ -36,6 +36,56 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    scalarSourceResultExposesTotalPrefixesBeforeProjectionReads: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), result = id(1), shared = id(2), observer = id(3), later = id(4)
+        /** @type {NormalValue} */
+        const pair = ['array', [['ref', state]]]
+        /** @type {NormalValue} */
+        const returned = ['array', [['.', ['ref', state], 1], ['ref', shared], ['ref', shared]]]
+        /** @type {(statements: readonly Definition[], sourceLoops?: boolean) => Block} */
+        const plan = (statements, sourceLoops = true) => prepare({ statements: [['loop', {
+            target, parameters: [state], initial: [['array', [0, 7]]], results: [result], body: {
+                statements: [['if', [], false,
+                    { statements: [], exit: ['continue', target, [['ref', state]]] },
+                    { statements: [], exit: ['break', target, [['block', { statements, exit: ['yield', [returned]] }]]] },
+                ]], exit: ['yield', []],
+            },
+        }]], exit: ['yield', [['ref', result]]] }, { sourceLoops })
+        /** @type {readonly Definition[]} */
+        const definitions = [['define', shared, pair, 'required']]
+        const source = plan(definitions)
+        assertStructurallySame(source.statements.map(statement => statement[0]), ['while', 'define', 'define', 'define'])
+        const physical = source.statements[0]
+        const snapshot = source.statements[1]
+        const allocation = source.statements[2]
+        const completed = source.statements[3]
+        assert(physical[0] === 'while' && snapshot[0] === 'define' && allocation[0] === 'define' && completed[0] === 'define')
+        assertStructurallySame(snapshot[2], ['ref', physical[1].result])
+        assertEq(allocation[1], shared)
+        assertStructurallySame(allocation[2], ['array', [['ref', snapshot[1]]]])
+        assertEq(completed[1], result)
+        assertStructurallySame(completed[2], ['array', [['.', ['ref', snapshot[1]], 1], ['ref', shared], ['ref', shared]]])
+        const ordinary = plan(definitions, false)
+        assertStructurallySame(ordinary.statements.map(statement => statement[0]), ['while', 'define'])
+        const ordinaryResult = ordinary.statements[1]
+        assert(ordinaryResult[0] === 'define' && ordinaryResult[2] instanceof Array && ordinaryResult[2][0] === 'block')
+        for (const barrier of /** @type {const} */ ([['()', ['ref', observer], [['ref', state]]], ['.', null, 0]])) {
+            const retained = plan([
+                ['define', shared, barrier, 'required'], ['define', later, pair, 'required'],
+            ])
+            assertStructurallySame(retained.statements.map(statement => statement[0]), ['while', 'define', 'define'])
+            const alias = retained.statements[1]
+            const final = retained.statements[2]
+            assert(alias[0] === 'define' && final[0] === 'define' && final[2] instanceof Array && final[2][0] === 'block')
+            assertStructurallySame(final[2][1].statements.map(statement => statement[1]), [shared, later])
+            const first = final[2][1].statements[0]
+            const second = final[2][1].statements[1]
+            assert(first[0] === 'define' && second[0] === 'define')
+            assertStructurallySame(first[2], barrier[0] === '()' ? ['()', ['ref', observer], [['ref', alias[1]]]] : barrier)
+            assertStructurallySame(second[2], ['array', [['ref', alias[1]]]])
+        }
+    },
     packedSourceExposesOnlyEstablishedConstructorPrefixes: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const child = /** @type {const} */ ({ kind: 'function', index: 0 })

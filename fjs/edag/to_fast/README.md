@@ -198,16 +198,26 @@ roots use the graph owner's existing transfer resolver. Synthesized invocation-r
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
-For validated rest-free roots with several fixed inputs, or fixed-plus-rest
+For validated rest-free roots with several fixed inputs, or observed-rest
 roots, a required define-only normal-arm prefix can move into the break-result
 value block through the shared plain-loop helper. It creates no function or
-invocation boundary. Definitions
-keep their bindings, order and lexical region, and common preparation supplies
-immutable final-input snapshots before evaluating that result once. Calls,
+invocation boundary. Definitions keep their bindings, order and lexical region,
+and common preparation supplies immutable final-input snapshots before evaluating
+that result once. Calls,
 allocations and closures remain after the final test, with their sharing and
 failure order intact. Base work observes the final invocation's rest array
 without reslicing it. The candidate must satisfy the existing plain-loop
 restrictions; other profiles retain their prior source spelling or refusal.
+
+Rest-only roots have one semantic input. Source admission tries their existing
+orientation first, then result-block wrapping; a wrapped base-first candidate
+uses the same orientation helper. Existing scalar preparation retains empty
+public fixed arity and the final rest snapshot. Preparation exposes leading
+total result aliases and constructors after the loop, preserving their required
+order when the result reads a rest projection before a shared allocation.
+Calls, lookups and selected regions retain their placement boundaries.
+Other single-input and zero-input
+roots, and lazy or structured normal-arm prefixes, keep their previous admission.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

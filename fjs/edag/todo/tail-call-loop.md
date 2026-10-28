@@ -153,12 +153,12 @@ parsing establishes the canonical scalar helper under the existing graph/hash
 and function-text exception, followed by exact graph/text cycles. Shared logical
 conversion and default code-only JavaScript/Rust layouts remain unchanged.
 
-Rest-free fixed multi-input roots and fixed-plus-rest roots now also retain source
+Rest-free fixed multi-input roots and observed-rest roots now also retain source
 loops when their normal arm has required definitions before its result. A shared
 source-only normalizer wraps that define-only prefix in the break-result value
-block, clears the arm's
-statement prefix and validates the candidate through the unchanged plain-loop
-plan. Both conditional orientations retain exact targets and binding identities.
+block, clears the arm's statement prefix and validates the candidate through the
+unchanged plain-loop plan. Both conditional orientations retain exact targets
+and binding identities.
 Existing common preparation establishes immutable final-input snapshots, then
 runs the base work once after the final test. Base allocations stay shared within
 one invocation and fresh between invocations; final closures keep their captures,
@@ -169,12 +169,24 @@ Their required base work observes the final invocation's fresh rest array,
 including an empty one, without creating another slice. Sharing within the
 result and escaped final captures retain that array's identity.
 
+Rest-only roots use that result-block normalization for their single semantic
+input. A base-first wrapped candidate passes through the existing orientation
+helper before the unchanged plain-loop planner. Both orientations then use scalar
+source preparation, with empty public fixed arity and the same final rest array.
+Required base work runs once after the final test, including zero iterations;
+rest sharing, escaped captures and reached failures retain their owners.
+Source preparation exposes leading total final-state aliases and constructors
+after the loop, before later result projections. Calls, lookups and selected
+regions keep their placement boundaries. This establishes required allocation
+order in the first parsed graph, including results that read a rest projection
+before a shared base allocation or its capturing closure.
+
 This profile is limited to canonical rest-free roots with multiple fixed
-parameters or roots with at least one fixed parameter and observed rest.
-Rest-only, zero-input and lazy or structured normal-arm prefixes retain their
-previous admission and fallback. The first source parse
-establishes the permitted scalar-helper boundary; later graph/text cycles remain
-exact. Logical conversion, original default JavaScript/Rust layouts and prior
+parameters or roots with observed rest. Other single-input and zero-input roots,
+and lazy or structured normal-arm prefixes, retain their previous admission and
+fallback. The first source parse establishes the permitted scalar-helper
+boundary; later graph/text cycles remain exact. Logical conversion, original
+default JavaScript/Rust layouts and prior
 source spellings retain their contracts.
 
 ### Problem

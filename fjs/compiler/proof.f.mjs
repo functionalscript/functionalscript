@@ -757,6 +757,19 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        restOnlyBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const x=[xs];return[x,x];})():f(xs[0]-1);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1,()=>xs,...xs.slice(2)):(()=>{const pair=[xs];return[xs[1],()=>pair];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const pair=[xs];return[xs[1],()=>pair];})():f(xs[0]-1,()=>xs,...xs.slice(2));export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         // Source logical syntax lowers once to conditionals. Each left value
         // is established once, right-side work stays in the selected arm,
         // and branch-local or captured arrays retain their shared identity.

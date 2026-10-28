@@ -89,18 +89,23 @@ orientations emit bounded-stack source. First-parse graph/text stability and
 the existing default JavaScript/Rust layouts follow the same contracts as
 fixed-input roots.
 
-Rest-free fixed multi-input roots and fixed-plus-rest roots may also retain
-loops when the normal arm has required definitions before its result. A shared
-source-only helper wraps that define-only prefix in the break-result value
+Rest-free fixed multi-input roots, fixed-plus-rest roots and rest-only roots may
+also retain loops when the normal arm has required definitions before its result.
+A shared source-only helper wraps that define-only prefix in the break-result value
 block, preserving bindings and order. Existing preparation establishes final
-input snapshots, then runs
-the block once after the last test. Base allocations remain shared within a
-result and fresh between invocations. Required calls run once, preserving their
+input snapshots, then runs the block once after the last test. Base allocations
+remain shared within a result and fresh between invocations. Required calls run
+once, preserving their
 result identities, and base work stays absent from continuing iterations.
 Base results and escaped closures retain the final rest array's identity.
-Both conditional orientations use the same plain-plan validation. Rest-only,
-zero-input and nonrequired or structured base prefixes retain their existing
-admission and fallback.
+For a rest-only root with its base case first, result wrapping composes with the
+existing single-input orientation helper before scalar preparation. Public fixed
+arity stays zero and the final rest array is not sliced again. Both conditional
+orientations use the same plain-plan validation. Leading total result aliases
+and constructors are emitted in the enclosing post-loop region, retaining
+required allocation order before later rest projections. Calls, lookups and
+selected regions keep their evaluation boundaries. Zero-input and nonrequired or
+structured base prefixes retain their existing admission and fallback.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
