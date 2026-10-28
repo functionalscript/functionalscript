@@ -1,6 +1,6 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { directions, tryFlowchart } from './module.f.js'
+import { directions, maxEdges, tryFlowchart } from './module.f.js'
 
 /** The refusal of `text`, or `null` where it is read. @type {(text: string) => string | null} */
 const refusal = text => {
@@ -52,6 +52,12 @@ export const proof = {
         quotedEdgeLabel: () => assertEq(refusal('flowchart LR\na -->|"copy"| b\n'), 'line 2: a label holding ", which Mermaid does not show as written'),
         quoteInLabel: () => assertEq(refusal('flowchart LR\na["x"y"]\n'), 'line 2: a label holding ", which Mermaid does not show as written'),
         edgeMarkup: () => assertEq(refusal('flowchart LR\na -->|a&b| b\n'), 'line 2: a label holding &, which Mermaid does not show as written'),
+        // Mermaid draws at most `maxEdges` arrows; one more is refused.
+        tooManyArrows: () => {
+            const chain = Array.from({ length: maxEdges + 1 }, (_, i) => `n${i} --> n${i + 1}`).join('\n')
+            assertEq(refusal(`flowchart LR\n${chain}\n`), 'more than 500 arrows, which Mermaid does not draw')
+            assertEq(refusal(`flowchart LR\n${chain.split('\n').slice(1).join('\n')}\n`), null)
+        },
         labelledTwice: () => assertEq(refusal('flowchart LR\na["x"]\na["y"]\n'), 'line 3: a node labelled twice: a'),
     },
     errorShape: () => assertStructurallySame(tryFlowchart('flowchart LR\n-->\n'), error('line 2: a node expected at 0')),
