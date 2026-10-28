@@ -12,6 +12,7 @@ export const miseInstall = /** @type {const} */ ({ type: 'test', step: uses('jdx
     version: '2026.10.19',
     install_args: '--locked',
     cache: 'true',
+    cache_max_age_days: '0',
     env: 'false',
     add_shims_to_path: 'false',
 }) })

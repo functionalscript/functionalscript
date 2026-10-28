@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Architecture, MetaStep, Os } from './common/types.ts'
+import type { Architecture, Jobs, MetaStep, Os } from './common/types.ts'
 
 /**
  * What the packed-package check asks of the tarball as a clean consumer: a
@@ -23,6 +23,8 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
+    /** Fully assembled project jobs, outside platform setup and successful-check caching. */
+    readonly extraJobs?: Jobs,
     /** Use existing project-owned mise manifests instead of the default generated Nix setup. */
     readonly environment?: 'mise',
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
