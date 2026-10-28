@@ -20,9 +20,10 @@
  * comment, a node shape other than a box, a `;` or `&`, a dotted or thick
  * arrow — is refused, with the line it is on.
  *
- * **A label is plain text.** Mermaid reads `<br/>`, `#quot;`, `&amp;` and a
- * backtick's Markdown inside a label, so a label holding `<`, `>`, `&`,
- * `#`, `\` or a backtick is refused rather than drawn as its spelling. A
+ * **A label is plain text.** Mermaid reads `<br/>`, `#quot;`, `&amp;`, a
+ * backtick's Markdown and a quote's delimiting inside a label, so a label
+ * holding `<`, `>`, `&`, `#`, `\`, a backtick or `"` is refused rather than
+ * drawn as its spelling. A
  * node labelled twice is refused unless both labels agree, and `end`, which
  * Mermaid's own grammar takes as a keyword, is no name.
  *
@@ -42,8 +43,12 @@ export const directions = ['LR', 'RL', 'TB', 'TD', 'BT']
 /** @type {(c: string) => boolean} */
 const isNameChar = c => charIs(isLatinLetter)(c) || charIs(isDigit)(c) || c === '_'
 
-/** What Mermaid reads inside a label, and a plain label therefore never holds. */
-const markup = '<>&#\\`'
+/**
+ * What Mermaid reads inside a label rather than showing — markup, and a
+ * quote, which delimits a label, `-->|"text"|` included — and a plain label
+ * therefore never holds.
+ */
+const markup = '<>&#\\`"'
 
 /** @type {(line: string, at: number) => number} */
 const skipSpaces = (line, at) => {
@@ -63,7 +68,7 @@ const labelAt = (line, at, close) => {
     const label = line.slice(at, end)
     if (label === '') { return error('an empty label') }
     const c = [...label].find(c => markup.includes(c))
-    if (c !== undefined) { return error(`a label holding ${c}, which Mermaid reads as markup`) }
+    if (c !== undefined) { return error(`a label holding ${c}, which Mermaid does not show as written`) }
     return ok([label, end + close.length])
 }
 
