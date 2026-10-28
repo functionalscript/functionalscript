@@ -45,6 +45,52 @@ const sourceFunction = fn => {
 }
 
 export const proof = {
+    sourceContinuingOnlyTreesPackInputsBeforeTheStateWrite: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), other = id(1), result = id(2), pair = id(3)
+        /** @type {readonly NormalValue[]} */
+        const next = [['.', ['ref', pair], 1], ['.', ['ref', pair], 0]]
+        /** @type {NormalBlock} */
+        const step = { statements: [], exit: ['continue', target, next] }
+        /** @type {Definition} */
+        const prefix = ['define', pair, ['array', [['ref', state], ['ref', other]]], 'required']
+        for (const body of /** @type {readonly NormalBlock[]} */ ([
+            { statements: [prefix], exit: step.exit },
+            { statements: [prefix, ['if', [], ['>', ['ref', state], 0], step, step]], exit: ['yield', []] },
+        ])) {
+            /** @type {NormalBlock} */
+            const block = { statements: [['loop', { target, parameters: [state, other], initial: [2, 3], results: [result], body }]], exit: ['yield', [['ref', result]]] }
+            assert(prepare(block).statements.some(statement => statement[0] === 'loop'))
+            const source = prepare(block, { sourceLoops: true })
+            assertStructurallySame(source.statements.map(statement => statement[0]), ['define', 'while'])
+            const initial = source.statements[0], physical = source.statements[1]
+            assert(initial[0] === 'define' && physical[0] === 'while')
+            assertStructurallySame(initial[2], ['array', [2, 3]])
+            assertEq(physical[1].condition, true)
+            assertEq(physical[1].mutable, true)
+            for (const [index, parameter] of [state, other].entries()) {
+                const snapshot = physical[1].body.statements[index]
+                assert(snapshot[0] === 'define')
+                assertEq(snapshot[1], parameter)
+                assertStructurallySame(snapshot[2], ['.', ['ref', physical[1].slot], index])
+            }
+            const required = physical[1].body.statements[2]
+            assert(required[0] === 'define')
+            assertEq(required[1], pair)
+            const last = physical[1].body.statements.at(-1)
+            assert(last !== undefined)
+            for (const arm of last[0] === 'if' ? [last[2], last[3]] : [physical[1].body]) {
+                const transfer = arm.statements.slice(-2)
+                const established = transfer[0], write = transfer[1]
+                assert(established[0] === 'define' && write[0] === 'write')
+                assertStructurallySame(established[2], ['array', next])
+                assertEq(write[1], physical[1].slot)
+                assertStructurallySame(write[2], ['ref', established[1]])
+                assertEq(arm.exit[0], 'continue')
+                assertEq(arm.exit[1], target)
+            }
+        }
+    },
     sourceZeroInputTerminalTreesUseOnlyAResultSlot: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const result = id(0), pair = id(1), reached = id(2)
