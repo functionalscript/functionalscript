@@ -177,7 +177,7 @@ const canonicalJobs = packageConsumer => ({
  *
  * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
  */
-const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false }) => rust => {
+const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false, extraJobs = {} }) => rust => {
     /** @type {Jobs} */
     const jobs = {
         ...Object.fromEntries(os.flatMap(o =>
@@ -206,7 +206,7 @@ const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = fals
         permissions: {
             contents: 'read',
         },
-        jobs: smart ? smartJobs(selectedJobs) : selectedJobs,
+        jobs: { ...(smart ? smartJobs(selectedJobs) : selectedJobs), ...extraJobs },
     }
     return [
         [ciPath, workflowText(gha)],
