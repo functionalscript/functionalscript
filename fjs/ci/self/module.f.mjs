@@ -27,7 +27,7 @@ const buildMetadata = /** @type {const} */ ({
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * read-only job runs on pull requests, including drafts and forks, and
+ * job runs on pull requests, including drafts and forks, and
  * merge-group entries, and pushes to main. Same-repository pull requests upload
  * a preview; main pushes deploy production.
  * It runs independently of the test jobs
@@ -40,7 +40,7 @@ const buildMetadata = /** @type {const} */ ({
 export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
-    permissions: { contents: 'read' },
+    permissions: { contents: 'read', 'pull-requests': 'write' },
     steps: [
         uses('actions/checkout'),
         miseInstall.step,
@@ -66,6 +66,7 @@ export const websiteJob = {
             env: {
                 CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
                 WORKERS_CI_BRANCH: '${{ github.head_ref }}',
+                GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
             },
         },
         {

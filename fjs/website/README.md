@@ -264,7 +264,12 @@ For example, `codex/cloudflare-deploy-job` becomes
 `https://actions-codex-cloudflare-deploy-job-functionalscript.functionalscript.workers.dev`.
 An empty branch portion is refused. Different branch names
 can normalize to the same alias, so keep preview branch aliases distinct.
-The upload logs report the version and alias URLs. Workers Builds keeps its
+The upload logs report the version and alias URLs. After a successful Actions
+preview upload, github-actions[bot] posts an Open preview link on the PR and
+updates that same comment on later pushes. It reads the actual alias URL from
+Wrangler output and uses the automatic Actions token with pull-request write
+permission; no additional secret, action, or setting is required. Forks and
+merge-group runs never post preview comments. Workers Builds keeps its
 existing unprefixed aliases during testing; remove the temporary Actions prefix
 after cutover. Check OAuth on the alias URL as well as
 the commit preview URL.

@@ -68,9 +68,11 @@ branch-alias rules, cutover and rollback are documented in
 
 ### Preview links
 
-The owner requested a preview URL comment on each same-repository PR. Publish
-it only after a successful Actions upload, and update the existing bot comment
-on later runs. Use the automatic Actions token; require no additional settings.
+The existing CI website job creates or updates one bot-owned PR comment after
+each successful preview upload. It uses the alias URL reported by Wrangler
+and the automatic Actions token with pull-request write permission. Drafts
+are included; fork PRs and merge groups stay build-only. No extra settings are
+needed, and failed uploads never publish a preview comment.
 
 ### Tasks
 

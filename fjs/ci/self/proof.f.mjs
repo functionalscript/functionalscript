@@ -58,7 +58,7 @@ export const proof = {
         for (const id of Object.keys(generated.jobs).filter(id => id !== 'website')) {
             assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
         }
-        assertStructurallySame(websiteJob.permissions, { contents: 'read' })
+        assertStructurallySame(websiteJob.permissions, { contents: 'read', 'pull-requests': 'write' })
         assertEq(generated.jobs.website?.needs, undefined)
         assertEq(generated.jobs.website?.if, undefined)
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
@@ -97,6 +97,7 @@ export const proof = {
         assertStructurallySame(preview?.env, {
             CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
             WORKERS_CI_BRANCH: '${{ github.head_ref }}',
+            GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
         })
         const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
         assertEq(generic.on.push, undefined)

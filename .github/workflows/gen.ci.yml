@@ -1255,7 +1255,8 @@
       "runs-on": "ubuntu-26.04",
       "timeout-minutes": 30,
       "permissions": {
-        "contents": "read"
+        "contents": "read",
+        "pull-requests": "write"
       },
       "steps": [
         {
@@ -1309,7 +1310,8 @@
           "shell": "bash",
           "env": {
             "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref }}"
+            "WORKERS_CI_BRANCH": "${{ github.head_ref }}",
+            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
           }
         },
         {

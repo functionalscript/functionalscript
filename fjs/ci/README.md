@@ -42,11 +42,13 @@ do not run CI or create previews. Pushes to `main` run only the existing website
 job to deploy production; test jobs remain PR and merge-queue checks.
 It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
-The job has read-only GitHub permissions, runs independently of test jobs, and always
+The job can read contents and write PR comments, runs independently of test jobs, and always
 builds its assets outside the successful-check cache. It passes the checked-out SHA
 and source branch to both the Rustdoc header generator and the website generator
 through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
-Same-repository pull requests upload a preview after the build succeeds.
+Same-repository pull requests upload a preview after the build succeeds and
+create or update one bot comment with the actual preview URL. The automatic
+Actions token is passed only to the preview upload step; no new secret is needed.
 The same job deploys production on pushes to `main`. Main deployments are
 serialized without cancelling an active upload; superseded PR runs are cancelled.
 Fork pull requests and merge-group runs never upload. Deployment secrets are scoped
