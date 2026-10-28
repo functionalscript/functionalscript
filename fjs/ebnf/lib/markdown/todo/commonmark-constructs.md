@@ -32,6 +32,7 @@ than argued from the spec:
 | a blank line inside an item | two paragraphs, a loose list | read as that in a README; refused in a release file |
 | a pipe table | a table (GitHub's extension) | read as that in a README when every row opens with a pipe; refused in a release file |
 | `-     code`, five spaces after the dash | an indented code block in the item | refused |
+| a `mermaid`, `geojson`, `topojson` or `stl` fence | a diagram, map or 3D model (GitHub's extension) | refused, in any case |
 
 ### What is accepted and still read differently
 

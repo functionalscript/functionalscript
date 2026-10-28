@@ -563,6 +563,13 @@ const headingLevel = line => {
     return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
 }
 
+/**
+ * The fence identifiers GitHub draws rather than shows as code: a diagram, a
+ * map or a 3D model ([GitHub's documentation](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams)).
+ * A page that showed their source would differ from GitHub without saying so.
+ */
+const drawnFences = ['mermaid', 'geojson', 'topojson', 'stl']
+
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
 const isFence = line => line.startsWith('```')
 
@@ -748,6 +755,7 @@ const readBlocks = (base, inItem) => lines => {
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuseAt(i, 'a code fence whose info string is not one word') }
             if (info.includes('\\')) { return refuseAt(i, 'a code fence whose info string contains a backslash escape') }
             if ([...info].some((_, index) => entityAt(info, index))) { return refuseAt(i, 'an entity in a code fence info string') }
+            if (drawnFences.includes(info.toLowerCase())) { return refuseAt(i, `a ${info} fence, which GitHub draws rather than shows as code`) }
             const close = lines.findIndex((candidate, index) => index > i && isClosingFence(candidate))
             if (close === -1) { return refuseAt(i, 'a code fence that is never closed') }
             out = [...out, [['code', info, close === i + 1 ? '' : lines.slice(i + 1, close).join('\n') + '\n'], i, close]]

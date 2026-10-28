@@ -450,6 +450,13 @@ export const proof = {
             // GitHub trims a tab around the info string as it does a space.
             fenceInfoTab: () => assertEq(refusal('```\tjs\n```\n'), 'line 1: a code fence whose info string is not one word'),
             fenceBacktick: () => assertEq(refusal('```a`\n```\n')?.startsWith('line 1: a code fence'), true),
+            // GitHub draws these: their source is not what a reader sees there.
+            drawnFence: () => {
+                for (const info of ['mermaid', 'geojson', 'topojson', 'stl', 'Mermaid']) {
+                    assertEq(refusal(`a\n\n\`\`\`${info}\nx\n\`\`\`\n`), `line 3: a ${info} fence, which GitHub draws rather than shows as code`)
+                }
+            },
+            drawnFenceInItem: () => assertEq(refusal('- a\n\n  ```mermaid\n  x\n  ```\n'), 'line 3: a mermaid fence, which GitHub draws rather than shows as code'),
             unclosedFence: () => assertEq(refusal('a\n\n```\nb\n'), 'line 3: a code fence that is never closed'),
             emptyHeading: () => assertEq(refusal('# \n'), 'line 1: a heading that is empty or closed by `#`'),
             // A marker that ends the line is an empty heading on GitHub, not prose.
