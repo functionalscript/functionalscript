@@ -37,15 +37,23 @@ using the existing source grammar.
 General fixed-parameter tail calls use loops in code-only JavaScript and Rust.
 Source output retains rest-free canonical invocation roots recognized by the
 shared scalar or plain-loop plan, plus one-input/one-result structured loops
-whose transfers target their nearest loop and whose regions the source grammar
-admits. This includes aggregate helpers for zero or multiple source state
-values. Common preparation emits ordinary `while` statements; the plain-loop
+whose loop transfers target their nearest loop and whose regions the source
+grammar admits. Their returns retain the enclosing function owner, and statement
+throws retain their reached evaluation and failure propagation. This includes
+aggregate helpers for zero or multiple source state values. Common preparation
+emits ordinary `while` statements; the plain-loop
 plan computes its normal result after the final false test. The structured
 source profile shares one physical state/result slot, spelling `break` and
 `continue` without labels. Other canonical invocation roots retain recursive
 source spelling through the existing transfer resolver. The adapter repeats no
 graph placement or tail eligibility analysis; required function owners retain
 recursive names where needed.
+
+Source preparation returns a refusal when a newly factored terminal recipe
+requires normally completing guards outside the admitted one-input/one-result
+loop profile. Raw zero-input, multi-input and observed-rest graphs keep their
+existing reifiable recursive forms; unsupported factored profiles return an
+error instead of asserting or emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and
@@ -71,3 +79,8 @@ Source output continues to refuse frame layouts and lazy graphs the parser
 cannot represent. The existing source proofs retain every graph fixture and
 check graph normalization, text fixed points and agreement between token marks
 and tokenization in addition to representative exact output strings.
+
+The shared return pass forwards the sole result of an immediately returned
+statement region into its normal leaves before graph construction. Terminal
+source guards and switches containing loop returns therefore keep their reached
+values within the selected region, without introducing source memo storage.

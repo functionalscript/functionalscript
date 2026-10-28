@@ -24,7 +24,7 @@ import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
 import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
-import { liftReturns } from '../../js/ast/returns/module.f.mjs'
+import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
@@ -36,9 +36,9 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered, established?: readonly Exp[]) => Exp} */
-export const anchored = (value, established = []) => {
-    const count = requiredPrefixLength(value.exp, value.anchors, established)
+/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered, established?: readonly Exp[], selected?: readonly (readonly [Exp, boolean])[]) => Exp} */
+export const anchored = (value, established = [], selected = []) => {
+    const count = requiredPrefixLength(value.exp, value.anchors, established, selected)
     return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
 }
 
@@ -401,7 +401,7 @@ const lowerValues = (input, context) => {
 /** @type {(fn: FastFunction, context: Context) => Task<Lowered>} */
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
-    const lifted = liftReturns(source.body, source.target)
+    const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
     const memoized = normalizeMemo(lifted, [], source.target)
     /** @type {FastFunction} */
     const prepared = memoized === source.body ? source : { ...source, body: memoized }
@@ -588,22 +588,60 @@ const regionHasControl = (statement, context) => {
 const controlPrefix = (anchors, next) => anchors.length === 0 ? next : { normal: next.normal, node: { kind: 'prefix', anchors, next } }
 
 /**
+ * Every normal path has completed its selected tests before entering a join.
+ * Only common test identities cross that join; yielded values and prefixes
+ * still acquire their evaluation from the emitted continuation itself.
+ * @type {(flow: _Control) => Task<readonly Exp[] | null>}
+ */
+const normalTests = flow => call(() => {
+    const node = flow.node
+    if (node.kind === 'normal') { return done([]) }
+    if (node.kind === 'terminal') { return done(null) }
+    if (node.kind === 'prefix') { return normalTests(node.next) }
+    if (node.kind === 'join') {
+        return bind(normalTests(node.body), body => bind(normalTests(node.next), next =>
+            done(next === null ? null : [...assertNotNullish(body), ...next])))
+    }
+    return bind(normalTests(node.then), a => bind(normalTests(node.otherwise), b => {
+        const common = a === null ? b : b === null ? a : a.filter(value => b.includes(value))
+        return done(common === null ? null : [...new Set([...node.test.anchors, node.test.exp, ...common])])
+    }))
+})
+
+/**
+ * Only normal predecessors supply a joined result. Terminal predecessors are
+ * not a null-valued alternative, and prefixes retain their execution in the
+ * enclosing control tree before the projected result is demanded.
+ * @type {(flow: _Control) => Task<{ readonly exp: Exp } | null>}
+ */
+const normalResults = flow => call(() => {
+    const node = flow.node
+    if (node.kind === 'normal') { return done({ exp: anchored(resultsValue(node.values)) }) }
+    if (node.kind === 'terminal') { return done(null) }
+    if (node.kind === 'prefix' || node.kind === 'join') { return normalResults(node.next) }
+    return bind(normalResults(node.then), a => bind(normalResults(node.otherwise), b =>
+        done(a === null ? b : b === null ? a : { exp: ['?:', node.test.exp, a.exp, b.exp] })))
+})
+
+/**
  * A join lowers its following graph once, then supplies that exact expression
  * to every normal leaf. Terminal computations are selected directly, never
  * evaluated inside a completion product or a generated continuation function.
- * @type {(flow: _Control, normal: (values: readonly Lowered[], established: readonly Exp[]) => Exp, terminal: (value: Lowered, established: readonly Exp[]) => Exp, established?: readonly Exp[]) => Task<Exp>}
+ * @type {(flow: _Control, normal: (values: readonly Lowered[], established: readonly Exp[], selected: readonly (readonly [Exp, boolean])[]) => Exp, terminal: (value: Lowered, established: readonly Exp[], selected: readonly (readonly [Exp, boolean])[]) => Exp, established?: readonly Exp[], selected?: readonly (readonly [Exp, boolean])[]) => Task<Exp>}
  */
-const emitControl = (flow, normal, terminal, established = []) => call(() => {
+const emitControl = (flow, normal, terminal, established = [], selected = []) => call(() => {
     const node = flow.node
-    if (node.kind === 'normal') { return done(normal(node.values, established)) }
-    if (node.kind === 'terminal') { return done(terminal(node.value, established)) }
-    if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal, established), exp => done(anchored({ exp, anchors: node.anchors }, established))) }
+    if (node.kind === 'normal') { return done(normal(node.values, established, selected)) }
+    if (node.kind === 'terminal') { return done(terminal(node.value, established, selected)) }
+    if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal, established, selected), exp => done(anchored({ exp, anchors: node.anchors }, established, selected))) }
     if (node.kind === 'join') {
-        return bind(emitControl(node.next, normal, terminal, established), next => emitControl(node.body, () => next, terminal, established))
+        return bind(node.results ? normalTests(node.body) : done([]), tests => bind(emitControl(node.next, normal, terminal, [...new Set([...established, ...assertNotNullish(tests)])], selected), next =>
+            emitControl(node.body, () => next, terminal, established, selected)))
     }
-    const completed = [...established, ...node.test.anchors, node.test.exp]
-    return bind(emitControl(node.then, normal, terminal, completed), a => bind(emitControl(node.otherwise, normal, terminal, completed), b =>
-        done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }, established))))
+    const completed = [...new Set([...established, ...node.test.anchors, node.test.exp])]
+    const preceding = selected.filter(([test]) => !Object.is(test, node.test.exp))
+    return bind(emitControl(node.then, normal, terminal, completed, [...preceding, [node.test.exp, true]]), a => bind(emitControl(node.otherwise, normal, terminal, completed, [...preceding, [node.test.exp, false]]), b =>
+        done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }, established, selected))))
 })
 
 /** @type {(statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => Task<_Control>} */
@@ -649,11 +687,11 @@ const controlTask = (block, context, expected) => call(() => {
         return bind(controlRegion(statement, current), region => {
             if (!region.normal) { return done(controlPrefix(toArray(anchors), region)) }
             const hasResults = statement[1].length !== 0
-            const selected = hasResults ? emitControl(region, (values, established) => anchored(resultsValue(values), established), () => null) : done(0)
+            const selected = hasResults ? bind(normalResults(region), result => done(assertNotNullish(result).exp)) : done(0)
             return bind(selected, exp => bind(each(index + 1, hasResults ? scopeOf(resultBindings(statement[1], exp), scope) : scope, null), following =>
                 done(controlPrefix(toArray(anchors), {
                     normal: following.normal,
-                    node: { kind: 'join', body: region, next: hasResults ? controlPrefix([exp], following) : following },
+                    node: { kind: 'join', body: region, next: hasResults ? controlPrefix([exp], following) : following, results: hasResults },
                 }))))
         })
     })
@@ -665,7 +703,7 @@ const blockTask = (block, context) => call(() => {
     const { required, reached, normal, returns } = blockSummary(block, context)
     const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
     if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
-        return bind(controlTask(block, context, null), flow => bind(emitControl(flow, (values, established) => anchored(resultsValue(values), established), anchored), exp => done(plain(exp))))
+        return bind(controlTask(block, context, null), flow => bind(emitControl(flow, (values, established, selected) => anchored(resultsValue(values), established, selected), anchored), exp => done(plain(exp))))
     }
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
     const each = (index, scope, anchors) => call(() => {

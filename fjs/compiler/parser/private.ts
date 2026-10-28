@@ -51,6 +51,8 @@ export type _Scope = {
     readonly trace: _Trace
     readonly sourceOrigins: readonly BindingOrigin[]
     readonly region: boolean
+    /** Regions retain whether their owner is an ordinary function, not a module. */
+    readonly inFunction: boolean
     readonly count: number
     readonly parameters: readonly SourceParameter[]
     readonly rest: _Plan | null

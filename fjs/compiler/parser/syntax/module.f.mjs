@@ -1316,7 +1316,7 @@ const toBodyNameStatement = ([name, rest, end]) => {
 
 /**
  * A loop block's statement, tagged: a declaration, a conditional, a nested
- * loop, an unlabeled transfer, or what begins with a name.
+ * loop, a loop or function exit, or what begins with a name.
  *
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -1325,6 +1325,8 @@ const toLoopStatement = ([kind, branch]) => {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
     }
+    if (kind === 'return') { return symbol({ id: 'loopStatement', statement: ['return', valueStatementOf(unmapped(branch))] }) }
+    if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })

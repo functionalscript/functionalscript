@@ -18,6 +18,7 @@ export type Normalized = {
     readonly environment: Environment
     readonly normal: boolean
     readonly hasLoopExit: boolean
+    readonly hasFunctionExit: boolean
 }
 export type Work =
     | { readonly kind: 'expand'; readonly value: SourceValue; readonly rest: Work }
@@ -31,5 +32,3 @@ export type ReferenceTask =
 
 /** This pass emits value regions; a statement region is never constructed. */
 export type NormalizedStatement = Exclude<Statement, readonly ['block', readonly BindingId[], Block]>
-/** Source returns become yields until the ordinary function boundary closes. */
-export type RegionExit = Exclude<Block['exit'], readonly ['return', unknown, Value]>

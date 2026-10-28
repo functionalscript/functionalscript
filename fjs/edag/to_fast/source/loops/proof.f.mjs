@@ -6,7 +6,7 @@
  * @import { Exp } from '../../../types.ts'
  */
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { parse } from '../../../../compiler/transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../../../compiler/edag/module.f.mjs'
 import { tryStringify } from '../../../../compiler/serializer/module.f.mjs'
@@ -26,6 +26,123 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    unsupportedFactoredInvocationProfilesReturnReasons: () => {
+        const call = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]])
+        const prefix = /** @type {Exp} */ ([',', [['[]', [['arg', 0]]], call]])
+        const array = /** @type {Exp} */ (['[]', [1]])
+        const restCall = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], 7]])
+        /** @type {readonly Exp[]} */
+        const profiles = [
+            ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], call, call], ['arg', 1]]],
+            ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], prefix, prefix], ['arg', 1]]],
+            ['=>', 0, [], ['?:', true, array, array]],
+            ['=>', 1, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['%', ['arg', 0], 2], 0], restCall, restCall], ['rest']]],
+        ]
+        for (const profile of profiles) {
+            assertEq(assertError(tryStringify(profile)), 'a factored terminal continuation outside the source loop profile')
+        }
+    },
+    sharedNormalRecipesKeepRequiredCallsAfterTheDecision: () => {
+        const prefix = 'const f=x=>{if(x[0]===3){throw 7;}return x[0];};let i=0;let sum=0;'
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let i=0;let sum=0;while(i<10){i=i+1;if(i===1){sum=sum+10;}else if(i===3){return [i,sum];}else{sum=sum+i;}const result=[i,sum];return result;}return null;', [1, 10]],
+            [`${prefix}while(i<10){i=i+1;if(i===1){sum=sum+10;}else if(i===3){return [i,sum];}else{sum=sum+i;}f([i,sum]);}return null;`, [3, 12]],
+            [`${prefix}while(i<10){i=i+1;if(i===1){sum=sum+10;}else if(i===3){return [i,sum];}else{sum=sum+i;}f([i,sum]);if(i===2){sum=sum+20;}else if(i===4){return [i,sum];}else{sum=sum+i;}f([i,sum]);}return null;`, [3, 33]],
+            [`${prefix}while(i<0){i=i+1;if(i===1){sum=sum+10;}else if(i===3){return [i,sum];}else{sum=sum+i;}f([i,sum]);}return null;`, null],
+        ]
+        for (const [body, expected] of cases) {
+            const original = graph(`export default (()=>{${body}})();`)
+            assertStructurallySame(evaluate(original), expected, body)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(evaluate(restored), expected, body)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), body)
+            assertEq(assertOk(tryStringify(restored)), canonical, body)
+        }
+    },
+    terminalFunctionExitsRetainSelectedValueOwners: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['if(true){while(true){return 3;}return 0;}return 4;', 3],
+            ['if(false){const skipped=null.x;while(true){return 3;}return 0;}return 4;', 4],
+            ['switch(1){case 1:{while(true){return 3;}return 0;}default:{return 4;}}', 3],
+            ['let i=0;while(i<1){const value=(()=>{if(true){while(true){return 3;}return 0;}return 4;})();return value;}return 9;', 3],
+            ['const f=b=>{if(b){while(true){return 3;}return 0;}return 4;};return [f(true),f(false)];', [3, 4]],
+        ]
+        for (const [body, expected] of cases) {
+            const original = graph(`export default (()=>{${body}})();`)
+            assertStructurallySame(evaluate(original), expected, body)
+            const normalized = graph(assertOk(tryStringify(original)))
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(evaluate(restored), expected, body)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), body)
+            assertEq(assertOk(tryStringify(restored)), canonical, body)
+        }
+        const required = graph('export default (()=>{if(true){const required=null.x;while(true){return 3;}return 0;}return 4;})();')
+        failure(required)
+        const normalized = graph(assertOk(tryStringify(required)))
+        const canonical = assertOk(tryStringify(normalized))
+        failure(graph(canonical))
+        assertEq(assertOk(tryStringify(graph(canonical))), canonical)
+    },
+    sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints: () => {
+        const declarations = Array.from({ length: 18 }, (_, index) => `let x${index}=${index};`).join('')
+        const updates = Array.from({ length: 18 }, (_, index) => `x${index}=x${index}+1;`).join('')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let i=0;while(i<4){if(i===2){return [i,i+7];}i=i+1;}return [i,0];', [2, 9]],
+            ['let i=0;while(i<4){if(i<2){i=i+1;}else{return [i];}const after=i+10;}return 0;', [2]],
+            ['let i=0;while(i<4){let j=0;while(j<3){if(i===2){return [i,j];}j=j+1;}i=i+1;}return 0;', [2, 0]],
+            ['let i=0;while(true){i=i+1;if(i===3){return i;}}return 99;', 3],
+            ['let i=0;while(i<6){i=i+1;if(i===2){continue;}if(i===4){return i;}if(i===5){break;}}return 9;', 4],
+            ['let i=0;while(i<3){const f=n=>{while(true){return n+2;}return 99;};const value=f(i);if(value===3){return [i,value];}i=i+1;}return 0;', [1, 3]],
+            ['let i=0;while(i<3){const value=(()=>{let j=0;while(j<3){if(j===1){return j;}j=j+1;}return 99;})();i=i+1;if(i===2){return [i,value];}}return 0;', [2, 1]],
+            ['let i=0;while(i<3){i=i+1;if(i===2){const snapshot=[i];const pair=()=>snapshot;return [pair()===pair(),pair()];}}return 0;', [true, [2]]],
+            ['let i=0;while(true){i=i+1;if(i<3){continue;}if(i===3){return [i];}else{throw 0;}}return 9;', [3]],
+            ['let i=0;while(i<3){if(i===2){return i;const skipped=null.x;}i=i+1;}return 99;', 2],
+            [`let i=0;${declarations}while(true){if(i===3){return [i,x0,x17];}${updates}i=i+1;}return 99;`, [3, 3, 20]],
+        ]
+        for (const [body, expected] of cases) {
+            const original = graph(`export default (()=>{${body}})();`)
+            assertStructurallySame(evaluate(original), expected, body)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(evaluate(restored), expected, body)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), body)
+            assertEq(assertOk(tryStringify(restored)), canonical, body)
+        }
+    },
+    sourceFunctionExitsKeepReachedFailuresAndSkippedSuffixes: () => {
+        /** @type {readonly string[]} */
+        const cases = [
+            'let i=0;while(i<4){if(i===2){throw [i];}i=i+1;}return 0;',
+            'let i=0;while(i<4){let j=0;while(j<3){if(i===2){throw [i,j];}j=j+1;}i=i+1;}return 0;',
+            'let i=0;while(true){i=i+1;if(i===3){throw i;}const reached=i;}return 99;',
+            'let i=0;while(i<3){if(i===2){const required=null.x;return i;}i=i+1;}return 0;',
+            'let i=0;while(i<3){if(i===2){throw null.x;}i=i+1;}return 0;',
+            'let i=0;while(i<3){i=i+1;if(i===2){throw 7;const skipped=null.x;}}return 0;',
+        ]
+        for (const body of cases) {
+            const original = graph(`export default (()=>{${body}})();`)
+            failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            failure(restored)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)), body)
+            assertEq(assertOk(tryStringify(restored)), canonical, body)
+        }
+    },
     infiniteSourceContinueKeepsItsCanonicalInvocation: () => {
         const original = graph('export default n=>{let i=0;while(true){i=i+1;continue;}return i;};')
         const first = assertOk(tryStringify(original))
@@ -61,18 +178,25 @@ export const proof = /** @type {const} */ ({
             ['if', [], true, { statements: [], exit: ['yield', []] }, { statements: [], exit: ['yield', []] }],
             ['loop', { target: nested, parameters: [inner], initial: [['array', [1]]], results: [], body: { statements: [], exit: ['break', nested, []] } }],
         ], exit: ['break', target, [['ref', state]]] })
-        assertEq(_sourceLoops(accepted), accepted)
+        assertEq(assertOk(_sourceLoops(accepted)), accepted)
         /** @type {readonly Block[]} */
         const refused = [
-            { statements: [], exit: ['return', owner, 1] },
-            { statements: [], exit: ['throw', 1] },
-            { statements: [['block', [], { statements: [], exit: ['yield', []] }]], exit: ['break', target, [1]] },
+            { statements: [['define', first, ['block', { statements: [], exit: ['return', owner, 1] }], 'required']], exit: ['break', target, [1]] },
             { statements: [['define', first, ['block', { statements: [], exit: ['continue', target, [['ref', state]]] }], 'required']], exit: ['break', target, [1]] },
-            { statements: [['loop', { target: nested, parameters: [], initial: [], results: [], body: { statements: [], exit: ['break', target, [1]] } }]], exit: ['break', target, [1]] },
         ]
         for (const body of refused) {
             const source = module(body)
-            assert(_sourceLoops(source) !== source)
+            assert(assertOk(_sourceLoops(source)) !== source)
+        }
+        for (const body of /** @type {readonly Block[]} */ ([
+            { statements: [['block', [], { statements: [], exit: ['yield', []] }]], exit: ['break', target, [1]] },
+            { statements: [['loop', { target: nested, parameters: [], initial: [], results: [], body: { statements: [], exit: ['break', target, [1]] } }]], exit: ['break', target, [1]] },
+        ])) {
+            assertEq(assertError(_sourceLoops(module(body))), 'a factored terminal continuation outside the source loop profile')
+        }
+        for (const exit of /** @type {readonly Block['exit'][]} */ ([['return', owner, 1], ['throw', 1]])) {
+            const source = module({ statements: [], exit })
+            assertEq(assertOk(_sourceLoops(source)), source)
         }
     },
     sourceLoopTransfersKeepStateAndFirstParseFixedPoints: () => {
@@ -403,26 +527,26 @@ export const proof = /** @type {const} */ ({
     },
     commonPlacementAndScalarSpellingStayIntact: () => {
         const ordinary = /** @type {Block} */ (yielded(['+', 1, 2]))
-        assertEq(_sourceLoops(ordinary), ordinary)
+        assertEq(assertOk(_sourceLoops(ordinary)), ordinary)
         const scalar = /** @type {Exp} */ (['=>', 1, [], ['?:', ['<', ['arg', 0], 3], ['()', ['self'], [['+', ['arg', 0], 1]]], ['arg', 0]]])
         const placed = fromAnalysis(assertOk(identityAnalysis(scalar)))
-        assertEq(_sourceLoops(placed), placed)
+        assertEq(assertOk(_sourceLoops(placed)), placed)
         assert(assertOk(tryStringify(['()', scalar, [0]])).includes('while('))
         const binding = /** @type {const} */ ({ index: 0 })
         const plain = /** @type {Block} */ ({ statements: [['block', [], yielded(1)], ['define', binding, 1, 'required']],
             exit: ['yield', [['if', true, yielded(1), yielded(2)]]] })
-        assertEq(_sourceLoops(plain), plain)
+        assertEq(assertOk(_sourceLoops(plain)), plain)
     },
     emptyAndThrowingInvocationRoots: () => {
         const empty = _tailFunction(['=>', 0, [], ['()', ['self'], []]])
-        assert(_sourceLoops(yielded(['function', empty])).exit[0] === 'yield')
+        assert(assertOk(_sourceLoops(yielded(['function', empty]))).exit[0] === 'yield')
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const output = /** @type {const} */ ({ index: 0 })
         const throwing = /** @type {FastFunction} */ ({ ...empty, body: {
             statements: [['loop', { target, parameters: [], initial: [], results: [output], body: { statements: [], exit: ['throw', 'stopped'] } }]],
             exit: ['return', empty.target, ['ref', output]],
         } })
-        const converted = _sourceLoops(yielded(['function', throwing]))
+        const converted = assertOk(_sourceLoops(yielded(['function', throwing])))
         assert(converted.exit[0] === 'yield')
         const value = converted.exit[1][0]
         assert(value instanceof Array && value[0] === 'function')
@@ -459,11 +583,11 @@ export const proof = /** @type {const} */ ({
         ])
         for (const value of values) {
             const source = /** @type {Block} */ ({ statements, exit: ['yield', [value]] })
-            assert(_sourceLoops(source) !== source)
+            assert(assertOk(_sourceLoops(source)) !== source)
         }
         for (const exit of /** @type {readonly Block['exit'][]} */ ([['throw', inner], ['continue', target, [inner]], ['return', fn.target, inner]])) {
             const source = /** @type {Block} */ ({ statements: [], exit })
-            assert(_sourceLoops(source) !== source)
+            assert(assertOk(_sourceLoops(source)) !== source)
         }
     },
     deepValuesRetainIdentity: () => {
@@ -471,6 +595,6 @@ export const proof = /** @type {const} */ ({
         let value = 1
         for (let depth = 0; depth < 20_000; ++depth) { value = ['~', value] }
         const source = yielded(value)
-        assertEq(_sourceLoops(source), source)
+        assertEq(assertOk(_sourceLoops(source)), source)
     },
 })

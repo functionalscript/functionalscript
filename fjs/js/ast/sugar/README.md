@@ -2,7 +2,7 @@
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
 parameter patterns and defaults, assignments, guards, switches, conditional
-loop statements, targeted loop exits and `while` loops. These constructs contain no generated
+loop statements, targeted loop/function exits and `while` loops. These constructs contain no generated
 functions, capture frames or immutable assignment versions. The parser retains source legality and
 diagnostics; representing a construct here does not admit new source syntax.
 
@@ -47,6 +47,13 @@ An abrupt arm retains its targeted transfer and supplies no normal results.
 When both arms exit, the surrounding block has no normal continuation and
 following statements are not normalized into executed work.
 
+Source `return` statements inside loops retain their resolved ordinary-function
+target in FAST. They cross loop and conditional regions without becoming normal
+results for a generated helper. Statement `throw` likewise remains an abrupt
+exit, after its reached preceding work and value computation. Return operands
+participate in the same reference pruning as other exits, retaining needed
+parameters, rest values, captures and source aliases.
+
 A loop selects established outer bindings that are mutable and read or written
 in its source events, in binding-introduction order. Nested function/default
 reads participate; loop-local declarations stay local. The same ordered list
@@ -76,8 +83,10 @@ regions, clear the active loop before normalizing their own bodies.
 For a literal-true loop with its own explicit exit, the step is already the
 complete core body: no redundant always-true guard is added. This canonical
 form keeps generic structured loop output stable on source reparse. A loop
-without its own exit retains its established graph shape; nested loops and
-ordinary functions do not supply an exit to the surrounding loop.
+without its own exit retains its established graph shape. An owning return or
+statement throw also exits its enclosing loops, while an inner loop's own
+`break`/`continue` and ordinary function bodies do not supply an exit to the
+surrounding loop.
 
 Ordinary functions consume analyzed source capture facts. Intermediate
 functions forward values needed to construct deeper closures without inventing
@@ -85,6 +94,10 @@ source reference events. Captures establish the current immutable version when
 the closure is constructed; normalized use pruning removes unused aliases and
 unused invocation bindings. Safe immediate calls with no fixed parameters,
 arguments or used rest binding become value regions.
+An immediate call with an owning return inside its body or final value keeps
+its ordinary function boundary, so that return stays local to the call. The
+shared targeted return traversal determines this condition; a final return alone
+retains the existing value-region spelling.
 
 Import identities come from the module boundary. Equal supplied graph objects
 share their established binding; primitive comparisons preserve `NaN` and the

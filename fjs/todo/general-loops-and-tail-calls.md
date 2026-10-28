@@ -202,8 +202,8 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       FAST transfers. Reached work stays before an exit; following statements
       are skipped while their source legality and write facts are still checked.
       A continued loop retests its condition; a broken loop resumes following
-      statements once. The next increment admits owning-function `return` and
-      statement `throw` in loop bodies and conditional arms. Returns cross
+      statements once. Owning-function `return` and statement `throw` now work
+      in loop bodies and conditional arms. Returns cross
       generated loop helpers but stay local to ordinary nested functions;
       both exits preserve reached work and skip following computations while
       retaining source legality checks. Switches remain a later increment.

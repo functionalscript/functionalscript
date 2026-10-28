@@ -45,7 +45,9 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | loopIfStatement | whileStatement | 'break' end | 'continue' end | bodyNameStatement
+ * loopStatement ::= const | let | loopIfStatement | whileStatement
+ *                 | 'break' end | 'continue' end | 'return' value end
+ *                 | 'throw' value end | bodyNameStatement
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
@@ -1252,8 +1254,9 @@ export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [s
  * following statement after its selected arm; a nested loop resumes after
  * normal completion. Every block uses this same rule and owns its declarations.
  * An `else` selects another block or conditional. Unlabeled `break` and
- * `continue` keep the same optional semicolon as other statements; source
- * resolution checks the line before a following statement.
+ * `continue` keep the same optional semicolon as other statements. `return`
+ * and `throw` use their existing keyword/value rules; source resolution checks
+ * the owning function and line boundaries, including following statements.
  *
  * @type {LoopStatement}
  */
@@ -1264,6 +1267,8 @@ export const loopStatement = () => ['const', {
     if: loopIfStatement,
     let: letStatement,
     name: bodyNameStatement,
+    return: terminator.return,
+    throw: terminator.throw,
     while: whileStatement,
 }]
 

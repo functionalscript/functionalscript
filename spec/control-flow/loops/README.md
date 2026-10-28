@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while` bodies with conditionals, `break` and `continue`
+**Status:** implemented — nested `while` bodies with conditionals and explicit exits
 
 ```js
 export default n => {
@@ -98,8 +98,31 @@ including the write-based capture rule. A nested function owns its control
 flow; its body cannot break or continue a loop in the enclosing function.
 The usual semicolon insertion rules apply to the unlabeled statements.
 
-The current body grammar excludes switches, `return` and `throw` statements.
-These are remaining parts of
+`return value;` inside a loop finishes its owning source function, including
+from either conditional arm or an inner loop. Generated loop helpers do not
+intercept that return. An ordinary nested function keeps its own returns;
+calling it does not return from the caller. As elsewhere, a module body cannot
+return, including from a module loop.
+
+`throw value;` evaluates its value and propagates the failure immediately.
+It may occur in a function or module loop. Earlier reached work runs before
+either exit, following statements perform no computations, and source legality
+checks still inspect those statements. Return and throw statements follow the
+same spelling and line-break rules as outside loops.
+
+```js
+export default n => {
+    let i = 0;
+    while (i < n || n < 0) {
+        if (n < 0) { throw "negative limit"; }
+        i = i + 1;
+        if (i === 4) { return i * 10; }
+    }
+    return i;
+};
+```
+
+Switch statements inside loop bodies remain part of
 [general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
@@ -127,14 +150,17 @@ values simultaneously after its source assignments have run in order. Explicit
 `continue` supplies those current loop inputs; explicit `break` supplies the
 current normal results. Source admission resolves the target, and sugar packs
 the state through the existing FAST transfers.
-For a literal `true` condition and an explicit exit targeting that loop, sugar
-uses the body directly instead of adding an unreachable false-condition arm.
-Loops without their own explicit exits keep their established graph shape.
+For a literal `true` condition and an explicit exit from that loop, sugar uses
+the body directly instead of adding an unreachable false-condition arm. This
+includes an owning-function return or statement throw in a nested loop. An
+inner loop's own `break` or `continue`, or a nested function's exits, do not
+exit an enclosing loop. Loops without their own explicit exits keep their
+established graph shape.
 Conditional blocks supply explicit FAST results for the union of enclosing
 bindings assigned by normally completing arms, in declaration-introduction
 order. Both arms start with the same incoming values. A normally completing arm
 supplies its latest versions; an unchanged binding retains its preceding value.
-An abrupt arm carries its current state through its own loop transfer instead.
+An abrupt arm retains its loop transfer, owning return or thrown value instead.
 Later statements read the selected normal results. An omitted `else` supplies
 the incoming values.
 
@@ -145,9 +171,9 @@ normalization, rather than preserving the written variable names or count.
 
 Source `.js`/`.mjs`, code-only JavaScript/function text and Rust emit eligible
 aggregate helpers with plain or conditional bodies as loops and run with bounded
-stack. Required condition computations run at every test; the normal result is
-computed once after the final false test. Its closures capture immutable final
-values. The source
+stack. Required condition computations run at every reached test. Normal loop
+completion supplies its results once; a return or throw bypasses the normal
+continuation. Result closures capture immutable final values. The source
 spelling can introduce a scalar helper boundary on its first round trip; its
 normalized graph and canonical text then stabilize. Existing scalar source
 output retains its graph and bounded-stack spelling, including loops that read

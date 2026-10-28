@@ -40,6 +40,16 @@ Control-flow arms inherit the completed test and its required prefix for this
 proof, including eager dependencies already evaluated by that test. Nested
 arms retain these guarantees. Deferred definitions, arbitrary environment
 substitutions and new function invocations acquire no such guarantee.
+Within a selected arm, the demand query can follow that exact test's known
+conditional outcome. This proves a subsequent demand; it does not pretend the
+selected operand has already run. Other lazy operations and merely equal tests
+retain their boundaries. Repeated tests retain one context entry per identity.
+
+Normal-result joins inherit only tests completed on every normal predecessor.
+Terminal predecessors supply no normal value, rather than a placeholder that
+adds a redundant guarded result. Required prefixes still execute in the actual
+control tree before following work. The following graph is lowered once and
+retains that identity in each normal arm, including shared calls and arrays.
 The shared demand query carries the retained prefix's eager dependency closure
 forward as the cut advances, using the existing persistent identity set. Each
 failed trial keeps its newly matched values local, so it cannot make a later

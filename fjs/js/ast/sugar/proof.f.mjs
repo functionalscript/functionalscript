@@ -32,6 +32,102 @@ const fn = source => {
 }
 
 export const proof = {
+    functionExitsLeaveTheOwningBodyAndSkipFollowingWork: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{while(true){return 7;const skipped=null.x;}return null.x;})();', 7],
+            ['export default (()=>{let i=0;while(i<4){i=i+1;if(i===2){return i;}i=i+1;}return i;})();', 4],
+            ['export default (()=>{let i=0;while(i<4){i=i+1;if(i===2){return i;}else{i=i+1;}}return i;})();', 4],
+            ['export default (()=>{let i=0;while(i<4){i=i+1;if(i<2){continue;}else{return i;}i=null.x;}return null.x;})();', 2],
+            ['export default (()=>{let i=0;while(i<4){i=i+1;if(i<2){return i;}else{continue;}i=null.x;}return null.x;})();', 1],
+            ['export default (()=>{while(false){throw 7;}return 3;})();', 3],
+            ['export default (()=>{while(true){if(false){throw 7;}return 3;}return null.x;})();', 3],
+            ['while(false){throw 7;}export default 3;', 3],
+            ['const f=n=>{while(n>0){return f(n-1);}return 0;};export default f(3);', 0],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    functionExitsKeepReturnValuesAndReachedFailures: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let value=1;while(true){value=value+2;const alias=value;return alias;}return null.x;})();', 3],
+            ['export default ((...args)=>{while(true){return args;}return null.x;})(1,2,3);', [1, 2, 3]],
+            ['const value=[7];export default (()=>{while(true){return value;}return null.x;})();', [7]],
+            ['export default (()=>{let value=0;while(value<2){value=value+1;if(value===1){value=value+1;}else{return 9;}}return value;})();', 2],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        const failures = [
+            'export default (()=>{while(true){const reached=null.x;return 7;}return 0;})();',
+            'export default (()=>{let value=0;while(true){value=null.x;value=1;return value;}return 0;})();',
+            'export default (()=>{while(true){return null.x;}return 0;})();',
+            'export default (()=>{while(true){throw 7;const skipped=null.x;}return 0;})();',
+            'export default (()=>{while(true){throw null.x;}return 0;})();',
+            'export default (()=>{while(true){const reached=null.x;throw 7;}return 0;})();',
+            'export default (()=>{while(true){if(false){return 3;}else{throw 7;}const skipped=null.x;}return 0;})();',
+            'while(true){throw 7;const skipped=null.x;}export default 0;',
+        ]
+        for (const source of failures) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
+    nestedLoopReturnsCrossHelpersButStayLocalToFunctions: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;while(i<3){let j=0;while(j<2){if(j===1){return [i,j];}j=j+1;}i=i+1;}return null.x;})();', [0, 1]],
+            ['export default (()=>{let i=0;while(i<3){while(true){return i;}const skipped=null.x;}return null.x;})();', 0],
+            ['export default (()=>{let i=0;while(i<3){const add=(()=>{while(true){return 1;}return null.x;})();i=i+add;}return i;})();', 3],
+            ['export default (()=>{const add=()=>{while(true){return 2;}return null.x;};let i=0;while(i<3){i=i+add();}return i;})();', 4],
+            ['export default (()=>{let i=0;while(i<2){const read=()=>{while(true){return 3;}return null.x;};i=i+1;if(i===2){return read();}}return null.x;})();', 3],
+            ['export default (()=>{if(true){while(true){return 3;}return null.x;}return 4;})();', 3],
+            ['export default (()=>{if(false){while(true){return 4;}return null.x;}return 3;})();', 3],
+            ['export default (()=>{switch(1){case 1:{while(true){return 3;}return null.x;}default:{return 4;}}})();', 3],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    normalizedOwningExitsKeepTargetsAndInvocationReads: () => {
+        const normalized = fn('export default n=>{while(true){const alias=n;return alias;const skipped=null.x;}return 0;};')
+        const statement = normalized.body.statements[0]
+        assert(statement[0] === 'loop')
+        const returned = statement[1].body.exit
+        assert(returned[0] === 'return')
+        assertEq(returned[1], normalized.target)
+        assertEq(statement[1].body.statements.length, 1)
+        const alias = statement[1].body.statements[0]
+        assert(alias[0] === 'define')
+        assertStructurallySame(returned[2], ['ref', alias[1]])
+        assertStructurallySame(alias[2], ['ref', normalized.parameters[0]])
+        const rest = fn('export default (...args)=>{while(true){return args;}return 0;};')
+        assert(rest.rest !== null)
+        const captured = fn('const value=7;export default ()=>{while(true){return value;}return 0;};')
+        assertEq(captured.captures.length, 1)
+        const immediate = fn('export default ()=>{let i=0;while(i<2){const add=(()=>{while(true){return 1;}return 0;})();i=i+add;}return i;};')
+        const loop = immediate.body.statements.find(statement => statement[0] === 'loop')
+        assert(loop !== undefined && loop[0] === 'loop')
+        const guard = loop[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const declaration = guard[3].statements[0]
+        assert(declaration[0] === 'define')
+        const called = declaration[2]
+        assert(called instanceof Array && called[0] === '()')
+        assert(called[1] instanceof Array && called[1][0] === 'function')
+    },
+    constantGuardsRetainOnlyTheirOwnFunctionExits: () => {
+        for (const source of [
+            'export default ()=>{while(true){while(true){return 3;}}return 0;};',
+            'export default ()=>{while(true){while(true){throw 3;}}return 0;};',
+        ]) {
+            const normalized = fn(source)
+            const outer = normalized.body.statements[0]
+            assert(outer[0] === 'loop')
+            const inner = outer[1].body.statements[0]
+            assert(inner[0] === 'loop')
+            assert(inner[1].body.exit[0] === 'return' || inner[1].body.exit[0] === 'throw')
+        }
+        const normalized = fn('export default ()=>{while(true){const local=()=>{while(true){return 1;}return 0;};}return 0;};')
+        const outer = normalized.body.statements[0]
+        assert(outer[0] === 'loop')
+        const guard = outer[1].body.statements[0]
+        assert(guard[0] === 'if')
+        assertEq(guard[2], true)
+    },
     directLoopExitsKeepStateAndSkipRemainingWork: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

@@ -112,7 +112,6 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.loop-body` | `return` or `throw` inside a loop's block | planned ([let](./3220-let.md), "General loops"; nested loops and conditionals are admitted ([loops](../control-flow/loops/README.md))) |
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
 | `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
@@ -128,7 +127,7 @@ describes:
 | `st.directive` | `"use strict";`, a directive, which a module, strict already, makes nothing of | open ([call statements](../functions/call-statements/README.md) leave it refused, as before; no record decides whether to admit it as the nothing it is) |
 | `st.literal-call` | a call statement opening with a literal, `"a".trim();`, `1 .toFixed(2);` | open ([call statements](../functions/call-statements/README.md) begin with a name; a literal continues no statement before it, so no hazard refuses it, and no record admits it) |
 | `st.body-end` | a body that does not terminate — in `return`, `throw`, or a switch with a `default` ([switch](../control-flow/switch/README.md)) — `{}` | design ([functions](../functions/README.md); page: [A Body That Does Not Terminate Is Refused](../functions/body-end/README.md)) |
-| `st.unreachable` | a statement after `return`, `throw`, or a switch with a `default` | design ([functions](../functions/README.md); page: [A Statement After `return` Is Refused](../functions/unreachable/README.md)) |
+| `st.unreachable` | a statement after a terminal function-body, guard or case `return`, `throw`, or switch with a `default` | design ([functions](../functions/README.md); [loop bodies](../control-flow/loops/README.md) instead retain subsequent statements for source checks and skip their computations; page: [A Statement After `return` Is Refused](../functions/unreachable/README.md)) |
 
 ### Declarations and members
 

@@ -1335,6 +1335,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Loop with alternative branches': 'xxooo',
                 'Nested loops': 'xxooo',
                 'Loop with break and continue': 'xxooo',
+                'Loop with return and throw': 'xxooo',
                 'Loop with no state': 'xxooo',
                 'Sequential loops': 'xxooo',
                 'Loop in a guard': 'xxooo',
