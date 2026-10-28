@@ -130,6 +130,14 @@ so exposing a member-valued callee still uses the serializer's existing
 detached-call spelling. This keeps shared argument allocations stable from
 the first source parse while preserving earlier argument failures.
 
+Observed-rest plain invocation loops use these same plans. Their logical
+transition already establishes the argument vector before projecting fixed
+inputs and creating a fresh rest slice. Rest occupies one semantic input;
+rest-only roots therefore use the existing scalar slot, and fixed-plus-rest
+roots use the packed slot. Immutable snapshots preserve rest sharing within an
+invocation, fresh empty or nonempty arrays between iterations, and held captures.
+Preparation does not change the public fixed arity or rest parameter.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

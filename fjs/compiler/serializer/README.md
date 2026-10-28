@@ -74,11 +74,23 @@ physical source layout: normalized logical loops and default JavaScript/Rust
 layouts retain their existing contracts. The first source parse establishes
 the scalar helper and its stable graph/text normal form.
 
+Observed-rest invocation roots now retain source loops when the same plain
+plan admits them. The shared invocation transition establishes all reached
+arguments before projecting fixed inputs and slicing a fresh rest array.
+Preparation treats rest as one semantic input, preserving sharing within an
+invocation and fresh identity between iterations, including empty rest arrays.
+Saved closures retain their iteration's array; the public fixed arity and rest
+parameter stay intact. Fixed-plus-rest roots support either conditional arm.
+Rest-only roots have one semantic input and keep the plan's existing
+continue-first restriction. First-parse graph/text stability and the existing
+default JavaScript/Rust layouts follow the same contracts as fixed-input roots.
+
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
 loop profile. Raw zero-input or multi-input roots outside the plain-loop plan
-and observed-rest graphs keep their existing reifiable recursive forms; unsupported
-factored profiles return an error instead of asserting or emitting unreadable source.
+and observed-rest roots outside that plan keep their existing reifiable recursive
+forms; unsupported factored profiles return an error instead of asserting or
+emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and

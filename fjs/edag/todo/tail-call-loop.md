@@ -4,12 +4,6 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
-The next H increment admits observed-rest invocation roots within the shared
-plain-loop profile. Source preparation must preserve public fixed arity,
-fresh rest arrays, captures, ordered arguments and failures while retaining
-strict graph/text fixed points from the first source parse. Other rest shapes
-keep their existing fallback.
-
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
@@ -91,8 +85,8 @@ source grammar, preserving code-only JavaScript/Rust output and existing
 reifiable recursive source profiles.
 
 Other canonical invocation roots retain recursive source spelling: zero-input
-or multi-input roots outside the plain-loop plan, observed rest,
-transfers to outer loop targets and returns escaping a value region. Prefix
+or multi-input roots outside the plain-loop plan, observed-rest roots outside
+that plan, transfers to outer loop targets and returns escaping a value region. Prefix
 computations that create identity can remain inside an admitted one-state
 structured loop, without being copied into a
 condition or result. Broader source placement remains H work. The source
@@ -121,8 +115,8 @@ Independent result storage inside a breaking loop would introduce an aggregate
 result helper on the first source parse and split it on the next. The unchanged
 slot instead establishes the canonical scalar helper on the first parse, so
 subsequent graph/text cycles stay exact. Other zero-input normal-result shapes
-and observed-rest roots retain their existing fallback and remain
-[H](../../todo/general-loops-and-tail-calls.md) work.
+and observed-rest roots outside the plain plan retain their existing fallback
+and remain [H](../../todo/general-loops-and-tail-calls.md) work.
 
 Rest-free fixed multi-input roots admitted by the plain-loop plan now also
 emit bounded-stack source. Either conditional arm may continue. The source
@@ -138,6 +132,21 @@ source output introduces the canonical scalar helper and may change graph
 bytes/hashes and function text under its existing exception. Subsequent graph
 and text cycles stay exact. Multi-input roots outside that plain profile still
 retain recursive source or the existing explicit refusal.
+
+Observed-rest invocation roots admitted by that plain plan now also emit
+bounded-stack source. Existing invocation construction evaluates arguments in
+order, projects fixed inputs and creates a fresh rest slice before simultaneous
+updates. Rest is one semantic input: rest-only roots use the existing scalar
+slot, while fixed-plus-rest roots use the packed slot. Empty and nonempty rest
+arrays keep sharing within an invocation and fresh identity between iterations;
+held closures retain their creating rest array. Public fixed arity is unchanged.
+
+Fixed-plus-rest roots support either conditional arm. Rest-only roots retain
+the shared plan's single-input continue-first restriction; base-first rest-only
+and other nonplain rest profiles keep their recursive fallback. First source
+parsing establishes the canonical scalar helper under the existing graph/hash
+and function-text exception, followed by exact graph/text cycles. Shared logical
+conversion and default code-only JavaScript/Rust layouts remain unchanged.
 
 ### Problem
 

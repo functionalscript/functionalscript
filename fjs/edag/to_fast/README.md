@@ -182,9 +182,16 @@ when the same plain-loop plan recognizes their terminal conditional. The source
 profile of common preparation packs those already-selected semantic inputs
 into one private array slot, preserving simultaneous updates, public arity and
 immutable capture snapshots. This changes the source-normalized graph once;
-later graph/text cycles stay exact. Logical graph conversion and default
-code-only JavaScript/Rust layouts are unchanged. Other canonical roots use the graph
-owner's existing transfer resolver. Synthesized invocation-read aliases become
+later graph/text cycles stay exact. Observed-rest roots also retain loops when
+the plain plan admits them. The canonical invocation transition already
+establishes arguments before fixed projections and a fresh rest slice; source
+preparation consumes that extra semantic input without changing public arity.
+Fixed-plus-rest roots support either conditional arm; rest-only roots retain
+the plan's existing single-input continue-first restriction. Rest identity is
+shared within an invocation and fresh between iterations, including empty
+arrays, while captures retain their creating snapshot. Logical graph conversion
+and default code-only JavaScript/Rust layouts are unchanged. Other canonical
+roots use the graph owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.

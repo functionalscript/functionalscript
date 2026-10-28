@@ -224,6 +224,13 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       arity, ordered argument evaluation and simultaneous updates survive;
       the first source parse establishes a stable scalar-helper normal form.
       Default JavaScript/Rust layouts and logical loop signatures stay unchanged.
+      Observed-rest roots admitted by that plain plan now retain source loops
+      using the existing argument vector and fresh-rest transition. Rest sharing,
+      fresh empty/nonempty arrays, iteration captures and public fixed arity
+      survive. Fixed-plus-rest roots support either conditional arm; rest-only
+      roots retain the shared single-input continue-first restriction. Other
+      rest profiles keep their documented fallback, and first-parse graph/text
+      fixed points remain exact.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
