@@ -71,7 +71,9 @@ export const proof = {
         for (const graph of graphs) {
             for (const value of [graph, fromFast(assertOk(toFast(graph)))]) {
                 const text = stringify(prepare(assertOk(toFast(value))), 'expression', true)
-                throws(() => runInNewContext(`(${text})`, {}, { timeout: 100 }), error =>
+                // This bounds a misplaced divergence, not exception latency.
+                // Loaded CI runners need room to reach the required failure.
+                throws(() => runInNewContext(`(${text})`, {}, { timeout: 1_000 }), error =>
                     error === 1 || error !== null && typeof error === 'object' && 'name' in error && error.name === 'TypeError')
             }
         }

@@ -97,7 +97,7 @@ const resultBlock = block => call(() => {
 /** Inverse aliases read established invocation inputs, captures and self. @type {(fn: FastFunction) => Task<FastFunction>} */
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
-    if (loop === null || (fn.rest === null && (scalarLoopOf(loop) !== null || plainLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
+    if (loop === null || plainLoopOf(loop) !== null || (fn.rest === null && (scalarLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount
