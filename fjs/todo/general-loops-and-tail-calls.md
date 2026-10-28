@@ -4,6 +4,13 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
+**Current increment:** retain source loops when the recursive arm has multiple
+continuing leaves targeting the same loop, in either outer orientation. Keep
+selected-branch argument evaluation before simultaneous updates, iteration
+snapshots and captures, fresh rest, reached failure order and exact graph/text
+cycles from the first source parse. Reuse shared loop planning and preparation;
+general lazy prefixes remain outside this increment and H/I stay open.
+
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
