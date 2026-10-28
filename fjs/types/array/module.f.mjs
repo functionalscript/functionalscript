@@ -7,6 +7,7 @@
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
+import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
 
 /**
@@ -133,17 +134,7 @@ export const repeat =
      * @param {T} v
      * @return {FixedArray<N, T>}
      */
-    v => {
-        /** @type {readonly T[]} */
-        let result = []
-        /** @type {number} */
-        let count = n
-        while (count > 0) {
-            result = [...result, v]
-            count = count - 1
-        }
-        return /** @type {any} */ (result)
-    }
+    v => /**@type{any}*/(toArray(listRepeat(v)(n)))
 
 /**
  * The array without repeated items, each kept at its first position. Items are
