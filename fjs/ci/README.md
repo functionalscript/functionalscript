@@ -38,7 +38,8 @@ inputs requires a separate dependency audit.
 
 This repository also adds a separate `website` job on pull requests, including
 drafts and forks, and merge-group entries. Branch pushes without an open PR
-do not run CI or create previews.
+do not run CI or create previews. Pushes to `main` run only the existing website
+job to deploy production; test jobs remain PR and merge-queue checks.
 It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
 The job has read-only GitHub permissions, runs independently of test jobs, and always
@@ -46,8 +47,8 @@ builds its assets outside the successful-check cache. It passes the checked-out 
 and source branch to both the Rustdoc header generator and the website generator
 through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
 Same-repository pull requests upload a preview after the build succeeds.
-Production upload steps are omitted until preview debugging is complete and
-Workers Builds is disabled; enabling production will require a workflow change.
+The same job deploys production on pushes to `main`. Main deployments are
+serialized without cancelling an active upload; superseded PR runs are cancelled.
 Fork pull requests and merge-group runs never upload. Deployment secrets are scoped
 to the upload step. No upload-enable variables are used; see
 [the cutover procedure](../website/README.md#github-actions-deployment).
@@ -69,6 +70,11 @@ own repository. `fjs ci init` selects `GITHUB_JOB` from the configuration in
 `fjs/ci/self`; it does not receive the caller's `Setup`. Other projects should
 leave `smart` unset so their checks run normally. An unknown job ID makes cache
 initialization fail, and the generated workflow falls back to running the checks.
+
+`ciWorkflow(setup)(rust)` builds the workflow as data and `writeCi(workflow)`
+writes the existing CI and npm publishing files. The repository-owned `self`
+module extends that workflow with main-only production uploads; the generic
+`fjs ci` command keeps its pull-request and merge-group triggers.
 
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and

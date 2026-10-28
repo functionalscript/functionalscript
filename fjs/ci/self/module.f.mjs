@@ -9,10 +9,10 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { PackageConsumer, Setup } from '../types.ts'
- * @import { Job } from '../common/types.ts'
+ * @import { Job, GitHubAction } from '../common/types.ts'
  */
 
-import { ci, ciJobs } from '../module.f.mjs'
+import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
@@ -20,19 +20,20 @@ import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
 /** Branch and commit metadata shared by the Rustdoc bars and website pages. */
-const buildMetadata = {
+const buildMetadata = /** @type {const} */ ({
     WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
     WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
-}
+})
 
 /**
  * Website assets are built once, independently of the platform matrix. This
  * read-only job runs on pull requests, including drafts and forks, and
- * merge-group entries. Same-repository pull requests upload a preview.
+ * merge-group entries, and pushes to main. Same-repository pull requests upload
+ * a preview; main pushes deploy production.
  * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
- * and keeps deployment credentials confined to preview uploads.
- * Production uploads are omitted until cutover. Mise installs the committed lock,
+ * and keeps deployment credentials confined to upload steps.
+ * Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
  */
@@ -67,6 +68,12 @@ export const websiteJob = {
                 WORKERS_CI_BRANCH: '${{ github.head_ref }}',
             },
         },
+        {
+            if: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+            run: miseDevelop('node ./fjs/website/github-deploy.mjs production'),
+            shell: 'bash',
+            env: { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' },
+        },
     ],
 }
 
@@ -99,7 +106,7 @@ export const packageConsumer = {
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci(setup)
+export const main = () => writeCi(repositoryWorkflow)
 
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
@@ -111,3 +118,25 @@ const setup = {
 
 /** The repository jobs before cache gates are applied. */
 export const jobs = ciJobs(setup)
+
+/** Shared checks; this repository always has a Rust workspace. */
+const checks = ciWorkflow(setup)(true)
+
+/** Production and PR previews share the existing website job and workflow.
+ * @type {GitHubAction}
+ */
+export const repositoryWorkflow = {
+    ...checks,
+    on: { ...checks.on, push: { branches: ['main'] } },
+    concurrency: {
+        group: '${{ github.workflow }}-${{ github.ref }}',
+        'cancel-in-progress': "${{ github.event_name != 'push' }}",
+    },
+    jobs: {
+        ...Object.fromEntries(Object.entries(checks.jobs).filter(([id]) => id !== 'website').map(([id, job]) => [id, {
+            ...job,
+            if: "github.event_name != 'push'",
+        }])),
+        website: websiteJob,
+    },
+}
