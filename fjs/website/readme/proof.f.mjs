@@ -102,7 +102,7 @@ export const proof = {
                 linkedHeading(2, 't', 'T', ['T']),
                 linkedHeading(6, 's', 'S', ['S']),
                 ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
-                ['pre', ['code', { class: 'language-js' }, 'x']],
+                ['pre', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]],
                 ['pre', ['code', 'y']],
                 ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
                 ['table', ['thead', ['tr', ['th', 'h'], ['th', { align: 'center' }]]], ['tbody', ['tr', ['td', ['code', 'c']], ['td', { align: 'center' }, 'd']]]],
@@ -113,6 +113,28 @@ export const proof = {
                     ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '' }], ' ', 'p']],
                 ['ul', ['li', { class: 'task-list-item' }, ['p', ['input', { type: 'checkbox', disabled: '' }], ' ', 'q'], ['p', 'r']]],
             ]))
+        },
+        // A fence the tokenizer reads is coloured, in any case of its
+        // language's name; any other stays its text.
+        fences: {
+            js: () => assertStructurallySame(readmeNodes(href)([['code', 'JavaScript', 'const a = 1 // b\n']]), ok([
+                ['pre', ['code', { class: 'language-JavaScript' },
+                    ['span', { 'data-token': 'keyword' }, 'const'], ' ',
+                    ['span', { 'data-token': 'identifier' }, 'a'], ' = ',
+                    ['span', { 'data-token': 'number' }, '1'], ' ',
+                    ['span', { 'data-token': 'comment' }, '// b'], '\n']],
+            ])),
+            json: () => assertStructurallySame(readmeNodes(href)([['code', 'json', '{"a":true}']]), ok([
+                ['pre', ['code', { class: 'language-json' },
+                    '{', ['span', { 'data-token': 'string' }, '"a"'], ':', ['span', { 'data-token': 'literal' }, 'true'], '}']],
+            ])),
+            other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
+                ok([['pre', ['code', { class: 'language-rust' }, 'let a = 1;']]])),
+            // Text the tokenizer refuses is not partly coloured.
+            refused: () => assertStructurallySame(readmeNodes(href)([['code', 'js', 'a …']]),
+                ok([['pre', ['code', { class: 'language-js' }, 'a …']]])),
+            empty: () => assertStructurallySame(readmeNodes(href)([['code', 'js', '']]),
+                ok([['pre', ['code', { class: 'language-js' }]]])),
         },
         // A link it cannot place refuses the README, wherever it stands.
         refuses: {

@@ -16,6 +16,13 @@
  * refuses, so the README stays the file link to GitHub it was, with the
  * reason beside it.
  *
+ * **A code fence in a language the site can read is coloured.** Its text
+ * goes through the tokenizer the demos colour a typed example with
+ * ([`demo/highlight`](../demo/highlight/module.f.mjs)), so the colours are
+ * the demos' and the text is the fence's, character for character. A fence
+ * in any other language, or one the tokenizer refuses, stays plain: no
+ * colour is honest where a guessed one is not.
+ *
  * @module
  *
  * @import { Align, Block, Blocks, Inline, Label } from '../../media/markdown/types.ts'
@@ -28,6 +35,7 @@ import { basename, concat as pathConcat, escapes, normalize, parent } from '../.
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
+import { highlight } from '../demo/highlight/module.f.mjs'
 
 const { length: reservedIdCount } = reservedIds
 
@@ -187,6 +195,22 @@ export const anchors = blocks => {
     return used.slice(reservedIdCount)
 }
 
+/**
+ * The languages a fence is coloured in: the names GitHub reads JavaScript
+ * and JSON fences under, which the JavaScript tokenizer reads too. GitHub
+ * matches the name in any case.
+ */
+const highlighted = ['js', 'javascript', 'json', 'jsonc']
+
+/**
+ * A code fence's text as the nodes of its `code` element: coloured when
+ * its language is {@link highlighted}, its bare text otherwise.
+ *
+ * @type {(language: string) => (text: string) => readonly Node[]}
+ */
+const fenceNodes = language => text =>
+    highlighted.includes(language.toLowerCase()) ? highlight(text) : [text]
+
 /** A label's span as a node: code, or its text. @type {(label: Label) => Node} */
 const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]
 
@@ -265,8 +289,9 @@ export const readmeNodes = href => blocks => {
                 continue
             }
             if (b[0] === 'code') {
+                const text = fenceNodes(b[1])(b[2])
                 /** @type {Element} */
-                const code = b[1] === '' ? ['code', b[2]] : ['code', { class: `language-${b[1]}` }, b[2]]
+                const code = b[1] === '' ? ['code', ...text] : ['code', { class: `language-${b[1]}` }, ...text]
                 out = [...out, ['pre', code]]
                 continue
             }

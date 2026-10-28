@@ -244,7 +244,9 @@ is a summary rather than code. How a demo's code blocks look is
 
 ## 7. The fallback for text with no producer
 
-Some text has no producer behind it: an example a reader typed. For that,
+Some text has no producer behind it: an example a reader typed, or a
+JavaScript or JSON code fence in a `README.md` the site renders
+([`website/readme`](../../website/readme/module.f.mjs)). For that,
 `highlight(text)` finds the runs by tokenizing, with the real tokenizer
 ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)):
 
