@@ -1,5 +1,6 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { error } from '../../types/result/module.f.js'
+import { maxEdges } from '../../media/mermaid/module.f.js'
 import { flowchartGraph, flowchartSvg } from './module.f.mjs'
 
 /** @type {(from: number, to: number, label?: string) => import('../../media/mermaid/types.ts').FlowEdge} */
@@ -30,6 +31,12 @@ export const proof = {
     // A node already reached is no cycle; a second start is searched too.
     shared: () => assertEq(shape({ direction: 'LR', nodes: nodes(4), edges: [arrow(0, 2), arrow(1, 2), arrow(2, 3), arrow(1, 3)] }), '0>2 1>2 2>3 1>3'),
     secondStart: () => assertEq(shape({ direction: 'LR', nodes: nodes(3), edges: [arrow(1, 2), arrow(2, 1)] }), '1>2 2>1!'),
+    // The longest path the reader admits, `maxEdges` arrows, and a cycle
+    // closing it, are searched without running out of stack.
+    longest: () => {
+        const edges = Array.from({ length: maxEdges }, (_, i) => arrow(i, i + 1 === maxEdges ? 0 : i + 1))
+        assertEq(shape({ direction: 'LR', nodes: nodes(maxEdges), edges }).endsWith(`${maxEdges - 1}>0!`), true)
+    },
     partlyLabelled: () => assertEq(shape({ direction: 'LR', nodes: nodes(3), edges: [arrow(0, 1, 'x'), arrow(0, 2)] }),
         'a node whose arrows are labelled only in part: n0'),
     svg: {
