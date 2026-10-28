@@ -101,6 +101,15 @@ which is exactly what the DataJS text already shows.
 An unknown node form is refused with an explicit message, never left out of
 the drawing.
 
+**A binding is drawn after its deepest use**, as every node is: the
+renderer ranks by longest path, so every arrow points forward, and a
+parameter's node lands right of the body that reads it, at the end of a
+long arrow from its function. Placing a binding beside the row that
+defines it was prototyped and rejected. The renderer can draw an arrow
+pointing back only as the dotted lane it uses for recursion and exits, so
+every use looked like recursion, and lanes into one node merge, so the
+two reads of `x` in `x + x` looked like one.
+
 ### Tasks
 
 - [x] The shared `Operator<V>` shape, extracted from the EDAG demo with its
@@ -116,10 +125,6 @@ the drawing.
       plans, `initialize`/`write`, `while`, `switch`.
 - [x] The demo page with both panes, the refusals and the DataJS listings;
       its proof walks the shared presets.
-- [ ] Layout: a binding ranks after its deepest use, so a parameter's node
-      lands at the far right of the drawing, away from its function. Placing
-      a binding beside the node that defines it would make both panes much
-      narrower.
 - [ ] Decide whether the parser demo keeps its DataJS listing or points here.
 
 ### Related
