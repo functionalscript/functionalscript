@@ -36,6 +36,59 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    zeroInputPlainLoopsUseAnUnchangedPrivateSlot: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const capture = id(0), projected = id(1), ignored = id(2), result = id(3), held = id(4)
+        /** @type {Definition} */
+        const projection = ['define', projected, ['.', ['ref', capture], 0], 'required']
+        /** @type {Definition} */
+        const reached = ['define', ignored, ['array', [['ref', projected]]], 'required']
+        /** @type {NormalValue} */
+        const closure = ['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: held, value: ['ref', projected] }],
+            body: { statements: [], exit: ['return', child, ['ref', held]] },
+        }]
+        /** @type {NormalBlock} */
+        const continuing = { statements: [reached], exit: ['continue', target, []] }
+        /** @type {NormalBlock} */
+        const normal = { statements: [], exit: ['break', target, [closure]] }
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const source = { target, parameters: [], initial: [], results: [result], body: {
+                statements: [projection, ['if', [], ['ref', projected], reversed ? normal : continuing, reversed ? continuing : normal]],
+                exit: ['yield', []],
+            } }
+            for (const sourceLoops of /** @type {const} */ ([false, true])) {
+                const prepared = prepare({ statements: [['define', capture, ['array', [false]], 'required'], ['loop', source]],
+                    exit: ['yield', [['ref', result]]] }, { sourceLoops })
+                assertStructurallySame(prepared.statements.map(statement => statement[0]), ['define', 'while', 'define'])
+                const physical = prepared.statements[1]
+                assert(physical[0] === 'while')
+                assertEq(physical[1].initial, undefined)
+                assertEq(physical[1].mutable, false)
+                assert(physical[1].result !== result)
+                assert(physical[1].condition instanceof Array && physical[1].condition[0] === 'block')
+                assertEq(physical[1].condition[1].statements.length, 0)
+                const conditionExit = physical[1].condition[1].exit
+                assert(conditionExit[0] === 'yield')
+                const condition = conditionExit[1][0]
+                assert(condition instanceof Array && condition[0] === 'block')
+                assertStructurallySame(condition[1].statements.map(statement => statement[0] === 'define' ? statement[1] : null), [projected])
+                assertStructurallySame(physical[1].body.statements.map(statement => statement[0] === 'define' ? statement[1] : null), [projected, ignored])
+                assertStructurallySame(physical[1].body.exit, ['yield', []])
+                const returned = prepared.statements[2]
+                assert(returned[0] === 'define' && returned[2] instanceof Array && returned[2][0] === 'block')
+                assertStructurallySame(returned[2][1].statements.map(statement => statement[0] === 'define' ? statement[1] : null), [projected])
+                const exit = returned[2][1].exit
+                assert(exit[0] === 'yield')
+                const value = exit[1][0]
+                assert(value instanceof Array && value[0] === 'function')
+                assertEq(value[1].parameters.length, 0)
+                assertStructurallySame(value[1].captures[0].value, ['ref', projected])
+            }
+        }
+    },
     sourceLoopProfileSharesStateAndResultStorage: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const parameter = id(0), result = id(1)

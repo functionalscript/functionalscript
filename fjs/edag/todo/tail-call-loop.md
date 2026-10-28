@@ -4,11 +4,6 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
-The next H increment extends the shared plain-loop plan to rest-free zero-input
-roots with a normal result. Its source spelling must preserve empty arity,
-reached work and captures, and establish a graph/text fixed point on the first
-source parse. Other invocation profiles keep their existing fallback.
-
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
@@ -90,13 +85,13 @@ source grammar, preserving code-only JavaScript/Rust output and existing
 reifiable recursive source profiles.
 
 Other canonical invocation roots retain recursive source spelling: multiple
-physical inputs, normally completing zero-input roots, observed rest, transfers
-to outer loop targets and returns escaping a value region. Prefix computations
-that create identity can remain
-inside an admitted one-state structured loop, without being copied into a
+physical inputs, zero-input roots outside the plain-loop plan, observed rest,
+transfers to outer loop targets and returns escaping a value region. Prefix
+computations that create identity can remain inside an admitted one-state
+structured loop, without being copied into a
 condition or result. Broader source placement remains H work. The source
-adapter uses shared recognition and preparation, with no
-writer-specific state or source-write analysis.
+adapter uses shared recognition and preparation, with no writer-specific state
+or source-write analysis.
 
 Rest-free zero-input roots without a break to their own target now retain the
 common loop plan in source output, including reached failures. The raw function
@@ -107,13 +102,21 @@ and satisfies the existing source grammar. Parsing the first output introduces
 the source aggregate helper and can change graph bytes/hashes; subsequent graph
 and text cycles remain exact.
 
-Normally completing zero-input roots remain [H](../../todo/general-loops-and-tail-calls.md)
-work. For example, `['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]]`
-retains recursive source. Preparing it with independent result storage would
-introduce an aggregate result helper on the first source parse and split that
-helper's result on the next. Admit that spelling only after its result
-normalization meets the same first-parse fixed-point contract. Multi-input and
-observed-rest roots retain their existing fallback too.
+The shared plain-loop plan now also admits rest-free zero-input roots whose
+terminal conditional continues in either arm and supplies one normal result
+in the other. For example, `['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]]`
+emits a zero-argument function with `let s=undefined;while(false){s=s;}` followed
+by its result. The slot is private physical storage, with no semantic input
+snapshots or capture aliases. Result work runs once after the final test;
+condition-only work stays at every test. Existing projection-only dependency
+copying prevents duplicated calls or allocations.
+
+Independent result storage inside a breaking loop would introduce an aggregate
+result helper on the first source parse and split it on the next. The unchanged
+slot instead establishes the canonical scalar helper on the first parse, so
+subsequent graph/text cycles stay exact. Other zero-input normal-result shapes,
+multi-input and observed-rest roots retain their existing fallback and remain
+[H](../../todo/general-loops-and-tail-calls.md) work.
 
 ### Problem
 

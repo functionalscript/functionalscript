@@ -27,6 +27,32 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    zeroInputEitherArmKeepsProjectionLifetimes: () => {
+        /** @type {Definition} */
+        const projected = ['define', alias, ['.', ['ref', other], 0], 'required']
+        /** @type {Definition} */
+        const reached = ['define', state, ['array', [['ref', alias]]], 'required']
+        /** @type {Block} */
+        const continuing = { statements: [reached], exit: ['continue', target, []] }
+        /** @type {Block} */
+        const normal = { statements: [], exit: ['break', target, [['array', [['ref', alias]]]]] }
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const source = { target, parameters: [], initial: [], results: [result], body: {
+                statements: [projected, ['if', [], ['ref', alias], reversed ? normal : continuing, reversed ? continuing : normal]],
+                exit: ['yield', []],
+            } }
+            assertStructurallySame(plainLoopOf(source), {
+                prefix: [projected], resultPrefix: [projected],
+                iteration: {
+                    condition: reversed ? ['!', ['ref', alias]] : ['ref', alias],
+                    step: { statements: [projected, reached], exit: continuing.exit },
+                    next: undefined,
+                },
+                result: ['array', [['ref', alias]]],
+            })
+        }
+    },
     independentCopiesFollowBodyReadOrder: () => {
         /** @type {import('../../types.ts').BindingId} */
         const combined = { index: 4 }
@@ -125,7 +151,9 @@ export const proof = /** @type {const} */ ({
     },
     refusesOtherPlainShapes: () => {
         for (const source of /** @type {readonly Loop[]} */ ([
-            { ...scalar, parameters: [], initial: [] }, { ...scalar, results: [] },
+            { ...scalar, parameters: [state, alias], initial: [0, 1], body: { ...scalar.body,
+                statements: [['if', [], true, { ...step, exit: ['continue', target, [1, 2]] }, done]],
+            } }, { ...scalar, results: [] },
             { ...scalar, body: { statements: [], exit: ['yield', []] } },
             { ...scalar, body: { statements: [['define', alias, 0, 'required']], exit: ['yield', []] } },
             { ...scalar, body: { ...scalar.body, statements: [['if', [alias], true, step, done]] } },
