@@ -62,7 +62,7 @@
  * the parser's resolved source**, each through this shape with its own
  * forms beside it: blocks, bindings, patterns, functions, conditionals,
  * loops and the exits that leave them.
- * [`fjs/compiler/ast`](../../../compiler/ast/demo.f.mjs) draws the two side
+ * [`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) draws the two side
  * by side.
  *
  * @module

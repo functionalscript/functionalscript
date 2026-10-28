@@ -29,15 +29,20 @@ that code lands.
 | --------- | ------------------ |
 | `compiler/tokenizer/` | text → one line per token, an unreadable token as an `error` line |
 | `compiler/parser/` | text → the AST, as DataJS text |
-| `compiler/ast/` | text → the source AST and FAST, side by side as graphs |
+| `compiler/sugar/` | text → the source AST and FAST, side by side as graphs |
 | `compiler/edag/` | text → the EDAG as a graph (the one that existed first) |
 | `compiler/serializer/` | text → the `.js` module |
 | `compiler/rust/` | text → the Rust `fjs compile` writes |
 | `compiler/` | text → `.json`, `.data.js`, `.js`, `.edag.data.js` and `.rs` side by side |
 
-`ast/` draws the trees on both sides of `normalize`, the stage between
-`parser/` and `edag/`: the source AST and FAST, with
-[`fjs/js/ast/graph`](../../js/ast/graph/module.f.mjs).
+`sugar/` draws the trees on both sides of `normalize`, the stage between
+`parser/` and `edag/`, with [`fjs/js/ast/graph`](../../js/ast/graph/module.f.mjs).
+The stage's code is [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs), which
+cannot hold the page: the page runs the parser, and `fjs/js/ast` importing from
+`fjs/compiler` is the upward import
+[compiler-layer-upward-imports](../../todo/compiler-layer-upward-imports.md)
+removes. So the page is a folder of its own, named after the code it shows, as
+`edag/` is. `ast/` has no demo: its module is the operator vocabulary.
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
 the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`).

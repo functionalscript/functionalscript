@@ -25,7 +25,7 @@ Only `index` is copied, and it is diagnostic, not unique: in
 `export default n => { let s = n; s = s + 1; return s; };` both `n` and `s`
 have index `0`. So nothing downstream can name a FAST binding.
 
-The [AST graph page](../../../../compiler/ast/demo.f.mjs) shows the cost:
+The [AST graph page](../../../../compiler/sugar/demo.f.mjs) shows the cost:
 the source pane labels bindings `n` and `s`, and the FAST pane numbers them
 `$0`, `$1`… ([`fastGraph`](../../graph/module.f.mjs)). A reader matches the
 two panes by following arrows rather than by name. The drawing is correct;

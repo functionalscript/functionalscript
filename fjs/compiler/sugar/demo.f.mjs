@@ -1,5 +1,7 @@
 /**
- * A FunctionalScript module as its two trees before the EDAG, side by side:
+ * The `sugar` pass, [`fjs/js/ast/sugar`](../../js/ast/sugar/module.f.mjs),
+ * seen from its input and its output. A FunctionalScript module as its two
+ * trees before the EDAG, side by side:
  * the source AST the parser resolves, and the Foundation AST `normalize`
  * expands it into, each drawn with [the shared graph
  * module](../../website/demo/graph/module.f.mjs) by
@@ -69,7 +71,7 @@ export const _listing = tree => {
 
 export const demo = stageDemo({
     intro: 'Parses a FunctionalScript module and draws its source AST beside the Foundation AST (FAST) it normalizes to. A binding is one node however many places use it; source bindings carry their names, FAST bindings are numbered in definition order. Dashed arrows mark operands that may not be evaluated, and arrows back to a function or loop are the exits that leave it. Expand "As DataJS" under a graph to check it against the exact tree.',
-    name: 'ast',
+    name: 'sugar',
 })(text => {
     const [kind, value] = _panes(text)
     return kind === 'ok'

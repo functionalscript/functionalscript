@@ -30,8 +30,9 @@ One demo page that parses the module, normalizes it, and draws both trees
 with the shared renderer,
 [`fjs/website/demo/graph`](../../../website/demo/graph/module.f.mjs). The
 walkers live in [`fjs/js/ast/graph`](../graph/module.f.mjs); the page is
-[`fjs/compiler/ast/demo.f.mjs`](../../../compiler/ast/demo.f.mjs), beside
-the other stage pages, because it runs the parser, and `fjs/js/ast`
+[`fjs/compiler/sugar/demo.f.mjs`](../../../compiler/sugar/demo.f.mjs), a
+stage page named after the `sugar` pass it shows, beside the other stage
+pages, because it runs the parser, and `fjs/js/ast`
 importing from `fjs/compiler` is the upward import
 [compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)
 removes.
