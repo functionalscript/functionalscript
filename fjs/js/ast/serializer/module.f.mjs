@@ -373,7 +373,7 @@ const statementText = (context, statement) => {
         }
         case 'block': { return `{${blockText(context, statement[1], 'none')}}` }
         case 'if': { return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${keyword('else')}{${blockText(context, statement[3], 'none')}}` }
-        case 'loop': { return `L${context.loops.indexOf(statement[1])}:${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
+        case 'loop': { return `${context.runtime ? `L${context.loops.indexOf(statement[1])}:` : ''}${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
         case 'while': {
             const loop = statement[1]
             // a loop whose block writes its variable nowhere writes it back
@@ -397,7 +397,7 @@ const blockText = (outer, input, normal) => {
         case 'yield': { return `${before}${normal === 'none' || exit[1].length === 0 ? '' : `${normal === 'return' ? keyword('return') : `${keyword('export')} ${keyword('default')}`} ${expression(context, exit[1][0])};`}` }
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
-        case 'break': case 'continue': { return `${before}${keyword(exit[0])} L${context.loops.indexOf(exit[1])};` }
+        case 'break': case 'continue': { return `${before}${keyword(exit[0])}${context.runtime ? ` L${context.loops.indexOf(exit[1])}` : ''};` }
         default: { throw ['not an exit', exit] }
     }
 }

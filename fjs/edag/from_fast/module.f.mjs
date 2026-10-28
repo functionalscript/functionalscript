@@ -36,9 +36,9 @@ const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, ta
 /** @type {(exp: Exp) => Lowered} */
 const plain = exp => ({ exp, anchors: [] })
 
-/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered) => Exp} */
-export const anchored = value => {
-    const count = requiredPrefixLength(value.exp, value.anchors)
+/** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered, established?: readonly Exp[]) => Exp} */
+export const anchored = (value, established = []) => {
+    const count = requiredPrefixLength(value.exp, value.anchors, established)
     return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
 }
 
@@ -50,7 +50,7 @@ const floated = values => values.flatMap(value => value.anchors)
  */
 const orderedOperands = (values, construct) => {
     const anchors = floated(values)
-    const local = values.map(anchored)
+    const local = values.map(value => anchored(value))
     return demandsInOrder(construct(local), anchors)
         ? { values: values.map(value => value.exp), anchors }
         : { values: local, anchors: [] }
@@ -591,18 +591,19 @@ const controlPrefix = (anchors, next) => anchors.length === 0 ? next : { normal:
  * A join lowers its following graph once, then supplies that exact expression
  * to every normal leaf. Terminal computations are selected directly, never
  * evaluated inside a completion product or a generated continuation function.
- * @type {(flow: _Control, normal: (values: readonly Lowered[]) => Exp, terminal: (value: Lowered) => Exp) => Task<Exp>}
+ * @type {(flow: _Control, normal: (values: readonly Lowered[], established: readonly Exp[]) => Exp, terminal: (value: Lowered, established: readonly Exp[]) => Exp, established?: readonly Exp[]) => Task<Exp>}
  */
-const emitControl = (flow, normal, terminal) => call(() => {
+const emitControl = (flow, normal, terminal, established = []) => call(() => {
     const node = flow.node
-    if (node.kind === 'normal') { return done(normal(node.values)) }
-    if (node.kind === 'terminal') { return done(terminal(node.value)) }
-    if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal), exp => done(anchored({ exp, anchors: node.anchors }))) }
+    if (node.kind === 'normal') { return done(normal(node.values, established)) }
+    if (node.kind === 'terminal') { return done(terminal(node.value, established)) }
+    if (node.kind === 'prefix') { return bind(emitControl(node.next, normal, terminal, established), exp => done(anchored({ exp, anchors: node.anchors }, established))) }
     if (node.kind === 'join') {
-        return bind(emitControl(node.next, normal, terminal), next => emitControl(node.body, () => next, terminal))
+        return bind(emitControl(node.next, normal, terminal, established), next => emitControl(node.body, () => next, terminal, established))
     }
-    return bind(emitControl(node.then, normal, terminal), a => bind(emitControl(node.otherwise, normal, terminal), b =>
-        done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }))))
+    const completed = [...established, ...node.test.anchors, node.test.exp]
+    return bind(emitControl(node.then, normal, terminal, completed), a => bind(emitControl(node.otherwise, normal, terminal, completed), b =>
+        done(anchored({ exp: ['?:', node.test.exp, a, b], anchors: node.test.anchors }, established))))
 })
 
 /** @type {(statement: Extract<Statement, readonly ['block' | 'if', ...unknown[]]>, context: Context) => Task<_Control>} */
@@ -648,7 +649,7 @@ const controlTask = (block, context, expected) => call(() => {
         return bind(controlRegion(statement, current), region => {
             if (!region.normal) { return done(controlPrefix(toArray(anchors), region)) }
             const hasResults = statement[1].length !== 0
-            const selected = hasResults ? emitControl(region, values => anchored(resultsValue(values)), () => null) : done(0)
+            const selected = hasResults ? emitControl(region, (values, established) => anchored(resultsValue(values), established), () => null) : done(0)
             return bind(selected, exp => bind(each(index + 1, hasResults ? scopeOf(resultBindings(statement[1], exp), scope) : scope, null), following =>
                 done(controlPrefix(toArray(anchors), {
                     normal: following.normal,
@@ -664,7 +665,7 @@ const blockTask = (block, context) => call(() => {
     const { required, reached, normal, returns } = blockSummary(block, context)
     const canControl = context.functionTarget !== null || context.transfer.kind === 'default' && !normal && !returns
     if (canControl && block.statements.some(statement => (statement[0] === 'block' || statement[0] === 'if') && regionHasControl(statement, context))) {
-        return bind(controlTask(block, context, null), flow => bind(emitControl(flow, values => anchored(resultsValue(values)), anchored), exp => done(plain(exp))))
+        return bind(controlTask(block, context, null), flow => bind(emitControl(flow, (values, established) => anchored(resultsValue(values), established), anchored), exp => done(plain(exp))))
     }
     /** @type {(index: number, scope: Scope, anchors: List<Exp>) => Task<Lowered>} */
     const each = (index, scope, anchors) => call(() => {

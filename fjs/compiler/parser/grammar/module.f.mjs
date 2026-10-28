@@ -45,7 +45,7 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' statement* terminator
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | loopIfStatement | whileStatement | bodyNameStatement
+ * loopStatement ::= const | let | loopIfStatement | whileStatement | 'break' end | 'continue' end | bodyNameStatement
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
@@ -180,8 +180,8 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
- * one, `else` an alternate, `let` and `while` a loop, `switch` and `case` a switch, and `as`
- * introduces an import alias.
+ * one, `else` an alternate, `let` and `while` a loop, `break` and `continue`
+ * its transfers, `switch` and `case` a switch, and `as` introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
@@ -203,7 +203,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -266,6 +266,8 @@ export const identifier = /** @type {const} */ ({
     else: sym('else'),
     let: sym('let'),
     while: sym('while'),
+    break: sym('break'),
+    continue: sym('continue'),
     switch: sym('switch'),
     case: sym('case'),
     as: sym('as'),
@@ -1249,13 +1251,16 @@ export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [s
  * nested loop, or what begins with a name. A conditional resumes with the
  * following statement after its selected arm; a nested loop resumes after
  * normal completion. Every block uses this same rule and owns its declarations.
- * An `else` selects another block or conditional. Explicit exits remain
- * follow-ups.
+ * An `else` selects another block or conditional. Unlabeled `break` and
+ * `continue` keep the same optional semicolon as other statements; source
+ * resolution checks the line before a following statement.
  *
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
+    break: [sym('break'), end],
     const: constStatement,
+    continue: [sym('continue'), end],
     if: loopIfStatement,
     let: letStatement,
     name: bodyNameStatement,
@@ -1266,7 +1271,8 @@ export const loopStatement = () => ['const', {
  * A loop's block, `{ const x = …; r = …; }`: any number of
  * {@link loopStatement}s and no terminator, since reaching the `}`
  * continues the loop. Conditionals and nested loops keep their lexical blocks
- * and resume here after normal completion. Explicit exits remain follow-ups.
+ * and resume here after normal completion. Transfers retain following syntax
+ * for source resolution, though selected exits do not execute it.
  *
  * @type {LoopBlock}
  */

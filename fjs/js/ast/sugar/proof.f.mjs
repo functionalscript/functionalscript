@@ -32,6 +32,86 @@ const fn = source => {
 }
 
 export const proof = {
+    directLoopExitsKeepStateAndSkipRemainingWork: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{while(true){break;const skipped=null.x;}return 7;})();', 7],
+            ['export default (()=>{let i=0;while(i<3){i=i+1;continue;const skipped=null.x;}return i;})();', 3],
+            ['export default (()=>{let i=0;let sum=0;while(i<5){i=i+1;sum=sum+i;break;sum=null.x;}return [i,sum];})();', [1, 1]],
+            ['export default (()=>{let i=0;while(true){break;i=i+1;}return i;})();', 0],
+            ['let i=0;const first=i;while(i<4){i=i+1;if(i<3){continue;}break;i=null.x;}export default [first,i];', [0, 3]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    conditionalLoopExitsMergeOnlyNormalArms: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<4){i=i+1;if(i===3){sum=40;break;}else{sum=sum+i;}sum=sum+10;}return [i,sum];})();', [3, 40]],
+            ['export default (()=>{let i=0;let sum=0;while(i<4){i=i+1;if(i<3){sum=sum+i;}else{sum=40;break;}sum=sum+10;}return [i,sum];})();', [3, 40]],
+            ['export default (()=>{let i=0;let sum=0;while(i<5){i=i+1;if(i<3){sum=sum+i;continue;}else{sum=sum+10;break;}sum=null.x;}return [i,sum];})();', [3, 13]],
+            ['export default (()=>{let i=0;let sum=0;while(i<5){i=i+1;if(i<3){sum=sum+i;continue;}sum=sum+10;}return [i,sum];})();', [5, 33]],
+            ['export default (()=>{let i=0;let sum=0;while(i<5){i=i+1;if(i===1){sum=1;}else if(i===2){continue;}else{break;}sum=sum+10;}return [i,sum];})();', [3, 11]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    nestedLoopExitsKeepTheInnermostTargetAndFreshLocals: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let j=0;while(j<4){j=j+1;if(j===2){break;}sum=sum+10;}i=i+1;if(i===2){continue;}sum=sum+i;}return [i,sum];})();', [3, 34]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){let j=0;while(j<3){j=j+1;if(j===2){continue;}sum=sum+j;}i=i+1;}return [i,sum];})();', [3, 12]],
+            ['export default (()=>{let i=0;let saved=null;while(i<3){const snapshot=[i];saved=()=>snapshot;i=i+1;continue;saved=null;}return [i,saved(),saved()===saved()];})();', [3, [2], true]],
+            ['export default (()=>{let i=0;while(i<3){const amount=(()=>{let j=0;while(j<3){j=j+1;if(j===1){continue;}break;}return j;})();i=i+amount;}return i;})();', 4],
+            ['export default (()=>{let i=0;const amount=()=>{let j=0;while(j<3){j=j+1;if(j===1){continue;}break;}return j;};while(i<3){i=i+amount();continue;}return i;})();', 4],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    loopExitsRetainReachedFailuresAndRetestConditions: () => {
+        const sources = [
+            'export default (()=>{while(true){const reached=null.x;break;}return 7;})();',
+            'export default (()=>{let i=0;while(i<3){i=i+1;const reached=null.x;continue;}return i;})();',
+            'export default (()=>{let i=0;while(i<2?true:null.x){i=i+1;continue;}return i;})();',
+        ]
+        for (const source of sources) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+        assertStructurallySame(result('export default (()=>{let i=0;while(i<2?true:null.x){i=i+1;break;}return i;})();'), { default: 1 })
+    },
+    loopTransferSignaturesUseCurrentVersionsAndNoDeadDefinitions: () => {
+        const normalized = fn('export default ()=>{let a=1;let b=2;while(true){a=b;b=3;continue;const skipped=null.x;}return [a,b];};')
+        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(statement !== undefined && statement[0] === 'loop')
+        const loop = statement[1]
+        assertEq(loop.parameters.length, 2)
+        const step = loop.body
+        assertEq(step.exit[0], 'continue')
+        assert(step.exit[0] === 'continue')
+        assertEq(step.exit[1], loop.target)
+        assertEq(step.exit[2].length, 2)
+        assertEq(step.statements.length, 2)
+        assertStructurallySame(step.exit[2], step.statements.map(statement => {
+            assert(statement[0] === 'define')
+            return ['ref', statement[1]]
+        }))
+    },
+    constantLoopGuardsChangeOnlyForOwnSourceExits: () => {
+        const own = fn('export default ()=>{let i=0;while(true){if(i===0){i=i+1;continue;}if(i===1){break;}i=i+1;}return i;};')
+        const ownLoop = own.body.statements.find(statement => statement[0] === 'loop')
+        assert(ownLoop !== undefined && ownLoop[0] === 'loop')
+        const first = ownLoop[1].body.statements[0]
+        assert(first[0] === 'if')
+        assert(first[2] instanceof Array && first[2][0] === '===')
+        assertStructurallySame(result('export default (()=>{let i=0;while(true){if(i===0){i=i+1;continue;}if(i===1){break;}i=i+1;}return i;})();'), { default: 1 })
+        for (const source of [
+            'export default ()=>{while(true){}return 0;};',
+            'export default ()=>{while(true){while(false){break;}}return 0;};',
+            'export default ()=>{while(true){const local=()=>{while(true){break;}return 1;};}return 0;};',
+        ]) {
+            const normalized = fn(source)
+            const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
+            assert(statement !== undefined && statement[0] === 'loop')
+            const guard = statement[1].body.statements[0]
+            assert(guard[0] === 'if')
+            assertEq(guard[2], true)
+        }
+    },
     nestedLoopSignaturesSelectEnclosingStateAndKeepLocals: () => {
         const normalized = fn('export default n=>{let i=0;let sum=0;while(i<n){let j=0;while(j<2){sum=sum+i+j;j=j+1;}i=i+1;}return [i,sum];};')
         const outer = normalized.body.statements.find(statement => statement[0] === 'loop')

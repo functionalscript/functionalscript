@@ -72,6 +72,9 @@ export type SourceStatement =
     /** Both normal arms precede the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
+    /** Source resolution fixes the innermost loop; sugar supplies its state. */
+    | readonly ['break', LoopTarget]
+    | readonly ['continue', LoopTarget]
 
 export type SourceCase = {
     readonly labels: readonly SourceValue[]

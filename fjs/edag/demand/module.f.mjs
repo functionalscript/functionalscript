@@ -116,13 +116,15 @@ export const demandsInOrder = (exp, required, established = []) => {
  * order by the result. Retained roots establish their eager dependencies once;
  * unsuccessful demand trials keep their newly matched values local. Primitive
  * occurrences remain in the prefix because they cannot name computations.
+ * Previously completed roots supply the same eager-dependency guarantee as
+ * the optional established values accepted by demandsInOrder.
  *
- * @type {(exp: Exp, required: readonly Exp[]) => number}
+ * @type {(exp: Exp, required: readonly Exp[], established?: readonly Exp[]) => number}
  */
-export const requiredPrefixLength = (exp, required) => {
+export const requiredPrefixLength = (exp, required, established = []) => {
     let index = required.reduce((/** @type {number} */ start, value, at) => value instanceof Array ? start : at + 1, 0)
     if (index === required.length) { return index }
-    let available = establish(empty, required.slice(0, index))
+    let available = establish(establish(empty, established), required.slice(0, index))
     while (!demandsFrom(exp, required, index, available)) {
         available = establish(available, [required[index]])
         ++index

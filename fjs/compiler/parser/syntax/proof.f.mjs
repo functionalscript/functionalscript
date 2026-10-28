@@ -54,6 +54,34 @@ const returned = node => {
 }
 
 export const proof = {
+    loopTransfersKeepSeparatorsAndFollowingSyntax: () => {
+        const module = unwrap(parseSyntax(tokenizeString('let i=0;\nwhile(i<2){\nbreak;\ncontinue\ni=i+1;\nif(i){continue;}else if(i){break}else{break;}\nwhile(false){continue;break}\n}export default i;')))
+        const loop = module.statements[1]
+        assert(loop[0] === 'while')
+        assertStructurallySame(loop[1].block[1].map(statement => statement[0]), ['break', 'continue', 'assign', 'if', 'while'])
+        const stopped = loop[1].block[1][0]
+        const repeated = loop[1].block[1][1]
+        assert(stopped[0] === 'break' && repeated[0] === 'continue')
+        assertEq(stopped[1].semicolon, true)
+        assertEq(stopped[1].start.metadata.line, 3)
+        assertStructurallySame(stopped[1].start.token, { kind: 'id', value: 'break' })
+        assertEq(repeated[1].semicolon, false)
+        assertEq(repeated[1].start.metadata.line, 4)
+        assertStructurallySame(repeated[1].start.token, { kind: 'id', value: 'continue' })
+        const branch = loop[1].block[1][3]
+        assert(branch[0] === 'if')
+        assertEq(branch[1].block[1][0][0], 'continue')
+        const alternate = branch[1].otherwise
+        assert(alternate !== null)
+        const chained = alternate[1][0]
+        assert(chained[0] === 'if')
+        const stoppedArm = chained[1].block[1][0]
+        assert(stoppedArm[0] === 'break')
+        assertEq(stoppedArm[1].semicolon, false)
+        const inner = loop[1].block[1][4]
+        assert(inner[0] === 'while')
+        assertStructurallySame(inner[1].block[1].map(statement => statement[0]), ['continue', 'break'])
+    },
     nestedLoopsKeepTheirBlocksAndFollowingStatements: () => {
         const module = unwrap(parseSyntax(tokenizeString('let i=0;\nwhile(i<2){\nlet j=0;\nwhile(j<i){j=j+1;}if(i){while(false){}}else{while(false){}}i=i+1;}export default i;')))
         const outer = module.statements[1]

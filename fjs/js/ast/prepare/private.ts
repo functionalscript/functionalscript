@@ -38,6 +38,7 @@ export type _Loop = {
 }
 
 export type _Context = {
+    readonly sourceLoops: boolean
     readonly flows: _Flows
     readonly owner: FunctionTarget | null
     readonly next: number

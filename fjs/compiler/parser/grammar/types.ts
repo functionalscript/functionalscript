@@ -39,8 +39,8 @@ import type {
 /**
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
- * too, `if` opening a guard in one, `else` an alternate, `let` and `while` a loop, `switch`
- * and `case` a switch, `as` an import alias, and `typeof` a prefix
+ * too, `if` opening a guard in one, `else` an alternate, `let` and `while` a loop,
+ * `break` and `continue` its transfers, `switch` and `case` a switch, `as` an import alias, and `typeof` a prefix
  * opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
  *
@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -62,6 +62,7 @@ export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
 export type InfixTag = BinaryTag | 'instanceof'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
+type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof'> | 'id' | 'keyword'>>
 
 /**
  * A token name the grammar can name as a terminal: every `ModuleToken` kind
@@ -503,9 +504,11 @@ export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a declaration, conditional, nested loop, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
+/** A loop block's statement: a declaration, conditional, nested loop, unlabeled transfer, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
 export type LoopStatement = () => readonly ['const', {
+    readonly break: readonly [number, End]
     readonly const: ConstStatement
+    readonly continue: readonly [number, End]
     readonly if: LoopIfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement

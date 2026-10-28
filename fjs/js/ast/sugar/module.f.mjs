@@ -203,6 +203,7 @@ const commaValues = values => {
 
 /** Ordinary invocation bindings and source parameter expansion share one scope. @type {(source: SourceFunction, environment: Environment, context: Context) => FastFunction} */
 const functionValue = (source, environment, context) => {
+    context = { ...context, loop: null }
     const parameters = Array.from({ length: source.length }, (_, i) => binding(i))
     const rest = binding(source.length)
     const self = binding(source.length + 1)
@@ -271,7 +272,7 @@ const leaf = (environment, context, value) => {
         const fn = functionValue(source, environment, context)
         if (fn.parameters.length === 0 && fn.rest === null) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
-            return { value: ['block', enclosed(source.body, environment, inner, context)] }
+            return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null })] }
         }
         return { value: ['()', ['function', fn], []] }
     }
@@ -342,7 +343,14 @@ const normalizedBlock = (source, environment, context, retained = []) => {
     let inner = environment
     /** @type {readonly Statement[]} */
     let statements = []
+    let hasLoopExit = false
     for (const statement of source.statements) {
+        if (statement[0] === 'break' || statement[0] === 'continue') {
+            const loop = assertNotNullish(context.loop, 'a source loop exit has no loop')
+            assert(loop.target === statement[1], 'a source loop exit targets another loop')
+            const values = loop.sources.map(source => lookup(inner, source))
+            return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false, hasLoopExit: true }
+        }
         if (statement[0] === 'initialize') {
             const made = expanded(statement[1], normalizedValue(inner, context)(statement[2]), inner, false)
             inner = made.environment
@@ -362,13 +370,15 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const outer = context.bindings.filter(fact => inner.some(([id]) => id === fact.id)).map(fact => fact.id)
             const branch = normalizedBlock(statement[2], inner, context, outer)
             const otherwise = normalizedBlock(statement[3], inner, context, outer)
-            const writes = [...branch.environment.slice(inner.length), ...otherwise.environment.slice(inner.length)].map(([id]) => id)
+            hasLoopExit = hasLoopExit || branch.hasLoopExit || otherwise.hasLoopExit
+            const writes = [...(branch.normal ? branch.environment.slice(inner.length) : []), ...(otherwise.normal ? otherwise.environment.slice(inner.length) : [])].map(([id]) => id)
             const sources = outer.filter(id => writes.includes(id))
             const results = sources.map(source => binding(source.index))
             statements = [...statements, ['if', results, normalizedValue(inner, context)(statement[1]),
-                { ...branch.block, exit: ['yield', sources.map(source => lookup(branch.environment, source))] },
-                { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] },
+                branch.normal ? { ...branch.block, exit: ['yield', sources.map(source => lookup(branch.environment, source))] } : branch.block,
+                otherwise.normal ? { ...otherwise.block, exit: ['yield', sources.map(source => lookup(otherwise.environment, source))] } : otherwise.block,
             ]]
+            if (!branch.normal && !otherwise.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit } }
             inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
             continue
         }
@@ -378,13 +388,15 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         const parameters = sources.map(source => binding(source.index))
         const results = sources.map(source => binding(source.index))
         const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
-        const step = normalizedBlock(loop.body, scope, context, sources)
+        const step = normalizedBlock(loop.body, scope, { ...context, loop: { target: loop.target, sources } }, sources)
         const condition = normalizedValue(scope, context)(loop.condition)
+        /** @type {Block} */
+        const continuing = step.normal ? { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] } : step.block
         statements = [...statements, ['loop', {
             target: loop.target, parameters, initial: sources.map(source => lookup(inner, source)), results,
-            body: {
+            body: condition === true && step.hasLoopExit ? continuing : {
                 statements: [['if', [], condition,
-                    { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] },
+                    continuing,
                     { statements: [], exit: ['break', loop.target, parameters.map(reference)] },
                 ]],
                 exit: ['yield', []],
@@ -395,7 +407,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         inner = [...inner, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])]
     }
     const terminal = normalizedExit(source.exit, inner, context)
-    return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner }
+    return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner, normal: terminal.exit[0] === 'yield', hasLoopExit }
 }
 
 /**
@@ -411,7 +423,7 @@ export const normalize = (resolved, imports) => {
     const representatives = resolved.imports.map((_, i) => imports.findIndex(value => Object.is(value, imports[i])))
     /** @type {Environment} */
     const environment = resolved.imports.flatMap((imported, i) => imported.binding === null ? [] : [[imported.binding, reference(established[representatives[i]])]])
-    const context = { bindings: resolved.bindings, scopes: scopesOf(resolved.scope) }
+    const context = { bindings: resolved.bindings, scopes: scopesOf(resolved.scope), loop: null }
     const normalized = normalizedBlock(resolved.body, environment, context).block
     const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])
     return { parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } }

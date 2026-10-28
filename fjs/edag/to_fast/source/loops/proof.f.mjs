@@ -26,6 +26,101 @@ const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 const counter = /** @type {Exp} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['arg', 1]]])
 
 export const proof = /** @type {const} */ ({
+    infiniteSourceContinueKeepsItsCanonicalInvocation: () => {
+        const original = graph('export default n=>{let i=0;while(true){i=i+1;continue;}return i;};')
+        const first = assertOk(tryStringify(original))
+        assert(first.includes('while(true)'), first)
+        const normalized = graph(first)
+        const canonical = assertOk(tryStringify(normalized))
+        const restored = graph(canonical)
+        assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)))
+        assertEq(assertOk(tryStringify(restored)), canonical)
+    },
+    sourceLoopRetentionChecksLexicalTransferRegions: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const nested = /** @type {const} */ ({ kind: 'loop', index: 1 })
+        const input = /** @type {const} */ ({ index: 0 })
+        const state = /** @type {const} */ ({ index: 1 })
+        const result = /** @type {const} */ ({ index: 2 })
+        const first = /** @type {const} */ ({ index: 3 })
+        const second = /** @type {const} */ ({ index: 4 })
+        const inner = /** @type {const} */ ({ index: 5 })
+        const captured = /** @type {const} */ ({ index: 6 })
+        const nestedOwner = /** @type {const} */ ({ kind: 'function', index: 1 })
+        /** @type {(body: Block) => Block} */
+        const module = body => yielded(['function', {
+            target: owner, parameters: [input], rest: null, self: null, captures: [],
+            body: { statements: [['loop', { target, parameters: [state], initial: [['ref', input]], results: [result], body }]], exit: ['return', owner, ['ref', result]] },
+        }])
+        const own = /** @type {FastFunction} */ ({ target: nestedOwner, parameters: [], rest: null, self: null,
+            captures: [{ binding: captured, value: ['block', yielded(1)] }], body: { statements: [], exit: ['throw', 7] } })
+        const accepted = module({ statements: [
+            ['define', first, ['function', own], 'required'],
+            ['define', second, ['if', true, yielded(['ref', state]), { statements: [], exit: ['throw', 7] }], 'required'],
+            ['if', [], true, { statements: [], exit: ['yield', []] }, { statements: [], exit: ['yield', []] }],
+            ['loop', { target: nested, parameters: [inner], initial: [['array', [1]]], results: [], body: { statements: [], exit: ['break', nested, []] } }],
+        ], exit: ['break', target, [['ref', state]]] })
+        assertEq(_sourceLoops(accepted), accepted)
+        /** @type {readonly Block[]} */
+        const refused = [
+            { statements: [], exit: ['return', owner, 1] },
+            { statements: [], exit: ['throw', 1] },
+            { statements: [['block', [], { statements: [], exit: ['yield', []] }]], exit: ['break', target, [1]] },
+            { statements: [['define', first, ['block', { statements: [], exit: ['continue', target, [['ref', state]]] }], 'required']], exit: ['break', target, [1]] },
+            { statements: [['loop', { target: nested, parameters: [], initial: [], results: [], body: { statements: [], exit: ['break', target, [1]] } }]], exit: ['break', target, [1]] },
+        ]
+        for (const body of refused) {
+            const source = module(body)
+            assert(_sourceLoops(source) !== source)
+        }
+    },
+    sourceLoopTransfersKeepStateAndFirstParseFixedPoints: () => {
+        const locals = Array.from({ length: 18 }, (_, index) => `let x${index}=${index};`).join('')
+        const updates = Array.from({ length: 18 }, (_, index) => `x${index}=x${index}+1;`).join('')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let i=0;while(true){i=i+1;break;}return i;', 1],
+            ['let i=0;while(i<3){i=i+1;continue;}return i;', 3],
+            ['let i=0;let sum=0;while(i<6){i=i+1;if(i%2===0){continue;}sum=sum+i;}return [i,sum];', [6, 9]],
+            ['let i=0;let sum=0;while(i<5){if(i===2){break;}sum=sum+i;i=i+1;}return [i,sum];', [2, 1]],
+            ['let i=0;let sum=0;while(true){if(i<3){sum=sum+i;i=i+1;continue;}else{sum=sum+10;break;}const skipped=null.x;}return [i,sum];', [3, 13]],
+            ['let i=0;let sum=0;while(i<3){let j=0;while(j<5){j=j+1;if(j===2){continue;}if(j===4){break;}sum=sum+i+j;}i=i+1;}return [i,sum];', [3, 18]],
+            ['let i=0;let saved=()=>[-1];while(true){i=i+1;const snapshot=[i];saved=()=>snapshot;if(i<3){continue;}break;}return saved();', [3]],
+            ['let i=0;while(i<3){i=i+1;continue;const skipped=null.x;i=99;}return i;', 3],
+            [`let i=0;${locals}while(true){i=i+1;if(i>4){break;}if(i%2===0){continue;}${updates}}return [i,x0,x17];`, [5, 2, 19]],
+        ]
+        for (const [body, expected] of cases) {
+            const original = graph(`export default (()=>{${body}})();`)
+            assertStructurallySame(evaluate(original), expected)
+            const first = assertOk(tryStringify(original))
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            assertStructurallySame(evaluate(restored), expected)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)))
+            assertEq(assertOk(tryStringify(restored)), canonical)
+        }
+    },
+    sourceLoopTransfersRetainSelectedFailures: () => {
+        /** @type {readonly string[]} */
+        const sources = [
+            'let i=0;while(i<1){const failed=null.x;i=i+1;continue;}return i;',
+            'let i=0;while(true){if(i===0){const failed=null.x;break;}i=i+1;}return i;',
+            'const test=i=>{const failed=i===2?null.x:0;return i<3;};let i=0;while(test(i)){i=i+1;continue;}return i;',
+        ]
+        for (const body of sources) {
+            const original = graph(`export default (()=>{${body}})();`)
+            failure(original)
+            const first = assertOk(tryStringify(original))
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            const restored = graph(canonical)
+            failure(restored)
+            assertStructurallySame(assertOk(identityAnalysis(restored)), assertOk(identityAnalysis(normalized)))
+            assertEq(assertOk(tryStringify(restored)), canonical)
+        }
+    },
     nestedSourceLoopsRetainResultsAndStableSpelling: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

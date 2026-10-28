@@ -49,6 +49,15 @@ iteration first creates immutable parameter snapshots; closures capture those
 snapshots rather than mutable slots. Slot mutability is recorded in the plan,
 including loops that never update a parameter.
 
+The source coordinator calls `prepare(block, { sourceLoops: true })` after
+admitting the loop's transfers and source regions. In that profile, a
+one-input/one-result loop shares one physical state slot: a continue
+stores its next input, and a break stores its final result immediately before
+leaving. Iteration snapshots and transfer temporaries retain their ordinary
+lifetimes. The prepared `while` names its final result directly, avoiding a
+second mutable source variable or an extra result alias on re-entry. Default
+preparation and standalone function text retain the independent-slot plan.
+
 A loop without a break to its own target cannot complete normally. Shared
 preparation omits its result storage and projections, then stops following work
 in the containing statement region. Result-free conditionals and statement blocks
@@ -58,6 +67,11 @@ Returns and throws still exit their exact owner;
 ordinary nested function bodies do not supply an enclosing loop's break. The
 prepared region ends with an empty unreachable yield, so both serializers omit
 the unreachable suffix, including after unconditional tail loops.
+For source functions alone, a proven-unreachable empty completion receives a
+terminal return, satisfying the source block grammar after a diverging loop.
+The last prepared `while` supplies its result alias so invocation-root
+reconstruction remains exact; otherwise the unreachable return uses `undefined`.
+A normally completing empty region retains its own signature.
 
 The canonical scalar loop produced for existing source tail recursion becomes
 a prepared `while`: its condition reads a fresh immutable snapshot of the

@@ -56,10 +56,21 @@ preparation. Each normal result resumes its enclosing body, with fresh reached
 local declarations and immutable iteration snapshots. Eligible helpers retain
 bounded-stack output and the same source-normalization contract at each level.
 
+Unlabeled source `break` and `continue` retain structured invocation loops with
+one state input and one normal result when every transfer targets its nearest
+loop. Source preparation reuses one physical input/result slot for this shape;
+separate slots would become additional state on the next source parse. The
+renderer spells the admitted loop and exits without labels. Shared default
+preparation for code-only JavaScript and Rust keeps its general transfer layout.
+Literal-true loops with their own explicit exits normalize without a redundant
+condition wrapper, preventing helper growth across source round trips. Existing
+no-exit loops retain their graph and source contracts.
+
 Other canonical invocation roots retain recursive source spelling: multiple
-physical inputs, observed rest, structured transfers or a prefix computation
-that creates identity and must also be read in the body/result. Broader source
-placement and structured transfers remain H work. The source
+physical inputs, observed rest and nonlocal transfers. Prefix computations that
+create identity can remain inside an admitted one-state structured loop, without
+being copied into a condition or result. Broader source
+placement and owning function exits remain H work. The source
 adapter uses shared recognition and preparation, with no writer-specific state
 or source-write analysis.
 

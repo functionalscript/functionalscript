@@ -1,11 +1,12 @@
 /**
- * Retain plain loops supported by shared preparation and reify other canonical
+ * Retain loops admitted by shared source preparation and reify other canonical
  * invocation loops as recursive source. Placement and tail eligibility stay in
- * common FAST; the source adapter chooses no state or target syntax.
+ * common FAST; the source adapter chooses no mutable state or target syntax.
  *
  * @module
- * @import { Block, Exit, Function as FastFunction, Statement, Value } from '../../../../js/ast/types.ts'
+ * @import { Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Task } from '../../../../js/ast/task/types.ts'
+ * @import { _Scope } from './private.ts'
  */
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
@@ -15,6 +16,57 @@ import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
 import { assert } from '../../../../asserts/module.f.js'
+
+/**
+ * The admitted structured loop keeps every transfer at its nearest loop.
+ * Ordinary function bodies own their exits; construction captures and nested
+ * loop initializers still run in the containing region. A thrown value region
+ * remains an expression, while a statement throw awaits source admission.
+ * @type {(loop: Loop) => boolean}
+ */
+const localLoop = loop => {
+    if (loop.parameters.length !== 1) { return false }
+    /** @type {readonly _Scope[]} */
+    let pending = [{ kind: 'block', block: loop.body, target: loop.target, value: false }]
+    while (pending.length !== 0) {
+        const [scope, ...rest] = pending
+        pending = rest
+        const { target } = scope
+        if (scope.kind === 'value') {
+            const value = scope.value
+            if (!(value instanceof Array) || value[0] === 'ref') { continue }
+            if (value[0] === 'block') { pending = [{ kind: 'block', block: value[1], target, value: true }, ...pending]; continue }
+            if (value[0] === 'if') {
+                pending = [{ kind: 'value', value: value[1], target },
+                    { kind: 'block', block: value[2], target, value: true },
+                    { kind: 'block', block: value[3], target, value: true }, ...pending]
+                continue
+            }
+            const operands = value[0] === 'function' ? value[1].captures.map(capture => capture.value) : operatorOperands(value)
+            pending = [...operands.map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
+            continue
+        }
+        const { block } = scope
+        const exit = block.exit
+        if (exit[0] === 'return' || exit[0] === 'throw' && !scope.value
+            || scope.value && (exit[0] === 'break' || exit[0] === 'continue')
+            || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== target) { return false }
+        pending = [...exitValues(exit).map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
+        for (const statement of block.statements) {
+            if (statement[0] === 'define') { pending = [{ kind: 'value', value: statement[2], target }, ...pending] }
+            else if (statement[0] === 'block') { return false }
+            else if (statement[0] === 'if') {
+                pending = [{ kind: 'value', value: statement[2], target },
+                    { kind: 'block', block: statement[3], target, value: false },
+                    { kind: 'block', block: statement[4], target, value: false }, ...pending]
+            } else {
+                pending = [...statement[1].initial.map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })),
+                    { kind: 'block', block: statement[1].body, target: statement[1].target, value: false }, ...pending]
+            }
+        }
+    }
+    return true
+}
 
 /** Keep source conditionals in value form; each tail arm supplies one result. @type {(block: Block) => Task<Block>} */
 const resultBlock = block => call(() => {
@@ -33,7 +85,7 @@ const resultBlock = block => call(() => {
 /** Inverse aliases read established invocation inputs, captures and self. @type {(fn: FastFunction) => Task<FastFunction>} */
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
-    if (loop === null || (fn.rest === null && (scalarLoopOf(loop) !== null || plainLoopOf(loop) !== null))) { return done(fn) }
+    if (loop === null || (fn.rest === null && (scalarLoopOf(loop) !== null || plainLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

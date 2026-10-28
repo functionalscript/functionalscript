@@ -36,6 +36,10 @@ remaining suffix the result demands before intervening unowned work. The demand
 proof treats the retained prefix as established and matches the same graph-node
 identities, preserving earlier failures and lazy boundaries. Unknown operations
 retain unproven anchors; the proof covers the complete removed suffix.
+Control-flow arms inherit the completed test and its required prefix for this
+proof, including eager dependencies already evaluated by that test. Nested
+arms retain these guarantees. Deferred definitions, arbitrary environment
+substitutions and new function invocations acquire no such guarantee.
 The shared demand query carries the retained prefix's eager dependency closure
 forward as the cut advances, using the existing persistent identity set. Each
 failed trial keeps its newly matched values local, so it cannot make a later
