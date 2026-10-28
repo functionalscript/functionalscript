@@ -198,6 +198,15 @@ roots use the graph owner's existing transfer resolver. Synthesized invocation-r
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
+For validated rest-free roots with several fixed inputs, a required define-only
+normal-arm prefix can move into the break-result value block through the shared
+plain-loop helper. It creates no function or invocation boundary. Definitions
+keep their bindings, order and lexical region, and common preparation supplies
+immutable final-input snapshots before evaluating that result once. Calls,
+allocations and closures remain after the final test, with their sharing and
+failure order intact. The candidate must satisfy the existing plain-loop
+restrictions; other profiles retain their prior source spelling or refusal.
+
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be
 restored to recursive source. Such supplied zero-input, multi-input or observed

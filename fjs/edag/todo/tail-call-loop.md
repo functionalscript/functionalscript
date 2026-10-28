@@ -153,6 +153,23 @@ parsing establishes the canonical scalar helper under the existing graph/hash
 and function-text exception, followed by exact graph/text cycles. Shared logical
 conversion and default code-only JavaScript/Rust layouts remain unchanged.
 
+Rest-free fixed multi-input roots now also retain source loops when their normal
+arm has required definitions before its result. A shared source-only normalizer
+wraps that define-only prefix in the break-result value block, clears the arm's
+statement prefix and validates the candidate through the unchanged plain-loop
+plan. Both conditional orientations retain exact targets and binding identities.
+Existing common preparation establishes immutable final-input snapshots, then
+runs the base work once after the final test. Base allocations stay shared within
+one invocation and fresh between invocations; final closures keep their captures,
+and reached calls and failures retain their order.
+
+This increment is limited to canonical rest-free roots with multiple fixed
+parameters. Other arities, rest profiles and lazy or structured normal-arm
+prefixes retain their previous fallback or refusal. The first source parse
+establishes the permitted scalar-helper boundary; later graph/text cycles remain
+exact. Logical conversion, original default JavaScript/Rust layouts and prior
+source spellings retain their contracts.
+
 ### Problem
 
 Both serializers spell a function that calls itself as recursion. The

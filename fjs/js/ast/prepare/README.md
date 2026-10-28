@@ -143,6 +143,14 @@ swapped, with prefixes and exact transfer targets retained. This pass consumes
 the existing continue-first scalar plan. Default preparation and prior source
 profiles keep their established layouts.
 
+Source admission can also wrap a rest-free multi-input loop's required normal-arm
+definitions in its break-result value block. This pass already handles that
+ordinary value region after iteration: it establishes immutable final-input
+snapshots, then evaluates the required definitions and result once. The block
+introduces no invocation and keeps base-local binding identities and captures;
+calls, allocations and failures keep their reached order after the final test.
+Default preparation and the plain-loop planner's original domain stay unchanged.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the
