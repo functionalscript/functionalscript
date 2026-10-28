@@ -313,10 +313,10 @@ export const hasUndeclaredMember = (declared, value) => {
     /** @type {(k: string) => boolean} */
     const undeclared = k => !declared(k)
     if (!commonIsArray(value)) {
-        return Object.entries(value).some(([k]) => undeclared(k))
+        return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
-        || Object.entries(value).some(([k]) => arrayIndex(k) === null && undeclared(k))
+        || Object.keys(value).some(k => arrayIndex(k) === null && undeclared(k))
 }
 
 /**
