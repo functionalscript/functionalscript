@@ -106,6 +106,39 @@ const is = (a, b) => a === b
     : isNaN_(a) && isNaN_(b)
 
 /**
+ * [`Object.fromEntries`](https://tc39.es/ecma262/#sec-object.fromentries)
+ * over the one iterable the language builds, an array: a fresh plain
+ * object with, for each element in order, the element's `[0]` as a key and
+ * its `[1]` as the value, each an own data property, so `__proto__` is a key
+ * like any other. A later duplicate key replaces the value and keeps the
+ * first key's position, as defining it again in an object literal does. The
+ * element is read by index, not destructured: an array pattern iterates,
+ * and JavaScript's answer for `{ 0: 'a', 1: 1 }` is `{ a: 1 }`. An element
+ * that is not an object fails, as JavaScript's `TypeError` does, and so
+ * does a value that is not an array: JavaScript iterates a string, which
+ * the language does not admit as entries, and refuses the rest
+ * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)).
+ * Each element copies the object built so far, so `n` entries cost O(n²);
+ * an executor may answer the node natively only as a substitution of this
+ * body ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
+ *
+ * @type {(entries: unknown) => { readonly [k in string]: unknown }}
+ */
+const fromEntries = entries => {
+    if (!(entries instanceof Array)) { throw 'Object.fromEntries: not an array' }
+    /** @type {{ readonly [k in string]: unknown }} */
+    let result = {}
+    let i = 0
+    while (i < entries.length) {
+        const e = entries[Number(i)]
+        if (e === null || typeof e !== 'object' && typeof e !== 'function') { throw 'Object.fromEntries: an entry is not an object' }
+        result = { ...result, [e[0]]: e[1] }
+        i = i + 1
+    }
+    return result
+}
+
+/**
  * `ToNumber`, as the operators apply it: a bigint throws the `TypeError`
  * `ToNumber` throws, where `Number(x)` would convert it.
  *
@@ -197,6 +230,7 @@ export const member = {
 export const statics = {
     'Object.is': is,
     'Object.entries': Object.entries,
+    'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,
     'Number.isSafeInteger': isSafeInteger,
     'Number.isNaN': isNaN_,

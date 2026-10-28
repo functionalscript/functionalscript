@@ -65,8 +65,8 @@ name not yet decided, or, where it says so, never admitted.
       ([built-in static functions](../built-ins/static-functions/README.md),
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
-      its own. `Object.entries` is admitted too, native in every executor
-      (the record below)
+      its own. `Object.entries` is admitted too, native in every executor,
+      and `Object.fromEntries`, its body in the runtime (the records below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
@@ -167,7 +167,7 @@ NaNVM with a closure over `Any::entries` in the runtime value, which the
 
 ##### `Object.fromEntries` proposal and approval
 
-**Status:** approved; implementation in progress.
+**Status:** approved and implemented; the recount below remains.
 
 **Problem.** `Object.entries` takes an object apart; nothing admitted puts
 one together from keys known only at run time. The one spelling that
@@ -225,10 +225,20 @@ proposed in
 which added it, before implementation began
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 
+**Implemented** as proposed: `fjs/js/static`'s `statics` lists the path,
+and the runtime's `statics` table holds the body, a `while` loop over the
+array that spreads the object built so far with each entry's computed key,
+refusing a value that is not an array and an element that is not an object;
+every executor answers the node from it, NaNVM through the compiled runtime.
+No executor substitutes a native for it yet, so `n` entries cost O(n²)
+there. `nanvm/harness/fixtures/object-from-entries.mjs`,
+`object-from-entries-throws.mjs` and
+`object-from-entries-not-array-throws.mjs` hold the executors to Node.
+
 **Tasks.**
 
 - [x] Formal language-design approval, recorded here with a link.
-- [ ] `Object.fromEntries`'s body in the runtime's `static` section,
+- [x] `Object.fromEntries`'s body in the runtime's `static` section,
       through every executor, with harness fixtures holding them to Node,
       and the
       [built-in static functions](../built-ins/static-functions/README.md)

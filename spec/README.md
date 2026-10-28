@@ -94,7 +94,7 @@ output; the others say under *Examples* that theirs are still to come
 | Expressions | Grouping; arithmetic, strict comparison, bitwise and lazy operators; `?:`, `!`, `typeof`, `instanceof Array`, `Number(...)` and `String(...)` |
 | Properties | Own-property reads, numeric computed keys through `Number(...)`, optional reads/calls and the enumerable `entry` helper |
 | Functions | Arrow functions, 0–16 fixed parameters, optional rest, closures, self recursion, body constants, `let` variables and assignments, terminating `if` guards, `while` loops over one variable, the terminating `switch`, `return`, `throw`, ordinary and method calls |
-| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions/README.md)); `Object.is`, `Object.entries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions/README.md)) |
+| Built-ins | Pure array, string and numeric member functions, including callbacks and function text ([member functions](./built-ins/member-functions/README.md)); `Object.is`, `Object.entries`, `Object.fromEntries` and the `Number` predicates `isInteger`, `isSafeInteger`, `isNaN`, `isFinite` ([static functions](./built-ins/static-functions/README.md)) |
 | Compiler | JSON/DataJS evaluation; FunctionalScript, EDAG and Rust graph output; import linking and the authored `.f.js` check |
 
 The sections below give the restrictions and executor-specific limits for

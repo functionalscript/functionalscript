@@ -8,7 +8,7 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits six static functions. `Object.is` is JavaScript's
+The language admits seven static functions. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -19,6 +19,13 @@ UTF-16 code units under their index strings, nothing for a number, a
 boolean, a `bigint` or a function, and a failure on `null` and
 `undefined`. An entry holding `undefined` is listed, as JavaScript lists
 it ([undefined-valued properties](../../todo/1010-undefined-property.md)).
+`Object.fromEntries` is its inverse, JavaScript's over an array of entries:
+a fresh object with each element's `[0]` as a key, converted to a string,
+and its `[1]` as the value, in order, so a key written twice keeps its first
+position and its last value, and `__proto__` is an own key like any other.
+An element that is not an object fails, as JavaScript's `TypeError` does,
+and so does an argument that is not an array: JavaScript also takes any
+iterable, which the language builds none of but the array.
 The four `Number` predicates are
 JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isSafeInteger` — an integer within `2^53 - 1` of `0` —
@@ -77,7 +84,8 @@ body is written once, in the `statics` table of
 a module calls the built-in — and checked there against the host's own;
 every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. `Object.entries` alone has no
-body, since enumerating keys is what no body can do otherwise: every
+body, since enumerating keys is what no body can do otherwise; the
+others, `Object.fromEntries` among them, have one: every
 executor binds it natively, and its text, `String(Object.entries)`, is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
@@ -108,5 +116,5 @@ export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
