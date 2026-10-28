@@ -91,6 +91,24 @@ Every README has a heading, so today's reader renders none of them.
   `Document`'s shape changes for this; if that breaks the published API, the
   pull request that makes it explains the API change. A breaking notice is
   optional before 1.0.
+- **A code fence is coloured where the site can read its language.** A
+  `js`, `javascript`, `json` or `jsonc` fence, in any case, goes through the
+  tokenizer fallback the demos use for a typed example
+  ([`demo/highlight`](../demo/highlight/module.f.mjs)'s `highlight`), so a
+  README's code and a demo's code look alike and the text is the fence's,
+  character for character. A fence in any other language, or one the
+  tokenizer refuses, stays a plain `<pre>`: no colour is honest, a guessed
+  one is not. A `ts` or `typescript` fence reads TypeScript's own words —
+  `type`, `readonly`, `as`, `keyof` and the rest — as keywords where an
+  operand follows them on their line (`type A`, `readonly [`, `as const`),
+  and as names elsewhere: a word list alone would colour the README
+  variables `unknown`, `symbol` and `out` as keywords. The primitive type
+  names, `string` and `number` among them, stay names, since one is a
+  keyword only where a type stands, and telling a type's place from a
+  value's takes a parser.
+  [source-and-doc-view](source-and-doc-view.md)'s prerequisite, the
+  tokenizer reading every spelling the repository uses, is not one here: a
+  fence it refuses is plain, as before.
 - **The README is not restricted to fit the reader.** READMEs are written
   for GitHub first, and a convention for writing them to suit this site is
   the wrong direction of dependence.
@@ -116,9 +134,6 @@ Every README has a heading, so today's reader renders none of them.
   [source-and-doc-view](source-and-doc-view.md) moves `fileHref` to the
   site's own view, README links move with it. Still open: a link with a
   `#fragment` needs heading ids that match GitHub's.
-- **Highlighting a code fence.** Optional, and if wanted it is
-  [source-and-doc-view](source-and-doc-view.md)'s tokenizer, with its
-  prerequisite. A plain `<pre>` needs neither, so it does not block this.
 
 ### Tasks
 
@@ -139,6 +154,10 @@ Every README has a heading, so today's reader renders none of them.
 - [x] Relative links resolved as above, and heading ids made as GitHub
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.
+- [x] Fenced code coloured: JavaScript and JSON, by the demos' tokenizer.
+- [x] Fenced TypeScript coloured, its own keywords included.
+- [ ] TypeScript's primitive type names coloured where a type stands, which
+      needs a reader that knows a type's place from a value's.
 - [x] Tables, every row opening with a pipe.
 - [x] Nested and loose lists.
 - [ ] Numbered lists.
@@ -159,4 +178,4 @@ Every README has a heading, so today's reader renders none of them.
 - [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
   — what the subset refuses or reads differently from GitHub.
 - [source-and-doc-view](source-and-doc-view.md) — the sibling view for
-  source files, and the tokenizer a highlighted fence would use.
+  source files, over the same tokenizer a coloured fence uses.

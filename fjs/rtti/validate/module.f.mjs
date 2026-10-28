@@ -83,7 +83,6 @@
  */
 
 import { noAccumulate, readerOf } from '../common/module.f.mjs'
-import { emptyRest } from '../data/module.f.mjs'
 
 /** A checked container is the result: the value it was given, not a reconstruction. */
 /** @type {(acc: undefined, value: Unknown) => Unknown} */
@@ -97,7 +96,6 @@ const keep = (_, value) => value
 const read = readerOf(
     { empty: undefined, cons: noAccumulate },
     { array: keep, record: keep, tuple: keep, struct: keep },
-    emptyRest,
 )
 
 /**

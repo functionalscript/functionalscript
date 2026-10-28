@@ -334,9 +334,10 @@ type RequiredFields<T extends Struct> = {
  *
  * **An empty rest renders no tail**, since `rest(c, or())` is the bare `c` —
  * one set, so one rendering, and `readonly[42, ...undefined[]]` would admit
- * the `[42, undefined]` both readers reject. What counts as empty is
- * `emptyRest`'s question in `../data/module.f.mjs`, and that is a `toData`
- * conversion plus `subset` both ways, which `types.ts` cannot invoke. Nor is
+ * the `[42, undefined]` both readers reject. What counts as empty is a
+ * semantic question — a `toData` conversion compared with the bare
+ * container's by `equivalent` in `../data/module.f.mjs` — which `types.ts`
+ * cannot invoke. Nor is
  * `Ts<R> extends never` a substitute — `Ts<readonly[Or<readonly[]>]>` is
  * `readonly[never]`, whose `length` is `1`. So this recognizes the one
  * directly spellable empty rest, `or()`, and **keeps the tail whenever it

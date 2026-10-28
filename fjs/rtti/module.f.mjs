@@ -98,7 +98,7 @@ export const or = (...types) =>
  * { a: or(option, number) }             // `a` may be absent, or a number
  * { a: or(number, undefined) }          // `a` must be present, may hold `undefined`
  * { a: or(option, number, undefined) }  // absent, a number, or a present `undefined`
- * [or(option, number), 3]               // position 0 may be a hole
+ * [3, or(option, number)]               // position 1 may be absent: `[3]`
  * ```
  *
  * Absence is not a spelling of the value `undefined`: `{}` and
@@ -106,7 +106,8 @@ export const or = (...types) =>
  * absence accepts the first. It is observable only at a container position —
  * no caller can hand a reader an argument that is not there, so a top-level
  * schema admitting absence accepts exactly what the rest of its union
- * accepts — and a container's `rest` never sees it, a hole being no member.
+ * accepts. A tuple position is absent only past the end of the array, and a
+ * container's `rest` never sees an absent member.
  *
  * @type {Option}
  */
