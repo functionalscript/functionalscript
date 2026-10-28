@@ -607,6 +607,88 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    fixedPlusRestNormalDefinitionsKeepSharingCapturesAndFirstParseFixedPoints: () => {
+        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const parameters = ['n', ...names, '...xs'].join(',')
+        const updates = ['n-1', ...names.map(name => `${name}+1`), 'xs[0]+1'].join(',')
+        const arguments_ = ['3', ...names.map((_, index) => `${index}`), '99'].join(',')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const f=(n,...xs)=>n>0?f(n-1,xs[0]+n):(()=>{const x=[xs];return [x,x];})();export default [f.length,f(3,0)];', [1, [[[6]], [[6]]]]],
+            ['const f=(n,...xs)=>n===0?(()=>{const x=[xs];return [x,x];})():f(n-1,xs[0]+n);export default f(3,0);', [[[6]], [[6]]]],
+            ['const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];return [x,x];})();const a=f(0);const b=f(0);export default [a[0]===a[1],a[0][0]===a[1][0],a[0]===b[0],a[0][0]===b[0][0],a];', [true, true, false, false, [[[]], [[]]]]],
+            ['const f=(n,previous,...xs)=>n>0?f(n-1,xs,...xs):(()=>{const x=[previous===xs,xs];return [x,x];})();const result=f(3,null,7,8);export default [f.length,result[0]===result[1],result];', [2, true, [[false, [7, 8]], [false, [7, 8]]]]],
+            ['const f=(n,previous,...xs)=>n===0?(()=>{const x=[previous===xs,xs];return [x,x];})():f(n-1,xs);const result=f(3,null,7);export default [result[0]===result[1],result];', [true, [[false, []], [false, []]]]],
+            ['const f=(n,saved,...xs)=>n>0?f(n-1,()=>xs,n):(()=>{const x=[saved(),xs];return ()=>x;})();const read=f(3,null,99);export default [read()===read(),read()];', [true, [[2], [1]]]],
+            ['const seed=[9];const f=(n,...xs)=>n===0?(()=>{const x=[xs[0],seed];return [x,x];})():f(n-1,...xs);const result=f(2,seed);export default [result[0]===result[1],result[0][0]===seed,result[0][1]===seed];', [true, true, true]],
+            ['const f=(n,value,...xs)=>n>0?f(...[n-1]):(()=>{const x=[value,xs];return [x,x];})();export default f(3,7,8);', [[undefined, []], [undefined, []]]],
+            ['const f=(n,...xs)=>n>0?f(0,..."A𝄞",99):(()=>{const x=[xs];return [x,x];})();export default f(1);', [[['A', '𝄞', 99]], [['A', '𝄞', 99]]]],
+            ['const make=xs=>[xs];const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=make(xs);return [x,x];})();export default f(3,7);', [[[7]], [[7]]]],
+            ['const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];const y=[xs];return [x===y,x,x,y];})();export default f(2,7);', [false, [[7]], [[7]], [[7]]]],
+            [`const f=(${parameters})=>n>0?f(${updates}):(()=>{const x=[x0,x14,xs];return [x,x];})();const result=f(${arguments_});export default [f.length,result[0]===result[1],result];`, [16, true, [[3, 17, [102]], [3, 17, [102]]]]],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected, source)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    fixedPlusRestNormalDefinitionsKeepRequiredFailuresAndFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const required=null.x;const x=[xs];return [x,x];})();export default f(2,7);',
+            'const f=(n,...xs)=>n===0?(()=>{const x=[xs];const required=null.x;return [x,x];})():f(n-1,...xs);export default f(0,7);',
+            'const f=(n,...xs)=>n>0?f(n-1,null.x):(()=>{const x=[xs];return [x,x];})();export default f(1,7);',
+            'const f=(n,...xs)=>n>0?f(n-1,...null):(()=>{const x=[xs];return [x,x];})();export default f(1,7);',
+            'const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];return [x,x];})();export default f(0,7,null.x);',
+            'const f=(n,...xs)=>{const required=null.x;return n>0?f(n-1,...xs):(()=>{const x=[xs];return [x,x];})();};export default f(0,7);',
+            'const make=xs=>xs[0].x;const f=(n,...xs)=>n===0?(()=>{const x=make(xs);return [x,x];})():f(n-1,...xs);export default f(2,null);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    restOnlyAndZeroInputNormalDefinitionsKeepTheirRecursiveSource: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(...xs)=>xs[0]>0?f(xs[0]-1):(()=>{const x=[xs];return [x,x];})();export default f(2);',
+            'const f=(...xs)=>xs[0]===0?(()=>{const x=[xs];return [x,x];})():f(xs[0]-1);export default f(2);',
+            'const f=()=>false?f():(()=>{const x=[];return [x,x];})();export default f();',
+        ])) {
+            const original = graph(source)
+            const first = assertOk(tryStringify(original))
+            assert(!first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), evaluate(original), source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
     observedRestPlainLoopsKeepReachedFailuresAndFirstParseFixedPoints: () => {
         for (const source of /** @type {const} */ ([
             'const f=(n,...xs)=>n>0?f(n-1,null.x):xs;export default f(1);',

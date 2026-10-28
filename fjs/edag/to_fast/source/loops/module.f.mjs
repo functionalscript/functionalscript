@@ -99,7 +99,7 @@ const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
     if (loop === null || plainLoopOf(loop) !== null || (fn.rest === null && (scalarLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
     const retained = fn.parameters.length === 0 && fn.rest !== null ? continueFirstPlainLoopOf(loop)
-        : fn.rest === null && fn.parameters.length > 1 ? resultBlockPlainLoopOf(loop) : null
+        : resultBlockPlainLoopOf(loop)
     if (retained !== null) { return done({ ...fn, body: { ...fn.body,
         statements: [...fn.body.statements.slice(0, -1), ['loop', retained]],
     } }) }
