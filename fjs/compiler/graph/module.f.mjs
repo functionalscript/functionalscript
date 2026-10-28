@@ -113,6 +113,16 @@ export const unsupported = exp => ({ kind: 'unsupported', label: `${exp[0]} (not
 const edge = (label, value, lazy) => lazy ? [label, value, 'lazy'] : [label, value]
 
 /**
+ * A link's key as its row, as a plain `.` node draws it: a name a
+ * value in its `key` row, and an index, literal or computed, in its
+ * `idx` row — a computed one an edge, lazy inside a region.
+ *
+ * @type {(index: unknown, lazy: boolean) => _Child}
+ */
+const keyRow = (index, lazy) =>
+    edge(typeof index === 'string' ? 'key' : 'idx', index, lazy && index instanceof Array)
+
+/**
  * The ports of an array node's items: one per item, named by its position,
  * a spread's marked `...`.
  *
@@ -136,16 +146,6 @@ export const operatorShape = ({ array, object }) => other => {
      * @type {(items: unknown, lazy: boolean) => _Child}
      */
     const argsRow = (items, lazy) => edge('...', [array, items], lazy)
-
-    /**
-     * A link's key as its row, as a plain `.` node draws it: a name a
-     * value in its `key` row, and an index, literal or computed, in its
-     * `idx` row — a computed one an edge, lazy inside a region.
-     *
-     * @type {(index: unknown, lazy: boolean) => _Child}
-     */
-    const keyRow = (index, lazy) =>
-        edge(typeof index === 'string' ? 'key' : 'idx', index, lazy && index instanceof Array)
 
     /**
      * A chain's steps, each a link of its own in the node its first link
