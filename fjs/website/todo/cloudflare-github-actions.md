@@ -66,6 +66,12 @@ Workers Builds is disconnected after the owner verified preview login. Setup,
 branch-alias rules, cutover and rollback are documented in
 [GitHub Actions deployment](../README.md#github-actions-deployment).
 
+### Preview links
+
+The owner requested a preview URL comment on each same-repository PR. Publish
+it only after a successful Actions upload, and update the existing bot comment
+on later runs. Use the automatic Actions token; require no additional settings.
+
 ### Tasks
 
 - [x] Settle the job's triggers, dependencies on required checks, preview policy,
