@@ -52,9 +52,10 @@ sideways: its picture changes direction, not its content.
 
 ### Tasks
 
-- [ ] A reader for the flowchart subset, as a FunctionalScript module with its
+- [x] A reader for the flowchart subset, as a FunctionalScript module with its
       proof: text in, nodes and edges out, or the refusal of a form outside
-      the subset.
+      the subset ([`media/mermaid`](../../media/mermaid/module.f.js)'s
+      `tryFlowchart`).
 - [ ] Mark an edge that closes a cycle as a `back` edge, so the layout ranks
       the rest: `disot`'s document → hash → document drew badly without it.
 - [ ] Draw a label of several lines (`<br/>`, `\n`), and an edge with no
