@@ -24,6 +24,7 @@
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
+import { isMixedLoop } from '../loop/terminal/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -429,7 +430,8 @@ const exitValue = (exit, context) => call(/** @returns {_Task<_Prepared<{ readon
     }
     if (exit[0] === 'continue' || exit[0] === 'break') {
         const loop = assertNotNullish(context.loops.find(loop => loop.target === exit[1]), ['FAST transfer outside its loop', exit[1]])
-        return bind(transfer(exit[2], exit[0] === 'continue' ? loop.parameters : loop.results, context), result => done({ value: { statements: result.value, exit: [exit[0], exit[1]] }, next: result.next }))
+        const input = exit[0] === 'continue' && loop.packed ? /** @type {readonly NormalValue[]} */ ([['array', exit[2]]]) : exit[2]
+        return bind(transfer(input, exit[0] === 'continue' ? loop.parameters : loop.results, context), result => done({ value: { statements: result.value, exit: [exit[0], exit[1]] }, next: result.next }))
     }
     return bind(prepareValue(exit[0] === 'return' ? exit[2] : exit[1], context), result =>
         done({ value: { statements: result.statements, exit: exit[0] === 'return' ? ['return', exit[1], result.value] : ['throw', result.value] }, next: result.next }))
@@ -548,10 +550,11 @@ const statementTask = (statement, context) => call(() => {
                 })
             })
         }
-        return bind(values(loop.initial, context), initial => {
+        const packed = context.sourceLoops && loop.parameters.length > 1 && isMixedLoop(loop)
+        return bind(values(packed ? [['array', loop.initial]] : loop.initial, context), initial => {
             const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)
-            const parameters = fresh(initial.next + temporaries.length, loop.parameters.length)
+            const parameters = fresh(initial.next + temporaries.length, packed ? 1 : loop.parameters.length)
             // Source loop re-entry must preserve one state binding. A break
             // replaces that slot only immediately before leaving the loop.
             const shared = context.sourceLoops && parameters.length === 1 && loop.results.length === 1
@@ -560,11 +563,12 @@ const statementTask = (statement, context) => call(() => {
             return bind(prepareBlock(loop.body, {
                 ...context,
                 next: initial.next + temporaries.length + parameters.length + resultCount,
-                loops: [...context.loops, { target: loop.target, parameters, results }],
+                loops: [...context.loops, { target: loop.target, parameters, results, packed }],
                 yields: null,
             }), body => {
                 const block = /** @type {Block} */ ({
-                    statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, ['ref', parameters[index]]])), ...body.value.statements],
+                    statements: [...loop.parameters.map((id, index) => /** @type {Statement} */ (['define', id, packed
+                        ? ['.', ['ref', parameters[0]], index] : ['ref', parameters[index]]])), ...body.value.statements],
                     exit: body.value.exit,
                 })
                 const physical = /** @type {Statement} */ (shared ? ['while', {

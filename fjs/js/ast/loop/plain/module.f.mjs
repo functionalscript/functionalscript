@@ -11,7 +11,8 @@
  */
 
 import { freeBindings } from '../../control/module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { run } from '../../task/module.f.mjs'
+import { terminalTree } from '../terminal/module.f.mjs'
 
 /**
  * Fixed numeric reads preserve established values. Named properties can mint
@@ -131,27 +132,14 @@ export const continueFirstPlainLoopOf = loop => {
 }
 
 /**
- * Turn an exact-transfer terminal decision tree into one value region.
- * Required prefixes stay before their decision; each selected leaf supplies
- * its scalar result or complete next-value vector.
+ * Turn exact transfers into one value region while preserving width-one lists.
  * @type {(block: Block, target: LoopTarget, kind: 'break' | 'continue', width: number) => Task<Block | null>}
  */
-const transferResult = (block, target, kind, width) => call(() => {
-    const last = block.statements.at(-1)
-    const conditional = last !== undefined && last[0] === 'if'
-    const prefix = conditional ? block.statements.slice(0, -1) : block.statements
-    if (!prefix.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return done(null) }
+const transferResult = (block, target, kind, width) => terminalTree(block, block => {
     const exit = block.exit
-    if (conditional) {
-        if (last[1].length !== 0 || exit[0] !== 'yield' || exit[1].length !== 0) { return done(null) }
-        return bind(transferResult(last[3], target, kind, width), then => then === null ? done(null)
-            : bind(transferResult(last[4], target, kind, width), otherwise => done(otherwise === null ? null : {
-                statements: prefix, exit: ['yield', [['if', last[2], then, otherwise]]],
-            })))
-    }
-    return done(exit[0] === kind && exit[1] === target && exit[2].length === width
-        ? { statements: block.statements, exit: ['yield', width === 1 ? exit[2] : [width > 1 ? ['array', exit[2]] : undefined]] } : null)
-})
+    return exit[0] === kind && exit[1] === target && exit[2].length === width
+        ? { statements: block.statements, exit: ['yield', width === 1 ? exit[2] : [width > 1 ? ['array', exit[2]] : undefined]] } : null
+}, (prefix, test, then, otherwise) => ({ statements: prefix, exit: ['yield', [['if', test, then, otherwise]]] }))
 
 /**
  * Keep required normal-arm definitions and terminal decisions in its result.

@@ -242,7 +242,26 @@ first-parse graph/text stability. A private preparation context identifies only
 the observed rest-only function's root target when its semantic width is one;
 ordinary single-input roots, including those in nested functions, keep their
 previous layouts. No graph metadata or writer-specific transfer analysis is added.
-Mixed transfers and general lazy prefixes retain their existing admission.
+General lazy prefixes retain their existing admission.
+
+Source admission also retains fixed multi-input and observed-rest roots with
+a nested terminal decision that mixes completion and continuation. Shared
+terminal analysis accepts required-definition prefixes, result-free decisions
+and exact transfers: every completed leaf supplies one loop result, and every
+continued leaf supplies the complete invocation input vector. The adapter
+keeps the original body and targets; required work, allocations and captures
+retain their lexical regions rather than moving across condition/result
+boundaries.
+
+Common preparation uses one private state/result slot in `while(true)`.
+Multi-input roots pack the initial values and each selected next-input vector
+once, then establish immutable per-input snapshots in the body. Completion
+evaluates the selected result, writes that same slot and exits. Rest-only roots
+reuse the existing shared scalar path. Earlier source profiles and default
+JavaScript/function-text/Rust layouts retain their contracts; no logical graph
+metadata or transfer tags are introduced. The first source parse establishes
+the permitted scalar helper boundary, and subsequent graph/text cycles stay
+exact.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

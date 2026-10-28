@@ -787,6 +787,109 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    mixedTailLeavesKeepSelectedResultsAndFirstParseFixedPoints: () => {
+        for (const [parameters, test, early, recur, normal, args, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, unknown])[]} */ ([
+            ['n,a', 'n>0', 'n===1', 'f(n-1,a+1)', 'a', '4,7', 10],
+            ['n,a,b', 'n>0', 'n===1', 'f(n-1,b,a)', '[a,b]', '4,1,2', [2, 1]],
+            ['n,...xs', 'n>0', 'n===1', 'f(n-1,xs[1],xs[0])', 'xs', '4,1,2', [2, 1]],
+            ['n,...xs', 'n>0', 'n===1', 'f(n-1)', 'xs', '4,1,2', []],
+            ['...xs', 'xs[0]>0', 'xs[0]===1', 'f(xs[0]-1,xs[2],xs[1])', '[xs[1],xs[2]]', '4,1,2', [2, 1]],
+        ])) {
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                for (const earlyFirst of /** @type {const} */ ([false, true])) {
+                    const mixed = earlyFirst ? `${early}?${normal}:${recur}` : `!(${early})?${recur}:${normal}`
+                    for (const [inputs, result] of /** @type {readonly (readonly [string, unknown])[]} */ ([[args, expected], ['0,7,8', parameters === 'n,a' ? 7 : [7, 8]]])) {
+                        const source = `const f=(${parameters})=>${baseFirst ? `!(${test})?${normal}:(${mixed})` : `${test}?(${mixed}):${normal}`};export default f(${inputs});`
+                        const original = graph(source)
+                        assertStructurallySame(evaluate(original), result, source)
+                        const output = assertOk(tryStringify(original))
+                        assert(output.includes('while('), output)
+                        const normalized = graph(output)
+                        const canonical = assertOk(tryStringify(normalized))
+                        let current = normalized
+                        for (let generation = 0; generation < 7; ++generation) {
+                            assertStructurallySame(evaluate(current), result, source)
+                            assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                            assertEq(assertOk(tryStringify(current)), canonical, source)
+                            current = graph(canonical)
+                        }
+                    }
+                }
+            }
+        }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            for (const sharedRoot of /** @type {const} */ ([false, true])) {
+                const prefix = sharedRoot ? 'const anchor=[n,a,b];' : ''
+                const pair = sharedRoot ? 'anchor' : '[n,a,b]'
+                const normal = `(()=>{const pair=${pair};return[pair,pair,()=>[pair,n,a,b],saved];})()`
+                const recur = `(()=>{const pair=${pair};return f(n-1,b,a,()=>[pair,n,a,b]);})()`
+                const mixed = `${sharedRoot ? 'anchor[0]' : 'n'}===1?${normal}:${recur}`
+                const source = `const f=(n,a,b,saved)=>{${prefix}return ${baseFirst ? `n<=0?${normal}:(${mixed})` : `n>0?(${mixed}):${normal}`};};const first=f(4,1,2,()=>null);const held=first[3]();const other=f(2,5,6,()=>null);export default[first[0]===first[1],first[2]()[0]===first[0],first[0]===other[0],first[3]()[0]===held[0],first[0],first[2](),held];`
+                const original = graph(source)
+                const expected = /** @type {const} */ ([true, true, false, true, [1, 2, 1], [[1, 2, 1], 1, 2, 1], [[2, 1, 2], 2, 1, 2]])
+                assertStructurallySame(evaluate(original), expected)
+                const output = assertOk(tryStringify(original))
+                assert(output.includes('while('), output)
+                const normalized = graph(output)
+                const canonical = assertOk(tryStringify(normalized))
+                let current = normalized
+                for (let generation = 0; generation < 7; ++generation) {
+                    assertStructurallySame(evaluate(current), expected)
+                    assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                    assertEq(assertOk(tryStringify(current)), canonical)
+                    current = graph(canonical)
+                }
+            }
+        }
+    },
+    mixedRootArmsKeepBothCompletionRoutesAndFirstParseFixedPoints: () => {
+        for (const [input, expected] of /** @type {const} */ ([[3, 10], [-4, 10], [0, 7], [-1, 7]])) {
+            const source = `const f=(n,a)=>n>=0?(n===0?a:f(n-1,a+1)):(n===-1?a:f(n+1,a+1));export default f(${input},7);`
+            const original = graph(source)
+            assertEq(evaluate(original), expected)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertEq(evaluate(current), expected)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                current = graph(canonical)
+            }
+        }
+    },
+    mixedTailLeavesKeepRequiredFailuresAndSkippedWork: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>n>0?(null.selector?a:f(n-1,a+1)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(n===1?null.early:f(n-1,a+1)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(n===1?a:f(null.first,a+1)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(n===1?a:f(n-1,null.second)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(n===1?a:f(n-1,a+1,null.ignored)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(false?a:f(n-1,a+1)):null.normal;export default f(3,0);',
+            'const f=(n,...xs)=>n>0?(n===1?xs:f(n-1,...null)):xs;export default f(3,0);',
+            'const f=(...xs)=>xs[0]>0?(xs[0]===1?xs:f(xs[0]-1,null.selected)):xs;export default f(3,0);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+        const skipped = /** @type {const} */ ('const f=(n,a)=>n>0?(n===1?a:f(n-1,a+1,null.skipped)):a;export default f(1,7);')
+        const output = assertOk(tryStringify(graph(skipped)))
+        assert(output.includes('while('), output)
+        assertEq(evaluate(graph(output)), 7)
+    },
     branchingTransitionsKeepSimultaneousUpdatesAndFirstParseFixedPoints: () => {
         for (const [parameters, test, choice, first, second, normal, args, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, string, unknown])[]} */ ([
             ['', 'false', 'true', 'f(null.left)', 'f(null.right)', 'seed', '', [9]],

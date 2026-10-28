@@ -203,6 +203,19 @@ parse establishes the same permitted helper boundary, then graph/text cycles
 remain exact. Original function text, default JavaScript/Rust layouts and prior
 ordinary single-input source spellings retain their contracts.
 
+Fixed multi-input and observed-rest roots with nested mixed completion and
+continuation use a shared `while(true)` source plan. Each selected leaf either
+computes one normal result or establishes the complete next-input vector
+before updating the private slot. Multi-input state is packed once and read
+through immutable body snapshots; completion writes its scalar result into
+the same slot immediately before leaving the loop. Rest-only state uses the
+existing scalar form. Required prefixes and their shared allocations remain
+inside the iteration, retaining captures, rest identity and reached failures.
+The first source parse establishes the permitted helper boundary, then graph
+and text stabilize exactly. Original logical function text, default JavaScript/
+Rust layouts and prior source profiles remain unchanged; general lazy regions
+retain their existing admission.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function

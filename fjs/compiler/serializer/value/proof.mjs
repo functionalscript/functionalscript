@@ -555,6 +555,198 @@ export const proof = {
             }
         }
     },
+    mixedTailLeavesKeepCompletionOrderAndInvocationSnapshots: async () => {
+        const tokenA = /** @type {const} */ ([1])
+        const tokenB = /** @type {const} */ ([2])
+        const seed = /** @type {const} */ ([9])
+        for (const [arity, parameters, n, a, b, saved, rest] of /** @type {const} */ ([
+            [4, 'n,a,b,saved', 'n', 'a', 'b', 'saved', 'null'],
+            [1, 'n,...xs', 'n', 'xs[0]', 'xs[1]', 'xs[2]', 'xs'],
+            [0, '...xs', 'xs[0]', 'xs[1]', 'xs[2]', 'xs[3]', 'xs'],
+        ])) {
+            const hasRest = rest !== 'null'
+            const pair = `[${n},${a},${b},${rest}]`
+            const read = `()=>[pair,${n},${a},${b},${rest}]`
+            const recur = `(()=>{const pair=${pair};return f(argument(0,${n}-1,pair,pair,${read}),argument(1,${b},pair,pair,${read}),argument(2,${a},pair,pair,${read}),()=>pair);})()`
+            /** @param {number} label */
+            const normal = label => `(()=>{const pair=${pair};return finish(${label},pair,pair,${read},${saved}());})()`
+            const test = `test(${n},${a},${b},${saved},${rest},()=>[${n},${a},${b},${rest}])`
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                for (const earlyFirst of /** @type {const} */ ([false, true])) {
+                    const choice = `choose(${n})`
+                    const mixed = earlyFirst ? `${choice}?${normal(1)}:${recur}` : `!${choice}?${recur}:${normal(1)}`
+                    const source = `export default(test,choose,argument,finish)=>{const f=(${parameters})=>${baseFirst ? `!${test}?${normal(0)}:(${mixed})` : `${test}?(${mixed}):${normal(0)}`};return f;};`
+                    const [, interpreted] = virtualAt({ main: [utf8(source)] })(interpret(noRuntime)('main'))
+                    const graph = assertOk(interpreted)
+                    for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                        assert(text.includes('while('), text)
+                        const make = (await load(text)).default
+                        const stopped = new Error('stop in the selected mixed transfer path')
+                        let start = 0
+                        let tests = 0
+                        let choices = 0
+                        let argumentsSeen = 0
+                        let argumentIndex = 0
+                        let steps = 0
+                        let finishes = 0
+                        let stopEarly = true
+                        let mode = 'normal'
+                        /** @type {readonly number[]} */
+                        let expectedA = tokenA
+                        /** @type {readonly number[]} */
+                        let expectedB = tokenB
+                        /** @type {readonly unknown[] | undefined} */
+                        let previousPair
+                        /** @type {readonly unknown[] | undefined} */
+                        let previousRest
+                        /** @type {{ readonly read: () => readonly unknown[], readonly values: readonly unknown[] } | undefined} */
+                        let held
+                        /** @type {{ readonly read: () => readonly unknown[], readonly values: readonly unknown[] } | undefined} */
+                        let heldCondition
+                        const run = make(
+                            /** @type {(n: number, a: readonly number[], b: readonly number[], saved: () => unknown, rest: readonly unknown[] | null, read: () => readonly unknown[]) => boolean} */ ((n, a, b, saved, rest, read) => {
+                                assertEq(n, start - steps)
+                                assertEq(a, expectedA)
+                                assertEq(b, expectedB)
+                                assertEq(saved(), steps === 0 ? seed : previousPair)
+                                assertEq(tests, steps)
+                                assertEq(choices, steps)
+                                assertEq(argumentsSeen, steps * 3)
+                                assertEq(finishes, 0)
+                                const captured = read()
+                                assertEq(captured[0], n)
+                                assertEq(captured[1], a)
+                                assertEq(captured[2], b)
+                                assertEq(captured[3], rest)
+                                if (hasRest) { assert(rest !== previousRest) }
+                                else { assertEq(rest, null) }
+                                if (tests === 0) { heldCondition = { read, values: captured } }
+                                previousRest = rest === null ? undefined : rest
+                                tests += 1
+                                if (mode === 'condition' && tests === 2) { throw stopped }
+                                return n >= 0
+                            }),
+                            /** @type {(n: number) => boolean} */ (n => {
+                                assertEq(n, start - steps)
+                                assertEq(choices, steps)
+                                choices += 1
+                                if (mode === 'selector' && tests === 2) { throw stopped }
+                                return stopEarly && n === 0
+                            }),
+                            /** @type {(index: number, value: unknown, first: readonly unknown[], second: readonly unknown[], read: () => readonly unknown[]) => unknown} */ ((index, value, first, second, read) => {
+                                assertEq(index, argumentIndex)
+                                assertEq(first, second)
+                                assertEq(first[0], start - steps)
+                                assertEq(first[1], expectedA)
+                                assertEq(first[2], expectedB)
+                                assertEq(first[3], hasRest ? previousRest : null)
+                                const captured = read()
+                                assertEq(captured[0], first)
+                                assertEq(captured[1], first[0])
+                                assertEq(captured[2], first[1])
+                                assertEq(captured[3], first[2])
+                                assertEq(captured[4], first[3])
+                                assertEq(value, index === 0 ? start - steps - 1 : index === 1 ? expectedB : expectedA)
+                                if (index === 0) {
+                                    assert(first !== previousPair)
+                                    previousPair = first
+                                    if (steps === 0) { held = { read, values: captured } }
+                                } else { assertEq(first, previousPair) }
+                                argumentsSeen += 1
+                                if (mode === `argument${index}` && tests === 2) { throw stopped }
+                                argumentIndex += 1
+                                if (index === 2) {
+                                    const before = expectedA
+                                    expectedA = expectedB
+                                    expectedB = before
+                                    steps += 1
+                                    argumentIndex = 0
+                                }
+                                return value
+                            }),
+                            /** @type {(label: number, first: readonly unknown[], second: readonly unknown[], read: () => readonly unknown[], saved: unknown) => readonly unknown[]} */ ((label, first, second, read, saved) => {
+                                assertEq(label, stopEarly ? 1 : 0)
+                                assertEq(first, second)
+                                assertEq(first[0], stopEarly ? 0 : -1)
+                                assertEq(first[1], expectedA)
+                                assertEq(first[2], expectedB)
+                                assertEq(first[3], hasRest ? previousRest : null)
+                                assertEq(saved, steps === 0 ? seed : previousPair)
+                                assertEq(tests, steps + 1)
+                                assertEq(choices, steps + (stopEarly ? 1 : 0))
+                                assertEq(argumentsSeen, steps * 3)
+                                assertEq(finishes, 0)
+                                finishes += 1
+                                if (mode === 'base') { throw stopped }
+                                return [first, first, read, saved]
+                            }),
+                        )
+                        assertEq(run.length, arity)
+                        /** @param {number} count @param {boolean} early */
+                        const reset = (count, early) => {
+                            start = count
+                            tests = 0
+                            choices = 0
+                            argumentsSeen = 0
+                            argumentIndex = 0
+                            steps = 0
+                            finishes = 0
+                            stopEarly = early
+                            mode = 'normal'
+                            expectedA = tokenA
+                            expectedB = tokenB
+                            previousPair = undefined
+                            previousRest = undefined
+                            held = undefined
+                            heldCondition = undefined
+                        }
+                        /** @param {number} count @param {boolean} early */
+                        const invoke = (count, early) => {
+                            reset(count, early)
+                            const value = run(count, tokenA, tokenB, () => seed)
+                            assertEq(steps, count + (early ? 0 : 1))
+                            assertEq(finishes, 1)
+                            assertEq(value[0], value[1])
+                            const captured = value[2]()
+                            assertEq(captured[0], value[0])
+                            assertEq(captured[1], value[0][0])
+                            assertEq(captured[2], value[0][1])
+                            assertEq(captured[3], value[0][2])
+                            assertEq(captured[4], value[0][3])
+                            if (hasRest) { assertEq(value[0][3].length, arity === 0 ? 4 : 3) }
+                            return value
+                        }
+                        for (const early of /** @type {const} */ ([false, true])) {
+                            const first = invoke(100_000, early)
+                            const branch = held
+                            const condition = heldCondition
+                            const retained = first[2]()
+                            assert(branch !== undefined)
+                            assert(condition !== undefined)
+                            const second = invoke(0, true)
+                            assert(first !== second)
+                            assert(first[0] !== second[0])
+                            assertEq(first[2]()[0], retained[0])
+                            for (const item of [branch, condition]) {
+                                const captured = item.read()
+                                for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], item.values[index]) }
+                            }
+                            if (hasRest) { assert(first[0][3] !== second[0][3]) }
+                        }
+                        for (const failureAt of /** @type {const} */ (['condition', 'selector', 'argument0', 'argument1', 'argument2', 'base'])) {
+                            reset(3, true)
+                            mode = failureAt
+                            throws(() => run(3, tokenA, tokenB, () => seed), error => error === stopped)
+                            assertEq(tests, failureAt === 'base' ? 4 : 2)
+                            assertEq(choices, failureAt === 'base' ? 4 : failureAt === 'condition' ? 1 : 2)
+                            assertEq(argumentsSeen, failureAt === 'base' ? 9 : failureAt === 'argument0' ? 4 : failureAt === 'argument1' ? 5 : failureAt === 'argument2' ? 6 : 3)
+                            assertEq(finishes, failureAt === 'base' ? 1 : 0)
+                        }
+                    }
+                }
+            }
+        }
+    },
     branchingTailCallsKeepSelectedArgumentsAndInvocationSnapshots: async () => {
         const seed = /** @type {const} */ ([9])
         const tokenA = /** @type {const} */ ([1])

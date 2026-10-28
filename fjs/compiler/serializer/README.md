@@ -129,7 +129,25 @@ iteration, including fresh rest arrays. Zero-input transitions finish their
 required work and yield `undefined` to the existing private slot. Either outer
 arm may continue, and conditional base results use the same final-result path.
 The public parameter list and prior ordinary single-input spelling stay intact;
-mixed transfers and general lazy prefixes retain their existing admission.
+general lazy prefixes retain their existing admission.
+
+Fixed multi-input and observed-rest roots may also retain nested terminal
+decisions whose leaves mix normal completion and tail continuation. Shared
+terminal analysis validates required definitions and result-free decisions,
+then keeps each leaf at its exact loop target: one result on completion, or
+the complete next-input vector on continuation. Required work remains in the
+selected body region, including allocations shared by a condition, transition
+and result.
+
+Common preparation emits `while(true)` with one private state/result slot.
+Multi-input roots initialize and update that slot with one packed vector;
+immutable per-input snapshots retain creating-iteration captures. A completed
+leaf computes its result once, writes the same slot and leaves the loop.
+Rest-only roots use the existing scalar form. Reached arguments finish before
+state changes, preserving simultaneous updates, fresh rest and failure order.
+This path keeps earlier source profiles and default JavaScript/function-text/
+Rust layouts unchanged. The first parsed source graph establishes the scalar
+helper boundary, and later graph/text cycles remain exact.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
