@@ -318,6 +318,61 @@ export const proof = {
             }
         }
     },
+    baseFirstRestOnlyLoopsKeepFreshSnapshots: async () => {
+        const count = /** @type {Exp} */ (['.', ['rest'], 0])
+        const total = /** @type {Exp} */ (['.', ['rest'], 1])
+        const next = /** @type {Exp} */ (['()', ['self'], [['-', count, 1], ['+', total, count]]])
+        const sum = /** @type {FunctionValue} */ (['=>', 0, [], ['?:', ['===', count, 0], total, next]])
+        for (const text of [assertOk(tryStringify(sum)), stringify(sum)]) {
+            assert(text.includes('while('), text)
+            const run = await load(text)
+            assertEq(run.length, 0)
+            assertEq(run(100_000, 0), 5_000_050_000)
+        }
+        const saved = /** @type {Exp} */ (['=>', 0, [['rest']], ['frame', 0]])
+        const read = /** @type {Exp} */ (['=>', 0, [['rest'], ['frame', 1]], ['[]', [['frame', 0], ['frame', 1]]]])
+        const result = /** @type {Exp} */ (['[]', [['rest'], ['rest'], read, ['frame', 1]]])
+        const test = /** @type {Exp} */ (['()', ['frame', 0], [['rest'], ['rest']]])
+        for (const held of /** @type {const} */ ([false, true])) {
+            const factory = /** @type {FunctionValue} */ (['=>', 1, [], ['=>', 0, [['arg', 0], ['[]', [9]]],
+                ['?:', ['!', test], result, ['()', ['self'], held ? [saved] : []]],
+            ]])
+            for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+                assert(text.includes('while('), text)
+                const make = await load(text)
+                let count = 0
+                /** @type {readonly unknown[] | undefined} */
+                let previous
+                const run = make(/** @type {(first: readonly unknown[], second: readonly unknown[]) => boolean} */ ((first, second) => {
+                    assertEq(first, second)
+                    assert(first !== previous)
+                    assertEq(first.length, held && count !== 0 ? 1 : 0)
+                    if (held && count !== 0) { assertEq(/** @type {() => readonly unknown[]} */ (first[0])(), previous) }
+                    previous = first
+                    count += 1
+                    return count <= 100_000
+                }))
+                assertEq(run.length, 0)
+                const first = run()
+                assertEq(count, 100_001)
+                assertEq(first[0], previous)
+                assertEq(first[0], first[1])
+                assertEq(first[2]()[0], first[0])
+                assertEq(first[2]()[1], first[3])
+                count = 0
+                const second = run()
+                assertEq(count, 100_001)
+                assertEq(second[0], previous)
+                assertEq(second[0], second[1])
+                assertEq(second[2]()[0], second[0])
+                assert(first !== second)
+                assert(first[0] !== second[0])
+                assert(first[2] !== second[2])
+                assertEq(first[3], second[3])
+                assertStructurallySame(first[3], [9])
+            }
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])

@@ -167,6 +167,10 @@ scalar helper under the same associated-graph/function-text exception; later
 graph and text cycles stay exact. Original logical graph function text and
 default JavaScript/Rust layouts retain their existing contracts.
 
+Base-first rest-only source roots use the shared plain-loop orientation helper
+before preparation. This adds the same permitted first-parse helper boundary;
+original logical function text and prior source profiles retain their layouts.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function

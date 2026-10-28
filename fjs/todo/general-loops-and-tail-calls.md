@@ -227,8 +227,11 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Observed-rest roots admitted by that plain plan now retain source loops
       using the existing argument vector and fresh-rest transition. Rest sharing,
       fresh empty/nonempty arrays, iteration captures and public fixed arity
-      survive. Fixed-plus-rest roots support either conditional arm; rest-only
-      roots retain the shared single-input continue-first restriction. Other
+      survive. Fixed-plus-rest and rest-only roots support either conditional
+      arm. A shared orientation helper negates the terminal test and swaps the
+      arms of validated base-first rest-only roots before existing scalar
+      preparation. Prefixes, targets, earlier source spellings and default
+      JavaScript/Rust layouts retain their contracts. Other
       rest profiles keep their documented fallback, and first-parse graph/text
       fixed points remain exact.
       Final integration evidence and public contract reconciliation remain before

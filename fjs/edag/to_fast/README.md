@@ -186,8 +186,11 @@ later graph/text cycles stay exact. Observed-rest roots also retain loops when
 the plain plan admits them. The canonical invocation transition already
 establishes arguments before fixed projections and a fresh rest slice; source
 preparation consumes that extra semantic input without changing public arity.
-Fixed-plus-rest roots support either conditional arm; rest-only roots retain
-the plan's existing single-input continue-first restriction. Rest identity is
+Fixed-plus-rest roots support either conditional arm. For a base-first rest-only
+root, source admission reorients the terminal conditional through the shared
+plain-loop helper, then retains the existing continue-first plan. The helper
+negates the test and swaps its arms only when the candidate passes the same
+prefix, target and normal-result restrictions. Rest identity is
 shared within an invocation and fresh between iterations, including empty
 arrays, while captures retain their creating snapshot. Logical graph conversion
 and default code-only JavaScript/Rust layouts are unchanged. Other canonical

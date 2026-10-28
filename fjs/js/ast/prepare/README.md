@@ -137,6 +137,11 @@ rest-only roots therefore use the existing scalar slot, and fixed-plus-rest
 roots use the packed slot. Immutable snapshots preserve rest sharing within an
 invocation, fresh empty or nonempty arrays between iterations, and held captures.
 Preparation does not change the public fixed arity or rest parameter.
+Base-first rest-only roots arrive from source admission already oriented by
+the shared plain-loop helper: the terminal test is negated and its arms are
+swapped, with prefixes and exact transfer targets retained. This pass consumes
+the existing continue-first scalar plan. Default preparation and prior source
+profiles keep their established layouts.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
