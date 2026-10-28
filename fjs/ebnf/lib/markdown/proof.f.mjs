@@ -127,7 +127,16 @@ export const proof = {
         codeAndTextInALinkLabel: () => accepts(`[the ${tick}a${tick} and ${tick}b${tick} files](u)`),
         // Matched here, refused after: the alternation cannot say "at least one".
         emptyLabel: () => accepts(`[](u)`),
-        parenthesisInATarget: () => refuses(`[x](a(b)c)`),
+        // One level of balanced parentheses is the address GitHub links to;
+        // an unbalanced or a deeper one is refused.
+        parenthesisInATarget: () => accepts(`[x](a(b)c)`),
+        parenthesisOpeningATarget: () => accepts(`[x]((b)c)`),
+        parenthesesInATarget: () => refuses(`[x](a((b))c)`),
+        unbalancedTarget: () => refuses(`[x](a(b)`),
+        // A badge: a link inside a label, which media/markdown reads as an
+        // image after its `!` or refuses.
+        linkInALabel: () => accepts(`[![a](https://e.x/b.svg)](https://e.x)`),
+        linkInALinkInALabel: () => refuses(`[[[a](b)](c)](d)`),
         // What a released entry actually carries still reads.
         anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),
         /**
