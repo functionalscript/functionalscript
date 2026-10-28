@@ -14,16 +14,17 @@ import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { _restTransition } from '../../../js/ast/invocation/module.f.mjs'
 
+/** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
+const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
+/** @type {(block: Block, owner: BindingId | null, tail: boolean) => _UseTask} */
+const blockTask = (block, owner, tail) => ({ kind: 'block', block, owner, tail })
+
 /** Terminal uses retain their lazy recipe owner until that recipe is selected. @type {(source: Block) => readonly _Use[]} */
 const recipeUses = source => {
     /** @type {readonly _UseTask[]} */
     let pending = [{ kind: 'block', block: source, owner: null, tail: true }]
     /** @type {readonly _Use[]} */
     let uses = []
-    /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
-    const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
-    /** @type {(block: Block, owner: BindingId | null, tail: boolean) => _UseTask} */
-    const blockTask = (block, owner, tail) => ({ kind: 'block', block, owner, tail })
     while (pending.length !== 0) {
         const [task, ...rest] = pending
         pending = rest
