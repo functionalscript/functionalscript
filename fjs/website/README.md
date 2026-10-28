@@ -253,7 +253,9 @@ A missing token fails the upload instead of opening an interactive login.
 Branch aliases temporarily start with `actions-` so Actions uploads can be
 tested separately from Workers Builds previews. The branch portion is lowercased,
 with runs of punctuation replaced by hyphens and leading/trailing hyphens
-stripped. The complete alias, including the prefix, is limited to 63 characters.
+stripped. The alias, separating dash and Worker name must together fit in a
+63-character DNS label. For the `functionalscript` Worker and `actions-` prefix,
+the branch portion has a 38-character budget.
 For example, `codex/cloudflare-deploy-job` becomes
 `actions-codex-cloudflare-deploy-job`, giving the preview URL
 `https://actions-codex-cloudflare-deploy-job-functionalscript.functionalscript.workers.dev`.
