@@ -539,18 +539,27 @@ export const proof = /** @type {const} */ ({
     },
     emptyAndThrowingInvocationRoots: () => {
         const empty = _tailFunction(['=>', 0, [], ['()', ['self'], []]])
-        assert(assertOk(_sourceLoops(yielded(['function', empty]))).exit[0] === 'yield')
+        const divergent = yielded(['function', empty])
+        assertEq(assertOk(_sourceLoops(divergent)), divergent)
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const output = /** @type {const} */ ({ index: 0 })
         const throwing = /** @type {FastFunction} */ ({ ...empty, body: {
             statements: [['loop', { target, parameters: [], initial: [], results: [output], body: { statements: [], exit: ['throw', 'stopped'] } }]],
             exit: ['return', empty.target, ['ref', output]],
         } })
-        const converted = assertOk(_sourceLoops(yielded(['function', throwing])))
+        const stopped = yielded(['function', throwing])
+        assertEq(assertOk(_sourceLoops(stopped)), stopped)
+        const multi = _tailFunction(counter)
+        const loop = multi.body.statements.at(-1)
+        assert(loop !== undefined && loop[0] === 'loop')
+        const fallback = /** @type {FastFunction} */ ({ ...multi, body: { ...multi.body,
+            statements: [...multi.body.statements.slice(0, -1), ['loop', { ...loop[1], body: { statements: [], exit: ['throw', 'fallback stopped'] } }]],
+        } })
+        const converted = assertOk(_sourceLoops(yielded(['function', fallback])))
         assert(converted.exit[0] === 'yield')
         const value = converted.exit[1][0]
         assert(value instanceof Array && value[0] === 'function')
-        assertEq(value[1].body.exit[0], 'throw')
+        assertStructurallySame(value[1].body.exit, ['throw', 'fallback stopped'])
         const original = graph('const f=n=>n>0?f(n-1):(()=>{throw 1})();export default f(3);')
         const written = assertOk(tryStringify(original))
         failure(original)
@@ -562,6 +571,87 @@ export const proof = /** @type {const} */ ({
         const restored = graph(assertOk(tryStringify(prefixed)))
         failure(['()', prefixed, []])
         failure(['()', restored, []])
+    },
+    zeroInputRootsKeepStableSourceLoops: () => {
+        const recur = /** @type {Exp} */ (['()', ['self'], []])
+        const flag = /** @type {Exp} */ (['[]', [false]])
+        const payload = /** @type {Exp} */ (['[]', ['capture']])
+        /** @type {readonly Exp[]} */
+        const functions = [
+            ['=>', 0, [], recur],
+            ['=>', 0, [], ['?:', true, recur, ['throw', 7]]],
+            ['=>', 0, [], ['?:', false, ['throw', 7], recur]],
+            ['=>', 0, [], [',', [['throw', 'reached prefix'], recur]]],
+            ['=>', 0, [flag, payload], ['?:', ['.', ['frame', 0], 0], recur, ['throw', ['.', ['frame', 1], 0]]]],
+        ]
+        for (const original of functions) {
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while(true)'), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            const expected = assertOk(identityAnalysis(normalized))
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                const written = assertOk(tryStringify(current))
+                assertEq(written, canonical)
+                assert(written.includes('while('), written)
+                current = graph(written)
+                assertStructurallySame(assertOk(identityAnalysis(current)), expected)
+            }
+        }
+    },
+    zeroInputNormalResultsKeepRecursiveFallback: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const f=()=>false?f():7;export default f();', 7],
+            ['const f=()=>true?7:f();export default [f.length,f(8,...[9])];', [0, 7]],
+            ['const f=()=>false?f((()=>{throw 7;})()):8;export default f();', 8],
+            ['const a=[3];const b=[4];const f=()=>false?f():[b,a];const first=f();const second=f();export default [f.length,first!==second,first[0]===second[0],first[1]===a,first[0]===b];', [0, true, true, true, true]],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected)
+            const first = assertOk(tryStringify(original))
+            assert(!first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                current = graph(canonical)
+            }
+        }
+    },
+    zeroInputRootsPreserveReachedFailures: () => {
+        const recur = /** @type {Exp} */ (['()', ['self'], []])
+        const divergent = /** @type {Exp} */ (['=>', 0, [], recur])
+        const flag = /** @type {Exp} */ (['[]', [false]])
+        const payload = /** @type {Exp} */ (['[]', ['capture']])
+        /** @type {readonly (readonly [Exp, string])[]} */
+        const cases = [
+            [['()', ['=>', 0, [], ['?:', true, ['throw', 'body'], recur]], []], 'body'],
+            [['()', ['=>', 0, [], [',', [['throw', 'prefix'], recur]]], []], 'prefix'],
+            [['()', ['=>', 0, [], ['?:', true, ['()', ['self'], [['throw', 'recursive argument']]], ['throw', 'skipped result']]], []], 'recursive argument'],
+            [['()', divergent, [['throw', 'initial argument']]], 'initial argument'],
+            [['()', ['=>', 0, [flag, payload], ['?:', ['.', ['frame', 0], 0], recur, ['throw', ['.', ['frame', 1], 0]]]], []], 'capture'],
+        ]
+        for (const [original, expected] of cases) {
+            assertEq(failure(original), expected)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertEq(failure(current), expected)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                current = graph(canonical)
+            }
+        }
     },
     nestedSourceValuesRetainTheirExecutionRegions: () => {
         const fn = _tailFunction(counter)

@@ -167,7 +167,13 @@ This preserves placement and supplies the name needed for recursive source
 spelling. Code-only JavaScript and Rust use the common prepared loop. Source
 spelling retains rest-free roots recognized by the shared scalar or
 [`plain-loop plan`](../../js/ast/loop/plain/module.f.mjs), including aggregate
-helpers produced by plain source loops. Other canonical roots use the graph
+helpers produced by plain source loops. Rest-free zero-input roots also retain
+their loop when no break targets that root. Shared preparation needs no result
+storage for these divergent or throwing paths and emits the unreachable return
+required by source grammar. Their first source parse introduces an aggregate
+helper; subsequent graph/text cycles stabilize. Normally completing zero-input
+roots keep their recursive fallback until independent result storage can meet
+that same normalization contract. Other canonical roots use the graph
 owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing

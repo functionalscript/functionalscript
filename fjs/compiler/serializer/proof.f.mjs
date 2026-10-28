@@ -1384,13 +1384,17 @@ export const proof = {
         assertEq(parse(path)(`export default ${text};`)[0], 'ok')
     },
     self: () => {
-        writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
+        // Empty-input while source introduces the parser's aggregate helper
+        // on its first parse; source/loops proves the normalized fixed point.
+        const divergent = /** @type {Exp} */ (['=>', 0, [], ['()', ['self'], []]])
+        assertEq(assertOk(tryStringify(divergent)), 'const $0=()=>{while(true){continue;}return undefined;};export default $0;')
+        assertEq(disagreement(assertOk(tryMarked(divergent))), null)
         writes(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
             'const $0=($1)=>$1<2?1:$1*$0($1-1);export default $0;')
         writes(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
             'const $0=($1)=>$1?(()=>{const $2=()=>$0(0);return $2();})():"done";export default $0;')
         // the module writer names it the same way
-        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
+        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>{while(true){continue;}return undefined;};export const f=$0;export default 1;')
         refuses(['self'], 'self outside a function')
         // Code-only text lowers the direct zero-parameter tail call too.
         assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])),

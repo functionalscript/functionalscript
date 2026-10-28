@@ -4,11 +4,6 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
-The next H increment admits rest-free zero-input invocation roots through the
-existing shared source loop preparation, preserving reached work, empty arity
-and captures. It proves source-normalized graph/text stability; other raw
-invocation profiles retain their current source fallback.
-
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
@@ -90,23 +85,30 @@ source grammar, preserving code-only JavaScript/Rust output and existing
 reifiable recursive source profiles.
 
 Other canonical invocation roots retain recursive source spelling: multiple
-physical inputs, observed rest, transfers to outer loop targets and returns
-escaping a value region. Prefix computations that create identity can remain
+physical inputs, normally completing zero-input roots, observed rest, transfers
+to outer loop targets and returns escaping a value region. Prefix computations
+that create identity can remain
 inside an admitted one-state structured loop, without being copied into a
-condition or result. Broader source placement and loop-body switches remain H
-work. The source adapter uses shared recognition and preparation, with no
+condition or result. Broader source placement remains H work. The source
+adapter uses shared recognition and preparation, with no
 writer-specific state or source-write analysis.
 
-An inherited example of that fallback is the raw zero-parameter graph function
-`['=>', 0, [], ['()', ['self'], []]]`. Serializing a call of this function still
-prints `const $0=()=>$0();export default $0();`, which overflows the stack on V8.
-The same spelling is produced at revision
-`30e0652bb948d8a161173a90e7e7c5f0a8d0ba48`, before the shared-owner ordering
-correction. Common tail lowering already gives this graph bounded-stack
-code-only JavaScript and Rust; source recognition does not yet include this
-zero-parameter root. An admitted source `while (true) {}` uses the supported
-aggregate-helper path instead. Extending the raw root's source spelling remains
-[H](../../todo/general-loops-and-tail-calls.md), outside the shared-owner fix.
+Rest-free zero-input roots without a break to their own target now retain the
+common loop plan in source output, including reached failures. The raw function
+`['=>', 0, [], ['()', ['self'], []]]` emits
+`const $0=()=>{while(true){continue;}return undefined;};export default $0;`.
+It retains empty arity and bounded stack. The terminal return is unreachable
+and satisfies the existing source grammar. Parsing the first output introduces
+the source aggregate helper and can change graph bytes/hashes; subsequent graph
+and text cycles remain exact.
+
+Normally completing zero-input roots remain [H](../../todo/general-loops-and-tail-calls.md)
+work. For example, `['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]]`
+retains recursive source. Preparing it with independent result storage would
+introduce an aggregate result helper on the first source parse and split that
+helper's result on the next. Admit that spelling only after its result
+normalization meets the same first-parse fixed-point contract. Multi-input and
+observed-rest roots retain their existing fallback too.
 
 ### Problem
 
