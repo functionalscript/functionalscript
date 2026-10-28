@@ -44,16 +44,22 @@ aggregate helpers for zero or multiple source state values. Common preparation
 emits ordinary `while` statements; the plain-loop
 plan computes its normal result after the final false test. The structured
 source profile shares one physical state/result slot, spelling `break` and
-`continue` without labels. Other canonical invocation roots retain recursive
-source spelling through the existing transfer resolver. The adapter repeats no
+`continue` without labels. Rest-free zero-input roots without a break to their
+own target also retain bounded-stack source loops. They need no state or result
+storage; shared preparation supplies the source grammar's unreachable terminal
+return after a diverging loop. The first source parse introduces the ordinary
+aggregate helper and may change graph bytes/hashes; its graph and canonical
+text then stabilize. Reached work and capture lifetimes stay in their existing
+regions. Other canonical invocation roots retain recursive source spelling
+through the existing transfer resolver. The adapter repeats no
 graph placement or tail eligibility analysis; required function owners retain
 recursive names where needed.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input, multi-input and observed-rest graphs keep their
-existing reifiable recursive forms; unsupported factored profiles return an
-error instead of asserting or emitting unreadable source.
+loop profile. Normally completing raw zero-input, multi-input and observed-rest
+graphs keep their existing reifiable recursive forms; unsupported factored
+profiles return an error instead of asserting or emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and
