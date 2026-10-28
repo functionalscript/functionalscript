@@ -7,16 +7,23 @@
  * @import { Graph, NodeShape } from '../../../website/demo/graph/types.ts'
  * @import { BindingId, LoopTarget } from '../types.ts'
  * @import { Module } from '../sugar/types.ts'
+ * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  */
 
-import { fastGraph, operatorShape, unsupported } from './module.f.mjs'
+import { fastGraph, operatorShape, sourceGraph, unsupported } from './module.f.mjs'
 import { normalize } from '../sugar/module.f.mjs'
 import { parse } from '../../../compiler/transpiler/module.f.mjs'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /** `text` as the graph of its FAST. @type {(text: string) => Graph} */
-const ofText = text => fastGraph(normalize(assertOk(parse('')(text)), []))
+const ofText = text => {
+    const resolved = assertOk(parse('')(text))
+    return fastGraph(normalize(resolved, resolved.imports.map(i => i.specifier)))
+}
+
+/** `text` as the graph of its source AST. @type {(text: string) => Graph} */
+const sourceOf = text => sourceGraph(assertOk(parse('')(text)))
 
 /** The id of the one node labelled `label`. @type {(g: Graph, label: string) => number} */
 const nodeOf = (g, label) => {
@@ -458,6 +465,138 @@ export const proof = {
         throw: {
             unbound: () => {
                 fastGraph({ parameters: [], body: { statements: [], exit: ['yield', [['ref', { index: 0 }]]] } })
+            },
+        },
+    },
+    source: {
+        // A binding is one node, named as the source names it: `a` is
+        // initialized once and read twice. The pattern of a plain `const`
+        // is one `=` row.
+        sharing: () => {
+            const g = sourceOf('const a = [1]; export default [a, a];')
+            const a = nodeOf(g, 'a')
+            assertStructurallySame(into(g, a).map(e => e.label), ['=', '0', '1'])
+            assertStructurallySame(from(g, nodeOf(g, 'initialize')).map(e => e.label), ['=', 'value'])
+        },
+        // A destructuring pattern reads into temporaries, `$n` by their
+        // place among the module's bindings, and then the names: a spread
+        // copy first, then items by index and members by key.
+        destructuring: () => {
+            const g = sourceOf('const [p, { q }] = [1, { q: 2 }]; export default [p, q];')
+            assertStructurallySame(from(g, nodeOf(g, 'initialize')).map(e => e.label), ['...=', '0[0]', '0[1]', '2.q', 'value'])
+            assertStructurallySame(g.nodes.filter(n => n.kind === 'binding').map(n => n.label), ['$0', 'p', '$2', 'q'])
+        },
+        // A read of a static function, with no value to read from.
+        static: () => {
+            const g = sourceOf('const { entries } = Object; export default entries;')
+            assertStructurallySame(from(g, nodeOf(g, 'initialize')).map(e => e.label), ['Object.entries', 'value'])
+        },
+        // A parameter that binds one name with no default is that binding;
+        // one with a pattern or a default is a node of its reads, its
+        // default lazy. `length` is a value; the body is lazy.
+        parameters: () => {
+            const g = sourceOf('export default (x, { y }, { z } = {}, ...r) => [x, y, z, r];')
+            const fn = nodeOf(g, '=>')
+            assertStructurallySame(from(g, fn).map(e => [e.label, e.kind]), [['length', undefined], ['param 0', undefined], ['param 1', undefined], ['param 2', undefined], ['rest', undefined], ['body', 'lazy']])
+            assertEq(from(g, fn)[1].to, nodeOf(g, 'x'))
+            assertEq(from(g, fn)[4].to, nodeOf(g, 'r'))
+            const params = g.nodes.filter(n => n.label === 'param')
+            assertStructurallySame(params.map(n => from(g, n.id).map(e => [e.label, e.kind])), [
+                [['=', undefined], ['0.y', undefined]],
+                [['=', undefined], ['0.z', undefined], ['default', 'lazy']],
+            ])
+        },
+        // A recursive function reads itself through `self`, and its return
+        // arrows back to it.
+        recursion: () => {
+            const g = sourceOf('const fact = n => n < 2 ? 1 : n * fact(n - 1); export default fact(5);')
+            const fn = nodeOf(g, '=>')
+            assert(from(g, fn).some(e => e.label === 'self'), 'self')
+        },
+        // `let`, `while`, `if`, `break`, `write` and `return`, each a node,
+        // and `&&` still itself, its right operand lazy.
+        statements: () => {
+            const g = sourceOf('export default x => { let s = x; while (s < 3) { if (s > 1) { break; } s = s + 1; } return x && s; };')
+            const loop = nodeOf(g, 'while')
+            assertStructurallySame(from(g, loop).map(e => [e.label, e.kind]), [['cond', undefined], ['body', 'lazy']])
+            assertStructurallySame(from(g, nodeOf(g, 'break')).map(e => [e.label, e.to, e.back]), [['to', loop, true]])
+            assertStructurallySame(from(g, nodeOf(g, 'write')).map(e => [e.label, e.to]), [['to', nodeOf(g, 's')], ['value', nodeOf(g, '+')]])
+            assertStructurallySame(from(g, nodeOf(g, 'if')).map(e => e.kind), [undefined, 'lazy', 'lazy'])
+            assertStructurallySame(from(g, nodeOf(g, '&&')).map(e => [e.label, e.kind]), [['left', undefined], ['right', 'lazy']])
+            assertStructurallySame(from(g, nodeOf(g, 'return')).map(e => [e.label, e.back]), [['to', true], ['value', undefined]])
+        },
+        // `||` and `??` as `&&` is, and `continue` back to its loop.
+        logical: () => {
+            const g = sourceOf('export default (a, b) => { let i = 0; while (i < 3) { i = i + 1; if (a) { continue; } } return [a || b, a ?? b]; };')
+            assertStructurallySame(from(g, nodeOf(g, 'continue')).map(e => [e.label, e.to]), [['to', nodeOf(g, 'while')]])
+            assertEq(from(g, nodeOf(g, '||'))[1].kind, 'lazy')
+            assertEq(from(g, nodeOf(g, '??'))[1].kind, 'lazy')
+        },
+        // A `switch` exit: its value, then each case and `default`, lazy.
+        // A case is its labels and its body; the default throws.
+        switch: () => {
+            const g = sourceOf('export default node => { switch (node[0]) { case "array": case "object": { return "container"; } default: { throw ["unknown", node[0]]; } } };')
+            const sw = nodeOf(g, 'switch')
+            assertStructurallySame(from(g, sw).map(e => [e.label, e.kind]), [['value', undefined], ['case 0', 'lazy'], ['default', 'lazy']])
+            assertStructurallySame(from(g, nodeOf(g, 'case')).map(e => e.label), ['label 0', 'label 1', 'body'])
+            assert(g.edges.some(e => e.label === 'throw'), 'a throw row')
+        },
+        // A `throw` statement, in a loop, is a node of its own.
+        throwStatement: () => {
+            const g = sourceOf('export default n => { let i = 0; while (i < n) { if (i > 5) { throw "big"; } i = i + 1; } return i; };')
+            assertStructurallySame(from(g, nodeOf(g, 'throw')).map(e => e.label), ['value'])
+        },
+        // A conditional exit: an early `throw` makes the rest of the body
+        // the `if`'s other arm, so the block ends in the `if`.
+        conditionalExit: () => {
+            const g = sourceOf('export default n => { if (n < 0) { throw "negative"; } return n; };')
+            const block = g.nodes.filter(n => n.label === 'block')
+            assert(block.some(b => from(g, b.id).some(e => e.label === 'if' && e.to === nodeOf(g, 'if'))), 'an if exit')
+        },
+        // An import is a row of the module named by its specifier; one that
+        // binds no name is the module it loads, a terminal.
+        imports: () => {
+            const g = sourceOf('import b from "./b.f.js"; import {} from "./c.f.js"; export default b;')
+            assertStructurallySame(from(g, nodeOf(g, 'module')).map(e => [e.label, typeof e.to === 'number' ? e.to : e.to.inline]), [['./b.f.js', nodeOf(g, 'b')], ['./c.f.js', '{}'], ['body', nodeOf(g, 'block')]])
+        },
+        /**
+         * Forms no source reaches yet, built by hand: a `rest` pattern, a
+         * block value, and a tuple the source AST does not have, drawn as
+         * itself.
+         */
+        handBuilt: () => {
+            const [a, b] = [{ index: 0 }, { index: 1 }]
+            const target = /** @type {const} */ ({ kind: 'function', index: 1 })
+            /** @type {ResolvedModule} */
+            const module = {
+                imports: [],
+                body: {
+                    statements: [],
+                    exit: ['yield', ['array', [
+                        ['function', {
+                            target, length: 0, parameters: [],
+                            rest: { reads: [{ source: null, spread: true }, { source: [0, 0], spread: false }], ids: [a, b] },
+                            self: null,
+                            body: { statements: [], exit: ['return', target, ['block', { statements: [], exit: ['yield', ['ref', b]] }]] },
+                        }],
+                        /** @type {any} */ (['new', 1]),
+                    ]]],
+                },
+                scope: { target, bindings: [], events: [] },
+                bindings: [],
+                origins: [
+                    { id: a, name: null, kind: 'temporary', metadata: /** @type {any} */ (null) },
+                    { id: b, name: 'b', kind: 'parameter', metadata: /** @type {any} */ (null) },
+                ],
+            }
+            const g = sourceGraph(module)
+            assertStructurallySame(from(g, nodeOf(g, 'pattern')).map(e => e.label), ['...=', '0[0]'])
+            assert(g.nodes.some(n => n.label === 'new (not yet drawn)'), 'drawn as itself')
+        },
+        // A binding the parser has no origin for is refused.
+        throw: {
+            unknownBinding: () => {
+                sourceGraph({ imports: [], body: { statements: [], exit: ['yield', ['ref', { index: 0 }]] }, scope: { target: { kind: 'function', index: 0 }, bindings: [], events: [] }, bindings: [], origins: [] })
             },
         },
     },

@@ -1,7 +1,7 @@
 ## Demo pages for the compiler's outputs
 
 **Priority:** P3
-**Status:** open — the five stage pages and the side-by-side page are built; the open
+**Status:** open — the six stage pages and the side-by-side page are built; the open
 questions remain
 
 ### Problem
@@ -29,12 +29,15 @@ that code lands.
 | --------- | ------------------ |
 | `compiler/tokenizer/` | text → one line per token, an unreadable token as an `error` line |
 | `compiler/parser/` | text → the AST, as DataJS text |
+| `compiler/ast/` | text → the source AST and FAST, side by side as graphs |
 | `compiler/edag/` | text → the EDAG as a graph (the one that existed first) |
 | `compiler/serializer/` | text → the `.js` module |
 | `compiler/rust/` | text → the Rust `fjs compile` writes |
 | `compiler/` | text → `.json`, `.data.js`, `.js`, `.edag.data.js` and `.rs` side by side |
 
-`ast/` has no demo of its own: its data is what `parser/` draws.
+`ast/` draws the trees on both sides of `normalize`, the stage between
+`parser/` and `edag/`: the source AST and FAST, with
+[`fjs/js/ast/graph`](../../js/ast/graph/module.f.mjs).
 
 **Each demo runs the stage it shows, never a lookalike.** The stage demos call
 the stage's own function (`tryModuleMarked`, `toRustMarked`, `tokenize`, `parse`).
@@ -59,7 +62,7 @@ empty pane would be the plausible wrong answer
 out, and what a stage will not accept is half of what it is.
 
 **The presets are one flat list**, [`examples/module.f.js`](../examples/module.f.js),
-that all six demos — the five stages and the side-by-side page — offer whole
+that all seven demos — the six stages and the side-by-side page — offer whole
 through the shared picker
 ([`website/demo/examples`](../../website/demo/examples/module.f.mjs)), which
 checks that names and sources are distinct. A reader who picks "Closure" on one

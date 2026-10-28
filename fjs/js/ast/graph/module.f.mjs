@@ -58,16 +58,21 @@
  * Reads a value by its runtime shape rather than its static type, so a
  * proof can hand it a tag no tree produces yet.
  *
- * **{@link fastGraph} draws a whole FAST module** through this shape, with
- * FAST's own forms beside it: blocks, bindings, functions, conditionals,
+ * **{@link fastGraph} draws a whole FAST module, and {@link sourceGraph}
+ * the parser's resolved source**, each through this shape with its own
+ * forms beside it: blocks, bindings, patterns, functions, conditionals,
  * loops and the exits that leave them.
+ * [`fjs/compiler/ast`](../../../compiler/ast/demo.f.mjs) draws the two side
+ * by side.
  *
  * @module
  *
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { Graph, Shape } from '../../../website/demo/graph/types.ts'
  * @import { BindingId, Block, Exit, Function as AstFunction, Loop, Statement, Value } from '../types.ts'
- * @import { Module } from '../sugar/types.ts'
+ * @import { ExpansionPlan, Module, SourceBlock, SourceFunction, SourceLoop, SourceParameter } from '../sugar/types.ts'
+ * @import { SourceCase } from '../sugar/source.ts'
+ * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { Tags } from './types.ts'
  * @import { _Chain, _Child, _Definition } from './private.ts'
  */
@@ -367,6 +372,21 @@ const blockShape = ({ statements, exit }) => {
     }
 }
 
+/**
+ * A function or loop target as the arrow back to the node it names: the
+ * nearest enclosing function, `loop` or `while` whose target it is.
+ *
+ * @type {(target: unknown) => Shape<unknown>}
+ */
+const targetShape = target => ({
+    owner: o => o instanceof Array && (o[0] === 'function' || o[0] === 'loop' || o[0] === 'while') && o[1].target === target,
+})
+
+/** Each child of a node shape as its edge reaches it, {@link deref}. @type {(s: Shape<unknown>) => Shape<unknown>} */
+const derefChildren = s => hasEntry(s, 'children')
+    ? { ...s, children: s.children.map(([label, child, kind]) => kind === undefined ? [label, deref(child)] : [label, deref(child), kind]) }
+    : s
+
 /** A list of bindings as rows, `label i`. @type {(label: string, ids: readonly unknown[]) => readonly _Child[]} */
 const rows = (label, ids) => ids.map((id, i) => [`${label} ${i}`, id])
 
@@ -401,9 +421,7 @@ export const fastGraph = module => {
             const { parameters, body } = /** @type {Module} */ (v)
             return { kind: 'block', label: 'module', children: [...rows('import', parameters), ['body', body]] }
         }
-        if (hasEntry(r, 'kind')) {
-            return { owner: o => o instanceof Array && (o[0] === 'function' || o[0] === 'loop') && o[1].target === v }
-        }
+        if (hasEntry(r, 'kind')) { return targetShape(v) }
         const position = defined.findIndex(([id]) => id === v)
         return { kind: 'binding', label: `$${position}`, children: assertNotNullish(defined[position])[1] }
     }
@@ -448,10 +466,138 @@ export const fastGraph = module => {
             default: { return unsupported(exp) }
         }
     })
+    return graphOf(v => derefChildren(v !== null && typeof v === 'object' && !(v instanceof Array) ? record(v) : operators(v)))(module)
+}
+
+/**
+ * How a pattern's read spells where it reads from: `=` for the value it
+ * binds, `n.key` or `n[i]` for a key of read `n`, a static function's
+ * name, and `...` before a read that copies an iterable first.
+ *
+ * @type {(read: ExpansionPlan['reads'][number]) => string}
+ */
+const readLabel = ({ source, spread }) => {
+    const from = source === null ? '='
+        : source.length === 1 ? source[0]
+            : typeof source[1] === 'number' ? `${source[0]}[${source[1]}]` : `${source[0]}.${source[1]}`
+    return spread ? `...${from}` : from
+}
+
+/** A pattern's reads as rows, each an edge to the binding it reads into. @type {(plan: ExpansionPlan) => readonly _Child[]} */
+const planRows = ({ reads, ids }) => reads.map((read, i) => [readLabel(read), ids[i]])
+
+/**
+ * A pattern that binds one name to the whole value, with no default: the
+ * one binding it is, rather than a node of one row.
+ *
+ * @type {(plan: ExpansionPlan) => BindingId | null}
+ */
+const simple = ({ reads, ids }) => reads.length === 1 && reads[0].source === null && !reads[0].spread ? ids[0] : null
+
+/**
+ * A source block's rows: each statement as a node, and then its exit — a
+ * `yield` or a `throw` as the edge to its value, and every other exit as
+ * a node of its own.
+ *
+ * @type {(block: SourceBlock) => Shape<unknown>}
+ */
+const sourceBlockShape = ({ statements, exit }) => ({
+    kind: 'block', label: 'block',
+    children: [
+        ...statements.map(s => /** @type {_Child} */ ([s[0], s])),
+        /** @type {_Child} */ (exit[0] === 'yield' || exit[0] === 'throw' ? [exit[0], exit[1]] : [exit[0], exit]),
+    ],
+})
+
+/**
+ * `module` — the parser's resolved source — as the graph it is: its
+ * blocks, statements and operators, and **a binding as one node**
+ * however many places declare, read or write it, named as the source
+ * names it. A temporary the parser made has no name and is `$n`, by its
+ * place among the module's bindings.
+ *
+ * **A pattern is rows of reads**: `=` for the whole value, `n.key` or
+ * `n[i]` for a key of an earlier read, each an edge to the binding it
+ * reads into. A parameter or `rest` that binds one name and has no
+ * default is that binding.
+ *
+ * **Statements are nodes**: `initialize` with its pattern and value,
+ * `write` with the binding it writes and the value, `if` with lazy arms,
+ * `while` with its condition and a lazy body. `return`, `break` and
+ * `continue` arrow back to the function or loop they leave. A `switch`
+ * has its value and a lazy edge to each case and to `default`. The
+ * logical operators `&&`, `||` and `??` are still themselves here, their
+ * right operands lazy.
+ *
+ * @type {(module: ResolvedModule) => Graph}
+ */
+export const sourceGraph = module => {
+    const { imports, body, origins } = module
     /** @type {(v: unknown) => Shape<unknown>} */
-    const shape = v => {
-        const s = v !== null && typeof v === 'object' && !(v instanceof Array) ? record(v) : operators(v)
-        return hasEntry(s, 'children') ? { ...s, children: s.children.map(([label, child, kind]) => kind === undefined ? [label, deref(child)] : [label, deref(child), kind]) } : s
+    const record = v => {
+        const r = /** @type {{ readonly [k in string]: unknown }} */ (v)
+        if (hasEntry(r, 'statements')) { return sourceBlockShape(/** @type {SourceBlock} */ (v)) }
+        if (hasEntry(r, 'imports')) {
+            return {
+                kind: 'block', label: 'module',
+                children: [...imports.map(i => /** @type {_Child} */ ([i.specifier, i.binding ?? i])), ['body', body]],
+            }
+        }
+        // an import that binds no name: the module it loads, and nothing else
+        if (hasEntry(r, 'specifier')) { return { inline: '{}', kind: 'terminal' } }
+        if (hasEntry(r, 'reads')) { return { kind: 'op', label: 'pattern', children: planRows(/** @type {ExpansionPlan} */ (v)) } }
+        if (hasEntry(r, 'plan')) {
+            const { plan, default: d } = /** @type {SourceParameter} */ (v)
+            return { kind: 'op', label: 'param', children: [...planRows(plan), ...(d === null ? [] : [/** @type {_Child} */ (['default', d.value, 'lazy'])])] }
+        }
+        if (hasEntry(r, 'labels')) {
+            const { labels, body } = /** @type {SourceCase} */ (v)
+            return { kind: 'op', label: 'case', children: [...rows('label', labels), ['body', body]] }
+        }
+        if (hasEntry(r, 'kind')) { return targetShape(v) }
+        const position = origins.findIndex(o => o.id === v)
+        const { name } = assertNotNullish(origins[position])
+        return { kind: 'binding', label: name ?? `$${position}`, children: [] }
     }
-    return graphOf(shape)(module)
+    const operators = operatorShape({ array: 'array', object: 'object' })(exp => {
+        switch (exp[0]) {
+            case '&&':
+            case '||':
+            case '??': { return { kind: 'op', label: exp[0], children: [['left', exp[1]], ['right', exp[2], 'lazy']] } }
+            case 'function': {
+                const { length, parameters, rest, self, body } = /** @type {SourceFunction} */ (exp[1])
+                return {
+                    kind: 'op', label: '=>',
+                    children: [
+                        ['length', length],
+                        ...parameters.map((p, i) => /** @type {_Child} */ ([`param ${i}`, p.default === null ? simple(p.plan) ?? p : p])),
+                        ...(rest === null ? [] : [/** @type {_Child} */ (['rest', simple(rest) ?? rest])]),
+                        ...(self === null ? [] : [/** @type {_Child} */ (['self', self])]),
+                        ['body', body, 'lazy'],
+                    ],
+                }
+            }
+            case 'block': { return sourceBlockShape(/** @type {SourceBlock} */ (exp[1])) }
+            case 'initialize': { return { kind: 'op', label: 'initialize', children: [...planRows(/** @type {ExpansionPlan} */ (exp[1])), ['value', exp[2]]] } }
+            case 'write': { return { kind: 'op', label: 'write', children: [['to', exp[1]], ['value', exp[2]]] } }
+            case 'if': { return { kind: 'op', label: 'if', children: [['cond', exp[1]], ['then', exp[2], 'lazy'], ['else', exp[3], 'lazy']] } }
+            case 'while': {
+                const { condition, body } = /** @type {SourceLoop} */ (exp[1])
+                return { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
+            }
+            case 'switch': {
+                const cases = /** @type {readonly SourceCase[]} */ (exp[2])
+                return {
+                    kind: 'op', label: 'switch',
+                    children: [['value', exp[1]], ...cases.map((c, i) => /** @type {_Child} */ ([`case ${i}`, c, 'lazy'])), ['default', exp[3], 'lazy']],
+                }
+            }
+            case 'return': { return transfer('return', exp[1], [exp[2]]) }
+            case 'break':
+            case 'continue': { return transfer(/** @type {string} */ (exp[0]), exp[1], []) }
+            case 'throw': { return { kind: 'op', label: 'throw', children: [['value', exp[1]]] } }
+            default: { return unsupported(exp) }
+        }
+    })
+    return graphOf(v => derefChildren(v !== null && typeof v === 'object' && !(v instanceof Array) ? record(v) : operators(v)))(module)
 }

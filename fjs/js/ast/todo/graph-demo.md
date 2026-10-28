@@ -26,9 +26,15 @@ binding identity, laziness and exit targets.
 
 ### Proposal
 
-One demo page in `fjs/js/ast/` that parses the module, normalizes it, and
-draws both trees with the shared renderer,
-[`fjs/website/demo/graph`](../../../website/demo/graph/module.f.mjs).
+One demo page that parses the module, normalizes it, and draws both trees
+with the shared renderer,
+[`fjs/website/demo/graph`](../../../website/demo/graph/module.f.mjs). The
+walkers live in [`fjs/js/ast/graph`](../graph/module.f.mjs); the page is
+[`fjs/compiler/ast/demo.f.mjs`](../../../compiler/ast/demo.f.mjs), beside
+the other stage pages, because it runs the parser, and `fjs/js/ast`
+importing from `fjs/compiler` is the upward import
+[compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)
+removes.
 
 ```text
 Demo
@@ -47,12 +53,12 @@ exit targets.
 **Each pane runs the real stage.** The page calls the parser's own entry, as
 [`stage_demo`](../../../compiler/stage_demo/module.f.mjs)'s `parsed` does,
 and then `normalize`, as the [EDAG lowering](../../../compiler/edag/module.f.mjs)
-does. It copies no stage logic. Imports become placeholder values passed to
-`normalize`, so they appear as FAST module parameters.
+does. It copies no stage logic. An import is passed to `normalize` as its
+specifier, so two imports of one module are one FAST module parameter.
 
-**Refusals are shown in each stage's own words.** A parse error replaces both
-panes with the parser's message. A module that parses but that `normalize`
-refuses keeps its source drawing, and the FAST pane shows the refusal.
+**A refusal is shown in the parser's own words**, in place of both panes.
+`normalize` has no refusal of its own: it is total over what the parser
+admits.
 
 **Under each graph, a collapsed DataJS listing of the same tree**, so the
 drawing can be checked against the exact structure.
@@ -106,10 +112,14 @@ the drawing.
       numbers bindings `$0`, `$1`… in definition order. Showing `n` for a
       binding `n` was declared as needs `normalize` to keep each FAST
       binding's source origin, a compiler change of its own.
-- [ ] The source walker, with its proof: the logical binaries, expansion
+- [x] The source walker, with its proof: the logical binaries, expansion
       plans, `initialize`/`write`, `while`, `switch`.
-- [ ] The demo page with both panes, the refusals and the DataJS listings;
+- [x] The demo page with both panes, the refusals and the DataJS listings;
       its proof walks the shared presets.
+- [ ] Layout: a binding ranks after its deepest use, so a parameter's node
+      lands at the far right of the drawing, away from its function. Placing
+      a binding beside the node that defines it would make both panes much
+      narrower.
 - [ ] Decide whether the parser demo keeps its DataJS listing or points here.
 
 ### Related
