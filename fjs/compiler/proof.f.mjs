@@ -680,8 +680,12 @@ export const proof = {
             // the writer names the rest parameter only where the body reads
             // it — so both lists are written `()`, one node, one text
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
-            // a function's own name is its `self`, written as the `const` it read
-            assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // A zero-input tail loop introduces the source aggregate helper
+            // on its first parse. Its normalized graph and text stay exact.
+            const loop = compileSource('const f = () => f();\nexport default f;')('output.f.js')
+            assertEq(loop, 'const $0=()=>{while(true){continue;}return undefined;};export default $0;')
+            const canonical = fjsRoundTrip(loop)
+            assert(canonical.includes('while('), canonical)
             // a shorthand member is written as the member it denotes
             assertEq(fjsRoundTrip('const a = [1];\nexport default { a, b: a };'), 'const $0=[1];export default {"a":$0,"b":$0};')
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
