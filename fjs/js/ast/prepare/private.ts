@@ -39,6 +39,8 @@ export type _Loop = {
 
 export type _Context = {
     readonly sourceLoops: boolean
+    /** Only an observed-rest invocation root widens the existing scalar profile. */
+    readonly sourceBranchTarget: LoopTarget | null
     readonly flows: _Flows
     readonly owner: FunctionTarget | null
     readonly next: number

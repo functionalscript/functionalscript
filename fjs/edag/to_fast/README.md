@@ -228,8 +228,21 @@ required definitions in their lexical regions and converts the terminal tree
 into value conditionals after the final test. It does not evaluate unselected
 branches or introduce new bindings, targets or invocation boundaries. Both
 outer orientations retain the existing scalar, packed or private unchanged
-slot preparation. Multiple continuing branches and general lazy prefixes
-retain their existing admission and fallback.
+slot preparation. General lazy prefixes retain their existing admission and
+fallback.
+
+The shared source branch plan also admits a continuing decision tree whose
+leaves all continue the same exact target with the complete next-input vector.
+Required prefixes stay in their lexical branches. One selected value block
+establishes arguments in reached order, then preparation updates all state
+simultaneously using its existing scalar or packed slot. Zero-input transitions
+yield `undefined` after required work. Both outer orientations compose with
+normal or conditional base results, preserving captures, rest freshness and
+first-parse graph/text stability. A private preparation context identifies only
+the observed rest-only function's root target when its semantic width is one;
+ordinary single-input roots, including those in nested functions, keep their
+previous layouts. No graph metadata or writer-specific transfer analysis is added.
+Mixed transfers and general lazy prefixes retain their existing admission.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

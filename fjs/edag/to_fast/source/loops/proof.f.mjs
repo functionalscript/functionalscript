@@ -787,6 +787,83 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    branchingTransitionsKeepSimultaneousUpdatesAndFirstParseFixedPoints: () => {
+        for (const [parameters, test, choice, first, second, normal, args, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, string, unknown])[]} */ ([
+            ['', 'false', 'true', 'f(null.left)', 'f(null.right)', 'seed', '', [9]],
+            ['n,a,b', 'n>0', 'n%2===0', 'f(n-1,b,a)', 'f(n-1,a,b)', '[a,b]', '3,1,2', [2, 1]],
+            ['n,...xs', 'n>0', 'n%2===0', 'f(n-1,xs[1],xs[0])', 'f(n-1,...xs)', 'xs', '3,1,2', [2, 1]],
+            ['...xs', 'xs[0]>0', 'xs[0]%2===0', 'f(xs[0]-1,xs[2],xs[1])', 'f(xs[0]-1,...xs.slice(1))', '[xs[1],xs[2]]', '3,1,2', [2, 1]],
+        ])) {
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                const step = `${choice}?${first}:${second}`
+                const source = `const seed=[9];const f=(${parameters})=>${baseFirst ? `!(${test})?${normal}:(${step})` : `${test}?(${step}):${normal}`};export default f(${args});`
+                const original = graph(source)
+                assertStructurallySame(evaluate(original), expected, source)
+                const output = assertOk(tryStringify(original))
+                assert(output.includes('while('), output)
+                const normalized = graph(output)
+                const canonical = assertOk(tryStringify(normalized))
+                let current = normalized
+                for (let generation = 0; generation < 7; ++generation) {
+                    assertStructurallySame(evaluate(current), expected, source)
+                    assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                    assertEq(assertOk(tryStringify(current)), canonical, source)
+                    current = graph(canonical)
+                }
+            }
+        }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            for (const [parameters, test, first, second, normal, args, observe, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, string, unknown])[]} */ ([
+                ['n,a,b,saved', 'n>0', '(()=>{const pair=[n,a,b];return f(n-1,b,a,()=>[pair,n,a,b]);})()', '(()=>{const pair=[n,a,b];return f(n-1,a,b,()=>[pair,n,a,b]);})()', 'saved', '3,1,2,null', 'const a=read();const other=f(2,5,6,null);export default[a[0]===read()[0],a[0]===other()[0],a[0],a[1],a[2],a[3]];', [true, false, [1, 2, 1], 1, 2, 1]],
+                ['...xs', 'xs[0]>0', '(()=>{const pair=[xs];return f(xs[0]-1,()=>[pair,xs],...xs.slice(2));})()', '(()=>{const pair=[xs];return f(xs[0]-1,()=>[pair,xs],...xs.slice(2));})()', 'xs[1]', '3,null,7', 'const a=read();const other=f(2,null,9);export default[a[0][0]===a[1],read()[1]===a[1],other()[1]===a[1],a[1][0],a[1][2]];', [true, true, false, 1, 7]],
+            ])) {
+                const selector = parameters === '...xs' ? 'xs[0]%2===0' : 'n%2===0'
+                const step = `${selector}?${first}:${second}`
+                const source = `const f=(${parameters})=>${baseFirst ? `!(${test})?${normal}:(${step})` : `${test}?(${step}):${normal}`};const read=f(${args});${observe}`
+                const original = graph(source)
+                assertStructurallySame(evaluate(original), expected, source)
+                const output = assertOk(tryStringify(original))
+                assert(output.includes('while('), output)
+                const normalized = graph(output)
+                const canonical = assertOk(tryStringify(normalized))
+                let current = normalized
+                for (let generation = 0; generation < 7; ++generation) {
+                    assertStructurallySame(evaluate(current), expected, source)
+                    assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                    assertEq(assertOk(tryStringify(current)), canonical, source)
+                    current = graph(canonical)
+                }
+            }
+        }
+    },
+    branchingTransitionsKeepRequiredFailuresAndSkippedLeaves: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>n>0?(null.selector?f(n-1,a):f(n-2,a)):a;export default f(3,0);',
+            'const f=(n,a)=>n===0?a:(n>1?f(n-1,a,null.selected):f(n-1,a));export default f(3,0);',
+            'const f=(n,a)=>n>0?(n>1?f(null.first,a):f(n-1,a)):a;export default f(3,0);',
+            'const f=(n,a)=>n>0?(n>1?f(n-1,a):f(n-1,a)):null.base;export default f(3,0);',
+            'const f=(n,...xs)=>n>0?(n>1?f(n-1,...null):f(n-1,...xs)):xs;export default f(3,0);',
+            'const f=(...xs)=>xs[0]>0?(xs[0]>1?f(xs[0]-1,null.selected):f(xs[0]-1)):xs;export default f(3,0);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+        const safe = /** @type {const} */ ('const f=(n,a)=>n>0?(true?f(n-1,a):f(null.skipped,a)):a;export default f(3,7);')
+        const output = assertOk(tryStringify(graph(safe)))
+        assert(output.includes('while('), output)
+        assertEq(evaluate(graph(output)), 7)
+    },
     conditionalNormalResultsKeepSelectedSharingCapturesAndFirstParseFixedPoints: () => {
         for (const choice of /** @type {const} */ ([2, 0, -2])) {
             for (const [parameters, test, next, state, selected, args, expectedState] of /** @type {readonly (readonly [string, string, string, string, string, string, unknown])[]} */ ([

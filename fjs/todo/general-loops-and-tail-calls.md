@@ -4,13 +4,6 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
-**Current increment:** retain source loops when the recursive arm has multiple
-continuing leaves targeting the same loop, in either outer orientation. Keep
-selected-branch argument evaluation before simultaneous updates, iteration
-snapshots and captures, fresh rest, reached failure order and exact graph/text
-cycles from the first source parse. Reuse shared loop planning and preparation;
-general lazy prefixes remain outside this increment and H/I stay open.
-
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
@@ -268,8 +261,16 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       retain their lexical branches, and base decisions run after the final
       iteration test with only the selected branch evaluated. Both outer
       orientations preserve final input/rest sharing, captures and failure
-      order, with exact first-parse graph/text cycles. Multiple continuing
-      branches and general lazy prefixes retain their previous admission.
+      order, with exact first-parse graph/text cycles. Continuing decision trees
+      now use a shared source plan when every leaf continues the same exact
+      loop with its complete next-input vector. Required branch work and reached
+      arguments run once before simultaneous updates, preserving snapshots,
+      captures, fresh rest and failure order. Zero-input transitions yield
+      `undefined` after required work to the private slot. Both outer orientations
+      compose with normal or conditional base results; graph/text cycles remain
+      exact from the first parse. Default layouts and prior ordinary single-input
+      spelling stay unchanged. Mixed transfers and general lazy prefixes retain
+      their previous admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
