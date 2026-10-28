@@ -271,6 +271,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       exact from the first parse. Default layouts and prior ordinary single-input
       spelling stay unchanged. Mixed transfers and general lazy prefixes retain
       their previous admission.
+      The next H increment is in progress: retain source loops for terminal
+      decision trees whose selected leaf either completes the loop or continues
+      it with the next invocation inputs. Preserve selected work, snapshots,
+      rest identity and exact graph/text cycles from the first source parse.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
