@@ -181,10 +181,11 @@ export const ciJobs = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => r
 }, rust)
 
 /**
- * Every file `fjs ci` writes for `setup`, given whether the project has Rust.
- * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
+ * The CI workflow for `setup`, given whether the project has Rust.
+ * Exported so repository-owned policy can extend the same workflow.
+ * @type {(setup: Setup) => (rust: boolean) => GitHubAction}
  */
-const ciFiles = setup => rust => {
+export const ciWorkflow = setup => rust => {
     const selectedJobs = ciJobs(setup)(rust)
     /** @type {GitHubAction} */
     const gha = {
@@ -209,31 +210,33 @@ const ciFiles = setup => rust => {
         },
         jobs: { ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs), ...setup.extraJobs },
     }
-    return [
-        [ciPath, workflowText(gha)],
-        // The publish workflow is a function of the configuration alone — no
-        // job of it varies with the project's Rust, its compiler pin, or the
-        // caller's `Setup` — so it is written rather than built here.
-        [npmPublishPath, workflowText(npmPublishWorkflow)],
-    ]
+    return gha
 }
 
+/** Write CI and publishing workflows through the shared generator.
+ * @type {(workflow: GitHubAction) => Effect<NodeOp, 0, number>}
+ */
+export const writeCi = workflow => exitStep(writeFiles([
+    [ciPath, workflowText(workflow)],
+    [npmPublishPath, workflowText(npmPublishWorkflow)],
+]))
+
 /**
- * Writes {@link ciFiles}, once `Cargo.toml` has said whether the project has
+ * Writes {@link ciWorkflow}, once `Cargo.toml` has said whether the project has
  * Rust.
  *
  * @type {(setup: Setup) => Effect<NodeOp, 0, number>}
  */
 export const ci = setup => resultStep(
     access('Cargo.toml'),
-    result => exitStep(writeFiles(ciFiles(setup)(result[0] === 'ok'))))
+    result => writeCi(ciWorkflow(setup)(result[0] === 'ok')))
 
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform
  * steps and no packed-package consumer, since this command cannot know what
  * another package publishes, and the packed-package check without a consumer
  * is the declaration check every project had. A project with a module to offer
- * calls `ci` with one, as this repository does in `./self/module.f.mjs`,
+ * builds its workflow with one, as this repository does in `./self/module.f.mjs`,
  * which is what its `npm run gen` runs.
  *
  * @type {() => Effect<NodeOp, 0, number>}

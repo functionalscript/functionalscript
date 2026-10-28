@@ -3,6 +3,10 @@
 **Priority:** P3
 **Status:** wip
 
+The owner verified GitHub sign-in on the Actions preview and disconnected
+Workers Builds. Production now uses the existing website job on main pushes;
+verify the first production deployment after merging this change.
+
 ### Problem
 
 The website is built by Cloudflare Workers Builds, outside the repository's
@@ -41,8 +45,8 @@ disabling Workers Builds so the transition does not leave competing deployments.
 ### Build job
 
 The `website` job runs on pull requests, including drafts and forks, and
-merge-group entries. There is no push trigger; branches needing a preview open
-a draft PR. It runs independently of the platform matrix and test jobs,
+merge-group entries, and pushes to `main`. Other branches needing a preview
+open a draft PR. Main pushes run only the website job, with test jobs skipped. It runs independently of the platform matrix and test jobs,
 reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
@@ -51,14 +55,14 @@ metadata variables.
 Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after its own successful website build.
 Fork pull requests and merge-group entries never upload. No enable-switch variables
-are used. Production uploads are omitted from the workflow until debugging is
-complete and Workers Builds is disabled. The API token is scoped to the upload
+are used. Production uploads use `wrangler deploy` only for main pushes, after changes
+pass required checks through the merge queue. Main runs do not cancel an active upload. The API token is scoped to the upload
 step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
 and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
 only the API-token secret and sends no empty OAuth overrides. The legacy
 Workers Builds helper keeps its explicit bindings during the transition.
 
-Workers Builds stays active until live verification and cutover. Setup,
+Workers Builds is disconnected after the owner verified preview login. Setup,
 branch-alias rules, cutover and rollback are documented in
 [GitHub Actions deployment](../README.md#github-actions-deployment).
 
@@ -73,8 +77,8 @@ branch-alias rules, cutover and rollback are documented in
 - [x] Add automatic trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
-- [ ] After debugging previews and disabling Workers Builds, add production
-      deployment on `main` in a follow-up PR. Keep it absent until then.
+- [x] Enable production deployment on `main` in the existing website job,
+      after preview verification and disconnecting Workers Builds.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.

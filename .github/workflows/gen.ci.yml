@@ -2,11 +2,16 @@
   "name": "CI",
   "on": {
     "pull_request": {},
-    "merge_group": {}
+    "merge_group": {},
+    "push": {
+      "branches": [
+        "main"
+      ]
+    }
   },
   "concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
-    "cancel-in-progress": true
+    "cancel-in-progress": "${{ github.event_name != 'push' }}"
   },
   "permissions": {
     "contents": "read"
@@ -147,7 +152,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
@@ -427,7 +433,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
@@ -539,7 +546,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "macos-arm": {
       "runs-on": "macos-26",
@@ -651,7 +659,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "windows-intel": {
       "runs-on": "windows-2025",
@@ -778,7 +787,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
@@ -885,7 +895,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
@@ -963,7 +974,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1041,7 +1053,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1235,7 +1248,8 @@
       ],
       "permissions": {
         "contents": "write"
-      }
+      },
+      "if": "github.event_name != 'push'"
     },
     "website": {
       "runs-on": "ubuntu-26.04",
@@ -1296,6 +1310,14 @@
           "env": {
             "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
             "WORKERS_CI_BRANCH": "${{ github.head_ref }}"
+          }
+        },
+        {
+          "if": "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+          "run": "mise exec -- node ./fjs/website/github-deploy.mjs production",
+          "shell": "bash",
+          "env": {
+            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}"
           }
         }
       ]
