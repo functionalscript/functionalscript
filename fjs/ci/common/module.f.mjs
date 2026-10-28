@@ -11,7 +11,7 @@
  */
 
 import { actions, images, jobTimeout } from '../config/module.f.js'
-import { array, number, option, or, record, string } from '../../rtti/module.f.mjs'
+import { array, number, option, or, record, string } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])

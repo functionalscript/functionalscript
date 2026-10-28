@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { array, number, open, or, record, rest, string } from '../module.f.mjs'
+import { array, number, open, or, record, rest, string } from '../module.f.js'
 import { demo, examples } from '../demo.f.mjs'
 import { _compare, _graphOf, _marked, _outputsOf, _readersOf, schemaDemo } from './module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'

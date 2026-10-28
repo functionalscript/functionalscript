@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { bigint, option, or, string } from '../../../module.f.mjs'
+import { bigint, option, or, string } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

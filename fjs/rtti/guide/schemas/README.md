@@ -62,5 +62,5 @@ These TypeScript type forms have no schema yet:
 
 ## Where it is implemented
 
-The constructors in [`module.f.mjs`](../../module.f.mjs) and the types in
+The constructors in [`module.f.mjs`](../../module.f.js) and the types in
 [`types.ts`](../../types.ts).

@@ -28,7 +28,7 @@
  * @import { Funding } from './types.ts'
  */
 
-import { array, open, string } from '../../rtti/module.f.mjs'
+import { array, open, string } from '../../rtti/module.f.js'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'

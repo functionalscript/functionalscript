@@ -25,7 +25,7 @@ declaration:
 | a JSON Schema (draft 2020-12) | `toJsonSchema(s)` | [`../media/json/schema`](../media/json/schema/module.f.mjs) |
 
 ```js
-import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
+import { array, number, open, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'
 import { parse } from 'functionalscript/fjs/rtti/parse/module.f.mjs'
 import { validate } from 'functionalscript/fjs/rtti/validate/module.f.mjs'
 

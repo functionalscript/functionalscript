@@ -47,5 +47,5 @@ the answers swap. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and
 
 ## Where it is implemented
 
-`option` in [`module.f.mjs`](../../../module.f.mjs); the absent bit of a
+`option` in [`module.f.mjs`](../../../module.f.js); the absent bit of a
 member's unit set in [`data`](../../../data/module.f.mjs).

@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertError, assertErrorPath, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
-import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
+import { array, isTag1, number, open, option, or, record, rest, string, unknown } from './module.f.js'
 import { examples, lessons, projectSchemas } from './demo.f.mjs'
 import { _readersOf } from './schema-demo/module.f.mjs'
 import { parse } from './parse/module.f.mjs'
@@ -98,6 +98,11 @@ const readme = () => {
 }
 
 export const proof = {
+    // The two tags that take a schema argument, and no other name.
+    isTag1: () => {
+        assert(isTag1('array') && isTag1('record'), 'expected both container tags')
+        assert(!isTag1('string') && !isTag1('or'), 'expected no other tag')
+    },
     constInference,
     readme,
     demo: demoProof,

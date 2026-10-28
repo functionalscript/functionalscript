@@ -32,7 +32,7 @@
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { array, open, option, or, string } from '../../rtti/module.f.mjs'
+import { array, open, option, or, string } from '../../rtti/module.f.js'
 import { jsonDialect } from '../module.f.mjs'
 
 /**

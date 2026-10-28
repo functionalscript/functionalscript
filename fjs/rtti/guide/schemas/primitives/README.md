@@ -37,5 +37,5 @@ bigint is to see both readers refuse it. The lesson is defined in [`sample.f.mjs
 
 ## Where it is implemented
 
-The nullary schemas in [`module.f.mjs`](../../../module.f.mjs); the kind
+The nullary schemas in [`module.f.mjs`](../../../module.f.js); the kind
 checks in [`common`](../../../common/module.f.mjs).

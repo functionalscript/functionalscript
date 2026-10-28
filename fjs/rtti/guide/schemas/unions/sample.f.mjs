@@ -7,7 +7,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { boolean, or } from '../../../module.f.mjs'
+import { boolean, or } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

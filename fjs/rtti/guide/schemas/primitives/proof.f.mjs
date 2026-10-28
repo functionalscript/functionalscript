@@ -1,5 +1,5 @@
 import { assert } from '../../../../asserts/module.f.js'
-import { bigint, boolean, number, string, unknown } from '../../../module.f.mjs'
+import { bigint, boolean, number, string, unknown } from '../../../module.f.js'
 import { admits, drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'

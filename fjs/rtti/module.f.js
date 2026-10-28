@@ -4,11 +4,8 @@
  *
  * @module
  *
- * @import { Includes } from '../types/array/types.ts'
  * @import { Tag0, _Type0, Bigint, Unknown, Option, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
  */
-
-import { includes } from '../types/array/module.f.mjs'
 
 export const _primitive0List = /** @type {const} */ (['bigint', 'boolean', 'number', 'string'])
 
@@ -51,8 +48,11 @@ export const unknown = type0('unknown')
 
 export const _tag1List = /** @type {const} */ (['array', 'record'])
 
-/** @type {Includes<string, typeof _tag1List>} */
-export const isTag1 = includes(_tag1List)
+/**
+ * @param {string} v
+ * @returns {v is Tag1}
+ */
+export const isTag1 = v => _tag1List.some(t => t === v)
 
 const type1 =
     /**

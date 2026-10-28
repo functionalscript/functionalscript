@@ -9,7 +9,7 @@
  * @import { CallbackOrigin, ExchangeFailure, Pending } from './types.ts'
  */
 
-import { number, open, or, string } from '../../rtti/module.f.mjs'
+import { number, open, or, string } from '../../rtti/module.f.js'
 
 /** Public configuration, with no application secret. */
 export const configSchema = open({ clientId: string, redirectUri: string })

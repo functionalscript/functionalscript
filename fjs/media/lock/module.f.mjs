@@ -30,7 +30,7 @@
  * @import { Lock, LockError } from './types.ts'
  */
 
-import { open } from '../../rtti/module.f.mjs'
+import { open } from '../../rtti/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { jsonDialect } from '../module.f.mjs'
 import { lock, lockMapError } from '../revision/module.f.mjs'

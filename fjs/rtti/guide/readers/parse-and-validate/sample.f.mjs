@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { number, open, string } from '../../../module.f.mjs'
+import { number, open, string } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

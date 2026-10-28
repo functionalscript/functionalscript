@@ -48,7 +48,7 @@ Five commitments make that concrete.
 
 There is **no type language to invent**. A type is an ordinary expression —
 written in the language, in a `const`, never in a comment — built from
-[`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) —
+[`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) —
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
 `option`, `never`, `rest`, `open`, plus `Const` (a primitive, tuple, or struct
 used directly as its own schema, closed). It is a value: it can be named, imported,
@@ -135,7 +135,7 @@ Anything more than a name is written as an ordinary `const` first, in the
 language, where it already belongs:
 
 ```js
-import { array, number, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
+import { array, number, option, or, string } from 'functionalscript/fjs/rtti/module.f.js'
 
 const key = or(number, string)
 const keys = array(key)
@@ -632,7 +632,7 @@ it as scoped to the object shapes TypeScript can name.
 
 | Piece | Where | State |
 | --- | --- | --- |
-| Schema constructors | [`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) | done |
+| Schema constructors | [`fjs/rtti/module.f.js`](../fjs/rtti/module.f.js) | done |
 | Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.mjs), [`validate/`](../fjs/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
 | Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
@@ -736,7 +736,7 @@ An annotation-only import is exactly that shape. So, stated honestly:
   import anchored, and what the epic owes is the cost question, not the
   legality — [stage 12](#tasks);
 - the resolution is anchoring, not an exemption for schema modules. That
-  `fjs/rtti/module.f.mjs` has no throwing top-level computation is true
+  `fjs/rtti/module.f.js` has no throwing top-level computation is true
   and is not a rule; a schema can be imported from anywhere.
 
 Two further qualifications. This is a property of the FunctionalScript compiler

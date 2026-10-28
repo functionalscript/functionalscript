@@ -7,7 +7,7 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { parse } from '../../../parse/module.f.mjs'
 import { validate } from '../../../validate/module.f.mjs'
 import { toData, validate as dataValidate } from '../../../data/module.f.mjs'
-import { array, number, or, rest, string } from '../../../module.f.mjs'
+import { array, number, or, rest, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
 import { lessons } from './sample.f.mjs'
 import { demo } from './demo.f.mjs'

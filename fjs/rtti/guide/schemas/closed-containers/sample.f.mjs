@@ -7,7 +7,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { number, open, string } from '../../../module.f.mjs'
+import { number, open, string } from '../../../module.f.js'
 
 const person = /** @type {const} */ ({ name: string, age: number })
 

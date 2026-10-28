@@ -32,7 +32,7 @@
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { assertExampleIds } from '../../website/demo/examples/module.f.mjs'
 import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../../website/style/module.f.js'
-import { unknown } from '../module.f.mjs'
+import { unknown } from '../module.f.js'
 import { structSchemaEntries, tupleSchemaEntries } from '../common/module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { validate } from '../validate/module.f.mjs'

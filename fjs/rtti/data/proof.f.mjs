@@ -17,7 +17,7 @@ import {
     rest,
     string,
     unknown as unknownRtti,
-} from '../module.f.mjs'
+} from '../module.f.js'
 import {
     absentBit,
     admitsAbsence,

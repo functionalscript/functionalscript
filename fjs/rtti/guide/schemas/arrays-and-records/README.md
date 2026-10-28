@@ -34,5 +34,5 @@ a string to see both refuse it. The lesson is defined in [`sample.f.mjs`](./samp
 
 ## Where it is implemented
 
-The unary schemas in [`module.f.mjs`](../../../module.f.mjs); the container
+The unary schemas in [`module.f.mjs`](../../../module.f.js); the container
 skeletons in [`common`](../../../common/module.f.mjs).

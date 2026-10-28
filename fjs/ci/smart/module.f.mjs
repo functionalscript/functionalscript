@@ -9,7 +9,7 @@
  * @import { Check, Platform, Rung } from './types.ts'
  */
 
-import { array, or, string } from '../../rtti/module.f.mjs'
+import { array, or, string } from '../../rtti/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { stepSchema, uses } from '../common/module.f.mjs'
 import { installNode } from '../node/module.f.mjs'

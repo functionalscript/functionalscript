@@ -74,7 +74,7 @@ its JSON Schema with `items`, and the two readers' answers. The lesson is define
 
 ## Where it is implemented
 
-`rest` and `open` in [`module.f.mjs`](../../../module.f.mjs); `restContainerRead`
+`rest` and `open` in [`module.f.mjs`](../../../module.f.js); `restContainerRead`
 in [`common`](../../../common/module.f.mjs); `emptyRest` and the rest's
 normalization in [`data`](../../../data/module.f.mjs); `RestTs` in
 [`ts/types.ts`](../../../ts/types.ts).

@@ -13,7 +13,7 @@
  * @import { CheckLabel, CheckRun, CheckSummary, CommitStatus, Pull } from './types.ts'
  */
 
-import { array, boolean, number, open, or, string } from '../../rtti/module.f.mjs'
+import { array, boolean, number, open, or, string } from '../../rtti/module.f.js'
 import { pageTitle, repository, shell } from '../page/module.f.mjs'
 
 /**

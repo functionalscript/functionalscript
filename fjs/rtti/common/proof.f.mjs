@@ -21,7 +21,7 @@ import {
     undeclaredMembers,
     verror,
 } from './module.f.mjs'
-import { array, number, option, or, record, rest } from '../module.f.mjs'
+import { array, number, option, or, record, rest } from '../module.f.js'
 import { emptyRest } from '../data/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'

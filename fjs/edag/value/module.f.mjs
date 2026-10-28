@@ -20,7 +20,7 @@
  */
 
 import { exp, intrinsicId, primitive, staticId } from '../module.f.mjs'
-import { array as rttiArray, number, string } from '../../rtti/module.f.mjs'
+import { array as rttiArray, number, string } from '../../rtti/module.f.js'
 
 /**
  * The raw recursive schema, pinned separately from its phantom annotation.
