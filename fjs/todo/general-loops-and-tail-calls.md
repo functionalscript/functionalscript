@@ -4,13 +4,6 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
-**Current increment:** retain zero-input tail roots with required define-only
-base-case work in either conditional orientation. Reuse the shared result-block
-normalizer and private unchanged slot, preserving empty public arity,
-once-after-final-test execution, sharing, captures, reached failures and exact
-graph/text cycles from the first source parse. Lazy and structured normal-arm
-prefixes remain outside this increment; H/I stay open.
-
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
@@ -257,6 +250,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Source preparation exposes leading total post-loop constructors in their
       enclosing region so required allocation order survives later rest
       projections and held base captures from the first parse.
+      Zero-input roots with required normal-arm definitions now reuse the same
+      result-block normalization and private unchanged slot. Both conditional
+      orientations run base work once after the final test, preserving empty
+      public arity, sharing, captures and reached failures without semantic input
+      snapshots or another invocation boundary. Exact graph/text cycles hold
+      from the first source parse.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

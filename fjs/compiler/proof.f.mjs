@@ -702,6 +702,17 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        zeroInputBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=()=>false?f():(()=>{const x=[1];return[x,x];})();export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
+                ['const f=()=>true?(()=>{const x=[1];return[x,x];})():f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=(()=>{const $3=[1];return [$3,$3];})();return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         multiInputLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=(n,a)=>n>0?f(n-1,a+n):a;export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
