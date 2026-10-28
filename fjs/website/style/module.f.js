@@ -870,7 +870,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [${codeMarker}], [${resultMarker}] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [${codeMarker}] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
 /* Static reference controls appear only once their browser adapter is bound. */
-[data-cli]:not([data-copy-ready]) [data-copy] { display: none }
+:is([data-cli], [data-readme]):not([data-copy-ready]) [data-copy] { display: none }
 [data-cli] section { border-top: 1px solid var(--border); margin-top: 2rem; padding-top: 1rem; scroll-margin-top: 1rem }
 [data-cli-explorer] nav ul { list-style: none; padding: 0 }
 [data-cli-link] { display: block; padding: .65rem .75rem; text-decoration: none; border: 1px solid transparent; border-radius: .35rem }
@@ -910,6 +910,11 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-code-block] > button[data-copy-feedback="copied"], [data-code-block] > button[data-copy-feedback="copied"]:hover:enabled { color: var(--pass) }
 [data-code-block] > button[data-copy-feedback="copied"] > svg { display: none }
 [data-code-block] > button[data-copy-feedback="copied"] > [data-copy-check] { display: block }
+/* A README's code block keeps GitHub's look, above: the fence scrolls rather
+   than wraps, in its own shaded box, and the copy button sits on its corner. */
+[data-readme] [data-code-block] { background: none; border: 0; margin: 0 0 1rem; padding: 0 }
+[data-readme] [data-code-block] > pre { margin: 0; overflow-wrap: normal; white-space: pre }
+[data-readme] li > [data-code-block] { margin-top: 1rem }
 [data-copy-feedback] > [data-copy-status] { right: -3px; bottom: calc(100% + 8px); width: auto; height: auto; overflow: visible; clip-path: none; padding: 5px 9px; background: black; color: white; border-radius: 5px; font-size: 12px; font-weight: 500; box-shadow: 0 2px 6px #00000018; pointer-events: none }
 [data-copy-feedback] > [data-copy-status]::after { content: ''; position: absolute; top: 100%; right: 10px; border: 5px solid transparent; border-top-color: black }
 @media (prefers-color-scheme: dark) {

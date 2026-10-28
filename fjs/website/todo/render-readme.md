@@ -155,6 +155,8 @@ Every README has a heading, so today's reader renders none of them.
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.
 - [x] Fenced code coloured: JavaScript and JSON, by the demos' tokenizer.
+- [x] A copy button on every fence, as GitHub has: the demos' code block,
+      bound by the page's fragment runtime and hidden without it.
 - [x] Fenced TypeScript coloured, its own keywords included.
 - [ ] TypeScript's primitive type names coloured where a type stands, which
       needs a reader that knows a type's place from a value's.

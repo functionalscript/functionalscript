@@ -16,6 +16,10 @@
  * refuses, so the README stays the file link to GitHub it was, with the
  * reason beside it.
  *
+ * **A code fence copies, as on GitHub.** It is the demos' code block
+ * ([`demo/code`](../demo/code/module.f.js)): its button copies the fence's
+ * text, and the page shows the button once its runtime can copy.
+ *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
  * ([`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
@@ -38,6 +42,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
 import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
+import { codeBlock } from '../demo/code/module.f.js'
 import { at } from '../../types/object/module.f.mjs'
 
 const { length: reservedIdCount } = reservedIds
@@ -304,7 +309,10 @@ export const readmeNodes = href => blocks => {
                 const text = fenceNodes(b[1])(b[2])
                 /** @type {Element} */
                 const code = b[1] === '' ? ['code', ...text] : ['code', { class: `language-${b[1]}` }, ...text]
-                out = [...out, ['pre', code]]
+                // The copy is the fence's text without the newline that ends
+                // its last line, as GitHub copies it: a pasted command does
+                // not run before the reader has read it.
+                out = [...out, codeBlock(b[2].endsWith('\n') ? b[2].slice(0, -1) : b[2], 'Copy code', [code])]
                 continue
             }
             if (b[0] === 'list' || b[0] === 'olist') {
