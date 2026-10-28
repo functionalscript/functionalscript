@@ -428,7 +428,7 @@ export const proof = /** @type {const} */ ({
         const original = graph('export default ()=>{let i=0;while(i<4){if(i<2){i=i+1;}i=i+1;}return i;};')
         // The next-state array demands the update directly, so no separate
         // arithmetic anchor or temporary is required after the conditional.
-        assertEq(assertOk(tryStringify(original)), 'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[0];return $4<4;})()){const $5=$2;const $4=$5[0];const $6=$4<2?$4+1:$4;const $7=[$6+1];$2=$7;}const $8=(()=>{const $9=$2;const $4=$9[0];return [$4];})();return $8;};return $0([0])[0];};')
+        assertEq(assertOk(tryStringify(original)), 'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[0];return $4<4;})()){const $5=$2;const $4=$5[0];const $6=[($4<2?$4+1:$4)+1];$2=$6;}const $7=(()=>{const $8=$2;const $4=$8[0];return [$4];})();return $7;};return $0([0])[0];};')
     },
     aggregateSourceWhileHasAStableNormalForm: () => {
         for (const source of /** @type {const} */ ([

@@ -47,6 +47,31 @@ An abrupt arm retains its targeted transfer and supplies no normal results.
 When both arms exit, the surrounding block has no normal continuation and
 following statements are not normalized into executed work.
 
+A switch statement inside a loop establishes its discriminant once, then tests
+labels lazily in source order. Stacked labels use the same short-circuit join as
+terminal switches. Each case starts from the same incoming immutable mapping;
+case-local declarations remain local. Its own `break` skips the rest of that
+case and resumes after the switch. An unmatched switch without a default keeps
+the incoming values. The parser separately refuses case fall-through.
+
+The switch is a one-pass FAST loop, with no inputs and explicit results for
+assigned outer bindings in declaration order. Its breaks supply current values;
+an absent default supplies unchanged ones. This uses existing transfer and
+completion machinery rather than adding a switch operation. The nearest break
+region and nearest repeated loop are independent: a switch changes only the
+break owner, so `continue` retains the enclosing loop and retests its condition.
+A nested `while` owns both transfers. Returns and throws keep their source
+owners. An all-terminal switch has no normal continuation, and its following
+computations are not normalized. Only actual transfers out of the repeated loop
+count toward that loop's literal-true normalization; a switch-local break does
+not. Every normalized loop root still ends in an explicit transfer. A switch's
+unreachable root traps if a case ever falls through; it introduces no state
+reads or helper captures. An unreachable repeated-loop fallback after
+all-terminal nested regions transports existing input values, whose bindings
+remain available even when unused assignment aliases were pruned. Later owners
+can keep nested loops opaque without mistaking a placeholder yield for normal
+loop-body completion.
+
 Source `return` statements inside loops retain their resolved ordinary-function
 target in FAST. They cross loop and conditional regions without becoming normal
 results for a generated helper. Statement `throw` likewise remains an abrupt
@@ -72,14 +97,14 @@ Declarations introduced inside an outer iteration stay local to that iteration;
 an inner loop selects their established values at each reached entry. A binding
 carried read-only by an inner loop does not invent an enclosing write.
 
-Unlabeled `break` and `continue` retain their parser-resolved innermost target.
-The active loop's source signature packages the current immutable versions as
+Unlabeled `break` and `continue` retain their parser-resolved nearest eligible
+target. The target's source signature packages the current immutable versions as
 FAST transfer values in state order. A `continue` returns to the next condition
 test; a `break` supplies normal loop results to following statements. A direct
 exit stops normalization of the rest of that source block, while the parser's
 complete binding facts still include unreachable references and writes.
 Ordinary function boundaries, including immediate calls lowered to value
-regions, clear the active loop before normalizing their own bodies.
+regions, clear both transfer owners before normalizing their own bodies.
 For a literal-true loop with its own explicit exit, the step is already the
 complete core body: no redundant always-true guard is added. This canonical
 form keeps generic structured loop output stable on source reparse. A loop

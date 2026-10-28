@@ -24,6 +24,7 @@ import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { freeBindings } from '../../js/ast/control/module.f.mjs'
 import { demandsInOrder } from '../demand/module.f.mjs'
 import { _tailCalls } from './tail/module.f.mjs'
+import { _joinResults } from './join/module.f.mjs'
 
 /** Conditionally evaluated operands, including optional-chain regions. @type {(node: Node) => readonly Operand[]} */
 const lazyOperands = node => {
@@ -337,7 +338,8 @@ export const fromAnalysis = (a, external = [], invocation = {}) => {
             const body = terminal(raw)
             const rest = scopeHolds(a, i, 'rest') ? context.rest : null
             const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: i })
-            const tail = _tailCalls(body, context.parameters, context.self, target, rest)
+            const rawTail = _tailCalls(body, context.parameters, context.self, target, rest)
+            const tail = rawTail === null ? null : _joinResults(rawTail)
             if (tail !== null) {
                 // Entry parameters and current iteration values have different
                 // identities, even where their presentation indices agree.

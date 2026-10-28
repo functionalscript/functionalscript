@@ -8,6 +8,7 @@ export type Context = {
     readonly bindings: readonly Binding[]
     readonly scopes: readonly BindingScope[]
     readonly loop: { readonly target: LoopTarget; readonly sources: readonly BindingId[] } | null
+    readonly breakRegion: Context['loop']
 }
 export type Established = {
     readonly environment: Environment

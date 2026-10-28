@@ -7,14 +7,14 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Context, Environment, Established, Normalized, NormalizedStatement, ReferenceTask, Results, Work } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
-import { exitValues } from '../control/module.f.mjs'
+import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
 import { _hasReturn } from '../memo/cells/module.f.mjs'
 import { logicalValue } from './logical/module.f.js'
 
@@ -203,7 +203,7 @@ const commaValues = values => {
 
 /** Ordinary invocation bindings and source parameter expansion share one scope. @type {(source: SourceFunction, environment: Environment, context: Context) => FastFunction} */
 const functionValue = (source, environment, context) => {
-    context = { ...context, loop: null }
+    context = { ...context, loop: null, breakRegion: null }
     const parameters = Array.from({ length: source.length }, (_, i) => binding(i))
     const rest = binding(source.length)
     const self = binding(source.length + 1)
@@ -272,7 +272,7 @@ const leaf = (environment, context, value) => {
         const fn = functionValue(source, environment, context)
         if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', { ...fn.body, exit: ['yield', exitValues(fn.body.exit)] }], fn.target)) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
-            return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null })] }
+            return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null, breakRegion: null })] }
         }
         return { value: ['()', ['function', fn], []] }
     }
@@ -314,6 +314,13 @@ const normalizedValue = (environment, context) => root => {
     return assertNotNullish(results, 'missing normalized value').value
 }
 
+/** Ordered labels share one discriminant and short-circuit before the next label. @type {(discriminant: BindingId, labels: readonly SourceValue[], value: (source: SourceValue) => Value) => Value} */
+const caseCondition = (discriminant, labels, value) => {
+    const tests = labels.map(label => /** @type {Value} */ (['===', reference(discriminant), value(label)]))
+    const first = assertNotNullish(tests[0], 'switch case without a label')
+    return tests.slice(1).reduce((left, right) => logicalValue('||', left, right), first)
+}
+
 /** Source terminal branches become result regions, never generated calls. @type {(exit: SourceExit, environment: Environment, context: Context) => Block} */
 const normalizedExit = (exit, environment, context) => {
     const value = normalizedValue(environment, context)
@@ -325,12 +332,44 @@ const normalizedExit = (exit, environment, context) => {
     const discriminant = binding(0)
     let tail = normalizedBlock(exit[3], environment, context).block
     for (const arm of exit[2].toReversed()) {
-        const tests = arm.labels.map(label => /** @type {Value} */ (['===', reference(discriminant), value(label)]))
-        const first = assertNotNullish(tests[0], 'switch case without a label')
-        const condition = tests.slice(1).reduce((left, right) => logicalValue('||', left, right), first)
+        const condition = caseCondition(discriminant, arm.labels, value)
         tail = { statements: [], exit: ['yield', [['if', condition, normalizedBlock(arm.body, environment, context).block, tail]]] }
     }
     return { statements: [['define', discriminant, value(exit[1]), 'required'], ...tail.statements], exit: tail.exit }
+}
+
+/**
+ * A switch is a one-pass transfer region. Its breaks supply normal state;
+ * continues retain the enclosing loop and returns retain their function.
+ * @type {(source: SourceSwitch, environment: Environment, context: Context) => Normalized}
+ */
+const normalizedSwitch = (source, environment, context) => {
+    const sources = loopSources(eventFacts(source.events).writes, environment, context)
+    const results = sources.map(source => binding(source.index))
+    /** @type {Context} */
+    const inner = { ...context, breakRegion: { target: source.target, sources } }
+    /** @type {readonly Normalized[]} */
+    const alternatives = [...source.cases.map(arm => normalizedBlock(arm.body, environment, inner, sources)),
+        normalizedBlock(source.otherwise, environment, inner, sources)]
+    /** @type {(made: Normalized) => Block} */
+    const completed = made => made.normal ? { ...made.block, exit: ['break', source.target, sources.map(source => lookup(made.environment, source))] } : made.block
+    const discriminant = binding(0)
+    const value = normalizedValue(environment, context)
+    let body = completed(alternatives[alternatives.length - 1])
+    for (let index = source.cases.length - 1; index >= 0; index = index - 1) {
+        body = { statements: [['if', [], caseCondition(discriminant, source.cases[index].labels, value), completed(alternatives[index]), body]], exit: ['yield', []] }
+    }
+    // Every case transfers, including the unmatched arm. Keep the unreachable
+    // root terminal without inventing state reads or helper captures.
+    body = { ...body, exit: ['throw', 'a normalized switch case fell through'] }
+    return {
+        block: { statements: [['define', discriminant, value(source.discriminant), 'required'],
+            ['loop', { target: source.target, parameters: [], initial: [], results, body }]], exit: ['yield', []] },
+        environment: [...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))],
+        normal: alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target)),
+        hasLoopExit: alternatives.some(made => made.hasLoopExit),
+        hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
+    }
 }
 
 /**
@@ -352,10 +391,11 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             return { block: pruneAliases({ statements, exit }, []), environment: inner, normal: false, hasLoopExit: true, hasFunctionExit: true }
         }
         if (statement[0] === 'break' || statement[0] === 'continue') {
-            const loop = assertNotNullish(context.loop, 'a source loop exit has no loop')
+            const loop = assertNotNullish(statement[0] === 'break' ? context.breakRegion : context.loop, 'a source transfer has no target')
             assert(loop.target === statement[1], 'a source loop exit targets another loop')
             const values = loop.sources.map(source => lookup(inner, source))
-            return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false, hasLoopExit: true, hasFunctionExit }
+            return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false,
+                hasLoopExit: hasLoopExit || loop === context.loop, hasFunctionExit }
         }
         if (statement[0] === 'initialize') {
             const made = expanded(statement[1], normalizedValue(inner, context)(statement[2]), inner, false)
@@ -389,18 +429,31 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             inner = [...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))]
             continue
         }
+        if (statement[0] === 'switch') {
+            const made = normalizedSwitch(statement[1], inner, context)
+            statements = [...statements, ...made.block.statements]
+            hasLoopExit = hasLoopExit || made.hasLoopExit
+            hasFunctionExit = hasFunctionExit || made.hasFunctionExit
+            if (!made.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
+            inner = made.environment
+            continue
+        }
         const loop = statement[1]
         const events = eventFacts(loop.events)
         const sources = loopSources(events.references, inner, context)
         const parameters = sources.map(source => binding(source.index))
         const results = sources.map(source => binding(source.index))
         const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
-        const step = normalizedBlock(loop.body, scope, { ...context, loop: { target: loop.target, sources } }, sources)
+        /** @type {NonNullable<Context['loop']>} */
+        const transfer = { target: loop.target, sources }
+        const step = normalizedBlock(loop.body, scope, { ...context, loop: transfer, breakRegion: transfer }, sources)
         hasLoopExit = hasLoopExit || step.hasFunctionExit
         hasFunctionExit = hasFunctionExit || step.hasFunctionExit
         const condition = normalizedValue(scope, context)(loop.condition)
         /** @type {Block} */
-        const continuing = step.normal ? { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] } : step.block
+        const continuing = step.block.exit[0] === 'yield'
+            ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
+            : step.block
         statements = [...statements, ['loop', {
             target: loop.target, parameters, initial: sources.map(source => lookup(inner, source)), results,
             body: condition === true && step.hasLoopExit ? continuing : {
@@ -432,7 +485,8 @@ export const normalize = (resolved, imports) => {
     const representatives = resolved.imports.map((_, i) => imports.findIndex(value => Object.is(value, imports[i])))
     /** @type {Environment} */
     const environment = resolved.imports.flatMap((imported, i) => imported.binding === null ? [] : [[imported.binding, reference(established[representatives[i]])]])
-    const context = { bindings: resolved.bindings, scopes: scopesOf(resolved.scope), loop: null }
+    /** @type {Context} */
+    const context = { bindings: resolved.bindings, scopes: scopesOf(resolved.scope), loop: null, breakRegion: null }
     const normalized = normalizedBlock(resolved.body, environment, context).block
     const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])
     return { parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } }

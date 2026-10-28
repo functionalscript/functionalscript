@@ -36,7 +36,7 @@ import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
     circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
-    lastStatement, loopBlock, loopElse, loopIfStatement, loopStatement, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
+    lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values, whileStatement,
 } from './module.f.mjs'
@@ -84,6 +84,8 @@ export const diagrams = [
     ['loopStatement', loopStatement],
     ['loopIfStatement', loopIfStatement],
     ['loopElse', loopElse],
+    ['loopSwitch', loopSwitch],
+    ['loopCase', loopCase],
     ['terminator', terminator],
     ['caseTail', caseTail],
     ['afterCase', afterCase],
