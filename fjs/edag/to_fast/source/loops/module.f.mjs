@@ -11,7 +11,7 @@
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
-import { plainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
+import { continueFirstPlainLoopOf, plainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.mjs'
@@ -98,6 +98,10 @@ const resultBlock = block => call(() => {
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
     if (loop === null || plainLoopOf(loop) !== null || (fn.rest === null && (scalarLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
+    const oriented = fn.parameters.length === 0 && fn.rest !== null ? continueFirstPlainLoopOf(loop) : null
+    if (oriented !== null) { return done({ ...fn, body: { ...fn.body,
+        statements: [...fn.body.statements.slice(0, -1), ['loop', oriented]],
+    } }) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

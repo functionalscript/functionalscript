@@ -81,9 +81,13 @@ Preparation treats rest as one semantic input, preserving sharing within an
 invocation and fresh identity between iterations, including empty rest arrays.
 Saved closures retain their iteration's array; the public fixed arity and rest
 parameter stay intact. Fixed-plus-rest roots support either conditional arm.
-Rest-only roots have one semantic input and keep the plan's existing
-continue-first restriction. First-parse graph/text stability and the existing
-default JavaScript/Rust layouts follow the same contracts as fixed-input roots.
+Rest-only roots have one semantic input. For an admitted base-first root, the
+source coordinator uses the shared plain-loop helper to negate its terminal
+test and swap the arms, preserving prefixes, targets and selected regions.
+Existing preparation then consumes the continue-first loop, so both rest-only
+orientations emit bounded-stack source. First-parse graph/text stability and
+the existing default JavaScript/Rust layouts follow the same contracts as
+fixed-input roots.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result

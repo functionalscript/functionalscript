@@ -141,9 +141,14 @@ slot, while fixed-plus-rest roots use the packed slot. Empty and nonempty rest
 arrays keep sharing within an invocation and fresh identity between iterations;
 held closures retain their creating rest array. Public fixed arity is unchanged.
 
-Fixed-plus-rest roots support either conditional arm. Rest-only roots retain
-the shared plan's single-input continue-first restriction; base-first rest-only
-and other nonplain rest profiles keep their recursive fallback. First source
+Fixed-plus-rest and rest-only roots support either conditional arm. For a
+validated base-first rest-only root, source admission calls the shared plain-loop
+orientation helper. It negates the terminal test and swaps arms without moving
+prefixes, changing exact transfer targets or widening the planner's default
+domain. Existing scalar preparation then consumes the continue-first loop.
+This is confined to canonical zero-fixed-parameter roots that observe rest;
+other single-input source spellings and default JavaScript/Rust layouts stay
+unchanged. Other nonplain rest profiles keep their recursive fallback. First source
 parsing establishes the canonical scalar helper under the existing graph/hash
 and function-text exception, followed by exact graph/text cycles. Shared logical
 conversion and default code-only JavaScript/Rust layouts remain unchanged.
