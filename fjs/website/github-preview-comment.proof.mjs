@@ -46,8 +46,7 @@ export const proof = /** @type {const} */ ({
             return Response.json(init?.method === 'POST' ? {} : [])
         })
         assertEq(code, 0)
-        assert(published.includes(previewUrl))
-        assert(!published.includes('other-version'))
+        assertEq(published, `${commentMarker}\nWebsite preview: [Open preview](${previewUrl})`)
         assert(!existsSync(outputPath))
         assert(!existsSync(dirname(outputPath)))
     }),
