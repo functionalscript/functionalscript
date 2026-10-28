@@ -27,6 +27,38 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    multipleInputsPackSimultaneousValuesInEitherArm: () => {
+        const reached = /** @type {const} */ ({ index: 4 })
+        /** @type {Definition} */
+        const projected = ['define', alias, ['.', ['ref', state], 0], 'required']
+        /** @type {Definition} */
+        const required = ['define', reached, ['array', [['ref', alias], ['ref', other]]], 'required']
+        /** @type {Block} */
+        const continuing = { statements: [required], exit: ['continue', target, [['ref', other], ['ref', state]]] }
+        /** @type {Block} */
+        const normal = { statements: [], exit: ['break', target, [['array', [['ref', alias], ['ref', other]]]]] }
+        /** @type {Value} */
+        const test = ['<', ['ref', other], 3]
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const source = { target, parameters: [state, other], initial: [['array', [7]], 1], results: [result], body: {
+                statements: [projected, ['if', [], test, reversed ? normal : continuing, reversed ? continuing : normal]],
+                exit: ['yield', []],
+            } }
+            const plan = plainLoopOf(source)
+            assertStructurallySame(plan, {
+                prefix: [projected], resultPrefix: [projected],
+                iteration: {
+                    condition: reversed ? ['!', test] : test,
+                    step: { statements: [projected, required], exit: continuing.exit },
+                    next: ['array', [['ref', other], ['ref', state]]],
+                },
+                result: ['array', [['ref', alias], ['ref', other]]],
+            })
+            assertEq(plan?.iteration.step.exit, continuing.exit)
+        }
+        assertEq(plainLoopOf(withArms(done, step)), null)
+    },
     zeroInputEitherArmKeepsProjectionLifetimes: () => {
         /** @type {Definition} */
         const projected = ['define', alias, ['.', ['ref', other], 0], 'required']
@@ -151,9 +183,7 @@ export const proof = /** @type {const} */ ({
     },
     refusesOtherPlainShapes: () => {
         for (const source of /** @type {readonly Loop[]} */ ([
-            { ...scalar, parameters: [state, alias], initial: [0, 1], body: { ...scalar.body,
-                statements: [['if', [], true, { ...step, exit: ['continue', target, [1, 2]] }, done]],
-            } }, { ...scalar, results: [] },
+            { ...scalar, results: [] },
             { ...scalar, body: { statements: [], exit: ['yield', []] } },
             { ...scalar, body: { statements: [['define', alias, 0, 'required']], exit: ['yield', []] } },
             { ...scalar, body: { ...scalar.body, statements: [['if', [alias], true, step, done]] } },

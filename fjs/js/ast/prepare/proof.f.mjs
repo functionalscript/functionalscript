@@ -36,6 +36,163 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    packedSourceExposesOnlyEstablishedConstructorPrefixes: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const first = id(0), second = id(1), result = id(2), shared = id(3), observer = id(4), later = id(5), held = id(6)
+        /** @type {(value: NormalValue, statements?: readonly Definition[]) => readonly Statement[]} */
+        const step = (value, statements = []) => {
+            const block = prepare({ statements: [['loop', {
+                target, parameters: [first, second], initial: [1, 0], results: [result], body: {
+                    statements: [['if', [], ['>', ['ref', first], 0],
+                        { statements, exit: ['continue', target, [['-', ['ref', first], 1], value]] },
+                        { statements: [], exit: ['break', target, [['ref', second]]] },
+                    ]], exit: ['yield', []],
+                },
+            }]], exit: ['yield', [['ref', result]]] }, { sourceLoops: true })
+            const physical = block.statements[0]
+            assert(physical[0] === 'while')
+            return physical[1].body.statements.slice(2)
+        }
+        /** @type {(value: NormalValue, tail?: NormalValue) => NormalValue} */
+        const recipe = (value, tail = ['ref', shared]) => ['block', {
+            statements: [['define', shared, value, 'required']], exit: ['yield', [tail]],
+        }]
+        /** @type {NormalValue} */
+        const pair = ['array', [['ref', first], ['ref', second]]]
+        /** @type {NormalValue} */
+        const observe = ['()', ['ref', observer], [['ref', shared], ['ref', shared]]]
+        const exposed = step(recipe(pair, observe))
+        assertStructurallySame(exposed[0], ['define', shared, pair])
+        assert(exposed[1][0] === 'define')
+        // The allocation is total. Arithmetic and the observer keep their
+        // argument order, so earlier arithmetic can still fail first.
+        assertStructurallySame(exposed[1][2], ['array', [['-', ['ref', first], 1], observe]])
+
+        /** @type {NormalValue} */
+        const closure = ['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: held, value: ['ref', first] }],
+            body: { statements: [], exit: ['return', child, ['ref', held]] },
+        }]
+        for (const value of /** @type {readonly NormalValue[]} */ ([0, ['ref', first], pair, ['object', [[':', 'x', ['ref', first]]]], closure])) {
+            assertEq(step(recipe(value))[0][1], shared)
+        }
+        const nested = step(recipe(pair, ['block', { statements: [['define', later, 1, 'required']], exit: ['yield', [['ref', later]]] }]))
+        assertStructurallySame(nested.slice(0, 2).map(statement => statement[1]), [shared, later])
+        const partial = step(['block', { statements: [
+            ['define', shared, pair, 'required'], ['define', later, ['()', ['ref', observer], []], 'required'],
+        ], exit: ['yield', [['ref', later]]] }])
+        assertEq(partial[0][1], shared)
+        assert(partial[1][0] === 'define' && partial[1][2] instanceof Array && partial[1][2][0] === 'array')
+        assertStructurallySame(partial[1][2][1][1], ['block', { statements: [['define', later, ['()', ['ref', observer], []]]], exit: ['yield', [['ref', later]]] }])
+
+        for (const value of /** @type {readonly NormalValue[]} */ ([
+            ['()', ['ref', observer], []], ['.', null, 0],
+            ['array', [['...', ['ref', first]]]], ['array', [['.', null, 0]]],
+            ['object', [['...', ['ref', first]]]], ['object', [[':', ['ref', first], 0]]], ['object', [[':', 'x', ['.', null, 0]]]],
+            ['function', { ...closure[1], captures: [{ binding: held, value: ['.', null, 0] }] }],
+        ])) {
+            assert(!step(recipe(value)).some(statement => statement[0] === 'define' && statement[1] === shared))
+        }
+        const memo = step(['block', { statements: [['define', shared, pair, 'lazy']], exit: ['yield', [['ref', shared]]] }])
+        assert(!memo.some(statement => statement[0] === 'define' && statement[1] === shared))
+        const beforeMemo = step(['block', { statements: [
+            ['define', shared, pair, 'required'], ['define', later, 1, 'lazy'],
+        ], exit: ['yield', [['ref', later]]] }])
+        assertEq(beforeMemo[0][1], shared)
+        const demanded = step(recipe(['array', [['ref', later]]]), [['define', later, 1, 'lazy']])
+        assertEq(demanded[0][0], 'memo')
+        assert(!demanded.some(statement => statement[0] === 'define' && statement[1] === shared))
+        const detached = step(['()', recipe(pair, ['.', 'abc', 'slice']), [1]])
+        assertEq(detached[0][1], shared)
+        assert(detached[1][0] === 'define')
+        assertStructurallySame(detached[1][2], ['array', [['-', ['ref', first], 1], ['()', ['.', 'abc', 'slice'], [1]]]])
+        const callee = step(['block', { statements: [['define', later, recipe(pair, ['.', 'abc', 'slice']), 'required']],
+            exit: ['yield', [['()', ['ref', later], [1]]]],
+        }])
+        assertEq(callee[0][1], shared)
+        assert(callee[1][0] === 'define')
+        assertStructurallySame(callee[1][2], ['array', [['-', ['ref', first], 1], ['block', {
+            statements: [['define', later, ['.', 'abc', 'slice']]], exit: ['yield', [['()', ['ref', later], [1]]]],
+        }]]])
+        for (const member of /** @type {readonly NormalValue[]} */ ([
+            ['.', recipe(pair, 'abc'), 'slice', ['|()', [1]]],
+            ['.', 'abc', ['Number', recipe(pair, 0)], ['|()', [1]]],
+            ['?.', recipe(pair, 'abc'), 'slice', ['|()', [1]]],
+        ])) {
+            assertEq(step(member)[0][1], shared)
+        }
+        const opaque = recipe(pair, 1)
+        for (const value of /** @type {readonly NormalValue[]} */ ([
+            ['if', ['ref', first], yielding(opaque), yielding(0)],
+            ['?.', null, ['Number', opaque]], ['?.()', null, [opaque]], ['.', 'abc', 'slice', ['|()', [opaque]]],
+            ['function', { ...closure[1], body: { statements: [], exit: ['return', child, opaque] } }],
+            ['block', { statements: [], exit: ['throw', 1] }],
+            ['block', { statements: [['block', [], { statements: [], exit: ['throw', 1] }]], exit: ['yield', []] }],
+        ])) {
+            assert(!step(value).some(statement => statement[0] === 'define' && statement[1] === shared))
+        }
+    },
+    sourcePlainInputsUseOnePackedSlotAndImmutableSnapshots: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const child = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const first = id(0), second = id(1), result = id(2), ignored = id(3), held = id(4)
+        /** @type {NormalValue} */
+        const closure = ['function', { target: child, parameters: [], rest: null, self: null,
+            captures: [{ binding: held, value: ['ref', second] }],
+            body: { statements: [], exit: ['return', child, ['ref', held]] },
+        }]
+        /** @type {NormalBlock} */
+        const continuing = { statements: [['define', ignored, ['array', [['ref', first], ['ref', second]]], 'required']],
+            exit: ['continue', target, [['ref', second], ['ref', first]]] }
+        /** @type {NormalBlock} */
+        const normal = { statements: [], exit: ['break', target, [closure]] }
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const loop = { target, parameters: [first, second], initial: [['array', [9]], 1], results: [result], body: {
+                statements: [['if', [], ['<', ['ref', second], 3], reversed ? normal : continuing, reversed ? continuing : normal]],
+                exit: ['yield', []],
+            } }
+            /** @type {NormalBlock} */
+            const block = { statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }
+            const ordinary = prepare(block)
+            assert(!ordinary.statements.some(statement => statement[0] === 'while'))
+            assertEq(loopStatement(ordinary)[2].statements.filter(statement => statement[0] === 'if')[0][reversed ? 3 : 2].statements.filter(statement => statement[0] === 'write').length, 2)
+            const source = prepare(block, { sourceLoops: true })
+            assertStructurallySame(source.statements.map(statement => statement[0]), ['while', 'define'])
+            const physical = source.statements[0]
+            assert(physical[0] === 'while')
+            const { slot } = physical[1]
+            assertEq(physical[1].mutable, true)
+            assertStructurallySame(physical[1].initial, ['array', [['array', [9]], 1]])
+            const condition = physical[1].condition
+            assert(condition instanceof Array && condition[0] === 'block')
+            assertStructurallySame(condition[1].statements.map(statement => statement[0] === 'define' ? statement[2] : null), [
+                ['.', ['ref', slot], 0], ['.', ['ref', slot], 1],
+            ])
+            assertStructurallySame(physical[1].body.statements.slice(0, 2), [
+                ['define', first, ['.', ['ref', slot], 0]], ['define', second, ['.', ['ref', slot], 1]],
+            ])
+            assertEq(physical[1].body.statements[2][1], ignored)
+            const last = physical[1].body.statements.at(-1)
+            assert(last !== undefined && last[0] === 'write')
+            assertEq(last[1], slot)
+            const transfer = physical[1].body.statements.at(-2)
+            assert(transfer !== undefined && transfer[0] === 'define')
+            assertStructurallySame(transfer[2], ['array', [['ref', second], ['ref', first]]])
+            assertStructurallySame(last[2], ['ref', transfer[1]])
+            const returned = source.statements[1]
+            assert(returned[0] === 'define' && returned[2] instanceof Array && returned[2][0] === 'block')
+            const final = returned[2][1]
+            assertStructurallySame(final.statements.map(statement => statement[0] === 'define' ? statement[2] : null), [
+                ['.', ['ref', physical[1].result], 0], ['.', ['ref', physical[1].result], 1],
+            ])
+            assert(final.exit[0] === 'yield')
+            const value = final.exit[1][0]
+            assert(value instanceof Array && value[0] === 'function')
+            assertStructurallySame(value[1].captures[0].value, ['ref', final.statements[1][1]])
+        }
+    },
     zeroInputPlainLoopsUseAnUnchangedPrivateSlot: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const child = /** @type {const} */ ({ kind: 'function', index: 0 })

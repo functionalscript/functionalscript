@@ -472,6 +472,90 @@ export const proof = /** @type {const} */ ({
         const canonical = assertOk(tryStringify(graph(written)))
         assertEq(assertOk(tryStringify(graph(canonical))), canonical)
     },
+    multiInputSourceLoopsKeepFirstParseFixedPoints: () => {
+        const names = Array.from({ length: 15 }, (_, index) => `x${index}`)
+        const parameters = ['n', ...names].join(',')
+        const updates = ['n-1', ...names.map(name => `${name}+1`)].join(',')
+        const arguments_ = ['3', ...names.map((_, index) => `${index}`)].join(',')
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['const f=(n,a)=>n>0?f(n-1,a+n):a;export default f(4,0);', 10],
+            ['const f=(n,a)=>n===0?a:f(n-1,a+n);export default f(4,0);', 10],
+            ['const f=(n,a,b)=>n===0?[a,b]:f(n-1,b,a);export default f(3,1,2);', [2, 1]],
+            ['const f=(n,a,b)=>n>0?f(n-1,b,a+b):[a,b];export default f(3,1,2);', [5, 8]],
+            ['const f=(n,saved)=>n===0?saved:f(n-1,()=>n);export default f(2,null)();', 1],
+            ['const seed=[9];const f=(n,a)=>n>0?f(n-1,[a,seed]):[a===seed,seed];export default [f(0,seed)[0],f(2,seed)[0],f(2,seed)[1]===seed];', [true, false, true]],
+            ['const f=(n,a)=>n===0?a:f(n-1);export default f(3,9);', undefined],
+            ['const f=(n,a)=>n>0?f(...[n-1,a+1]):a;export default f(3,0);', 3],
+            ['const f=(n,a)=>{const pair=[n];return pair===pair&&n>0?f(n-1,a+n):a;};export default f(3,0);', 6],
+            [`const f=(${parameters})=>n>0?f(${updates}):[x0,x14];export default [f.length,f(${arguments_})];`, [16, [3, 17]]],
+        ]
+        for (const [source, expected] of cases) {
+            const original = graph(source)
+            assertStructurallySame(evaluate(original), expected)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            assert(!first.includes(':while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(evaluate(current), expected)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                assert(canonical.includes('while('), canonical)
+                current = graph(canonical)
+            }
+        }
+    },
+    multiInputIgnoredArgumentsKeepSharedPairOrdering: () => {
+        const observer = /** @type {Exp} */ (['=>', 2, [], ['?:', ['===', ['arg', 0], ['arg', 1]], 0, ['throw', 'lost pair identity']]])
+        /** @type {readonly (readonly [string, Exp])[]} */
+        const cases = [
+            ['export default observer=>{const f=(n,a)=>n>0?f(n-1,a+1,(()=>{const pair=[n,a];return observer(pair,pair);})()):a;return f;};', observer],
+            ['export default holder=>{const f=(n,a)=>n>0?f(n-1,a+1,(()=>{const call=(()=>{const pair=[n,a];const required=pair===pair;return holder.observe;})();return call(n,a);})()):a;return f;};', graph('export default {observe:(n,a)=>7};')],
+        ]
+        for (const [source, argument] of cases) {
+            const original = graph(source)
+            assertEq(evaluate(['()', ['()', original, [argument]], [3, 0]]), 3)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertEq(evaluate(['()', ['()', current, [argument]], [3, 0]]), 3)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                current = graph(canonical)
+            }
+        }
+    },
+    multiInputSourceLoopsPreserveRequiredFailures: () => {
+        /** @type {readonly string[]} */
+        const sources = [
+            'const f=(n,a)=>n>0?f(n-1,a,null.x):a;export default f(1,0);',
+            'const f=(n,a)=>n>0?f(n-1,a,...null):a;export default f(1,0);',
+            'const f=(n,a)=>n>0?f(n-1,a):a;export default f(0,7,null.x);',
+            'const f=(n,a)=>{const required=null.x;return n>0?f(n-1,a):a;};export default f(0,7);',
+            'const f=(n,a)=>n>0?f(n-1,a):null.x;export default f(0,7);',
+        ]
+        for (const source of sources) {
+            const original = graph(source)
+            failure(original)
+            const first = assertOk(tryStringify(original))
+            assert(first.includes('while('), first)
+            const normalized = graph(first)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                failure(current)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
+                assertEq(assertOk(tryStringify(current)), canonical)
+                current = graph(canonical)
+            }
+        }
+    },
     recursiveSourceRoundTrips: () => {
         const sources = /** @type {const} */ ([
             'const f=(n,a)=>n===0?a:f(n-1,a+n);export default f(4,0);',
@@ -686,7 +770,9 @@ export const proof = /** @type {const} */ ({
         }
     },
     nestedSourceValuesRetainTheirExecutionRegions: () => {
-        const fn = _tailFunction(counter)
+        // Observed rest retains recursive source, so every containing value
+        // must still be traversed even after fixed-input roots keep loops.
+        const fn = _tailFunction(['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]], ['rest']]])
         const inner = /** @type {Value} */ (['function', fn])
         const binding = /** @type {const} */ ({ index: 0 })
         const parameter = /** @type {const} */ ({ index: 0 })
