@@ -72,20 +72,17 @@ export const proof = {
     },
     deploymentGates: () => {
         const preview = websiteJob.steps[7]
-        const production = websiteJob.steps[8]
-        assertEq(preview?.if, "github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PREVIEWS_ENABLED == 'true'")
-        assertEq(production?.if, "github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true'")
+        assertEq(preview?.if, "github.event_name == 'push' && github.ref != 'refs/heads/main'")
         assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
-        assertEq(production?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs production')
+        assertEq(websiteJob.steps.length, 8)
+        assert(!websiteJob.steps.some(step => step.run?.includes('github-deploy.mjs production')))
         assertEq(preview?.env?.WORKERS_CI_BRANCH, '${{ github.ref_name }}')
-        for (const step of [preview, production]) {
-            assertEq(step?.env?.CLOUDFLARE_API_TOKEN, '${{ secrets.CLOUDFLARE_API_TOKEN }}')
-            assertEq(step?.env?.CLOUDFLARE_ACCOUNT_ID, '${{ vars.CLOUDFLARE_ACCOUNT_ID }}')
-            assertEq(step?.env?.GITHUB_CLIENT_SECRET, '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}')
-            assertEq(step?.env?.GITHUB_CLIENT_ID, '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}')
-            assertEq(step?.env?.GITHUB_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}')
-            assertEq(step?.env?.GITHUB_PREVIEW_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}')
-        }
+        assertEq(preview?.env?.CLOUDFLARE_API_TOKEN, '${{ secrets.CLOUDFLARE_API_TOKEN }}')
+        assertEq(preview?.env?.CLOUDFLARE_ACCOUNT_ID, '${{ vars.CLOUDFLARE_ACCOUNT_ID }}')
+        assertEq(preview?.env?.GITHUB_CLIENT_SECRET, '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}')
+        assertEq(preview?.env?.GITHUB_CLIENT_ID, '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}')
+        assertEq(preview?.env?.GITHUB_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}')
+        assertEq(preview?.env?.GITHUB_PREVIEW_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}')
         const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
         assertEq(generic.on.push, undefined)
     },

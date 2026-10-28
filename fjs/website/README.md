@@ -222,14 +222,18 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 The generated CI workflow now supports building and deploying in the separate
 `website` job. It waits for all test jobs, builds the WASM demos, styled Rust
-documentation and website with the committed mise lock, then optionally uploads
+documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
 and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests and
 merge-group entries build without uploading. Only pushes to branches in this
 repository can upload; fork pull requests receive no deployment credentials.
 
-The owner requested CI deployment with Wrangler. Production uses `wrangler
-deploy`; previews use `wrangler versions upload --preview-alias`. Both use
+The owner requested automatic preview uploads with Wrangler while production
+stays on Workers Builds. Every non-`main` repository branch push uses
+`wrangler versions upload --preview-alias` after successful checks and builds.
+There is no production upload step in the workflow until debugging is complete
+and Workers Builds is disabled. No enable-switch variables are required.
+The upload uses
 the existing private temporary JSON secret file outside the asset root and
 explicit public GitHub app bindings. The legacy Workers Builds preview helper
 keeps its existing invocation during the transition.
@@ -244,8 +248,6 @@ Configure these in **GitHub → Settings → Secrets and variables → Actions**
 | Variable | `WEBSITE_GITHUB_CLIENT_ID` | Existing GitHub OAuth app client ID. |
 | Variable | `WEBSITE_GITHUB_REDIRECT_URI` | Existing production OAuth callback. |
 | Variable | `WEBSITE_GITHUB_PREVIEW_REDIRECT_URI` | Existing preview OAuth callback, if configured. |
-| Variable | `CLOUDFLARE_PREVIEWS_ENABLED` | Exactly `true` to upload non-`main` branch previews. Leave unset during setup. |
-| Variable | `CLOUDFLARE_PRODUCTION_ENABLED` | Exactly `true` to deploy `main`. Leave unset until previews are verified. |
 
 Upload steps receive these credentials only after the test jobs and build
 succeed. Missing required credentials fail the upload instead of opening an
@@ -272,20 +274,24 @@ Cut over in this order:
 1. Merge the workflow changes through the repository's review and merge queue.
    Bring the workflow onto active older branches before disabling Workers
    Builds: a branch without the new workflow cannot deploy through Actions.
-2. Configure the secrets and variables with both enable switches unset. Keep
+2. Configure the secrets and variables listed above. No upload-enable variables
+   are needed. Keep
    the existing Workers Builds commands and bindings available for rollback.
-3. Enable previews and push a trusted test branch. Verify its successful CI
+3. Push a trusted non-`main` test branch. Verify its successful CI
    checks and upload, branch URL, commit links, Rust documentation, WASM demos
    and GitHub sign-in. Workers Builds may still upload during this check;
    confirm the Actions upload itself succeeds rather than relying on its bot.
-4. After preview verification, disable automatic Workers Builds for the Worker,
-   enable production, and push or merge to `main`. Verify the Actions upload
-   and production URL, including GitHub sign-in. Do not enable production while
-   Workers Builds is still automatically deploying the same branch.
+4. After preview verification and debugging, disable automatic Workers Builds
+   for the Worker. In a follow-up PR, add the production upload step for `main`.
+   Then push or merge to `main` and verify the Actions upload and production URL,
+   including GitHub sign-in. Production uploads remain absent until that
+   follow-up change; a variable cannot enable them.
 5. Retire the old build script and Cloudflare-only Node pin in a later cleanup
    once rollback no longer needs them. Keep their generators until then.
 
-To roll back, unset both Actions enable switches first, restore Workers Builds
+To pause preview uploads, disable the GitHub Actions CI workflow while fixing
+the issue, then re-enable it. To roll back after production cutover, revert the
+follow-up production upload step first, restore Workers Builds
 with the commands documented below, and rebuild the last known-good branch.
 For a broken production version, restore a known-good Worker deployment in the
 Cloudflare dashboard. No rollback step changes OAuth secrets or callbacks.

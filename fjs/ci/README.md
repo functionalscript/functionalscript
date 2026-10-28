@@ -43,11 +43,12 @@ The job has read-only GitHub permissions, waits for all test jobs, and always
 builds its assets outside the successful-check cache. It passes the checked-out SHA
 and source branch to both the Rustdoc header generator and the website generator
 through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
-On repository branch pushes only, optional upload
-steps publish previews or deploy production after the build succeeds.
+Every non-`main` repository branch push uploads a preview after the build succeeds.
+Production upload steps are omitted until preview debugging is complete and
+Workers Builds is disabled; enabling production will require a workflow change.
 Pull-request and merge-group runs never upload. Deployment secrets are scoped
-to the upload steps. The separate preview and production enable switches
-default to disabled; see [the cutover procedure](../website/README.md#github-actions-deployment).
+to the upload step. No upload-enable variables are used; see
+[the cutover procedure](../website/README.md#github-actions-deployment).
 
 ## Usage
 

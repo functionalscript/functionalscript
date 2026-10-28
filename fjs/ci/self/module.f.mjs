@@ -30,7 +30,8 @@ const buildMetadata = {
  * read-only job runs on the CI workflow's pull-request and merge-group events,
  * including forks, and branch pushes. It waits for the test jobs before building,
  * and always builds rather than consulting the check cache,
- * and receives no deployment credentials. Mise installs the committed lock,
+ * and keeps deployment credentials confined to preview uploads.
+ * Production uploads are omitted until cutover. Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
  */
@@ -58,7 +59,7 @@ export const websiteJob = {
             env: buildMetadata,
         },
         {
-            if: "github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PREVIEWS_ENABLED == 'true'",
+            if: "github.event_name == 'push' && github.ref != 'refs/heads/main'",
             run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),
             shell: 'bash',
             env: {
@@ -69,19 +70,6 @@ export const websiteJob = {
                 GITHUB_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}',
                 GITHUB_PREVIEW_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}',
                 WORKERS_CI_BRANCH: '${{ github.ref_name }}',
-            },
-        },
-        {
-            if: "github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true'",
-            run: miseDevelop('node ./fjs/website/github-deploy.mjs production'),
-            shell: 'bash',
-            env: {
-                CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
-                CLOUDFLARE_ACCOUNT_ID: '${{ vars.CLOUDFLARE_ACCOUNT_ID }}',
-                GITHUB_CLIENT_ID: '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}',
-                GITHUB_CLIENT_SECRET: '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}',
-                GITHUB_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}',
-                GITHUB_PREVIEW_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}',
             },
         },
     ],

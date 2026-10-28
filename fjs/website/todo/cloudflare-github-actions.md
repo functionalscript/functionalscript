@@ -47,10 +47,11 @@ cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
 metadata variables.
 
-Only repository branch pushes upload. Wrangler is pinned to 4.74.0, with
-`deploy` for production on `main` and `versions upload --preview-alias` for
-other branches. Pull requests and merge-group entries never upload. Preview and
-production enable switches are separate and default to disabled. Credentials
+Every non-`main` repository branch push uploads a preview with Wrangler 4.74.0
+and `versions upload --preview-alias` after successful checks and builds.
+Pull requests and merge-group entries never upload. No enable-switch variables
+are used. Production uploads are omitted from the workflow until debugging is
+complete and Workers Builds is disabled. Credentials
 are scoped to upload steps, and the existing private temporary JSON secret file
 preserves the GitHub app bindings.
 
@@ -66,9 +67,11 @@ branch-alias rules, cutover and rollback are documented in
 - [x] Add the dedicated job to the CI generator and its proofs, regenerate the
       workflows, and build WASM demos, styled Rust documentation and the website
       using the pinned development environment.
-- [x] Add production deployment and trusted-branch preview uploads, preserving
+- [x] Add automatic trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
+- [ ] After debugging previews and disabling Workers Builds, add production
+      deployment on `main` in a follow-up PR. Keep it absent until then.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
@@ -83,3 +86,4 @@ branch-alias rules, cutover and rollback are documented in
 - [Run `cargo doc` in the site build](./cargo-doc-build-host.md): the existing
   Rust documentation build must move with the site; its remaining Deno
   documentation work stays tracked there.
+
