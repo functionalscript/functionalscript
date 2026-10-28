@@ -821,6 +821,88 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
+    zeroInputTerminalPrefixesKeepIdentityAndFirstParseFixedPoints: () => {
+        for (const [prefix, test, normal, observe, expected] of /** @type {readonly (readonly [string, string, string, string, unknown])[]} */ ([
+            ['const pair=[0];', 'pair[0]>0', 'pair', 'export default first;', [0]],
+            ['const pair=[seed];const object={pair};const read=()=>[pair,object,seed,f];', 'read()[2][0]>9', '[pair,pair,object,read]', 'const held=first[3]();export default[first[0]===first[1],first[2]===held[1],first[0]===held[0],held[2]===seed,held[3]===f,first[0]===other[0],first[3]()[0]===held[0],held[0]];', [true, true, true, true, true, false, true, [[9]]]],
+            ['const pair=make(seed);', 'pair[0][0]>9', 'pair', 'export default[first===other,first[0]===seed,first];', [false, true, [[9]]]],
+            ['const pair=[f,seed];const read=()=>pair;', 'read()[1][0]>9', '[pair,read]', 'export default[first[0][0]===f,first[1]()===first[0],first[0]===other[0],first[0][1]===seed];', [true, true, false, true]],
+        ])) {
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                const source = `const seed=[9];const make=x=>[x];const f=()=>{${prefix}return ${baseFirst ? `!(${test})?${normal}:f()` : `${test}?f():${normal}`};};const first=f();const other=f();${observe}`
+                const original = graph(source)
+                assertStructurallySame(evaluate(original), expected, source)
+                const output = assertOk(tryStringify(original))
+                assert(output.includes('while('), output)
+                const normalized = graph(output)
+                const canonical = assertOk(tryStringify(normalized))
+                let current = normalized
+                for (let generation = 0; generation < 7; ++generation) {
+                    assertStructurallySame(evaluate(current), expected, source)
+                    assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                    assertEq(assertOk(tryStringify(current)), canonical, source)
+                    current = graph(canonical)
+                }
+            }
+        }
+    },
+    zeroInputMixedTerminalTreesKeepSelectedResultsAndFirstParseFixedPoints: () => {
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            for (const earlyFirst of /** @type {const} */ ([false, true])) {
+                for (const completeEarly of /** @type {const} */ ([false, true])) {
+                    const test = completeEarly ? 'pair[0]>=0' : 'pair[0]>0'
+                    const normal = /** @type {const} */ ('[pair,pair,0,()=>pair]')
+                    const early = /** @type {const} */ ('[pair,pair,1,()=>pair]')
+                    const choice = /** @type {const} */ ('pair[0]===0')
+                    const mixed = earlyFirst ? `${choice}?${early}:f()` : `!(${choice})?f():${early}`
+                    const source = `const f=()=>{const pair=[0];return ${baseFirst ? `!(${test})?${normal}:(${mixed})` : `${test}?(${mixed}):${normal}`};};const first=f();const other=f();export default[first[0]===first[1],first[3]()===first[0],first[0]===other[0],first[2],first[0]];`
+                    const expected = /** @type {const} */ ([true, true, false, completeEarly ? 1 : 0, [0]])
+                    const original = graph(source)
+                    assertStructurallySame(evaluate(original), expected, source)
+                    const output = assertOk(tryStringify(original))
+                    assert(output.includes('while('), output)
+                    const normalized = graph(output)
+                    const canonical = assertOk(tryStringify(normalized))
+                    let current = normalized
+                    for (let generation = 0; generation < 7; ++generation) {
+                        assertStructurallySame(evaluate(current), expected, source)
+                        assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                        assertEq(assertOk(tryStringify(current)), canonical, source)
+                        current = graph(canonical)
+                    }
+                }
+            }
+        }
+    },
+    zeroInputTerminalPrefixesKeepReachedFailuresAndSkippedArguments: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=()=>{const pair=[0];const required=null.prefix;return pair[0]>0?f():pair;};export default f();',
+            'const f=()=>{const pair=[0];return null.condition?f():pair;};export default f();',
+            'const f=()=>{const pair=[1];return pair[0]>0?f(null.argument):pair;};export default f();',
+            'const f=()=>{const pair=[1];return pair[0]>0?f(...null):pair;};export default f();',
+            'const f=()=>{const pair=[0];return pair[0]>0?f():null.base;};export default f();',
+            'const f=()=>{const pair=[1];return pair[0]>0?(null.choice?pair:f()):pair;};export default f();',
+            'const f=()=>{const pair=[1];return pair[0]>0?(pair[0]===1?null.early:f()):pair;};export default f();',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+        const skipped = /** @type {const} */ ('const f=()=>{const pair=[0];return pair[0]>0?f(null.argument,...null):pair;};export default f();')
+        const output = assertOk(tryStringify(graph(skipped)))
+        assert(output.includes('while('), output)
+        assertStructurallySame(evaluate(graph(output)), [0])
+    },
     sharedRequiredPrefixesKeepIdentityAndFirstParseFixedPoints: () => {
         for (const [parameters, prefix, test, recur, normal, args, observe, expected] of /** @type {readonly (readonly [string, string, string, string, string, string, string, unknown])[]} */ ([
             ['n,a', 'const pair=[n,a];', 'pair[0]>0', 'f(n-1,pair[1]+1)', 'pair', '3,7', 'export default first;', [0, 10]],

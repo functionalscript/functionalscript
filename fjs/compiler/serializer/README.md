@@ -62,8 +62,8 @@ the public function's empty parameter list and result computations outside
 iteration. Parsing that first source introduces the canonical scalar helper,
 and its normalized graph and text then stay exact. Condition-only definitions
 run at every test; only identity-free projection dependencies may be copied
-into the step or result. Other zero-input normal-result shapes retain their
-existing recursive fallback.
+into the step or result. Zero-input normal-result shapes outside the admitted
+plain and terminal plans retain their existing recursive fallback.
 
 Rest-free fixed multi-input roots in that same plain profile also emit source
 loops. Source preparation packs their initial and simultaneous next inputs into
@@ -131,7 +131,7 @@ arm may continue, and conditional base results use the same final-result path.
 The public parameter list and prior ordinary single-input spelling stay intact;
 general lazy prefixes retain their existing admission.
 
-Fixed multi-input and observed-rest roots may also retain terminal
+Zero-input, fixed multi-input and observed-rest roots may also retain terminal
 decisions whose leaves mix normal completion and tail continuation. Shared
 terminal analysis validates required definitions and result-free decisions,
 then keeps each leaf at its exact loop target: one result on completion, or
@@ -148,14 +148,21 @@ immutable per-input snapshots retain creating-iteration captures. A completed
 leaf computes its result once, writes the same slot and leaves the loop.
 Rest-only roots use the existing scalar form. Reached arguments finish before
 state changes, preserving simultaneous updates, fresh rest and failure order.
+Zero-input roots initialize only a private result slot to `undefined`; their
+semantic inputs and continued argument vectors stay empty. Reached unused
+arguments still finish before continuation, and completion writes its selected
+result into that slot. Public arity stays zero, including when the result
+retains the function's own identity. Existing plain zero-input loops keep
+their earlier unchanged-slot spelling.
 This path keeps earlier source profiles and default JavaScript/function-text/
 Rust layouts unchanged. The first parsed source graph establishes the scalar
 helper boundary, and later graph/text cycles remain exact.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input or multi-input roots outside the plain-loop plan
-and observed-rest roots outside that plan keep their existing reifiable recursive
+loop profile. Raw zero-input or multi-input roots outside the admitted plain
+and terminal plans, and observed-rest roots outside those plans, keep their
+existing reifiable recursive
 forms; unsupported factored profiles return an error instead of asserting or
 emitting unreadable source.
 

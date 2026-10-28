@@ -39,11 +39,11 @@ export const terminalTree = (block, leaf, branch) => call(() => {
  * A terminal decision can complete this loop or continue its invocation.
  * Every leaf supplies one exact result or the complete input vector. Required
  * prefixes keep their body lifetime, so values shared by a test, transition or
- * result are established once. Zero-input handling remains with its planner.
+ * result are established once. Empty-input continuations retain an empty vector.
  * @type {(loop: Loop) => boolean}
  */
 export const isTerminalLoop = loop => {
-    if (loop.parameters.length === 0 || loop.results.length !== 1) { return false }
+    if (loop.results.length !== 1) { return false }
     /** @type {(block: Block) => number | null} */
     const leaf = block => {
         const exit = block.exit

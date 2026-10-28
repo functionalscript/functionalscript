@@ -551,19 +551,21 @@ const statementTask = (statement, context) => call(() => {
             })
         }
         const packed = context.sourceLoops && loop.parameters.length > 1 && isTerminalLoop(loop)
+        const empty = context.sourceLoops && loop.parameters.length === 0 && isTerminalLoop(loop)
         return bind(values(packed ? [['array', loop.initial]] : loop.initial, context), initial => {
             const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)
-            const parameters = fresh(initial.next + temporaries.length, packed ? 1 : loop.parameters.length)
-            // Source loop re-entry must preserve one state binding. A break
-            // replaces that slot only immediately before leaving the loop.
+            const parameters = fresh(initial.next + temporaries.length, packed || empty ? 1 : loop.parameters.length)
+            // Source loop re-entry preserves one private state/result slot.
+            // Empty semantic state uses it only for completion; continue has
+            // no input destinations and a break writes immediately before exit.
             const shared = context.sourceLoops && parameters.length === 1 && loop.results.length === 1
             const resultCount = shared ? 0 : normal ? loop.results.length : 0
             const results = shared ? parameters : fresh(initial.next + temporaries.length + parameters.length, resultCount)
             return bind(prepareBlock(loop.body, {
                 ...context,
                 next: initial.next + temporaries.length + parameters.length + resultCount,
-                loops: [...context.loops, { target: loop.target, parameters, results, packed }],
+                loops: [...context.loops, { target: loop.target, parameters: empty ? [] : parameters, results, packed }],
                 yields: null,
             }), body => {
                 const block = /** @type {Block} */ ({
@@ -572,7 +574,7 @@ const statementTask = (statement, context) => call(() => {
                     exit: body.value.exit,
                 })
                 const physical = /** @type {Statement} */ (shared ? ['while', {
-                    target: loop.target, slot: parameters[0], initial: ['ref', temporaries[0]], condition: true,
+                    target: loop.target, slot: parameters[0], initial: empty ? undefined : ['ref', temporaries[0]], condition: true,
                     body: block, result: loop.results[0], mutable: true,
                 }] : ['loop', loop.target, block])
                 return done({
