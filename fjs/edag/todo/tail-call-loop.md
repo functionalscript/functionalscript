@@ -4,6 +4,11 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
+The next H increment extends the shared plain-loop plan to rest-free zero-input
+roots with a normal result. Its source spelling must preserve empty arity,
+reached work and captures, and establish a graph/text fixed point on the first
+source parse. Other invocation profiles keep their existing fallback.
+
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
