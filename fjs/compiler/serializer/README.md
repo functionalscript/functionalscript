@@ -89,8 +89,9 @@ orientations emit bounded-stack source. First-parse graph/text stability and
 the existing default JavaScript/Rust layouts follow the same contracts as
 fixed-input roots.
 
-Rest-free fixed multi-input roots, fixed-plus-rest roots and rest-only roots may
-also retain loops when the normal arm has required definitions before its result.
+Rest-free zero-input and fixed multi-input roots, fixed-plus-rest roots and
+rest-only roots may also retain loops when the normal arm has required
+definitions before its result.
 A shared source-only helper wraps that define-only prefix in the break-result value
 block, preserving bindings and order. Existing preparation establishes final
 input snapshots, then runs the block once after the last test. Base allocations
@@ -104,8 +105,12 @@ arity stays zero and the final rest array is not sliced again. Both conditional
 orientations use the same plain-plan validation. Leading total result aliases
 and constructors are emitted in the enclosing post-loop region, retaining
 required allocation order before later rest projections. Calls, lookups and
-selected regions keep their evaluation boundaries. Zero-input and nonrequired or
-structured base prefixes retain their existing admission and fallback.
+selected regions keep their evaluation boundaries. Zero-input roots use the
+existing private unchanged slot, with no semantic input snapshots or extra
+invocation boundary. Both conditional orientations run the required base work
+once after the final test and retain empty public arity. Other single-input
+profiles and nonrequired or structured base prefixes keep their existing
+admission and fallback.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result

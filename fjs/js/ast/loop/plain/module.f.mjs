@@ -137,7 +137,7 @@ export const continueFirstPlainLoopOf = loop => {
  */
 export const resultBlockPlainLoopOf = loop => {
     const last = loop.body.statements.at(-1)
-    if (loop.parameters.length === 0 || last === undefined || last[0] !== 'if') { return null }
+    if (last === undefined || last[0] !== 'if') { return null }
     const baseFirst = last[3].exit[0] === 'break'
     const normal = baseFirst ? last[3] : last[4]
     const exit = normal.exit

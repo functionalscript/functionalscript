@@ -144,8 +144,8 @@ the existing continue-first scalar plan. Default preparation and prior source
 profiles keep their established layouts.
 
 Source admission can also wrap required normal-arm definitions in the break-result
-value block of a rest-free multi-input, fixed-plus-rest or rest-only loop. This
-pass already handles that ordinary value region after iteration: it establishes
+value block of a rest-free zero-input or multi-input, fixed-plus-rest or rest-only
+loop. This pass already handles that ordinary value region after iteration: it establishes
 immutable final-input snapshots, then evaluates the required definitions and
 result once. The block introduces no invocation and keeps base-local binding
 identities and captures;
@@ -160,6 +160,10 @@ Existing constructor placement retains calls, lookups and selected regions as
 barriers. The first emitted source then establishes the final allocation's
 required order relative to later rest projections, keeping graph/text cycles
 exact from the first parse.
+Zero-input roots use the existing private unchanged slot with no semantic input
+snapshots; the required result block runs once after the final test in either
+conditional orientation. This adds no invocation boundary and keeps empty
+public arity.
 Default preparation and the plain-loop planner's original domain stay unchanged.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns

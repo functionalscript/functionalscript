@@ -71,7 +71,6 @@ export const proof = /** @type {const} */ ({
             assertEq(plainLoopOf(source), null)
         }
         for (const source of /** @type {readonly Loop[]} */ ([
-            { ...original, parameters: [], initial: [] },
             { ...original, body: { statements: [], exit: ['yield', []] } },
             { ...original, body: { statements: [projected], exit: ['yield', []] } },
             { ...original, body: { ...original.body, statements: [['if', [], true, continuing, continuing]] } },
@@ -132,7 +131,6 @@ export const proof = /** @type {const} */ ({
             assertEq(plainLoopOf(source), null)
         }
         for (const source of /** @type {readonly Loop[]} */ ([
-            { ...scalar, parameters: [], initial: [], body: { ...scalar.body, statements: [['if', [], true, continuing, normal]] } },
             { ...scalar, body: { ...scalar.body, statements: [['if', [], true, continuing, {
                 ...normal, statements: [['define', shared, 0, 'lazy']],
             }]] } },
@@ -146,6 +144,47 @@ export const proof = /** @type {const} */ ({
                 ['define', alias, ['array', [['ref', state]]], 'required'], ['if', [], true, normal, continuing],
             ] } },
         ])) { assertEq(resultBlockPlainLoopOf(source), null) }
+    },
+    zeroInputNormalDefinitionsKeepTheExistingPlainOrientation: () => {
+        const shared = /** @type {const} */ ({ index: 4 })
+        /** @type {Block} */
+        const continuing = { statements: [], exit: ['continue', target, []] }
+        /** @type {Block} */
+        const normal = { statements: [['define', shared, ['array', []], 'required']],
+            exit: ['break', target, [['array', [['ref', shared], ['ref', shared]]]]] }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const source = { ...scalar, parameters: [], initial: [], body: {
+                statements: [['if', [], true, baseFirst ? normal : continuing, baseFirst ? continuing : normal]],
+                exit: ['continue', target, []],
+            } }
+            assertEq(plainLoopOf(source), null)
+            const retained = resultBlockPlainLoopOf(source)
+            assert(retained !== null)
+            assertEq(retained.target, source.target)
+            assertEq(retained.parameters, source.parameters)
+            assertEq(retained.initial, source.initial)
+            assertEq(retained.results, source.results)
+            assertEq(retained.body.exit, source.body.exit)
+            const terminal = retained.body.statements.at(-1)
+            assert(terminal !== undefined && terminal[0] === 'if')
+            assertEq(terminal[2], true)
+            assertEq(baseFirst ? terminal[4] : terminal[3], continuing)
+            const final = baseFirst ? terminal[3] : terminal[4]
+            assertEq(final.statements.length, 0)
+            assert(final.exit[0] === 'break')
+            assertEq(final.exit[1], target)
+            const value = final.exit[2][0]
+            assert(value instanceof Array && value[0] === 'block')
+            assertEq(value[1].statements, normal.statements)
+            assert(value[1].exit[0] === 'yield' && normal.exit[0] === 'break')
+            assertEq(value[1].exit[1], normal.exit[2])
+            const plan = plainLoopOf(retained)
+            assert(plan !== null)
+            assertStructurallySame(plan.iteration.condition, baseFirst ? ['!', true] : true)
+            assertEq(plan.result, value)
+            assertEq(plainLoopOf(source), null)
+        }
     },
     baseFirstSingleInputReorientationKeepsRegionsAndDefaultDomain: () => {
         /** @type {Definition} */

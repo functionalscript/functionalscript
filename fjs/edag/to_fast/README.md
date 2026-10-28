@@ -198,9 +198,9 @@ roots use the graph owner's existing transfer resolver. Synthesized invocation-r
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
-For validated rest-free roots with several fixed inputs, or observed-rest
-roots, a required define-only normal-arm prefix can move into the break-result
-value block through the shared plain-loop helper. It creates no function or
+For validated rest-free roots with zero or several fixed inputs, or
+observed-rest roots, a required define-only normal-arm prefix can move into the
+break-result value block through the shared plain-loop helper. It creates no function or
 invocation boundary. Definitions keep their bindings, order and lexical region,
 and common preparation supplies immutable final-input snapshots before evaluating
 that result once. Calls,
@@ -216,8 +216,11 @@ public fixed arity and the final rest snapshot. Preparation exposes leading
 total result aliases and constructors after the loop, preserving their required
 order when the result reads a rest projection before a shared allocation.
 Calls, lookups and selected regions retain their placement boundaries.
-Other single-input and zero-input
-roots, and lazy or structured normal-arm prefixes, keep their previous admission.
+Zero-input roots reuse the private unchanged slot in either conditional
+orientation. Their required result block runs once after the final test, without
+semantic input snapshots or a new invocation boundary, and keeps empty public
+arity. Other single-input roots, and lazy or structured normal-arm prefixes,
+keep their previous admission.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

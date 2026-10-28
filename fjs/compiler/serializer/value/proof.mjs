@@ -216,6 +216,108 @@ export const proof = {
             }
         }
     },
+    zeroInputBaseDefinitionsRunOnceAfterFinalTest: async () => {
+        const snapshot = /** @type {Exp} */ (['[]', [7]])
+        const readSnapshot = /** @type {Exp} */ (['=>', 0, [snapshot], ['frame', 0]])
+        const test = /** @type {Exp} */ (['()', ['frame', 0], [snapshot, snapshot, readSnapshot]])
+        const baseSnapshot = /** @type {Exp} */ (['[]', [['frame', 2]]])
+        const base = /** @type {Exp} */ (['()', ['frame', 1], [baseSnapshot, baseSnapshot, ['frame', 2]]])
+        const read = /** @type {Exp} */ (['=>', 0, [base, ['frame', 2]], ['[]', [['frame', 0], ['frame', 1]]]])
+        const result = /** @type {Exp} */ (['[]', [base, base, read, ['frame', 2]]])
+        const recur = /** @type {Exp} */ (['()', ['self'], []])
+        for (const reversed of /** @type {const} */ ([false, true])) {
+            const factory = /** @type {FunctionValue} */ (['=>', 2, [], ['=>', 0, [['arg', 0], ['arg', 1], ['[]', [9]]],
+                ['?:', reversed ? ['!', test] : test, reversed ? result : recur, reversed ? recur : result],
+            ]])
+            for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+                assert(text.includes('while('), text)
+                const make = await load(text)
+                for (const returnSeed of /** @type {const} */ ([false, true])) {
+                    const stopped = new Error('stop at the final zero-input invocation')
+                    let start = 0
+                    let tests = 0
+                    let bases = 0
+                    let mode = 'normal'
+                    /** @type {readonly number[] | undefined} */
+                    let previous
+                    /** @type {readonly number[] | undefined} */
+                    let heldSnapshot
+                    /** @type {(() => readonly number[]) | undefined} */
+                    let held
+                    /** @type {readonly unknown[] | undefined} */
+                    let observedBase
+                    const run = make(
+                        /** @type {(first: readonly number[], second: readonly number[], read: () => readonly number[]) => boolean} */ ((first, second, read) => {
+                            assertEq(first, second)
+                            assertEq(read(), first)
+                            assert(first !== previous)
+                            assertStructurallySame(first, [7])
+                            if (tests === 0) { held = read; heldSnapshot = first }
+                            previous = first
+                            tests += 1
+                            if (mode === 'condition' && tests === start + 1) { throw stopped }
+                            return tests <= start
+                        }),
+                        /** @type {(first: readonly unknown[], second: readonly unknown[], seed: readonly number[]) => readonly unknown[]} */ ((first, second, seed) => {
+                            assertEq(tests, start + 1)
+                            assertEq(bases, 0)
+                            assertEq(first, second)
+                            assertEq(first[0], seed)
+                            assert(first !== observedBase)
+                            observedBase = first
+                            bases += 1
+                            if (mode === 'base') { throw stopped }
+                            return returnSeed ? seed : first
+                        }),
+                    )
+                    assertEq(run.length, 0)
+                    /** @param {number} n */
+                    const invoke = n => {
+                        start = n
+                        tests = 0
+                        bases = 0
+                        mode = 'normal'
+                        previous = undefined
+                        const value = run(11, 12)
+                        assertEq(tests, n + 1)
+                        assertEq(bases, 1)
+                        assertEq(value[0], value[1])
+                        assertEq(value[0], returnSeed ? value[3] : observedBase)
+                        assertEq(value[2]()[0], value[0])
+                        assertEq(value[2]()[1], value[3])
+                        assertStructurallySame(value[3], [9])
+                        assert(held !== undefined)
+                        assertEq(held(), heldSnapshot)
+                        assertEq(heldSnapshot === previous, n === 0)
+                        return value
+                    }
+                    const first = invoke(100_000)
+                    const firstHeld = held
+                    const firstSnapshot = heldSnapshot
+                    const second = invoke(0)
+                    assert(first !== second)
+                    assertEq(first[0] === second[0], returnSeed)
+                    assert(first[2] !== second[2])
+                    assertEq(first[3], second[3])
+                    assertEq(first[2]()[0], first[0])
+                    assertEq(first[2]()[1], first[3])
+                    assert(firstHeld !== undefined)
+                    assertEq(firstHeld(), firstSnapshot)
+                    assert(firstSnapshot !== heldSnapshot)
+                    for (const failureAt of /** @type {const} */ (['condition', 'base'])) {
+                        start = 2
+                        tests = 0
+                        bases = 0
+                        mode = failureAt
+                        previous = undefined
+                        throws(() => run(), error => error === stopped)
+                        assertEq(tests, 3)
+                        assertEq(bases, failureAt === 'base' ? 1 : 0)
+                    }
+                }
+            }
+        }
+    },
     multiInputSourceLoopsKeepIterationSnapshots: async () => {
         const sum = /** @type {FunctionValue} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
             ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], ['arg', 0]]]], ['arg', 1]]])

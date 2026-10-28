@@ -250,6 +250,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Source preparation exposes leading total post-loop constructors in their
       enclosing region so required allocation order survives later rest
       projections and held base captures from the first parse.
+      Zero-input roots with required normal-arm definitions now reuse the same
+      result-block normalization and private unchanged slot. Both conditional
+      orientations run base work once after the final test, preserving empty
+      public arity, sharing, captures and reached failures without semantic input
+      snapshots or another invocation boundary. Exact graph/text cycles hold
+      from the first source parse.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

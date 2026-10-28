@@ -153,9 +153,9 @@ parsing establishes the canonical scalar helper under the existing graph/hash
 and function-text exception, followed by exact graph/text cycles. Shared logical
 conversion and default code-only JavaScript/Rust layouts remain unchanged.
 
-Rest-free fixed multi-input roots and observed-rest roots now also retain source
-loops when their normal arm has required definitions before its result. A shared
-source-only normalizer wraps that define-only prefix in the break-result value
+Rest-free zero-input and fixed multi-input roots, and observed-rest roots, now
+also retain source loops when their normal arm has required definitions before
+its result. A shared source-only normalizer wraps that define-only prefix in the break-result value
 block, clears the arm's statement prefix and validates the candidate through the
 unchanged plain-loop plan. Both conditional orientations retain exact targets
 and binding identities.
@@ -181,11 +181,15 @@ regions keep their placement boundaries. This establishes required allocation
 order in the first parsed graph, including results that read a rest projection
 before a shared base allocation or its capturing closure.
 
-This profile is limited to canonical rest-free roots with multiple fixed
-parameters or roots with observed rest. Other single-input and zero-input roots,
-and lazy or structured normal-arm prefixes, retain their previous admission and
-fallback. The first source parse establishes the permitted scalar-helper
-boundary; later graph/text cycles remain exact. Logical conversion, original
+Zero-input roots reuse the same result-block normalization and existing private
+unchanged slot, without semantic input snapshots. Both conditional orientations
+run required base work once after the final test, preserving empty public arity,
+sharing, captures and reached failure order.
+
+This profile is limited to canonical rest-free roots with zero or multiple fixed
+parameters or roots with observed rest. Other single-input roots, and lazy or
+structured normal-arm prefixes, retain their previous admission and fallback.
+The first source parse establishes the permitted scalar-helper boundary; later graph/text cycles remain exact. Logical conversion, original
 default JavaScript/Rust layouts and prior
 source spellings retain their contracts.
 
