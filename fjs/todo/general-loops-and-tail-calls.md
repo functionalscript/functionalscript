@@ -348,3 +348,7 @@ formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);
 the original single-variable approval does not authorize the broader source
 semantics.
+
+Current increment: explicit throw leaves in required-prefix terminal loop
+decisions. Reuse existing preparation, retain zero-input divergent layouts,
+and prove deep throw exits, transfer order and stable source round trips.
