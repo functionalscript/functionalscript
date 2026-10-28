@@ -4,6 +4,14 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
+The current H increment extends required base-case definitions to canonical
+tail functions with one or more fixed parameters and an observed rest array.
+It reuses the shared result-block normalizer and existing packed source
+preparation. Both conditional orientations must preserve public arity, fresh
+rest arrays, sharing, final captures, reached failure order and the exact
+graph/text fixed point established by the first source parse. Rest-only,
+zero-input and structured normal-arm profiles remain separate work.
+
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
