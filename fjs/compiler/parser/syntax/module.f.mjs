@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -1228,6 +1228,19 @@ const toAfterCase = node => {
  */
 const loopBlockOf = ([, statements]) => ['loop', unmapped(statements).map(loopStatementAt)]
 
+/** A loop switch keeps every label, braced arm and optional last default. @type {(node: Ast<LoopSwitchRule, ModuleTokenWithMetadata, Out>) => LoopSwitch} */
+const loopSwitchAt = node => {
+    const [first, , discriminant, , , cases, fallback] = unmapped(node)
+    return {
+        start: tokenAt(first), discriminant: nodeAt(discriminant),
+        cases: unmapped(cases).map(arm => {
+            const [labels, block] = unmapped(arm)
+            return { labels: unmapped(labels).map(label => nodeAt(unmapped(label)[1])), block: loopBlockOf(unmapped(block)) }
+        }),
+        default: unmapped(fallback).map(item => loopBlockOf(unmapped(unmapped(item)[2])))[0] ?? null,
+    }
+}
+
 /** The shared condition/block record for a loop or its normal conditional. @type {(node: Ast<WhileStatement | LoopIfStatement, ModuleTokenWithMetadata, Out>) => While} */
 const loopConditionAt = node => {
     const [first, , condition, , blk] = unmapped(node)
@@ -1316,7 +1329,7 @@ const toBodyNameStatement = ([name, rest, end]) => {
 
 /**
  * A loop block's statement, tagged: a declaration, a conditional, a nested
- * loop, a loop or function exit, or what begins with a name.
+ * loop, a switch, a loop or function exit, or what begins with a name.
  *
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -1329,6 +1342,7 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
+    if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
 }
 

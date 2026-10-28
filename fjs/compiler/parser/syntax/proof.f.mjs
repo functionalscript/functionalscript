@@ -54,6 +54,25 @@ const returned = node => {
 }
 
 export const proof = {
+    loopSwitchesKeepLabelsScopesAndFollowingStatements: () => {
+        const module = unwrap(parseSyntax(tokenizeString('while(false){\nswitch(1){case 1:case 2:{break;const after=3;}case 4:{continue;}default:{throw 5;}}\nconst following=6;\nif(true){switch(7){case 7:{return 8;}}}\n}export default 0;')))
+        const loop = module.statements[0]
+        assert(loop[0] === 'while')
+        const statements = loop[1].block[1]
+        assertStructurallySame(statements.map(statement => statement[0]), ['switch', 'const', 'if'])
+        const switched = statements[0]
+        assert(switched[0] === 'switch')
+        assertEq(switched[1].start.metadata.line, 2)
+        assertStructurallySame(switched[1].discriminant, ['primitive', 1])
+        assertStructurallySame(switched[1].cases.map(arm => arm.labels), [[['primitive', 1], ['primitive', 2]], [['primitive', 4]]])
+        assertStructurallySame(switched[1].cases.map(arm => arm.block[1].map(statement => statement[0])), [['break', 'const'], ['continue']])
+        assertEq(switched[1].default?.[1][0][0], 'throw')
+        const conditional = statements[2]
+        assert(conditional[0] === 'if')
+        const bare = conditional[1].block[1][0]
+        assert(bare[0] === 'switch')
+        assertEq(bare[1].default, null)
+    },
     loopFunctionExitsKeepValuesAndFollowingSyntax: () => {
         const module = unwrap(parseSyntax(tokenizeString('while(false){\nreturn [1]\nthrow 2;\nconst after=3;\nif(true){return 4;throw 5;}else{throw 6;return 7;}\nwhile(false){return 8;throw 9;}\n}export default 0;')))
         const loop = module.statements[0]

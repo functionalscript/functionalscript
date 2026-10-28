@@ -20,6 +20,16 @@ retain required inner evaluations in their own expression and establish them
 only when that value is reached. References reuse the established graph node;
 equal operations written separately stay separate.
 
+A literal undefined root is total and creates no identity. Discarded
+`['undefined']` required anchors therefore normalize away; a returned or used
+undefined value stays in place. This removes no work from an enclosing comma,
+conditional or other initializer. Their required children keep their original
+order, as do allocations, calls and failures. Source output can seed physical
+branch-result slots with undefined without accumulating a discarded literal
+declaration on every parse. Removing these redundant literal anchors changes
+the graph identity of inputs containing them; those inputs normalize before
+the exact required-anchor round-trip domain applies.
+
 Required initializers and loop calls also retain their order when their values
 are reached only by a later export or result. A possible failure stays before
 later divergent work, and earlier divergent work stays before a later failure.
@@ -36,6 +46,14 @@ remaining suffix the result demands before intervening unowned work. The demand
 proof treats the retained prefix as established and matches the same graph-node
 identities, preserving earlier failures and lazy boundaries. Unknown operations
 retain unproven anchors; the proof covers the complete removed suffix.
+Before this final cut, a required root absorbs the contiguous preceding roots
+that its own ordered first demand proves redundant. Earlier retained roots are
+already established for that proof. For example, a required array followed by
+a required member read of that exact array needs only the member anchor; if the
+result in turn demands that member first, neither anchor remains. Noncontiguous
+roots, intervening work and lazy or invocation boundaries keep their order.
+This is the same redundant-anchor graph normalization, and prevents explicit
+branch-result packing from alternating between two equivalent comma layouts.
 Control-flow arms inherit the completed test and its required prefix for this
 proof, including eager dependencies already evaluated by that test. Nested
 arms retain these guarantees. Deferred definitions, arbitrary environment
@@ -438,7 +456,8 @@ The direct graph round-trip domain uses canonical binding reads: one node per
 argument, frame slot, rest or self binding in each scope, with explicit shared
 value definitions and canonical required anchors. Literal undefined nodes use
 one fresh occurrence per literal position; arbitrary sharing of the tagged
-primitive is outside this exact graph domain. Function captures are
+primitive and redundant discarded undefined anchors are outside this exact
+graph domain. Function captures are
 canonical too: every slot is used, nonprimitive and distinct under the existing
 binding-read alias rule. Within the supported scalar and fixed-invocation
 root forms, reconstruction preserves the direct recursive graph, including its

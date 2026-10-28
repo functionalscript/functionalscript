@@ -113,6 +113,21 @@ aliases. A terminal base recipe produces a one-pass loop with no backedge.
 Tests, ordinary operands, required aliases and captures keep their demands;
 independent interleaved recipes retain their existing recursive layout.
 
+After tail-control placement, [`join`](join/module.f.mjs) recovers normal
+statement results selected by the same established test. A residual value, or
+shared selected recipe first demanded by following work, becomes an explicit
+result of that statement conditional. Terminal arms keep their transfers and
+the following continuation remains one computation. A deferred recipe used
+only within one resulting arm becomes required at its first proven demand;
+the shared graph demand query checks calls, lookups, spreads and lazy barriers.
+Earlier work and recipes with other uses keep their original evaluation owner.
+Demand checks expand visible deferred initializer graphs without evaluating them,
+so transitive closure captures retain their first-read order. Ordinary function
+bodies remain opaque. A closure first demanded after the control join is
+constructed there once, with the selected immutable capture values.
+Deferred declarations depending on a recovered result follow its conditional
+in their original dependency order; their evaluation still waits for first use.
+
 The general domain has zero through sixteen fixed parameters, with or without
 an observed rest binding. Its canonical root
 loop returns one opaque public result. Entry bindings and iteration bindings
