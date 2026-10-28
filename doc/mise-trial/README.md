@@ -39,9 +39,7 @@ code. Both scripts are thin wrappers around `mise exec -- <command>`.
 | macOS | Xcode Command Line Tools |
 | Windows | MSVC build tools and Windows SDK; Git Bash for shell scripts |
 
-The devcontainer installs the manager, native build prerequisites, and initializes
-the mounted checkout. Rebuild it after Dockerfile changes. Manager installations
-do not replace platform SDKs.
+Manager installations do not replace native build prerequisites or platform SDKs.
 
 ## Tool lock and optional runtimes
 

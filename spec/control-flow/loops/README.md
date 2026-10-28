@@ -122,8 +122,42 @@ export default n => {
 };
 ```
 
-Switch statements inside loop bodies remain part of
-[general loops](../../todo/3220-let.md#general-loops). A zero-state loop is
+Switch statements inside loop bodies and conditional arms evaluate their
+discriminant once and test case labels lazily in source order. Cases use
+braces, may share stacked labels, and must exit explicitly: no case falls
+through to another. A `default` is optional and last.
+
+A `break` exits the nearest switch or loop. Breaking a switch resumes the
+statements after it with the case's current state; `continue` instead retests
+the nearest enclosing loop. A nested loop owns both of its transfers.
+Returns and throws retain their existing function and failure behavior.
+Case-local declarations stay within their braced block, and source legality
+checks still inspect the text after an exit.
+
+```js
+export default n => {
+    let i = 0;
+    let sum = 0;
+    while (i < n) {
+        i = i + 1;
+        switch (i % 4) {
+            case 0: { continue; }
+            case 1: case 2: { sum = sum + i; break; }
+            default: { sum = sum + 2 * i; break; }
+        }
+        sum = sum + 10;
+    }
+    return [i, sum];
+};
+```
+
+An unmatched switch without `default` resumes with unchanged state. A case
+whose path reaches its closing brace without an exit is refused. `break`
+and `continue` cannot cross an ordinary nested function boundary. Direct
+module switches and switch-local breaks outside loop bodies remain separate
+follow-ups; a switch inside a module loop follows these same loop rules.
+
+A zero-state loop is
 admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
 contain its own loops.

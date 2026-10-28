@@ -69,7 +69,8 @@ const reads = e => {
 
 /**
  * Whether a comma in a graph anchors a node another of its operands
- * reaches: an anchor the graph did not need, which breaks the `,` contract
+ * reaches, or the total, identity-free literal `undefined`: an anchor the
+ * graph did not need, which breaks the `,` contract
  * ([`fjs/edag`](../../edag/README.md)). The writer writes it as the graph
  * says, the node's `const`, and the text reads back without it.
  *
@@ -84,7 +85,10 @@ const redundantAnchor = e => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
-        return all.some((x, i) => i < all.length - 1 && all.some((y, j) => j !== i && reached(y).includes(x)))
+        return all.some((x, i) => i < all.length - 1 && (
+            x instanceof Array && x[0] === 'undefined'
+            || all.some((y, j) => j !== i && reached(y).includes(x))
+        ))
     })
 }
 
@@ -240,6 +244,15 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    literalUndefinedAnchorsNormalizeButResultsRemain: () => {
+        assert(redundantAnchor([',', [['undefined'], 1]]))
+        assert(redundantAnchor(['?:', true, 1, [',', [['undefined'], 2]]]))
+        assert(!redundantAnchor(['undefined']))
+        assert(!redundantAnchor([',', [['[]', []], ['undefined']]]))
+        reads(['undefined'])
+        rewrites([',', [['undefined'], 1]])
+        rewrites(['?:', true, 1, [',', [['undefined'], 2]]])
+    },
     structuralRefusals: () => {
         for (const length of [-0, -1, 0.5, NaN, Infinity]) {
             /** @type {Exp} */
@@ -1299,10 +1312,11 @@ export const proof = {
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(0,1);};')
         writes(['=>', 0, [], ['()', loop([], true, call(0)), [['...', ['[]', [0]]]]]],
             'export default ()=>{const $0=($1)=>{let $2=$1;while((()=>{const $3=$2;return true;})()){const $4=$2;const $5=0;$2=$5;}return $2;};return $0(...[0]);};')
-        // Source keeps recursive spelling for rest invocation loops,
-        // preserving the fresh array each reconstructed call creates.
-        writes(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]],
-            'export default ()=>{const $0=($1,...$2)=>{const $3=$1;const $4=$2;return $4.length?$0(0):$3;};return $0(0);};')
+        // Plain rest roots now retain loops and the shared fresh-rest slice.
+        // The first parse introduces the scalar helper; subsequent graphs
+        // and text keep the existing strict normalized round-trip checks.
+        assertEq(rewrites(['=>', 0, [], ['()', loop([], ['.', ['rest'], 'length'], call(0)), [0]]]),
+            'export default ()=>{const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $5.length;})()){const $6=$3[0];const $7=$3[1];const $8=[0];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $14;})();return $13;};return $0(0);};')
         // the loop's three parts are written as any value is, each refusal
         // its own; a call of a primitive is a call
         refuses(['=>', 0, [], ['()', loop([], true, call(0)), [['+', 1]]]], 'a unary + node')
@@ -1371,17 +1385,23 @@ export const proof = {
         assertEq(parse(path)(`export default ${text};`)[0], 'ok')
     },
     self: () => {
-        writes(['=>', 0, [], ['()', ['self'], []]], 'const $0=()=>$0();export default $0;')
+        // Empty-input while source introduces the parser's aggregate helper
+        // on its first parse; source/loops proves the normalized fixed point.
+        const divergent = /** @type {Exp} */ (['=>', 0, [], ['()', ['self'], []]])
+        assertEq(assertOk(tryStringify(divergent)), 'const $0=()=>{while(true){continue;}return undefined;};export default $0;')
+        assertEq(disagreement(assertOk(tryMarked(divergent))), null)
         writes(['=>', 1, [], ['?:', ['<', ['arg', 0], 2], 1, ['*', ['arg', 0], ['()', ['self'], [['-', ['arg', 0], 1]]]]]],
             'const $0=($1)=>$1<2?1:$1*$0($1-1);export default $0;')
         writes(['=>', 1, [], ['?:', ['arg', 0], ['()', ['=>', 0, [['self']], ['()', ['frame', 0], [0]]], []], 'done']],
             'const $0=($1)=>$1?(()=>{const $2=()=>$0(0);return $2();})():"done";export default $0;')
         // the module writer names it the same way
-        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>$0();export const f=$0;export default 1;')
+        assertEq(unwrap(tryModuleStringify(['{}', [[':', 'f', ['=>', 0, [], ['()', ['self'], []]]], [':', 'default', 1]]])), 'const $0=()=>{while(true){continue;}return undefined;};export const f=$0;export default 1;')
         refuses(['self'], 'self outside a function')
         // Code-only text lowers the direct zero-parameter tail call too.
         assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])),
             '()=>{L0:while(true){continue L0;}}')
+        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]])),
+            '()=>{let $0=undefined;while(false){$0=$0;}const $1=7;return $1;}')
     },
     operators: () => {
         /** @type {(b: Exp) => Exp} */

@@ -9,13 +9,13 @@
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { BindingEvent, BindingId, BindingScope } from '../../js/ast/types.ts'
- * @import { ExpansionPlan, SourceValue, SourceFunction, SourceParameter, SourceStatement, SourceBlock, SourceImport, SourceModule } from '../../js/ast/sugar/source.ts'
+ * @import { ExpansionPlan, SourceValue, SourceFunction, SourceParameter, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -56,6 +56,9 @@ const constNotFound = foldError('const not found')
 
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
+
+/** A braced switch arm must leave the arm rather than fall into the next one. */
+const unterminatedCase = foldError('switch case does not terminate')
 
 /**
  * An assignment to a name that is no variable's — a `const`'s, an import's,
@@ -209,7 +212,7 @@ const brokenLine = statement => statement.first.newline
  * asked; nor is a guard or a switch, which ends at its `}` and takes no
  * `;`, so the statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | If | Switch | While | null, next: Statement | If | Switch | While) => boolean}
+ * @type {(previous: Statement | If | Switch | LoopSwitch | While | null, next: Statement | If | Switch | LoopSwitch | While) => boolean}
  */
 const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
 
@@ -1518,7 +1521,7 @@ const returned = (stack, scope, frame, value) => {
         if (frame.condition === null) {
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
-                { block: frame.loop.block[1], target: frame.target, index: 0, plan: null, assigned: null, done: null })
+                { block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
         }
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
@@ -1531,19 +1534,19 @@ const returned = (stack, scope, frame, value) => {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
             return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
-                { block: statement.block[1], target: frame.target, index: 0, plan: null, assigned: null, done: null })
+                { block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null })
         }
         if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
-        assert(kind !== 'while' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        assert(kind !== 'while' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
         const block = regionBlock(value)
         if (frame.then === null && frame.otherwise !== null) {
             return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
-                { block: frame.otherwise[1], target: frame.loopGuard.target, index: 0, plan: null, assigned: null, done: null })
+                { block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null })
         }
         return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
             frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
@@ -1560,6 +1563,11 @@ const returned = (stack, scope, frame, value) => {
         return closed(stack, scope, { statements: toArray(frame.done), exit: kind === 'throw' ? ['throw', value] : ['return', scope.trace.target, value] })
     }
     if (hasEntry(frame, 'switch')) { return switchReturned(stack, scope, frame, value) }
+    if (hasEntry(frame, 'loopSwitch')) {
+        return frame.discriminant === null
+            ? loopSwitchRound(stack, scope, { ...frame, discriminant: [value] })
+            : loopSwitchReturned(stack, scope, frame, value)
+    }
     if (hasEntry(frame, 'guard')) {
         const block = regionBlock(value)
         if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
@@ -1615,6 +1623,88 @@ const switchReturned = (stack, scope, frame, value) => {
 }
 
 /**
+ * An arm may not complete normally. Follow possible source paths on an explicit
+ * stack; a nested switch's break resumes after that switch. Shared continuations
+ * are visited once, so successive conditional arms do not multiply the work.
+ * Loop statements retain the existing requirement for an explicit arm exit.
+ *
+ * @type {(body: SourceBlock) => boolean}
+ */
+const caseFallsThrough = body => {
+    /** @type {readonly _CasePath[]} */
+    let pending = [{ statements: body.statements, index: 0, next: null, breaks: [] }]
+    /** @type {ReadonlySet<_CasePath>} */
+    let seen = new Set()
+    while (pending.length !== 0) {
+        const [path, ...rest] = pending
+        pending = rest
+        if (seen.has(path)) { continue }
+        seen = new Set([...seen, path])
+        if (path.index === path.statements.length) {
+            if (path.next === null) { return true }
+            pending = [path.next, ...pending]
+            continue
+        }
+        const statement = path.statements[path.index]
+        const next = /** @type {_CasePath} */ ({ ...path, index: path.index + 1 })
+        if (statement[0] === 'break') {
+            const owner = path.breaks.find(([target]) => target === statement[1])
+            if (owner !== undefined) { pending = [owner[1], ...pending] }
+            continue
+        }
+        if (statement[0] === 'continue' || statement[0] === 'return' || statement[0] === 'throw') { continue }
+        if (statement[0] === 'if') {
+            pending = [...[statement[2], statement[3]].map(arm => ({ statements: arm.statements, index: 0, next, breaks: path.breaks })), ...pending]
+            continue
+        }
+        if (statement[0] === 'switch') {
+            const region = statement[1]
+            const breaks = /** @type {_CasePath['breaks']} */ ([[region.target, next], ...path.breaks])
+            pending = [...[...region.cases.map(arm => arm.body), region.otherwise].map(arm => ({ statements: arm.statements, index: 0, next, breaks })), ...pending]
+            continue
+        }
+        pending = [next, ...pending]
+    }
+    return false
+}
+
+/** Resolve one loop-switch label or case without changing its enclosing continue owner. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame) => _State} */
+const loopSwitchRound = (stack, scope, frame) => {
+    const { cases, default: fallback } = frame.loopSwitch
+    const { index, label } = frame
+    const block = index < cases.length ? cases[index].block : fallback
+    if (index < cases.length && label < cases[index].labels.length) { return [{ top: frame, rest: stack }, scope, ['enter', cases[index].labels[label]]] }
+    return block === null
+        ? loopSwitchDone(stack, scope, frame, { statements: [], exit: ['yield', undefined] })
+        : loopRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
+            block: block[1], target: frame.body.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+        })
+}
+
+/** Cases keep fresh lexical names and complete legality checks before fallthrough admission. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, value: SourceValue) => _State} */
+const loopSwitchReturned = (stack, scope, frame, value) => {
+    const { cases } = frame.loopSwitch
+    const { index, label } = frame
+    if (index < cases.length && label < cases[index].labels.length) {
+        return loopSwitchRound(stack, scope, { ...frame, label: label + 1, labels: [...frame.labels, value] })
+    }
+    const body = regionBlock(value)
+    if (caseFallsThrough(body)) { return [stack, scope, error(unterminatedCase(frame.loopSwitch.start))] }
+    return index < cases.length
+        ? loopSwitchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
+        : loopSwitchDone(stack, scope, frame, body)
+}
+
+/** A completed switch supplies its normal branch to following source statements. @type {(stack: _Stack, scope: _Scope, frame: _LoopSwitchFrame, otherwise: SourceBlock) => _State} */
+const loopSwitchDone = (stack, scope, frame, otherwise) => {
+    const region = /** @type {SourceSwitch} */ ({
+        target: frame.target, events: completedTrace(scope).events,
+        discriminant: assertNotNullish(frame.discriminant, 'a switch without its discriminant')[0], cases: toArray(reverse(frame.arms)), otherwise,
+    })
+    return loopRound(stack, restoredScope(scope, false), advanced(frame.body, [['switch', region]]))
+}
+
+/**
  * Retain declarations and assignments in a loop's block, a region of the
  * body: `const`s and `let`s as the body's, and assignments, each resolved
  * as an assignment anywhere is, {@link assigned}. Zero or several outer writes
@@ -1635,7 +1725,7 @@ const loopRound = (stack, scope, frame) => {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
         if (kind === 'break' || kind === 'continue') {
-            frame = advanced(frame, [[kind, frame.target]])
+            frame = advanced(frame, [[kind, kind === 'break' ? frame.breakTarget : frame.target]])
             continue
         }
         if (kind === 'return' || kind === 'throw') {
@@ -1645,6 +1735,10 @@ const loopRound = (stack, scope, frame) => {
         }
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+        if (kind === 'switch') {
+            return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
+                regionScope(scope, empty, null), ['enter', statement.discriminant]]
+        }
         if (kind === 'assign') {
             const [tag, target] = assigned(scope, statement.name)
             if (tag === 'error') { return [stack, scope, error(target)] }

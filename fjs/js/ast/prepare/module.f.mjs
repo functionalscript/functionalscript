@@ -221,6 +221,79 @@ const nonlocalBlock = (block, context) => nonlocal(['block', block], context)
 const snapshot = (value, kind) => kind === 'array' ? _expandSpread(value)
     : kind === 'object' ? _expandObjectSpread(value) : kind === 'key' ? ['String', value] : value
 
+/** A prepared reference reads an established value; memo reads remain demands. @type {(value: Value) => boolean} */
+const established = value => !(value instanceof Array) || value[0] === 'ref'
+
+/** @param {Value} value @returns {value is readonly ['ref' | 'demand', BindingId]} */
+const preparedRead = value => value instanceof Array && (value[0] === 'ref' || value[0] === 'demand')
+
+/** Total construction can precede earlier operands without running their work. @type {(value: Value) => boolean} */
+const totalConstructor = value => {
+    if (!(value instanceof Array) || value[0] === 'ref') { return true }
+    if (value[0] === 'array') { return value[1].every(item => !isSpread(item) && established(item)) }
+    if (value[0] === 'object') { return value[1].every(entry => entry[0] === ':' && typeof entry[1] === 'string' && established(entry[2])) }
+    return value[0] === 'function' && value[1].captures.every(capture => established(capture.value))
+}
+
+/**
+ * Expose only leading total constructor recipes in reached eager operands.
+ * Retained definitions form a lexical barrier; demands and effects stay put.
+ * Bare calls retain their detached value semantics; explicit member-call
+ * chains keep their receiver, with later chain operands left in their region.
+ * @type {(value: Value) => _Task<{ readonly value: Value, readonly statements: readonly Statement[] }>}
+ */
+const constructorTask = value => call(() => {
+    if (!(value instanceof Array) || preparedRead(value)) {
+        return done({ value, statements: [] })
+    }
+    if (value[0] === 'function' || value[0] === 'if' || value[0] === '?:' || value[0] === '?.()') {
+        return done({ value, statements: [] })
+    }
+    if (value[0] === 'block') {
+        const block = value[1]
+        if (block.exit[0] !== 'yield' || block.exit[1].length !== 1) { return done({ value, statements: [] }) }
+        const barrier = block.statements.findIndex(statement => statement[0] !== 'define' || !totalConstructor(statement[2]))
+        const count = barrier === -1 ? block.statements.length : barrier
+        const remaining = block.statements.slice(count)
+        const prefix = block.statements.slice(0, count)
+        if (remaining.length === 0) {
+            return bind(constructorTask(block.exit[1][0]), result => done({ value: result.value, statements: [...prefix, ...result.statements] }))
+        }
+        const first = remaining[0]
+        if (first[0] !== 'define') { return done({ value: count === 0 ? value : ['block', { ...block, statements: remaining }], statements: prefix }) }
+        // The first retained initializer is reached before this block's work.
+        // Its total recipes may cross the boundary; the initializer stays put.
+        return bind(constructorTask(first[2]), result => done({
+            value: count === 0 && result.value === first[2] ? value : ['block', { ...block, statements: [
+                ['define', first[1], result.value], ...remaining.slice(1),
+            ] }],
+            statements: [...prefix, ...result.statements],
+        }))
+    }
+    const input = operatorOperands(value)
+    /** @type {(index: number, values: readonly Value[], statements: readonly Statement[]) => _Task<{ readonly value: Value, readonly statements: readonly Statement[] }>} */
+    const each = (index, values, statements) => call(() => index === input.length
+        ? done({ value: values.every((item, index) => item === input[index]) ? value : mapOperator((_, index) => values[index])(value), statements })
+        : bind(value[0] === '?.' && index !== 0 || value[0] === '.' && value.length === 4 && index >= 1 + (value[2] instanceof Array ? 1 : 0)
+            ? done({ value: input[index], statements: [] }) : constructorTask(input[index]), result =>
+            each(index + 1, [...values, result.value], [...statements, ...result.statements])))
+    return each(0, [], [])
+})
+
+/** Source-packed steps expose total recipes before projection placement can drift. @type {(statements: readonly Statement[]) => _Task<readonly Statement[]>} */
+const packedStatements = statements => {
+    /** @type {(index: number, output: readonly Statement[]) => _Task<readonly Statement[]>} */
+    const each = (index, output) => call(() => {
+        if (index === statements.length) { return done(output) }
+        const statement = statements[index]
+        return statement[0] === 'define'
+            ? bind(constructorTask(statement[2]), value => each(index + 1, [...output, ...value.statements,
+                value.value === statement[2] ? statement : ['define', statement[1], value.value]]))
+            : each(index + 1, [...output, statement])
+    })
+    return each(0, [])
+}
+
 /** @type {(input: readonly NormalValue[], context: _Context, snapshots?: readonly _Snapshot[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
 const values = (input, context, snapshots = []) => {
     /** @type {(index: number, next: number, previous: import('../../../types/list/types.ts').List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
@@ -405,50 +478,69 @@ const statementTask = (statement, context) => call(() => {
             })
         }
         const plain = plainLoopOf(loop)
-        if (plain !== null && !nonlocalValue(plain.iteration.condition, context) && !nonlocalValue(plain.iteration.next, context)
+        if (plain !== null && (loop.parameters.length <= 1 || context.sourceLoops)
+            && !nonlocalValue(plain.iteration.condition, context) && !nonlocalValue(plain.iteration.next, context)
             && !nonlocalValue(plain.result, context) && plain.prefix.every(statement => !nonlocalValue(statement[2], context))
             && plain.iteration.step.statements.every(statement => !nonlocalValue(statement[2], context))) {
             const { iteration } = plain
-            return bind(prepareValue(loop.initial[0], context), initial => {
-                const computed = !(plain.result instanceof Array && plain.result[0] === 'ref' && plain.result[1] === loop.parameters[0])
-                const [slot, conditionParameter, finalState, finalParameter] = fresh(initial.next, computed ? 4 : 2)
+            // Source packs several semantic inputs into one private slot;
+            // empty input uses that scalar while's unchanged undefined slot.
+            const hasState = loop.parameters.length !== 0
+            const packed = loop.parameters.length > 1
+            const width = Math.max(1, loop.parameters.length)
+            /** @param {BindingId} binding @param {number} index */
+            const snapshot = (binding, index) => packed
+                ? /** @type {const} */ (['.', ['ref', binding], index])
+                : /** @type {const} */ (['ref', binding])
+            return bind(prepareValue(packed ? ['array', loop.initial] : loop.initial[0], context), initial => {
+                const computed = packed || !hasState || !(plain.result instanceof Array && plain.result[0] === 'ref' && plain.result[1] === loop.parameters[0])
+                const bindings = fresh(initial.next, computed ? 2 * width + 2 : 2)
+                const slot = bindings[0]
+                const conditionParameters = bindings.slice(1, width + 1)
+                const finalState = bindings[width + 1]
+                const finalParameters = bindings.slice(width + 2)
                 const conditionBlock = /** @type {NormalValue} */ (['block', { statements: plain.prefix, exit: ['yield', [iteration.condition]] }])
                 return bind(prepareValue(conditionBlock, {
                     ...context,
-                    next: initial.next + (computed ? 4 : 2),
-                    reads: [...context.reads, [loop.parameters[0], conditionParameter]],
+                    next: initial.next + bindings.length,
+                    reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, conditionParameters[index]]))],
                 }), condition => {
-                    const mutable = !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0])
+                    const mutable = hasState && (packed || !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0]))
                     const step = /** @type {NormalBlock} */ ({ statements: iteration.step.statements, exit: ['yield', mutable ? [iteration.next] : []] })
                     return bind(prepareBlock(step, {
                         ...context,
                         next: condition.next,
                         yields: mutable ? [slot] : null,
-                    }), body => {
+                    }), body => bind(packed ? packedStatements(body.value.statements) : done(body.value.statements), statements => {
                         const physical = /** @type {Statement} */ (['while', {
                             target: loop.target,
                             slot,
                             initial: initial.value,
-                            condition: ['block', { statements: [['define', conditionParameter, ['ref', slot]], ...condition.statements], exit: ['yield', [condition.value]] }],
-                            body: { statements: [['define', loop.parameters[0], ['ref', slot]], ...body.value.statements], exit: body.value.exit },
+                            condition: ['block', { statements: [...loop.parameters.map((_, index) => /** @type {Statement} */ (['define', conditionParameters[index], snapshot(slot, index)])), ...condition.statements], exit: ['yield', [condition.value]] }],
+                            body: { statements: [...loop.parameters.map((parameter, index) => /** @type {Statement} */ (['define', parameter, snapshot(slot, index)])), ...statements], exit: body.value.exit },
                             result: computed ? finalState : loop.results[0],
                             mutable,
                         }])
                         if (!computed) { return done({ value: [...initial.statements, physical], next: body.next }) }
                         const normal = /** @type {NormalBlock} */ ({ statements: [], exit: ['yield', [plain.result]] })
                         const resultBlock = /** @type {NormalValue} */ (['block', {
-                            statements: [['define', finalParameter, ['ref', finalState], 'required'], ...plain.resultPrefix],
+                            statements: [...loop.parameters.map((_, index) => /** @type {NormalStatement} */ (['define', finalParameters[index], snapshot(finalState, index), 'required'])), ...plain.resultPrefix],
                             exit: normal.exit,
                         }])
+                        // Expose a scalar source result's leading total recipes
+                        // before reparsing introduces its ordinary loop helper.
+                        // Calls and lookups retain their existing lexical barrier.
                         return bind(prepareValue(resultBlock, {
                             ...context,
                             next: body.next,
-                            reads: [...context.reads, [loop.parameters[0], finalParameter]],
-                        }), result => done({
-                            value: [...initial.statements, physical, ...result.statements, ['define', loop.results[0], result.value]],
+                            reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, finalParameters[index]]))],
+                        }), result => bind(context.sourceLoops && loop.parameters.length === 1
+                            && plain.result instanceof Array && plain.result[0] === 'block'
+                            ? constructorTask(result.value) : done({ value: result.value, statements: [] }), exposed => done({
+                            value: [...initial.statements, physical, ...result.statements, ...exposed.statements, ['define', loop.results[0], exposed.value]],
                             next: result.next,
-                        }))
-                    })
+                        })))
+                    }))
                 })
             })
         }

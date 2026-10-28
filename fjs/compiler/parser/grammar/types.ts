@@ -504,7 +504,7 @@ export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
-/** A loop block's statement: a declaration, conditional, nested loop, loop or function exit, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
+/** A loop block's statement: a declaration, conditional, nested loop, switch, loop or function exit, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
 export type LoopStatement = () => readonly ['const', {
     readonly break: readonly [number, End]
     readonly const: ConstStatement
@@ -513,9 +513,16 @@ export type LoopStatement = () => readonly ['const', {
     readonly let: LetStatement
     readonly name: BodyNameStatement
     readonly return: Terminator['return']
+    readonly switch: LoopSwitch
     readonly throw: Terminator['throw']
     readonly while: WhileStatement
 }]
+
+/** A normal loop-body switch: at least one case and an optional last default. */
+export type LoopSwitch = readonly [number, number, Value, number, number, RepeatFrom<1, LoopCase>, Option<readonly [number, number, LoopBlock]>, number]
+
+/** Stacked labels share one braced case block; source admission checks its exits. */
+export type LoopCase = readonly [RepeatFrom<1, readonly [number, Value, number]>, LoopBlock]
 
 /** A loop's normal conditional, with an optional alternate block or conditional. */
 export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]

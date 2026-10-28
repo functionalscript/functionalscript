@@ -11,7 +11,7 @@
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
-import { plainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
+import { continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.mjs'
@@ -28,10 +28,12 @@ const bind = (task, then) => taskBind(task, result => result[0] === 'error' ? ta
  * Ordinary function bodies own their exits; construction captures and nested
  * loop initializers still run in the containing region. Statement returns exit
  * the enclosing function; a return cannot escape an emitted value region.
+ * Empty-input roots retain this spelling only without a normal loop result;
+ * returning roots keep their established recursive source normalization.
  * @type {(loop: Loop) => boolean}
  */
 const localLoop = loop => {
-    if (loop.parameters.length !== 1) { return false }
+    if (loop.parameters.length > 1) { return false }
     /** @type {readonly _Scope[]} */
     let pending = [{ kind: 'block', block: loop.body, target: loop.target, value: false }]
     while (pending.length !== 0) {
@@ -56,6 +58,7 @@ const localLoop = loop => {
         const exit = block.exit
         if (exit[0] === 'return' && scope.value
             || scope.value && (exit[0] === 'break' || exit[0] === 'continue')
+            || exit[0] === 'break' && exit[1] === loop.target && loop.parameters.length === 0
             || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== target) { return false }
         pending = [...exitValues(exit).map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
         for (const statement of block.statements) {
@@ -94,7 +97,13 @@ const resultBlock = block => call(() => {
 /** Inverse aliases read established invocation inputs, captures and self. @type {(fn: FastFunction) => Task<FastFunction>} */
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
-    if (loop === null || (fn.rest === null && (scalarLoopOf(loop) !== null || plainLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
+    if (loop === null || plainLoopOf(loop) !== null || (fn.rest === null && (scalarLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
+    const retained = fn.parameters.length === 0 && fn.rest !== null
+        ? continueFirstPlainLoopOf(loop) ?? resultBlockPlainLoopOf(loop)
+        : loop.parameters.length > 1 ? resultBlockPlainLoopOf(loop) : null
+    if (retained !== null) { return done({ ...fn, body: { ...fn.body,
+        statements: [...fn.body.statements.slice(0, -1), ['loop', retained]],
+    } }) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

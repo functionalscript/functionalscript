@@ -1,5 +1,5 @@
 /**
- * Plan a one-state loop that the admitted plain while grammar can express.
+ * Plan a loop that the admitted plain while grammar can express.
  * Condition-only work retains its iteration lifetime; copied body and result
  * dependencies are restricted to established, identity-free projections.
  *
@@ -82,12 +82,17 @@ const withPrefix = (prefix, step) => {
  * @type {(loop: Loop) => PlainLoop | null}
  */
 export const plainLoopOf = loop => {
-    if (loop.parameters.length !== 1 || loop.results.length !== 1 || loop.body.statements.length === 0) { return null }
+    if (loop.results.length !== 1 || loop.body.statements.length === 0) { return null }
     const statement = loop.body.statements[loop.body.statements.length - 1]
     const before = loop.body.statements.slice(0, -1)
     if (statement[0] !== 'if' || statement[1].length !== 0
         || !before.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
-    const [, , condition, step, otherwise] = statement
+    const [, , test, then, alternative] = statement
+    const reversed = loop.parameters.length !== 1 && then.exit[0] === 'break'
+    const step = reversed ? alternative : then
+    const otherwise = reversed ? then : alternative
+    /** @type {Value} */
+    const condition = reversed ? ['!', test] : test
     const next = step.exit
     const done = otherwise.exit
     if (next[0] !== 'continue' || next[1] !== loop.target || done[0] !== 'break' || done[1] !== loop.target
@@ -101,8 +106,49 @@ export const plainLoopOf = loop => {
         iteration: {
             condition,
             step: withPrefix(stepPrefix, { statements: /** @type {readonly Definition[]} */ (step.statements), exit: step.exit }),
-            next: next[2][0],
+            next: loop.parameters.length > 1 ? ['array', next[2]] : next[2][0],
         },
         result: done[2][0],
     }
+}
+
+/**
+ * Reorient a base-first single-input plain loop for source preparation.
+ * The existing planner validates the candidate without changing its default
+ * orientation domain. Prefixes, targets and selected regions keep their owners.
+ * @type {(loop: Loop) => Loop | null}
+ */
+export const continueFirstPlainLoopOf = loop => {
+    const last = loop.body.statements.at(-1)
+    if (loop.parameters.length !== 1 || last === undefined || last[0] !== 'if'
+        || last[3].exit[0] !== 'break') { return null }
+    const oriented = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
+        statements: [...loop.body.statements.slice(0, -1), ['if', last[1], ['!', last[2]], last[4], last[3]]],
+    } })
+    return plainLoopOf(oriented) === null ? null : oriented
+}
+
+/**
+ * Keep a loop's required normal-arm definitions in its result.
+ * The value block runs once after the final test, with the same bindings and
+ * reached order. Single-input base-first candidates use the existing orientation
+ * helper; the unchanged planner validates every other plain restriction.
+ * @type {(loop: Loop) => Loop | null}
+ */
+export const resultBlockPlainLoopOf = loop => {
+    const last = loop.body.statements.at(-1)
+    if (loop.parameters.length === 0 || last === undefined || last[0] !== 'if') { return null }
+    const baseFirst = last[3].exit[0] === 'break'
+    const normal = baseFirst ? last[3] : last[4]
+    const exit = normal.exit
+    if (exit[0] !== 'break' || normal.statements.length === 0
+        || !normal.statements.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
+    const result = /** @type {Block} */ ({ statements: [], exit: ['break', exit[1], [['block', {
+        statements: normal.statements, exit: ['yield', exit[2]],
+    }]]] })
+    const retained = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
+        statements: [...loop.body.statements.slice(0, -1), ['if', last[1], last[2], baseFirst ? result : last[3], baseFirst ? last[4] : result]],
+    } })
+    return loop.parameters.length === 1 && baseFirst ? continueFirstPlainLoopOf(retained)
+        : plainLoopOf(retained) === null ? null : retained
 }

@@ -66,12 +66,22 @@ export type SourceLoop = {
     readonly body: SourceBlock
 }
 
+/** A switch owns break completion without changing the enclosing continue target. */
+export type SourceSwitch = {
+    readonly target: LoopTarget
+    readonly events: readonly BindingEvent[]
+    readonly discriminant: SourceValue
+    readonly cases: readonly SourceCase[]
+    readonly otherwise: SourceBlock
+}
+
 export type SourceStatement =
     | readonly ['initialize', ExpansionPlan, SourceValue]
     | readonly ['write', BindingId, SourceValue]
     /** Both normal arms precede the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
+    | readonly ['switch', SourceSwitch]
     /** Source resolution fixes the innermost loop; sugar supplies its state. */
     | readonly ['break', LoopTarget]
     | readonly ['continue', LoopTarget]

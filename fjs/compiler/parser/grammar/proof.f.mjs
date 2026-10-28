@@ -19,7 +19,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopElse, loopIfStatement, loopStatement, member, object, parameters, paren, statement,
+    module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
 
@@ -84,6 +84,21 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
+    loopSwitchesRetainBracesAndOrderedLabels: () => {
+        for (const source of [
+            'export default n=>{while(n){switch(n){case 1:case 2:{break;}case 3:{continue;}default:{return n;}}n=n-1;}return 0;};',
+            'while(false){if(true){switch(1){case 1:{throw 2;}default:{break;}}}else{switch(2){case 2:{break;}}}}export default 3;',
+            // The syntax records the whole block; source admission refuses fallthrough.
+            'while(false){switch(1){case 1:{}}}export default 0;',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const [source, token] of [
+            ['while(false){switch(1){case 1:break;}}export default 0;', 'break'],
+            ['while(false){switch(1){default:{break;}}}export default 0;', 'default'],
+            ['while(false){switch(1){}}export default 0;', '}'],
+            ['while(false){switch(1){case 1:default:{break;}}}export default 0;', 'default'],
+            ['while(false){switch(1){case 1:{break;}default:{break;}case 2:{break;}}}export default 0;', 'case'],
+        ]) { assertStructurallySame(read(source), ['error', token]) }
+    },
     loopFunctionExitsRetainStatementBoundaries: () => {
         for (const source of [
             'export default n=>{while(n){return n;const skipped=1;throw skipped;}return 0;};',
@@ -126,6 +141,8 @@ export const proof = {
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         whileStatement: () => { parser(/** @type {Rule} */ (whileStatement)) },
         loopStatement: () => { parser(/** @type {Rule} */ (loopStatement)) },
+        loopSwitch: () => { parser(/** @type {Rule} */ (loopSwitch)) },
+        loopCase: () => { parser(/** @type {Rule} */ (loopCase)) },
         loopIfStatement: () => {
             /** @type {Rule} */
             const rule = loopIfStatement
@@ -497,7 +514,7 @@ export const proof = {
         assertStructurallySame(read('continue;export default 7;'), ['error', 'continue'])
         assertStructurallySame(read('export default ()=>{break;return 7;};'), ['error', 'break'])
         assertStructurallySame(read('while(false){const f=()=>{continue;return 7;};}export default 7;'), ['error', 'continue'])
-        assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['error', 'switch'])
+        assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
         // a `let` takes its initializer as a `const` does: `let x;` is refused
@@ -548,7 +565,8 @@ export const proof = {
         // anywhere but last or with a label stacked on it, a switch with no
         // case, a statement after a
         // switch with a `default`, a `;` after the `}`, and a switch at
-        // module level or in a loop's block are outside the grammar.
+        // module level are outside this grammar. Loop-body switches use
+        // their own nonterminal and source admission for case completion.
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: case 2: { return 1; } case 3: { throw 3; } } const x = 1; return x; };'), ['ok'])
@@ -570,7 +588,7 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { switch a { case 1: { return 1; } } return 2; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case: { return 1; } } return 2; };'), ['error', ':'])
         assertStructurallySame(read('switch (1) { case 1: { throw 1; } } export default 2;'), ['error', 'switch'])
-        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { switch (r) { case 1: { return 1; } } } return r; };'), ['error', 'switch'])
+        assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { switch (r) { case 1: { return 1; } } } return r; };'), ['ok'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
     // each token since a value ends with its own, and a key is a string or

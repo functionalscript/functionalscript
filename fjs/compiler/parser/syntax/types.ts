@@ -159,8 +159,16 @@ export type LoopIf = {
     readonly otherwise: LoopBlock | null
 }
 
-/** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+/** A switch in a loop retains its complete case bodies for transfer and source checks. */
+export type LoopSwitch = {
+    readonly start: ModuleTokenWithMetadata
+    readonly discriminant: Node
+    readonly cases: readonly { readonly labels: readonly Node[]; readonly block: LoopBlock }[]
+    readonly default: LoopBlock | null
+}
+
+/** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the

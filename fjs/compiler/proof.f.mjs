@@ -680,12 +680,95 @@ export const proof = {
             // the writer names the rest parameter only where the body reads
             // it — so both lists are written `()`, one node, one text
             assertEq(fjsRoundTrip('export default () => 1;'), 'export default ()=>1;')
-            // a function's own name is its `self`, written as the `const` it read
-            assertEq(fjsRoundTrip('const f = () => f();\nexport default f;'), 'const $0=()=>$0();export default $0;')
+            // A zero-input tail loop introduces the source aggregate helper
+            // on its first parse. Its normalized graph and text stay exact.
+            const loop = compileSource('const f = () => f();\nexport default f;')('output.f.js')
+            assertEq(loop, 'const $0=()=>{while(true){continue;}return undefined;};export default $0;')
+            const canonical = fjsRoundTrip(loop)
+            assert(canonical.includes('while('), canonical)
             // a shorthand member is written as the member it denotes
             assertEq(fjsRoundTrip('const a = [1];\nexport default { a, b: a };'), 'const $0=[1];export default {"a":$0,"b":$0};')
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
             assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
+        },
+        zeroInputNormalLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=()=>false?f():7;export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=7;return $2;};export default $0;'],
+                ['const f=()=>true?7:f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=7;return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        multiInputLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a+n):a;export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?a:f(n-1,a+n);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restInputLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,...xs)=>n>0?f(n-1,xs[0]+n):xs[0];export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7[0]+$6];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $15[0];})();return $13;};export default $0;'],
+                ['const f=(n,...xs)=>n===0?xs[0]:f(n-1,xs[0]+n);export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7[0]+$6];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $15[0];})();return $13;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        baseFirstRestOnlyLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(...xs)=>xs[0]===0?xs[1]:f(xs[0]-1,xs[1]+xs[0]);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,$4[1]+$4[0]];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=(()=>{const $11=$2;return $11[1];})();return $10;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?xs:f(xs[0]-1,xs[1]+1);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,$4[1]+1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        baseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a+n):(()=>{const x=[a];return[x,x];})();export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?(()=>{const x=[a];return[x,x];})():f(n-1,a+n);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7+$6];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];const $12=[$11];return [$12,$12];})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,...$7];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];const $16=[$15];return [$16,$16];})();return $13;};export default $0;'],
+                ['const f=(n,...xs)=>n===0?(()=>{const x=[xs];return[x,x];})():f(n-1,...xs);export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,...$7];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];const $16=[$15];return [$16,$16];})();return $13;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        restOnlyBaseCaseDefinitionsLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const x=[xs];return[x,x];})():f(xs[0]-1);export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$11,$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]>0?f(xs[0]-1,()=>xs,...xs.slice(2)):(()=>{const pair=[xs];return[xs[1],()=>pair];})();export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return $3[0]>0;})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+                ['const f=(...xs)=>xs[0]===0?(()=>{const pair=[xs];return[xs[1],()=>pair];})():f(xs[0]-1,()=>xs,...xs.slice(2));export default f;', 'const $0=(...$1)=>{let $2=$1;while((()=>{const $3=$2;return !($3[0]===0);})()){const $4=$2;const $5=[$4[0]-1,()=>$4,...$4.slice(2)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$2=$6;}const $10=$2;const $11=[$10];const $12=[$10[1],()=>$11];return $12;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
         },
         // Source logical syntax lowers once to conditionals. Each left value
         // is established once, right-side work stays in the selected arm,
@@ -1336,6 +1419,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Nested loops': 'xxooo',
                 'Loop with break and continue': 'xxooo',
                 'Loop with return and throw': 'xxooo',
+                'Loop with switch': 'xxooo',
                 'Loop with no state': 'xxooo',
                 'Sequential loops': 'xxooo',
                 'Loop in a guard': 'xxooo',
