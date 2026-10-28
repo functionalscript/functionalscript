@@ -171,9 +171,10 @@ Base-first rest-only source roots use the shared plain-loop orientation helper
 before preparation. This adds the same permitted first-parse helper boundary;
 original logical function text and prior source profiles retain their layouts.
 
-Rest-free fixed multi-input roots with required base-case definitions use a
-source-only result-block normalization before preparation. The block has no
-invocation boundary and runs once after the final test with immutable input
+Rest-free fixed multi-input roots and fixed-plus-rest roots with required
+base-case definitions use a source-only result-block normalization before
+preparation. The block has no invocation boundary and runs once after the final
+test with immutable input
 snapshots. The first source parse establishes the same permitted scalar helper
 boundary; later graph/text cycles stay exact. Original logical function text,
 default JavaScript/Rust layouts and other source profiles retain their contracts.

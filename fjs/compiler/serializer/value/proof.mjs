@@ -453,6 +453,119 @@ export const proof = {
             }
         }
     },
+    restBaseDefinitionsKeepFinalInvocationSnapshots: async () => {
+        const restRead = /** @type {Exp} */ (['=>', 0, [['rest']], ['frame', 0]])
+        const snapshot = /** @type {Exp} */ (['[]', [['arg', 0], ['rest']]])
+        const base = /** @type {Exp} */ (['()', ['frame', 1], [snapshot, snapshot, ['frame', 2]]])
+        const read = /** @type {Exp} */ (['=>', 0, [['arg', 0], ['rest'], base, ['frame', 2]],
+            ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]])
+        const result = /** @type {Exp} */ (['[]', [base, base, read, ['rest'], ['frame', 2]]])
+        const test = /** @type {Exp} */ (['()', ['frame', 0], [['arg', 0], ['rest'], ['rest'], restRead]])
+        const token = /** @type {const} */ ([7])
+        for (const arity of /** @type {const} */ ([1, 2, 16])) {
+            /** @type {readonly Exp[]} */
+            const fixed = Array.from({ length: arity }, (_, index) => index === 0 ? ['-', ['arg', 0], 1] : ['arg', index])
+            const recur = /** @type {Exp} */ (['()', ['self'], [...fixed, ['...', ['rest']]]])
+            const padding = Array.from({ length: arity - 1 }, (_, index) => index + 10)
+            for (const reversed of /** @type {const} */ ([false, true])) {
+                const factory = /** @type {FunctionValue} */ (['=>', 2, [], ['=>', arity, [['arg', 0], ['arg', 1], ['[]', [9]]],
+                    ['?:', reversed ? ['!', test] : test, reversed ? result : recur, reversed ? recur : result],
+                ]])
+                for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+                    assert(text.includes('while('), text)
+                    const make = await load(text)
+                    const stopped = new Error('stop at the final rest invocation')
+                    let start = 0
+                    let tests = 0
+                    let bases = 0
+                    let mode = 'normal'
+                    /** @type {readonly unknown[] | undefined} */
+                    let previous
+                    /** @type {readonly unknown[] | undefined} */
+                    let heldRest
+                    /** @type {(() => readonly unknown[]) | undefined} */
+                    let held
+                    const run = make(
+                        /** @type {(n: number, first: readonly unknown[], second: readonly unknown[], read: () => readonly unknown[]) => boolean} */ ((n, first, second, read) => {
+                            assertEq(n, start - tests)
+                            assertEq(first, second)
+                            assertEq(read(), first)
+                            assert(first !== previous)
+                            if (tests === 0) { held = read; heldRest = first }
+                            previous = first
+                            tests += 1
+                            if (mode === 'condition' && n === 0) { throw stopped }
+                            return n > 0
+                        }),
+                        /** @type {(first: readonly unknown[], second: readonly unknown[], seed: readonly number[]) => readonly unknown[]} */ ((first, second, seed) => {
+                            assertEq(tests, start + 1)
+                            assertEq(bases, 0)
+                            assertEq(first, second)
+                            assertEq(first[0], 0)
+                            assertEq(first[1], previous)
+                            bases += 1
+                            if (mode === 'base') { throw stopped }
+                            return first
+                        }),
+                    )
+                    assertEq(run.length, arity)
+                    for (const nonempty of /** @type {const} */ ([false, true])) {
+                        const supplied = nonempty ? [token] : []
+                        /** @param {number} n */
+                        const invoke = n => {
+                            start = n
+                            tests = 0
+                            bases = 0
+                            mode = 'normal'
+                            previous = undefined
+                            const value = run(n, ...padding, ...supplied)
+                            assertEq(tests, n + 1)
+                            assertEq(bases, 1)
+                            assertEq(value[0], value[1])
+                            assertEq(value[0][1], value[3])
+                            assertEq(value[3], previous)
+                            assertEq(value[3].length, supplied.length)
+                            if (nonempty) { assertEq(value[3][0], token) }
+                            assertStructurallySame(value[0], [0, supplied])
+                            const captured = value[2]()
+                            assertEq(captured[0], 0)
+                            assertEq(captured[1], value[3])
+                            assertEq(captured[2], value[0])
+                            assertEq(captured[3], value[4])
+                            assert(held !== undefined)
+                            assertEq(held(), heldRest)
+                            assertEq(heldRest === value[3], n === 0)
+                            return value
+                        }
+                        for (const n of /** @type {const} */ ([100_000, 0])) {
+                            const first = invoke(n)
+                            const second = invoke(n)
+                            const retained = first[2]()
+                            assertEq(retained[1], first[3])
+                            assertEq(retained[2], first[0])
+                            assertEq(retained[3], first[4])
+                            assert(first !== second)
+                            assert(first[0] !== second[0])
+                            assert(first[2] !== second[2])
+                            assert(first[3] !== second[3])
+                            assertEq(first[4], second[4])
+                            assertStructurallySame(first[4], [9])
+                        }
+                        for (const failureAt of /** @type {const} */ (['condition', 'base'])) {
+                            start = 2
+                            tests = 0
+                            bases = 0
+                            mode = failureAt
+                            previous = undefined
+                            throws(() => run(2, ...padding, ...supplied), error => error === stopped)
+                            assertEq(tests, 3)
+                            assertEq(bases, failureAt === 'base' ? 1 : 0)
+                        }
+                    }
+                }
+            }
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])

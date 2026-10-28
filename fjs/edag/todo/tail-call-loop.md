@@ -4,14 +4,6 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
-The current H increment extends required base-case definitions to canonical
-tail functions with one or more fixed parameters and an observed rest array.
-It reuses the shared result-block normalizer and existing packed source
-preparation. Both conditional orientations must preserve public arity, fresh
-rest arrays, sharing, final captures, reached failure order and the exact
-graph/text fixed point established by the first source parse. Rest-only,
-zero-input and structured normal-arm profiles remain separate work.
-
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
@@ -161,9 +153,10 @@ parsing establishes the canonical scalar helper under the existing graph/hash
 and function-text exception, followed by exact graph/text cycles. Shared logical
 conversion and default code-only JavaScript/Rust layouts remain unchanged.
 
-Rest-free fixed multi-input roots now also retain source loops when their normal
-arm has required definitions before its result. A shared source-only normalizer
-wraps that define-only prefix in the break-result value block, clears the arm's
+Rest-free fixed multi-input roots and fixed-plus-rest roots now also retain source
+loops when their normal arm has required definitions before its result. A shared
+source-only normalizer wraps that define-only prefix in the break-result value
+block, clears the arm's
 statement prefix and validates the candidate through the unchanged plain-loop
 plan. Both conditional orientations retain exact targets and binding identities.
 Existing common preparation establishes immutable final-input snapshots, then
@@ -171,9 +164,15 @@ runs the base work once after the final test. Base allocations stay shared withi
 one invocation and fresh between invocations; final closures keep their captures,
 and reached calls and failures retain their order.
 
-This increment is limited to canonical rest-free roots with multiple fixed
-parameters. Other arities, rest profiles and lazy or structured normal-arm
-prefixes retain their previous fallback or refusal. The first source parse
+Fixed-plus-rest roots reuse the same normalizer and packed source preparation.
+Their required base work observes the final invocation's fresh rest array,
+including an empty one, without creating another slice. Sharing within the
+result and escaped final captures retain that array's identity.
+
+This profile is limited to canonical rest-free roots with multiple fixed
+parameters or roots with at least one fixed parameter and observed rest.
+Rest-only, zero-input and lazy or structured normal-arm prefixes retain their
+previous admission and fallback. The first source parse
 establishes the permitted scalar-helper boundary; later graph/text cycles remain
 exact. Logical conversion, original default JavaScript/Rust layouts and prior
 source spellings retain their contracts.
