@@ -54,6 +54,38 @@ const returned = node => {
 }
 
 export const proof = {
+    loopFunctionExitsKeepValuesAndFollowingSyntax: () => {
+        const module = unwrap(parseSyntax(tokenizeString('while(false){\nreturn [1]\nthrow 2;\nconst after=3;\nif(true){return 4;throw 5;}else{throw 6;return 7;}\nwhile(false){return 8;throw 9;}\n}export default 0;')))
+        const loop = module.statements[0]
+        assert(loop[0] === 'while')
+        const statements = loop[1].block[1]
+        assertStructurallySame(statements.map(statement => statement[0]), ['return', 'throw', 'const', 'if', 'while'])
+        const returned = statements[0]
+        const thrown = statements[1]
+        assert(returned[0] === 'return' && thrown[0] === 'throw')
+        assertStructurallySame(returned[1].start.token, { kind: 'id', value: 'return' })
+        assertEq(returned[1].start.metadata.line, 2)
+        assertEq(returned[1].semicolon, false)
+        assertEq(returned[1].first.newline, false)
+        assertEq(returned[1].value[0], 'array')
+        assertStructurallySame(thrown[1].start.token, { kind: 'id', value: 'throw' })
+        assertEq(thrown[1].start.metadata.line, 3)
+        assertEq(thrown[1].semicolon, true)
+        assertStructurallySame(thrown[1].value, ['primitive', 2])
+        const branch = statements[3]
+        assert(branch[0] === 'if' && branch[1].otherwise !== null)
+        assertStructurallySame(branch[1].block[1].map(statement => statement[0]), ['return', 'throw'])
+        assertStructurallySame(branch[1].otherwise[1].map(statement => statement[0]), ['throw', 'return'])
+        const nested = statements[4]
+        assert(nested[0] === 'while')
+        assertStructurallySame(nested[1].block[1].map(statement => statement[0]), ['return', 'throw'])
+        const broken = unwrap(parseSyntax(tokenizeString('while(false){return\n1;throw\n2;}export default 0;'))).statements[0]
+        assert(broken[0] === 'while')
+        for (const statement of broken[1].block[1]) {
+            assert(statement[0] === 'return' || statement[0] === 'throw')
+            assertEq(statement[1].first.newline, true)
+        }
+    },
     loopTransfersKeepSeparatorsAndFollowingSyntax: () => {
         const module = unwrap(parseSyntax(tokenizeString('let i=0;\nwhile(i<2){\nbreak;\ncontinue\ni=i+1;\nif(i){continue;}else if(i){break}else{break;}\nwhile(false){continue;break}\n}export default i;')))
         const loop = module.statements[1]

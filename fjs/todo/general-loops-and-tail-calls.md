@@ -202,7 +202,11 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       FAST transfers. Reached work stays before an exit; following statements
       are skipped while their source legality and write facts are still checked.
       A continued loop retests its condition; a broken loop resumes following
-      statements once. Owning returns, statement throws and switches remain.
+      statements once. Owning-function `return` and statement `throw` now work
+      in loop bodies and conditional arms. Returns cross
+      generated loop helpers but stay local to ordinary nested functions;
+      both exits preserve reached work and skip following computations while
+      retaining source legality checks. Switches remain a later increment.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

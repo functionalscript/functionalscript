@@ -237,4 +237,46 @@ export const proof = /** @type {const} */ ({
         assertEq(requiredPrefixLength(exp, [a, b], [['?:', true, test, 0]]), 2)
         assertEq(requiredPrefixLength(exp, [a, b], [['?.()', null, [test]]]), 2)
     },
+    selectedConditionalsDemandOnlyTheirActualArm: () => {
+        /** @type {Exp} */
+        const test = ['===', ['arg', 0], 0]
+        /** @type {Exp} */
+        const sameText = ['===', ['arg', 0], 0]
+        /** @type {Exp} */
+        const exp = ['?:', test, first, second]
+        assertEq(demandsInOrder(exp, [first], [], [[test, true]]), true)
+        assertEq(demandsInOrder(exp, [second], [], [[test, true]]), false)
+        assertEq(demandsInOrder(exp, [second], [], [[test, false]]), true)
+        assertEq(demandsInOrder(exp, [first], [], [[test, false]]), false)
+        assertEq(demandsInOrder(exp, [first], [], [[sameText, true]]), false)
+        assertEq(requiredPrefixLength(exp, [first], [], [[test, true]]), 0)
+        assertEq(requiredPrefixLength(exp, [second], [], [[test, false]]), 0)
+        assertEq(requiredPrefixLength(exp, [first], [], [[test, false]]), 1)
+        // Knowing the test does not establish a selected operand by itself.
+        assertEq(demandsInOrder(0, [first], [], [[test, true]]), false)
+        assertEq(requiredPrefixLength(0, [first], [], [[test, true]]), 1)
+        assertEq(demandsInOrder(0, [test], [], [[test, false]]), true)
+        assertEq(requiredPrefixLength(0, [test], [], [[test, true]]), 0)
+    },
+    selectedConditionalsKeepWorkAndInvocationBoundaries: () => {
+        /** @type {Exp} */
+        const test = ['arg', 0]
+        /** @type {Exp} */
+        const other = ['arg', 1]
+        /** @type {Exp} */
+        const call = ['()', fn, []]
+        /** @type {readonly (readonly [Exp, boolean])[]} */
+        const selected = [[test, true], [other, false]]
+        assertEq(demandsInOrder(['?:', test, ['?:', other, second, first], 0], [first], [], selected), true)
+        assertEq(demandsInOrder(['?:', test, ['[]', [call, first]], second], [first], [], selected), false)
+        assertEq(demandsInOrder(['?:', test, ['throw', first], second], [first], [], selected), true)
+        assertEq(demandsInOrder(['?:', test, ['throw', first], second], [first, second], [], selected), false)
+        assertEq(demandsInOrder(['=>', 0, [], ['?:', test, first, second]], [first], [], selected), false)
+        assertEq(demandsInOrder(['()', ['=>', 0, [], first], []], [first], [], selected), false)
+        assertEq(demandsInOrder(['?.()', test, [first]], [first], [], selected), false)
+        assertEq(demandsInOrder(['?.', test, ['Number', first]], [first], [], selected), false)
+        assertEq(requiredPrefixLength(['?:', test, ['[]', [call, first]], second], [first], [], selected), 1)
+        assertEq(requiredPrefixLength(['?:', test, ['[]', [first, second]], 0], [first, second], [], selected), 0)
+        assertEq(requiredPrefixLength(['?:', test, first, second], [0, first], [], selected), 1)
+    },
 })

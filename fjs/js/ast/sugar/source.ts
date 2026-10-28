@@ -75,6 +75,9 @@ export type SourceStatement =
     /** Source resolution fixes the innermost loop; sugar supplies its state. */
     | readonly ['break', LoopTarget]
     | readonly ['continue', LoopTarget]
+    /** Function exits retain their lexical owner through generated regions. */
+    | readonly ['return', FunctionTarget, SourceValue]
+    | readonly ['throw', SourceValue]
 
 export type SourceCase = {
     readonly labels: readonly SourceValue[]

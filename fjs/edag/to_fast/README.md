@@ -100,9 +100,18 @@ are described in [`js/ast/prepare`](../../js/ast/prepare/README.md).
 General tail lowering follows value placement. A direct self-call evaluated at
 the returned result, either conditional arm or the final sequence operand can
 become a transition. A reference to an established call result stays a read;
-required and lazy definitions keep their original evaluation owners. Nested
+required definitions and nonterminal lazy demands keep their evaluation owners. Nested
 function bodies have their own plans. Function bodies are planned once in graph
 postorder, and naming and emission consume the same private plan.
+
+A lazy recipe used only at terminal leaves can follow their decision tree once.
+Its selected leaves become normal zero-result joins; other leaves finish their
+invocation before reaching the recipe. Required calls and allocations in that
+recipe retain their original identities and order. Exclusive terminal lazy
+dependencies move with the recipe and factor recursively, including direct
+aliases. A terminal base recipe produces a one-pass loop with no backedge.
+Tests, ordinary operands, required aliases and captures keep their demands;
+independent interleaved recipes retain their existing recursive layout.
 
 The general domain has zero through sixteen fixed parameters, with or without
 an observed rest binding. Its canonical root
@@ -148,6 +157,11 @@ owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
+The source adapter returns a `Result`: factored continuations outside its
+one-input/one-result profile are refused when their normal guards cannot be
+restored to recursive source. Such supplied zero-input, multi-input or observed
+rest profiles retain bounded-stack code-only JavaScript and Rust; existing
+reifiable recursive source profiles keep their spelling.
 
 General plain-loop output computes the normal result after iteration. Parsing
 the first emitted source introduces that scalar-loop/result boundary and can

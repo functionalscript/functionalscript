@@ -400,6 +400,38 @@ export const liftReturns = (block, owner) => {
     return result.lifted ? result.block : block
 }
 
+/** The final normal result belongs directly to this function return. @type {(block: Block, owner: FunctionTarget) => Task<Block>} */
+const returnedBlockTask = (block, owner) => forwardReturnTask(block.exit[0] === 'yield' && block.exit[1].length === 1
+    ? { statements: block.statements, exit: ['return', owner, block.exit[1][0]] } : block, owner)
+
+/**
+ * Consume only an immediately returned, single result of a statement region.
+ * Prefix statements and payload values keep their identities. Other regions,
+ * values and ordinary nested functions retain their existing owners.
+ * @type {(block: Block, owner: FunctionTarget) => Task<Block>}
+ */
+const forwardReturnTask = (block, owner) => call(() => {
+    const exit = block.exit
+    if (exit[0] !== 'return' || exit[1] !== owner || !(exit[2] instanceof Array) || exit[2][0] !== 'ref') { return done(block) }
+    const last = block.statements.at(-1)
+    if (last === undefined || last[0] !== 'block' && last[0] !== 'if' || last[1].length !== 1 || last[1][0] !== exit[2][1]) { return done(block) }
+    /** @type {(statement: Statement) => Task<Block>} */
+    const finish = statement => done({ statements: [...block.statements.slice(0, -1), statement], exit: ['yield', []] })
+    return last[0] === 'block'
+        ? bind(returnedBlockTask(last[2], owner), body => finish(['block', [], body]))
+        : bind(returnedBlockTask(last[3], owner), then => bind(returnedBlockTask(last[4], owner), otherwise =>
+            finish(['if', [], last[2], then, otherwise])))
+})
+
+/**
+ * Forward a lifted region's sole result into an owning tail return without
+ * constructing a selected-result phi and then selecting it again. Graph
+ * construction uses this after return lifting; ordinary lifting keeps its
+ * existing destination-based API. No continuation computation is copied.
+ * @type {(block: Block, owner: FunctionTarget) => Block}
+ */
+export const _forwardReturns = (block, owner) => run(forwardReturnTask(block, owner))
+
 /** Normalize one value with its exact function owner and any retained physical loop targets. @type {(value: Value, destination: BindingId, owner: FunctionTarget | null, permitted?: readonly LoopTarget[]) => { readonly statement: Statement | null, readonly value: Value, readonly normal: boolean, readonly callee: boolean }} */
 export const liftValueReturns = (value, destination, owner, permitted = []) => run(valueTask(value, destination, owner, permitted))
 

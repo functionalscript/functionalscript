@@ -66,13 +66,31 @@ Literal-true loops with their own explicit exits normalize without a redundant
 condition wrapper, preventing helper growth across source round trips. Existing
 no-exit loops retain their graph and source contracts.
 
+Owning-function source returns and statement throws use the same structured
+regions. The shared graph conversion carries returns through generated loop
+helpers with its existing completion encoding; ordinary nested functions keep
+their own return targets. Preparation preserves reached evaluations and skips
+the following statements after an exit. Literal-true normalization includes
+these exits, preventing an unreachable condition arm from growing helper state.
+The shared return owner forwards an immediately returned region's sole result
+to its normal leaves before graph joins, retaining prefix and payload identities
+without selecting a joined result again across a terminal path.
+
+Shared terminal lazy recipes follow their decision tree once, including required
+call prefixes and exclusive dependent recipes. Their binding and value identities
+are retained; terminal base recipes use a one-pass loop. Required or nonterminal
+demands remain ordinary reads. Source preparation reports a `Result` when a
+factored continuation outside the one-state profile cannot regain recursive
+source grammar, preserving code-only JavaScript/Rust output and existing
+reifiable recursive source profiles.
+
 Other canonical invocation roots retain recursive source spelling: multiple
-physical inputs, observed rest and nonlocal transfers. Prefix computations that
-create identity can remain inside an admitted one-state structured loop, without
-being copied into a condition or result. Broader source
-placement and owning function exits remain H work. The source
-adapter uses shared recognition and preparation, with no writer-specific state
-or source-write analysis.
+physical inputs, observed rest, transfers to outer loop targets and returns
+escaping a value region. Prefix computations that create identity can remain
+inside an admitted one-state structured loop, without being copied into a
+condition or result. Broader source placement and loop-body switches remain H
+work. The source adapter uses shared recognition and preparation, with no
+writer-specific state or source-write analysis.
 
 An inherited example of that fallback is the raw zero-parameter graph function
 `['=>', 0, [], ['()', ['self'], []]]`. Serializing a call of this function still

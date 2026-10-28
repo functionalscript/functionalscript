@@ -5,8 +5,8 @@
  *
  * @module
  * @import { Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
- * @import { Task } from '../../../../js/ast/task/types.ts'
- * @import { _Scope } from './private.ts'
+ * @import { Result } from '../../../../types/result/types.ts'
+ * @import { _Scope, _SourceTask as Task } from './private.ts'
  */
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
@@ -14,14 +14,20 @@ import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { plainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
-import { bind, call, done, run } from '../../../../js/ast/task/module.f.mjs'
-import { assert } from '../../../../asserts/module.f.js'
+import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.mjs'
+import { error, ok } from '../../../../types/result/module.f.js'
+
+/** @type {<T>(value: T) => Task<T>} */
+const done = value => taskDone(ok(value))
+
+/** Preserve the first source-profile refusal through the existing task walk. @type {<T, U>(task: Task<T>, then: (value: T) => Task<U>) => Task<U>} */
+const bind = (task, then) => taskBind(task, result => result[0] === 'error' ? taskDone(result) : then(result[1]))
 
 /**
- * The admitted structured loop keeps every transfer at its nearest loop.
+ * The admitted structured loop keeps every loop transfer at its nearest loop.
  * Ordinary function bodies own their exits; construction captures and nested
- * loop initializers still run in the containing region. A thrown value region
- * remains an expression, while a statement throw awaits source admission.
+ * loop initializers still run in the containing region. Statement returns exit
+ * the enclosing function; a return cannot escape an emitted value region.
  * @type {(loop: Loop) => boolean}
  */
 const localLoop = loop => {
@@ -48,7 +54,7 @@ const localLoop = loop => {
         }
         const { block } = scope
         const exit = block.exit
-        if (exit[0] === 'return' || exit[0] === 'throw' && !scope.value
+        if (exit[0] === 'return' && scope.value
             || scope.value && (exit[0] === 'break' || exit[0] === 'continue')
             || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== target) { return false }
         pending = [...exitValues(exit).map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
@@ -71,6 +77,9 @@ const localLoop = loop => {
 /** Keep source conditionals in value form; each tail arm supplies one result. @type {(block: Block) => Task<Block>} */
 const resultBlock = block => call(() => {
     const last = block.statements.at(-1)
+    if (block.statements.some((statement, index) => statement[0] !== 'define' && (statement[0] !== 'if' || index !== block.statements.length - 1))) {
+        return taskDone(error('a factored terminal continuation outside the source loop profile'))
+    }
     if (last !== undefined && last[0] === 'if') {
         return bind(resultBlock(last[3]), then => bind(resultBlock(last[4]), otherwise => done({
             statements: block.statements.slice(0, -1),
@@ -78,7 +87,7 @@ const resultBlock = block => call(() => {
         })))
     }
     const exit = block.exit
-    assert(exit[0] === 'return' || exit[0] === 'throw')
+    if (exit[0] !== 'return' && exit[0] !== 'throw') { return taskDone(error('a factored terminal continuation outside the source loop profile')) }
     return done(exit[0] === 'throw' ? block : { statements: block.statements, exit: ['yield', [exit[2]]] })
 })
 
@@ -151,5 +160,5 @@ const blockTask = source => bind(each(source.statements, statementTask), stateme
     return done({ statements, exit: mapped })
 }))
 
-/** Source grammar preparation over the common placed plan. @type {(block: Block) => Block} */
+/** Source grammar preparation over the common placed plan. @type {(block: Block) => Result<Block, string>} */
 export const _sourceLoops = block => run(blockTask(block))

@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { binaryTags, unaryTags } from '../../../compiler/ast/module.f.js'
 import { intrinsicIds, staticIds } from '../../../edag/module.f.mjs'
-import { _expandObjectSpread, _expandSpread, _exposeOperands, liftReturns, liftValueReturns } from './module.f.mjs'
+import { _expandObjectSpread, _expandSpread, _exposeOperands, _forwardReturns, liftReturns, liftValueReturns } from './module.f.mjs'
 
 const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
 const other = /** @type {const} */ ({ kind: 'function', index: 0 })
@@ -42,6 +42,73 @@ const regions = root => {
 }
 
 export const proof = /** @type {const} */ ({
+    forwardingConsumesOnlyTheOwningTailResult: () => {
+        const value = id(), different = id()
+        const prefix = /** @type {Statement} */ (['define', different, ['array', []], 'required'])
+        const before = /** @type {Statement} */ (['define', id(), ['array', []], 'required'])
+        const conditional = /** @type {Statement} */ (['if', [value], true, yielded([7], [prefix]), returned(8)])
+        const source = returned(ref(value))
+        /** @type {Block} */
+        const block = { ...source, statements: [before, conditional] }
+        const forwarded = _forwardReturns(block, owner)
+        assertEq(forwarded.statements[0], before)
+        assertStructurallySame(forwarded.exit, ['yield', []])
+        const last = forwarded.statements[1]
+        assert(last[0] === 'if')
+        assertStructurallySame(last[1], [])
+        assertEq(last[2], conditional[2])
+        assertEq(last[3].statements[0], prefix)
+        assertStructurallySame(last[3].exit, ['return', owner, 7])
+        assertEq(last[4], conditional[4])
+        /** @type {readonly Block[]} */
+        const unchanged = [
+            yielded([ref(value)]), body(['throw', ref(value)]), body(['return', other, ref(value)]),
+            returned(7), returned(['array', []]), returned(ref(value)),
+            { ...source, statements: [prefix] },
+            { ...source, statements: [['if', [], true, yielded([]), yielded([])]] },
+            { ...source, statements: [['if', [value, different], true, yielded([1, 2]), yielded([3, 4])]] },
+            { ...source, statements: [['if', [different], true, yielded([1]), yielded([2])]] },
+        ]
+        for (const block of unchanged) { assertEq(_forwardReturns(block, owner), block) }
+    },
+    forwardingKeepsBlocksPrefixesAndAbruptLeaves: () => {
+        const output = id(), inside = id()
+        const prefix = /** @type {Statement} */ (['define', inside, ['array', [1]], 'required'])
+        const value = /** @type {Value} */ (['function', { target: other, parameters: [], rest: null, self: null,
+            captures: [], body: body(['return', other, 9]) }])
+        const inner = yielded([value], [prefix])
+        const source = body(['return', owner, ref(output)], [['block', [output], inner]])
+        const forwarded = _forwardReturns(source, owner)
+        const statement = forwarded.statements[0]
+        assert(statement[0] === 'block')
+        assertStructurallySame(statement[1], [])
+        assertEq(statement[2].statements[0], prefix)
+        assertStructurallySame(statement[2].exit, ['return', owner, value])
+        const abrupt = yielded([], [['if', [], true, returned(1), returned(2)]])
+        const conditional = body(['return', owner, ref(output)], [['if', [output], false, abrupt, yielded([ref(inside)])]])
+        const mapped = _forwardReturns(conditional, owner).statements[0]
+        assert(mapped[0] === 'if')
+        assertEq(mapped[3], abrupt)
+        assertStructurallySame(mapped[4].exit, ['return', owner, ref(inside)])
+    },
+    forwardingTailDepthUsesTheTaskWorklist: () => {
+        /** @type {Block} */
+        let block = yielded([7])
+        for (let depth = 0; depth < 20_000; ++depth) {
+            const output = id()
+            block = yielded([ref(output)], [['block', [output], block]])
+        }
+        const output = id()
+        let current = _forwardReturns(body(['return', owner, ref(output)], [['block', [output], block]]), owner)
+        for (let depth = 0; depth < 20_001; ++depth) {
+            assertStructurallySame(current.exit, ['yield', []])
+            const statement = current.statements[0]
+            assert(statement[0] === 'block')
+            assertStructurallySame(statement[1], [])
+            current = statement[2]
+        }
+        assertStructurallySame(current.exit, ['return', owner, 7])
+    },
     expansion: () => {
         const value = id()
         assertStructurallySame(_expandSpread(ref(value)), ['array', [['...', ref(value)]]])

@@ -72,4 +72,4 @@ export type _ControlNode =
     | { readonly kind: 'terminal'; readonly value: Lowered }
     | { readonly kind: 'if'; readonly test: Lowered; readonly then: _Control; readonly otherwise: _Control }
     | { readonly kind: 'prefix'; readonly anchors: readonly Exp[]; readonly next: _Control }
-    | { readonly kind: 'join'; readonly body: _Control; readonly next: _Control }
+    | { readonly kind: 'join'; readonly body: _Control; readonly next: _Control; readonly results: boolean }
