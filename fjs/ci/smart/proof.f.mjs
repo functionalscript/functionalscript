@@ -133,10 +133,8 @@ export const proof = /** @type {const} */ ({
             assertEq(stepWith(source, run).if, "steps.init.outputs.hit-package != 'true'")
         }
         assertEq(source.steps.find(step => step.uses?.startsWith('actions/setup-node@') && step.if !== undefined)?.if, "steps.init.outputs.hit-package != 'true'")
-        const spec = source.steps.find(step => step.id === 'init')?.env?.FJS_CI_CHECKS
-        assert(spec !== undefined)
-        assert(spec.includes('\\u0024{{ runner.temp }}'))
-        assert(!spec.includes('${{'))
+        assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
+        assert(checks('node26', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
         assertEq(source.steps.filter(step => step.run === 'npm start ci report package').length, 1)
     },
     /** Uncached generator and injected demo work still gets its mise environment. */

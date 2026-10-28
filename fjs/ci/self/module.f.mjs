@@ -8,11 +8,11 @@
  *
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { PackageConsumer } from '../types.ts'
+ * @import { PackageConsumer, Setup } from '../types.ts'
  * @import { Job } from '../common/types.ts'
  */
 
-import { ci } from '../module.f.mjs'
+import { ci, ciJobs } from '../module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
@@ -99,9 +99,15 @@ export const packageConsumer = {
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci({
+export const main = () => ci(setup)
+
+/** Repository configuration shared with cache initialization. @type {Setup} */
+const setup = {
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
     extraJobs: { website: websiteJob },
-})
+}
+
+/** The repository jobs before cache gates are applied. */
+export const jobs = ciJobs(setup)

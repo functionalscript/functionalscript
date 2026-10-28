@@ -64,6 +64,12 @@ it again, so retired generated assets become deletions.
 `FJS_CI_RUN` to `bash -e -c` inside the selected environment. The packed consumer
 runs outside that environment, under `runner.temp`, with its own `setup-node`.
 
+Successful-check caching (`smart: true`) is supported only for FunctionalScript's
+own repository. `fjs ci init` selects `GITHUB_JOB` from the configuration in
+`fjs/ci/self`; it does not receive the caller's `Setup`. Other projects should
+leave `smart` unset so their checks run normally. An unknown job ID makes cache
+initialization fail, and the generated workflow falls back to running the checks.
+
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and
 use distinct job IDs; the built-in generator adds none. This keeps this

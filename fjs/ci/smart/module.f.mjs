@@ -168,12 +168,6 @@ const cachedJob = (jobId, source) => {
                 run: 'npm start ci init',
                 // Missing hit flags run the checks when lookup is unavailable.
                 'continue-on-error': true,
-                env: {
-                    // Keep GitHub expressions as contract text rather than
-                    // substituting the current runner's temporary paths.
-                    FJS_CI_CHECKS: JSON.stringify(plan).replaceAll('$', '\\u0024'),
-                    FJS_CI_PLATFORM: JSON.stringify(platform(source['runs-on'])),
-                },
             },
             ...gated,
             {

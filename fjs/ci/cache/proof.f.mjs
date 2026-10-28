@@ -24,8 +24,11 @@ import { write as writeTree } from '../../git/tree/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ListToString } from '../../text/utf8/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { jobs } from '../self/module.f.mjs'
+import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
 import { checkManifest, committedFiles, init, inputKeys, inputTrees, keyOf, report } from './module.f.mjs'
 
 /** @type {Check} */
@@ -99,8 +102,7 @@ const options = {
     ...defaultNodeProgramOptions,
     home: 'home',
     env: {
-        FJS_CI_CHECKS: stringifySorted([check]), FJS_CI_PLATFORM: stringifySorted(platform),
-        GITHUB_SHA: hexText(commitId), GITHUB_JOB: 'node', RUNNER_TEMP: 'tmp', GITHUB_OUTPUT: 'tmp/output',
+        GITHUB_SHA: hexText(commitId), GITHUB_JOB: 'deno', RUNNER_TEMP: 'tmp', GITHUB_OUTPUT: 'tmp/output',
         GIT_AUTHOR_NAME: 'github-actions[bot]',
         GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
     },
@@ -218,7 +220,7 @@ export const proof = /** @type {const} */ ({
         const [miss, result] = withGit()(before)(init(options))
         assertOk(result)
         assertEq(textAt(miss, 'tmp/output'), 'hit-suite=false\n')
-        const manifest = textAt(miss, 'tmp/fjs-ci-node/suite.json')
+        const manifest = textAt(miss, 'tmp/fjs-ci-deno/suite.json')
         assert(manifest.includes(vecToCBase32(sourceId)))
         const [added, reported] = virtual(miss)(report({ ...options, args: ['suite'] }))
         assertOk(reported)
@@ -228,23 +230,39 @@ export const proof = /** @type {const} */ ({
         const [hit, hitResult] = withGit()(again)(init(options))
         assertOk(hitResult)
         assertEq(textAt(hit, 'tmp/output'), 'hit-suite=true\n')
-        assertEq(textAt(hit, 'tmp/fjs-ci-node/suite.json'), manifest)
+        assertEq(textAt(hit, 'tmp/fjs-ci-deno/suite.json'), manifest)
         assertEq(textAt(hit, '.git/config'), config)
+    },
+    configuredJobs: () => {
+        const inputTree = treesOf([['package.json', vecToCBase32(sourceId)]])
+        const keys = inputKeys(inputTree)
+        for (const rust of [false, true]) {
+            const [state, written] = virtual(seeded())(writeFiles(rust ? [['Cargo.toml', '']] : []))
+            assertOk(written)
+            for (const [id, job] of definedEntries(jobs(rust))) {
+                const [initialized, result] = withGit()(state)(init({ ...options, env: { ...options.env, GITHUB_JOB: id } }))
+                assertOk(result)
+                const checks = jobChecks(id, job)
+                assertEq(textAt(initialized, 'tmp/output'), checks.map(check => `hit-${check.id}=false\n`).join(''))
+                for (const check of checks) {
+                    assertEq(textAt(initialized, `tmp/fjs-ci-${id}/${check.id}.json`),
+                        stringifySorted(checkManifest(check, jobPlatform(job['runs-on']), keys, inputTree)))
+                }
+            }
+        }
     },
     initRefusals: () => {
         const state = seeded()
         for (const env of [
-            { ...options.env, FJS_CI_CHECKS: 'bad' },
-            { ...options.env, FJS_CI_CHECKS: '{}' },
-            { ...options.env, FJS_CI_PLATFORM: 'bad' },
+            { ...options.env, GITHUB_JOB: 'unknown' },
             { ...options.env, GITHUB_SHA: 'not-a-sha' },
             {},
         ]) { assertError(withGit()(state)(init({ ...options, env }))[1]) }
-        for (const name of ['FJS_CI_PLATFORM', 'GITHUB_SHA', 'GITHUB_OUTPUT']) {
+        for (const name of ['GITHUB_JOB', 'GITHUB_SHA', 'GITHUB_OUTPUT']) {
             const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
             assertError(withGit()(state)(init({ ...options, env }))[1])
         }
-        for (const name of ['RUNNER_TEMP', 'GITHUB_JOB']) {
+        for (const name of ['RUNNER_TEMP']) {
             const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
             assertOk(withGit()(state)(init({ ...options, env }))[1])
         }
@@ -257,7 +275,7 @@ export const proof = /** @type {const} */ ({
         assertError(withGit()(corrupt)(init(options))[1])
     },
     reportRefusal: () => {
-        for (const name of ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL']) {
+        for (const name of ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GITHUB_JOB']) {
             const env = Object.fromEntries(Object.entries(options.env).filter(([key]) => key !== name))
             assertError(virtual(seeded())(report({ ...options, env, args: ['suite'] }))[1])
         }
