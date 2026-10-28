@@ -1,9 +1,0 @@
-{
-    "name": "FunctionalScript",
-    "build": {
-        "dockerfile": "Dockerfile",
-        "context": ".."
-    },
-    "postCreateCommand": "mise trust && mise install --locked && mise exec -- npm ci",
-    "remoteUser": "vscode"
-}
