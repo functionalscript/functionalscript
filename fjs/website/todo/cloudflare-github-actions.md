@@ -32,9 +32,9 @@ repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 The proposed deployment policy is production on `main` after required checks
 pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
 run checks without deployment credentials. Preserve preview branch aliases,
-commit and branch metadata, and the OAuth callback behavior. During validation,
-Actions previews temporarily use an `actions-` alias prefix to distinguish them
-from Workers Builds; remove it after cutover. Moving hosts must
+commit and branch metadata, and the OAuth callback behavior. The temporary
+`actions-` preview prefix is removed now that the owner disconnected Workers
+Builds and authorized using the original branch aliases. Moving hosts must
 not silently remove these features.
 
 Use a scoped Cloudflare API token held in GitHub Actions secrets, with deployment
@@ -90,7 +90,8 @@ needed, and failed uploads never publish a preview comment.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
-- [ ] Remove the temporary `actions-` preview-alias prefix after cutover.
+- [x] Remove the temporary `actions-` preview-alias prefix after disconnecting
+      Workers Builds.
 - [ ] Document the GitHub Actions setup and cutover/rollback procedure, reconcile
       the old Cloudflare-only build script and Node pin with their remaining
       consumers, update related documentation, and disable Workers Builds after

@@ -14,7 +14,7 @@ const event = /** @type {const} */ ({
     pull_request: { head: { repo: { full_name: 'owner/repo' } } },
 })
 const token = /** @type {const} */ ('test-actions-token')
-const previewUrl = /** @type {const} */ ('https://actions-feature-worker.example.workers.dev/')
+const previewUrl = /** @type {const} */ ('https://feature-worker.example.workers.dev/')
 const commentMarker = /** @type {const} */ ('<!-- functionalscript-website-preview -->')
 
 /** @type {(payload: unknown, run: (eventPath: string) => Promise<void>) => Promise<void>} */
