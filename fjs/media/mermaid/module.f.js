@@ -18,7 +18,8 @@
  *
  * Blank lines are skipped. Anything else — another kind of diagram, a
  * comment, a node shape other than a box, a `;` or `&`, a dotted or thick
- * arrow — is refused, with the line it is on.
+ * arrow — is refused, with the line it is on. So is a flowchart of more
+ * than {@link maxEdges} arrows, which Mermaid refuses to draw.
  *
  * **A label is plain text.** Mermaid reads `<br/>`, `#quot;`, `&amp;`, a
  * backtick's Markdown and a quote's delimiting inside a label, so a label
@@ -39,6 +40,12 @@ import { error, ok } from '../../types/result/module.f.js'
 
 /** The directions a header may name. @type {readonly Direction[]} */
 export const directions = ['LR', 'RL', 'TB', 'TD', 'BT']
+
+/**
+ * The most arrows Mermaid draws: its `maxEdges` setting's default. Over it,
+ * GitHub shows an error in place of the diagram.
+ */
+export const maxEdges = 500
 
 /** @type {(c: string) => boolean} */
 const isNameChar = c => charIs(isLatinLetter)(c) || charIs(isDigit)(c) || c === '_'
@@ -185,5 +192,6 @@ export const tryFlowchart = text => {
         const ends = indices
         edges = [...edges, ...arrows.map(([both, label], i) => ({ from: ends[Number(i)], to: ends[Number(i + 1)], label, both }))]
     }
+    if (edges.length > maxEdges) { return error(`more than ${maxEdges} arrows, which Mermaid does not draw`) }
     return ok({ direction, nodes: nodes.map(([id, label]) => ({ id, label: label ?? id })), edges })
 }
