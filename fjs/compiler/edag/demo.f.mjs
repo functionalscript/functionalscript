@@ -24,7 +24,7 @@
  * reconstructing it.
  *
  * **The operators are drawn by [the shape the EDAG shares with FAST and
- * the source AST](../../js/ast/graph/module.f.mjs)**, whose doc says how:
+ * the source AST](../graph/module.f.mjs)**, whose doc says how:
  * a property read draws its key as a value, a method call or an optional
  * chain is one node, a table of its links, and a tag no shape describes is
  * drawn as itself rather than silently dropped. This module adds the
@@ -73,14 +73,14 @@
 
 import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { operatorShape, unsupported } from '../../js/ast/graph/module.f.mjs'
+import { operatorShape, unsupported } from '../graph/module.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 
 /**
  * How the walk reads one `Exp`: the operators the EDAG shares with FAST
- * and the source AST through [their shared shape](../../js/ast/graph/module.f.mjs),
+ * and the source AST through [their shared shape](../graph/module.f.mjs),
  * and the EDAG's own forms here — functions, their inputs, `self` and
  * `throw`.
  *

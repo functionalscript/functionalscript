@@ -5,7 +5,7 @@
  * the source AST the parser resolves, and the Foundation AST `normalize`
  * expands it into, each drawn with [the shared graph
  * module](../../website/demo/graph/module.f.mjs) by
- * [`fjs/js/ast/graph`](../../js/ast/graph/module.f.mjs). Comparing the two
+ * [`fjs/compiler/graph`](../graph/module.f.mjs). Comparing the two
  * shows what `normalize` does: logical operators become conditionals,
  * `let` and `while` become a `loop` with parameters and results, and a
  * closure gets explicit captures.
@@ -37,7 +37,7 @@ import { tryMarked } from '../../media/datajs/module.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { graphSvg } from '../../website/demo/graph/module.f.mjs'
-import { fastGraph, sourceGraph } from '../../js/ast/graph/module.f.mjs'
+import { fastGraph, sourceGraph } from '../graph/module.f.mjs'
 import { normalize } from '../../js/ast/sugar/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'

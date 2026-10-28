@@ -1,11 +1,17 @@
 /**
  * The operators the EDAG, FAST and the source AST share, as
- * [`graphOf`](../../../website/demo/graph/module.f.mjs) shapes: one drawing
+ * [`graphOf`](../../website/demo/graph/module.f.mjs) shapes: one drawing
  * of them for every graph of the compiler's trees. The three spell an
  * operator with the same tuple — `fjs/js/ast/types.ts`'s `Operator<V>` —
  * except for the array and object tags, which a caller names in
  * {@link Tags}. Every form the vocabulary does not share is the caller's,
  * through the shape it passes for them.
+ *
+ * **It serves the compiler's stage pages**, as
+ * [`stage_demo`](../stage_demo/module.f.mjs) does, and lives beside it: it
+ * draws with the website's renderer and reads the parser's
+ * `ResolvedModule`, which `fjs/js/ast` and `fjs/edag`, below the compiler
+ * and the website, may not import.
  *
  * **A property read draws its key as a value.** `a.x` is a `.` node with
  * the receiver in its `obj` port and the key in its `key` port, `"x"`;
@@ -62,28 +68,28 @@
  * the parser's resolved source**, each through this shape with its own
  * forms beside it: blocks, bindings, patterns, functions, conditionals,
  * loops and the exits that leave them.
- * [`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) draws the two side
+ * [`fjs/compiler/sugar`](../sugar/demo.f.mjs) draws the two side
  * by side.
  *
  * @module
  *
- * @import { Primitive } from '../../../media/datajs/types.ts'
- * @import { Graph, Shape } from '../../../website/demo/graph/types.ts'
- * @import { BindingId, Block, Exit, Function as AstFunction, Loop, Statement, Value } from '../types.ts'
- * @import { ExpansionPlan, Module, SourceBlock, SourceFunction, SourceLoop, SourceParameter } from '../sugar/types.ts'
- * @import { SourceCase, SourceSwitch } from '../sugar/source.ts'
- * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
+ * @import { Primitive } from '../../media/datajs/types.ts'
+ * @import { Graph, Shape } from '../../website/demo/graph/types.ts'
+ * @import { BindingId, Block, Exit, Function as AstFunction, Loop, Statement, Value } from '../../js/ast/types.ts'
+ * @import { ExpansionPlan, Module, SourceBlock, SourceFunction, SourceLoop, SourceParameter } from '../../js/ast/sugar/types.ts'
+ * @import { SourceCase, SourceSwitch } from '../../js/ast/sugar/source.ts'
+ * @import { ResolvedModule } from '../parser/types.ts'
  * @import { Tags } from './types.ts'
  * @import { _Chain, _Child, _Definition } from './private.ts'
  */
 
-import { intrinsicIds, staticIds } from '../../../edag/module.f.mjs'
-import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { chunksText } from '../../../text/marked/module.f.mjs'
-import { graphOf } from '../../../website/demo/graph/module.f.mjs'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
-import { assertNotNullish } from '../../../asserts/module.f.js'
-import { operatorOperands } from '../module.f.mjs'
+import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
+import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { chunksText } from '../../text/marked/module.f.mjs'
+import { graphOf } from '../../website/demo/graph/module.f.mjs'
+import { hasEntry } from '../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { operatorOperands } from '../../js/ast/module.f.mjs'
 
 // The operator tag groups `fjs/js/ast/types.ts` names, read here rather
 // than reconstructed from the compiler's own runtime schemas: a drawing is

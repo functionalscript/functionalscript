@@ -4,17 +4,17 @@
  * Then the FAST walker, over modules from source and, where no source
  * reaches a form yet, built by hand.
  *
- * @import { Graph, NodeShape } from '../../../website/demo/graph/types.ts'
- * @import { BindingId, LoopTarget } from '../types.ts'
- * @import { Module } from '../sugar/types.ts'
- * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
+ * @import { Graph, NodeShape } from '../../website/demo/graph/types.ts'
+ * @import { BindingId, LoopTarget } from '../../js/ast/types.ts'
+ * @import { Module } from '../../js/ast/sugar/types.ts'
+ * @import { ResolvedModule } from '../parser/types.ts'
  */
 
 import { fastGraph, operatorShape, sourceGraph, unsupported } from './module.f.mjs'
-import { normalize } from '../sugar/module.f.mjs'
-import { parse } from '../../../compiler/transpiler/module.f.mjs'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { parse } from '../transpiler/module.f.mjs'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** `text` as the graph of its FAST. @type {(text: string) => Graph} */
 const ofText = text => {
