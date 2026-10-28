@@ -12,12 +12,12 @@ export const proof = {
     },
     previews: () => {
         for (const [branch, alias] of [
-            ['codex/cloudflare-deploy-job', 'codex-cloudflare-deploy-job'],
-            ['Feature/A_1..B', 'feature-a-1-b'],
-            ['--hello--', 'hello'],
-            ['a'.repeat(62) + '-tail', 'a'.repeat(62)],
-            ['b'.repeat(80), 'b'.repeat(63)],
-            ['你好/world', 'world'],
+            ['codex/cloudflare-deploy-job', 'actions-codex-cloudflare-deploy-job'],
+            ['Feature/A_1..B', 'actions-feature-a-1-b'],
+            ['--hello--', 'actions-hello'],
+            ['a'.repeat(54) + '-tail', 'actions-' + 'a'.repeat(54)],
+            ['b'.repeat(80), 'actions-' + 'b'.repeat(55)],
+            ['你好/world', 'actions-world'],
         ]) {
             assertStructurallySame(uploadArgs('preview', branch), ['--yes', 'wrangler@4.74.0', 'versions', 'upload', '--preview-alias', alias])
         }

@@ -253,13 +253,18 @@ interactive login. GitHub-prefixed secret and configuration-variable names are
 reserved, so the Actions settings use `WEBSITE_GITHUB_*` and the upload step
 maps them to the Worker's existing binding names.
 
-Branch aliases lowercase the branch name, replace runs of punctuation with
-hyphens, strip leading and trailing hyphens, and limit the result to 63
-characters. For example, `codex/cloudflare-deploy-job` becomes
-`codex-cloudflare-deploy-job`. An empty result is refused. Different branch names
+Branch aliases temporarily start with `actions-` so Actions uploads can be
+tested separately from Workers Builds previews. The branch portion is lowercased,
+with runs of punctuation replaced by hyphens and leading/trailing hyphens
+stripped. The complete alias, including the prefix, is limited to 63 characters.
+For example, `codex/cloudflare-deploy-job` becomes
+`actions-codex-cloudflare-deploy-job`, giving the preview URL
+`https://actions-codex-cloudflare-deploy-job-functionalscript.functionalscript.workers.dev`.
+An empty branch portion is refused. Different branch names
 can normalize to the same alias, so keep preview branch aliases distinct.
-The upload logs report the version and alias URLs; existing ordinary branch
-names retain their preview aliases. Check OAuth on the alias URL as well as
+The upload logs report the version and alias URLs. Workers Builds keeps its
+existing unprefixed aliases during testing; remove the temporary Actions prefix
+after cutover. Check OAuth on the alias URL as well as
 the commit preview URL.
 
 Cut over in this order:
