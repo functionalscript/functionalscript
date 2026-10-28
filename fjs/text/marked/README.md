@@ -269,6 +269,12 @@ JavaScript or JSON code fence in a `README.md` the site renders
   defect of the program. A caller whose spans are its own, as `highlight`'s
   are, `unwrap`s.
 - `highlight(text)` is `render` of `fromSpans` of `spansOf`.
+- `tsSpansOf(text)` and `tsHighlight(text)` read TypeScript: the same tokens,
+  and TypeScript's own words (`type`, `readonly`, `as`, `keyof`, …) as
+  `keyword`s where an operand follows them on their line, so a variable named
+  `type` stays an `identifier`. The primitive type names stay `identifier`s:
+  one is a keyword only where a type stands, which a token's neighbours cannot
+  tell. A README's `ts` fence is drawn this way.
 
 The fallback is also the **oracle** a producer is held to
 ([§9](#9-proving-a-producer)): `disagreement(marked)` answers where a

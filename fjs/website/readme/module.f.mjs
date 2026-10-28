@@ -18,16 +18,18 @@
  *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
- * ([`demo/highlight`](../demo/highlight/module.f.mjs)), so the colours are
- * the demos' and the text is the fence's, character for character. A fence
- * in any other language, or one the tokenizer refuses, stays plain: no
- * colour is honest where a guessed one is not.
+ * ([`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
+ * fence through the same tokenizer with TypeScript's own keywords, so the
+ * colours are the demos' and the text is the fence's, character for
+ * character. A fence in any other language, or one the tokenizer refuses,
+ * stays plain: no colour is honest where a guessed one is not.
  *
  * @module
  *
  * @import { Align, Block, Blocks, Inline, Label } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
@@ -35,7 +37,8 @@ import { basename, concat as pathConcat, escapes, normalize, parent } from '../.
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
-import { highlight } from '../demo/highlight/module.f.mjs'
+import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
+import { at } from '../../types/object/module.f.mjs'
 
 const { length: reservedIdCount } = reservedIds
 
@@ -196,20 +199,29 @@ export const anchors = blocks => {
 }
 
 /**
- * The languages a fence is coloured in: the names GitHub reads JavaScript
- * and JSON fences under, which the JavaScript tokenizer reads too. GitHub
- * matches the name in any case.
+ * How a fence is coloured, by the name GitHub reads its language under:
+ * JavaScript and JSON by the JavaScript tokenizer, TypeScript by the same
+ * tokenizer with TypeScript's own keywords. GitHub matches the name in any
+ * case.
+ *
+ * @type {StringMap<(text: string) => readonly Node[]>}
  */
-const highlighted = ['js', 'javascript', 'json', 'jsonc']
+const highlighters = {
+    js: highlight, javascript: highlight, json: highlight, jsonc: highlight,
+    ts: tsHighlight, typescript: tsHighlight,
+}
 
 /**
  * A code fence's text as the nodes of its `code` element: coloured when
- * its language is {@link highlighted}, its bare text otherwise.
+ * its language has one of the {@link highlighters}, its bare text
+ * otherwise.
  *
  * @type {(language: string) => (text: string) => readonly Node[]}
  */
-const fenceNodes = language => text =>
-    highlighted.includes(language.toLowerCase()) ? highlight(text) : [text]
+const fenceNodes = language => text => {
+    const colour = at(language.toLowerCase())(highlighters)
+    return colour === null ? [text] : colour(text)
+}
 
 /** A label's span as a node: code, or its text. @type {(label: Label) => Node} */
 const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]

@@ -1,4 +1,4 @@
-import { codeOutput, disagreement, highlight, render, spansOf } from './module.f.mjs'
+import { codeOutput, disagreement, highlight, render, spansOf, tsHighlight, tsSpansOf } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -109,4 +109,25 @@ export const proof = {
         assertEq(disagreement([['x', 'keyword']]), 'marked [{"start":0,"length":1,"kind":"keyword"}], the tokenizer finds [{"start":0,"length":1,"kind":"identifier"}], in x')
     },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
+    // TypeScript's own words are keywords where an operand follows them on
+    // their line, and names everywhere else.
+    typeScript: () => {
+        /** @type {(text: string) => string} */
+        const keywords = text => JSON.stringify(tsSpansOf(text).flatMap(({ start, length, kind }) =>
+            kind === 'keyword' ? [Array.from(text).slice(start, start + length).join('')] : []))
+        // an operand follows: a name, a keyword, a string, `{`, and `[` after `readonly`
+        assertEq(keywords('export type A = readonly B[]'), '["export","type","readonly"]')
+        assertEq(keywords('x as const; declare module "m"; import type { A }'), '["as","const","declare","module","import","type"]')
+        assertEq(keywords('type A = readonly [unique symbol]'), '["type","readonly","unique"]')
+        // a variable: an operator or the line's end follows, or it is a
+        // property; the `as` casting one is a keyword still
+        assertEq(keywords('const type = out; f(type, readonly)'), '["const"]')
+        assertEq(keywords('type\nA; type /* c */ in x; out of xs; type as T; type [0]'), '["in","as"]')
+        assertEq(keywords('x.type A'), '[]')
+        // a primitive type name is a name, as no neighbour says it is a type
+        assertEq(keywords('let a: string'), '["let"]')
+        // JavaScript reads them all as names
+        assertEq(JSON.stringify(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
+        assertEq(text(tsHighlight('type A = 1\n')), 'type A = 1\n')
+    },
 }

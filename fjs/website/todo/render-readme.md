@@ -98,9 +98,14 @@ Every README has a heading, so today's reader renders none of them.
   README's code and a demo's code look alike and the text is the fence's,
   character for character. A fence in any other language, or one the
   tokenizer refuses, stays a plain `<pre>`: no colour is honest, a guessed
-  one is not. TypeScript (`ts`) is the largest language left: the JavaScript
-  tokenizer reads its text, but would colour `type`, `interface` and
-  `readonly` as names, so it waits for a reader that knows those words.
+  one is not. A `ts` or `typescript` fence reads TypeScript's own words —
+  `type`, `readonly`, `as`, `keyof` and the rest — as keywords where an
+  operand follows them on their line (`type A`, `readonly [`, `as const`),
+  and as names elsewhere: a word list alone would colour the README
+  variables `unknown`, `symbol` and `out` as keywords. The primitive type
+  names, `string` and `number` among them, stay names, since one is a
+  keyword only where a type stands, and telling a type's place from a
+  value's takes a parser.
   [source-and-doc-view](source-and-doc-view.md)'s prerequisite, the
   tokenizer reading every spelling the repository uses, is not one here: a
   fence it refuses is plain, as before.
@@ -150,7 +155,9 @@ Every README has a heading, so today's reader renders none of them.
       makes them, so a `#fragment` finds its heading.
 - [x] Fenced code blocks.
 - [x] Fenced code coloured: JavaScript and JSON, by the demos' tokenizer.
-- [ ] Fenced TypeScript coloured, once a reader knows its words.
+- [x] Fenced TypeScript coloured, its own keywords included.
+- [ ] TypeScript's primitive type names coloured where a type stands, which
+      needs a reader that knows a type's place from a value's.
 - [x] Tables, every row opening with a pipe.
 - [x] Nested and loose lists.
 - [ ] Numbered lists.

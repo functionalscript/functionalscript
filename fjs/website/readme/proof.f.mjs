@@ -128,6 +128,14 @@ export const proof = {
                 ['pre', ['code', { class: 'language-json' },
                     '{', ['span', { 'data-token': 'string' }, '"a"'], ':', ['span', { 'data-token': 'literal' }, 'true'], '}']],
             ])),
+            // TypeScript's own keywords, where an operand follows them.
+            ts: () => assertStructurallySame(readmeNodes(href)([['code', 'ts', 'type A = { type: 1 }']]), ok([
+                ['pre', ['code', { class: 'language-ts' },
+                    ['span', { 'data-token': 'keyword' }, 'type'], ' ',
+                    ['span', { 'data-token': 'identifier' }, 'A'], ' = { ',
+                    ['span', { 'data-token': 'identifier' }, 'type'], ': ',
+                    ['span', { 'data-token': 'number' }, '1'], ' }']],
+            ])),
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
                 ok([['pre', ['code', { class: 'language-rust' }, 'let a = 1;']]])),
             // Text the tokenizer refuses is not partly coloured.
