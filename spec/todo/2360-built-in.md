@@ -175,11 +175,13 @@ one together from keys known only at run time. The one spelling that
 compiles is a spread with a computed key,
 `entries.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})`, which copies the
 whole object at every entry: O(n²) for n keys. The authored modules write
-`Object.fromEntries` instead — at `35daed16`, 58 uses in 23 non-proof modules, among them
-`fjs/rtti/data` (8) and `fjs/rtti/parse`, `fjs/types/object` (which
-destructures it from `Object`), `fjs/compiler/parser/grammar`,
-`fjs/edag/value/object` and `fjs/media/json` — and none of them can be
-renamed `.f.js` while it does.
+`Object.fromEntries` instead — at `35daed16`, 20 non-proof modules read it
+directly, on 30 lines, among them `fjs/rtti/data` (8) and `fjs/rtti/parse`,
+`fjs/types/object` (which destructures it from `Object`),
+`fjs/compiler/parser/grammar`, `fjs/edag/value/object` and `fjs/media/json`
+— and none of them can be renamed `.f.js` while it does. Modules that call
+`fjs/types/object`'s helper or define a `fromEntries` of their own are not
+counted: this name does not block them.
 
 **Proposal.** Admit `Object.fromEntries` as a static function beside
 `Object.entries`, read in the same spellings and through
@@ -199,11 +201,13 @@ the runtime's `static` section holds it, as it holds `Object.is`'s: the one
 source of what the built-in answers. A backend may answer the node natively
 to avoid the quadratic copy only as a substitution rule keyed on the node,
 with the naive emission kept and the harness running its fixtures both ways
-— never as a second implementation in the body's place. The function's text
-is the implementation's to settle, under the rules the `Object.entries`
-record above set.
+— never as a second implementation in the body's place. Its text is the
+NativeFunction text every static in the runtime's `statics` table carries,
+`function fromEntries() { [native code] }`, in place of its body's, as the
+[runtime](../../fjs/js/runtime/README.md) requires and the `Object.entries`
+record above holds.
 
-**Benefits.** The JavaScript spelling for what 23 modules already do,
+**Benefits.** The JavaScript spelling for what 20 modules already do,
 linear where the executor makes it so, and the inverse of the enumeration
 the language already has: keys, values and filtered copies are then
 round trips over arrays.
