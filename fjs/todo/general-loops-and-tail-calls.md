@@ -269,8 +269,20 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       `undefined` after required work to the private slot. Both outer orientations
       compose with normal or conditional base results; graph/text cycles remain
       exact from the first parse. Default layouts and prior ordinary single-input
-      spelling stay unchanged. Mixed transfers and general lazy prefixes retain
-      their previous admission.
+      spelling stay unchanged. General lazy prefixes retain their previous
+      admission. Fixed multi-input and observed-rest roots now also retain
+      nested terminal trees that mix normal completion and continuation.
+      Shared terminal analysis validates required definitions, result-free
+      decisions and exact transfers. Common preparation retains the body in
+      `while(true)` with one private state/result slot: it packs multi-input
+      initial and next values once, establishes immutable input snapshots, and
+      writes a selected completion result into the same slot immediately before
+      exit. Rest-only roots reuse the existing scalar path. Required allocations
+      shared by tests, transitions and results keep their iteration lifetime;
+      selected work, captures, fresh rest, failure order and exact first-parse
+      graph/text cycles survive. Prior source profiles, default layouts and
+      logical graph contracts remain unchanged. Zero-input and general lazy
+      regions retain their existing admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

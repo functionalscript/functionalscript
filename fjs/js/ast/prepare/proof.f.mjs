@@ -36,6 +36,59 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    sourceMixedTransitionsPackAllInputsBeforeOneSharedSlotWrite: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), other = id(1), result = id(2), pair = id(3)
+        /** @type {NormalBlock} */
+        const normal = { statements: [], exit: ['break', target, [['ref', other]]] }
+        /** @type {NormalBlock} */
+        const step = { statements: [], exit: ['continue', target, [['ref', other], ['ref', state]]] }
+        /** @type {NormalBlock} */
+        const mixed = { statements: [['define', pair, ['array', [['ref', state], ['ref', other]]], 'required'],
+            ['if', [], ['===', ['ref', state], 1], normal, step]], exit: ['yield', []] }
+        /** @type {Loop} */
+        const loop = { target, parameters: [state, other], initial: [2, 3], results: [result], body: {
+            statements: [['if', [], ['>', ['ref', state], 0], mixed, normal]], exit: ['yield', []],
+        } }
+        /** @type {NormalBlock} */
+        const block = { statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }
+        assert(prepare(block).statements.some(statement => statement[0] === 'loop'))
+        const source = prepare(block, { sourceLoops: true })
+        assertStructurallySame(source.statements.map(statement => statement[0]), ['define', 'while'])
+        const initial = source.statements[0], physical = source.statements[1]
+        assert(initial[0] === 'define' && physical[0] === 'while')
+        assertStructurallySame(initial[2], ['array', [2, 3]])
+        assertEq(physical[1].condition, true)
+        assertEq(physical[1].mutable, true)
+        assertEq(physical[1].result, result)
+        for (const [index, parameter] of [state, other].entries()) {
+            const snapshot = physical[1].body.statements[index]
+            assert(snapshot[0] === 'define')
+            assertEq(snapshot[1], parameter)
+            assertStructurallySame(snapshot[2], ['.', ['ref', physical[1].slot], index])
+        }
+        const root = physical[1].body.statements[2]
+        assert(root[0] === 'if')
+        const nested = root[2].statements[1]
+        assert(nested[0] === 'if')
+        const selected = nested[3].statements[0]
+        assert(selected[0] === 'define')
+        assertStructurallySame(selected[2], ['array', [['ref', other], ['ref', state]]])
+        for (const arm of [nested[2], nested[3], root[3]]) {
+            const write = arm.statements.at(-1)
+            assert(write !== undefined && write[0] === 'write')
+            assertEq(write[1], physical[1].slot)
+        }
+        const completion = nested[2].statements[0]
+        assert(completion[0] === 'define')
+        assertStructurallySame(completion[2], ['ref', other])
+        // A uniform root's previously unsupported prefix stays on the general path.
+        const ordinary = prepare({ ...block, statements: [['loop', { ...loop, body: {
+            statements: [['define', pair, ['array', [['ref', state]]], 'required'],
+                ['if', [], true, step, { statements: [], exit: ['break', target, [['ref', pair]]] }]], exit: ['yield', []],
+        } }]] }, { sourceLoops: true })
+        assert(ordinary.statements.some(statement => statement[0] === 'loop'))
+    },
     sourceBranchingTransitionsKeepOneSelectedValueAndZeroInputWork: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const state = id(0), other = id(1), result = id(2), selected = id(3), alternative = id(4)

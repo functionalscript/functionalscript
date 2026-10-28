@@ -35,6 +35,8 @@ export type _Loop = {
     readonly target: LoopTarget
     readonly parameters: readonly BindingId[]
     readonly results: readonly BindingId[]
+    /** A source-only packed continuation establishes one complete input vector. */
+    readonly packed: boolean
 }
 
 export type _Context = {
