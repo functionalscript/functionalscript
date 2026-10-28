@@ -3,6 +3,10 @@
 **Priority:** P3
 **Status:** wip
 
+The owner verified GitHub sign-in on the Actions preview and disconnected
+Workers Builds. Next: enable main-only production uploads in the existing
+website job and CI workflow; retain the preview prefix until production is verified.
+
 ### Problem
 
 The website is built by Cloudflare Workers Builds, outside the repository's
