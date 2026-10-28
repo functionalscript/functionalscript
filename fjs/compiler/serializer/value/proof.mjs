@@ -151,6 +151,32 @@ export const proof = {
         assertEq(identity(object), object)
         assertEq('edag' in identity, false)
     },
+    zeroInputSourceTailLoopsKeepInvocationSnapshots: async () => {
+        const snapshot = /** @type {Exp} */ (['[]', [7]])
+        const read = /** @type {Exp} */ (['=>', 0, [snapshot], ['frame', 0]])
+        const factory = /** @type {FunctionValue} */ (['=>', 1, [], ['=>', 0, [['arg', 0]], [',', [
+            ['()', ['frame', 0], [snapshot, snapshot, read]], ['()', ['self'], []],
+        ]]]])
+        for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+            assert(text.includes('while('), text)
+            const make = await load(text)
+            const stopped = new Error('stop after deep zero-input iteration')
+            let count = 0
+            /** @type {readonly number[] | undefined} */
+            let previous
+            const loop = make(/** @type {(first: readonly number[], second: readonly number[], read: () => readonly number[]) => void} */ ((first, second, read) => {
+                assertEq(first, second)
+                assertEq(read(), first)
+                assert(first !== previous)
+                previous = first
+                count += 1
+                if (count === 100_001) { throw stopped }
+            }))
+            assertEq(loop.length, 0)
+            throws(() => loop(9), error => error === stopped)
+            assertEq(count, 100_001)
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])

@@ -211,8 +211,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       `break` resumes following statements with current state; `continue`
       retains its enclosing loop, and returns and throws retain their existing
       owners. Nested switches and loops keep distinct transfer targets, and
-      case fallthrough remains refused. Final integration evidence and public
-      contract reconciliation remain before H/I close.
+      case fallthrough remains refused. Raw rest-free zero-input tail roots
+      without normal loop completion now retain bounded-stack source output,
+      empty arity and reached work. Their first source parse establishes a
+      stable graph/text normal form. Normally completing zero-input roots still
+      need result-normalization work in the output owner. Final integration
+      evidence and public contract reconciliation remain before H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.
