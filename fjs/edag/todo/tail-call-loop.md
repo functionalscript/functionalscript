@@ -186,9 +186,19 @@ unchanged slot, without semantic input snapshots. Both conditional orientations
 run required base work once after the final test, preserving empty public arity,
 sharing, captures and reached failure order.
 
+Conditional base-result trees now use the same normalization when each leaf
+completes the exact loop with one result. Required definitions keep their
+lexical branches; terminal decisions become value conditionals inside the
+result block. Base tests run after the final iteration test, and only selected
+branches evaluate their work or failures. Both outer orientations preserve
+final input/rest sharing, fresh allocations and escaped captures, with exact
+graph/text cycles from the first source parse. Multiple continuing branches
+and general lazy prefixes remain outside this increment.
+
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or
-structured normal-arm prefixes, retain their previous admission and fallback.
+other structured normal-arm prefixes, retain their previous admission and
+fallback.
 The first source parse establishes the permitted scalar-helper boundary; later graph/text cycles remain exact. Logical conversion, original
 default JavaScript/Rust layouts and prior
 source spellings retain their contracts.

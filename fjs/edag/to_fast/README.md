@@ -219,8 +219,17 @@ Calls, lookups and selected regions retain their placement boundaries.
 Zero-input roots reuse the private unchanged slot in either conditional
 orientation. Their required result block runs once after the final test, without
 semantic input snapshots or a new invocation boundary, and keeps empty public
-arity. Other single-input roots, and lazy or structured normal-arm prefixes,
-keep their previous admission.
+arity. Other single-input roots, and lazy or other structured normal-arm
+prefixes, keep their previous admission.
+
+A normal arm may also end in a result-free conditional tree whose leaves all
+break the same loop with one result. Shared result-block normalization keeps
+required definitions in their lexical regions and converts the terminal tree
+into value conditionals after the final test. It does not evaluate unselected
+branches or introduce new bindings, targets or invocation boundaries. Both
+outer orientations retain the existing scalar, packed or private unchanged
+slot preparation. Multiple continuing branches and general lazy prefixes
+retain their existing admission and fallback.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

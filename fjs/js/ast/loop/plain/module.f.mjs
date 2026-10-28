@@ -4,12 +4,14 @@
  * dependencies are restricted to established, identity-free projections.
  *
  * @module
- * @import { Block, Definition, Loop, Value } from '../../types.ts'
+ * @import { Block, Definition, Loop, LoopTarget, Value } from '../../types.ts'
  * @import { ScalarLoop } from '../types.ts'
  * @import { PlainLoop } from './types.ts'
+ * @import { Task } from '../../task/types.ts'
  */
 
 import { freeBindings } from '../../control/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.mjs'
 
 /**
  * Fixed numeric reads preserve established values. Named properties can mint
@@ -129,7 +131,29 @@ export const continueFirstPlainLoopOf = loop => {
 }
 
 /**
- * Keep a loop's required normal-arm definitions in its result.
+ * Turn an all-normal terminal decision tree into one value region. Required
+ * prefixes stay before their decision; each selected leaf keeps its result.
+ * @type {(block: Block, target: LoopTarget) => Task<Block | null>}
+ */
+const normalResult = (block, target) => call(() => {
+    const last = block.statements.at(-1)
+    const conditional = last !== undefined && last[0] === 'if'
+    const prefix = conditional ? block.statements.slice(0, -1) : block.statements
+    if (!prefix.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return done(null) }
+    const exit = block.exit
+    if (conditional) {
+        if (last[1].length !== 0 || exit[0] !== 'yield' || exit[1].length !== 0) { return done(null) }
+        return bind(normalResult(last[3], target), then => then === null ? done(null)
+            : bind(normalResult(last[4], target), otherwise => done(otherwise === null ? null : {
+                statements: prefix, exit: ['yield', [['if', last[2], then, otherwise]]],
+            })))
+    }
+    return done(exit[0] === 'break' && exit[1] === target && exit[2].length === 1
+        ? { statements: block.statements, exit: ['yield', exit[2]] } : null)
+})
+
+/**
+ * Keep required normal-arm definitions and terminal decisions in its result.
  * The value block runs once after the final test, with the same bindings and
  * reached order. Single-input base-first candidates use the existing orientation
  * helper; the unchanged planner validates every other plain restriction.
@@ -138,14 +162,12 @@ export const continueFirstPlainLoopOf = loop => {
 export const resultBlockPlainLoopOf = loop => {
     const last = loop.body.statements.at(-1)
     if (last === undefined || last[0] !== 'if') { return null }
-    const baseFirst = last[3].exit[0] === 'break'
+    const baseFirst = last[4].exit[0] === 'continue'
     const normal = baseFirst ? last[3] : last[4]
-    const exit = normal.exit
-    if (exit[0] !== 'break' || normal.statements.length === 0
-        || !normal.statements.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
-    const result = /** @type {Block} */ ({ statements: [], exit: ['break', exit[1], [['block', {
-        statements: normal.statements, exit: ['yield', exit[2]],
-    }]]] })
+    if (normal.statements.length === 0) { return null }
+    const value = run(normalResult(normal, loop.target))
+    if (value === null) { return null }
+    const result = /** @type {Block} */ ({ statements: [], exit: ['break', loop.target, [['block', value]]] })
     const retained = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
         statements: [...loop.body.statements.slice(0, -1), ['if', last[1], last[2], baseFirst ? result : last[3], baseFirst ? last[4] : result]],
     } })

@@ -109,8 +109,16 @@ selected regions keep their evaluation boundaries. Zero-input roots use the
 existing private unchanged slot, with no semantic input snapshots or extra
 invocation boundary. Both conditional orientations run the required base work
 once after the final test and retain empty public arity. Other single-input
-profiles and nonrequired or structured base prefixes keep their existing
+profiles and nonrequired or other structured base prefixes keep their existing
 admission and fallback.
+
+The base result may also be a terminal conditional tree whose leaves all
+complete the same loop with one value. The shared normalizer keeps required
+definitions in their original branch and converts that tree into the existing
+result value block. Base conditions run only after the final iteration test;
+only the selected branch evaluates its calls, allocations or failures. Both
+outer orientations retain final input/rest identities and captures. Multiple
+continuing branches and general lazy prefixes keep their previous admission.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result

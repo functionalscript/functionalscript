@@ -4,13 +4,6 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
-**Current increment:** retain conditional base-case result trees when one arm
-continues and every base leaf completes the same loop. Reuse the shared result
-value block in either conditional orientation, preserving selected-branch work,
-required prefixes, sharing, captures, failure order and exact graph/text cycles
-from the first source parse. Multiple continuing branches and general lazy
-prefixes remain outside this increment; H/I stay open.
-
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
@@ -263,6 +256,13 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       public arity, sharing, captures and reached failures without semantic input
       snapshots or another invocation boundary. Exact graph/text cycles hold
       from the first source parse.
+      Conditional base-case result trees now use the same result value block
+      when every leaf completes the same loop with one value. Required prefixes
+      retain their lexical branches, and base decisions run after the final
+      iteration test with only the selected branch evaluated. Both outer
+      orientations preserve final input/rest sharing, captures and failure
+      order, with exact first-parse graph/text cycles. Multiple continuing
+      branches and general lazy prefixes retain their previous admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

@@ -757,6 +757,17 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        conditionalBaseCaseLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?f(n-1,a):a>0?[a]:[n];export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11>0?[$11]:[$10];})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n===0?a>0?[a]:[n]:f(n-1,a);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4===0);})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11>0?[$11]:[$10];})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         restBaseCaseDefinitionsLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=(n,...xs)=>n>0?f(n-1,...xs):(()=>{const x=[xs];return[x,x];})();export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,...$7];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];const $16=[$15];return [$16,$16];})();return $13;};export default $0;'],
