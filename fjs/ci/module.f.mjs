@@ -207,7 +207,7 @@ const ciFiles = setup => rust => {
         permissions: {
             contents: 'read',
         },
-        jobs: setup.smart ? smartJobs(selectedJobs) : selectedJobs,
+        jobs: { ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs), ...setup.extraJobs },
     }
     return [
         [ciPath, workflowText(gha)],

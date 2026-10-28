@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Architecture, MetaStep, Os } from './common/types.ts'
+import type { Architecture, Jobs, MetaStep, Os } from './common/types.ts'
 
 /**
  * What the packed-package check asks of the tarball as a clean consumer: a
@@ -23,10 +23,17 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
+    /** Fully assembled project jobs, outside platform setup and successful-check caching. */
+    readonly extraJobs?: Jobs,
     /** Use existing project-owned mise manifests instead of the default generated Nix setup. */
     readonly environment?: 'mise',
     readonly nodeExtra: (os: Os, architecture: Architecture) => readonly MetaStep[],
-    /** Cache this repository's successful check groups by their committed inputs. */
+    /**
+     * Cache successful check groups by their committed inputs. Supported only
+     * for FunctionalScript's own repository: `fjs ci init` reads its job
+     * configuration from `fjs/ci/self`, not the caller's setup. Other projects
+     * should leave this unset.
+     */
     readonly smart?: boolean,
     /**
      * The consumer half of the packed-package check, when the project has a

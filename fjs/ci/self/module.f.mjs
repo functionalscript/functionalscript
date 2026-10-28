@@ -9,9 +9,54 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { PackageConsumer, Setup } from '../types.ts'
+ * @import { Job } from '../common/types.ts'
  */
 
 import { ci, ciJobs } from '../module.f.mjs'
+import { uses } from '../common/module.f.mjs'
+import { images, jobTimeout } from '../config/module.f.js'
+import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
+import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
+import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
+
+/** Branch and commit metadata shared by the Rustdoc bars and website pages. */
+const buildMetadata = {
+    WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
+    WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
+}
+
+/**
+ * Website assets are built once, independently of the platform matrix. This
+ * read-only job runs on the CI workflow's pull-request and merge-group events,
+ * including forks. It always builds rather than consulting the check cache,
+ * and receives no deployment credentials. Mise installs the committed lock,
+ * including the Rust WASM target; the Cloudflare installer is not needed.
+ * @type {Job}
+ */
+export const websiteJob = {
+    'runs-on': images.ubuntu.intel,
+    'timeout-minutes': jobTimeout,
+    permissions: { contents: 'read' },
+    steps: [
+        uses('actions/checkout'),
+        miseInstall.step,
+        { run: miseDevelop('npm ci'), shell: 'bash' },
+        { run: miseDevelop(`sh ./${buildScriptPath}`), shell: 'bash' },
+        { run: miseDevelop('npm run rustdoc-bars'), shell: 'bash', env: buildMetadata },
+        {
+            run: miseDevelop('cargo doc --no-deps --workspace'),
+            shell: 'bash',
+            env: {
+                RUSTDOCFLAGS: `--html-in-header ${'${{ github.workspace }}'}/${rustdocHeadPath} --html-before-content ${'${{ github.workspace }}'}/${rustdocHeaderPath} --html-after-content ${'${{ github.workspace }}'}/${rustdocFooterPath} --extend-css ${'${{ github.workspace }}'}/${rustdocStylesheetPath}`,
+            },
+        },
+        {
+            run: miseDevelop('npm run website'),
+            shell: 'bash',
+            env: buildMetadata,
+        },
+    ],
+}
 
 /**
  * What the packed-package check asks of this repository's tarball as a clean
@@ -49,6 +94,7 @@ const setup = {
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
+    extraJobs: { website: websiteJob },
 }
 
 /** The repository jobs before cache gates are applied. */
