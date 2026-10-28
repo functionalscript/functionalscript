@@ -44,7 +44,7 @@ const evaluate = (block, parameter, argument) => {
     return memo(assertOk(identityAnalysis(['()', graph, [argument]])))({ args: [] })
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     normalResultsRetainOneContinuationAndAllocation: () => {
         const condition = id(0), value = id(1), input = id(2)
         const allocation = /** @type {Value} */ (['array', [7]])
@@ -349,4 +349,4 @@ export const proof = {
             assertEq(assertOk(toData(assertError(evaluate(block, condition, true)))), 'deferred')
         }
     },
-}
+})

@@ -15,7 +15,7 @@ import { anchored, fromFast } from './module.f.mjs'
 /** @type {(source: string) => Exp} */
 const moduleGraph = source => unresolved(assertOk(parse('/anchors.f.js')(source))).edag
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     aFollowingRequiredRootOwnsItsContiguousDemandedPrefix: () => {
         const array = /** @type {Exp} */ (['[]', [4]])
         const member = /** @type {Exp} */ (['.', array, 0])
@@ -137,4 +137,4 @@ export const proof = {
             previous = normalized
         }
     },
-}
+})
