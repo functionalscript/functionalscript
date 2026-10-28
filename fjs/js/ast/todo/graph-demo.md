@@ -65,7 +65,12 @@ loops and functions built the same way. The shapes follow that:
 
 - one `Shape` function for the common part (`Operator<V>`, `Step<V>`,
   `Item<V>`, `Entry<V>`, `Key<V>`), generic over the operand, in
-  `fjs/js/ast/`;
+  `fjs/js/ast/`. The [EDAG demo](../../../compiler/edag/demo.f.mjs) already
+  draws these operators, chains included: the EDAG spells them with the same
+  tuples except for the array and object tags (`'[]'`/`'{}'` there,
+  `'array'`/`'object'` in FAST). So the shape is extracted from that demo,
+  parameterized by the two tags, and the EDAG demo uses it too, rather than
+  a second drawing of the same operators being written;
 - a FAST walker in `fjs/js/ast/` and a source walker in `fjs/js/ast/sugar/`,
   each adding only its own forms.
 
@@ -92,7 +97,8 @@ the drawing.
 
 ### Tasks
 
-- [ ] The shared `Operator<V>` shape, with its proof.
+- [ ] The shared `Operator<V>` shape, extracted from the EDAG demo with its
+      proofs, and the EDAG demo drawing through it unchanged.
 - [ ] The FAST walker, with its proof: shared bindings, lazy defines,
       captures, loops with their exits, `return` to an outer function.
 - [ ] The source walker, with its proof: the logical binaries, expansion
