@@ -207,7 +207,7 @@ single-input source spellings stay unchanged; general lazy prefixes retain
 their existing admission. Graph/text cycles remain exact from
 the first source parse.
 
-Fixed multi-input and observed-rest roots now also retain nested terminal trees
+Fixed multi-input and observed-rest roots now also retain terminal trees
 that mix normal completion and continuation. Shared terminal analysis validates
 required-definition prefixes and result-free decisions whose leaves complete
 the exact loop with one result or continue with its complete input vector.
@@ -224,7 +224,11 @@ profiles and default JavaScript/function-text/Rust layouts stay unchanged; no
 logical graph metadata or selector tags are added. The first source parse
 establishes the permitted scalar helper boundary, then graph/text cycles stay
 exact. Zero-input and general lazy-region extensions retain their previous
-admission.
+admission. The same path now includes a single terminal condition whose
+required prefix is shared with its test, continuing arguments or completed
+result. Arrays, objects, closures and call results are established once per
+body visit before the condition, preserving final values and held captures.
+Earlier plain and branching plans retain precedence and their source spelling.
 
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or

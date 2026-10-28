@@ -36,13 +36,13 @@ export const terminalTree = (block, leaf, branch) => call(() => {
 })
 
 /**
- * A nested decision can either complete this loop or continue its invocation.
+ * A terminal decision can complete this loop or continue its invocation.
  * Every leaf supplies one exact result or the complete input vector. Required
- * prefixes keep their body lifetime. Uniform root arms do not widen an older
- * source profile; zero-input handling remains with its existing planner.
+ * prefixes keep their body lifetime, so values shared by a test, transition or
+ * result are established once. Zero-input handling remains with its planner.
  * @type {(loop: Loop) => boolean}
  */
-export const isMixedLoop = loop => {
+export const isTerminalLoop = loop => {
     if (loop.parameters.length === 0 || loop.results.length !== 1) { return false }
     /** @type {(block: Block) => number | null} */
     const leaf = block => {
@@ -50,8 +50,7 @@ export const isMixedLoop = loop => {
         if (exit[0] === 'break' && exit[1] === loop.target && exit[2].length === 1) { return 0x1 }
         return exit[0] === 'continue' && exit[1] === loop.target && exit[2].length === loop.parameters.length ? 0x2 : null
     }
-    // The low bits record break/continue; the third records a mixed child.
-    const kinds = run(terminalTree(loop.body, leaf, (_prefix, _test, then, otherwise) => then | otherwise
-        | ((then & 0x3) === 0x3 || (otherwise & 0x3) === 0x3 ? 0x4 : 0)))
-    return kinds === 0x7
+    // Both transfer kinds must occur; a diverging or result-only tree is distinct.
+    const kinds = run(terminalTree(loop.body, leaf, (_prefix, _test, then, otherwise) => then | otherwise))
+    return kinds === 0x3
 }
