@@ -724,6 +724,17 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        branchingTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>n>0?(n%2===0?f(n-2,a+2):f(n-1,a+1)):a;export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=$6%2===0?[$6-2,$7+2]:[$6-1,$7+1];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+                ['const f=(n,a)=>n<=0?a:n%2===0?f(n-2,a+2):f(n-1,a+1);export default f;', 'const $0=($1,$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return !($4<=0);})()){const $6=$3[0];const $7=$3[1];const $8=$6%2===0?[$6-2,$7+2]:[$6-1,$7+1];$3=$8;}const $9=(()=>{const $10=$3[0];const $11=$3[1];return $11;})();return $9;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         restInputLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=(n,...xs)=>n>0?f(n-1,xs[0]+n):xs[0];export default f;', 'const $0=($1,...$2)=>{let $3=[$1,$2];while((()=>{const $4=$3[0];const $5=$3[1];return $4>0;})()){const $6=$3[0];const $7=$3[1];const $8=[$6-1,$7[0]+$6];const $9=[$8[0],(($10,$11,$12)=>$10.slice($11,$12))($8,1)];$3=$9;}const $13=(()=>{const $14=$3[0];const $15=$3[1];return $15[0];})();return $13;};export default $0;'],

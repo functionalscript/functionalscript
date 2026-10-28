@@ -261,8 +261,16 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       retain their lexical branches, and base decisions run after the final
       iteration test with only the selected branch evaluated. Both outer
       orientations preserve final input/rest sharing, captures and failure
-      order, with exact first-parse graph/text cycles. Multiple continuing
-      branches and general lazy prefixes retain their previous admission.
+      order, with exact first-parse graph/text cycles. Continuing decision trees
+      now use a shared source plan when every leaf continues the same exact
+      loop with its complete next-input vector. Required branch work and reached
+      arguments run once before simultaneous updates, preserving snapshots,
+      captures, fresh rest and failure order. Zero-input transitions yield
+      `undefined` after required work to the private slot. Both outer orientations
+      compose with normal or conditional base results; graph/text cycles remain
+      exact from the first parse. Default layouts and prior ordinary single-input
+      spelling stay unchanged. Mixed transfers and general lazy prefixes retain
+      their previous admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

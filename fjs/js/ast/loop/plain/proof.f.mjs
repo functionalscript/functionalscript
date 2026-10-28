@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.js'
-import { continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from './module.f.mjs'
+import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from './module.f.mjs'
 
 const state = /** @type {const} */ ({ index: 0 })
 const result = /** @type {const} */ ({ index: 1 })
@@ -27,6 +27,93 @@ const scalar = {
 const withArms = (step, otherwise) => ({ ...scalar, body: { ...scalar.body, statements: [['if', [], true, step, otherwise]] } })
 
 export const proof = /** @type {const} */ ({
+    branchingTransitionsYieldOneSelectedVectorBeforeStateChanges: () => {
+        /** @type {Definition} */
+        const projected = ['define', alias, ['.', ['ref', state], 0], 'required']
+        const shared = /** @type {const} */ ({ index: 4 })
+        /** @type {Definition} */
+        const reached = ['define', shared, ['array', [['ref', alias]]], 'required']
+        for (const width of /** @type {const} */ ([0, 1, 2])) {
+            const parameters = [state, other].slice(0, width)
+            const values = /** @type {readonly Value[]} */ ([['ref', other], ['ref', state]]).slice(0, width)
+            /** @type {Block} */
+            const leaf = { statements: [reached], exit: ['continue', target, values] }
+            /** @type {Block} */
+            const decision = { statements: [['if', [], ['ref', alias], leaf, leaf]], exit: ['yield', []] }
+            /** @type {Block} */
+            const normal = { statements: [], exit: ['break', target, [7]] }
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                /** @type {Loop} */
+                const source = { ...scalar, parameters, initial: parameters.map(() => 0), body: {
+                    statements: [projected, ['if', [], true, baseFirst ? normal : decision, baseFirst ? decision : normal]],
+                    exit: ['yield', []],
+                } }
+                assertEq(plainLoopOf(source), null)
+                const plan = branchingPlainLoopOf(source)
+                assert(plan !== null)
+                assertEq(plan.prefix[0], projected)
+                assertEq(plan.iteration.step.statements.length, 0)
+                assertEq(plan.iteration.step.exit, decision.exit)
+                assertStructurallySame(plan.iteration.condition, baseFirst ? ['!', true] : true)
+                assertEq(plan.result, 7)
+                assertStructurallySame(plan.resultPrefix, [])
+                const next = plan.iteration.next
+                assert(next instanceof Array && next[0] === 'block')
+                assertEq(next[1].statements[0], projected)
+                const exit = next[1].exit
+                assert(exit[0] === 'yield')
+                const selected = exit[1][0]
+                assert(selected instanceof Array && selected[0] === 'if')
+                assertStructurallySame(selected[1], ['ref', alias])
+                for (const arm of [selected[2], selected[3]]) {
+                    assertEq(arm.statements[0], reached)
+                    assertStructurallySame(arm.exit, ['yield', [width > 1 ? ['array', values] : values[0]]])
+                }
+                assertEq(plainLoopOf(source), null)
+            }
+        }
+        /** @type {Block} */
+        const selected = { statements: [['if', [], true, step, step]], exit: ['yield', []] }
+        const normal = /** @type {Block} */ ({ statements: [reached], exit: ['break', target, [['ref', shared]]] })
+        const plan = branchingPlainLoopOf(withArms(selected, normal))
+        assert(plan !== null)
+        assertStructurallySame(plan.result, ['block', { statements: normal.statements, exit: ['yield', [['ref', shared]]] }])
+        for (const refused of /** @type {readonly Loop[]} */ ([
+            { ...scalar, results: [] },
+            { ...scalar, body: { statements: [], exit: ['yield', []] } },
+            { ...scalar, body: { statements: [projected], exit: ['yield', []] } },
+            { ...scalar, body: { statements: [['if', [shared], true, selected, done]], exit: ['yield', []] } },
+            { ...scalar, body: { statements: [['block', [], done], ['if', [], true, selected, done]], exit: ['yield', []] } },
+            withArms(selected, step),
+            withArms(step, done),
+            withArms({ statements: [reached], exit: step.exit }, done),
+            withArms({ ...selected, statements: [['if', [], true, step, done]] }, done),
+            withArms({ ...selected, statements: [['if', [], true, step, { ...step, exit: ['continue', target, []] }]] }, done),
+            { ...withArms(selected, done), body: { statements: [
+                ['define', alias, ['array', []], 'required'],
+                ['if', [], true, { ...selected, statements: [['if', [], ['ref', alias], step, step]] }, done],
+            ], exit: ['yield', []] } },
+        ])) { assertEq(branchingPlainLoopOf(refused), null) }
+    },
+    branchingTransitionsUseTheTaskStack: () => {
+        /** @type {Block} */
+        let selected = step
+        for (let depth = 0; depth < 20_000; ++depth) {
+            selected = { statements: [['if', [], true, selected, step]], exit: ['yield', []] }
+        }
+        const plan = branchingPlainLoopOf(withArms(selected, done))
+        assert(plan !== null)
+        let value = plan.iteration.next
+        assert(value instanceof Array && value[0] === 'block')
+        let block = value[1]
+        let depth = 0
+        while (block.exit[0] === 'yield' && block.exit[1][0] instanceof Array && block.exit[1][0][0] === 'if') {
+            block = block.exit[1][0][2]
+            depth += 1
+        }
+        assertEq(depth, 20_000)
+        assertStructurallySame(block, { statements: [], exit: ['yield', [1]] })
+    },
     normalArmDefinitionsStayInOnePostLoopResultRegion: () => {
         const shared = /** @type {const} */ ({ index: 4 })
         /** @type {Definition} */
