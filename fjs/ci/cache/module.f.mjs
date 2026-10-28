@@ -12,7 +12,6 @@
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
- * @import { Result } from '../../types/result/types.ts'
  * @import { Check, Platform } from '../smart/types.ts'
  * @import { File, Manifest, Rung, Tree } from './types.ts'
  */
@@ -22,19 +21,19 @@ import { collectRead, casAddFile } from '../../cas/module.f.mjs'
 import { branchCas, snapshot } from '../../cas/git/module.f.mjs'
 import { exactArgs } from '../../cli/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
-import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step } from '../../effects/module.f.mjs'
-import { execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, resultStep, step } from '../../effects/module.f.mjs'
+import { access, execFile, exitStep, isNotFound, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import { oidBytes } from '../../git/format/module.f.mjs'
 import { hexText, tryFromHexOf } from '../../git/oid/module.f.mjs'
 import { tryCommonDir } from '../../git/repo/module.f.mjs'
-import { parse, stringifySorted } from '../../media/json/module.f.mjs'
+import { stringifySorted } from '../../media/json/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
-import { parse as parseType } from '../../rtti/parse/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import * as pins from '../config/module.f.js'
-import { checksSchema, platformSchema } from '../smart/module.f.mjs'
+import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
+import { jobs } from '../self/module.f.mjs'
 import { select } from './inputs/module.f.js'
 import { main as publish } from './publish/module.f.mjs'
 
@@ -114,17 +113,6 @@ export const committedFiles = width => commit => {
     })
 }
 
-const readChecks = parseType(checksSchema)
-const readPlatform = parseType(platformSchema)
-
-/** Parse the generator's JSON using the shared RTTI schema. @template T @param {string} text @param {(value: Unknown) => Result<T, unknown>} read @returns {Effect<never, T, IoChannel>} */
-const settings = (text, read) => {
-    const json = parse(text)
-    if (json[0] === 'error') { return refuse('ERR_CI_SETTINGS')(json[1]) }
-    const result = read(json[1])
-    return result[0] === 'error' ? refuse('ERR_CI_SETTINGS')('invalid CI cache settings') : pureOk(result[1])
-}
-
 /** The action's temporary directory is outside the source checkout. @type {(env: Env) => string} */
 const manifestDirectory = env => join(env.RUNNER_TEMP ?? '', `fjs-ci-${env.GITHUB_JOB ?? ''}`)
 
@@ -135,8 +123,14 @@ const repository = () => step(tryCommonDir('.'), dir => dir === null
 
 /** @type {(options: NodeProgramOptions) => Effect<NodeOp, 0, number>} */
 export const init = ({ env }) => {
-    const checks = history(settings(env.FJS_CI_CHECKS ?? '', readChecks))
-    const platform = historyStep(checks, () => settings(env.FJS_CI_PLATFORM ?? '', readPlatform))
+    const checks = history(resultStep(access('Cargo.toml'), result => {
+        const id = env.GITHUB_JOB ?? ''
+        const job = jobs(result[0] === 'ok')[id]
+        return job === undefined
+            ? refuse('ERR_CI_JOB')('GITHUB_JOB must name a configured CI job')
+            : pureOk({ checks: jobChecks(id, job), platform: jobPlatform(job['runs-on']) })
+    }))
+    const platform = historyStep(checks, value => pureOk(value.platform))
     const repo = historyStep(platform, repository)
     const width = historyStep(repo, b => oidBytes(b.dir))
     const files = historyStep(width, w => {
@@ -150,7 +144,7 @@ export const init = ({ env }) => {
     const created = historyStep(cache, () => mkdir(manifestDirectory(env), { recursive: true }))
     const prepared = mapStep(created, ([, cas, t, , , , host, cs]) => {
         const inputs = inputKeys(t)
-        return cs.map(check => ({ check, manifest: checkManifest(check, host, inputs, t), cas }))
+        return cs.checks.map(check => ({ check, manifest: checkManifest(check, host, inputs, t), cas }))
     })
     const outputs = foldStep(prepared, '', ({ check, manifest, cas }) => output => {
         const key = contentHash(manifest)
@@ -175,7 +169,7 @@ export const commands = [
     {
         names: ['init'], description: 'Look up successful checks for this CI job',
         usage: 'fjs ci init', examples: ['npm start ci init'],
-        note: 'The generated workflow supplies check definitions and temporary paths.', docs: 'fjs/ci/cache/README.md',
+        note: 'GITHUB_JOB selects the checks directly from the repository CI configuration.', docs: 'fjs/ci/cache/README.md',
         handler: exactArgs('ci init', 0)(init),
     },
     {

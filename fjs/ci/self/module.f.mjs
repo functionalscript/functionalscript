@@ -8,10 +8,10 @@
  *
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { PackageConsumer } from '../types.ts'
+ * @import { PackageConsumer, Setup } from '../types.ts'
  */
 
-import { ci } from '../module.f.mjs'
+import { ci, ciJobs } from '../module.f.mjs'
 
 /**
  * What the packed-package check asks of this repository's tarball as a clean
@@ -42,8 +42,14 @@ export const packageConsumer = {
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci({
+export const main = () => ci(setup)
+
+/** Repository configuration shared with cache initialization. @type {Setup} */
+const setup = {
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
-})
+}
+
+/** The repository jobs before cache gates are applied. */
+export const jobs = ciJobs(setup)

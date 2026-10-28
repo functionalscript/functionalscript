@@ -171,20 +171,21 @@ const canonicalJobs = packageConsumer => ({
     ...nodeVersionJobs(packageConsumer),
 })
 
+/** Jobs shared by workflow generation and successful-check initialization.
+ * @type {(setup: Setup) => (rust: boolean) => Jobs}
+ */
+export const ciJobs = ({ nodeExtra, packageConsumer, mergeQueueOnly = [] }) => rust => miseJobs({
+    ...Object.fromEntries(os.flatMap(o =>
+        architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
+    ...canonicalJobs(packageConsumer),
+}, rust)
+
 /**
- * Every file `fjs ci` writes for `setup`, in order, given whether the project
- * has Rust: the CI workflow and the publish workflow.
- *
+ * Every file `fjs ci` writes for `setup`, given whether the project has Rust.
  * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
  */
-const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false }) => rust => {
-    /** @type {Jobs} */
-    const jobs = {
-        ...Object.fromEntries(os.flatMap(o =>
-            architecture.map(a => platformJob(rust, nodeExtra(o, a), mergeQueueOnly.includes(o))(o)(a)))),
-        ...canonicalJobs(packageConsumer),
-    }
-    const selectedJobs = miseJobs(jobs, rust)
+const ciFiles = setup => rust => {
+    const selectedJobs = ciJobs(setup)(rust)
     /** @type {GitHubAction} */
     const gha = {
         name: 'CI',
@@ -206,7 +207,7 @@ const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = fals
         permissions: {
             contents: 'read',
         },
-        jobs: smart ? smartJobs(selectedJobs) : selectedJobs,
+        jobs: setup.smart ? smartJobs(selectedJobs) : selectedJobs,
     }
     return [
         [ciPath, workflowText(gha)],
