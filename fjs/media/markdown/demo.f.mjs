@@ -37,6 +37,7 @@ import { tryParse } from './module.f.mjs'
 const spanView = span => {
     const kind = span[0]
     if (kind === 'code') { return ['li', ['code', kind], ' ', ['code', span[1]]] }
+    if (kind === 'image') { return ['li', ['code', kind], ' ', span[1], ' → ', ['code', span[2]]] }
     /** @type {readonly Node[]} */
     const label = kind === 'text' ? []
         : span[1].map(l => l[0] === 'code' ? /** @type {Node} */(['code', l[1]]) : l[1])

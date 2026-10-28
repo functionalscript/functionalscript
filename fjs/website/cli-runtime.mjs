@@ -4,18 +4,13 @@
  */
 
 import { matches } from './cli/search/module.f.js'
-import { copy } from './copy-runtime.mjs'
+import { bindCopies } from './copy-runtime.mjs'
 
 /** Bind each copy button before making the controls visible.
  * @type {(root: HTMLElement) => void}
  */
 export const startCli = root => {
-    for (const button of root.querySelectorAll('button')) {
-        const text = button.getAttribute('data-copy')
-        if (text === null) { continue }
-        button.addEventListener('click', () => { void copy(button, text) })
-    }
-    root.setAttribute('data-copy-ready', '')
+    bindCopies(root)
     startExplorer(root)
 }
 

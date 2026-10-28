@@ -35,7 +35,7 @@ export const proof = /** @type {const} */ ({
         const fallback = { hidden: false }
         const demo = { hidden: true, hasAttribute: () => true }
         const heading = { hidden: true, hasAttribute: () => false, parentElement: { querySelector: () => fallback } }
-        doc.querySelectorAll = () => [demo, heading]
+        doc.querySelectorAll = (/** @type {string} */ selector) => selector === 'button[data-copy-fragment]' ? [demo, heading] : []
         /** @type {((event: any) => void) | undefined} */
         let click
         doc.addEventListener = (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => { if (name === 'click') { click = listener } }
@@ -46,6 +46,41 @@ export const proof = /** @type {const} */ ({
         assertEq(heading.hidden, false)
         assertEq(fallback.hidden, true)
         click?.({ target: new Target(), preventDefault() { throw 'Demo copy belongs to the state runtime' } })
+    },
+    // A README's code block copies its text, and shows its button once bound.
+    readmeCopies: async () => {
+        const { doc } = fixture('', 'readme')
+        /** @type {string[]} */
+        const copied = []
+        /** @type {string[]} */
+        const ready = []
+        /** @type {(() => void)[]} */
+        const clicks = []
+        const status = { textContent: '' }
+        const button = {
+            ownerDocument: { defaultView: {
+                navigator: { clipboard: { writeText: async (/** @type {string} */ text) => { copied.push(text) } } },
+                clearTimeout: () => {},
+                setTimeout: () => 0,
+            } },
+            getAttribute: (/** @type {string} */ name) => name === 'data-copy' ? 'npm test' : null,
+            setAttribute: () => {},
+            removeAttribute: () => {},
+            querySelector: () => status,
+            addEventListener: (/** @type {string} */ _, /** @type {() => void} */ listener) => { clicks.push(listener) },
+        }
+        const readme = {
+            querySelectorAll: () => [button, { getAttribute: () => null }],
+            setAttribute: (/** @type {string} */ name) => { ready.push(name) },
+        }
+        doc.querySelectorAll = (/** @type {string} */ selector) => selector === '[data-readme]' ? [readme] : []
+        startFragments(doc)
+        assertEq(ready.join(), 'data-copy-ready')
+        assertEq(clicks.length, 1)
+        clicks[0]()
+        await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+        assertEq(copied.join(), 'npm test')
+        assertEq(status.textContent, 'Copied!')
     },
     nestedEncodedTarget: () => {
         const { doc, outer, inner, scrolls } = fixture('#%E4%B8%AD%E6%96%87', '中文')
