@@ -71,7 +71,7 @@
  * @import { Graph, Shape } from '../../../website/demo/graph/types.ts'
  * @import { BindingId, Block, Exit, Function as AstFunction, Loop, Statement, Value } from '../types.ts'
  * @import { ExpansionPlan, Module, SourceBlock, SourceFunction, SourceLoop, SourceParameter } from '../sugar/types.ts'
- * @import { SourceCase } from '../sugar/source.ts'
+ * @import { SourceCase, SourceSwitch } from '../sugar/source.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { Tags } from './types.ts'
  * @import { _Chain, _Child, _Definition } from './private.ts'
@@ -374,12 +374,14 @@ const blockShape = ({ statements, exit }) => {
 
 /**
  * A function or loop target as the arrow back to the node it names: the
- * nearest enclosing function, `loop` or `while` whose target it is.
+ * nearest enclosing function, `loop`, `while` or `switch` statement whose
+ * target it is. Each of those is a tag and a record holding its target;
+ * a `switch` exit is a longer tuple, which no exit names.
  *
  * @type {(target: unknown) => Shape<unknown>}
  */
 const targetShape = target => ({
-    owner: o => o instanceof Array && (o[0] === 'function' || o[0] === 'loop' || o[0] === 'while') && o[1].target === target,
+    owner: o => o instanceof Array && o.length === 2 && (o[0] === 'function' || o[0] === 'loop' || o[0] === 'while' || o[0] === 'switch') && o[1].target === target,
 })
 
 /** Each child of a node shape as its edge reaches it, {@link deref}. @type {(s: Shape<unknown>) => Shape<unknown>} */
@@ -524,8 +526,9 @@ const sourceBlockShape = ({ statements, exit }) => ({
  * **Statements are nodes**: `initialize` with its pattern and value,
  * `write` with the binding it writes and the value, `if` with lazy arms,
  * `while` with its condition and a lazy body. `return`, `break` and
- * `continue` arrow back to the function or loop they leave. A `switch`
- * has its value and a lazy edge to each case and to `default`. The
+ * `continue` arrow back to the function, loop or `switch` they leave. A
+ * `switch`, a statement in a loop or the exit that ends a block, has its
+ * value and a lazy edge to each case and to `default`. The
  * logical operators `&&`, `||` and `??` are still themselves here, their
  * right operands lazy.
  *
@@ -585,11 +588,15 @@ export const sourceGraph = module => {
                 const { condition, body } = /** @type {SourceLoop} */ (exp[1])
                 return { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
             }
+            // a `switch` statement, which a `break` leaves, or a `switch`
+            // exit, which ends its block: the same value, cases and default
             case 'switch': {
-                const cases = /** @type {readonly SourceCase[]} */ (exp[2])
+                const { discriminant, cases, otherwise } = exp.length === 2
+                    ? /** @type {SourceSwitch} */ (exp[1])
+                    : { discriminant: exp[1], cases: /** @type {readonly SourceCase[]} */ (exp[2]), otherwise: exp[3] }
                 return {
                     kind: 'op', label: 'switch',
-                    children: [['value', exp[1]], ...cases.map((c, i) => /** @type {_Child} */ ([`case ${i}`, c, 'lazy'])), ['default', exp[3], 'lazy']],
+                    children: [['value', discriminant], ...cases.map((c, i) => /** @type {_Child} */ ([`case ${i}`, c, 'lazy'])), ['default', otherwise, 'lazy']],
                 }
             }
             case 'return': { return transfer('return', exp[1], [exp[2]]) }

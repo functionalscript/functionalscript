@@ -541,6 +541,16 @@ export const proof = {
             assertStructurallySame(from(g, nodeOf(g, 'case')).map(e => e.label), ['label 0', 'label 1', 'body'])
             assert(g.edges.some(e => e.label === 'throw'), 'a throw row')
         },
+        // A `switch` statement in a loop: its value, its cases and its
+        // default, as the exit form has, and a `break` in a case arrows back
+        // to the switch it leaves, a `continue` to the loop.
+        loopSwitch: () => {
+            const g = sourceOf('export default n => { let i = 0; while (i < n) { i = i + 1; switch (i) { case 0: { continue; } default: { break; } } } return i; };')
+            const sw = nodeOf(g, 'switch')
+            assertStructurallySame(from(g, sw).map(e => [e.label, e.kind]), [['value', undefined], ['case 0', 'lazy'], ['default', 'lazy']])
+            assertStructurallySame(from(g, nodeOf(g, 'break')).map(e => [e.label, e.to, e.back]), [['to', sw, true]])
+            assertStructurallySame(from(g, nodeOf(g, 'continue')).map(e => [e.label, e.to, e.back]), [['to', nodeOf(g, 'while'), true]])
+        },
         // A `throw` statement, in a loop, is a node of its own.
         throwStatement: () => {
             const g = sourceOf('export default n => { let i = 0; while (i < n) { if (i > 5) { throw "big"; } i = i + 1; } return i; };')
