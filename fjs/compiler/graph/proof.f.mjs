@@ -341,6 +341,9 @@ export const proof = {
     fast: {
         array: () => assertStructurallySame(fast(['array', [1, ['...', ['a']]]]), { kind: 'op', label: '[]', children: [['0', 1], ['...1', ['a']]] }),
         object: () => assertStructurallySame(fast(['object', [[':', 'x', 1]]]), { kind: 'op', label: '{}', children: [['x', 1]] }),
+        memberPresent: () => assertStructurallySame(
+            fast(['memberPresent', ['a'], 'x']),
+            { kind: 'op', label: 'memberPresent', children: [['obj', ['a']], ['key', 'x']] }),
         call: () => assertStructurallySame(
             fast(['()', ['a'], [1]]),
             { kind: 'op', label: '()', children: [['callee', ['a']], ['...', ['array', [1]]]] }),

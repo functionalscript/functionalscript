@@ -226,6 +226,9 @@ export const operatorShape = ({ array, object }) => other => {
         }
         if (tag === '.' || tag === '?.' || tag === '?.()') { return chain(exp) }
         if (tag === '()') { return { kind: 'op', label: '()', children: [['callee', exp[1]], argsRow(exp[2], false)] } }
+        // a member check: the receiver and the key a plain access would
+        // read, without reading it
+        if (tag === 'memberPresent') { return { kind: 'op', label: 'memberPresent', children: [['obj', exp[1]], keyRow(exp[2], false)] } }
         if (tag === ',') {
             const items = /** @type {readonly unknown[]} */ (exp[1])
             // **A comma's operands are not alike, and numbering them says
