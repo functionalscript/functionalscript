@@ -143,15 +143,23 @@ swapped, with prefixes and exact transfer targets retained. This pass consumes
 the existing continue-first scalar plan. Default preparation and prior source
 profiles keep their established layouts.
 
-Source admission can also wrap a multi-input loop's required normal-arm
-definitions in its break-result value block, for rest-free fixed inputs or fixed
-inputs followed by rest. This pass already handles that ordinary value region
-after iteration: it establishes immutable final-input
-snapshots, then evaluates the required definitions and result once. The block
-introduces no invocation and keeps base-local binding identities and captures;
+Source admission can also wrap required normal-arm definitions in the break-result
+value block of a rest-free multi-input, fixed-plus-rest or rest-only loop. This
+pass already handles that ordinary value region after iteration: it establishes
+immutable final-input snapshots, then evaluates the required definitions and
+result once. The block introduces no invocation and keeps base-local binding
+identities and captures;
 calls, allocations and failures keep their reached order after the final test.
 The final rest snapshot retains its fresh invocation array and shared identity;
 no extra rest slice is introduced at normal completion.
+Rest-only roots use the existing scalar layout after source admission wraps the
+result and orients a base-first conditional. Their public fixed arity stays zero.
+For source loops with one input and a result block, preparation exposes leading
+total final-state aliases and constructors in the enclosing post-loop region.
+Existing constructor placement retains calls, lookups and selected regions as
+barriers. The first emitted source then establishes the final allocation's
+required order relative to later rest projections, keeping graph/text cycles
+exact from the first parse.
 Default preparation and the plain-loop planner's original domain stay unchanged.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns

@@ -129,14 +129,15 @@ export const continueFirstPlainLoopOf = loop => {
 }
 
 /**
- * Keep a multi-input loop's required normal-arm definitions in its result.
+ * Keep a loop's required normal-arm definitions in its result.
  * The value block runs once after the final test, with the same bindings and
- * reached order. The unchanged planner validates every other plain restriction.
+ * reached order. Single-input base-first candidates use the existing orientation
+ * helper; the unchanged planner validates every other plain restriction.
  * @type {(loop: Loop) => Loop | null}
  */
 export const resultBlockPlainLoopOf = loop => {
     const last = loop.body.statements.at(-1)
-    if (loop.parameters.length <= 1 || last === undefined || last[0] !== 'if') { return null }
+    if (loop.parameters.length === 0 || last === undefined || last[0] !== 'if') { return null }
     const baseFirst = last[3].exit[0] === 'break'
     const normal = baseFirst ? last[3] : last[4]
     const exit = normal.exit
@@ -148,5 +149,6 @@ export const resultBlockPlainLoopOf = loop => {
     const retained = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
         statements: [...loop.body.statements.slice(0, -1), ['if', last[1], last[2], baseFirst ? result : last[3], baseFirst ? last[4] : result]],
     } })
-    return plainLoopOf(retained) === null ? null : retained
+    return loop.parameters.length === 1 && baseFirst ? continueFirstPlainLoopOf(retained)
+        : plainLoopOf(retained) === null ? null : retained
 }

@@ -527,14 +527,19 @@ const statementTask = (statement, context) => call(() => {
                             statements: [...loop.parameters.map((_, index) => /** @type {NormalStatement} */ (['define', finalParameters[index], snapshot(finalState, index), 'required'])), ...plain.resultPrefix],
                             exit: normal.exit,
                         }])
+                        // Expose a scalar source result's leading total recipes
+                        // before reparsing introduces its ordinary loop helper.
+                        // Calls and lookups retain their existing lexical barrier.
                         return bind(prepareValue(resultBlock, {
                             ...context,
                             next: body.next,
                             reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, finalParameters[index]]))],
-                        }), result => done({
-                            value: [...initial.statements, physical, ...result.statements, ['define', loop.results[0], result.value]],
+                        }), result => bind(context.sourceLoops && loop.parameters.length === 1
+                            && plain.result instanceof Array && plain.result[0] === 'block'
+                            ? constructorTask(result.value) : done({ value: result.value, statements: [] }), exposed => done({
+                            value: [...initial.statements, physical, ...result.statements, ...exposed.statements, ['define', loop.results[0], exposed.value]],
                             next: result.next,
-                        }))
+                        })))
                     }))
                 })
             })
