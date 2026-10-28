@@ -186,6 +186,26 @@ records the exact observed rest-only root target for the single-input case;
 ordinary single-input layouts, including nested functions, remain unchanged.
 Default preparation does not use the source branching plan.
 
+Nested terminal decisions may also mix normal completion and continuation in
+source fixed multi-input and observed-rest roots. Shared
+[terminal analysis](../loop/terminal/module.f.mjs)
+validates required definitions, result-free decisions and exact loop transfers.
+Preparation keeps the body as one `while(true)` region, preserving required
+allocations shared by its tests, continued arguments and completed results.
+
+The existing generic single-input/result layout supplies one private slot.
+For multiple semantic inputs, preparation packs the initial values into that
+slot and establishes immutable per-input projections at each body entry.
+A continued leaf evaluates one complete next-input array before the write;
+the private loop context records this physical packing. A completed leaf
+evaluates its scalar result once, writes the same slot and exits. Rest-only
+roots use the existing scalar path. These choices retain simultaneous updates,
+held creating-iteration captures, fresh rest and reached failure order without
+adding logical bindings, graph metadata or a tagged transition protocol.
+Existing source profiles and default preparation keep their layouts. The first
+source parse establishes a scalar helper boundary; graph/text cycles remain
+exact from that first parsed graph.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

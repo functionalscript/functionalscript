@@ -203,9 +203,28 @@ state updates, retaining shared allocations, creating-iteration captures and
 fresh rest arrays. Zero-input transitions finish their required work and yield
 `undefined` to the existing private slot. Either outer orientation composes with
 ordinary or conditional base results. Default layouts and prior ordinary
-single-input source spellings stay unchanged; mixed transfers and general lazy
-prefixes retain their existing admission. Graph/text cycles remain exact from
+single-input source spellings stay unchanged; general lazy prefixes retain
+their existing admission. Graph/text cycles remain exact from
 the first source parse.
+
+Fixed multi-input and observed-rest roots now also retain nested terminal trees
+that mix normal completion and continuation. Shared terminal analysis validates
+required-definition prefixes and result-free decisions whose leaves complete
+the exact loop with one result or continue with its complete input vector.
+Source admission keeps the original body and targets. Common preparation emits
+`while(true)` with one private state/result slot, packing multi-input initial
+and next values once and establishing immutable body snapshots. Completion
+computes its selected scalar result, writes the same slot and exits. Rest-only
+roots reuse the scalar form.
+
+Required allocations shared by condition, transition and result remain in the
+same iteration region. Reached arguments finish before state changes, retaining
+simultaneous updates, captures, fresh rest and failure order. Earlier source
+profiles and default JavaScript/function-text/Rust layouts stay unchanged; no
+logical graph metadata or selector tags are added. The first source parse
+establishes the permitted scalar helper boundary, then graph/text cycles stay
+exact. Zero-input and general lazy-region extensions retain their previous
+admission.
 
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or
