@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Document, Entry, Inline, Label, ListMarker } from './types.ts'
+ * @import { Align, Block, Blocks, Document, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -81,10 +81,81 @@ const labelsOf = (lead, pairs) => {
     })]
 }
 
-/** A link's label as its spans. @type {(node: unknown) => readonly Label[]} */
+/** A plain link's label as its spans. @type {(node: unknown) => readonly Label[]} */
 const labelOf = node => {
     const [lead, rest] = arr(node)
     return labelsOf(lead, rest)
+}
+
+/**
+ * A link's target, from the rule's own tuple: its first symbol, which may
+ * not open the angle-bracket form, then the rest of it.
+ *
+ * @type {(link: readonly unknown[]) => string}
+ */
+const targetOf = l => lexeme([l[3], l[4]])
+
+/** A plain link's label and target. @type {(node: unknown) => readonly [readonly Label[], string]} */
+const plainLinkOf = node => {
+    const l = arr(node)
+    return [labelOf(l[1]), targetOf(l)]
+}
+
+/**
+ * The text before an image's `!`, where `span`, the span before a link,
+ * ends with one; `null` where it does not, so the link is no image.
+ *
+ * @type {(span: Inline | LinkLabel | undefined) => readonly Label[] | null}
+ */
+const beforeBang = span => {
+    if (span === undefined || span[0] !== 'text' || !span[1].endsWith('!')) { return null }
+    const rest = span[1].slice(0, -1)
+    return rest === '' ? [] : [['text', rest]]
+}
+
+/**
+ * An image of a plain link: its words, code included, are its alternative
+ * text. GitHub reads the label's text as prose before it drops the markup,
+ * so `&amp;` there is `&`; the text is read as a link label's is, and what
+ * that refuses is refused.
+ *
+ * @type {(link: readonly [readonly Label[], string]) => Result<Image, string>}
+ */
+const imageOf = ([label, src]) => {
+    for (const [kind, t] of label) {
+        const read = kind === 'text' ? proseSpans(false)(t) : ok([])
+        if (read[0] === 'error') { return read }
+    }
+    return ok(['image', label.map(([, t]) => t).join(''), src])
+}
+
+/**
+ * A link's label as its spans: text and code, and an image where an `!`
+ * comes before a link inside it. Any other link inside a label is refused,
+ * as GitHub never nests one link in another.
+ *
+ * @type {(node: unknown) => Result<readonly LinkLabel[], string>}
+ */
+const linkLabelOf = node => {
+    const [lead, rest] = arr(node)
+    /** @type {readonly LinkLabel[]} */
+    let out = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    for (const part of arr(rest)) {
+        const [tag, body] = arr(part)
+        const [span, tail] = arr(body)
+        /** @type {readonly LinkLabel[]} */
+        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        if (tag === 'code') {
+            out = [...out, ['code', codeText(span)], ...after]
+            continue
+        }
+        const before = beforeBang(out[out.length - 1])
+        if (before === null) { return error('a link inside a link') }
+        const image = imageOf(plainLinkOf(span))
+        if (image[0] === 'error') { return image }
+        out = [...out.slice(0, -1), ...before, image[1], ...after]
+    }
+    return ok(out)
 }
 
 /**
@@ -106,21 +177,21 @@ const emphasisOf = node => {
  * with, `em` the body before the one it closes with, and a `link` its label
  * and the two parts of its target.
  *
- * @type {(node: unknown) => Inline}
+ * @type {(node: unknown) => Result<Inline, string>}
  */
 const spanOf = node => {
     const [tag, body] = arr(node)
-    if (tag === 'code') { return ['code', codeText(body)] }
+    if (tag === 'code') { return ok(['code', codeText(body)]) }
     if (tag === 'link') {
         const l = arr(body)
-        // A target is its first symbol, which may not open the angle-bracket
-        // form, then the rest of it.
-        return ['link', labelOf(l[1]), lexeme([l[3], l[4]])]
+        const label = linkLabelOf(l[1])
+        if (label[0] === 'error') { return label }
+        return ok(['link', label[1], targetOf(l)])
     }
     const [kind, inner] = arr(arr(body)[1])
-    return kind === 'strong'
+    return ok(kind === 'strong'
         ? ['strong', emphasisOf(arr(inner)[1])]
-        : ['em', emphasisOf(arr(inner)[0])]
+        : ['em', emphasisOf(arr(inner)[0])])
 }
 
 /**
@@ -128,19 +199,39 @@ const spanOf = node => {
  * then each span and the run of text after it. Both runs are optional in the
  * rule, so an absent one contributes nothing rather than an empty `text`.
  *
- * @type {(node: unknown) => Entry}
+ * **A link after an `!` is an image**, as CommonMark reads `![alt](u)`; the
+ * grammar reads the `!` as text, since only a link right after it makes it
+ * more, which one symbol of lookahead cannot see. An image of a link that
+ * shows an image is refused: its alternative text would be an image's.
+ *
+ * @type {(node: unknown) => Result<Entry, string>}
  */
 const entryOf = node => {
     const [lead, rest] = arr(node)
     /** @type {readonly Inline[]} */
-    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
-    return [...head, ...arr(rest).flatMap(pair => {
-        const [span, tail] = arr(pair)
+    let out = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    for (const pair of arr(rest)) {
+        const [node, tail] = arr(pair)
         /** @type {readonly Inline[]} */
         const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
-        return [spanOf(span), ...after]
-    })]
+        const span = spanOf(node)
+        if (span[0] === 'error') { return span }
+        const s = span[1]
+        const before = s[0] === 'link' ? beforeBang(out[out.length - 1]) : null
+        if (s[0] !== 'link' || before === null) {
+            out = [...out, s, ...after]
+            continue
+        }
+        if (s[1].some(l => l[0] === 'image')) { return error('an image inside an image') }
+        const image = imageOf([/** @type {readonly Label[]} */(s[1]), s[2]])
+        if (image[0] === 'error') { return image }
+        out = [...out.slice(0, -1), ...before, image[1], ...after]
+    }
+    return ok(out)
 }
+
+/** Whether an entry shows an image, as itself or in a link's label. @type {(entry: Entry) => boolean} */
+const hasImage = entry => entry.some(span => span[0] === 'image' || (span[0] === 'link' && span[1].some(l => l[0] === 'image')))
 
 /**
  * The entries of a release file, as text, with each entry's wrapped lines
@@ -224,29 +315,6 @@ export const entryTexts = text => {
     }
     return ok(out)
 }
-
-/**
- * Whether an exclamation mark ends a text span that a link follows, which
- * is an image written in the one way the grammar cannot see.
- *
- * **The grammar reads `!` as ordinary text**, and correctly: an entry ending
- * "and it throws!" is prose. It is only an image when a link follows it
- * immediately, and a rule cannot look that far ahead with the one symbol
- * the backend has. So it is asked here, after recognition, in the place
- * DataJS's own reader asks what its grammar could not
- * ([`ebnf/lib/datajs`](../../ebnf/lib/datajs/module.f.mjs)).
- *
- * CommonMark reads `![alt](u)` as an image; recognised a span at a time it is
- * a `!` and a link, which is a different document rather than a different
- * rendering of one.
- *
- * @type {(entry: Entry) => boolean}
- */
-const hasImage = entry => entry.some((span, i) => {
-    const next = entry[i + 1]
-    return span[0] === 'text' && span[1].endsWith('!')
-        && next !== undefined && next[0] === 'link'
-})
 
 /** Whether a character is a letter or a digit, in any script. @type {(c: string | undefined) => boolean} */
 const isWordChar = c => c !== undefined
@@ -412,7 +480,7 @@ export const proseSpans = autolinks => text => {
 const isAsciiPunctuation = c => '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.includes(c)
 
 /** A span's first character, as the delimiter before it sees it. @type {(span: Inline) => string} */
-const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : '*'
+const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : span[0] === 'image' ? '!' : '*'
 
 /**
  * A span's last character, as the delimiter after it sees it. Bold or
@@ -456,6 +524,9 @@ const proseTildePair = spans => {
     return first !== -1 && text.indexOf('~', first + 1) !== -1
 }
 
+/** Whether a link's or an image's address holds an entity. @type {(address: string) => boolean} */
+const entityIn = address => [...address].some((_, i) => entityAt(address, i))
+
 /**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
  * run may become text and autolinks, a bold, emphasised or label run is
@@ -486,6 +557,12 @@ const readProse = entry => {
             out = [...out, ...read[1]]
             continue
         }
+        // CommonMark reads an entity in a source as the character it names.
+        if (span[0] === 'image') {
+            if (entityIn(span[2])) { return error('an entity in an image source') }
+            out = [...out, span]
+            continue
+        }
         const texts = span[1].flatMap(l => l[0] === 'text' ? [l[1]] : [])
         if (span[0] === 'link' && span[1].length === 0) { return error('a link with an empty label') }
         // CommonMark reads an asterisk with a space inside it as no
@@ -501,9 +578,8 @@ const readProse = entry => {
         if (proseTildePair(span[1])) { return error('a tilde pair in a span body, which GitHub may read as strikethrough') }
         // CommonMark reads an entity in a destination as the character it
         // names, and the page would keep it as written.
-        if (span[0] === 'link' && [...span[2]].some((_, i) => entityAt(span[2], i))) {
-            return error('an entity in a link target')
-        }
+        if (span[0] === 'link' && entityIn(span[2])) { return error('an entity in a link target') }
+        if (span[0] === 'link' && span[1].some(l => l[0] === 'image' && entityIn(l[2]))) { return error('an entity in an image source') }
         // A link's label holds no link; bold and emphasis may, and an
         // autolink there is a link the kept span would drop.
         for (const t of texts) {
@@ -517,16 +593,26 @@ const readProse = entry => {
 }
 
 /**
- * One entry's joined text as its spans, or the position it stopped at.
+ * One run of inline text as its spans, or where it stopped: a release
+ * entry's, or a README block's, which alone may show images.
  *
- * @type {(text: string) => Result<Entry, string>}
+ * @type {(images: boolean) => (text: string) => Result<Entry, string>}
  */
-export const tryParseEntry = text => {
+const parseInline = images => text => {
     const match = parseEntry(units(text))
     if (match[0] === 'error') { return error(`entry: unexpected symbol at ${match[1]}`) }
     const entry = entryOf(arr(arr(match[1])[0])[0])
-    return hasImage(entry) ? error('an image, which an entry does not hold') : readProse(entry)
+    if (entry[0] === 'error') { return entry }
+    return !images && hasImage(entry[1]) ? error('an image, which an entry does not hold') : readProse(entry[1])
 }
+
+/**
+ * One release entry's joined text as its spans, or the position it stopped
+ * at. An entry holds no image.
+ *
+ * @type {(text: string) => Result<Entry, string>}
+ */
+export const tryParseEntry = parseInline(false)
 
 /**
  * A release file as its entries, or the first that does not parse. The
@@ -633,7 +719,7 @@ const foreignBlock = line => {
  * @type {(line: number, text: string) => Result<Entry, string>}
  */
 const inlineAt = (line, text) => {
-    const spans = tryParseEntry(text)
+    const spans = parseInline(true)(text)
     return spans[0] === 'error' ? error(`line ${line}: ${spans[1]}`) : spans
 }
 

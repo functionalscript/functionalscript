@@ -26,7 +26,7 @@
  *
  * @module
  *
- * @import { Align, Block, Blocks, Inline, Label } from '../../media/markdown/types.ts'
+ * @import { Align, Block, Blocks, Image, Inline, Label } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
@@ -227,6 +227,22 @@ const fenceNodes = language => text => {
 const labelNode = label => label[0] === 'code' ? ['code', label[1]] : label[1]
 
 /**
+ * An image as its element, or why it is not drawn. Its source must be an
+ * `https` address, which a page loads as it is: GitHub serves a relative
+ * source from the repository and an `http` one through its own proxy, and
+ * this page can do neither, so either would be an image GitHub shows and
+ * this page breaks.
+ *
+ * @type {(image: Image) => Result<Element, string>}
+ */
+const imageNode = ([, alt, src]) => src.toLowerCase().startsWith('https://')
+    ? ok(['img', { src, alt }])
+    : error(`an image whose source is not an https address: ${src}`)
+
+/** Whether a heading shows an image. @type {(spans: readonly Inline[]) => boolean} */
+const hasImage = spans => spans.some(span => span[0] === 'image' || (span[0] === 'link' && span[1].some(l => l[0] === 'image')))
+
+/**
  * A README as the elements of its page, or the first link it cannot place.
  *
  * **A heading is one level below the README's own.** The page's `h1` is its
@@ -246,6 +262,8 @@ export const readmeNodes = href => blocks => {
     for (const block of blocks) {
         const c = block[0] === 'heading' ? unknownAnchorChar(block[2]) : undefined
         if (c !== undefined) { return error(`a heading character whose anchor GitHub may make otherwise: ${c}`) }
+        // An image's words are not its alternative text in GitHub's anchor.
+        if (block[0] === 'heading' && hasImage(block[2])) { return error('an image in a heading, whose anchor GitHub may make otherwise') }
     }
     const ids = anchors(blocks)
     /** @type {(span: Inline) => Result<Node, string>} */
@@ -254,10 +272,18 @@ export const readmeNodes = href => blocks => {
         if (kind === 'code') { return ok(['code', span[1]]) }
         if (kind === 'strong') { return ok(['strong', ...span[1].map(labelNode)]) }
         if (kind === 'em') { return ok(['em', ...span[1].map(labelNode)]) }
+        if (kind === 'image') { return imageNode(span) }
         if (kind === 'link') {
             const target = href(span[2])
             if (target[0] === 'error') { return target }
-            return ok(['a', { href: target[1] }, ...span[1].map(labelNode)])
+            /** @type {readonly Node[]} */
+            let label = []
+            for (const l of span[1]) {
+                const n = l[0] === 'image' ? imageNode(l) : ok(labelNode(l))
+                if (n[0] === 'error') { return n }
+                label = [...label, n[1]]
+            }
+            return ok(['a', { href: target[1] }, ...label])
         }
         return ok(span[1])
     }

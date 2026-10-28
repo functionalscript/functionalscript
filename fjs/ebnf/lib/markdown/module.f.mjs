@@ -173,6 +173,34 @@ export const emphasis = /**@type {const}*/(['*', {
     em: [emphasised, '*'],
 }])
 
+/** A run of a link target's symbols: no parenthesis, space or backslash. */
+const targetText = remove(any, set(')( \\'))
+
+/**
+ * A pair of parentheses in a target and what they hold, which holds no
+ * pair: CommonMark reads `[x](a(b)c)` as a link to `a(b)c`, its
+ * parentheses balanced. GitHub stops balancing past a depth this subset
+ * never needs, so a pair inside a pair is refused rather than read to a
+ * depth one reader may not share.
+ */
+const targetGroup = ['(', repeatFrom0(targetText), ')']
+
+/**
+ * A label in brackets, then its target in parentheses: a first symbol that
+ * may not open the angle-bracket form, then the rest.
+ *
+ * @type {(label: Rule) => Rule}
+ */
+const labelled = label => ['[', label, '](',
+    { text: remove(any, set(')( \\<')), group: targetGroup },
+    repeatFrom0({ text: targetText, group: targetGroup }), ')']
+
+/**
+ * A link whose label holds text and code only: the form an image takes,
+ * and the form a link inside a label takes.
+ */
+const plainLink = labelled([option(labelText), repeatFrom0([code, option(labelText)])])
+
 /**
  * An inline link.
  *
@@ -190,7 +218,9 @@ export const emphasis = /**@type {const}*/(['*', {
  * least one" without the conflict {@link entry} describes. A target is where it bites: a destination may hold balanced
  * parentheses, so GitHub reads `[x](a(b)c)` as a link to `a(b)c`, while
  * stopping at the first `)` gives a link to `a(b)` — not a stray rendering
- * but the wrong address, and nothing on the page would say so.
+ * but the wrong address, and nothing on the page would say so. So a target
+ * reads one level of balanced parentheses, as a Wikipedia address needs,
+ * and refuses an unbalanced one or a deeper one.
  *
  * **A space in the target is refused for the same reason.** CommonMark
  * ends an unbracketed destination at the first space and reads what
@@ -213,11 +243,19 @@ export const emphasis = /**@type {const}*/(['*', {
  * part of the address — the wrong address once more. Only the first symbol
  * decides that form, so a `<` later in a target is the character it looks
  * like to both readers and stays admitted.
+ *
+ * **A label may hold one plain link, for an image.** `[![alt](src)](href)`
+ * is a badge: an image that links somewhere. Read a symbol at a time it is
+ * a `!` and a link inside a label, so the label admits a link whose own
+ * label holds text and code only, and
+ * [`media/markdown`](../../../media/markdown/module.f.mjs) reads the `!`
+ * before it as an image or refuses the link: GitHub never nests a link in
+ * a link.
  */
-export const link = /**@type {const}*/([
-    '[', [option(labelText), repeatFrom0([code, option(labelText)])],
-    '](', remove(any, set(')( \\<')), repeatFrom0(remove(any, set(')( \\'))), ')',
-])
+export const link = labelled([option(labelText), repeatFrom0({
+    code: [code, option(labelText)],
+    link: [plainLink, option(labelText)],
+})])
 
 /**
  * One delimited span. The three branches open with disjoint symbols — a

@@ -144,11 +144,25 @@ export const proof = {
             empty: () => assertStructurallySame(readmeNodes(href)([['code', 'js', '']]),
                 ok([['pre', ['code', { class: 'language-js' }]]])),
         },
+        // An image draws from an https source, alone or as a link's label.
+        images: () => assertStructurallySame(readmeNodes(href)([['paragraph', [
+            ['image', 'a', 'HTTPS://e.x/b.png'],
+            ['link', [['image', 'c', 'https://e.x/d.svg'], ['text', ' e']], 'f'],
+        ]]]), ok([['p', ['img', { src: 'HTTPS://e.x/b.png', alt: 'a' }], ['a', { href: 'f' }, ['img', { src: 'https://e.x/d.svg', alt: 'c' }], ' e']]])),
         // A link it cannot place refuses the README, wherever it stands.
         refuses: {
             letterlike: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'ℂ']]]]),
                 error('a heading character whose anchor GitHub may make otherwise: ℂ')),
             heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['text', 'x']], 'bad']]]]), error('no')),
+            // GitHub serves these itself; a page cannot load them as it does.
+            relativeImage: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['image', 'a', './b.png']]]]),
+                error('an image whose source is not an https address: ./b.png')),
+            httpBadge: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['link', [['image', 'a', 'http://e.x/b.svg']], 'c']]]]),
+                error('an image whose source is not an https address: http://e.x/b.svg')),
+            imageInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'a '], ['image', 'b', 'https://e.x/c.png']]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
+            badgeInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['image', 'b', 'https://e.x/c.png']], 'd']]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),
             list: () => assertStructurallySame(readmeNodes(href)([['list', false, [[['paragraph', [['link', [['text', 'x']], 'bad']]]]]]]), error('no')),
             header: () => assertStructurallySame(readmeNodes(href)([['table', [null], [[['link', [['text', 'x']], 'bad']]], []]]), error('no')),

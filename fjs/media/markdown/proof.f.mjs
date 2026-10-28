@@ -225,9 +225,11 @@ export const proof = {
          * ending "it throws!" is prose. It is an image only when a link
          * follows immediately, which one symbol of lookahead cannot see.
          */
-        image: () => assertEq(tryParseEntry('![alt](https://example.com/i.png)')[0], 'error'),
+        image: () => assertEq(tryParseEntry('![alt](https://example.com/i.png)')[1], 'an image, which an entry does not hold'),
         imageInsideAnEntry: () => assertEq(
             tryParseEntry('a ![x](https://example.com/y.png) b')[0], 'error'),
+        badgeInsideAnEntry: () => assertEq(
+            tryParseEntry('[![x](https://e.x/y.svg)](https://e.x)')[1], 'an image, which an entry does not hold'),
         // Prose ending in an exclamation mark is prose.
         exclamationIsText: () => assertEq(tryParseEntry('and it throws!')[0], 'ok'),
         exclamationBeforeALink: () => assertEq(
@@ -358,6 +360,16 @@ export const proof = {
      * and a refusal naming the line of anything GitHub reads otherwise.
      */
     tryParseBlocks: {
+        // A README shows images: alone, beside text, and as a link's label.
+        images: () => assertStructurallySame(blocks('a ![b `c`](https://e.x/d.png)! [![e](https://e.x/f.svg) g](h) **i**![j](k)\n'), [['paragraph', [
+            ['text', 'a '], ['image', 'b c', 'https://e.x/d.png'], ['text', '! '],
+            ['link', [['image', 'e', 'https://e.x/f.svg'], ['text', ' g']], 'h'], ['text', ' '],
+            ['strong', [['text', 'i']]], ['image', 'j', 'k'],
+        ]]]),
+        imageAlone: () => assertStructurallySame(blocks('![a](b)\n'), [['paragraph', [['image', 'a', 'b']]]]),
+        badgeAfterText: () => assertStructurallySame(blocks('[x![a](b)](c)\n'), [['paragraph', [['link', [['text', 'x'], ['image', 'a', 'b']], 'c']]]]),
+        // A Wikipedia address keeps its parentheses.
+        parenthesesInATarget: () => assertStructurallySame(blocks('[a](https://e.x/b_(c))\n'), [['paragraph', [['link', [['text', 'a']], 'https://e.x/b_(c)']]]]),
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
             [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
         // A numbered list starts at its first number; its items are a list's.
@@ -468,6 +480,16 @@ export const proof = {
             nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n'), 'line 4: a block quote'),
             email: () => assertEq(refusal('mail a.b+c@x-y.example.org\n'), 'line 1: an email address, which GitHub reads as a link, at 10'),
             linkTargetEntity: () => assertEq(refusal('[x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in a link target'),
+            imageSourceEntity: () => assertEq(refusal('![x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in an image source'),
+            badgeSourceEntity: () => assertEq(refusal('[![x](https://e.test/&amp;)](u)\n'), 'line 1: an entity in an image source'),
+            // GitHub never nests a link in a link; only an image goes inside one.
+            linkInALink: () => assertEq(refusal('[a [b](c)](d)\n'), 'line 1: a link inside a link'),
+            linkInALinkAfterCode: () => assertEq(refusal('[`a`[b](c)](d)\n'), 'line 1: a link inside a link'),
+            linkInALinkInAParagraph: () => assertEq(refusal('x [[b](c)](d)\n'), 'line 1: a link inside a link'),
+            // Alternative text is read as GitHub reads it, or refused.
+            imageAltEntity: () => assertEq(refusal('![a &amp; b](u)\n'), 'line 1: an entity, which GitHub reads as the character it names, at 2'),
+            badgeAltEntity: () => assertEq(refusal('[![a &amp; b](u)](v)\n'), 'line 1: an entity, which GitHub reads as the character it names, at 2'),
+            imageOfABadge: () => assertEq(refusal('![x![a](b)](c)\n'), 'line 1: an image inside an image'),
             // Neither a handle nor a lone `@` is an address.
             notAnEmail: () => assertEq(refusal('@codex, a @ b, x@y, x@.y, [a@b.c](u) and a&b\n'), null),
             lazyContinuation: () => assertEq(refusal('- a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),

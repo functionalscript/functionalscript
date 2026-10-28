@@ -51,7 +51,7 @@ export const init = { register: ['loading'] }
  *
  * @type {(cell: Entry) => string}
  */
-const words = cell => cell.map(span => span[0] === 'text' || span[0] === 'code'
+const words = cell => cell.map(span => span[0] === 'text' || span[0] === 'code' || span[0] === 'image'
     ? span[1]
     : span[1].map(label => label[1]).join('')).join('')
 
