@@ -117,8 +117,19 @@ complete the same loop with one value. The shared normalizer keeps required
 definitions in their original branch and converts that tree into the existing
 result value block. Base conditions run only after the final iteration test;
 only the selected branch evaluates its calls, allocations or failures. Both
-outer orientations retain final input/rest identities and captures. Multiple
-continuing branches and general lazy prefixes keep their previous admission.
+outer orientations retain final input/rest identities and captures. General
+lazy prefixes keep their previous admission.
+
+A continuing arm may also contain a terminal conditional tree whose leaves
+all continue the same loop with its complete input vector. Shared planning
+evaluates one selected transition as a value block: required branch work and
+all reached arguments finish before the scalar or packed state changes. This
+preserves simultaneous updates, shared allocations and captures of the creating
+iteration, including fresh rest arrays. Zero-input transitions finish their
+required work and yield `undefined` to the existing private slot. Either outer
+arm may continue, and conditional base results use the same final-result path.
+The public parameter list and prior ordinary single-input spelling stay intact;
+mixed transfers and general lazy prefixes retain their existing admission.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result

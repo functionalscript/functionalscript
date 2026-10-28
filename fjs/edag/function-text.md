@@ -191,8 +191,17 @@ lexical branches, and each base condition and selected result runs after the
 final iteration test. Skipped branches remain unevaluated; sharing, captures
 and failures keep their reached order. Either outer arm may continue. The
 first parsed graph and subsequent canonical text retain the same exact cycle
-contract; this does not extend admission to multiple continuing branches or
-general lazy prefixes.
+contract; general lazy prefixes retain their existing admission.
+
+Continuing decision trees use a source-only shared plan when every leaf
+continues the exact loop with its complete next-input vector. The selected
+value block evaluates branch work and arguments once before simultaneous state
+updates. Immutable iteration snapshots preserve captures and fresh rest; a
+zero-input transition yields `undefined` after its required work. Both outer
+orientations compose with normal or conditional base results. The first source
+parse establishes the same permitted helper boundary, then graph/text cycles
+remain exact. Original function text, default JavaScript/Rust layouts and prior
+ordinary single-input source spellings retain their contracts.
 
 ## A function that names itself
 

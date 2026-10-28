@@ -36,6 +36,87 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
 export const proof = {
+    sourceBranchingTransitionsKeepOneSelectedValueAndZeroInputWork: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), other = id(1), result = id(2), selected = id(3), alternative = id(4)
+        for (const width of /** @type {const} */ ([0, 2])) {
+            const parameters = [state, other].slice(0, width)
+            /** @type {(binding: BindingId) => NormalBlock} */
+            const leaf = binding => ({ statements: [['define', binding, ['.', null, 'selected'], 'required']],
+                exit: ['continue', target, parameters.toReversed().map(binding => ['ref', binding])] })
+            /** @type {NormalBlock} */
+            const block = { statements: [['loop', {
+                target, parameters, initial: parameters.map(() => 0), results: [result], body: {
+                    statements: [['if', [], false,
+                        { statements: [['if', [], true, leaf(selected), leaf(alternative)]], exit: ['yield', []] },
+                        { statements: [], exit: ['break', target, [7]] },
+                    ]], exit: ['yield', []],
+                },
+            }]], exit: ['yield', [['ref', result]]] }
+            const source = prepare(block, { sourceLoops: true })
+            const physical = source.statements[0]
+            assert(physical[0] === 'while')
+            assertEq(physical[1].mutable, true)
+            assertEq(physical[1].body.statements.filter(statement => statement[0] === 'write').length, 1)
+            assertEq(physical[1].body.statements.filter(statement => statement[0] === 'define').length, width + 1)
+            const transition = physical[1].body.statements.at(-2)
+            assert(transition !== undefined && transition[0] === 'define')
+            let value = transition[2]
+            while (value instanceof Array && value[0] === 'block') {
+                assertEq(value[1].statements.length, 0)
+                assert(value[1].exit[0] === 'yield')
+                value = value[1].exit[1][0]
+            }
+            assert(value instanceof Array && value[0] === 'if')
+            for (const arm of [value[2], value[3]]) {
+                assertEq(arm.statements[0][0], 'define')
+                const required = arm.statements[0]
+                assert(required[0] === 'define')
+                assertStructurallySame(required[2], ['.', null, 'selected'])
+                assert(arm.exit[0] === 'yield')
+                assertStructurallySame(arm.exit[1][0], width === 0 ? undefined : ['array', parameters.toReversed().map(binding => ['ref', binding])])
+            }
+            assert(prepare(block).statements.some(statement => statement[0] === 'loop'))
+        }
+    },
+    sourceBranchingScalarPlanIsLimitedToTheObservedRestRoot: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const input = id(0), state = id(1), result = id(2)
+        /** @type {NormalBlock} */
+        const leaf = { statements: [], exit: ['continue', target, [['ref', state]]] }
+        /** @type {Loop} */
+        const loop = { target, parameters: [state], initial: [['ref', input]], results: [result], body: {
+            statements: [['if', [], false,
+                { statements: [['if', [], true, leaf, leaf]], exit: ['yield', []] },
+                { statements: [], exit: ['break', target, [['ref', state]]] },
+            ]], exit: ['yield', []],
+        } }
+        /** @type {NormalFunction} */
+        const fn = { target: owner, parameters: [], rest: input, self: null, captures: [], body: {
+            statements: [['loop', loop]], exit: ['return', owner, ['ref', result]],
+        } }
+        /** @type {(fn: NormalFunction) => import('./types.ts').Function} */
+        const source = fn => {
+            const prepared = prepare({ statements: [], exit: ['yield', [['function', fn]]] }, { sourceLoops: true })
+            assert(prepared.exit[0] === 'yield')
+            const value = prepared.exit[1][0]
+            assert(value instanceof Array && value[0] === 'function')
+            return value[1]
+        }
+        assertEq(source(fn).body.statements[0][0], 'while')
+        assert(prepareFunction(fn).body.statements.some(statement => statement[0] === 'loop'))
+        const ordinary = source({ ...fn, parameters: [input], rest: null }).body.statements.find(statement => statement[0] === 'while')
+        assert(ordinary !== undefined && ordinary[0] === 'while')
+        assertEq(ordinary[1].condition, true)
+        const later = id(3)
+        const guarded = source({ ...fn, body: { ...fn.body, statements: [['loop', loop], ['define', later, ['array', []], 'required']] } })
+            .body.statements.find(statement => statement[0] === 'while')
+        assert(guarded !== undefined && guarded[0] === 'while')
+        assertEq(guarded[1].condition, true)
+        const empty = source({ ...fn, body: { statements: [], exit: ['return', owner, 7] } })
+        assertEq(empty.body.statements.length, 0)
+    },
     scalarSourceResultExposesTotalPrefixesBeforeProjectionReads: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const state = id(0), result = id(1), shared = id(2), observer = id(3), later = id(4)

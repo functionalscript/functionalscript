@@ -23,7 +23,7 @@
 
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
-import { plainLoopOf } from '../loop/plain/module.f.mjs'
+import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -317,12 +317,15 @@ const values = (input, context, snapshots = []) => {
 /** @type {(value: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
 const functionValue = (value, context) => call(() => {
     const normalized = normalizeLazyReturns(value.body, value.target)
+    const root = normalized.statements.at(-1)
+    const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
+        && root !== undefined && root[0] === 'loop' ? root[1].target : null
     const summary = normalized === value.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
     /** @type {_Context} */
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
     return bind(values(value.captures.map(capture => capture.value), local), prepared => {
     const captures = value.captures.map((capture, index) => ({ binding: capture.binding, value: prepared.value[index] }))
-    return bind(prepareBlock(normalized, { ...local, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
+    return bind(prepareBlock(normalized, { ...local, sourceBranchTarget, owner: value.target, next: prepared.next, memos: [], loops: [], yields: null, reads: [] }), body => {
         // Source functions require a terminal return even after a loop that
         // cannot complete. Retaining its result keeps invocation roots exact.
         const last = body.value.statements.at(-1)
@@ -477,7 +480,8 @@ const statementTask = (statement, context) => call(() => {
                 })
             })
         }
-        const plain = plainLoopOf(loop)
+        const plain = plainLoopOf(loop) ?? (context.sourceLoops
+            && (loop.parameters.length !== 1 || loop.target === context.sourceBranchTarget) ? branchingPlainLoopOf(loop) : null)
         if (plain !== null && (loop.parameters.length <= 1 || context.sourceLoops)
             && !nonlocalValue(plain.iteration.condition, context) && !nonlocalValue(plain.iteration.next, context)
             && !nonlocalValue(plain.result, context) && plain.prefix.every(statement => !nonlocalValue(statement[2], context))
@@ -505,7 +509,7 @@ const statementTask = (statement, context) => call(() => {
                     next: initial.next + bindings.length,
                     reads: [...context.reads, ...loop.parameters.map((parameter, index) => /** @type {const} */ ([parameter, conditionParameters[index]]))],
                 }), condition => {
-                    const mutable = hasState && (packed || !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0]))
+                    const mutable = hasState ? packed || !(iteration.next instanceof Array && iteration.next[0] === 'ref' && iteration.next[1] === loop.parameters[0]) : iteration.next !== undefined
                     const step = /** @type {NormalBlock} */ ({ statements: iteration.step.statements, exit: ['yield', mutable ? [iteration.next] : []] })
                     return bind(prepareBlock(step, {
                         ...context,
@@ -636,7 +640,7 @@ const prepareBlock = (block, context) => {
  */
 export const prepare = (block, { sourceLoops = false } = {}) => {
     const summary = flows(['block', block])
-    return run(prepareBlock(block, { sourceLoops, flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(prepareBlock(block, { sourceLoops, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(block)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }
 
 /**
@@ -647,5 +651,5 @@ export const prepare = (block, { sourceLoops = false } = {}) => {
  */
 export const prepareFunction = value => {
     const summary = flows(['function', value])
-    return run(functionValue(value, { sourceLoops: false, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
+    return run(functionValue(value, { sourceLoops: false, sourceBranchTarget: null, flows: summary, owner: null, next: assertNotNullish(summary.get(value)).next, memos: [], loops: [], yields: null, reads: [] })).value
 }

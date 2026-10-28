@@ -174,6 +174,18 @@ evaluates only the selected branch, retaining final captures, sharing and
 failure order. Existing scalar, packed and private unchanged slot plans cover
 both outer orientations; no new physical loop layout is needed.
 
+For source loops, the shared branching plan can provide one selected
+next-input value block instead of a linear continuing arm. Preparation evaluates
+its required branch work and complete scalar or array vector before changing
+state, so argument order and simultaneous updates retain their existing owners.
+Iteration snapshots keep captured values and rest identities immutable. An
+empty-input transition evaluates its selected work, yields `undefined` and
+updates the existing private slot; it adds no semantic input or public arity.
+Both outer orientations use the existing normal-result path. A private context
+records the exact observed rest-only root target for the single-input case;
+ordinary single-input layouts, including nested functions, remain unchanged.
+Default preparation does not use the source branching plan.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

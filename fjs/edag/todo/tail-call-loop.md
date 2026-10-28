@@ -192,8 +192,20 @@ lexical branches; terminal decisions become value conditionals inside the
 result block. Base tests run after the final iteration test, and only selected
 branches evaluate their work or failures. Both outer orientations preserve
 final input/rest sharing, fresh allocations and escaped captures, with exact
-graph/text cycles from the first source parse. Multiple continuing branches
-and general lazy prefixes remain outside this increment.
+graph/text cycles from the first source parse. General lazy prefixes retain
+their existing admission.
+
+Continuing decision trees now retain source loops when every leaf continues
+the exact loop with its complete next-input vector. A source-only shared plan
+keeps required definitions in their lexical branches and evaluates one selected
+transition value block. Reached arguments complete in order before simultaneous
+state updates, retaining shared allocations, creating-iteration captures and
+fresh rest arrays. Zero-input transitions finish their required work and yield
+`undefined` to the existing private slot. Either outer orientation composes with
+ordinary or conditional base results. Default layouts and prior ordinary
+single-input source spellings stay unchanged; mixed transfers and general lazy
+prefixes retain their existing admission. Graph/text cycles remain exact from
+the first source parse.
 
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or

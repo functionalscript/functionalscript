@@ -11,7 +11,7 @@
 
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
-import { continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
+import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.mjs'
@@ -98,6 +98,7 @@ const resultBlock = block => call(() => {
 const recursiveFunction = fn => {
     const loop = invocationRootOf(fn)
     if (loop === null || plainLoopOf(loop) !== null || (fn.rest === null && (scalarLoopOf(loop) !== null || localLoop(loop)))) { return done(fn) }
+    if (branchingPlainLoopOf(loop) !== null) { return done(fn) }
     const retained = fn.parameters.length === 0 && fn.rest !== null
         ? continueFirstPlainLoopOf(loop) ?? resultBlockPlainLoopOf(loop)
         : loop.parameters.length !== 1 ? resultBlockPlainLoopOf(loop) : null
