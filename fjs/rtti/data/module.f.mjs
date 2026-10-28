@@ -30,7 +30,7 @@ import { strictEqual as strictEqualCurried } from '../../types/function/operator
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { entry, hasEntry } from '../../types/object/entry/module.f.js'
-import { declaredTest, eachEntry, hasHole, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { declaredTest, eachEntry, hasUndeclaredMember, isArray, noAccumulate, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -1401,8 +1401,7 @@ const unionValidate = rules => u => value => {
         return checkValue(((u.unit ?? 0) & unitBit(value)) !== 0, value)
     }
     if (isArray(value)) {
-        // An array with a hole is no value of any set, as in the schema-form readers.
-        return hasHole(value) ? verror('unexpected value') : patternsValidate(u.array, arraySetValidate(rules), value)
+        return patternsValidate(u.array, arraySetValidate(rules), value)
     }
     return patternsValidate(u.object, objectSetValidate(rules), value)
 }

@@ -13,15 +13,15 @@ value carrying more is not one of its values, on either reader:
 | `[number, or(option, string)]` | `[42]` | `[42]` | `[42]` |
 | `[42]` | `[]` | error | error |
 
-A tuple answers by **length** as well as by member. An array with a hole, such
-as `[42, , ]`, never gets that far: every reader refuses it, since
-FunctionalScript builds no such array.
+A tuple answers by **length** as well as by member: a hole past the prefix is
+no member, so `[42, , ]` would slip through a member check alone while the
+array is still that long.
 
 The last two rows are one rule, and closedness leaves it alone — it is about
 *undeclared* members, and a declared position admitting **absence** stays
 omittable. A member is absent when its key or index is no enumerable own entry
-of the value — for an array, a position past its end — and it is **required exactly when its set
-excludes absence** — the `option` member of its union. Position 1 of
+of the value, and it is **required exactly when its set excludes absence** —
+the `option` member of its union. Position 1 of
 `[number, or(option, string)]` admits absence, so a shorter array is fine —
 and neither reader materializes anything: `parse` builds `[42]`, omitting the
 absent member — while `42` excludes it, so position 0 of `[42]` is required

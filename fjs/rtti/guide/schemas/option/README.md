@@ -21,9 +21,10 @@ absence**, so a struct key or a tuple position without `option` must be there
 Absence is observable only at a container position. No caller can hand a
 reader an argument that is not there, so a top-level schema admitting absence
 accepts exactly what the rest of its union accepts. A tuple position is absent
-only past the end of the array: every reader refuses an array with a hole,
-which FunctionalScript cannot build. A container's `rest` never sees an absent
-member either.
+only past the end of the array, since FunctionalScript builds no array with a
+hole and the readers read none
+([what the readers assume of a value](../../readers/assumptions/README.md)).
+A container's `rest` never sees an absent member either.
 
 Neither reader fills an absent member in: `parse({ a: or(option, number) })({})`
 builds `{}`, with no key `a`, and `validate` hands back the `{}` it was given.

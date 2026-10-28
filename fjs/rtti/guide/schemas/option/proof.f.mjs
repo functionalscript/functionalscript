@@ -13,14 +13,15 @@ export const proof = {
         absentVsUndefined: () => verdicts('Absent vs undefined', [true, false]),
         swapped: () => verdicts('Absent vs undefined', [false, true], 'export default {"a":undefined};'),
     },
-    // The page's examples, but the hole: `[, 3]` is host-made, and
-    // FunctionalScript proofs take only values it can build.
+    // The page's examples.
     examples: {
         mayBeAbsent: () => assert(admits({ a: or(option, number) }, {}) && !admits({ a: or(option, number) }, { a: undefined })),
         mustBePresent: () => assert(admits({ a: or(number, undefined) }, { a: undefined }) && !admits({ a: or(number, undefined) }, {})),
         all: () => assert(admits({ a: or(option, number, undefined) }, {})
             && admits({ a: or(option, number, undefined) }, { a: undefined })
             && admits({ a: or(option, number, undefined) }, { a: 1 })),
+        tupleTail: () => assert(admits([3, or(option, number)], [3]) && admits([3, or(option, number)], [3, 1])
+            && !admits([3, or(option, number)], [3, undefined])),
     },
     // Neither reader fills an absent member in.
     notFilled: () => assertEq(Object.keys(assertOk(parse({ a: or(option, number) })({}))).length, 0),

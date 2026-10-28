@@ -562,11 +562,8 @@ export const proof = {
             absentOnlyPositionIsNotDropped: () => {
                 assert(!equal(toData(/** @type {const} */ ([option])))(
                     toData(/** @type {const} */ ([]))))
-                // The two forms stay distinct, but no value tells them apart
-                // any more: the one that did, `new Array(1)`, has a hole,
-                // which every reader refuses.
                 const v1 = validate(toData(/** @type {const} */ ([option])))
-                assertEq(v1(new Array(1))[0], 'error')
+                assertEq(v1(new Array(1))[0], 'ok')
                 assertEq(v1([])[0], 'ok')
                 assertEq(v1([1])[0], 'error')
                 assertEq(v1([undefined])[0], 'error')
@@ -874,9 +871,7 @@ export const proof = {
                 { absCycleA: { unit: absentBit } },
                 { array: [{ prefix: [{ number: true }], rest: 'absCycleA' }] },
             ])
-            // the two sets differed only by hole-only arrays, which every
-            // reader now refuses, so no value tells them apart
-            assertEq(validate(holey)([1, , , ])[0], 'error')
+            assertEq(validate(holey)([1, , , ])[0], 'ok')
             assertEq(validate(holey)([1, 2])[0], 'error')
             assertEq(validate(toData(tupleNumber))([1, , , ])[0], 'error')
             assert(subset(toData(tupleNumber))(holey))

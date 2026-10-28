@@ -296,14 +296,8 @@ export const proof = {
     // What `parse` builds around an absent member, asserted on the value
     // rather than on acceptance alone: no `undefined` is materialized, so
     // nothing turns into `null` on the wire. A tuple's absent positions are
-    // only ever past the end, since a value with a hole is refused, so a
-    // trailing absent run shortens the result and no rebuilt array has a hole.
+    // only ever past the end, so a trailing absent run shortens the result.
     absentPositions: {
-        holeIsRefused: () => {
-            assertError(parse([or(option, number), 3])([, 3]))
-            assertError(parse([or(option, number), number, number])([, 2, 4]))
-            assertError(parse(array(number))([1, , 3]))
-        },
         trailingRunShortens: () => {
             /** @type {ReadonlyArray<unknown>} */
             const built = unwrap(parse([number, or(option, number), or(option, number)])([1]))
@@ -383,8 +377,6 @@ export const proof = {
                 assertError(parse([number])([1, 2]))
                 assertStructurallySame(unwrap(parse(open([number]))([1, 2])), [1])
             },
-            // A hole past the prefix is no member, so length is what catches it.
-            holePastThePrefixRejected: () => assertError(parse([number])([1, ,])),
             // The container is bounded before its members are read, so a
             // value that is both too long and wrong at a member is answered
             // by its shape. `validate` reports the same path — the two gate
@@ -453,7 +445,7 @@ export const proof = {
             unknownRestIsOpen: () => assertOk(parse(rest([number], unknown))([1, 'x'])),
             // An empty one is the bare form: nothing past the prefix.
             emptyRestBoundsTheLength: () => {
-                assertError(parse(rest([number], or()))([1, ,]))
+                assertError(parse(rest([number], or()))([1, 2]))
                 assertStructurallySame(unwrap(parse(rest([number], or()))([1])), [1])
             },
         },

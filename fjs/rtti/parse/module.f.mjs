@@ -18,10 +18,11 @@
  * — the `option` bit of its union — so a shorter array whose trailing
  * position says `or(option, t)` is accepted. An absent member is omitted
  * from what is built, never materialized as `undefined`: the struct kind
- * drops the key, and the array kind shortens a trailing absent run. An array
- * value with a hole is refused, as every reader refuses it (`hasHole` in
- * `../common/module.f.mjs`), so an absent position is only ever past the end
- * and no rebuilt array has a hole.
+ * drops the key, and the array kind shortens a trailing absent run. The
+ * readers read no array with a hole
+ * ([what the readers assume of a value](../guide/readers/assumptions/README.md)),
+ * so an absent position is only ever past the end and no rebuilt array has a
+ * hole.
  *
  * A tuple schema declares by length, so a hole in the *schema* is a declared
  * position whose schema is `undefined` — see "A hole is a declared position"
@@ -68,8 +69,8 @@ const inOrder = entries => toArray(reverse(entries))
 /**
  * The **array** kinds' rebuild, uniform and tuple: the parsed elements, dense,
  * in member order. A tuple's absent positions are all past the last present
- * one, since a value with a hole is refused before it is read, so a trailing
- * absent run shortens the result and nothing else is left out.
+ * one, since the readers read no array with a hole, so a trailing absent run
+ * shortens the result and nothing else is left out.
  *
  * @type {_Rebuild}
  */

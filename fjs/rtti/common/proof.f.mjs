@@ -257,12 +257,11 @@ export const proof = {
         assertStructurallySame(assertOk(read(rest([number], number))([1, 2])), ['tuple', [1, 2]])
         assertStructurallySame(assertOk(read(rest({ a: number }, number))({ a: 1, b: 2 })), ['struct', { a: 1, b: 2 }])
         assertStructurallySame(assertOk(read(or(number, [number]))([1])), ['tuple', [1]])
-        // `array(or())` is the empty array, and an array with a hole is
-        // refused.
+        // `array(or())` is the empty array: any member fails the element set.
         assertStructurallySame(assertOk(read(array(or()))([])), ['array', []])
-        assertErrorPath([])(read(array(or()))(new Array(1)))
+        assertErrorPath(['0'])(read(array(or()))([1]))
         // So is an empty rest past a tuple's prefix.
         assertStructurallySame(assertOk(read(rest([], or()))([])), ['tuple', []])
-        assertErrorPath([])(read(rest([], or()))(new Array(1)))
+        assertErrorPath(['0'])(read(rest([], or()))([1]))
     },
 }

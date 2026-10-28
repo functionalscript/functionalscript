@@ -46,8 +46,8 @@ are kind-wise:
 **Arrays and tuples share one kind** because their value sets overlap: a tuple
 is an array whose leading positions carry distinct element types. The shared
 pattern is a tuple-with-rest: a `prefix` entry constrains the value *read* at
-that position and whether one must be there — a position past the array's end
-is **absent** (an array with a hole is refused before any pattern is tried), so a position is required exactly when its set
+that position and whether one must be there — a position past the array's end,
+or a hole, is **absent**, so a position is required exactly when its set
 excludes the `absentBit` — and `rest` constrains
 every position after the prefix, admitting nothing there when it is absent. A
 bare tuple schema is `{ prefix }` alone — the exact-length set — an `open` one
@@ -185,8 +185,8 @@ validate(toData([number, or(option, string)]))([42]) // ['ok', [42]]
 so a `toData` that changed which values a schema admits fails there rather
 than silently. That table is also where an empty `rest` is pinned: this form
 normalizes a rest that makes no difference away, and the *thunk* readers need
-no criterion of their own, since an array without a hole that reaches past
-the prefix has a member there, and the member meets the rest.
+no criterion of their own, since an array that reaches past the prefix has a
+member there, and the member meets the rest.
 
 That is also where the object kind's normalization has an ordering to respect.
 A declared key whose set is the whole value domain is dropped — but only once
@@ -215,8 +215,4 @@ part is non-empty — mutual `subset`s, structurally distinct — and two
 genuinely different sets where it is empty: an absence-only referenced rest
 admits any hole-only array, while its stripped form bounds the length. That
 last case is why `subset` **resolves** a referenced rest rather than masking
-its bit: a mask would answer `true` for that non-inclusion. Every reader now
-refuses an array with a hole, so the hole-only arrays that set those two
-apart are no value at all, and the distinction no longer shows in what the
-readers accept
-([`holes-in-the-canonical-form`](../todo/holes-in-the-canonical-form.md)).
+its bit: a mask would answer `true` for that non-inclusion.

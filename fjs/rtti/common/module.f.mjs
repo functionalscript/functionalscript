@@ -105,27 +105,6 @@ const visitConst = v => c =>
 export const isArray =
     value => commonIsArray(value)
 
-/**
- * Whether `value` is an array with a **hole**: an index below its `length`
- * at which it holds nothing. FunctionalScript builds no such array
- * ([arrays](../../../spec/values/arrays/README.md)) and DataJS has none, so
- * every reader refuses one wherever it reads a value, rather than answering
- * for it with a plausible wrong value — `parse` could rebuild it only by
- * shifting the positions after the hole or filling it with `undefined`.
- *
- * @type {(value: Unknown) => boolean}
- */
-export const hasHole = value =>
-    commonIsArray(value) && readIndices(value).length !== value.length
-
-/**
- * `IsContainer` guard for the array kinds: an array with no {@link hasHole}.
- *
- * @param {Unknown} value
- * @returns {value is ReadonlyArray<Unknown>}
- */
-const isDenseArray = value => isArray(value) && !hasHole(value)
-
 /** `IsContainer` guard for records/structs. */
 /** @type {IsContainer<StringMap<Unknown>>} */
 export const isObject =
@@ -411,9 +390,10 @@ const consPresent = (cons, value) => (acc, k, v) => hasEntry(value, k) ? cons(ac
  * `rest([], t)`, so the two have to walk a value the same way, and one walk
  * does that by construction.
  *
- * An array with no member is empty, since the container test refuses an
- * array with a hole ({@link hasHole}), so an element set that admits nothing,
- * `array(or())`, is the empty array without a length check of its own.
+ * An array with no member is empty, since the readers read no array with a
+ * hole ([what the readers assume of a value](../guide/readers/assumptions/README.md)),
+ * so an element set that admits nothing, `array(or())`, is the empty array
+ * without a length check of its own.
  */
 export const containerRead =
     /**
@@ -557,9 +537,9 @@ export const constContainerRead =
  * error such a value reports.
  *
  * An empty `rest` says what the bare form says, so `rest(c, or())` and `c`
- * stay one set, with no length check of its own: an array without a hole
- * ({@link hasHole}) that reaches past the prefix has a member there, and the
- * member meets the `rest`.
+ * stay one set, with no length check of its own: an array without a hole,
+ * the only kind the readers read, that reaches past the prefix has a member
+ * there, and the member meets the `rest`.
  */
 export const restContainerRead =
     /**
@@ -702,20 +682,19 @@ export const readerOf = ({ empty, cons }, finish) => {
     const container = containerRead(reader)
     const constContainer = constContainerRead(reader)
     const restContainer = restContainerRead(reader)
-    const restTuple = restContainer(isDenseArray, tupleSchemaEntries, tupleItem, finish.tuple)
+    const restTuple = restContainer(isArray, tupleSchemaEntries, tupleItem, finish.tuple)
     const restStruct = restContainer(isObject, structSchemaEntries, structItem, finish.struct)
     /** @type {Visitor<ValidateE>} */
     const visitor = {
-        tuple: constContainer(isDenseArray, tupleSchemaEntries, tupleItem, tupleFits, finish.tuple),
+        tuple: constContainer(isArray, tupleSchemaEntries, tupleItem, tupleFits, finish.tuple),
         struct: constContainer(isObject, structSchemaEntries, structItem, objectFits, finish.struct),
         rest: (c, r) => c instanceof Array ? restTuple(c, r) : restStruct(c, r),
-        array: container(isDenseArray, finish.array),
+        array: container(isArray, finish.array),
         record: container(isObject, finish.record),
         or: orVisit(read),
         constPrimitive: constPrimitiveValidate,
         primitive0: primitive0Validate,
-        // Any value but an array with a hole, which no reader admits.
-        unknown: () => value => hasHole(value) ? verror('unexpected value') : ok(value),
+        unknown: () => ok,
         // Absence is decided by the container loop before dispatch, so a value
         // that reaches this handler is present — and no present value is
         // absent. An ordinary error is what lets `orVisit` try the other
