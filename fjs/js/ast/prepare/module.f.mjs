@@ -24,7 +24,7 @@
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
-import { isMixedLoop } from '../loop/terminal/module.f.mjs'
+import { isTerminalLoop } from '../loop/terminal/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -550,7 +550,7 @@ const statementTask = (statement, context) => call(() => {
                 })
             })
         }
-        const packed = context.sourceLoops && loop.parameters.length > 1 && isMixedLoop(loop)
+        const packed = context.sourceLoops && loop.parameters.length > 1 && isTerminalLoop(loop)
         return bind(values(packed ? [['array', loop.initial]] : loop.initial, context), initial => {
             const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)

@@ -4,7 +4,7 @@
  * and returns which must remain outside expression wrappers.
  *
  * @import { BindingId, Block as NormalBlock, Definition, Function as NormalFunction, Loop, LoopTarget, Value as NormalValue } from '../types.ts'
- * @import { Block, Statement, Value } from './types.ts'
+ * @import { Block, Function as PreparedFunction, Statement, Value } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -35,7 +35,66 @@ const scalar = (target, parameter, result, next, statements = []) => ({
 /** The first physical loop statement in a plan. @type {(block: Block) => Extract<Statement, readonly ['loop', unknown, unknown]>} */
 const loopStatement = block => /** @type {Extract<Statement, readonly ['loop', unknown, unknown]>} */ (block.statements.find(statement => statement[0] === 'loop'))
 
+/** Prepare a function using the source-output plan. @type {(fn: NormalFunction) => PreparedFunction} */
+const sourceFunction = fn => {
+    const prepared = prepare({ statements: [], exit: ['yield', [['function', fn]]] }, { sourceLoops: true })
+    assert(prepared.exit[0] === 'yield')
+    const value = prepared.exit[1][0]
+    assert(value instanceof Array && value[0] === 'function')
+    return value[1]
+}
+
 export const proof = {
+    sourceSharedRequiredPrefixStaysBeforeTheTestAndBothTransfers: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), other = id(1), result = id(2), pair = id(3)
+        /** @type {NormalValue} */
+        const allocation = ['array', [['ref', state], ['ref', other]]]
+        /** @type {NormalValue} */
+        const condition = ['>', ['.', ['ref', pair], 0], 0]
+        /** @type {NormalBlock} */
+        const normal = { statements: [], exit: ['break', target, [['ref', pair]]] }
+        /** @type {readonly NormalValue[]} */
+        const next = [['-', ['.', ['ref', pair], 0], 1], ['+', ['.', ['ref', pair], 1], 1]]
+        /** @type {NormalBlock} */
+        const step = { statements: [], exit: ['continue', target, next] }
+        for (const baseFirst of /** @type {const} */ ([false, true])) {
+            /** @type {Loop} */
+            const loop = { target, parameters: [state, other], initial: [2, 3], results: [result], body: {
+                statements: [['define', pair, allocation, 'required'],
+                    ['if', [], condition, baseFirst ? normal : step, baseFirst ? step : normal]], exit: ['yield', []],
+            } }
+            /** @type {NormalBlock} */
+            const block = { statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }
+            assert(prepare(block).statements.some(statement => statement[0] === 'loop'))
+            const source = prepare(block, { sourceLoops: true })
+            assertStructurallySame(source.statements.map(statement => statement[0]), ['define', 'while'])
+            const physical = source.statements[1]
+            assert(physical[0] === 'while')
+            assertEq(physical[1].condition, true)
+            assertEq(physical[1].result, result)
+            assertEq(physical[1].body.statements.length, 4)
+            const prefix = physical[1].body.statements[2]
+            assert(prefix[0] === 'define')
+            assertEq(prefix[1], pair)
+            assertStructurallySame(prefix[2], allocation)
+            const terminal = physical[1].body.statements[3]
+            assert(terminal[0] === 'if')
+            assertStructurallySame(terminal[1], condition)
+            const completed = baseFirst ? terminal[2] : terminal[3]
+            const continued = baseFirst ? terminal[3] : terminal[2]
+            const resultValue = completed.statements[0], nextValue = continued.statements[0]
+            assert(resultValue[0] === 'define' && nextValue[0] === 'define')
+            assertStructurallySame(resultValue[2], ['ref', pair])
+            assertStructurallySame(nextValue[2], ['array', next])
+            for (const arm of [completed, continued]) {
+                assertEq(arm.statements.length, 2)
+                const write = arm.statements[1]
+                assert(write[0] === 'write')
+                assertEq(write[1], physical[1].slot)
+            }
+        }
+    },
     sourceMixedTransitionsPackAllInputsBeforeOneSharedSlotWrite: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const state = id(0), other = id(1), result = id(2), pair = id(3)
@@ -82,12 +141,12 @@ export const proof = {
         const completion = nested[2].statements[0]
         assert(completion[0] === 'define')
         assertStructurallySame(completion[2], ['ref', other])
-        // A uniform root's previously unsupported prefix stays on the general path.
+        // A uniform root's shared required prefix uses the same private slot.
         const ordinary = prepare({ ...block, statements: [['loop', { ...loop, body: {
             statements: [['define', pair, ['array', [['ref', state]]], 'required'],
                 ['if', [], true, step, { statements: [], exit: ['break', target, [['ref', pair]]] }]], exit: ['yield', []],
         } }]] }, { sourceLoops: true })
-        assert(ordinary.statements.some(statement => statement[0] === 'loop'))
+        assert(ordinary.statements.some(statement => statement[0] === 'while'))
     },
     sourceBranchingTransitionsKeepOneSelectedValueAndZeroInputWork: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
@@ -149,25 +208,17 @@ export const proof = {
         const fn = { target: owner, parameters: [], rest: input, self: null, captures: [], body: {
             statements: [['loop', loop]], exit: ['return', owner, ['ref', result]],
         } }
-        /** @type {(fn: NormalFunction) => import('./types.ts').Function} */
-        const source = fn => {
-            const prepared = prepare({ statements: [], exit: ['yield', [['function', fn]]] }, { sourceLoops: true })
-            assert(prepared.exit[0] === 'yield')
-            const value = prepared.exit[1][0]
-            assert(value instanceof Array && value[0] === 'function')
-            return value[1]
-        }
-        assertEq(source(fn).body.statements[0][0], 'while')
+        assertEq(sourceFunction(fn).body.statements[0][0], 'while')
         assert(prepareFunction(fn).body.statements.some(statement => statement[0] === 'loop'))
-        const ordinary = source({ ...fn, parameters: [input], rest: null }).body.statements.find(statement => statement[0] === 'while')
+        const ordinary = sourceFunction({ ...fn, parameters: [input], rest: null }).body.statements.find(statement => statement[0] === 'while')
         assert(ordinary !== undefined && ordinary[0] === 'while')
         assertEq(ordinary[1].condition, true)
         const later = id(3)
-        const guarded = source({ ...fn, body: { ...fn.body, statements: [['loop', loop], ['define', later, ['array', []], 'required']] } })
+        const guarded = sourceFunction({ ...fn, body: { ...fn.body, statements: [['loop', loop], ['define', later, ['array', []], 'required']] } })
             .body.statements.find(statement => statement[0] === 'while')
         assert(guarded !== undefined && guarded[0] === 'while')
         assertEq(guarded[1].condition, true)
-        const empty = source({ ...fn, body: { statements: [], exit: ['return', owner, 7] } })
+        const empty = sourceFunction({ ...fn, body: { statements: [], exit: ['return', owner, 7] } })
         assertEq(empty.body.statements.length, 0)
     },
     scalarSourceResultExposesTotalPrefixesBeforeProjectionReads: () => {

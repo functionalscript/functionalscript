@@ -271,7 +271,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       exact from the first parse. Default layouts and prior ordinary single-input
       spelling stay unchanged. General lazy prefixes retain their previous
       admission. Fixed multi-input and observed-rest roots now also retain
-      nested terminal trees that mix normal completion and continuation.
+      terminal trees that mix normal completion and continuation.
       Shared terminal analysis validates required definitions, result-free
       decisions and exact transfers. Common preparation retains the body in
       `while(true)` with one private state/result slot: it packs multi-input
@@ -283,6 +283,13 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       graph/text cycles survive. Prior source profiles, default layouts and
       logical graph contracts remain unchanged. Zero-input and general lazy
       regions retain their existing admission.
+      This path also retains a single terminal condition with required shared
+      prefix work. Each array, object, closure or call result is established
+      once before the condition and remains shared with continued arguments or
+      the completed result, including held captures after later invocations.
+      Existing plain and branching plans retain precedence, preserving prior
+      source spelling and default layouts. Reached failures, fresh rest and
+      exact first-parse graph/text cycles retain their contracts.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
