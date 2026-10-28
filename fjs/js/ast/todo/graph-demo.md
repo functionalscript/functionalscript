@@ -97,7 +97,7 @@ the drawing.
 
 ### Tasks
 
-- [ ] The shared `Operator<V>` shape, extracted from the EDAG demo with its
+- [x] The shared `Operator<V>` shape, extracted from the EDAG demo with its
       proofs, and the EDAG demo drawing through it unchanged.
 - [ ] The FAST walker, with its proof: shared bindings, lazy defines,
       captures, loops with their exits, `return` to an outer function.
