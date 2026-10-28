@@ -110,6 +110,26 @@ the canonical scalar helper directly. Public function arity stays zero; graph
 and text stabilize from that first parse. Condition-only work and the existing
 projection-only dependency restriction retain their normal lifetimes.
 
+In the source profile, a plain loop with several semantic inputs uses one
+private array slot. Its initial values run in order, and the entire next-value
+array is established before the slot changes. Fresh numeric projections give
+the condition, continuing body and final result immutable input snapshots, so
+captured values keep the iteration that created them. Public function arity and
+the logical loop signature stay unchanged. The first source parse introduces
+the canonical scalar helper; subsequent graph/text cycles remain exact.
+Default code-only JavaScript and Rust retain their existing independent-slot
+layout for these logical loops.
+
+Packed source steps expose leading total constructor definitions from eager
+operand blocks before placing input projections. Primitives, established
+references, and array, static-key object or closure constructions with
+established operands can move without executing user work. Calls, property
+reads, spreads and memo demands stay in their original order; lazy branches
+and function bodies stay opaque. Bare calls retain their prepared call form,
+so exposing a member-valued callee still uses the serializer's existing
+detached-call spelling. This keeps shared argument allocations stable from
+the first source parse while preserving earlier argument failures.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

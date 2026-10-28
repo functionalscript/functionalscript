@@ -216,6 +216,53 @@ export const proof = {
             }
         }
     },
+    multiInputSourceLoopsKeepIterationSnapshots: async () => {
+        const sum = /** @type {FunctionValue} */ (['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
+            ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], ['arg', 0]]]], ['arg', 1]]])
+        for (const text of [assertOk(tryStringify(sum)), stringify(sum)]) {
+            assert(text.includes('while('), text)
+            const run = await load(text)
+            assertEq(run.length, 2)
+            assertEq(run(100_000, 0), 5_000_050_000)
+        }
+        const snapshot = /** @type {Exp} */ (['[]', [['arg', 0], ['arg', 1], ['arg', 2]]])
+        const read = /** @type {Exp} */ (['=>', 0, [snapshot], ['frame', 0]])
+        const saved = /** @type {Exp} */ (['=>', 0, [['arg', 0], ['arg', 1], ['arg', 2], ['frame', 1]],
+            ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]])
+        const factory = /** @type {FunctionValue} */ (['=>', 1, [], ['=>', 4, [['arg', 0], ['[]', [9]]],
+            ['?:', ['>', ['arg', 0], 0], [',', [
+                ['()', ['frame', 0], [snapshot, snapshot, read]],
+                ['()', ['self'], [['-', ['arg', 0], 1], ['arg', 2], ['arg', 1], saved]],
+            ]], ['[]', [['arg', 1], ['arg', 2], ['arg', 3], ['frame', 1]]]],
+        ]])
+        for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+            const make = await load(text)
+            let count = 0
+            /** @type {readonly number[] | undefined} */
+            let previous
+            const run = make(/** @type {(first: readonly number[], second: readonly number[], read: () => readonly number[]) => void} */ ((first, second, read) => {
+                assertEq(first, second)
+                assertEq(read(), first)
+                assert(first !== previous)
+                assertEq(first[0], 100_001 - count)
+                previous = first
+                count += 1
+            }))
+            assertEq(run.length, 4)
+            const first = run(100_001, 1, 2, null)
+            assertEq(count, 100_001)
+            count = 0
+            const second = run(100_001, 1, 2, null)
+            assertEq(count, 100_001)
+            assert(first !== second)
+            assertStructurallySame(first.slice(0, 2), [2, 1])
+            assert(first[2] !== second[2])
+            assertEq(first[3], second[3])
+            const final = first[2]()
+            assertStructurallySame(final, [1, 1, 2, [9]])
+            assertEq(final[3], first[3])
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])
