@@ -691,6 +691,17 @@ export const proof = {
             // an unused alias of the name is dropped with the `const`, as an alias of a capture is
             assertEq(fjsRoundTrip('const f = () => { const g = f; return 1; };\nexport default f;'), 'export default ()=>1;')
         },
+        zeroInputNormalLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=()=>false?f():7;export default f;', 'const $0=()=>{let $1=undefined;while(false){$1=$1;}const $2=7;return $2;};export default $0;'],
+                ['const f=()=>true?7:f();export default f;', 'const $0=()=>{let $1=undefined;while(!true){$1=$1;}const $2=7;return $2;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         // Source logical syntax lowers once to conditionals. Each left value
         // is established once, right-side work stays in the selected arm,
         // and branch-local or captured arrays retain their shared identity.

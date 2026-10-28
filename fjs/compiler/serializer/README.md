@@ -55,11 +55,21 @@ through the existing transfer resolver. The adapter repeats no
 graph placement or tail eligibility analysis; required function owners retain
 recursive names where needed.
 
+The shared plain-loop plan also admits rest-free zero-input roots with a normal
+result. Either conditional arm may continue; the other supplies the result
+after the final test. Common preparation uses a private unchanged slot, keeping
+the public function's empty parameter list and result computations outside
+iteration. Parsing that first source introduces the canonical scalar helper,
+and its normalized graph and text then stay exact. Condition-only definitions
+run at every test; only identity-free projection dependencies may be copied
+into the step or result. Other zero-input normal-result shapes retain their
+existing recursive fallback.
+
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Normally completing raw zero-input, multi-input and observed-rest
-graphs keep their existing reifiable recursive forms; unsupported factored
-profiles return an error instead of asserting or emitting unreadable source.
+loop profile. Raw zero-input roots outside the plain-loop plan, multi-input and
+observed-rest graphs keep their existing reifiable recursive forms; unsupported
+factored profiles return an error instead of asserting or emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and

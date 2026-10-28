@@ -177,6 +177,45 @@ export const proof = {
             assertEq(count, 100_001)
         }
     },
+    zeroInputNormalResultsFollowDeepLoops: async () => {
+        const snapshot = /** @type {Exp} */ (['[]', [7]])
+        const captured = /** @type {Exp} */ (['[]', [9]])
+        const test = /** @type {Exp} */ (['()', ['frame', 0], [snapshot, snapshot]])
+        const recur = /** @type {Exp} */ (['()', ['self'], []])
+        const result = /** @type {Exp} */ (['[]', [['frame', 1], ['frame', 1], ['=>', 0, [['frame', 1]], ['frame', 0]]]])
+        for (const inverted of /** @type {const} */ ([false, true])) {
+            const factory = /** @type {FunctionValue} */ (['=>', 1, [], ['=>', 0, [['arg', 0], captured],
+                ['?:', inverted ? ['!', test] : test, inverted ? result : recur, inverted ? recur : result],
+            ]])
+            for (const text of [assertOk(tryStringify(factory)), stringify(factory)]) {
+                assert(text.includes('while('), text)
+                const make = await load(text)
+                let count = 0
+                /** @type {readonly number[] | undefined} */
+                let previous
+                const loop = make(/** @type {(first: readonly number[], second: readonly number[]) => boolean} */ ((first, second) => {
+                    assertEq(first, second)
+                    assert(first !== previous)
+                    previous = first
+                    count += 1
+                    return count <= 100_000
+                }))
+                assertEq(loop.length, 0)
+                const first = loop(1, 2)
+                assertEq(count, 100_001)
+                count = 0
+                const second = loop()
+                assertEq(count, 100_001)
+                assert(first !== second)
+                assertEq(first[0], first[1])
+                assertEq(first[0], second[0])
+                assertEq(first[2](), first[0])
+                assertEq(second[2](), second[0])
+                assert(first[2] !== second[2])
+                assertStructurallySame(first[0], [9])
+            }
+        }
+    },
     continuedCallArguments: async () => {
         const array = /** @type {const} */ (['[]', []])
         const pair = /** @type {const} */ (['[]', [array, array]])
