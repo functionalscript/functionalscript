@@ -166,6 +166,14 @@ conditional orientation. This adds no invocation boundary and keeps empty
 public arity.
 Default preparation and the plain-loop planner's original domain stay unchanged.
 
+Source admission also places terminal conditional base-result trees in that
+ordinary result value block. Their leaves complete the same loop with one
+value, and required prefixes stay in their original lexical branches. This
+pass keeps the base decisions after the final iteration test, so runtime
+evaluates only the selected branch, retaining final captures, sharing and
+failure order. Existing scalar, packed and private unchanged slot plans cover
+both outer orientations; no new physical loop layout is needed.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

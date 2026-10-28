@@ -555,6 +555,165 @@ export const proof = {
             }
         }
     },
+    conditionalBaseResultsKeepSelectedWorkAndFinalCaptures: async () => {
+        const seed = /** @type {const} */ ([9])
+        const token = /** @type {const} */ ([7])
+        for (const [arity, parameters, test, recur, state] of /** @type {const} */ ([
+            [0, '', 'test()', 'f()', '[0,seed]'],
+            [2, 'n,a', 'test(n)', 'f(n-1,a)', '[n,a]'],
+            [1, 'n,...xs', 'test(n,xs,xs,()=>xs)', 'f(n-1,...xs)', '[n,xs]'],
+            [0, '...xs', 'test(xs[0],xs,xs,()=>xs)', 'f(xs[0]-1,...xs.slice(1))', '[xs[0],xs]'],
+        ])) {
+            const hasRest = parameters.includes('...')
+            /** @type {string} */
+            const base = `(()=>{const snapshot=${state};const common=prefix(snapshot,snapshot);return choose(common)?(()=>{const x=left(common);return[x,x,()=>[x,common],common];})():(()=>{const x=right(common);return[x,x,()=>[x,common],common];})();})()`
+            for (const reversed of /** @type {const} */ ([false, true])) {
+                /** @type {string} */
+                const source = `export default(test,prefix,choose,left,right,seed)=>{const f=(${parameters})=>${reversed ? `!${test}?${base}:${recur}` : `${test}?${recur}:${base}`};return f;};`
+                const root = /** @type {const} */ ({ main: [utf8(source)] })
+                const [, interpreted] = virtualAt(root)(interpret(noRuntime)('main'))
+                const graph = assertOk(interpreted)
+                for (const text of [assertOk(tryStringify(graph)), stringify(graph)]) {
+                    assert(text.includes('while('), text)
+                    const make = (await load(text)).default
+                    const stopped = new Error('stop in the selected conditional base path')
+                    let start = 0
+                    let tests = 0
+                    let prefixes = 0
+                    let choices = 0
+                    let leaves = 0
+                    let selected = true
+                    let mode = 'normal'
+                    /** @type {readonly unknown[] | undefined} */
+                    let previousRest
+                    /** @type {readonly unknown[] | undefined} */
+                    let previousBase
+                    /** @type {unknown} */
+                    let heldRest
+                    /** @type {(() => unknown) | undefined} */
+                    let held
+                    /** @type {(label: number, common: readonly unknown[]) => readonly unknown[]} */
+                    const leaf = (label, common) => {
+                        assertEq(label, selected ? 0 : 1)
+                        assertEq(tests, start + 1)
+                        assertEq(prefixes, 1)
+                        assertEq(choices, 1)
+                        assertEq(leaves, 0)
+                        assertEq(common, previousBase)
+                        leaves += 1
+                        if (mode === 'leaf') { throw stopped }
+                        return label === 0 ? common : seed
+                    }
+                    const run = make(
+                        /** @type {(...inputs: readonly unknown[]) => boolean} */ ((...inputs) => {
+                            if (parameters.length !== 0) { assertEq(inputs[0], start - tests) }
+                            if (hasRest) {
+                                const [, first, second, read] = inputs
+                                assert(first instanceof Array)
+                                assertEq(first, second)
+                                assert(typeof read === 'function')
+                                assertEq(read(), first)
+                                assert(first !== previousRest)
+                                if (tests === 0) { held = () => read(); heldRest = first }
+                                previousRest = first
+                            }
+                            assertEq(prefixes, 0)
+                            assertEq(choices, 0)
+                            assertEq(leaves, 0)
+                            tests += 1
+                            if (mode === 'condition' && tests === start + 1) { throw stopped }
+                            return tests <= start
+                        }),
+                        /** @type {(first: readonly unknown[], second: readonly unknown[]) => readonly unknown[]} */ ((first, second) => {
+                            assertEq(tests, start + 1)
+                            assertEq(prefixes, 0)
+                            assertEq(choices, 0)
+                            assertEq(leaves, 0)
+                            assertEq(first, second)
+                            assertEq(first[0], 0)
+                            assertEq(first[1], parameters.length === 0 ? seed : hasRest ? previousRest : token)
+                            assert(first !== previousBase)
+                            previousBase = first
+                            prefixes += 1
+                            if (mode === 'prefix') { throw stopped }
+                            return first
+                        }),
+                        /** @type {(common: readonly unknown[]) => boolean} */ (common => {
+                            assertEq(tests, start + 1)
+                            assertEq(prefixes, 1)
+                            assertEq(choices, 0)
+                            assertEq(leaves, 0)
+                            assertEq(common, previousBase)
+                            choices += 1
+                            if (mode === 'choice') { throw stopped }
+                            return selected
+                        }),
+                        /** @type {(common: readonly unknown[]) => readonly unknown[]} */ (common => leaf(0, common)),
+                        /** @type {(common: readonly unknown[]) => readonly unknown[]} */ (common => leaf(1, common)),
+                        seed,
+                    )
+                    assertEq(run.length, arity)
+                    /** @param {number} n @param {boolean} branch */
+                    const invoke = (n, branch) => {
+                        start = n
+                        tests = 0
+                        prefixes = 0
+                        choices = 0
+                        leaves = 0
+                        selected = branch
+                        mode = 'normal'
+                        previousRest = undefined
+                        const value = run(n, token)
+                        assertEq(tests, n + 1)
+                        assertEq(prefixes, 1)
+                        assertEq(choices, 1)
+                        assertEq(leaves, 1)
+                        assertEq(value[0], value[1])
+                        assertEq(value[0], branch ? value[3] : seed)
+                        assertEq(value[3], previousBase)
+                        assertEq(value[2]()[0], value[0])
+                        assertEq(value[2]()[1], value[3])
+                        if (hasRest) {
+                            assert(held !== undefined)
+                            assertEq(held(), heldRest)
+                            assertEq(heldRest === previousRest, n === 0)
+                        }
+                        return value
+                    }
+                    for (const branch of /** @type {const} */ ([false, true])) {
+                        const first = invoke(100_000, branch)
+                        const firstHeld = held
+                        const firstRest = heldRest
+                        const second = invoke(0, !branch)
+                        assert(first !== second)
+                        assert(first[3] !== second[3])
+                        assert(first[2] !== second[2])
+                        assertEq(first[2]()[0], first[0])
+                        assertEq(first[2]()[1], first[3])
+                        if (hasRest) {
+                            assert(firstHeld !== undefined)
+                            assertEq(firstHeld(), firstRest)
+                            assert(firstRest !== heldRest)
+                        }
+                    }
+                    for (const failureAt of /** @type {const} */ (['condition', 'prefix', 'choice', 'leaf'])) {
+                        start = 2
+                        tests = 0
+                        prefixes = 0
+                        choices = 0
+                        leaves = 0
+                        mode = failureAt
+                        previousRest = undefined
+                        throws(() => run(2, token), error => error === stopped)
+                        assertEq(tests, 3)
+                        assertEq(prefixes, failureAt === 'condition' ? 0 : 1)
+                        assertEq(choices, failureAt === 'condition' || failureAt === 'prefix' ? 0 : 1)
+                        assertEq(leaves, failureAt === 'leaf' ? 1 : 0)
+                    }
+                }
+            }
+        }
+    },
     restBaseDefinitionsKeepFinalInvocationSnapshots: async () => {
         const restRead = /** @type {Exp} */ (['=>', 0, [['rest']], ['frame', 0]])
         const snapshot = /** @type {Exp} */ (['[]', [['arg', 0], ['rest']]])

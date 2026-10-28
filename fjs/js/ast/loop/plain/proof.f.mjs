@@ -186,6 +186,94 @@ export const proof = /** @type {const} */ ({
             assertEq(plainLoopOf(source), null)
         }
     },
+    conditionalNormalResultsKeepSelectedRegionsAndExactTransfers: () => {
+        const shared = /** @type {const} */ ({ index: 4 })
+        const selected = /** @type {const} */ ({ index: 5 })
+        /** @type {Definition} */
+        const prefix = ['define', shared, ['array', [['ref', state]]], 'required']
+        /** @type {Definition} */
+        const reached = ['define', selected, ['()', ['ref', other], [['ref', shared]]], 'required']
+        /** @type {Block} */
+        const first = { statements: [reached], exit: ['break', target, [['ref', selected]]] }
+        /** @type {Block} */
+        const second = { statements: [], exit: ['break', target, [['ref', shared]]] }
+        /** @type {Block} */
+        const nested = { statements: [], exit: ['break', target, [['array', [['ref', shared], ['ref', shared]]]]] }
+        /** @type {Block} */
+        const alternative = { statements: [['if', [], false, second, nested]], exit: ['yield', []] }
+        /** @type {Block} */
+        const normal = { statements: [prefix, ['if', [], true, first, alternative]], exit: ['yield', []] }
+        for (const parameters of /** @type {readonly (readonly BindingId[])[]} */ ([[], [state], [state, other]])) {
+            /** @type {Block} */
+            const continuing = { statements: [], exit: ['continue', target, parameters.map(parameter => ['ref', parameter])] }
+            for (const baseFirst of /** @type {const} */ ([false, true])) {
+                /** @type {Loop} */
+                const source = { ...scalar, parameters, initial: parameters.map(() => 0), body: {
+                    statements: [['if', [], true, baseFirst ? normal : continuing, baseFirst ? continuing : normal]],
+                    exit: ['yield', []],
+                } }
+                assertEq(plainLoopOf(source), null)
+                const retained = resultBlockPlainLoopOf(source)
+                assert(retained !== null)
+                assertEq(retained.target, target)
+                assertEq(retained.parameters, source.parameters)
+                assertEq(retained.initial, source.initial)
+                assertEq(retained.results, source.results)
+                assertEq(retained.body.exit, source.body.exit)
+                const plan = plainLoopOf(retained)
+                assert(plan !== null)
+                assertStructurallySame(plan.iteration.condition, baseFirst ? ['!', true] : true)
+                const value = plan.result
+                assert(value instanceof Array && value[0] === 'block')
+                assertEq(value[1].statements[0], prefix)
+                assertStructurallySame(value[1], { statements: [prefix], exit: ['yield', [['if', true,
+                    { statements: [reached], exit: ['yield', first.exit[0] === 'break' ? first.exit[2] : []] },
+                    { statements: [], exit: ['yield', [['if', false,
+                        { statements: [], exit: ['yield', second.exit[0] === 'break' ? second.exit[2] : []] },
+                        { statements: [], exit: ['yield', nested.exit[0] === 'break' ? nested.exit[2] : []] },
+                    ]]] },
+                ]]] })
+                assertEq(plainLoopOf(source), null)
+            }
+        }
+        for (const refused of /** @type {readonly Block[]} */ ([
+            { ...normal, statements: [['define', shared, 0, 'lazy'], ...normal.statements.slice(1)] },
+            { ...normal, statements: [['block', [], second]] },
+            { ...normal, statements: [['if', [selected], true, first, second]] },
+            { ...normal, exit: ['yield', [0]] },
+            { ...normal, exit: ['throw', 0] },
+            { ...normal, statements: [['if', [], true, { ...first, exit: ['break', { kind: 'loop', index: 1 }, [0]] }, second]] },
+            { ...normal, statements: [['if', [], true, first, { ...second, exit: ['break', target, []] }]] },
+            { ...normal, statements: [['if', [], true, first, { ...second, exit: ['break', target, [0, 1]] }]] },
+            { ...normal, statements: [['if', [], true, first, { ...second, exit: ['continue', target, [0]] }]] },
+            { ...normal, statements: [['if', [], true, { ...first, statements: [['define', selected, 0, 'lazy']] }, second]] },
+            { ...normal, statements: [['if', [], true, first, { ...second, statements: [['define', selected, 0, 'lazy']] }]] },
+            { ...normal, statements: [['if', [], true, first, { statements: [], exit: ['yield', []] }]] },
+        ])) {
+            assertEq(resultBlockPlainLoopOf(withArms(step, refused)), null)
+        }
+    },
+    deepConditionalNormalResultsUseTheTaskStack: () => {
+        /** @type {Block} */
+        let normal = { statements: [], exit: ['break', target, [7]] }
+        for (let depth = 0; depth < 20_000; ++depth) {
+            normal = { statements: [['if', [], true, normal, done]], exit: ['yield', []] }
+        }
+        const retained = resultBlockPlainLoopOf(withArms(step, normal))
+        assert(retained !== null)
+        const plan = plainLoopOf(retained)
+        assert(plan !== null)
+        let value = plan.result
+        assert(value instanceof Array && value[0] === 'block')
+        let block = value[1]
+        let depth = 0
+        while (block.exit[0] === 'yield' && block.exit[1][0] instanceof Array && block.exit[1][0][0] === 'if') {
+            block = block.exit[1][0][2]
+            depth += 1
+        }
+        assertEq(depth, 20_000)
+        assertStructurallySame(block, { statements: [], exit: ['yield', [7]] })
+    },
     baseFirstSingleInputReorientationKeepsRegionsAndDefaultDomain: () => {
         /** @type {Definition} */
         const projected = ['define', alias, ['.', ['ref', state], 0], 'required']

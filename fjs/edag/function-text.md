@@ -185,6 +185,15 @@ orientations evaluate the required result block once after the final test.
 Original logical function text, default JavaScript/Rust layouts and other source
 profiles retain their contracts.
 
+Terminal conditional base-result trees use that same result block when every
+leaf completes the same loop with one value. Required prefixes keep their
+lexical branches, and each base condition and selected result runs after the
+final iteration test. Skipped branches remain unevaluated; sharing, captures
+and failures keep their reached order. Either outer arm may continue. The
+first parsed graph and subsequent canonical text retain the same exact cycle
+contract; this does not extend admission to multiple continuing branches or
+general lazy prefixes.
+
 ## A function that names itself
 
 A body that reads `["self"]` has no arrow spelling, since an arrow function
