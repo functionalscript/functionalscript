@@ -206,7 +206,13 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       in loop bodies and conditional arms. Returns cross
       generated loop helpers but stay local to ordinary nested functions;
       both exits preserve reached work and skip following computations while
-      retaining source legality checks. Switches remain a later increment.
+      retaining source legality checks. Switches in loop bodies and conditional
+      arms now retain braced cases and ordered, lazy labels. A switch-local
+      `break` resumes following statements with current state; `continue`
+      retains its enclosing loop, and returns and throws retain their existing
+      owners. Nested switches and loops keep distinct transfer targets, and
+      case fallthrough remains refused. Final integration evidence and public
+      contract reconciliation remain before H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

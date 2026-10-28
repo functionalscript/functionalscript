@@ -69,7 +69,8 @@ const reads = e => {
 
 /**
  * Whether a comma in a graph anchors a node another of its operands
- * reaches: an anchor the graph did not need, which breaks the `,` contract
+ * reaches, or the total, identity-free literal `undefined`: an anchor the
+ * graph did not need, which breaks the `,` contract
  * ([`fjs/edag`](../../edag/README.md)). The writer writes it as the graph
  * says, the node's `const`, and the text reads back without it.
  *
@@ -84,7 +85,10 @@ const redundantAnchor = e => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
-        return all.some((x, i) => i < all.length - 1 && all.some((y, j) => j !== i && reached(y).includes(x)))
+        return all.some((x, i) => i < all.length - 1 && (
+            x instanceof Array && x[0] === 'undefined'
+            || all.some((y, j) => j !== i && reached(y).includes(x))
+        ))
     })
 }
 
@@ -240,6 +244,15 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    literalUndefinedAnchorsNormalizeButResultsRemain: () => {
+        assert(redundantAnchor([',', [['undefined'], 1]]))
+        assert(redundantAnchor(['?:', true, 1, [',', [['undefined'], 2]]]))
+        assert(!redundantAnchor(['undefined']))
+        assert(!redundantAnchor([',', [['[]', []], ['undefined']]]))
+        reads(['undefined'])
+        rewrites([',', [['undefined'], 1]])
+        rewrites(['?:', true, 1, [',', [['undefined'], 2]]])
+    },
     structuralRefusals: () => {
         for (const length of [-0, -1, 0.5, NaN, Infinity]) {
             /** @type {Exp} */

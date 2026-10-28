@@ -59,6 +59,15 @@ write and capture checks still inspect statements after either exit; sugar skips
 their computations when the exit is selected. These exits use the same valued
 spelling and line-terminator checks as a function body's terminal exit.
 
+Loop-body switches retain one discriminant, ordered stacked case labels, fresh
+case scopes and an optional last default. Every braced arm must leave the arm:
+`break` targets that switch, `continue` its enclosing loop, and `return` its
+ordinary function. Conditional arms and nested switches keep those owners.
+Normal case fallthrough is refused after complete name and declaration checks;
+the completion walk uses an explicit stack and shared continuations. Sugar
+retains selected state results through the existing one-pass loop representation.
+Existing terminal switches outside loop bodies retain their syntax and rules.
+
 Module loops enter the same resolution worklist and lexical loop regions as
 body loops. Their completed source packet resumes the module declaration/export
 fold without introducing a function or a value-region write boundary. Statements
@@ -132,7 +141,9 @@ afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
 loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | let | bodyNameStatement | whileStatement
                 | loopIfStatement | 'break' end | 'continue' end
-                | 'return' value end | 'throw' value end
+                | 'return' value end | 'throw' value end | loopSwitch
+loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
+loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
@@ -450,8 +461,9 @@ as checked source blocks and original binding references. `() => 7` and
 condition and two lexical blocks: the written block and the remaining
 statements. A switch retains the discriminant, ordered labels, cases and final
 fallback. A loop retains its condition, lexical body and ordered source binding
-events. Unlabeled `break` and `continue` resolve to that loop's target, including
-in either conditional arm; nested loops establish their own targets. All later
+events. Unlabeled `continue` resolves to that loop's target. A `break` resolves
+to the nearest loop or loop-body switch; nested regions preserve their distinct
+owners, including in either conditional arm. All later
 source statements still resolve, preserving name, write and capture checks even
 after an unconditional jump. The common sugar pass selects state from those
 events and the shared binding facts; the parser creates no helper function or
@@ -459,7 +471,7 @@ recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
 immutable definitions and explicit loop transfers. The grammar still requires
-zero or more statements followed by a terminating `return`, `throw` or switch,
+function-body statements followed by a terminating `return`, `throw` or switch,
 and a module ends in exports or a throw. Source admission and ASI rules remain
 the same.
 

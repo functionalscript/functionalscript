@@ -63,6 +63,15 @@ demands. Existing canonical scalar-loop cases keep their exact graphs and source
 spelling. Condition-only required prefix work can now use an ordinary `while`
 where output previously used recursion or the general labelled loop.
 
+Discarded literal `undefined` anchors also normalize away during graph
+construction. They perform no failing work and create no identity; keeping them
+would accumulate unused declarations when source branch-result slots are
+reparsed. A supplied graph containing such an anchor can change its bytes/hash
+on the first source parse. The normalized graph and text then remain exact.
+Used `undefined` values, allocations, calls and other required work keep their
+existing behavior and identity. The generated round-trip law classifies only
+non-final literal `undefined` anchors with its other redundant prefixes.
+
 Missing, extra and spread tail arguments normalize to fixed invocation inputs.
 Parsing the first source output can inline one-use argument setup; serialization of the
 normalized graph has that canonical spelling and reaches a source fixed point.

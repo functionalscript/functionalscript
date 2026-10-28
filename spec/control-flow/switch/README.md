@@ -17,7 +17,8 @@ export default node => {
   compiler reads as a chain of guards over one shared value
   ([bodies and guards](../guards/README.md)). The discriminant is any expression,
   evaluated once, eagerly, where the statement stands, as JavaScript
-  evaluates it before any label. A case is one or more labels, each `case`,
+  evaluates it before any label. In the terminating function-body form, a case
+  is one or more labels, each `case`,
   any expression and `:`, and then a block — the guard's own: any number of
   statements and then the one statement every block ends with, a `return`,
   a `throw`, or a switch with a `default`, whose every branch ends so in
@@ -27,19 +28,20 @@ export default node => {
   `===`, as JavaScript's is, so `NaN` matches no label and an object
   matches itself alone; and the first match wins. `default:` is optional
   and last, a clause of its own with no label stacked on it; its block
-  runs when no label matched. With a `default`, the
+  runs when no label matched. Outside loop bodies, with a `default`, the
   `switch` is the body's terminating statement, and nothing follows it:
   a statement after it is unreachable, as one after a `return` is.
   Without one, the statements after the `switch`, up to and including the
   body's own terminator, are what runs when no label matched — exactly as
   the statements after a guard run when its condition is falsy. No `;`
   follows the `}`, as none follows a guard's. This is the one form: braces
-  around every case block, no `break`, no fallthrough from a block into
+  around every case block, no fallthrough from a block into
   the next case, `default` last, at least one case, and the statement in a
-  function body only — each a step of a plan rather than a guarantee,
+  function body or loop body. Outside loops, cases keep the terminating
+  form above and refuse `break`. Further forms are steps of a plan,
   additive on this one ([`spec/todo/3230-switch.md`](../../todo/3230-switch.md)).
 
-- **The statement is syntactic sugar and adds no node**: `switch (e) {
+- **The terminating form outside loop bodies is syntactic sugar and adds no node**: `switch (e) {
   case a: case b: B1  case c: B2 } rest` denotes `d === a || d === b ?
   (() => B1)() : d === c ? (() => B2)() : (() => rest)()`, where `d` is
   the discriminant's value, shared as a body `const` is — one node however
@@ -59,13 +61,12 @@ export default node => {
   once. The `===`, `||` and `?:` nodes are the operators the language has;
   nothing is added to the EDAG, its validators, interpreters or hash.
 
-- **The writers never spell `switch`**, as they never spell `if`: the
+- **The writers never spell `switch`**: the
   FunctionalScript output spells the conditional, a `const` of the
   discriminant where more than one test reads it, and an arm that holds a
   `const` or a `throw` as the block opened at the operand; the EDAG output
-  carries the `?:`; and the Rust output tests the discriminant with
-  `strict_eq`, the labels of one case under `logical_or`, each after the
-  first a closure, and prints the chain as it prints any conditional.
+  carries conditionals; and the Rust output tests the discriminant with
+  `strict_eq` and uses the shared conditional and loop preparation.
   Round-tripping through the writer keeps the graph, not the text, as a
   guard's round trip does.
 
@@ -80,12 +81,28 @@ export default node => {
   in JavaScript every such read would have named the later `const` before
   its declaration ([bodies and guards](../guards/README.md)).
 
+- **Inside loop bodies and their conditional arms**, a switch may instead
+  finish a case with `break` or `continue`, including from a nested conditional.
+  A `break` exits that switch and resumes following statements with the case's
+  current outer variable values. A `continue` retests the nearest enclosing
+  loop. Nested switches own their breaks; nested loops own both transfers.
+  Returns finish the owning function and throws propagate as elsewhere.
+  Every path in a case must exit explicitly; reaching the closing brace and
+  falling into the next case remains refused. An unmatched switch without
+  `default` resumes normally with unchanged state. Following statements after
+  a switch with `default` are allowed in loop bodies, since a case may break.
+  The discriminant, label order, stacked-label short circuit and case scopes
+  follow the same rules as terminating switches. All source checks still run
+  after an exit, while its following computations are skipped. This also
+  applies inside module loops; direct module switches remain a follow-up.
+  See [loops](../loops/README.md) for an executable example.
+
 - **Refusals.** Programs JavaScript admits that are refused rather than
-  read another way, each at the token the grammar stops at
+  read another way
   ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
 
   - A case block that does not terminate, `case 1: { const x = 1; }`,
-    refused at its `}`. In JavaScript the statements fall through into
+    is refused. In JavaScript the statements fall through into
     the next case, which is the mistake `switch` is known for, a
     forgotten `break`; the block rule prevents it the way the guard's
     does, by requiring every branch to say where it ends.
@@ -95,7 +112,7 @@ export default node => {
     the ones before it, the statement's other known mistake; the braces
     make each block's scope its own. The brace-less single `return` is a
     follow-up.
-  - `break`, refused as the word it is: with terminating blocks there is
+  - `break` outside loop-body switches, refused as the word it is: with terminating blocks there is
     nothing for it to do, and a `break` that continues with the statements
     after the `switch` is a follow-up.
   - A `default` that is not last, refused at the `default`: JavaScript
@@ -115,12 +132,12 @@ export default node => {
     the language spells as that, and a switch that tests nothing is what
     deleting the last case leaves behind. Admitting both as that block is
     a follow-up.
-  - A statement after a `switch` that has a `default`, refused at the
+  - A statement after a terminal function-body `switch` that has a `default`, refused at the
     statement: unreachable, as one after `return` is.
   - A `;` after the `}`: the empty statement, refused as it is after a
     guard's `}` ([module structure](../../modules/README.md)).
-  - A `switch` at the module level, or in a loop's block: each a
-    follow-up, as the guard's are.
+  - A `switch` directly at module level remains a follow-up. Switches inside
+    module loops use the loop-body rules above.
 
   Duplicate labels, `case 1: … case 1: …`, are not refused: JavaScript
   admits them, the second is unreachable, and telling two labels apart in
@@ -129,7 +146,8 @@ export default node => {
 
 ## Examples
 
-The compiler demo offers the program `Switch` in [`module.f.js`](../module.f.js), with its real output.
+The compiler demo offers `Switch` and `Loop with switch` in
+[`module.f.js`](../module.f.js), with their real outputs.
 
 The demo on this page runs [`sample.f.js`](./sample.f.js), this page's
 example as a function of one number — a terminating `switch` with a shared

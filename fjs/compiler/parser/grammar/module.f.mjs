@@ -47,7 +47,9 @@
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | let | loopIfStatement | whileStatement
  *                 | 'break' end | 'continue' end | 'return' value end
- *                 | 'throw' value end | bodyNameStatement
+ *                 | 'throw' value end | loopSwitch | bodyNameStatement
+ * loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
+ * loopCase ::= ( 'case' value ':' )+ loopBlock
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
  * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
@@ -145,11 +147,11 @@
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopElse, LoopIfStatement, LoopStatement, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
+ * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
+import { eof, option, repeatFrom0, repeatFrom1 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
@@ -1250,13 +1252,14 @@ export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [s
 
 /**
  * A statement of a loop's block: a declaration, a normal conditional, a
- * nested loop, or what begins with a name. A conditional resumes with the
+ * nested loop, switch, or what begins with a name. A conditional resumes with the
  * following statement after its selected arm; a nested loop resumes after
  * normal completion. Every block uses this same rule and owns its declarations.
  * An `else` selects another block or conditional. Unlabeled `break` and
  * `continue` keep the same optional semicolon as other statements. `return`
  * and `throw` use their existing keyword/value rules; source resolution checks
  * the owning function and line boundaries, including following statements.
+ * A switch owns its breaks while retaining the enclosing loop for continues.
  *
  * @type {LoopStatement}
  */
@@ -1268,6 +1271,7 @@ export const loopStatement = () => ['const', {
     let: letStatement,
     name: bodyNameStatement,
     return: terminator.return,
+    switch: loopSwitch,
     throw: terminator.throw,
     while: whileStatement,
 }]
@@ -1276,7 +1280,7 @@ export const loopStatement = () => ['const', {
  * A loop's block, `{ const x = …; r = …; }`: any number of
  * {@link loopStatement}s and no terminator, since reaching the `}`
  * continues the loop. Conditionals and nested loops keep their lexical blocks
- * and resume here after normal completion. Transfers retain following syntax
+ * and switches resume here after normal completion. Transfers retain following syntax
  * for source resolution, though selected exits do not execute it.
  *
  * @type {LoopBlock}
@@ -1284,6 +1288,12 @@ export const loopStatement = () => ['const', {
 export const loopBlock = /** @type {const} */ ([
     sym('{'), repeatFrom0(loopStatement), sym('}'),
 ])
+
+/** Stacked labels introduce one braced arm; resolution refuses normal fallthrough. @type {LoopCase} */
+export const loopCase = [repeatFrom1([sym('case'), value, sym(':')]), loopBlock]
+
+/** A loop-body switch resumes following statements after its own break. @type {LoopSwitch} */
+export const loopSwitch = [sym('switch'), sym('('), value, sym(')'), sym('{'), repeatFrom1(loopCase), option([sym('default'), sym(':'), loopBlock]), sym('}')]
 
 /** An alternate block or conditional. Braces make its two starts unambiguous. @type {LoopElse} */
 export const loopElse = () => ['const', { block: loopBlock, if: loopIfStatement }]
