@@ -115,13 +115,16 @@ const beforeBang = span => {
 
 /**
  * An image of a plain link: its words, code included, are its alternative
- * text. GitHub reads the label's text as prose before it drops the markup,
- * so `&amp;` there is `&`; the text is read as a link label's is, and what
- * that refuses is refused.
+ * text. GitHub reads the label as prose before it drops the markup, so
+ * `&amp;` there is `&`, and two code spans side by side are one; the label
+ * is read as a link's is, whole and span by span, and what that refuses is
+ * refused.
  *
  * @type {(link: readonly [readonly Label[], string]) => Result<Image, string>}
  */
 const imageOf = ([label, src]) => {
+    if (codeSideBySide(label)) { return error('two code spans side by side, which GitHub reads as one') }
+    if (proseTildePair(label)) { return error('a tilde pair in a span body, which GitHub may read as strikethrough') }
     for (const [kind, t] of label) {
         const read = kind === 'text' ? proseSpans(false)(t) : ok([])
         if (read[0] === 'error') { return read }

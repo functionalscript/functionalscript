@@ -489,6 +489,9 @@ export const proof = {
             // Alternative text is read as GitHub reads it, or refused.
             imageAltEntity: () => assertEq(refusal('![a &amp; b](u)\n'), 'line 1: an entity, which GitHub reads as the character it names, at 2'),
             badgeAltEntity: () => assertEq(refusal('[![a &amp; b](u)](v)\n'), 'line 1: an entity, which GitHub reads as the character it names, at 2'),
+            // An image's label is checked whole, as a link's is.
+            imageAltCodeSideBySide: () => assertEq(refusal('![`a``b`](u)\n'), 'line 1: two code spans side by side, which GitHub reads as one'),
+            imageAltTildePair: () => assertEq(refusal('![~`a`~](u)\n'), 'line 1: a tilde pair in a span body, which GitHub may read as strikethrough'),
             imageOfABadge: () => assertEq(refusal('![x![a](b)](c)\n'), 'line 1: an image inside an image'),
             // Neither a handle nor a lone `@` is an address.
             notAnEmail: () => assertEq(refusal('@codex, a @ b, x@y, x@.y, [a@b.c](u) and a&b\n'), null),
