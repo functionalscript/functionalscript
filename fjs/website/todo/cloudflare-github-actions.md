@@ -26,7 +26,7 @@ and GitHub sign-in behavior. The current build sequence is documented in
 repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 
 The proposed deployment policy is production on `main` after required checks
-pass, with version previews for trusted repository branches. Fork pull requests
+pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
 run checks without deployment credentials. Preserve preview branch aliases,
 commit and branch metadata, and the OAuth callback behavior. During validation,
 Actions previews temporarily use an `actions-` alias prefix to distinguish them
@@ -40,17 +40,17 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The `website` job runs on repository branch pushes, fork pull requests and
-merge-group entries. Same-repository pull-request runs skip this job to avoid
-duplicating their branch's push build. It runs independently of the platform matrix and test jobs,
+The `website` job runs on pull requests, including drafts and forks, and
+merge-group entries. There is no push trigger; branches needing a preview open
+a draft PR. It runs independently of the platform matrix and test jobs,
 reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
 metadata variables.
 
-Every non-`main` repository branch push uploads a preview with Wrangler 4.74.0
+Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after its own successful website build.
-Pull requests and merge-group entries never upload. No enable-switch variables
+Fork pull requests and merge-group entries never upload. No enable-switch variables
 are used. Production uploads are omitted from the workflow until debugging is
 complete and Workers Builds is disabled. The API token is scoped to the upload
 step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting

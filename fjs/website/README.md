@@ -224,14 +224,13 @@ The generated CI workflow now supports building and deploying in the separate
 `website` job. It runs independently of test jobs and builds the WASM demos, styled Rust
 documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Same-repository
-pull-request runs skip the website job because push runs already build it.
+and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests,
+including drafts, build the website; same-repository PRs upload previews.
 Fork pull requests and merge-group entries build without uploading.
-Only pushes to branches in this
-repository can upload; fork pull requests receive no deployment credentials.
+There is no push trigger: open a draft PR when a branch needs a preview.
 
 The owner requested automatic preview uploads with Wrangler while production
-stays on Workers Builds. Every non-`main` repository branch push uses
+stays on Workers Builds. Every same-repository pull-request run uses
 `wrangler versions upload --preview-alias` after its own successful build.
 There is no production upload step in the workflow until debugging is complete
 and Workers Builds is disabled. No enable-switch variables are required.
@@ -270,16 +269,15 @@ the commit preview URL.
 
 Cut over in this order:
 
-1. Merge the workflow changes through the repository's review and merge queue.
-   Bring the workflow onto active older branches before disabling Workers
-   Builds: a branch without the new workflow cannot deploy through Actions.
-2. Configure `CLOUDFLARE_API_TOKEN`. No other GitHub settings or upload-enable variables
+1. Configure `CLOUDFLARE_API_TOKEN`. No other GitHub settings or upload-enable variables
    are needed. Keep
    the existing Workers Builds commands and bindings available for rollback.
-3. Push a trusted non-`main` test branch. Verify its successful CI
+2. Open or update a same-repository PR; a draft PR is enough. Verify its successful CI
    checks and upload, branch URL, commit links, Rust documentation, WASM demos
    and GitHub sign-in. Workers Builds may still upload during this check;
    confirm the Actions upload itself succeeds rather than relying on its bot.
+3. Once the preview is verified, merge the workflow changes through the
+   repository's review and merge queue.
 4. After preview verification and debugging, disable automatic Workers Builds
    for the Worker. In a follow-up PR, add the production upload step for `main`.
    Then push or merge to `main` and verify the Actions upload and production URL,

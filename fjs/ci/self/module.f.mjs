@@ -27,8 +27,8 @@ const buildMetadata = {
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * read-only job runs on branch pushes, fork pull requests and merge-group
- * entries. Same-repository pull requests reuse their branch's push build.
+ * read-only job runs on pull requests, including drafts and forks, and
+ * merge-group entries. Same-repository pull requests upload a preview.
  * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
  * and keeps deployment credentials confined to preview uploads.
@@ -40,7 +40,6 @@ export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read' },
-    if: "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository",
     steps: [
         uses('actions/checkout'),
         miseInstall.step,
@@ -60,12 +59,12 @@ export const websiteJob = {
             env: buildMetadata,
         },
         {
-            if: "github.event_name == 'push' && github.ref != 'refs/heads/main'",
+            if: "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
             run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),
             shell: 'bash',
             env: {
                 CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
-                WORKERS_CI_BRANCH: '${{ github.ref_name }}',
+                WORKERS_CI_BRANCH: '${{ github.head_ref }}',
             },
         },
     ],
@@ -105,5 +104,4 @@ export const main = () => ci({
     packageConsumer,
     smart: true,
     extraJobs: { website: websiteJob },
-    pushBranches: ['**'],
 })

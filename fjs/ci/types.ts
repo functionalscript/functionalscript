@@ -23,8 +23,6 @@ export type PackageConsumer = {
 }
 
 export type Setup = {
-    /** Also check pushes to these branches; omitted for the generic PR-only workflow. */
-    readonly pushBranches?: readonly string[],
     /** Fully assembled project jobs, outside platform setup and successful-check caching. */
     readonly extraJobs?: Jobs,
     /** Use existing project-owned mise manifests instead of the default generated Nix setup. */

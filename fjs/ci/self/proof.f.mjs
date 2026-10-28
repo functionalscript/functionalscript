@@ -41,19 +41,19 @@ export const proof = {
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, extraJobs: { website: websiteJob }, pushBranches: ['**'] })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, extraJobs: { website: websiteJob } })))
     },
     websiteBuild: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated.jobs.website, websiteJob)
         assertEq(Object.keys(generated.jobs).length, 10)
-        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {}, push: { branches: ['**'] } })
+        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         for (const id of Object.keys(generated.jobs).filter(id => id !== 'website')) {
             assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read' })
         assertEq(generated.jobs.website?.needs, undefined)
-        assertEq(generated.jobs.website?.if, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository")
+        assertEq(generated.jobs.website?.if, undefined)
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
@@ -73,13 +73,13 @@ export const proof = {
     },
     deploymentGates: () => {
         const preview = websiteJob.steps[7]
-        assertEq(preview?.if, "github.event_name == 'push' && github.ref != 'refs/heads/main'")
+        assertEq(preview?.if, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository")
         assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
         assertEq(websiteJob.steps.length, 8)
         assert(!websiteJob.steps.some(step => step.run?.includes('github-deploy.mjs production')))
         assertStructurallySame(preview?.env, {
             CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
-            WORKERS_CI_BRANCH: '${{ github.ref_name }}',
+            WORKERS_CI_BRANCH: '${{ github.head_ref }}',
         })
         const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
         assertEq(generic.on.push, undefined)

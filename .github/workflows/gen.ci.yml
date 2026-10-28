@@ -2,12 +2,7 @@
   "name": "CI",
   "on": {
     "pull_request": {},
-    "merge_group": {},
-    "push": {
-      "branches": [
-        "**"
-      ]
-    }
+    "merge_group": {}
   },
   "concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
@@ -1284,7 +1279,6 @@
       "permissions": {
         "contents": "read"
       },
-      "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository",
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1"
@@ -1332,12 +1326,12 @@
           }
         },
         {
-          "if": "github.event_name == 'push' && github.ref != 'refs/heads/main'",
+          "if": "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
           "run": "mise exec -- node ./fjs/website/github-deploy.mjs preview",
           "shell": "bash",
           "env": {
             "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "WORKERS_CI_BRANCH": "${{ github.ref_name }}"
+            "WORKERS_CI_BRANCH": "${{ github.head_ref }}"
           }
         }
       ]

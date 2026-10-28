@@ -65,8 +65,7 @@ export const stepSchema = /** @type {const} */ ({
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
 //
-// `if` is the condition a job runs under: merge-queue-only platform jobs use
-// it, and this repository's website skips duplicate same-repository PR builds.
+// `if` is the condition a job runs under, used by merge-queue-only platform jobs.
 //
 // `timeout-minutes` is required, so no job can be built without a limit on how
 // long it holds its runner: GitHub's default is six hours. Every generated job
