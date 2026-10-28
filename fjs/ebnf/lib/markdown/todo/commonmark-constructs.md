@@ -24,10 +24,10 @@ than argued from the spec:
 | a code span padded with spaces | `code` — one stripped each side | refused |
 | `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
 | `` **`a` b** `` | bold holding code | read as that |
-| `[x](a(b)c)` | a link to `a(b)c` | refused |
+| `[x](a(b)c)` | a link to `a(b)c` | read as that, one level of parentheses deep; a deeper or unbalanced one refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
 | `[x](<u>)` | a link to `u` | refused |
-| `![alt](u)` | an image | refused |
+| `![alt](u)` | an image | read as that in a README, alone or as a link's label (`[![alt](u)](href)`, a badge); refused in a release file |
 | a nested list marker | a list inside the item | read as that in a README; refused in a release file |
 | a blank line inside an item | two paragraphs, a loose list | read as that in a README; refused in a release file |
 | a pipe table | a table (GitHub's extension) | read as that in a README when every row opens with a pipe; refused in a release file |

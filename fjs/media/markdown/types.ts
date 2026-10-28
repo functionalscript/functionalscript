@@ -37,7 +37,8 @@ export type Inline =
     | readonly ['code', string]
     | readonly ['strong', readonly Label[]]
     | readonly ['em', readonly Label[]]
-    | readonly ['link', readonly Label[], string]
+    | readonly ['link', readonly LinkLabel[], string]
+    | Image
 
 /**
  * One span of a link's label: text, or code. A README names a file as
@@ -45,6 +46,16 @@ export type Inline =
  * in the tree holds emphasis or another link, and none may.
  */
 export type Label = readonly ['text', string] | readonly ['code', string]
+
+/**
+ * An image: its alternative text, then its source. GitHub reads `![alt](u)`
+ * as one, and a README's badge is one inside a link,
+ * `[![alt](u)](href)`. A README holds images; a release entry holds none.
+ */
+export type Image = readonly ['image', string, string]
+
+/** One span of a link's label: text, code, or an image the link shows. */
+export type LinkLabel = Label | Image
 
 /**
  * One entry — a Markdown list item — as its spans.

@@ -858,6 +858,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-readme] tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--border) 25%, var(--bg)) }
 [data-readme] a, [data-readme] a:visited { color: var(--value); text-decoration: none }
 [data-readme] a:hover { text-decoration: underline }
+[data-readme] img { max-width: 100%; vertical-align: middle }
 [data-readme] code { background: color-mix(in srgb, var(--border) 45%, var(--bg)); border-radius: 6px; font: 85% ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: .2em .4em; white-space: break-spaces }
 [data-readme] pre { background: color-mix(in srgb, var(--border) 30%, var(--bg)); border-radius: 6px; line-height: 1.45; overflow: auto; padding: 1rem; white-space: pre }
 [data-readme] pre > code { background: transparent; font-size: 85%; padding: 0; white-space: pre }
