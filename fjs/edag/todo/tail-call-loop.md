@@ -4,6 +4,12 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
+The next H increment admits observed-rest invocation roots within the shared
+plain-loop profile. Source preparation must preserve public fixed arity,
+fresh rest arrays, captures, ordered arguments and failures while retaining
+strict graph/text fixed points from the first source parse. Other rest shapes
+keep their existing fallback.
+
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
