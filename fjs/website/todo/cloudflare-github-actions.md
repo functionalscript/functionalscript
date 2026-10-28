@@ -38,29 +38,33 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The first implementation adds a read-only `website` job to the existing CI
-workflow's pull-request and merge-group events. It runs independently of the
-test matrix, reuses workflow concurrency, and does not use the successful-check
-cache. The build runs with no deployment credentials, including on fork pull
-requests. The generator receives the checked-out SHA and source branch through
-the existing `WORKERS_CI_*` metadata variables.
+The `website` job now runs on repository branch pushes, pull requests and
+merge-group entries. It stays separate from the platform matrix, waits for all
+test jobs, reuses workflow concurrency, and builds outside the successful-check
+cache. Build steps receive no deployment credentials. The generator receives
+the checked-out SHA and source branch through the existing `WORKERS_CI_*`
+metadata variables.
 
-Deployment triggers, dependencies on required checks, preview policy and Wrangler
-pinning remain the next decision before adding uploads. Workers Builds stays
-active during this build-only step.
+Only repository branch pushes upload. Wrangler is pinned to 4.74.0, with
+`deploy` for production on `main` and `versions upload --preview-alias` for
+other branches. Pull requests and merge-group entries never upload. Preview and
+production enable switches are separate and default to disabled. Credentials
+are scoped to upload steps, and the existing private temporary JSON secret file
+preserves the GitHub app bindings.
+
+Workers Builds stays active until live verification and cutover. Setup,
+branch-alias rules, cutover and rollback are documented in
+[GitHub Actions deployment](../README.md#github-actions-deployment).
 
 ### Tasks
 
-- [ ] Implement gated Wrangler deployment after CI checks, with production and
-      trusted-branch preview uploads, pinned tooling and documented cutover.
-
-- [ ] Settle the job's triggers, dependencies on required checks, preview policy,
+- [x] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
 - [x] Add the dedicated job to the CI generator and its proofs, regenerate the
       workflows, and build WASM demos, styled Rust documentation and the website
       using the pinned development environment.
-- [ ] Add production deployment and trusted-branch preview uploads, preserving
+- [x] Add production deployment and trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
 - [ ] Validate generated-workflow consistency and build output, then verify a

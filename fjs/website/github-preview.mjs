@@ -13,11 +13,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-/** Use the existing Cloudflare build tool without invoking a shell. */
+/** Run the selected Cloudflare CLI without invoking a shell. */
 /** @type {(args: readonly string[]) => Promise<number>} */
 const runWrangler = args => new Promise((resolve, reject) => {
     const child = spawn('npx', args, { stdio: 'inherit', shell: false })
-    child.once('error', () => reject(new Error('Unable to start the preview upload.')))
+    child.once('error', () => reject(new Error('Unable to start the Worker upload.')))
     child.once('exit', code => resolve(code ?? 1))
 })
 
@@ -26,19 +26,19 @@ const runWrangler = args => new Promise((resolve, reject) => {
  * it after every upload attempt, including failed or rejected attempts.
  * The optional runner proves the filesystem boundary without live credentials.
  *
- * @type {(env: WorkerEnv, host?: PreviewUploadHost) => Promise<number>}
+ * @type {(env: WorkerEnv, command: readonly string[], host?: PreviewUploadHost) => Promise<number>}
  */
-export const uploadGitHubPreview = async (env, host = {}) => {
+export const uploadGitHubVersion = async (env, command, host = {}) => {
     const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI, GITHUB_PREVIEW_REDIRECT_URI } = env
     if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_REDIRECT_URI) {
-        throw new Error('Set all three GitHub app build bindings before uploading this preview.')
+        throw new Error('Set all three GitHub app build bindings before uploading this version.')
     }
     const directory = await mkdtemp(join(tmpdir(), 'functionalscript-github-preview-'))
     try {
         const secretFile = join(directory, 'secrets.json')
         await writeFile(secretFile, JSON.stringify({ GITHUB_CLIENT_SECRET }), { mode: 0o600 })
         return await (host.run ?? runWrangler)([
-            'wrangler', 'versions', 'upload',
+            ...command,
             '--var', `GITHUB_CLIENT_ID:${GITHUB_CLIENT_ID}`,
             '--var', `GITHUB_REDIRECT_URI:${GITHUB_REDIRECT_URI}`,
             ...(GITHUB_PREVIEW_REDIRECT_URI ? ['--var', `GITHUB_PREVIEW_REDIRECT_URI:${GITHUB_PREVIEW_REDIRECT_URI}`] : []),
@@ -48,6 +48,10 @@ export const uploadGitHubPreview = async (env, host = {}) => {
         await rm(directory, { recursive: true, force: true })
     }
 }
+
+/** Preserve the Workers Builds preview command while GitHub Actions is staged. */
+/** @type {(env: WorkerEnv, host?: PreviewUploadHost) => Promise<number>} */
+export const uploadGitHubPreview = (env, host = {}) => uploadGitHubVersion(env, ['wrangler', 'versions', 'upload'], host)
 
 /** CLI execution remains separate from imported host proofs. */
 if (process.argv[1] !== undefined && pathToFileURL(process.argv[1]).href === import.meta.url) {

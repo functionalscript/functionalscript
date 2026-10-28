@@ -41,19 +41,19 @@ export const proof = {
     isCiWithTheConsumer: () => {
         assertEq(
             workflowOf(main()),
-            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, extraJobs: { website: websiteJob } })))
+            workflowOf(ci({ nodeExtra: () => [], packageConsumer, smart: true, extraJobs: { website: websiteJob }, pushBranches: ['**'] })))
     },
     websiteBuild: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated.jobs.website, websiteJob)
         assertEq(Object.keys(generated.jobs).length, 10)
-        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
+        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {}, push: { branches: ['**'] } })
         for (const id of Object.keys(generated.jobs).filter(id => id !== 'website')) {
             assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read' })
-        assertEq(websiteJob.needs, undefined)
-        assertStructurallySame(websiteJob.steps.slice(2).map(step => step.run), [
+        assertStructurallySame(websiteJob.needs, Object.keys(generated.jobs).filter(id => id !== 'website'))
+        assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
             'mise exec -- npm run rustdoc-bars',
@@ -66,8 +66,27 @@ export const proof = {
             WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
-        assert(websiteJob.steps.every(step => step.if === undefined))
+        assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
+    },
+    deploymentGates: () => {
+        const preview = websiteJob.steps[7]
+        const production = websiteJob.steps[8]
+        assertEq(preview?.if, "github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PREVIEWS_ENABLED == 'true'")
+        assertEq(production?.if, "github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true'")
+        assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
+        assertEq(production?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs production')
+        assertEq(preview?.env?.WORKERS_CI_BRANCH, '${{ github.ref_name }}')
+        for (const step of [preview, production]) {
+            assertEq(step?.env?.CLOUDFLARE_API_TOKEN, '${{ secrets.CLOUDFLARE_API_TOKEN }}')
+            assertEq(step?.env?.CLOUDFLARE_ACCOUNT_ID, '${{ vars.CLOUDFLARE_ACCOUNT_ID }}')
+            assertEq(step?.env?.GITHUB_CLIENT_SECRET, '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}')
+            assertEq(step?.env?.GITHUB_CLIENT_ID, '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}')
+            assertEq(step?.env?.GITHUB_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}')
+            assertEq(step?.env?.GITHUB_PREVIEW_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}')
+        }
+        const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
+        assertEq(generic.on.push, undefined)
     },
     // The consumer reaches the workflow, and the built-in command — the one
     // any project runs — carries none: that is the difference between the two

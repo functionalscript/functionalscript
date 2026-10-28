@@ -36,14 +36,17 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-This repository also adds a separate `website` job on pull requests and
-merge-group entries. It builds the WASM demos, styled Rust API documentation
+This repository also adds a separate `website` job on branch pushes, pull
+requests and merge-group entries. It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
-The job is read-only, has no dependency on the test matrix and always builds
-its assets outside the successful-check cache. It passes the checked-out SHA
+The job has read-only GitHub permissions, waits for all test jobs, and always
+builds its assets outside the successful-check cache. It passes the checked-out SHA
 and source branch to the website generator through `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH`. Deployment remains on Cloudflare Workers Builds
-until the later migration steps are complete.
+and `WORKERS_CI_BRANCH`. On repository branch pushes only, optional upload
+steps publish previews or deploy production after the build succeeds.
+Pull-request and merge-group runs never upload. Deployment secrets are scoped
+to the upload steps. The separate preview and production enable switches
+default to disabled; see [the cutover procedure](../website/README.md#github-actions-deployment).
 
 ## Usage
 
@@ -61,6 +64,11 @@ Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and
 use distinct job IDs; the built-in generator adds none. This keeps this
 repository's website build out of other projects' workflows.
+
+Optional `pushBranches` enables CI on pushes to those branches. This repository
+uses `['**']` to check every branch before preview uploads; generic `fjs ci`
+remains pull-request and merge-group only. A branch with a pull request may
+therefore receive both push and pull-request checks; only its push run uploads.
 
 Publishing retains its separate `setup-node` workflow and npm provenance.
 See [platform setup](../../doc/mise-trial/README.md) and

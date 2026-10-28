@@ -177,7 +177,7 @@ const canonicalJobs = packageConsumer => ({
  *
  * @type {(setup: Setup) => (rust: boolean) => readonly (readonly [path: string, text: string])[]}
  */
-const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false, extraJobs = {} }) => rust => {
+const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = false, extraJobs = {}, pushBranches = [] }) => rust => {
     /** @type {Jobs} */
     const jobs = {
         ...Object.fromEntries(os.flatMap(o =>
@@ -191,6 +191,7 @@ const ciFiles = ({ nodeExtra, packageConsumer, mergeQueueOnly = [], smart = fals
         on: {
             pull_request: {},
             merge_group: {},
+            ...(pushBranches.length === 0 ? {} : { push: { branches: pushBranches } }),
         },
         // One run per pull request: a push cancels the run of the commit
         // it supersedes, which would otherwise hold runners for a result

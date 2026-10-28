@@ -2,7 +2,12 @@
   "name": "CI",
   "on": {
     "pull_request": {},
-    "merge_group": {}
+    "merge_group": {},
+    "push": {
+      "branches": [
+        "**"
+      ]
+    }
   },
   "concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
@@ -1270,6 +1275,17 @@
       "permissions": {
         "contents": "read"
       },
+      "needs": [
+        "ubuntu-intel",
+        "ubuntu-arm",
+        "macos-intel",
+        "macos-arm",
+        "windows-intel",
+        "windows-arm",
+        "deno",
+        "bun",
+        "node26"
+      ],
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1"
@@ -1309,6 +1325,33 @@
           "env": {
             "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
             "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
+          }
+        },
+        {
+          "if": "github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PREVIEWS_ENABLED == 'true'",
+          "run": "mise exec -- node ./fjs/website/github-deploy.mjs preview",
+          "shell": "bash",
+          "env": {
+            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+            "CLOUDFLARE_ACCOUNT_ID": "${{ vars.CLOUDFLARE_ACCOUNT_ID }}",
+            "GITHUB_CLIENT_ID": "${{ vars.WEBSITE_GITHUB_CLIENT_ID }}",
+            "GITHUB_CLIENT_SECRET": "${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}",
+            "GITHUB_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}",
+            "GITHUB_PREVIEW_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}",
+            "WORKERS_CI_BRANCH": "${{ github.ref_name }}"
+          }
+        },
+        {
+          "if": "github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true'",
+          "run": "mise exec -- node ./fjs/website/github-deploy.mjs production",
+          "shell": "bash",
+          "env": {
+            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+            "CLOUDFLARE_ACCOUNT_ID": "${{ vars.CLOUDFLARE_ACCOUNT_ID }}",
+            "GITHUB_CLIENT_ID": "${{ vars.WEBSITE_GITHUB_CLIENT_ID }}",
+            "GITHUB_CLIENT_SECRET": "${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}",
+            "GITHUB_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}",
+            "GITHUB_PREVIEW_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}"
           }
         }
       ]

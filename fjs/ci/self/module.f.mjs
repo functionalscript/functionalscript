@@ -22,7 +22,8 @@ import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStyleshee
 /**
  * Website assets are built once, independently of the platform matrix. This
  * read-only job runs on the CI workflow's pull-request and merge-group events,
- * including forks. It always builds rather than consulting the check cache,
+ * including forks, and branch pushes. It waits for the test jobs before building,
+ * and always builds rather than consulting the check cache,
  * and receives no deployment credentials. Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
@@ -31,6 +32,7 @@ export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read' },
+    needs: ['ubuntu-intel', 'ubuntu-arm', 'macos-intel', 'macos-arm', 'windows-intel', 'windows-arm', 'deno', 'bun', 'node26'],
     steps: [
         uses('actions/checkout'),
         miseInstall.step,
@@ -50,6 +52,33 @@ export const websiteJob = {
             env: {
                 WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
                 WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
+            },
+        },
+        {
+            if: "github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PREVIEWS_ENABLED == 'true'",
+            run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),
+            shell: 'bash',
+            env: {
+                CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+                CLOUDFLARE_ACCOUNT_ID: '${{ vars.CLOUDFLARE_ACCOUNT_ID }}',
+                GITHUB_CLIENT_ID: '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}',
+                GITHUB_CLIENT_SECRET: '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}',
+                GITHUB_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}',
+                GITHUB_PREVIEW_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}',
+                WORKERS_CI_BRANCH: '${{ github.ref_name }}',
+            },
+        },
+        {
+            if: "github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PRODUCTION_ENABLED == 'true'",
+            run: miseDevelop('node ./fjs/website/github-deploy.mjs production'),
+            shell: 'bash',
+            env: {
+                CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+                CLOUDFLARE_ACCOUNT_ID: '${{ vars.CLOUDFLARE_ACCOUNT_ID }}',
+                GITHUB_CLIENT_ID: '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}',
+                GITHUB_CLIENT_SECRET: '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}',
+                GITHUB_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}',
+                GITHUB_PREVIEW_REDIRECT_URI: '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}',
             },
         },
     ],
@@ -89,4 +118,5 @@ export const main = () => ci({
     packageConsumer,
     smart: true,
     extraJobs: { website: websiteJob },
+    pushBranches: ['**'],
 })

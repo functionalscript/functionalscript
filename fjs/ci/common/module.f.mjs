@@ -59,11 +59,10 @@ export const stepSchema = /** @type {const} */ ({
     'continue-on-error': or(option, true)
 })
 
-// `needs` is how one job waits for another. No generated job uses it —
-// `jobNeeds` in `fjs/ci/proof.f.mjs` pins that — because GitHub creates a
-// waiting job only when the job it waits for finishes, so behind a full runner
-// queue it waits a second time. It stays modelled so an ordering edge is a
-// deliberate change rather than a key emitted past the schema:
+// `needs` is how one job waits for another. Platform checks stay independent;
+// this repository's website job waits for those checks before uploading.
+// GitHub creates a waiting job only when its prerequisites finish, so this
+// deliberately trades a later runner allocation for deployment ordering.
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
 //
@@ -90,7 +89,7 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
-    // workflow uses them all: `gen.ci.yml` is a pull-request gate and the publish
+// workflow uses them all: generic CI is a pull-request gate and the publish
     // workflow fires on a push to a branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {
