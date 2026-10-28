@@ -2,7 +2,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Reader, ValidateE, ValidationError } from './types.ts'
+ * @import { Reader, ValidationError } from './types.ts'
  */
 
 import {
@@ -22,7 +22,6 @@ import {
     verror,
 } from './module.f.mjs'
 import { array, number, option, or, record, rest } from '../module.f.mjs'
-import { emptyRest } from '../data/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -52,11 +51,8 @@ const listing = {
 /** @type {(acc: ReadonlyArray<readonly [string, Unknown]>) => Unknown} */
 const collected = acc => acc
 
-/** Every length fits: what the struct kind and an admitting rest say. */
+/** Every length fits: what the struct kind says. */
 const anyLength = () => true
-
-/** No length fits: what an empty element set says of a non-empty array. */
-const noLength = () => false
 
 /** Reads a tuple position. */
 /** @type {(value: ReadonlyArray<Unknown>, k: string) => Unknown} */
@@ -66,13 +62,13 @@ const tupleItem = (value, k) => value[Number(k)]
 /** @type {(value: StringMap<Unknown>, k: string) => Unknown} */
 const structItem = (value, k) => value[k]
 
-const arrayRead = containerRead(listing)(isArray, () => anyLength, collected)
+const arrayRead = containerRead(listing)(isArray, collected)
 
 const tupleRead = constContainerRead(listing)(isArray, tupleSchemaEntries, tupleItem, (value, declared) => value.length <= declared, collected)
 
 const structRead = constContainerRead(listing)(isObject, structSchemaEntries, structItem, anyLength, collected)
 
-const restStructRead = restContainerRead(listing)(isObject, structSchemaEntries, structItem, () => anyLength, collected)
+const restStructRead = restContainerRead(listing)(isObject, structSchemaEntries, structItem, collected)
 
 export const proof = {
     empty: () => {
@@ -194,8 +190,8 @@ export const proof = {
         // The first bad member answers, under its key.
         memberError: () => assertErrorPath(['1'])(arrayRead(1)([1, 2])),
         notAContainer: () => assertErrorPath([])(arrayRead(1)({})),
-        // With no member to read, `restFits` decides — and `finish` is handed
-        // the container — and the item reader is never instantiated, which is
+        // With no member to read the container is empty — `finish` is handed
+        // it — and the item reader is never instantiated, which is
         // what lets a recursive schema stop at an empty container.
         empty: () => {
             let reads = 0
@@ -204,8 +200,7 @@ export const proof = {
             const empty = /** @type {const} */ ([])
             /** @type {(acc: unknown, value: Unknown) => Unknown} */
             const keep = (_, value) => value
-            assert(Object.is(assertOk(containerRead(counting)(isArray, () => anyLength, keep)(1)(empty)), empty))
-            assertErrorPath([])(containerRead(counting)(isArray, () => noLength, keep)(1)(empty))
+            assert(Object.is(assertOk(containerRead(counting)(isArray, keep)(1)(empty)), empty))
             assertEq(reads, 0)
         },
     },
@@ -246,13 +241,6 @@ export const proof = {
             [['a', 1]],
         ),
         notAContainer: () => assertErrorPath([])(restStructRead({ a: 1 }, 2)(1)),
-        // With nothing past the prefix, `restFits` decides.
-        nothingPastThePrefix: () => {
-            /** @type {(fits: () => boolean) => ValidateE} */
-            const read = fits => restContainerRead(listing)(isArray, tupleSchemaEntries, tupleItem, () => fits, collected)([1], 2)
-            assertOk(read(anyLength)([1]))
-            assertErrorPath([])(read(noLength)([1]))
-        },
     },
     // One reader, whole: the containers it reads, and what it builds of
     // each kind through `finish`.
@@ -261,8 +249,7 @@ export const proof = {
         const tagged = name => (_, value) => [name, value]
         const read = readerOf(
             { empty: undefined, cons: noAccumulate },
-            { array: tagged('array'), record: tagged('record'), tuple: tagged('tuple'), struct: tagged('struct') },
-            emptyRest)
+            { array: tagged('array'), record: tagged('record'), tuple: tagged('tuple'), struct: tagged('struct') })
         assertStructurallySame(assertOk(read(array(number))([1])), ['array', [1]])
         assertStructurallySame(assertOk(read(record(number))({ a: 1 })), ['record', { a: 1 }])
         assertStructurallySame(assertOk(read([number])([1])), ['tuple', [1]])
@@ -270,8 +257,8 @@ export const proof = {
         assertStructurallySame(assertOk(read(rest([number], number))([1, 2])), ['tuple', [1, 2]])
         assertStructurallySame(assertOk(read(rest({ a: number }, number))({ a: 1, b: 2 })), ['struct', { a: 1, b: 2 }])
         assertStructurallySame(assertOk(read(or(number, [number]))([1])), ['tuple', [1]])
-        // `array(or())` is the empty array, not any number of holes: the
-        // length bound `emptyRest` decides.
+        // `array(or())` is the empty array, and an array with a hole is
+        // refused.
         assertStructurallySame(assertOk(read(array(or()))([])), ['array', []])
         assertErrorPath([])(read(array(or()))(new Array(1)))
         // So is an empty rest past a tuple's prefix.

@@ -325,18 +325,18 @@ type RequiredFields<T extends Struct> = {
  * would be the exact `readonly[42]` while `validate(open([42]))([42, 'x'])`
  * accepts and hands back two elements.
  *
- * **The tail admits `undefined`.** Both readers check an undeclared member as
- * a member, and a hole past the prefix is no member, so
- * `validate(rest([42], string))([42, , ])` is `ok` and index 1 reads
- * `undefined`. `...(Ts<R> | undefined)[]` is what "a rest never sees an absent
- * member" says on the type side. The common case pays nothing: `open(c)`'s
+ * **The tail admits `undefined`.** It dates from when a hole past the prefix
+ * was a value the readers accepted, reading `undefined`; every reader now
+ * refuses an array with a hole, so the `| undefined` is wider than the schema
+ * but sound (`../todo/holes-in-the-canonical-form.md`). The common case pays nothing: `open(c)`'s
  * rest is `unknown`, which already admits `undefined`.
  *
  * **An empty rest renders no tail**, since `rest(c, or())` is the bare `c` —
  * one set, so one rendering, and `readonly[42, ...undefined[]]` would admit
- * the `[42, undefined]` both readers reject. What counts as empty is
- * `emptyRest`'s question in `../data/module.f.mjs`, and that is a `toData`
- * conversion plus `subset` both ways, which `types.ts` cannot invoke. Nor is
+ * the `[42, undefined]` both readers reject. What counts as empty is a
+ * semantic question — a `toData` conversion compared with the bare
+ * container's by `equivalent` in `../data/module.f.mjs` — which `types.ts`
+ * cannot invoke. Nor is
  * `Ts<R> extends never` a substitute — `Ts<readonly[Or<readonly[]>]>` is
  * `readonly[never]`, whose `length` is `1`. So this recognizes the one
  * directly spellable empty rest, `or()`, and **keeps the tail whenever it

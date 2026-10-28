@@ -9,7 +9,7 @@ schema like `boolean`, and a member that may be omitted says so by union.
 { a: or(option, number) }             // `a` may be absent, or a number
 { a: or(number, undefined) }          // `a` must be present, may hold `undefined`
 { a: or(option, number, undefined) }  // absent, a number, or a present `undefined`
-[or(option, number), 3]               // position 0 may be a hole
+[3, or(option, number)]               // position 1 may be absent: `[3]`
 ```
 
 Absence is not a spelling of the value `undefined`: `{}` and
@@ -20,8 +20,10 @@ absence**, so a struct key or a tuple position without `option` must be there
 
 Absence is observable only at a container position. No caller can hand a
 reader an argument that is not there, so a top-level schema admitting absence
-accepts exactly what the rest of its union accepts. A container's `rest` never
-sees it either, a hole being no member.
+accepts exactly what the rest of its union accepts. A tuple position is absent
+only past the end of the array: every reader refuses an array with a hole,
+which FunctionalScript cannot build. A container's `rest` never sees an absent
+member either.
 
 Neither reader fills an absent member in: `parse({ a: or(option, number) })({})`
 builds `{}`, with no key `a`, and `validate` hands back the `{}` it was given.

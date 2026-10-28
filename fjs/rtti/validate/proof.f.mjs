@@ -322,12 +322,11 @@ export const proof = {
             accepted([2, 4n])                  // stops at the last required position
             accepted([2, 4n, 'x'])             // the first optional present
             accepted([2, 4n, 'x', null])       // both present
-            // Omission is independent, not just truncation: a member is
-            // absent wherever its index is missing, so position 2 may be
-            // missing while position 3 is present.
-            accepted([2, 4n, , null])          //< a hole at position 2
+            // A missing index below `length` is a hole, which every reader
+            // refuses, so a position is absent only past the end.
+            rejected([2, 4n, , null])          //< a hole at position 2
             // A present `undefined` is a value, not a spelling of absence:
-            // `or(option, string)` admits the hole above and rejects this.
+            // `or(option, string)` rejects it.
             rejected([2, 4n, undefined, null])
             rejected([2])                      // `bigint` excludes absence
             rejected([2, 4n, 5])               // an optional that is present is still checked
@@ -347,12 +346,10 @@ export const proof = {
         // bottom where it is.
         every(open(t))(assertOk)([2, 4n, 'x', null, 'a', 'b'])
     },
-    // An interior omittable position may be absent with a *required* position
-    // after it, which is the sharpest witness that absence is per position
-    // rather than truncation: `optionalPositions`'s hole is followed by
-    // another omittable position, so it cannot say this. Absence is also
-    // positional, not a shift — `[, 5]` holds `5` at position 1 and is
-    // accepted, while `[5]` holds it at position 0 and is not.
+    // An interior omittable position before a *required* one: a value
+    // absent there would need a hole, which every reader refuses, and
+    // absence is not a shift — `[5]` holds `5` at position 0, where the
+    // schema wants a string.
     interiorOptionBeforeRequired: () => {
         const t = /** @type {const} */ ([or(option, string), number])
         /** @type {(rtti: Type) => (check: (r: ResultE) => void) => (value: Unknown) => void} */
@@ -365,7 +362,7 @@ export const proof = {
         // rest is its own reader on all three, and this schema is not one of
         // the shapes the trailing-option cases there already put through it.
         for (const rtti of [t, open(t)]) {
-            every(rtti)(assertOk)([, 5])          //< a hole at position 0
+            every(rtti)(assertError)([, 5])       //< a hole at position 0
             // `[undefined, 5]` is a *different value*: present-`undefined` at
             // position 0, which `or(option, string)` rejects.
             every(rtti)(assertError)([undefined, 5])
@@ -379,6 +376,24 @@ export const proof = {
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
+    // An array with a hole is no value of any schema: FunctionalScript
+    // builds none and DataJS has none, so every reader refuses one wherever
+    // it reads a value — `unknown` included — rather than shifting what
+    // follows the hole or filling it with `undefined`.
+    holeIsRefused: () => {
+        /** @type {ReadonlyArray<readonly [Type, Unknown]>} */
+        const cases = [
+            [unknown, [1, , 3]],
+            [array(number), [1, , 3]],
+            [[number, or(option, number), number], [1, , 3]],
+            [open([]), [1, , 3]],
+            [{ a: unknown }, { a: [1, , 3] }],
+            [array(number), new Array(1)],
+        ]
+        for (const [t, value] of cases) {
+            for (const read of [v, p, d]) { assertError(read(t)(value)) }
+        }
+    },
     // A member is an enumerable own entry, so a name only `Object.prototype`
     // supplies is absent from a plain object: legal where the schema admits
     // absence, a missing member where it does not, and never the inherited
@@ -858,8 +873,10 @@ export const proof = {
             // `rest` key as elimination.
             // `v` rather than `validate`: `Ts<>` walks a recursive schema
             // structurally, and these two exist to be recursive.
-            assertOk(v(rest([number], recursiveRest))([42, ,]))
-            assertOk(v(rest([number], orCycleA))([42, ,]))
+            // Only a hole past the prefix ever told these rests from empty
+            // ones, and every reader now refuses a hole.
+            assertError(v(rest([number], recursiveRest))([42, ,]))
+            assertError(v(rest([number], orCycleA))([42, ,]))
             assertOk(validate(open([]))([1]))
         },
     },
@@ -953,14 +970,14 @@ export const proof = {
         }
     },
     // The walk is bounded by the value's own indices rather than by
-    // `length`: a sparse array as long as the index space allows
-    // answers at once, where materializing the range exhausted memory first.
-    // The verdicts are the ordinary ones — a bare tuple is too short for it,
-    // a rest with nothing present past the prefix admits it.
+    // `length`: a sparse array as long as the index space allows is found
+    // to have a hole, and refused, at once, where materializing the range
+    // exhausted memory first.
     lengthDoesNotBoundTheWalk: () => {
         const big = new Array(2 ** 32 - 1)
         assertError(v([or(option, string)])(big))
-        assertOk(v(rest([], string))(big))
+        assertError(v(rest([], string))(big))
+        assertError(d(rest([], string))(big))
     },
     arrayOptional: () => {
         const a = /** @type {const} */([number, or(option, string)])

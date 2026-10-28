@@ -24,6 +24,7 @@ import {
     booleanBits,
     cmp,
     equal,
+    equivalent,
     falseBit,
     isNever,
     isTop,
@@ -561,8 +562,11 @@ export const proof = {
             absentOnlyPositionIsNotDropped: () => {
                 assert(!equal(toData(/** @type {const} */ ([option])))(
                     toData(/** @type {const} */ ([]))))
+                // The two forms stay distinct, but no value tells them apart
+                // any more: the one that did, `new Array(1)`, has a hole,
+                // which every reader refuses.
                 const v1 = validate(toData(/** @type {const} */ ([option])))
-                assertEq(v1(new Array(1))[0], 'ok')
+                assertEq(v1(new Array(1))[0], 'error')
                 assertEq(v1([])[0], 'ok')
                 assertEq(v1([1])[0], 'error')
                 assertEq(v1([undefined])[0], 'error')
@@ -779,6 +783,13 @@ export const proof = {
             assert(!equal(ra)(rb))
         },
     },
+    // Inclusion both ways: one set however it is spelled, which `equal`'s
+    // structural comparison does not promise.
+    equivalent: () => {
+        assert(equivalent(toData(or(number, string)))(toData(or(string, number))))
+        assert(equivalent(toData(rest([42], or())))(toData([42])))
+        assert(!equivalent(toData(number))(toData(or(number, string))))
+    },
     subset: {
         literals: () => {
             assert(subset(toData(true))(toData(boolean)))
@@ -863,7 +874,9 @@ export const proof = {
                 { absCycleA: { unit: absentBit } },
                 { array: [{ prefix: [{ number: true }], rest: 'absCycleA' }] },
             ])
-            assertEq(validate(holey)([1, , , ])[0], 'ok')
+            // the two sets differed only by hole-only arrays, which every
+            // reader now refuses, so no value tells them apart
+            assertEq(validate(holey)([1, , , ])[0], 'error')
             assertEq(validate(holey)([1, 2])[0], 'error')
             assertEq(validate(toData(tupleNumber))([1, , , ])[0], 'error')
             assert(subset(toData(tupleNumber))(holey))
