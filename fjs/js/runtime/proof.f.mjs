@@ -22,6 +22,12 @@ const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unk
 /** The host's own globals, each static path read from them by its keys. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
 const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number }))
 
+/**
+ * The statics whose argument is an array of entries, which no pair of
+ * {@link samples} is: `host` leaves them to a proof of their own.
+ */
+const entryShaped = ['Object.fromEntries']
+
 const array = /** @type {readonly unknown[]} */ ([])
 const object = {}
 const f = () => 1
@@ -101,7 +107,7 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [global, name] of staticPaths.filter(path => !isNative(path))) {
+        for (const [global, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
             const body = table[`${global}.${name}`]
             const namespace = host[global]
             const detached = namespace[name]
@@ -130,6 +136,30 @@ export const proof = {
                 assertStructurallySame(detached(a), namespace[name](a), [global, name, a])
             }
         }
+    },
+    // `Object.fromEntries` answers as the host's own on arrays of entries,
+    // method and detached: the same keys in the same order, a key written
+    // twice at its first position with its last value, each key converted,
+    // a missing value `undefined`, `__proto__` an own key, and an entry that
+    // is an object read by index. The order is compared through `entries`,
+    // which lists it.
+    fromEntries: () => {
+        const body = /** @type {(a: unknown) => object} */ (statics['Object.fromEntries'])
+        const fromEntries = /** @type {(a: unknown) => object} */ (Object.fromEntries)
+        assertEq(body.length, fromEntries.length)
+        /** @type {readonly unknown[]} */
+        const cases = [
+            [], [['a', 1]], [['b', 1], ['10', 2], ['2', 3], ['b', 4]],
+            [[1, 'n'], [true, 'b'], [undefined, 'u'], [null, 'z'], [2n, 'g']],
+            [['a']], [['__proto__', 1]], [{ 0: 'a', 1: 1 }], [array, object, f],
+            entries({ x: 1, y: [2] }),
+        ]
+        for (const c of cases) {
+            const expected = entries(body(c))
+            assertStructurallySame(expected, entries(Object.fromEntries(/** @type {Iterable<readonly [PropertyKey, unknown]>} */ (c))), c)
+            assertStructurallySame(expected, entries(fromEntries(c)), c)
+        }
+        assert(body([]) !== body([]))
     },
     // The two values `===` reads the other way, which `Object.is` exists
     // for, and none of the four predicates converting its argument, are the
@@ -286,5 +316,11 @@ export const proof = {
         searchConversion: () => { member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
         // a nullish receiver is the executor's throw, before `dot` is asked
         nullishReceiver: () => { runtime.dot(null, 'x') },
+        // `Object.fromEntries` of an entry that is not an object throws, as
+        // the host's `TypeError` does…
+        fromEntriesEntry: () => { statics['Object.fromEntries']([['a', 1], 2]) },
+        // …and so does a value that is not an array, even one the host
+        // iterates: the language admits no other iterable as entries.
+        fromEntriesNotArray: () => { statics['Object.fromEntries']('') },
     },
 }

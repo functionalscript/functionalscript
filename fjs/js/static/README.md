@@ -7,7 +7,7 @@ holds the member functions beside it.
 
 |Export                |Holds                                                                                                                            |
 |----------------------|---------------------------------------------------------------------------------------------------------------------------------|
-|`statics`             |every admitted path: `Object.is`, `Object.entries`, `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`, `Number.isFinite`|
+|`statics`             |every admitted path: `Object.is`, `Object.entries`, `Object.fromEntries`, `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`, `Number.isFinite`|
 |`natives`             |the paths no function body can define, which every executor binds natively: `Object.entries`                                     |
 |`isStatic`, `isNative`|the tests for a path                                                                                                             |
 

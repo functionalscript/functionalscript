@@ -1,6 +1,7 @@
 /**
  * The proof of the parser's reading of the static functions the language
- * admits, `Object.is`, `Object.entries` and the four `Number` predicates
+ * admits, `Object.is`, `Object.entries`, `Object.fromEntries` and the four
+ * `Number` predicates
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)):
  * each a value, the AST's `['Object.is']`, in either key spelling of the
  * unguarded read, and each namespace refused everywhere else, a guard on
@@ -125,6 +126,17 @@ export const proof = {
         expectRefused('export default [].entries;', 'prohibited property name', 19)
         expectRefused('const { entries } = []; export default entries;', 'prohibited property name', 9)
         expectRefused('const { entries } = Number; export default 1;', 'prohibited property name', 9)
+    },
+    // `Object.fromEntries` is read as `Object.entries` is, in either key
+    // spelling and through destructuring; it is no prototype name, so over
+    // another namespace it is refused at the word.
+    fromEntries: () => {
+        for (const source of ['Object.fromEntries', 'Object["fromEntries"]']) {
+            expectModule(`export default ${source};`, exported('["Object.fromEntries"]'))
+        }
+        expectModule('const { fromEntries } = Object; export default fromEntries([["a", 1]]);',
+            exported('["()",["Object.fromEntries"],[["[]",[["[]",["a",1]]]]]]'))
+        expectRefused('const { fromEntries } = Number; export default 1;', 'reserved word', 25)
     },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.
