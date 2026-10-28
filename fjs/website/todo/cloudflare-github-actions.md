@@ -51,6 +51,9 @@ active during this build-only step.
 
 ### Tasks
 
+- [ ] Implement gated Wrangler deployment after CI checks, with production and
+      trusted-branch preview uploads, pinned tooling and documented cutover.
+
 - [ ] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
