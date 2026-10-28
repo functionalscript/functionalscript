@@ -1,4 +1,4 @@
-/** Shared browser clipboard controls for demos and the CLI reference. @module */
+/** Shared browser clipboard controls for demos, the CLI reference and README code blocks. @module */
 
 /**
  * Copy the text declared by a code block, directly from the click so
@@ -40,6 +40,20 @@ export const copy = async (button, text) => {
         copyPending.delete(button)
         button.removeAttribute('aria-disabled')
     }
+}
+
+/** Bind each copy button under `root`, then mark `root` ready: the
+ * stylesheet shows the buttons only once they copy, so a page without this
+ * runtime shows none that do nothing.
+ * @type {(root: Element) => void}
+ */
+export const bindCopies = root => {
+    for (const button of root.querySelectorAll('button')) {
+        const text = button.getAttribute('data-copy')
+        if (text === null) { continue }
+        button.addEventListener('click', () => { void copy(button, text) })
+    }
+    root.setAttribute('data-copy-ready', '')
 }
 
 /** @type {(view: Window, text: string) => Promise<readonly ['copied' | 'failed', string]>} */
