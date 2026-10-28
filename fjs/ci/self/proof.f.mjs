@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, productionPath, productionWorkflow } from './module.f.mjs'
 import { ci, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -18,9 +18,9 @@ import { parseGitHubAction } from '../common/module.f.mjs'
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no
  * `package.json`, not even the workflows directory: the generator creates it.
  *
- * @type {(program: Effect<NodeOp, 0, number>) => string}
+ * @type {(program: Effect<NodeOp, 0, number>, filename?: string) => string}
  */
-const workflowOf = program => {
+const workflowOf = (program, filename = 'gen.ci.yml') => {
     /** @type {Dir} */
     const root = {}
     const [state, code] = virtualAt(root)(program)
@@ -29,7 +29,7 @@ const workflowOf = program => {
     assert(typeof github === 'object' && !(github instanceof Array), github)
     const workflows = github['workflows']
     assert(typeof workflows === 'object' && !(workflows instanceof Array), workflows)
-    const file = workflows['gen.ci.yml']
+    const file = workflows[filename]
     assert(file instanceof Array && file.length !== 0, file)
     return utf8ToString(file[0])
 }
@@ -70,6 +70,21 @@ export const proof = {
         assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
         assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
+    },
+    production: () => {
+        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.website.yml')))))
+        assertEq(productionPath, '.github/workflows/gen.website.yml')
+        assertStructurallySame(generated, productionWorkflow)
+        assertStructurallySame(generated.on, { push: { branches: ['main'] } })
+        assertStructurallySame(generated.concurrency, { group: 'website-production' })
+        const job = generated.jobs.website
+        assert(job !== undefined)
+        assertEq(job.needs, undefined)
+        assertStructurallySame(job.steps.slice(0, 7), websiteJob.steps.slice(0, 7))
+        assertEq(job.steps.length, 8)
+        assertEq(job.steps[7]?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs production')
+        assertEq(job.steps[7]?.if, undefined)
+        assertStructurallySame(job.steps[7]?.env, { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' })
     },
     deploymentGates: () => {
         const preview = websiteJob.steps[7]

@@ -3,10 +3,6 @@
 **Priority:** P3
 **Status:** wip
 
-Production cutover is being prepared in the next PR: retain PR-only previews,
-add a separate main-only production workflow, and remove the temporary alias prefix.
-Disable Workers Builds immediately before merging that PR.
-
 ### Problem
 
 The website is built by Cloudflare Workers Builds, outside the repository's
@@ -29,42 +25,20 @@ and GitHub sign-in behavior. The current build sequence is documented in
 [the website README](../README.md#the-build-command). Keep publishing from the
 repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 
-The proposed deployment policy is production on `main` after required checks
-pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
-run checks without deployment credentials. Preserve preview branch aliases,
-commit and branch metadata, and the OAuth callback behavior. During validation,
-Actions previews temporarily use an `actions-` alias prefix to distinguish them
-from Workers Builds; remove it after cutover. Moving hosts must
-not silently remove these features.
+Production runs in the separate generated `gen.website.yml` workflow on pushes
+to `main`, after required checks and review through the merge queue. PR-only
+CI retains previews for same-repository PRs, including drafts; forks and merge
+groups build without uploading. The dedicated website job is independent of
+the platform matrix. Both workflows use the pinned mise build steps and scope
+the sole `CLOUDFLARE_API_TOKEN` secret to uploads. Existing Worker bindings are
+preserved. Preview aliases retain `actions-` while Workers Builds is active, preventing
+competing uploads from sharing preview aliases. Remove the prefix only in a
+separate cleanup PR after the production cutover is verified.
 
-Use a scoped Cloudflare API token held in GitHub Actions secrets, with deployment
-credentials available only to trusted deployment steps. Preserve the existing
-Worker bindings and encrypted app secret handling. Verify the replacement before
-disabling Workers Builds so the transition does not leave competing deployments.
-
-### Build job
-
-The `website` job runs on pull requests, including drafts and forks, and
-merge-group entries. There is no push trigger; branches needing a preview open
-a draft PR. It runs independently of the platform matrix and test jobs,
-reuses workflow concurrency, and builds outside the successful-check
-cache. Build steps receive no deployment credentials. The generator receives
-the checked-out SHA and source branch through the existing `WORKERS_CI_*`
-metadata variables.
-
-Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
-and `versions upload --preview-alias` after its own successful website build.
-Fork pull requests and merge-group entries never upload. No enable-switch variables
-are used. Production uploads are omitted from the workflow until debugging is
-complete and Workers Builds is disabled. The API token is scoped to the upload
-step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
-and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
-only the API-token secret and sends no empty OAuth overrides. The legacy
-Workers Builds helper keeps its explicit bindings during the transition.
-
-Workers Builds stays active until live verification and cutover. Setup,
-branch-alias rules, cutover and rollback are documented in
-[GitHub Actions deployment](../README.md#github-actions-deployment).
+Keep Workers Builds enabled during review. Disable it immediately before
+merging the production workflow PR, then verify the first main deployment.
+The legacy build script remains for rollback. See
+[the cutover procedure](../README.md#github-actions-deployment).
 
 ### Tasks
 
@@ -77,12 +51,12 @@ branch-alias rules, cutover and rollback are documented in
 - [x] Add automatic trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
-- [ ] After debugging previews and disabling Workers Builds, add production
-      deployment on `main` in a follow-up PR. Keep it absent until then.
+- [x] Prepare a separate production deployment workflow for `main`; disable
+      Workers Builds immediately before merging it.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
-- [ ] Remove the temporary `actions-` preview-alias prefix after cutover.
+- [ ] Remove the temporary `actions-` preview-alias prefix after verified cutover.
 - [ ] Document the GitHub Actions setup and cutover/rollback procedure, reconcile
       the old Cloudflare-only build script and Node pin with their remaining
       consumers, update related documentation, and disable Workers Builds after

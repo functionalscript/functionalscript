@@ -9,10 +9,12 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { PackageConsumer } from '../types.ts'
- * @import { Job } from '../common/types.ts'
+ * @import { Job, GitHubAction } from '../common/types.ts'
  */
 
 import { ci } from '../module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
@@ -31,8 +33,8 @@ const buildMetadata = {
  * merge-group entries. Same-repository pull requests upload a preview.
  * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
- * and keeps deployment credentials confined to preview uploads.
- * Production uploads are omitted until cutover. Mise installs the committed lock,
+ * and keeps deployment credentials confined to upload steps.
+ * Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
  */
@@ -99,9 +101,33 @@ export const packageConsumer = {
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci({
+export const main = () => step(ci({
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
     extraJobs: { website: websiteJob },
-})
+}), () => exitStep(writeFiles([[productionPath, JSON.stringify(productionWorkflow, null, '  ')]])))
+
+/** Repository-only production workflow, separate from pull-request CI. */
+export const productionPath = /** @type {const} */ ('.github/workflows/gen.website.yml')
+
+/** @type {GitHubAction} */
+export const productionWorkflow = {
+    name: 'Website production',
+    on: { push: { branches: ['main'] } },
+    concurrency: { group: 'website-production' },
+    permissions: { contents: 'read' },
+    jobs: {
+        website: {
+            ...websiteJob,
+            steps: [
+                ...websiteJob.steps.slice(0, 7),
+                {
+                    run: miseDevelop('node ./fjs/website/github-deploy.mjs production'),
+                    shell: 'bash',
+                    env: { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' },
+                },
+            ],
+        },
+    },
+}
