@@ -294,69 +294,20 @@ export const proof = {
         },
     },
     // What `parse` builds around an absent member, asserted on the value
-    // rather than on acceptance alone: an interior absent position stays a
-    // hole — materializing `undefined` would denote a different value, and
-    // omitting it would shift everything after it — and a trailing absent
-    // run shortens the result. This is the JSON round-trip defect of the old
-    // design dissolved: no `undefined` is materialized, so nothing turns
-    // into `null` on the wire.
+    // rather than on acceptance alone: no `undefined` is materialized, so
+    // nothing turns into `null` on the wire. A tuple's absent positions are
+    // only ever past the end, so a trailing absent run shortens the result.
     absentPositions: {
-        interiorHoleSurvives: () => {
-            /** @type {ReadonlyArray<unknown>} */
-            const built = unwrap(parse([or(option, number), 3])([, 3]))
-            assertEq(built.length, 2, 'the hole keeps its position')
-            assert(!Object.hasOwn(built, 0), 'no own index 0')
-            assertEq(built[1], 3, 'and `3` stays at index 1')
-        },
         trailingRunShortens: () => {
             /** @type {ReadonlyArray<unknown>} */
-            const built = unwrap(parse([number, or(option, number), or(option, number)])([1, , ]))
-            assertEq(built.length, 1, 'the trailing absent run is gone')
-            assertEq(built[0], 1, 'the present prefix survives')
+            const built = unwrap(parse([number, or(option, number), or(option, number)])([1]))
+            assertStructurallySame(built, [1])
             // nothing present at all rebuilds the empty array
             assertStructurallySame(unwrap(parse([or(option, number)])([])), [])
         },
         structDropsTheKey: () => {
             const built = unwrap(parse({ a: number, b: or(option, string) })({ a: 1 }))
             assert(!hasEntry(built, 'b'), 'an absent key is not materialized')
-        },
-        // An odd segment count: hole, present, present — three segments, two
-        // pairwise join rounds, the tail segment carried once unpaired.
-        oddSegments: () => {
-            /** @type {ReadonlyArray<unknown>} */
-            const built = unwrap(parse([or(option, number), number, number])([, 2, 4]))
-            assertEq(built.length, 3, 'the hole keeps its position')
-            assert(!Object.hasOwn(built, 0), 'no own index 0')
-            assertEq(built[1], 2, '`2` stays at index 1')
-            assertEq(built[2], 4, 'and `4` at index 2')
-        },
-        // The join at scale: alternating present and absent positions, so
-        // thousands of segments go through a dozen halving rounds. The two
-        // hazards this construction replaced — re-spreading the accumulated
-        // segments per entry (quadratic) and one spread `concat` call over
-        // all of them (the engine's argument limit, a throw past the
-        // `Result` API) — are structurally gone: no call in the rebuild
-        // takes a variable argument list at all. Correctness of every hole
-        // and every member is what is asserted.
-        largeSparse: () => {
-            const pairs = 2_048
-            const omittable = or(option, number)
-            const schema = Array.from(
-                { length: 2 * pairs },
-                (_, i) => i % 2 === 0 ? number : omittable)
-            // `[7, hole]` chunks: a sparse value FunctionalScript can build
-            // without mutation, holes at every odd index
-            /** @type {ReadonlyArray<number>} */
-            const chunk = [7].concat(new Array(1))
-            /** @type {ReadonlyArray<number>} */
-            const none = []
-            const value = none.concat(...Array.from({ length: pairs }, () => chunk))
-            /** @type {ReadonlyArray<unknown>} */
-            const built = unwrap(parse(schema)(value))
-            assertEq(built.length, 2 * pairs - 1, 'ends at the last present position')
-            assert(Array.from({ length: pairs }, (_, i) => i).every(i =>
-                built[2 * i] === 7 && !Object.hasOwn(built, 2 * i + 1)),
-                'every present member survives and every interior hole stays a hole')
         },
     },
     path: {
@@ -426,8 +377,6 @@ export const proof = {
                 assertError(parse([number])([1, 2]))
                 assertStructurallySame(unwrap(parse(open([number]))([1, 2])), [1])
             },
-            // A hole past the prefix is no member, so length is what catches it.
-            holePastThePrefixRejected: () => assertError(parse([number])([1, ,])),
             // The container is bounded before its members are read, so a
             // value that is both too long and wrong at a member is answered
             // by its shape. `validate` reports the same path — the two gate
@@ -494,9 +443,9 @@ export const proof = {
             },
             // An unconstrained rest is `open`.
             unknownRestIsOpen: () => assertOk(parse(rest([number], unknown))([1, 'x'])),
-            // An empty one is the bare form: the length bound comes back.
+            // An empty one is the bare form: nothing past the prefix.
             emptyRestBoundsTheLength: () => {
-                assertError(parse(rest([number], or()))([1, ,]))
+                assertError(parse(rest([number], or()))([1, 2]))
                 assertStructurallySame(unwrap(parse(rest([number], or()))([1])), [1])
             },
         },

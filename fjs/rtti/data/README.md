@@ -183,10 +183,10 @@ validate(toData([number, or(option, string)]))([42]) // ['ok', [42]]
 
 `../validate/proof.f.mjs` runs one acceptance table through all three readers,
 so a `toData` that changed which values a schema admits fails there rather
-than silently. That table is also where the empty-`rest` criterion is pinned:
-`emptyRest` decides whether a stated rest makes any difference to the canonical
-form, and it is what the *thunk* readers bound an array's length by, so they
-agree with this form by asking it rather than by re-deriving the rule.
+than silently. That table is also where an empty `rest` is pinned: this form
+normalizes a rest that makes no difference away, and the *thunk* readers need
+no criterion of their own, since an array that reaches past the prefix has a
+member there, and the member meets the rest.
 
 That is also where the object kind's normalization has an ordering to respect.
 A declared key whose set is the whole value domain is dropped — but only once

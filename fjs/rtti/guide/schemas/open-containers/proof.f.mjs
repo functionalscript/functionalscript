@@ -25,11 +25,11 @@ export const proof = {
         restUnknownIsOpen: () => assert(equal(toData(rest({ a: number }, unknown)))(toData(open({ a: number })))),
         restNeverIsBare: () => assert(equal(toData(rest({ a: number }, never)))(toData({ a: number }))),
     },
-    // An empty rest bounds an array's length. The page's sparse values are
-    // host-made, so they are pinned in `../../../validate/proof.f.mjs`.
+    // An empty rest admits nothing past the prefix.
     emptyRest: {
         emptyArray: () => assert(admits(array(or()), []) && !admits(array(or()), [undefined])),
-        pastPrefix: () => assert(!admits(rest([42], or()), [42, undefined])),
+        pastPrefix: () => assert(admits(rest([42], or()), [42]) && !admits(rest([42], or()), [42, 1])
+            && !admits(rest([42], or()), [42, undefined])),
     },
     // The demo opens on the page's first lesson and draws it.
     demo: drawsFirst(lessons, demo),
