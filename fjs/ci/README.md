@@ -41,8 +41,9 @@ merge-group entries. It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
 The job is read-only, has no dependency on the test matrix and always builds
 its assets outside the successful-check cache. It passes the checked-out SHA
-and source branch to the website generator through `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH`. Deployment remains on Cloudflare Workers Builds
+and source branch to both the Rustdoc header generator and the website
+generator through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH`
+values. This keeps Rust documentation headers consistent with the site's pages. Deployment remains on Cloudflare Workers Builds
 until the later migration steps are complete.
 
 ## Usage

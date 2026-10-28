@@ -1294,7 +1294,11 @@
         },
         {
           "run": "mise exec -- npm run rustdoc-bars",
-          "shell": "bash"
+          "shell": "bash",
+          "env": {
+            "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
+            "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
+          }
         },
         {
           "run": "mise exec -- cargo doc --no-deps --workspace",

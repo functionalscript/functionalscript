@@ -19,6 +19,12 @@ import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
+/** Branch and commit metadata shared by the Rustdoc bars and website pages. */
+const buildMetadata = {
+    WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
+    WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
+}
+
 /**
  * Website assets are built once, independently of the platform matrix. This
  * read-only job runs on the CI workflow's pull-request and merge-group events,
@@ -36,7 +42,7 @@ export const websiteJob = {
         miseInstall.step,
         { run: miseDevelop('npm ci'), shell: 'bash' },
         { run: miseDevelop(`sh ./${buildScriptPath}`), shell: 'bash' },
-        { run: miseDevelop('npm run rustdoc-bars'), shell: 'bash' },
+        { run: miseDevelop('npm run rustdoc-bars'), shell: 'bash', env: buildMetadata },
         {
             run: miseDevelop('cargo doc --no-deps --workspace'),
             shell: 'bash',
@@ -47,10 +53,7 @@ export const websiteJob = {
         {
             run: miseDevelop('npm run website'),
             shell: 'bash',
-            env: {
-                WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
-                WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
-            },
+            env: buildMetadata,
         },
     ],
 }
