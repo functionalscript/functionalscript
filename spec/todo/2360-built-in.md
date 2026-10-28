@@ -175,7 +175,7 @@ one together from keys known only at run time. The one spelling that
 compiles is a spread with a computed key,
 `entries.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})`, which copies the
 whole object at every entry: O(n²) for n keys. The authored modules write
-`Object.fromEntries` instead — 58 uses in 23 non-proof modules, among them
+`Object.fromEntries` instead — at `35daed16`, 58 uses in 23 non-proof modules, among them
 `fjs/rtti/data` (8) and `fjs/rtti/parse`, `fjs/types/object` (which
 destructures it from `Object`), `fjs/compiler/parser/grammar`,
 `fjs/edag/value/object` and `fjs/media/json` — and none of them can be
@@ -192,12 +192,16 @@ and its `[1]` as the value, defined as an own data property
 duplicate key replaces the value and keeps the first key's position. An
 element that is not an object fails, as JavaScript's TypeError does.
 
-A body in FunctionalScript is possible, the reduce above with that failure
-added, so the runtime's `static` section could hold it as it holds
-`Object.is`'s; an executor may still answer the node natively, as NaNVM
-answers `Object.entries`, to avoid the quadratic copy. Which, and the
-function's text, are the implementation's to settle, under the rules the
-`Object.entries` record above set.
+**A body, and substitutions of it.** Unlike `Object.entries`, this one can
+be written in FunctionalScript — the reduce above, with that failure added —
+so by [DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
+the runtime's `static` section holds it, as it holds `Object.is`'s: the one
+source of what the built-in answers. A backend may answer the node natively
+to avoid the quadratic copy only as a substitution rule keyed on the node,
+with the naive emission kept and the harness running its fixtures both ways
+— never as a second implementation in the body's place. The function's text
+is the implementation's to settle, under the rules the `Object.entries`
+record above set.
 
 **Benefits.** The JavaScript spelling for what 23 modules already do,
 linear where the executor makes it so, and the inverse of the enumeration
@@ -213,8 +217,9 @@ the host and is outside what the language promises.
 **Tasks.**
 
 - [ ] Formal language-design approval, recorded here with a link.
-- [ ] `Object.fromEntries` through every executor, with harness fixtures
-      holding them to Node, and the
+- [ ] `Object.fromEntries`'s body in the runtime's `static` section,
+      through every executor, with harness fixtures holding them to Node,
+      and the
       [built-in static functions](../built-ins/static-functions/README.md)
       page updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
