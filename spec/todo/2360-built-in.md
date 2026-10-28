@@ -165,10 +165,9 @@ NaNVM with a closure over `Any::entries` in the runtime value, which the
 `nanvm/harness/fixtures/object-entries.mjs` and
 `object-entries-throws.mjs` hold the executors to Node.
 
-##### `Object.fromEntries` proposal
+##### `Object.fromEntries` proposal and approval
 
-**Status:** proposed — formal, explicit approval of a language designer
-pending ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+**Status:** approved; implementation in progress.
 
 **Problem.** `Object.entries` takes an object apart; nothing admitted puts
 one together from keys known only at run time. The one spelling that
@@ -220,9 +219,15 @@ value FunctionalScript builds, so the admitted function answers only for
 arrays; a host that passes another iterable gets JavaScript's answer on
 the host and is outside what the language promises.
 
+**Language-design approval.** **sergey-shandar** approved this record as
+proposed in
+[the review of #3356](https://github.com/functionalscript/functionalscript/pull/3356#pullrequestreview-5681488293),
+which added it, before implementation began
+([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+
 **Tasks.**
 
-- [ ] Formal language-design approval, recorded here with a link.
+- [x] Formal language-design approval, recorded here with a link.
 - [ ] `Object.fromEntries`'s body in the runtime's `static` section,
       through every executor, with harness fixtures holding them to Node,
       and the
