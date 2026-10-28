@@ -26,6 +26,13 @@
  * it is the demo's caption and refusal that say what is wrong, not the
  * colours.
  *
+ * **TypeScript is JavaScript's tokens with more keywords.** {@link tsHighlight}
+ * reads TypeScript's own words — `type`, `readonly`, `as`, `keyof` and the
+ * rest — as keywords where an operand follows them on their line, and as
+ * names everywhere else, so a variable named `type` stays a name. The
+ * primitive type names, `string` among them, stay names: one is a keyword
+ * only where a type stands, which takes a parser to know.
+ *
  * Classes, the values of `data-token`: `keyword`, `literal` (`true`,
  * `false`, `null`, `undefined`, `NaN`, `Infinity`), `string`, `number` (a
  * bigint included) and `comment`. Names and punctuation stay plain. The
@@ -72,13 +79,53 @@ export const codeOutput = (title, label) => ([kind, value]) => kind === 'ok'
     : [refusal(value)]
 
 /**
+ * Whether a name is a keyword where it stands, given the token after it on
+ * its line, trivia skipped, or `null` where the line ends first. JavaScript
+ * reads every name as a name.
+ *
+ * @type {(word: string, next: JsToken | null) => boolean}
+ */
+const jsContextual = () => false
+
+/**
+ * TypeScript's keywords that JavaScript reads as names: the modifiers and
+ * operators of its type language. `interface`, `implements`, `private` and
+ * the like are reserved in JavaScript already. The primitive type names,
+ * `string` and `number` among them, are not here: one is a keyword only
+ * where a type stands, which a token's neighbours cannot tell.
+ */
+const tsWords = ['abstract', 'accessor', 'as', 'asserts', 'declare', 'global', 'infer', 'is',
+    'keyof', 'module', 'namespace', 'out', 'override', 'readonly', 'satisfies', 'type', 'unique']
+
+/** The words that join two operands: a name before one is an operand. */
+const operatorWords = ['as', 'extends', 'in', 'instanceof', 'is', 'of', 'satisfies']
+
+/**
+ * A TypeScript word is a keyword where an operand follows it on its line
+ * with no operator between: a name or a keyword other than
+ * {@link operatorWords}, a string, a `{`, and for `readonly` a `[`.
+ * JavaScript never sets two operands side by side, so a variable named
+ * `type`, followed by `=`, `,`, `.` or the line's end, stays a name.
+ *
+ * @type {typeof jsContextual}
+ */
+const tsContextual = (word, next) => {
+    if (!tsWords.includes(word) || next === null) { return false }
+    if (next.kind === 'id') { return !operatorWords.includes(next.value) }
+    const { kind } = next
+    if (isKeyword(kind)) { return !operatorWords.includes(kind) }
+    return kind === 'string' || kind === '{' || (word === 'readonly' && kind === '[')
+}
+
+/**
  * The kind of a token, or `undefined` for one that stays plain.
  *
- * @type {(token: JsToken) => TokenKind | undefined}
+ * @type {(contextual: typeof jsContextual) => (token: JsToken, next: JsToken | null) => TokenKind | undefined}
  */
-const kindOf = ({ kind }) => {
+const kindOf = contextual => (token, next) => {
+    const { kind } = token
     switch (kind) {
-        case 'id': return 'identifier'
+        case 'id': return contextual(token.value, next) ? 'keyword' : 'identifier'
         case 'string': return 'string'
         case 'number': case 'bigint': return 'number'
         case '//': case '/*': return 'comment'
@@ -101,9 +148,9 @@ const kindOf = ({ kind }) => {
  * and an `identifier` whatever it spells: the tokenizer reads it as the word
  * it spells, which the language does not mean there.
  *
- * @type {(text: string) => readonly Span[]}
+ * @type {(contextual: typeof jsContextual) => (text: string) => readonly Span[]}
  */
-export const spansOf = text => {
+const spansWith = contextual => text => {
     // code points, not UTF-16 units, so that an offset counts what `Span` does
     const input = toArray(stringToCodePointList(text))
     const tokens = toArray(tokenize(input)(''))
@@ -117,20 +164,41 @@ export const spansOf = text => {
     const starts = tokens.map(({ metadata: { line, column } }) => assertNotNullish(indexOf.get(`${line}:${column}`), 'a token at no position'))
     // A token that starts where the previous one does adds nothing to cut:
     // the `nl` a block comment with a newline is followed by.
-    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i] }])
+    // The token after each on its line, trivia skipped, read from the end.
+    /** @type {StateScan<JsToken, JsToken | null, JsToken | null>} */
+    const ahead = (token, next) => [next, token.kind === 'nl' ? null : isTrivia(token.kind) ? next : token]
+    const following = toArray(stateScan(ahead)(null)(tokens.map(({ token }) => token).toReversed())).toReversed()
+    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i], next: following[i] }])
     // The kind of the word before each token, trivia skipped, in one pass.
     /** @type {StateScan<{ token: JsToken }, string, string>} */
     const word = ({ token }, prior) => [prior, isTrivia(token.kind) ? prior : token.kind]
     const afterWords = toArray(stateScan(word)('')(kept))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
-    return kept.slice(0, -1).flatMap(({ token, start }, i) => {
-        const kind = kindOf(token)
+    return kept.slice(0, -1).flatMap(({ token, start, next }, i) => {
+        const kind = kindOf(contextual)(token, next)
         const before = afterWords[i]
         const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
         return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : kind }]
     })
 }
+
+/**
+ * The spans the tokenizer finds in JavaScript `text`, as {@link spansWith}
+ * reads it.
+ *
+ * @type {(text: string) => readonly Span[]}
+ */
+export const spansOf = spansWith(jsContextual)
+
+/**
+ * The spans in TypeScript `text`: JavaScript's, with TypeScript's own
+ * keywords where an operand follows them (`type X`, `readonly x`,
+ * `as const`, `import type {`).
+ *
+ * @type {(text: string) => readonly Span[]}
+ */
+export const tsSpansOf = spansWith(tsContextual)
 
 /** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
 const before = at => length => [at, before(at + length)]
@@ -169,3 +237,10 @@ export const disagreement = marked => {
  * @type {(text: string) => readonly Node[]}
  */
 export const highlight = text => render(unwrap(fromSpans(text)(spansOf(text))))
+
+/**
+ * TypeScript `text` as nodes, by tokenizing it with {@link tsSpansOf}.
+ *
+ * @type {(text: string) => readonly Node[]}
+ */
+export const tsHighlight = text => render(unwrap(fromSpans(text)(tsSpansOf(text))))

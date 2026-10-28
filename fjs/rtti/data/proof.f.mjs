@@ -24,6 +24,7 @@ import {
     booleanBits,
     cmp,
     equal,
+    equivalent,
     falseBit,
     isNever,
     isTop,
@@ -778,6 +779,13 @@ export const proof = {
             assert(cmp(ra)(rb) !== 0)
             assert(!equal(ra)(rb))
         },
+    },
+    // Inclusion both ways: one set however it is spelled, which `equal`'s
+    // structural comparison does not promise.
+    equivalent: () => {
+        assert(equivalent(toData(or(number, string)))(toData(or(string, number))))
+        assert(equivalent(toData(rest([42], or())))(toData([42])))
+        assert(!equivalent(toData(number))(toData(or(number, string))))
     },
     subset: {
         literals: () => {

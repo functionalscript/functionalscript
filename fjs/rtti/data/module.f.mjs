@@ -1410,48 +1410,6 @@ const unionValidate = rules => u => value => {
 const nodeValidate = rules => n => unionValidate(rules)(resolve(rules)(n))
 
 /**
- * Whether `r`, as the rest of the container `c`, admits nothing — so that
- * `rest(c, r)` and the bare, closed `c` denote one set.
- *
- * This is what the schema-form readers bound an array's length by, and it is
- * asked *here* on purpose: `arraySet` is where an empty rest normalizes away,
- * so the readers agree with this form by asking it rather than by re-deriving
- * the same rule and drifting. Stated as **making no difference to the
- * canonical form** — the conversion of `rest(c, r)` denoting the same set as
- * the conversion of `c` — and not as a judgement about `r` on its own, nor as
- * a reading of whether the conversion kept a `rest` key. Five cases fix it
- * between them, and only this equality satisfies all five:
- *
- * - `never`, `or()` and `[or()]` all convert `rest(c, r)` to `c`'s own
- *   conversion, so all three are empty. Keying on the exported `never` alone
- *   would pass a `never`-only proof with the other two spellings still
- *   disagreeing.
- * - `const r = () => ['rest', [r], never]` has no finite inhabitant, yet the
- *   conversion keeps `rest: "r"`, so it is *not* empty here. A reader
- *   recognizing that emptiness would start rejecting what this form accepts.
- * - `const a = () => ['or', b]; const b = () => ['or', a]` rules out the
- *   rest's *own* canonical data as the test: {@link toData} of `a` is `never`,
- *   and the conversion still keeps `rest: "a"`.
- * - `unknown` rules out "the conversion kept no `rest` key" as the test:
- *   `toData(rest([], unknown))` is `{ array: true }` — the whole kind, with no
- *   `rest` key — because a top rest collapses the pattern rather than being
- *   dropped from it.
- * - Two separately constructed copies of one recursive rule, one in `c` and
- *   one in `r`, rule out {@link equal} as the comparison: converting the rest
- *   reserves the name, so `c`'s rule is named `r0` where converting `c` alone
- *   names it `r`, and `equal` compares recursive definitions by rule name.
- *
- * {@link equivalent} answers all five. It is incomplete, and in the direction
- * that costs nothing here: an unrecognized empty rest leaves the length
- * unbounded, which is what a *kept* `rest` key means in this form anyway, so
- * the readers still agree with it.
- *
- * @type {(c: ConstObject, r: Type) => boolean}
- */
-export const emptyRest = (c, r) =>
-    equivalent(toData(/** @type {Type} */ (() => ['rest', c, r])))(toData(c))
-
-/**
  * Data-driven validation — the counterpart of `../validate` that consumes a
  * {@link Data} produced by {@link toData} instead of walking the thunk
  * graph. Returns the original value on success, or the first
