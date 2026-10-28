@@ -283,6 +283,10 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       graph/text cycles survive. Prior source profiles, default layouts and
       logical graph contracts remain unchanged. Zero-input and general lazy
       regions retain their existing admission.
+      The next H increment is in progress: retain source loops when required
+      work before the terminal condition is shared with the continuing or
+      completed result. Keep each allocation once in its iteration, preserving
+      sharing, captures, reached failures and exact first-parse graph/text cycles.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
