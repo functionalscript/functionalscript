@@ -54,8 +54,9 @@ exit targets.
 **Each pane runs the real stage.** The page calls the parser's own entry, as
 [`stage_demo`](../../../compiler/stage_demo/module.f.mjs)'s `parsed` does,
 and then `normalize`, as the [EDAG lowering](../../../compiler/edag/module.f.mjs)
-does. It copies no stage logic. An import is passed to `normalize` as its
-specifier, so two imports of one module are one FAST module parameter.
+does. It copies no stage logic. Each import record is passed to `normalize`
+as the value it stands for, so every imported name is a FAST module parameter
+of its own, as in the EDAG lowering before linking.
 
 **A refusal is shown in the parser's own words**, in place of both panes.
 `normalize` has no refusal of its own: it is total over what the parser

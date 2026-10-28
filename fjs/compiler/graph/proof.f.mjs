@@ -19,7 +19,7 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 /** `text` as the graph of its FAST. @type {(text: string) => Graph} */
 const ofText = text => {
     const resolved = assertOk(parse('')(text))
-    return fastGraph(normalize(resolved, resolved.imports.map(i => i.specifier)))
+    return fastGraph(normalize(resolved, resolved.imports))
 }
 
 /** `text` as the graph of its source AST. @type {(text: string) => Graph} */
@@ -429,6 +429,14 @@ export const proof = {
         imports: () => {
             const g = ofText("import b from './b.f.js'; export default b;")
             assertStructurallySame(from(g, nodeOf(g, 'module')).map(e => e.label), ['import 0', 'body'])
+        },
+        // Two names imported from one module are two values: each reads
+        // its own binding, not one the module's specifier would make them
+        // share.
+        namesOfOneModule: () => {
+            const g = ofText("import { x, y } from './dep.f.js'; export default [x, y];")
+            const [x, y] = from(g, nodeOf(g, '[]')).map(e => e.to)
+            assert(x !== y, 'x and y are two bindings')
         },
         /**
          * Forms no source reaches yet, built by hand: a block statement and

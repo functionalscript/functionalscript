@@ -45,6 +45,19 @@ export const proof = {
                 assertEq(source.edges.filter(e => e.to === a[0].id).length, 3)
             }
         },
+        // Each imported name is a value of its own: `x` and `y`, imported
+        // from one module, are two FAST bindings.
+        importedNames: () => {
+            const [kind, value] = _panes("import { x, y } from './dep.f.js'; export default [x, y];")
+            assertEq(kind, 'ok')
+            if (kind === 'ok') {
+                const fast = value[1].graph
+                const array = fast.nodes.filter(n => n.label === '[]')
+                assertEq(array.length, 1)
+                const [x, y] = fast.edges.filter(e => e.from === array[0].id).map(e => e.to)
+                assert(x !== y, 'x and y are two bindings')
+            }
+        },
         // An unfinished module has neither tree: the parser's message stands
         // in place of both.
         refused: () => {

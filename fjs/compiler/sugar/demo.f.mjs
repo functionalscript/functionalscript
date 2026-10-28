@@ -12,8 +12,10 @@
  *
  * **Each pane runs the real stage.** The page parses the text with the
  * compiler's own front end and normalizes the result as
- * [the EDAG lowering](../edag/module.f.mjs) does. An import is identified
- * by its specifier, so two imports of one module are one FAST parameter.
+ * [the EDAG lowering](../edag/module.f.mjs) does. Each imported name is a
+ * value of its own, as it is there before linking: the parser's import
+ * records, one per name, are the values `normalize` tells apart, so
+ * `import { x, y }` is two FAST parameters, not one module's.
  *
  * **A refusal is shown in the parser's own words**, in place of both
  * panes: an unparsed module has neither tree.
@@ -50,7 +52,7 @@ import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
  */
 export const _panes = parsed(resolved => {
     const { imports, body } = resolved
-    const fast = normalize(resolved, imports.map(i => i.specifier))
+    const fast = normalize(resolved, imports)
     return ok([
         { heading: 'Source AST', graph: sourceGraph(resolved), tree: { imports, body } },
         { heading: 'FAST', graph: fastGraph(fast), tree: fast },
