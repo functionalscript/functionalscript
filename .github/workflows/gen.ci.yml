@@ -1337,11 +1337,6 @@
           "shell": "bash",
           "env": {
             "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "CLOUDFLARE_ACCOUNT_ID": "${{ vars.CLOUDFLARE_ACCOUNT_ID }}",
-            "GITHUB_CLIENT_ID": "${{ vars.WEBSITE_GITHUB_CLIENT_ID }}",
-            "GITHUB_CLIENT_SECRET": "${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}",
-            "GITHUB_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}",
-            "GITHUB_PREVIEW_REDIRECT_URI": "${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}",
             "WORKERS_CI_BRANCH": "${{ github.ref_name }}"
           }
         }

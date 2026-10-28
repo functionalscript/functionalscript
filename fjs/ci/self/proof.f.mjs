@@ -76,13 +76,10 @@ export const proof = {
         assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
         assertEq(websiteJob.steps.length, 8)
         assert(!websiteJob.steps.some(step => step.run?.includes('github-deploy.mjs production')))
-        assertEq(preview?.env?.WORKERS_CI_BRANCH, '${{ github.ref_name }}')
-        assertEq(preview?.env?.CLOUDFLARE_API_TOKEN, '${{ secrets.CLOUDFLARE_API_TOKEN }}')
-        assertEq(preview?.env?.CLOUDFLARE_ACCOUNT_ID, '${{ vars.CLOUDFLARE_ACCOUNT_ID }}')
-        assertEq(preview?.env?.GITHUB_CLIENT_SECRET, '${{ secrets.WEBSITE_GITHUB_CLIENT_SECRET }}')
-        assertEq(preview?.env?.GITHUB_CLIENT_ID, '${{ vars.WEBSITE_GITHUB_CLIENT_ID }}')
-        assertEq(preview?.env?.GITHUB_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_REDIRECT_URI }}')
-        assertEq(preview?.env?.GITHUB_PREVIEW_REDIRECT_URI, '${{ vars.WEBSITE_GITHUB_PREVIEW_REDIRECT_URI }}')
+        assertStructurallySame(preview?.env, {
+            CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+            WORKERS_CI_BRANCH: '${{ github.ref_name }}',
+        })
         const generic = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(builtIn())))))
         assertEq(generic.on.push, undefined)
     },

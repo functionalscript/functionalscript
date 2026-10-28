@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url'
 
 /** Run the selected Cloudflare CLI without invoking a shell. */
 /** @type {(args: readonly string[]) => Promise<number>} */
-const runWrangler = args => new Promise((resolve, reject) => {
+export const runWrangler = args => new Promise((resolve, reject) => {
     const child = spawn('npx', args, { stdio: 'inherit', shell: false })
     child.once('error', () => reject(new Error('Unable to start the Worker upload.')))
     child.once('exit', code => resolve(code ?? 1))

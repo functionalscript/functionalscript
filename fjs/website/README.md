@@ -233,27 +233,22 @@ stays on Workers Builds. Every non-`main` repository branch push uses
 `wrangler versions upload --preview-alias` after successful checks and builds.
 There is no production upload step in the workflow until debugging is complete
 and Workers Builds is disabled. No enable-switch variables are required.
-The upload uses
-the existing private temporary JSON secret file outside the asset root and
-explicit public GitHub app bindings. The legacy Workers Builds preview helper
-keeps its existing invocation during the transition.
+The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
+retains existing Worker variables, and Wrangler version uploads retain existing
+secrets. Actions does not send empty OAuth overrides or require copies of the
+OAuth settings in GitHub. The legacy Workers Builds helper keeps its existing
+explicit bindings during the transition. Verify inherited GitHub sign-in on
+the resulting preview as part of the upload check.
 
-Configure these in **GitHub → Settings → Secrets and variables → Actions**:
+Configure one repository secret in
+**GitHub → Settings → Secrets and variables → Actions**:
 
 | Kind | Name | Value |
 | --- | --- | --- |
 | Secret | `CLOUDFLARE_API_TOKEN` | Scoped token with Workers Scripts edit access for the existing Cloudflare account; add the route/zone permissions required by any configured routes. |
-| Secret | `WEBSITE_GITHUB_CLIENT_SECRET` | Existing GitHub OAuth app secret. |
-| Variable | `CLOUDFLARE_ACCOUNT_ID` | Account containing the existing `functionalscript` Worker. |
-| Variable | `WEBSITE_GITHUB_CLIENT_ID` | Existing GitHub OAuth app client ID. |
-| Variable | `WEBSITE_GITHUB_REDIRECT_URI` | Existing production OAuth callback. |
-| Variable | `WEBSITE_GITHUB_PREVIEW_REDIRECT_URI` | Existing preview OAuth callback, if configured. |
 
-Upload steps receive these credentials only after the test jobs and build
-succeed. Missing required credentials fail the upload instead of opening an
-interactive login. GitHub-prefixed secret and configuration-variable names are
-reserved, so the Actions settings use `WEBSITE_GITHUB_*` and the upload step
-maps them to the Worker's existing binding names.
+The upload step receives the token only after the test jobs and build succeed.
+A missing token fails the upload instead of opening an interactive login.
 
 Branch aliases temporarily start with `actions-` so Actions uploads can be
 tested separately from Workers Builds previews. The branch portion is lowercased,
@@ -274,7 +269,7 @@ Cut over in this order:
 1. Merge the workflow changes through the repository's review and merge queue.
    Bring the workflow onto active older branches before disabling Workers
    Builds: a branch without the new workflow cannot deploy through Actions.
-2. Configure the secrets and variables listed above. No upload-enable variables
+2. Configure `CLOUDFLARE_API_TOKEN`. No other GitHub settings or upload-enable variables
    are needed. Keep
    the existing Workers Builds commands and bindings available for rollback.
 3. Push a trusted non-`main` test branch. Verify its successful CI

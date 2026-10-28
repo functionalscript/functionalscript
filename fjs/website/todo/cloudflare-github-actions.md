@@ -51,9 +51,11 @@ Every non-`main` repository branch push uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after successful checks and builds.
 Pull requests and merge-group entries never upload. No enable-switch variables
 are used. Production uploads are omitted from the workflow until debugging is
-complete and Workers Builds is disabled. Credentials
-are scoped to upload steps, and the existing private temporary JSON secret file
-preserves the GitHub app bindings.
+complete and Workers Builds is disabled. The API token is scoped to the upload
+step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
+and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
+only the API-token secret and sends no empty OAuth overrides. The legacy
+Workers Builds helper keeps its explicit bindings during the transition.
 
 Workers Builds stays active until live verification and cutover. Setup,
 branch-alias rules, cutover and rollback are documented in
