@@ -122,8 +122,8 @@ export const isObject =
  * question is "did every entry succeed?" passes `undefined`/`acc => acc`
  * instead and pays no allocation per entry.
  *
- * The walk is by index rather than `for..of` so it can `return` out of the
- * fold at the first error without building the rest.
+ * The walk is a `while` loop by index so it can `return` out of the fold at
+ * the first error without building the rest.
  */
 export const eachEntry =
     /**
@@ -138,13 +138,15 @@ export const eachEntry =
      */
     (entries, item, init, accumulate) => {
         let acc = init
-        for (let i = 0; i < entries.length; i += 1) {
-            const e = entries[i]
-            const r = item(e[0], e[1])
+        let i = 0
+        while (i < entries.length) {
+            const [k, v] = entries[Number(i)]
+            const r = item(k, v)
             if (r[0] === 'error') {
-                return prependPath(e[0], r)
+                return prependPath(k, r)
             }
-            acc = accumulate(acc, e[0], r[1])
+            acc = accumulate(acc, k, r[1])
+            i = i + 1
         }
         return ok(acc)
     }
@@ -152,13 +154,13 @@ export const eachEntry =
 /**
  * What a `Tuple` schema declares, read by **length**.
  *
- * `Array.from` yields `undefined` for a hole and preserves the schema's
+ * Spreading the schema yields `undefined` for a hole and preserves its
  * length, so a hole is a declared position whose schema is `undefined` — which
  * is a `Const` schema in its own right, and exactly what reading index `0` of
  * `new Array(1)` gives. That is the reading `../data/module.f.mjs`'s
  * `containerUnion` has always had, so the canonical data form stays fixed.
  *
- * `Array.from` walks the iterator, which is the *same* walk `containerUnion`
+ * The spread walks the iterator, which is the *same* walk `containerUnion`
  * makes, and that is the point rather than an accident: the two agree by
  * construction. It holds even for a schema carrying an overridden
  * `Symbol.iterator`, where reading indices here would disagree with the data
@@ -173,13 +175,13 @@ export const eachEntry =
  * make `new Array(1)` and `[]` the same schema while `[undefined]` stayed
  * different from both. It also yields a non-index own property, which is no
  * position either — `getItem` reads a tuple by index, so such a key was
- * declared and then matched against `value[NaN]`. `Array.from` answers
+ * declared and then matched against `value[NaN]`. The spread answers
  * positions only. On a plain dense array the two agree exactly.
  *
  * @type {SchemaEntries<Tuple>}
  */
 export const tupleSchemaEntries = rtti =>
-    Array.from(rtti, (t, i) => [String(i), t])
+    [...rtti].map((t, i) => [String(i), t])
 
 /**
  * What a `Struct` schema declares: its enumerable own keys. A struct has no
@@ -194,13 +196,14 @@ export const structSchemaEntries = rtti =>
  * Every index below `length` at which `value` reads something, ascending.
  *
  * Bounded by what the value **carries** rather than by `length`: an index that
- * reads a value is an own property of the array, so enumerating its own names
- * finds every one without materializing the range. Walking `0 … length - 1`
+ * reads a value is an own enumerable property of the array, so enumerating its
+ * own entries finds every one without materializing the range. Walking `0 … length - 1`
  * instead turned a `new Array(2 ** 32 - 1)` — which carries one own property,
  * `length` — into billions of iterations before any check could reject it.
  *
- * The own names **are** the answer, already in the order wanted:
- * `[[OwnPropertyKeys]]` yields integer indices ascending and without repeats,
+ * The own entries **are** the answer, already in the order wanted:
+ * `Object.entries` follows `[[OwnPropertyKeys]]`, integer indices ascending
+ * and without repeats,
  * so the walk is one linear pass and needs neither a dedup nor a sort. Adding
  * either made every `array(t)` read quadratic in its length: 829 ms at 40 000
  * elements against 3 ms at 1 000.
@@ -212,7 +215,7 @@ export const structSchemaEntries = rtti =>
  */
 const readIndices = value => {
     const { length } = value
-    return Object.getOwnPropertyNames(value).flatMap(k => {
+    return Object.entries(value).flatMap(([k]) => {
         const i = arrayIndex(k)
         return i !== null && i < length ? [i] : []
     })
@@ -258,7 +261,7 @@ export const undeclaredMembers = (declared, value) => {
     return [
         ...readIndices(value)
             .filter(i => undeclared(String(i)))
-            .map(i => /** @type {const} */ ([String(i), value[i]])),
+            .map(i => /** @type {const} */ ([String(i), value[Number(i)]])),
         ...Object.entries(value).filter(([k]) => arrayIndex(k) === null && undeclared(k)),
     ]
 }
@@ -325,10 +328,11 @@ export const noDeclared = () => false
 const absenceIn = (visited, rtti) => {
     if (typeof rtti !== 'function') { return false }
     if (visited.some(v => v === rtti)) { return false }
-    const [tag, ...operands] = rtti()
+    const info = rtti()
+    const tag = info[0]
     if (tag === 'option') { return true }
     if (tag !== 'or') { return false }
-    return operands.some(op => absenceIn([...visited, rtti], op))
+    return info.slice(1).some(op => absenceIn([...visited, rtti], op))
 }
 
 /**
@@ -390,38 +394,31 @@ const consPresent = (cons, value) => (acc, k, v) => hasEntry(value, k) ? cons(ac
  * `rest([], t)`, so the two have to walk a value the same way, and one walk
  * does that by construction.
  *
- * `restFits` bounds the array kind's length when its element set admits
- * nothing, which is what the data form says by normalizing such a `rest`
- * away: an `array(or())` is the *empty* array and not "any number of holes".
- * It is consulted only where it can change the answer — no member present,
- * and the value reaching further than that — so an ordinary array never asks.
- * The readers build it over the data form's `emptyRest` and pass it in: this
- * module must not import `../data/module.f.mjs`, which imports it.
+ * An array with no member is empty, since the readers read no array with a
+ * hole ([what the readers assume of a value](../guide/readers/assumptions/README.md)),
+ * so an element set that admits nothing, `array(or())`, is the empty array
+ * without a length check of its own.
  */
 export const containerRead =
     /**
      * @template A
      * @param {Reader<A>} reader
-     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, restFits: (item: Type) => Fits<C>, finish: Finish<C, A>) => (item: Type) => ValidateE}
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>>(isContainer: IsContainer<C>, finish: Finish<C, A>) => (item: Type) => ValidateE}
      */
     ({ read, empty, cons }) =>
-    (isContainer, restFits, finish) =>
-    item => {
-        // Depends on the schema alone, so it is built once per schema rather
-        // than once per value read.
-        const fits = restFits(item)
-        return value => {
-            if (!isContainer(value)) {
-                return verror('unexpected value')
-            }
-            const e = undeclaredMembers(noDeclared, value)
-            if (e.length === 0) {
-                return fits(value, 0) ? ok(finish(empty, value)) : verror('unexpected value')
-            }
-            const itemRead = read(item)
-            const r = eachEntry(e, (_k, v) => itemRead(v), empty, cons)
-            return r[0] === 'error' ? r : ok(finish(r[1], value))
+    (isContainer, finish) =>
+    item =>
+    value => {
+        if (!isContainer(value)) {
+            return verror('unexpected value')
         }
+        const e = undeclaredMembers(noDeclared, value)
+        if (e.length === 0) {
+            return ok(finish(empty, value))
+        }
+        const itemRead = read(item)
+        const r = eachEntry(e, (_k, v) => itemRead(v), empty, cons)
+        return r[0] === 'error' ? r : ok(finish(r[1], value))
     }
 
 /**
@@ -538,34 +535,29 @@ export const constContainerRead =
  *
  * **The order** is not the bare form's. The declared members are read
  * **first**, absence decided inline as the walk reaches each one; only then
- * are the undeclared members computed, and held to `rest` — or, where there
- * are none, to `restFits`. A value failing both ways therefore reports its
+ * are the undeclared members computed, and held to `rest`. A value failing both ways therefore reports its
  * declared member, not its leftover. The two orders are kept apart on
  * purpose: reading either shape in the other's order would change which
  * error such a value reports.
  *
- * `restFits` carries the array kind's length bound, which a `rest` removes
- * only while it admits something. An empty one says what the bare form says,
- * so `rest(c, or())` and `c` stay one set — the criterion for "empty" is the
- * data form's `emptyRest`, and it is consulted only when nothing is present
- * past the prefix, since a member that got there and passed is itself the
- * proof that the rest admits something. As for {@link containerRead}, the
- * readers build it and pass it in.
+ * An empty `rest` says what the bare form says, so `rest(c, or())` and `c`
+ * stay one set, with no length check of its own: an array without a hole,
+ * the only kind the readers read, that reaches past the prefix has a member
+ * there, and the member meets the `rest`.
  */
 export const restContainerRead =
     /**
      * @template A
      * @param {Reader<A>} reader
-     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, restFits: (rtti: S, r: Type) => Fits<C>, finish: Finish<C, A>) => (rtti: S, r: Type) => ValidateE}
+     * @returns {<C extends ReadonlyArray<Unknown> | StringMap<Unknown>, S extends ConstObject>(isContainer: IsContainer<C>, schemaEntries: SchemaEntries<S>, getItem: (value: C, k: string) => Unknown, finish: Finish<C, A>) => (rtti: S, r: Type) => ValidateE}
      */
     ({ read, empty, cons }) =>
-    (isContainer, schemaEntries, getItem, restFits, finish) =>
+    (isContainer, schemaEntries, getItem, finish) =>
     (rtti, r) => {
         // Depend on the schema alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
         const isDeclared = declaredTest(declared)
-        const fits = restFits(rtti, r)
         return value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
@@ -578,16 +570,10 @@ export const restContainerRead =
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(isDeclared, value)
-            if (extra.length === 0) {
-                if (!fits(value, declared.length)) {
-                    return verror('unexpected value')
-                }
-            } else {
-                const restRead = read(r)
-                const e = eachEntry(extra, (_k, v) => restRead(v), undefined, noAccumulate)
-                if (e[0] === 'error') { return e }
-            }
-            return ok(finish(d[1], value))
+            if (extra.length === 0) { return ok(finish(d[1], value)) }
+            const restRead = read(r)
+            const e = eachEntry(extra, (_k, v) => restRead(v), undefined, noAccumulate)
+            return e[0] === 'error' ? e : ok(finish(d[1], value))
         }
     }
 
@@ -606,11 +592,13 @@ export const restContainerRead =
 export const orVisit =
     recurse =>
     variants => value => {
-        for (const t of variants) {
-            const r = recurse(t)(value)
+        let i = 0
+        while (i < variants.length) {
+            const r = recurse(variants[Number(i)])(value)
             if (r[0] === 'ok') {
                 return r
             }
+            i = i + 1
         }
         return verror('no match')
     }
@@ -632,7 +620,9 @@ export const visit =
      */
     v => rtti => {
         if (typeof rtti === 'function') {
-            const [tag, ...value] = rtti()
+            const info = rtti()
+            const tag = info[0]
+            const value = info.slice(1)
             switch (tag) {
                 case 'const': {
                     const [c] = value
@@ -641,11 +631,11 @@ export const visit =
                     assert(typeof c !== 'function', c)
                     return visitConst(v)(c)
                 }
-                case 'array': return v.array(value[0])
-                case 'record': return v.record(value[0])
-                case 'unknown': return v.unknown()
-                case 'option': return v.option()
-                case 'or': return v.or(value)
+                case 'array': { return v.array(value[0]) }
+                case 'record': { return v.record(value[0]) }
+                case 'unknown': { return v.unknown() }
+                case 'option': { return v.option() }
+                case 'or': { return v.or(value) }
                 case 'rest': {
                     const [c, r] = value
                     // `rest`'s container is a `ConstObject`, which is exactly
@@ -685,37 +675,28 @@ const structItem = (value, k) => entry(value, k)
  * container. So the readers agree on a container's shape by construction, not
  * by keeping two instantiations alike.
  *
- * `emptyRest` decides when a rest admits nothing, which the array kind's
- * length bound needs: an `array(or())` is the empty array and not any number
- * of holes, and a `rest` whose set is empty bounds a tuple as the bare form
- * does. It is the data form's (`../data/module.f.mjs`), and it is an argument
- * because that module imports this one.
- *
  * @template A
  * @param {Omit<Reader<A>, 'read'>} collect
  * @param {Finishes<A>} finish
- * @param {(c: ConstObject, r: Type) => boolean} emptyRest
  * @returns {(rtti: Type) => ValidateE}
  */
-export const readerOf = ({ empty, cons }, finish, emptyRest) => {
+export const readerOf = ({ empty, cons }, finish) => {
     /** @type {(rtti: Type) => ValidateE} */
     const read = rtti => visit(visitor)(rtti)
     /** @type {Reader<A>} */
     const reader = { read, empty, cons }
-    /** @type {(c: ConstObject, r: Type) => Fits<ReadonlyArray<Unknown>>} */
-    const tupleRestFits = (c, r) => (value, declared) => value.length <= declared || !emptyRest(c, r)
     const container = containerRead(reader)
     const constContainer = constContainerRead(reader)
     const restContainer = restContainerRead(reader)
-    const restTuple = restContainer(isArray, tupleSchemaEntries, tupleItem, tupleRestFits, finish.tuple)
-    const restStruct = restContainer(isObject, structSchemaEntries, structItem, () => objectFits, finish.struct)
+    const restTuple = restContainer(isArray, tupleSchemaEntries, tupleItem, finish.tuple)
+    const restStruct = restContainer(isObject, structSchemaEntries, structItem, finish.struct)
     /** @type {Visitor<ValidateE>} */
     const visitor = {
         tuple: constContainer(isArray, tupleSchemaEntries, tupleItem, tupleFits, finish.tuple),
         struct: constContainer(isObject, structSchemaEntries, structItem, objectFits, finish.struct),
         rest: (c, r) => c instanceof Array ? restTuple(c, r) : restStruct(c, r),
-        array: container(isArray, item => tupleRestFits([], item), finish.array),
-        record: container(isObject, () => objectFits, finish.record),
+        array: container(isArray, finish.array),
+        record: container(isObject, finish.record),
         or: orVisit(read),
         constPrimitive: constPrimitiveValidate,
         primitive0: primitive0Validate,

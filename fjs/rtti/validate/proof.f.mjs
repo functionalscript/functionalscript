@@ -46,9 +46,8 @@ const rows = () => {
     /**
      * A rest that is its own container, so nothing about it is inline: the
      * conversion keeps `rest: "recursiveRest"` rather than recognizing that no
-     * finite array inhabits it, and every reader accepts a hole past the prefix
-     * accordingly. It is one of the two rests {@link emptyRests} must *not*
-     * recognize.
+     * finite array inhabits it. No array reaches past the prefix through it,
+     * as through an empty one ({@link emptyRests}).
      *
      * @typedef {() => readonly ['rest', readonly [_RecursiveRest], typeof never]} _RecursiveRest
      */
@@ -58,8 +57,7 @@ const rows = () => {
 
     /**
      * The other one: a pure `or` cycle. `toData(orCycleA)` **is** `never`, yet as a
-     * rest it converts to a reference and stays, so a test on the rest's own
-     * canonical data would answer the opposite of the criterion.
+     * rest it converts to a reference and stays.
      *
      * @typedef {() => readonly ['or', _OrCycleB]} _OrCycleA
      * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
@@ -74,8 +72,7 @@ const rows = () => {
     /**
      * Two separately constructed copies of one recursive rule. Converting a rest
      * reserves its rule name first, so the container's copy is named `r0` where
-     * converting the container alone names it `r` — which is what rules `equal`
-     * out as the comparison behind {@link emptyRests}.
+     * converting the container alone names it `r`.
      *
      * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
      */
@@ -105,12 +102,10 @@ const rows = () => {
         [array(number), Object.assign([1], { foo: 'x' })],
         [array(number), Object.assign([1], { '-1': 'x' })],
         [array(number), Object.assign([1], { '01': 'x' })],
-        // an empty element set is the empty array, not "any number of holes": the
-        // data form normalizes such a rest away, which leaves the exact-length
-        // pattern, and the thunk readers bound the length to match
+        // an empty element set is the empty array: the data form normalizes such
+        // a rest away, which leaves the exact-length pattern
         [array(or()), []],
-        [array(or()), new Array(1)],
-        [array(number), [, ,]],
+        [array(or()), [1]],
         [record(number), { a: 1 }],
         [record(number), { a: 'one' }],
         [record(number), []],
@@ -118,7 +113,6 @@ const rows = () => {
         [[/** @type {const} */ (42)], [42, 'extra']],
         [[/** @type {const} */ (42)], [42]],
         [[/** @type {const} */ (42)], [42, undefined]],
-        [[/** @type {const} */ (42)], [42, ,]],
         [[/** @type {const} */ (42)], Object.assign([42], { foo: 1 })],
         [[/** @type {const} */ (42)], []],
         [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
@@ -178,9 +172,6 @@ const rows = () => {
         // a stated rest: what an undeclared member must be
         [rest([number], string), [1, 'x', 'y']],
         [rest([number], string), [1, 2]],
-        // a hole past the prefix is no member, so it meets no rest — which is what
-        // the `| undefined` in the rendered tail says
-        [rest([number], string), [1, ,]],
         [rest({ a: number }, string), { a: 1, b: 'x' }],
         [rest({ a: number }, string), { a: 1, b: 2 }],
         // a stated rest with nothing to answer for: the struct kind has no length,
@@ -189,17 +180,17 @@ const rows = () => {
         // an unconstrained rest is `open`
         [rest([number], unknown), [1, 'x']],
         [rest({ a: number }, unknown), { a: 1, b: 'x' }],
-        // an empty one is the bare form, so the length is bounded again
-        [rest([number], never), [1, ,]],
-        [rest([number], or()), [1, ,]],
-        [rest([number], [or()]), [1, ,]],
+        // an empty one is the bare form: nothing past the prefix fits
+        [rest([number], never), [1, 2]],
+        [rest([number], or()), [1, 2]],
+        [rest([number], or()), [1]],
         [rest([number], [or()]), [1, 2]],
-        // …and a rest the conversion keeps is not empty, however few values it
-        // has: these two are the pair that tells the criterion from an emptiness
-        // analysis
-        [rest([number], recursiveRest), [1, ,]],
-        [rest([number], orCycleA), [1, ,]],
-        [rest([selfList0], [selfList1, never]), [undefined, ,]],
+        // …and so is a rest the conversion keeps but no finite array inhabits
+        [rest([number], recursiveRest), [1, 2]],
+        // no member past the prefix: reading one through `orCycleA` overflows
+        // the schema-form readers (`../todo/or-cycle-overflows.md`)
+        [rest([number], orCycleA), [1]],
+        [rest([selfList0], [selfList1, never]), [undefined, [undefined]]],
         [or(number, string), true],
         [or(number, string), 'hello'],
         [or(option, number), undefined],
@@ -297,10 +288,8 @@ export const proof = {
     // answer here as well.
     //
     // The rule is *per position*, not "the last one": a position is required
-    // exactly when its set excludes `undefined`, independently of the others.
-    // A dense prefix alone would only show that an optional *suffix* may be
-    // truncated, so the cases below also omit position 2 while position 3 is
-    // present, and omit a required position with everything after it present.
+    // exactly when its set excludes `undefined`, independently of the others,
+    // so an array may stop after any position from the last required one on.
     //
     // Every case runs against the `open` form too. A stated rest is a separate
     // reader on all three — `restContainerRead` in `../common/module.f.mjs`
@@ -322,18 +311,11 @@ export const proof = {
             accepted([2, 4n])                  // stops at the last required position
             accepted([2, 4n, 'x'])             // the first optional present
             accepted([2, 4n, 'x', null])       // both present
-            // Omission is independent, not just truncation: a member is
-            // absent wherever its index is missing, so position 2 may be
-            // missing while position 3 is present.
-            accepted([2, 4n, , null])          //< a hole at position 2
             // A present `undefined` is a value, not a spelling of absence:
-            // `or(option, string)` admits the hole above and rejects this.
+            // `or(option, string)` rejects it.
             rejected([2, 4n, undefined, null])
             rejected([2])                      // `bigint` excludes absence
             rejected([2, 4n, 5])               // an optional that is present is still checked
-            // The mirror of the rows above: `bigint` excludes absence, so
-            // omitting position 1 fails however much of the rest is present.
-            rejected([2, , 'x', null])         //< a hole at position 1
         }
         // What opening does change: an element past the declared positions is
         // a member of the open set and not of the bare, closed one.
@@ -347,12 +329,10 @@ export const proof = {
         // bottom where it is.
         every(open(t))(assertOk)([2, 4n, 'x', null, 'a', 'b'])
     },
-    // An interior omittable position may be absent with a *required* position
-    // after it, which is the sharpest witness that absence is per position
-    // rather than truncation: `optionalPositions`'s hole is followed by
-    // another omittable position, so it cannot say this. Absence is also
-    // positional, not a shift — `[, 5]` holds `5` at position 1 and is
-    // accepted, while `[5]` holds it at position 0 and is not.
+    // An interior omittable position before a *required* one: a position is
+    // absent only past the end of the array, so the required one after it
+    // keeps it present, and absence is not a shift — `[5]` holds `5` at
+    // position 0, where the schema wants a string.
     interiorOptionBeforeRequired: () => {
         const t = /** @type {const} */ ([or(option, string), number])
         /** @type {(rtti: Type) => (check: (r: ResultE) => void) => (value: Unknown) => void} */
@@ -365,9 +345,8 @@ export const proof = {
         // rest is its own reader on all three, and this schema is not one of
         // the shapes the trailing-option cases there already put through it.
         for (const rtti of [t, open(t)]) {
-            every(rtti)(assertOk)([, 5])          //< a hole at position 0
-            // `[undefined, 5]` is a *different value*: present-`undefined` at
-            // position 0, which `or(option, string)` rejects.
+            // Present-`undefined` at position 0, which `or(option, string)`
+            // rejects.
             every(rtti)(assertError)([undefined, 5])
             every(rtti)(assertOk)(['x', 5])
             every(rtti)(assertError)([5])         //< `number` at position 1 is required
@@ -804,19 +783,17 @@ export const proof = {
             assertError(validate(rest({ a: number }, string))([]))
         },
     },
-    // The three-reader table pins that the readers *agree* on the empty-rest
-    // criterion; these assert the verdict outright, since a row alone passes
-    // whenever all three move together. Each spelling is named rather than
-    // covered by "an independently constructed empty rest": an implementation
+    // The three-reader table pins that the readers *agree* on an empty rest;
+    // these assert the verdict outright, since a row alone passes whenever
+    // all three move together. Each spelling is named: an implementation
     // recognizing empty unions but not `[or()]` passes the `or()` row while
     // keeping that spelling's disagreement, and one keyed on the exported
     // `never`'s identity passes the converse.
     emptyRests: {
         dropped: () => {
             /**
-             * Two separately constructed copies of one recursive rule — the
-             * pair behind the name-collision comparison; see the acceptance
-             * table's own copy for the full story.
+             * Two separately constructed copies of one recursive rule; see
+             * the acceptance table's own copy.
              *
              * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
              */
@@ -825,12 +802,10 @@ export const proof = {
             /** @type {_SelfList} */
             const selfList1 = () => ['or', undefined, array(selfList1)]
             for (const r of [never, or(), [or()]]) {
-                assertError(validate(rest([number], r))([42, ,]))
+                assertError(validate(rest([number], r))([42, 1]))
+                assertOk(validate(rest([number], r))([42]))
             }
-            // The name collision: converting the rest reserves `r`, so the
-            // container's own rule is named `r0` — which `equal` reads as a
-            // different schema and `subset` both ways does not.
-            assertError(v(rest([selfList0], [selfList1, never]))([undefined, ,]))
+            assertError(v(rest([selfList0], [selfList1, never]))([undefined, [undefined]]))
         },
         kept: () => {
             /**
@@ -851,28 +826,25 @@ export const proof = {
             const orCycleA = () => ['or', orCycleB]
             /** @type {_OrCycleB} */
             const orCycleB = () => ['or', orCycleA]
-            // A rest the conversion keeps is not empty however few values it
-            // has: `recursiveRest` catches an emptiness analysis that reaches
-            // container cycles, `orCycleA` one that tests the rest's own
-            // canonical data, and `unknown` one that reads the absence of a
-            // `rest` key as elimination.
+            // A rest the conversion keeps but no finite array inhabits admits
+            // nothing past the prefix either, and `unknown` admits anything.
             // `v` rather than `validate`: `Ts<>` walks a recursive schema
             // structurally, and these two exist to be recursive.
-            assertOk(v(rest([number], recursiveRest))([42, ,]))
-            assertOk(v(rest([number], orCycleA))([42, ,]))
+            assertError(v(rest([number], recursiveRest))([42, [42]]))
+            assertOk(v(rest([number], recursiveRest))([42]))
+            // Nothing past the prefix: reading a member through `orCycleA`
+            // overflows (`../todo/or-cycle-overflows.md`).
+            assertOk(v(rest([number], orCycleA))([42]))
             assertOk(validate(open([]))([1]))
         },
     },
-    // The two ways an array can reach past a closed prefix, told apart. The
-    // acceptance table pins that the three readers agree on both; these assert
-    // the verdict, since a row alone passes whenever all three move together.
-    // The hole is rejected by *length* — it is no member, so the member check
-    // alone would let it through — and the explicit `undefined` by the member
-    // check, since it is a member and the schema declares no position for it.
-    // A closed tuple therefore has exactly one spelling per value.
+    // An array reaching past a closed prefix. The acceptance table pins that
+    // the three readers agree on it; these assert the verdict, since a row
+    // alone passes whenever all three move together. An explicit `undefined`
+    // there is a member the schema declares no position for, so a closed
+    // tuple has exactly one spelling per value.
     beyondAClosedPrefix: () => {
         for (const read of [v, p, d]) {
-            assertError(read([/** @type {const} */ (42)])([42, ,]))
             assertError(read([/** @type {const} */ (42)])([42, undefined]))
             assertOk(read([/** @type {const} */ (42)])([42]))
         }
@@ -951,16 +923,6 @@ export const proof = {
             assertError(read(exp)(chain(depth)))
             assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
         }
-    },
-    // The walk is bounded by the value's own indices rather than by
-    // `length`: a sparse array as long as the index space allows
-    // answers at once, where materializing the range exhausted memory first.
-    // The verdicts are the ordinary ones — a bare tuple is too short for it,
-    // a rest with nothing present past the prefix admits it.
-    lengthDoesNotBoundTheWalk: () => {
-        const big = new Array(2 ** 32 - 1)
-        assertError(v([or(option, string)])(big))
-        assertOk(v(rest([], string))(big))
     },
     arrayOptional: () => {
         const a = /** @type {const} */([number, or(option, string)])

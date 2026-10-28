@@ -8,8 +8,7 @@
  * **Structs and tuples are closed.** A bare `Struct` or `Tuple` admits the
  * members it declares and no others, so a value carrying more is rejected:
  *
- * - Tuples: an array longer than the schema is rejected — by length as well as
- *   by member, since a hole past the prefix is no member.
+ * - Tuples: an array longer than the schema is rejected.
  * - Structs: an undeclared property is rejected.
  * - Arrays/records: every element/value is itself parsed, so a fresh container is
  *   always returned even if the inner type is a primitive.
@@ -19,8 +18,11 @@
  * — the `option` bit of its union — so a shorter array whose trailing
  * position says `or(option, t)` is accepted. An absent member is omitted
  * from what is built, never materialized as `undefined`: the struct kind
- * drops the key, the array kind keeps a hole a hole and shortens a trailing
- * absent run.
+ * drops the key, and the array kind shortens a trailing absent run. The
+ * readers read no array with a hole
+ * ([what the readers assume of a value](../guide/readers/assumptions/README.md)),
+ * so an absent position is only ever past the end and no rebuilt array has a
+ * hole.
  *
  * A tuple schema declares by length, so a hole in the *schema* is a declared
  * position whose schema is `undefined` — see "A hole is a declared position"
@@ -58,15 +60,20 @@
  */
 
 import { readerOf } from '../common/module.f.mjs'
-import { emptyRest } from '../data/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 
 /** The reverse-order entries in member order, in one linear pass. */
 /** @type {(entries: _Entries) => ReadonlyArray<readonly [string, Unknown]>} */
 const inOrder = entries => toArray(reverse(entries))
 
-/** The uniform **array** kind's rebuild: the parsed elements, dense, in member order. */
-/** @type {_Rebuild} */
+/**
+ * The **array** kinds' rebuild, uniform and tuple: the parsed elements, dense,
+ * in member order. A tuple's absent positions are all past the last present
+ * one, since the readers read no array with a hole, so a trailing absent run
+ * shortens the result and nothing else is left out.
+ *
+ * @type {_Rebuild}
+ */
 const arrayRebuild = entries => inOrder(entries).map(([, v]) => v)
 
 /**
@@ -76,37 +83,6 @@ const arrayRebuild = entries => inOrder(entries).map(([, v]) => v)
  */
 /** @type {_Rebuild} */
 const recordRebuild = entries => Object.fromEntries(inOrder(entries))
-
-/**
- * The **tuple** kind's rebuild over its declared members — only the present
- * ones reach `entries`: each at its own index, holes at the absent ones
- * before them, ending at the last present position — so a trailing absent
- * run shortens the result and an interior hole survives (materializing it
- * as `undefined` would denote a different value, and omitting it would
- * shift every position after it). The reversed entries' head *is* the last
- * present position, so the length is known before the walk.
- *
- * A hole is the one member shape no expression builds: `.map` and spread
- * materialize `undefined` at it. So this kind alone places its members into
- * a fresh array of the right length and leaves every index it never writes a
- * hole — the array is this function's own and is returned before anything
- * else can see it.
- *
- * @type {_Rebuild}
- */
-const tupleRebuild = entries => {
-    if (entries === null) { return [] }
-    const result = new Array(+entries.first[0] + 1)
-    /** @type {_Entries} */
-    let n = entries
-    while (n !== null) {
-        Object.defineProperty(result, n.first[0], {
-            value: n.first[1], writable: true, enumerable: true, configurable: true,
-        })
-        n = n.tail
-    }
-    return result
-}
 
 /**
  * What `parse` brings to `readerOf` in `../common/module.f.mjs`: the parsed
@@ -119,8 +95,7 @@ const tupleRebuild = entries => {
  * always returned even if the inner type is a primitive. An absent member of
  * a closed const container is **omitted** from what is built rather than
  * materialized as `undefined`: the struct kind drops the key, and the tuple
- * kind preserves indices — a trailing absent run shortens the result, an
- * interior one stays a hole (see `tupleRebuild`). A container with a stated
+ * kind shortens a trailing absent run (see `arrayRebuild`). A container with a stated
  * `rest` builds the declared members and nothing else, since `rest` says what
  * an undeclared member must be and not that the result should carry it.
  */
@@ -130,8 +105,7 @@ const read = readerOf(
         empty: null,
         cons: (acc, k, v) => ({ first: /** @type {const} */ ([k, v]), tail: acc }),
     },
-    { array: arrayRebuild, record: recordRebuild, tuple: tupleRebuild, struct: recordRebuild },
-    emptyRest,
+    { array: arrayRebuild, record: recordRebuild, tuple: arrayRebuild, struct: recordRebuild },
 )
 
 /**

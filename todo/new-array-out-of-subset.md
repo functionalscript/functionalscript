@@ -92,15 +92,11 @@ Settle the exception first, in writing, then sweep in dependency order. The
 sweep is six pull requests, and the sites group by the fix rather than by the
 module they live in.
 
-- **Shipped code that builds a hole.** `tupleRebuild` only ever produces an
-  interior hole when its *input* already has one: for a dense input, every
-  index below the highest present one is present, so the allocate-and-write
-  body produces exactly what the subset-legal `arrayRebuild` beside it
-  produces. Confirmed empirically, and the edit under either ruling is
-  [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md)'s
-  to choose, including what a sparse input means: `arrayRebuild` alone
-  reindexes one, and whether that is a wrong answer or undefined behaviour
-  is settled there.
+- **Shipped code that builds a hole.** Done: `tupleRebuild` only ever
+  produced an interior hole when its *input* already had one, so `parse`
+  now rebuilds a tuple with the subset-legal `arrayRebuild`, and a hole in
+  the input is outside the readers' contract
+  ([what the readers assume of a value](../fjs/rtti/guide/readers/assumptions/README.md)).
 - **Guards that become unreachable.** The container and rest length checks
   across `fjs/rtti/parse`, `fjs/rtti/validate` and `fjs/rtti/data` are
   consulted only when no undeclared member was found, which for a dense array
@@ -143,25 +139,15 @@ module they live in.
       function coverage stays clean. `tupleSchemaEntries` itself stays: it
       keeps its justification from the non-index-own-property half of its
       argument.
-- [ ] **The container and rest length checks, all three readers in one pull
+- [x] **The container and rest length checks, all three readers in one pull
       request.** Remove the collapsed parameter and its JSDoc from
       `fjs/rtti/parse`, `fjs/rtti/validate` and `fjs/rtti/data`, and delete
       their covers in the same commit. Keep the const-tuple bound, which takes
       both arms on dense values. Run `npm run cov` before and after; anything
       below 100% means the unreachable-versus-live split is wrong somewhere.
-- [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task and now
-      owned by
-      [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
-      which records the bug, what is known about it, and the directions a
-      fix could take without choosing one. That issue decides the edit under
-      either ruling, including what a sparse input means, since
-      `arrayRebuild` alone reindexes one, `[, 3]` becoming `[3]`. If the
-      exception was granted, the edit is the one the issue
-      lists first: cite the new spec paragraph in the JSDoc instead of
-      arguing local freshness, and note in
-      [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
-      that `parse` output is the one source of sparse arrays its dense premise
-      does not cover.
+- [x] **`fjs/rtti/parse`'s hole producer.** It needed no exception:
+      `tupleRebuild` is gone, `parse` rebuilds every array kind dense, and a
+      hole in the input is outside the readers' contract rather than refused.
 - [ ] **`fjs/types/range_set`.** Its guard and the prose explaining it either
       both go or both stay, depending on whether it defends a FunctionalScript
       caller or the published package's JavaScript surface. Leaving the proof
