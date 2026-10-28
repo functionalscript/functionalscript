@@ -3,6 +3,10 @@
 **Priority:** P3
 **Status:** wip
 
+Production cutover is being prepared in the next PR: retain PR-only previews,
+add a separate main-only production workflow, and remove the temporary alias prefix.
+Disable Workers Builds immediately before merging that PR.
+
 ### Problem
 
 The website is built by Cloudflare Workers Builds, outside the repository's
