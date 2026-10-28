@@ -4,6 +4,11 @@
 **Status:** wip — F shared tail-call lowering is implemented;
 connecting the broader source spellings remains in H
 
+The next H increment admits base-first rest-only roots through shared source
+loop planning and preparation. It must preserve public arity zero, fresh rest
+arrays, captures, ordered failures and first-parse graph/text fixed points,
+while retaining existing default JavaScript/Rust layouts and source spellings.
+
 The implemented writer behavior below records the historical baseline. The
 [FAST migration](#fast-migration) is complete: common conversion and preparation
 now own those decisions for every target. The shared pass contracts are
