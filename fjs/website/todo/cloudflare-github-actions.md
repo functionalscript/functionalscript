@@ -38,6 +38,10 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Tasks
 
+- [ ] Build the website in a dedicated, read-only CI job on pull requests and
+      merge-queue entries, independently of the platform matrix. Reuse workflow
+      concurrency and pass the checked-out commit and branch to the site builder.
+
 - [ ] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
