@@ -38,8 +38,19 @@ const plain = exp => ({ exp, anchors: [] })
 
 /** Retain the required prefix before the result's naturally demanded suffix. @type {(value: Lowered, established?: readonly Exp[], selected?: readonly (readonly [Exp, boolean])[]) => Exp} */
 export const anchored = (value, established = [], selected = []) => {
-    const count = requiredPrefixLength(value.exp, value.anchors, established, selected)
-    return count === 0 ? value.exp : [',', [...value.anchors.slice(0, count), value.exp]]
+    /** @type {readonly Exp[]} */
+    let anchors = []
+    for (const exp of value.anchors) {
+        if (exp instanceof Array && exp[0] === 'undefined') { continue }
+        // A following required root can own the preceding suffix before the
+        // final result proves whether that root itself needs an anchor.
+        while (anchors.length !== 0 && demandsInOrder(exp, [anchors[anchors.length - 1]], [...established, ...anchors.slice(0, -1)], selected)) {
+            anchors = anchors.slice(0, -1)
+        }
+        anchors = [...anchors, exp]
+    }
+    const count = requiredPrefixLength(value.exp, anchors, established, selected)
+    return count === 0 ? value.exp : [',', [...anchors.slice(0, count), value.exp]]
 }
 
 /** @type {(values: readonly Lowered[]) => readonly Exp[]} */

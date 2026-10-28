@@ -206,7 +206,53 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       in loop bodies and conditional arms. Returns cross
       generated loop helpers but stay local to ordinary nested functions;
       both exits preserve reached work and skip following computations while
-      retaining source legality checks. Switches remain a later increment.
+      retaining source legality checks. Switches in loop bodies and conditional
+      arms now retain braced cases and ordered, lazy labels. A switch-local
+      `break` resumes following statements with current state; `continue`
+      retains its enclosing loop, and returns and throws retain their existing
+      owners. Nested switches and loops keep distinct transfer targets, and
+      case fallthrough remains refused. Raw rest-free zero-input tail roots
+      without normal loop completion now retain bounded-stack source output,
+      empty arity and reached work. Their first source parse establishes a
+      stable graph/text normal form. Zero-input roots admitted by the shared
+      plain-loop plan now also compute their normal result after iteration,
+      with either conditional arm continuing. A private unchanged slot retains
+      empty public arity and the first-parse graph/text fixed point. Other
+      canonical invocation profiles retain their documented fallback. Rest-free
+      fixed multi-input roots in the plain-loop profile now emit source loops
+      with one private array slot and immutable per-input snapshots. Public
+      arity, ordered argument evaluation and simultaneous updates survive;
+      the first source parse establishes a stable scalar-helper normal form.
+      Default JavaScript/Rust layouts and logical loop signatures stay unchanged.
+      Observed-rest roots admitted by that plain plan now retain source loops
+      using the existing argument vector and fresh-rest transition. Rest sharing,
+      fresh empty/nonempty arrays, iteration captures and public fixed arity
+      survive. Fixed-plus-rest and rest-only roots support either conditional
+      arm. A shared orientation helper negates the terminal test and swaps the
+      arms of validated base-first rest-only roots before existing scalar
+      preparation. Prefixes, targets, earlier source spellings and default
+      JavaScript/Rust layouts retain their contracts. Other
+      rest profiles keep their documented fallback, and first-parse graph/text
+      fixed points remain exact.
+      Rest-free fixed multi-input roots and fixed-plus-rest roots with required
+      normal-arm definitions now retain source loops in either conditional
+      orientation. A shared normalizer keeps that define-only prefix inside the
+      break-result value block;
+      preparation runs it once after the final test with immutable final-input
+      snapshots. Shared/fresh result identities, captures and required failure
+      order survive without changing prior source or default JavaScript/Rust
+      layouts. Fixed-plus-rest base work retains the final invocation's fresh
+      rest array, including an empty one, without reslicing it. Rest-only roots
+      now use the same result-block normalizer for their one semantic input,
+      composing with the existing orientation helper when the base case comes
+      first. Scalar preparation preserves empty public fixed arity, final rest
+      identity, once-after-test base work and exact first-parse graph/text cycles.
+      Source preparation exposes leading total post-loop constructors in their
+      enclosing region so required allocation order survives later rest
+      projections and held base captures from the first parse.
+      Other normal-arm profiles retain their documented fallback.
+      Final integration evidence and public contract reconciliation remain before
+      H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

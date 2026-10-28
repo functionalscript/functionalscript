@@ -41,8 +41,9 @@ requests and merge-group entries. It builds the WASM demos, styled Rust API docu
 and website using the committed mise lock, in that order after `npm ci`.
 The job has read-only GitHub permissions, waits for all test jobs, and always
 builds its assets outside the successful-check cache. It passes the checked-out SHA
-and source branch to the website generator through `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH`. On repository branch pushes only, optional upload
+and source branch to both the Rustdoc header generator and the website generator
+through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
+On repository branch pushes only, optional upload
 steps publish previews or deploy production after the build succeeds.
 Pull-request and merge-group runs never upload. Deployment secrets are scoped
 to the upload steps. The separate preview and production enable switches
@@ -73,7 +74,3 @@ therefore receive both push and pull-request checks; only its push run uploads.
 Publishing retains its separate `setup-node` workflow and npm provenance.
 See [platform setup](../../doc/mise-trial/README.md) and
 [CI details](../../doc/mise-trial/CI.md).
-
-The separate `Devcontainer` workflow builds the container and runs its
-`postCreateCommand` through `devcontainers/ci`, then verifies Node, TypeScript
-and repository type-checking. It runs when container or tool inputs change.

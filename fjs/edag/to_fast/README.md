@@ -113,6 +113,21 @@ aliases. A terminal base recipe produces a one-pass loop with no backedge.
 Tests, ordinary operands, required aliases and captures keep their demands;
 independent interleaved recipes retain their existing recursive layout.
 
+After tail-control placement, [`join`](join/module.f.mjs) recovers normal
+statement results selected by the same established test. A residual value, or
+shared selected recipe first demanded by following work, becomes an explicit
+result of that statement conditional. Terminal arms keep their transfers and
+the following continuation remains one computation. A deferred recipe used
+only within one resulting arm becomes required at its first proven demand;
+the shared graph demand query checks calls, lookups, spreads and lazy barriers.
+Earlier work and recipes with other uses keep their original evaluation owner.
+Demand checks expand visible deferred initializer graphs without evaluating them,
+so transitive closure captures retain their first-read order. Ordinary function
+bodies remain opaque. A closure first demanded after the control join is
+constructed there once, with the selected immutable capture values.
+Deferred declarations depending on a recovered result follow its conditional
+in their original dependency order; their evaluation still waits for first use.
+
 The general domain has zero through sixteen fixed parameters, with or without
 an observed rest binding. Its canonical root
 loop returns one opaque public result. Entry bindings and iteration bindings
@@ -152,11 +167,58 @@ This preserves placement and supplies the name needed for recursive source
 spelling. Code-only JavaScript and Rust use the common prepared loop. Source
 spelling retains rest-free roots recognized by the shared scalar or
 [`plain-loop plan`](../../js/ast/loop/plain/module.f.mjs), including aggregate
-helpers produced by plain source loops. Other canonical roots use the graph
-owner's existing transfer resolver. Synthesized invocation-read aliases become
+helpers produced by plain source loops. Rest-free zero-input roots also retain
+their loop when no break targets that root. Shared preparation needs no result
+storage for these divergent or throwing paths and emits the unreachable return
+required by source grammar. Their first source parse introduces an aggregate
+helper; subsequent graph/text cycles stabilize. The shared plain-loop plan also
+retains zero-input roots with one normal result and a conditional continuation
+in either arm. Common preparation puts the result after iteration and supplies
+a private unchanged slot, without changing the function's empty public
+signature. Its first source parse constructs the canonical scalar helper;
+later graph/text cycles stay exact. Other zero-input normal-result shapes
+retain their recursive fallback. Rest-free fixed multi-input roots are retained
+when the same plain-loop plan recognizes their terminal conditional. The source
+profile of common preparation packs those already-selected semantic inputs
+into one private array slot, preserving simultaneous updates, public arity and
+immutable capture snapshots. This changes the source-normalized graph once;
+later graph/text cycles stay exact. Observed-rest roots also retain loops when
+the plain plan admits them. The canonical invocation transition already
+establishes arguments before fixed projections and a fresh rest slice; source
+preparation consumes that extra semantic input without changing public arity.
+Fixed-plus-rest roots support either conditional arm. For a base-first rest-only
+root, source admission reorients the terminal conditional through the shared
+plain-loop helper, then retains the existing continue-first plan. The helper
+negates the test and swaps its arms only when the candidate passes the same
+prefix, target and normal-result restrictions. Rest identity is
+shared within an invocation and fresh between iterations, including empty
+arrays, while captures retain their creating snapshot. Logical graph conversion
+and default code-only JavaScript/Rust layouts are unchanged. Other canonical
+roots use the graph owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
+For validated rest-free roots with several fixed inputs, or observed-rest
+roots, a required define-only normal-arm prefix can move into the break-result
+value block through the shared plain-loop helper. It creates no function or
+invocation boundary. Definitions keep their bindings, order and lexical region,
+and common preparation supplies immutable final-input snapshots before evaluating
+that result once. Calls,
+allocations and closures remain after the final test, with their sharing and
+failure order intact. Base work observes the final invocation's rest array
+without reslicing it. The candidate must satisfy the existing plain-loop
+restrictions; other profiles retain their prior source spelling or refusal.
+
+Rest-only roots have one semantic input. Source admission tries their existing
+orientation first, then result-block wrapping; a wrapped base-first candidate
+uses the same orientation helper. Existing scalar preparation retains empty
+public fixed arity and the final rest snapshot. Preparation exposes leading
+total result aliases and constructors after the loop, preserving their required
+order when the result reads a rest projection before a shared allocation.
+Calls, lookups and selected regions retain their placement boundaries.
+Other single-input and zero-input
+roots, and lazy or structured normal-arm prefixes, keep their previous admission.
+
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be
 restored to recursive source. Such supplied zero-input, multi-input or observed

@@ -84,24 +84,110 @@ factored continuation outside the one-state profile cannot regain recursive
 source grammar, preserving code-only JavaScript/Rust output and existing
 reifiable recursive source profiles.
 
-Other canonical invocation roots retain recursive source spelling: multiple
-physical inputs, observed rest, transfers to outer loop targets and returns
-escaping a value region. Prefix computations that create identity can remain
-inside an admitted one-state structured loop, without being copied into a
-condition or result. Broader source placement and loop-body switches remain H
-work. The source adapter uses shared recognition and preparation, with no
-writer-specific state or source-write analysis.
+Other canonical invocation roots retain recursive source spelling: zero-input
+or multi-input roots outside the plain-loop plan, observed-rest roots outside
+that plan, transfers to outer loop targets and returns escaping a value region. Prefix
+computations that create identity can remain inside an admitted one-state
+structured loop, without being copied into a
+condition or result. Broader source placement remains H work. The source
+adapter uses shared recognition and preparation, with no writer-specific state
+or source-write analysis.
 
-An inherited example of that fallback is the raw zero-parameter graph function
-`['=>', 0, [], ['()', ['self'], []]]`. Serializing a call of this function still
-prints `const $0=()=>$0();export default $0();`, which overflows the stack on V8.
-The same spelling is produced at revision
-`30e0652bb948d8a161173a90e7e7c5f0a8d0ba48`, before the shared-owner ordering
-correction. Common tail lowering already gives this graph bounded-stack
-code-only JavaScript and Rust; source recognition does not yet include this
-zero-parameter root. An admitted source `while (true) {}` uses the supported
-aggregate-helper path instead. Extending the raw root's source spelling remains
-[H](../../todo/general-loops-and-tail-calls.md), outside the shared-owner fix.
+Rest-free zero-input roots without a break to their own target now retain the
+common loop plan in source output, including reached failures. The raw function
+`['=>', 0, [], ['()', ['self'], []]]` emits
+`const $0=()=>{while(true){continue;}return undefined;};export default $0;`.
+It retains empty arity and bounded stack. The terminal return is unreachable
+and satisfies the existing source grammar. Parsing the first output introduces
+the source aggregate helper and can change graph bytes/hashes; subsequent graph
+and text cycles remain exact.
+
+The shared plain-loop plan now also admits rest-free zero-input roots whose
+terminal conditional continues in either arm and supplies one normal result
+in the other. For example, `['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]]`
+emits a zero-argument function with `let s=undefined;while(false){s=s;}` followed
+by its result. The slot is private physical storage, with no semantic input
+snapshots or capture aliases. Result work runs once after the final test;
+condition-only work stays at every test. Existing projection-only dependency
+copying prevents duplicated calls or allocations.
+
+Independent result storage inside a breaking loop would introduce an aggregate
+result helper on the first source parse and split it on the next. The unchanged
+slot instead establishes the canonical scalar helper on the first parse, so
+subsequent graph/text cycles stay exact. Other zero-input normal-result shapes
+and observed-rest roots outside the plain plan retain their existing fallback
+and remain [H](../../todo/general-loops-and-tail-calls.md) work.
+
+Rest-free fixed multi-input roots admitted by the plain-loop plan now also
+emit bounded-stack source. Either conditional arm may continue. The source
+profile of common preparation packs their initial values and simultaneous next
+inputs into one private array slot, with fresh immutable projections for the
+condition, continuing body and final result. Normal result work follows the
+final test. Captures retain their creating iteration, required argument work
+keeps its order, and the original public parameter list is preserved.
+
+This is physical source preparation; logical loop signatures, graph conversion
+and default code-only JavaScript/Rust layouts stay unchanged. Parsing the first
+source output introduces the canonical scalar helper and may change graph
+bytes/hashes and function text under its existing exception. Subsequent graph
+and text cycles stay exact. Multi-input roots outside that plain profile still
+retain recursive source or the existing explicit refusal.
+
+Observed-rest invocation roots admitted by that plain plan now also emit
+bounded-stack source. Existing invocation construction evaluates arguments in
+order, projects fixed inputs and creates a fresh rest slice before simultaneous
+updates. Rest is one semantic input: rest-only roots use the existing scalar
+slot, while fixed-plus-rest roots use the packed slot. Empty and nonempty rest
+arrays keep sharing within an invocation and fresh identity between iterations;
+held closures retain their creating rest array. Public fixed arity is unchanged.
+
+Fixed-plus-rest and rest-only roots support either conditional arm. For a
+validated base-first rest-only root, source admission calls the shared plain-loop
+orientation helper. It negates the terminal test and swaps arms without moving
+prefixes, changing exact transfer targets or widening the planner's default
+domain. Existing scalar preparation then consumes the continue-first loop.
+This is confined to canonical zero-fixed-parameter roots that observe rest;
+other single-input source spellings and default JavaScript/Rust layouts stay
+unchanged. Other nonplain rest profiles keep their recursive fallback. First source
+parsing establishes the canonical scalar helper under the existing graph/hash
+and function-text exception, followed by exact graph/text cycles. Shared logical
+conversion and default code-only JavaScript/Rust layouts remain unchanged.
+
+Rest-free fixed multi-input roots and observed-rest roots now also retain source
+loops when their normal arm has required definitions before its result. A shared
+source-only normalizer wraps that define-only prefix in the break-result value
+block, clears the arm's statement prefix and validates the candidate through the
+unchanged plain-loop plan. Both conditional orientations retain exact targets
+and binding identities.
+Existing common preparation establishes immutable final-input snapshots, then
+runs the base work once after the final test. Base allocations stay shared within
+one invocation and fresh between invocations; final closures keep their captures,
+and reached calls and failures retain their order.
+
+Fixed-plus-rest roots reuse the same normalizer and packed source preparation.
+Their required base work observes the final invocation's fresh rest array,
+including an empty one, without creating another slice. Sharing within the
+result and escaped final captures retain that array's identity.
+
+Rest-only roots use that result-block normalization for their single semantic
+input. A base-first wrapped candidate passes through the existing orientation
+helper before the unchanged plain-loop planner. Both orientations then use scalar
+source preparation, with empty public fixed arity and the same final rest array.
+Required base work runs once after the final test, including zero iterations;
+rest sharing, escaped captures and reached failures retain their owners.
+Source preparation exposes leading total final-state aliases and constructors
+after the loop, before later result projections. Calls, lookups and selected
+regions keep their placement boundaries. This establishes required allocation
+order in the first parsed graph, including results that read a rest projection
+before a shared base allocation or its capturing closure.
+
+This profile is limited to canonical rest-free roots with multiple fixed
+parameters or roots with observed rest. Other single-input and zero-input roots,
+and lazy or structured normal-arm prefixes, retain their previous admission and
+fallback. The first source parse establishes the permitted scalar-helper
+boundary; later graph/text cycles remain exact. Logical conversion, original
+default JavaScript/Rust layouts and prior
+source spellings retain their contracts.
 
 ### Problem
 

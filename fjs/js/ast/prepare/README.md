@@ -101,6 +101,67 @@ value run once after the loop. Closures can capture that snapshot without
 capturing mutable slots. Hidden nonlocal transfers retain the general control
 plan. The scalar path and both serializers keep their existing contracts.
 
+The same plain-loop plan admits an empty input signature, with the continuing
+arm on either side of its terminal condition. Preparation gives this loop a
+private unchanged slot initialized to `undefined`, without semantic parameter
+snapshots or read aliases. Its normal result runs once after iteration. Source
+renders the existing unchanged-slot assignment, so the first parse constructs
+the canonical scalar helper directly. Public function arity stays zero; graph
+and text stabilize from that first parse. Condition-only work and the existing
+projection-only dependency restriction retain their normal lifetimes.
+
+In the source profile, a plain loop with several semantic inputs uses one
+private array slot. Its initial values run in order, and the entire next-value
+array is established before the slot changes. Fresh numeric projections give
+the condition, continuing body and final result immutable input snapshots, so
+captured values keep the iteration that created them. Public function arity and
+the logical loop signature stay unchanged. The first source parse introduces
+the canonical scalar helper; subsequent graph/text cycles remain exact.
+Default code-only JavaScript and Rust retain their existing independent-slot
+layout for these logical loops.
+
+Packed source steps expose leading total constructor definitions from eager
+operand blocks before placing input projections. Primitives, established
+references, and array, static-key object or closure constructions with
+established operands can move without executing user work. Calls, property
+reads, spreads and memo demands stay in their original order; lazy branches
+and function bodies stay opaque. Bare calls retain their prepared call form,
+so exposing a member-valued callee still uses the serializer's existing
+detached-call spelling. This keeps shared argument allocations stable from
+the first source parse while preserving earlier argument failures.
+
+Observed-rest plain invocation loops use these same plans. Their logical
+transition already establishes the argument vector before projecting fixed
+inputs and creating a fresh rest slice. Rest occupies one semantic input;
+rest-only roots therefore use the existing scalar slot, and fixed-plus-rest
+roots use the packed slot. Immutable snapshots preserve rest sharing within an
+invocation, fresh empty or nonempty arrays between iterations, and held captures.
+Preparation does not change the public fixed arity or rest parameter.
+Base-first rest-only roots arrive from source admission already oriented by
+the shared plain-loop helper: the terminal test is negated and its arms are
+swapped, with prefixes and exact transfer targets retained. This pass consumes
+the existing continue-first scalar plan. Default preparation and prior source
+profiles keep their established layouts.
+
+Source admission can also wrap required normal-arm definitions in the break-result
+value block of a rest-free multi-input, fixed-plus-rest or rest-only loop. This
+pass already handles that ordinary value region after iteration: it establishes
+immutable final-input snapshots, then evaluates the required definitions and
+result once. The block introduces no invocation and keeps base-local binding
+identities and captures;
+calls, allocations and failures keep their reached order after the final test.
+The final rest snapshot retains its fresh invocation array and shared identity;
+no extra rest slice is introduced at normal completion.
+Rest-only roots use the existing scalar layout after source admission wraps the
+result and orients a base-first conditional. Their public fixed arity stays zero.
+For source loops with one input and a result block, preparation exposes leading
+total final-state aliases and constructors in the enclosing post-loop region.
+Existing constructor placement retains calls, lookups and selected regions as
+barriers. The first emitted source then establishes the final allocation's
+required order relative to later rest projections, keeping graph/text cycles
+exact from the first parse.
+Default preparation and the plain-loop planner's original domain stay unchanged.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

@@ -44,16 +44,75 @@ aggregate helpers for zero or multiple source state values. Common preparation
 emits ordinary `while` statements; the plain-loop
 plan computes its normal result after the final false test. The structured
 source profile shares one physical state/result slot, spelling `break` and
-`continue` without labels. Other canonical invocation roots retain recursive
-source spelling through the existing transfer resolver. The adapter repeats no
+`continue` without labels. Rest-free zero-input roots without a break to their
+own target also retain bounded-stack source loops. They need no state or result
+storage; shared preparation supplies the source grammar's unreachable terminal
+return after a diverging loop. The first source parse introduces the ordinary
+aggregate helper and may change graph bytes/hashes; its graph and canonical
+text then stabilize. Reached work and capture lifetimes stay in their existing
+regions. Other canonical invocation roots retain recursive source spelling
+through the existing transfer resolver. The adapter repeats no
 graph placement or tail eligibility analysis; required function owners retain
 recursive names where needed.
 
+The shared plain-loop plan also admits rest-free zero-input roots with a normal
+result. Either conditional arm may continue; the other supplies the result
+after the final test. Common preparation uses a private unchanged slot, keeping
+the public function's empty parameter list and result computations outside
+iteration. Parsing that first source introduces the canonical scalar helper,
+and its normalized graph and text then stay exact. Condition-only definitions
+run at every test; only identity-free projection dependencies may be copied
+into the step or result. Other zero-input normal-result shapes retain their
+existing recursive fallback.
+
+Rest-free fixed multi-input roots in that same plain profile also emit source
+loops. Source preparation packs their initial and simultaneous next inputs into
+one private array slot, with immutable projected snapshots for each iteration
+and the final result. Either conditional arm may continue; the normal result
+runs after iteration. The public parameter list stays unchanged. This is a
+physical source layout: normalized logical loops and default JavaScript/Rust
+layouts retain their existing contracts. The first source parse establishes
+the scalar helper and its stable graph/text normal form.
+
+Observed-rest invocation roots now retain source loops when the same plain
+plan admits them. The shared invocation transition establishes all reached
+arguments before projecting fixed inputs and slicing a fresh rest array.
+Preparation treats rest as one semantic input, preserving sharing within an
+invocation and fresh identity between iterations, including empty rest arrays.
+Saved closures retain their iteration's array; the public fixed arity and rest
+parameter stay intact. Fixed-plus-rest roots support either conditional arm.
+Rest-only roots have one semantic input. For an admitted base-first root, the
+source coordinator uses the shared plain-loop helper to negate its terminal
+test and swap the arms, preserving prefixes, targets and selected regions.
+Existing preparation then consumes the continue-first loop, so both rest-only
+orientations emit bounded-stack source. First-parse graph/text stability and
+the existing default JavaScript/Rust layouts follow the same contracts as
+fixed-input roots.
+
+Rest-free fixed multi-input roots, fixed-plus-rest roots and rest-only roots may
+also retain loops when the normal arm has required definitions before its result.
+A shared source-only helper wraps that define-only prefix in the break-result value
+block, preserving bindings and order. Existing preparation establishes final
+input snapshots, then runs the block once after the last test. Base allocations
+remain shared within a result and fresh between invocations. Required calls run
+once, preserving their
+result identities, and base work stays absent from continuing iterations.
+Base results and escaped closures retain the final rest array's identity.
+For a rest-only root with its base case first, result wrapping composes with the
+existing single-input orientation helper before scalar preparation. Public fixed
+arity stays zero and the final rest array is not sliced again. Both conditional
+orientations use the same plain-plan validation. Leading total result aliases
+and constructors are emitted in the enclosing post-loop region, retaining
+required allocation order before later rest projections. Calls, lookups and
+selected regions keep their evaluation boundaries. Zero-input and nonrequired or
+structured base prefixes retain their existing admission and fallback.
+
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input, multi-input and observed-rest graphs keep their
-existing reifiable recursive forms; unsupported factored profiles return an
-error instead of asserting or emitting unreadable source.
+loop profile. Raw zero-input or multi-input roots outside the plain-loop plan
+and observed-rest roots outside that plan keep their existing reifiable recursive
+forms; unsupported factored profiles return an error instead of asserting or
+emitting unreadable source.
 
 The plain-loop spelling separates iteration from normal-result computation.
 Parsing its first output can therefore introduce a scalar helper boundary and
@@ -62,6 +121,15 @@ stabilize on subsequent conversions without accumulating helpers or projection
 demands. Existing canonical scalar-loop cases keep their exact graphs and source
 spelling. Condition-only required prefix work can now use an ordinary `while`
 where output previously used recursion or the general labelled loop.
+
+Discarded literal `undefined` anchors also normalize away during graph
+construction. They perform no failing work and create no identity; keeping them
+would accumulate unused declarations when source branch-result slots are
+reparsed. A supplied graph containing such an anchor can change its bytes/hash
+on the first source parse. The normalized graph and text then remain exact.
+Used `undefined` values, allocations, calls and other required work keep their
+existing behavior and identity. The generated round-trip law classifies only
+non-final literal `undefined` anchors with its other redundant prefixes.
 
 Missing, extra and spread tail arguments normalize to fixed invocation inputs.
 Parsing the first source output can inline one-use argument setup; serialization of the

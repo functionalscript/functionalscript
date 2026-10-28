@@ -66,6 +66,7 @@ export const proof = {
             WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
+        assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
         assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
     },

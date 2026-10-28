@@ -124,9 +124,10 @@ self uses retain a named function around the loop.
 
 These general forms intentionally change code-only function text under the
 function-source exception. Their JavaScript and Rust loops use bounded stack
-for tail-only iterations. The source serializer reifies nonscalar invocation
-loops as recursion until the broader source grammar is admitted in H, retaining
-its existing source round-trip domain. Missing fixed arguments become
+for tail-only iterations. The source serializer retains its admitted scalar,
+plain and structured loop profiles; other invocation roots retain their
+recursive spelling or existing refusal. Each source profile has its declared
+graph-normalization and round-trip domain. Missing fixed arguments become
 `undefined`, and unused extra arguments retain their required evaluation before
 the transition. This extension deliberately changes the text of these newly
 eligible functions as well. Spread calls materialize their arguments before the
@@ -142,6 +143,44 @@ the condition, even when the condition reads a later capture first. Code-only
 text instead reads its external positional slots directly. These forms share
 loop preparation and preserve their respective source-round-trip and code-only
 contracts; they need not have identical text.
+
+Rest-free zero-input roots admitted by the plain-loop plan use a private
+unchanged slot and compute their normal result after iteration. This deliberately
+changes their code-only function text under the function-source exception.
+The first source parse can introduce the canonical scalar helper, changing the
+associated graph and therefore `String(f)` once. That normalized graph and its
+function text then stabilize; ordinary result values, arity, captures and
+required work retain their existing contracts.
+
+The source profile also packs eligible rest-free multi-input tail loops into
+one private array slot, retaining the original public parameter list and fresh
+per-iteration input snapshots. Default code-only and Rust layouts for the
+original logical graph stay unchanged. Its first source parse can introduce
+the scalar helper, changing the associated graph and its reconstructed
+function text under the same exception; canonical graph/text cycles then
+stabilize.
+
+Observed-rest roots admitted by the same plain plan use their existing fresh
+rest transition and scalar or packed source preparation. Public fixed arity
+and rest syntax remain intact. Their first source parse can introduce the
+scalar helper under the same associated-graph/function-text exception; later
+graph and text cycles stay exact. Original logical graph function text and
+default JavaScript/Rust layouts retain their existing contracts.
+
+Base-first rest-only source roots use the shared plain-loop orientation helper
+before preparation. This adds the same permitted first-parse helper boundary;
+original logical function text and prior source profiles retain their layouts.
+
+Rest-free fixed multi-input roots and observed-rest roots with required
+base-case definitions use a source-only result-block normalization before
+preparation. The block has no invocation boundary and runs once after the final
+test with immutable input snapshots. Rest-only roots also compose this wrapping
+with single-input orientation when their base case comes first. The first source
+emission exposes leading total post-loop aliases and constructors in their
+enclosing result region. Its first parse establishes the same permitted scalar
+helper boundary; later graph/text
+cycles stay exact. Original logical function text,
+default JavaScript/Rust layouts and other source profiles retain their contracts.
 
 ## A function that names itself
 

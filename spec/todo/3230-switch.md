@@ -246,19 +246,26 @@ implementation's pull request:
 
 ### Later
 
+The loop-body increment of [general loops](./3220-let.md#general-loops)
+admits braced switch cases inside loops and conditional arms, including module
+loops. A case exits with switch-local `break`, enclosing-loop `continue`, an
+owning return or throw; nested control retains its targets. Every case path
+must exit, so fallthrough remains refused. Ordered lazy labels, eager single
+discriminant evaluation and existing case scopes are unchanged. Current outer
+values resume after a switch break or no match. This uses the existing FAST
+control and completion encoding without adding graph operations. Its benefits
+are familiar dispatch within ordinary loops and correct nearest-target
+transfers; its cost is a distinct switch break owner and explicit state joins.
+The general-loop approval and source evidence are recorded in the let proposal.
+
 - A case without braces, `case 'x': return v;` and `case 'x': throw w;`:
   a block of one terminator, admitted where the block holds no `const`,
   which is where JavaScript's switch scope cannot bite.
-- `break` as a case block's terminator: the arm is then the statements
+- `break` as a case block's terminator outside loop bodies: the arm is then the statements
   after the `switch`, one shared graph with the alternate, and the
   `switch` no longer needs a `default` to terminate the body.
 - A `switch` at the module level, the module being a function too, with
   the guard's own module-level follow-up.
-- A `switch` in a loop's block, with the guard's own follow-up there: the
-  block holds `const`s and the assignment alone today, and a guard, a
-  `return` or a `throw` in it is the loop's later step
-  ([let](./3220-let.md), "Later"), where the arm the call stands in is
-  then either; a switch is that step's chain of guards.
 - A label stacked with the `default`, as the `default` with the label's
   test evaluated for its own sake: `d === a ? B : B`, the one block both
   arms of a conditional the language does not fold.

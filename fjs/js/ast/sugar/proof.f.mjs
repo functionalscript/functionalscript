@@ -5,6 +5,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { parse } from '../../../compiler/source/module.f.mjs'
+import { tryModuleStringify } from '../../../compiler/serializer/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { freeLoopBindings } from '../../../edag/from_fast/control/module.f.mjs'
 import { analysis } from '../../../edag/analysis/module.f.mjs'
@@ -32,6 +33,128 @@ const fn = source => {
 }
 
 export const proof = {
+    switchBreaksMergeStateAndResumeTheirLoop: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<4){i=i+1;switch(i){case 1:{sum=sum+10;break;}case 2:{continue;}default:{sum=sum+i;break;}}sum=sum+100;}return [i,sum];})();', [4, 317]],
+            ['export default (()=>{let i=0;let x=1;let y=2;while(i<3){i=i+1;switch(i){case 1:{x=y;y=x+1;break;}case 3:{y=x+y;break;}}x=x+10;}return [i,x,y];})();', [3, 32, 25]],
+            ['let i=0;let sum=0;while(i<3){i=i+1;switch(i){case 2:{sum=sum+10;break;}default:{sum=sum+i;break;}}sum=sum+100;}export default [i,sum];', [3, 314]],
+            ['export default (()=>{let i=0;while(i<3){i=i+1;switch(i){case 1:{break;}default:{continue;}}i=i+1;}return i;})();', 3],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    switchBreakAndContinueKeepDifferentFastOwners: () => {
+        const normalized = fn('export default n=>{let i=0;let value=1;while(i<n){i=i+1;switch(i){case 1:{value=value+2;break;const skipped=null.x;}default:{continue;}}value=value+10;}return [i,value];};')
+        const outer = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(outer !== undefined && outer[0] === 'loop')
+        const guard = outer[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const body = guard[3]
+        const selected = body.statements.find(statement => statement[0] === 'loop')
+        assert(selected !== undefined && selected[0] === 'loop')
+        assertEq(selected[1].parameters.length, 0)
+        assertEq(selected[1].initial.length, 0)
+        assertEq(selected[1].results.length, 1)
+        assert(selected[1].target !== outer[1].target)
+        const branch = selected[1].body.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[3].statements.length, 1)
+        const stopped = branch[3].exit
+        assert(stopped[0] === 'break')
+        assertEq(stopped[1], selected[1].target)
+        assertEq(stopped[2].length, 1)
+        const continued = branch[4].exit
+        assert(continued[0] === 'continue')
+        assertEq(continued[1], outer[1].target)
+        assertEq(continued[2].length, 2)
+        const discriminant = body.statements[body.statements.indexOf(selected) - 1]
+        assert(discriminant[0] === 'define')
+        assertEq(discriminant[3], 'required')
+        assert(branch[2] instanceof Array && branch[2][0] === '===')
+        assert(branch[2][1] instanceof Array && branch[2][1][0] === 'ref')
+        assertEq(branch[2][1][1], discriminant[1])
+    },
+    nestedSwitchesAndLoopsConsumeOnlyTheirOwnBreaks: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let sum=0;while(i<2){i=i+1;switch(i){case 1:{switch(i){case 1:{sum=sum+1;break;const skipped=null.x;}default:{throw 9;}}sum=sum+10;break;}default:{sum=sum+100;break;}}sum=sum+1000;}return sum;})();', 2111],
+            ['export default (()=>{let i=0;let sum=0;while(i<2){i=i+1;switch(i){case 1:{let j=0;while(j<3){j=j+1;if(j===2){break;}}sum=sum+j;break;}default:{sum=sum+10;break;}}sum=sum+100;}return [i,sum];})();', [2, 212]],
+            ['export default (()=>{let i=0;let sum=0;while(i<3){i=i+1;switch(i){case 1:{switch(i){case 1:{continue;}default:{break;}}break;}default:{sum=sum+i;break;}}sum=sum+100;}return [i,sum];})();', [3, 205]],
+            ['export default (()=>{let i=0;let sum=0;while(i<2){i=i+1;if(i===1){switch(i){case 1:{sum=7;break;}default:{throw 9;}}}else{switch(i){case 1:{throw 9;}default:{sum=sum+3;break;}}}sum=sum+100;}return [i,sum];})();', [2, 210]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    switchLabelsRemainOrderedAndLazy: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let value=0;while(i<1){i=i+1;switch(i){case 1:case null.x:{value=3;break;}case null.x:{throw 9;}default:{throw 8;}}}return value;})();', 3],
+            ['export default (()=>{let i=0;let value=0;while(i<2){i=i+1;switch(i){case 0:case 2:{value=value+7;break;}default:{value=value+1;break;}}}return value;})();', 8],
+            ['export default (()=>{while(false){switch(null.x){case null.x:{throw 9;}}}return 7;})();', 7],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        for (const source of [
+            'export default (()=>{while(true){switch(null.x){case 1:{return 3;}}}return 0;})();',
+            'export default (()=>{while(true){switch(1){case null.x:{return 3;}default:{return 4;}}}return 0;})();',
+            'export default (()=>{while(true){switch(1){case 0:case null.x:{return 3;}default:{return 4;}}}return 0;})();',
+            'export default (()=>{while(true){switch(1){case 1:{const required=null.x;break;}default:{return 4;}}return 3;}return 0;})();',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
+    switchFunctionExitsSkipFollowingWorkAndKeepFunctionBoundaries: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{while(true){switch(1){case 1:{return 7;const skipped=null.x;}default:{throw 8;}}const skipped=null.x;}return 0;})();', 7],
+            ['export default (()=>{while(true){switch(1){case 1:{switch(0){case 0:{return 7;}default:{throw 8;}}}default:{throw 9;}}const skipped=null.x;}return 0;})();', 7],
+            ['export default (()=>{let i=0;while(i<3){i=i+1;switch(i){case 1:{switch(i){case 1:{if(i===1){return 7;}else{throw 8;}}default:{throw 9;}}}default:{continue;}}const skipped=null.x;}return 0;})();', 7],
+            ['export default (()=>{let x=0;let y=2;while(true){x=y;switch(0){case 0:{return 7;}default:{return 8;}}}return x;})();', 7],
+            ['export default (()=>{let i=0;let value=0;while(i<2){i=i+1;switch(i){case 1:{const read=()=>{while(true){switch(0){case 0:{return 3;}default:{throw 8;}}}return 0;};value=read();break;}default:{value=value+4;break;}}}return [i,value];})();', [2, 7]],
+            ['export default (()=>{let i=0;let value=0;while(i<2){i=i+1;switch(i){case 1:{value=(()=>{while(true){switch(0){case 0:{return 3;}default:{throw 8;}}}return 0;})();break;}default:{value=value+4;break;}}}return [i,value];})();', [2, 7]],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        for (const source of [
+            'while(true){switch(0){case 0:{throw 7;}default:{break;}}const skipped=null.x;}export default 0;',
+            'export default (()=>{while(true){switch(0){case 0:{throw 7;}default:{return 3;}}const skipped=null.x;}return 0;})();',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+        const normalized = fn('export default ()=>{while(true){switch(1){case 1:{return 7;}default:{throw 8;}}const skipped=null.x;}return 0;};')
+        const loop = normalized.body.statements[0]
+        assert(loop[0] === 'loop')
+        assertEq(loop[1].body.statements.length, 2)
+        assertEq(loop[1].body.statements[0][0], 'define')
+        assertEq(loop[1].body.statements[1][0], 'loop')
+        assertStructurallySame(loop[1].body.exit, ['continue', loop[1].target, []])
+    },
+    switchResultsKeepSnapshotsAndSharedAliases: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let left=null;let right=null;while(i<3){i=i+1;switch(i){case 1:case 2:{const shared=[i];left=shared;right=shared;break;}default:{const shared=[i+10];left=shared;right=shared;break;}}}return [left,right,left===right];})();', [[13], [13], true]],
+            ['export default (()=>{let i=0;let read=()=>0;while(i<3){i=i+1;switch(i){case 2:{const snapshot=i;const value=[snapshot];read=()=>value;break;}default:{break;}}}return [read(),read()===read()];})();', [[2], true]],
+            ['export default (()=>{let i=0;let value=1;while(i<2){i=i+1;switch(i){case 1:{let value=7;value=value+3;const read=()=>3;read();break;}default:{const value=9;break;}}}return value;})();', 1],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    switchSourceCyclesKeepIdentityWithoutUnusedStateCaptures: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['export default (()=>{let i=0;let left=null;let right=null;while(i<3){i=i+1;const d=[i];switch(d){case [i]:{throw 9;}case d:case null.x:{left=d;right=d;break;}default:{throw 8;}}}return [left,right,left===right];})();', [[3], [3], true]],
+            ['export default (()=>{let i=0;let a=()=>null;let b=a;while(i<3){i=i+1;switch(i){case 1:{const d=[i];const f=()=>d;a=f;b=f;break;}case 2:{const snapshot=i;const f=()=>[snapshot];const value=f();a=()=>value;break;}default:{break;}}}return [a(),b(),a===b,a()===a(),b()===b()];})();', [[2], [1], false, true, true]],
+        ]
+        for (const [source, expected] of cases) {
+            let current = graph(source)
+            let previous = ''
+            let previousGraph = assertOk(analysis(current))
+            for (let round = 0; round < 3; round = round + 1) {
+                const text = assertOk(tryModuleStringify(current))
+                current = graph(text)
+                const normalized = assertOk(analysis(current))
+                assertStructurallySame(assertOk(toData(assertOk(memo(normalized)({ args: [] })))), { default: expected }, text)
+                if (round === 2) {
+                    assertEq(text, previous)
+                    assertStructurallySame(normalized, previousGraph)
+                }
+                previous = text
+                previousGraph = normalized
+            }
+        }
+    },
     functionExitsLeaveTheOwningBodyAndSkipFollowingWork: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

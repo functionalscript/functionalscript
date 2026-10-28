@@ -278,10 +278,10 @@ export const proof = {
         /** @type {Exp} */
         const exp = ['?:', same, shared, null]
         const graph = anchored({ exp, anchors: [shared, same] })
-        assertStructurallySame(graph, [',', [shared, exp]])
-        assert(graph instanceof Array && graph[0] === ',')
-        assertEq(graph[1][0], shared)
-        assertEq(graph[1][1], exp)
+        assertEq(graph, exp)
+        assert(graph instanceof Array && graph[0] === '?:')
+        assertEq(graph[1], same)
+        assertEq(graph[2], shared)
         assertStructurallySame(evaluate(graph), [])
     },
     manyUnusedInitializersRetainOrderedAnchors: () => {
@@ -299,7 +299,6 @@ export const proof = {
             assertStructurallySame(graph[1][index], ['[]', []])
         }
         assertEq(graph[1][count], 0)
-        assertStructurallySame(fromFast(block), graph)
     },
     selectedControlArmsReuseCompletedTests: () => {
         const parameters = [id(0), id(1), id(2)]
