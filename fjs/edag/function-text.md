@@ -124,9 +124,10 @@ self uses retain a named function around the loop.
 
 These general forms intentionally change code-only function text under the
 function-source exception. Their JavaScript and Rust loops use bounded stack
-for tail-only iterations. The source serializer reifies nonscalar invocation
-loops as recursion until the broader source grammar is admitted in H, retaining
-its existing source round-trip domain. Missing fixed arguments become
+for tail-only iterations. The source serializer retains its admitted scalar,
+plain and structured loop profiles; other invocation roots retain their
+recursive spelling or existing refusal. Each source profile has its declared
+graph-normalization and round-trip domain. Missing fixed arguments become
 `undefined`, and unused extra arguments retain their required evaluation before
 the transition. This extension deliberately changes the text of these newly
 eligible functions as well. Spread calls materialize their arguments before the
@@ -142,6 +143,14 @@ the condition, even when the condition reads a later capture first. Code-only
 text instead reads its external positional slots directly. These forms share
 loop preparation and preserve their respective source-round-trip and code-only
 contracts; they need not have identical text.
+
+Rest-free zero-input roots admitted by the plain-loop plan use a private
+unchanged slot and compute their normal result after iteration. This deliberately
+changes their code-only function text under the function-source exception.
+The first source parse can introduce the canonical scalar helper, changing the
+associated graph and therefore `String(f)` once. That normalized graph and its
+function text then stabilize; ordinary result values, arity, captures and
+required work retain their existing contracts.
 
 ## A function that names itself
 

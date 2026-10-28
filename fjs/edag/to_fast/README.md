@@ -171,9 +171,13 @@ helpers produced by plain source loops. Rest-free zero-input roots also retain
 their loop when no break targets that root. Shared preparation needs no result
 storage for these divergent or throwing paths and emits the unreachable return
 required by source grammar. Their first source parse introduces an aggregate
-helper; subsequent graph/text cycles stabilize. Normally completing zero-input
-roots keep their recursive fallback until independent result storage can meet
-that same normalization contract. Other canonical roots use the graph
+helper; subsequent graph/text cycles stabilize. The shared plain-loop plan also
+retains zero-input roots with one normal result and a conditional continuation
+in either arm. Common preparation puts the result after iteration and supplies
+a private unchanged slot, without changing the function's empty public
+signature. Its first source parse constructs the canonical scalar helper;
+later graph/text cycles stay exact. Other zero-input normal-result shapes
+retain their recursive fallback. Other canonical roots use the graph
 owner's existing transfer resolver. Synthesized invocation-read aliases become
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing

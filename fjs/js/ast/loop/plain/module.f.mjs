@@ -1,5 +1,5 @@
 /**
- * Plan a one-state loop that the admitted plain while grammar can express.
+ * Plan a zero- or one-state loop that the admitted plain while grammar can express.
  * Condition-only work retains its iteration lifetime; copied body and result
  * dependencies are restricted to established, identity-free projections.
  *
@@ -82,12 +82,17 @@ const withPrefix = (prefix, step) => {
  * @type {(loop: Loop) => PlainLoop | null}
  */
 export const plainLoopOf = loop => {
-    if (loop.parameters.length !== 1 || loop.results.length !== 1 || loop.body.statements.length === 0) { return null }
+    if (loop.parameters.length > 1 || loop.results.length !== 1 || loop.body.statements.length === 0) { return null }
     const statement = loop.body.statements[loop.body.statements.length - 1]
     const before = loop.body.statements.slice(0, -1)
     if (statement[0] !== 'if' || statement[1].length !== 0
         || !before.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
-    const [, , condition, step, otherwise] = statement
+    const [, , test, then, alternative] = statement
+    const reversed = loop.parameters.length === 0 && then.exit[0] === 'break'
+    const step = reversed ? alternative : then
+    const otherwise = reversed ? then : alternative
+    /** @type {Value} */
+    const condition = reversed ? ['!', test] : test
     const next = step.exit
     const done = otherwise.exit
     if (next[0] !== 'continue' || next[1] !== loop.target || done[0] !== 'break' || done[1] !== loop.target

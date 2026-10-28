@@ -1399,6 +1399,8 @@ export const proof = {
         // Code-only text lowers the direct zero-parameter tail call too.
         assertEq(assertOk(tryFunctionText(['=>', 0, [], ['()', ['self'], []]])),
             '()=>{L0:while(true){continue L0;}}')
+        assertEq(assertOk(tryFunctionText(['=>', 0, [], ['?:', false, ['()', ['self'], []], 7]])),
+            '()=>{let $0=undefined;while(false){$0=$0;}const $1=7;return $1;}')
     },
     operators: () => {
         /** @type {(b: Exp) => Exp} */

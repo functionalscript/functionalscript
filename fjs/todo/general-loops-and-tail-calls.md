@@ -214,9 +214,12 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       case fallthrough remains refused. Raw rest-free zero-input tail roots
       without normal loop completion now retain bounded-stack source output,
       empty arity and reached work. Their first source parse establishes a
-      stable graph/text normal form. Normally completing zero-input roots still
-      need result-normalization work in the output owner. Final integration
-      evidence and public contract reconciliation remain before H/I close.
+      stable graph/text normal form. Zero-input roots admitted by the shared
+      plain-loop plan now also compute their normal result after iteration,
+      with either conditional arm continuing. A private unchanged slot retains
+      empty public arity and the first-parse graph/text fixed point. Other
+      canonical invocation profiles retain their documented fallback. Final
+      integration evidence and public contract reconciliation remain before H/I close.
 - [ ] **I — Close.** Move final contracts to their README/JSDoc/spec owners,
       preserve decisions and inbound links, and delete completed task files.
       Documentation and obsolete-path removal accompany earlier steps too.

@@ -101,6 +101,15 @@ value run once after the loop. Closures can capture that snapshot without
 capturing mutable slots. Hidden nonlocal transfers retain the general control
 plan. The scalar path and both serializers keep their existing contracts.
 
+The same plain-loop plan admits an empty input signature, with the continuing
+arm on either side of its terminal condition. Preparation gives this loop a
+private unchanged slot initialized to `undefined`, without semantic parameter
+snapshots or read aliases. Its normal result runs once after iteration. Source
+renders the existing unchanged-slot assignment, so the first parse constructs
+the canonical scalar helper directly. Public function arity stays zero; graph
+and text stabilize from that first parse. Condition-only work and the existing
+projection-only dependency restriction retain their normal lifetimes.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the
