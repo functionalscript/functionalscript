@@ -182,5 +182,7 @@ Every README has a heading, so today's reader renders none of them.
   this extends.
 - [commonmark-constructs](../../ebnf/lib/markdown/todo/commonmark-constructs.md)
   — what the subset refuses or reads differently from GitHub.
+- [mermaid-diagrams](mermaid-diagrams.md) — drawing a README's Mermaid
+  fences, shown as source until then.
 - [source-and-doc-view](source-and-doc-view.md) — the sibling view for
   source files, over the same tokenizer a coloured fence uses.
