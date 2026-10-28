@@ -26,8 +26,8 @@ mise install --locked
 ```
 
 `.\dev.ps1` without arguments opens an interactive shell using the current
-PowerShell executable (PowerShell 7 or Windows PowerShell 5.1). Run `exit` to
-leave it. With arguments, it runs one command and returns that command's exit
+PowerShell executable (PowerShell 7 or Windows PowerShell 5.1). Its prompt starts
+with `FJS `, followed by the shell's usual prompt. Run `exit` to leave it. With arguments, it runs one command and returns that command's exit
 code. Both scripts are thin wrappers around `mise exec -- <command>`.
 
 ## Host prerequisites
