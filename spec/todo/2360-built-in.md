@@ -195,8 +195,10 @@ duplicate key replaces the value and keeps the first key's position. An
 element that is not an object fails, as JavaScript's TypeError does.
 
 **A body, and substitutions of it.** Unlike `Object.entries`, this one can
-be written in FunctionalScript — the reduce above, with that failure added —
-so by [DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
+be written in FunctionalScript — a reduce like the one above that, after the
+failure for a non-object element, reads the element's `[0]` and `[1]` rather
+than destructuring it, since an array pattern iterates and JavaScript's
+answer for `{ 0: 'a', 1: 1 }` is `{ a: 1 }` — so by [DESIGN.md §13](../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)
 the runtime's `static` section holds it, as it holds `Object.is`'s: the one
 source of what the built-in answers. A backend may answer the node natively
 to avoid the quadratic copy only as a substitution rule keyed on the node,
