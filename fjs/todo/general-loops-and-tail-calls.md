@@ -4,6 +4,13 @@
 **Status:** wip — A-G shared construction, tail calls and general bindings
 implemented; general source loops remain in H
 
+**Current increment:** retain conditional base-case result trees when one arm
+continues and every base leaf completes the same loop. Reuse the shared result
+value block in either conditional orientation, preserving selected-branch work,
+required prefixes, sharing, captures, failure order and exact graph/text cycles
+from the first source parse. Multiple continuing branches and general lazy
+prefixes remain outside this increment; H/I stay open.
+
 ### Goal
 
 Allow ordinary local rebinding and structured loops, and emit eligible tail
