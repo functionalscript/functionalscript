@@ -39,7 +39,7 @@ inputs requires a separate dependency audit.
 This repository also adds a separate `website` job on branch pushes, pull
 requests and merge-group entries. It builds the WASM demos, styled Rust API documentation
 and website using the committed mise lock, in that order after `npm ci`.
-The job has read-only GitHub permissions, waits for all test jobs, and always
+The job has read-only GitHub permissions, runs independently of test jobs, and always
 builds its assets outside the successful-check cache. It passes the checked-out SHA
 and source branch to both the Rustdoc header generator and the website generator
 through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` values.
@@ -68,7 +68,7 @@ use distinct job IDs; the built-in generator adds none. This keeps this
 repository's website build out of other projects' workflows.
 
 Optional `pushBranches` enables CI on pushes to those branches. This repository
-uses `['**']` to check every branch before preview uploads; generic `fjs ci`
+uses `['**']` to build previews on every branch push; generic `fjs ci`
 remains pull-request and merge-group only. A branch with a pull request may
 therefore receive both push and pull-request checks; only its push run uploads.
 

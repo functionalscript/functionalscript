@@ -41,14 +41,14 @@ disabling Workers Builds so the transition does not leave competing deployments.
 ### Build job
 
 The `website` job now runs on repository branch pushes, pull requests and
-merge-group entries. It stays separate from the platform matrix, waits for all
-test jobs, reuses workflow concurrency, and builds outside the successful-check
+merge-group entries. It runs independently of the platform matrix and test jobs,
+reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
 metadata variables.
 
 Every non-`main` repository branch push uploads a preview with Wrangler 4.74.0
-and `versions upload --preview-alias` after successful checks and builds.
+and `versions upload --preview-alias` after its own successful website build.
 Pull requests and merge-group entries never upload. No enable-switch variables
 are used. Production uploads are omitted from the workflow until debugging is
 complete and Workers Builds is disabled. The API token is scoped to the upload

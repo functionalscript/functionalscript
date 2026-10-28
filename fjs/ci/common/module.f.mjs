@@ -59,10 +59,9 @@ export const stepSchema = /** @type {const} */ ({
     'continue-on-error': or(option, true)
 })
 
-// `needs` is how one job waits for another. Platform checks stay independent;
-// this repository's website job waits for those checks before uploading.
-// GitHub creates a waiting job only when its prerequisites finish, so this
-// deliberately trades a later runner allocation for deployment ordering.
+// `needs` is how one job waits for another. The generated platform checks and
+// website preview build run independently; previews need only their own build
+// to succeed. The schema retains the field for consumers that need ordering.
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
 //

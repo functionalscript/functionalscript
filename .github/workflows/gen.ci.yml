@@ -1275,17 +1275,6 @@
       "permissions": {
         "contents": "read"
       },
-      "needs": [
-        "ubuntu-intel",
-        "ubuntu-arm",
-        "macos-intel",
-        "macos-arm",
-        "windows-intel",
-        "windows-arm",
-        "deno",
-        "bun",
-        "node26"
-      ],
       "steps": [
         {
           "uses": "actions/checkout@v7.0.1"

@@ -221,7 +221,7 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 ### GitHub Actions deployment
 
 The generated CI workflow now supports building and deploying in the separate
-`website` job. It waits for all test jobs, builds the WASM demos, styled Rust
+`website` job. It runs independently of test jobs and builds the WASM demos, styled Rust
 documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
 and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests and
@@ -230,7 +230,7 @@ repository can upload; fork pull requests receive no deployment credentials.
 
 The owner requested automatic preview uploads with Wrangler while production
 stays on Workers Builds. Every non-`main` repository branch push uses
-`wrangler versions upload --preview-alias` after successful checks and builds.
+`wrangler versions upload --preview-alias` after its own successful build.
 There is no production upload step in the workflow until debugging is complete
 and Workers Builds is disabled. No enable-switch variables are required.
 The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
@@ -247,7 +247,7 @@ Configure one repository secret in
 | --- | --- | --- |
 | Secret | `CLOUDFLARE_API_TOKEN` | Scoped token with Workers Scripts edit access for the existing Cloudflare account; add the route/zone permissions required by any configured routes. |
 
-The upload step receives the token only after the test jobs and build succeed.
+The upload step receives the token only after the website build succeeds.
 A missing token fails the upload instead of opening an interactive login.
 
 Branch aliases temporarily start with `actions-` so Actions uploads can be

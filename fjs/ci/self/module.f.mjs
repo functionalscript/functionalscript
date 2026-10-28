@@ -28,7 +28,7 @@ const buildMetadata = {
 /**
  * Website assets are built once, independently of the platform matrix. This
  * read-only job runs on the CI workflow's pull-request and merge-group events,
- * including forks, and branch pushes. It waits for the test jobs before building,
+ * including forks, and branch pushes. It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
  * and keeps deployment credentials confined to preview uploads.
  * Production uploads are omitted until cutover. Mise installs the committed lock,
@@ -39,7 +39,6 @@ export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read' },
-    needs: ['ubuntu-intel', 'ubuntu-arm', 'macos-intel', 'macos-arm', 'windows-intel', 'windows-arm', 'deno', 'bun', 'node26'],
     steps: [
         uses('actions/checkout'),
         miseInstall.step,

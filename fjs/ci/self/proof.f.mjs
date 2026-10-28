@@ -52,7 +52,7 @@ export const proof = {
             assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read' })
-        assertStructurallySame(websiteJob.needs, Object.keys(generated.jobs).filter(id => id !== 'website'))
+        assertEq(generated.jobs.website?.needs, undefined)
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
