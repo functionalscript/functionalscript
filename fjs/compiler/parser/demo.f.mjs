@@ -15,7 +15,10 @@
  * `update` declares `never` and returns through `pureOk`.
  *
  * **The listing is for inspection**, so it uses a neutral code box without
- * a copy button.
+ * a copy button. Under it, a link leads to [the sugar page](../sugar/demo.f.mjs),
+ * which draws the same tree as a graph beside the FAST it normalizes to:
+ * this page shows the parser's output, and that one what the next stage
+ * makes of it.
  *
  * @module
  *
@@ -42,6 +45,10 @@ export const demo = stageDemo({
 })(text => {
     const [kind, value] = _astOf(text)
     return kind === 'ok'
-        ? [caption('Abstract syntax tree, DataJS:'), ['pre', { [codeMarker]: '' }, ...render(value)]]
+        ? [
+            caption('Abstract syntax tree, DataJS:'),
+            ['pre', { [codeMarker]: '' }, ...render(value)],
+            ['p', 'Drawn as a graph, beside the FAST it normalizes to, on ', ['a', { href: '../sugar/' }, 'compiler/sugar'], '.'],
+        ]
         : [refusal(value)]
 })
