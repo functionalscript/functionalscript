@@ -141,7 +141,7 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` `const`; `●` sharing (a `const` used twice, a repeated expression)
    - `●` [Destructuring](./2450-destructuring.md)
    - `●` [Variables](../bindings/variables/README.md): `let` and assignment
-     ([`let`](./3220-let.md), "General bindings")
+     ([normalization](../bindings/variables/README.md#normalization))
    - `◌` [Shadowing](./3150-shadowing.md),
      [forward references](./3140-forward-references.md),
      [compound assignments](./3430-assignments.md)

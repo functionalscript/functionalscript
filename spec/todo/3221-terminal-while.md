@@ -153,6 +153,6 @@ approval to implement the concrete design.
 
 - [A block whose end is reachable](./3210-reachable-block-end.md) — the existing
   explicit-result guarantee this rule preserves.
-- [Let statement](./3220-let.md) — general loop and transfer semantics.
+- [Loops](../control-flow/loops/README.md) — implemented loop and transfer semantics.
 - [Compound assignments](./3430-assignments.md) — separate syntax work used by
   the monoid helper; it is not a prerequisite for the terminal-loop rule.

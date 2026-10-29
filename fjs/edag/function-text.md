@@ -94,9 +94,9 @@ returned values retain their existing semantic contracts.
 
 ## A loop
 
-An eligible scalar function recognized by [`edag/loop`](./loop/module.f.mjs),
-`r => COND ? self(NEXT) : r`, becomes an explicit normalized loop before
-JavaScript rendering. Common preparation chooses the private state slot and
+The [shared conversion](./to_fast/README.md#tail-call-eligibility) preserves
+the canonical scalar shape `r => COND ? self(NEXT) : r` as an explicit normalized
+loop before JavaScript rendering. Common preparation chooses the private state slot and
 immutable snapshots of the current iteration. The code-only spelling for a
 counter to ten is:
 
@@ -144,108 +144,23 @@ text instead reads its external positional slots directly. These forms share
 loop preparation and preserve their respective source-round-trip and code-only
 contracts; they need not have identical text.
 
-Rest-free zero-input roots admitted by the plain-loop plan use a private
-unchanged slot and compute their normal result after iteration. This deliberately
-changes their code-only function text under the function-source exception.
-The first source parse can introduce the canonical scalar helper, changing the
-associated graph and therefore `String(f)` once. That normalized graph and its
-function text then stabilize; ordinary result values, arity, captures and
-required work retain their existing contracts.
+The detailed [source loop profiles](./to_fast/source/loops/README.md) include
+zero-input and observed-rest roots, required base work, branching transitions,
+mixed normal/continuing decisions and explicit throws. Their physical scalar,
+packed or private unchanged slots belong to source preparation. Source spelling
+may introduce a scalar-helper boundary on the first parse, changing the graph
+and its function text once under the exception. The graph from that first
+source parse and its canonical text then stabilize exactly. The source profile
+does not change the default JavaScript/function-text/Rust layout of the original
+logical graph.
 
-The source profile also packs eligible rest-free multi-input tail loops into
-one private array slot, retaining the original public parameter list and fresh
-per-iteration input snapshots. Default code-only and Rust layouts for the
-original logical graph stay unchanged. Its first source parse can introduce
-the scalar helper, changing the associated graph and its reconstructed
-function text under the same exception; canonical graph/text cycles then
-stabilize.
-
-Observed-rest roots admitted by the same plain plan use their existing fresh
-rest transition and scalar or packed source preparation. Public fixed arity
-and rest syntax remain intact. Their first source parse can introduce the
-scalar helper under the same associated-graph/function-text exception; later
-graph and text cycles stay exact. Original logical graph function text and
-default JavaScript/Rust layouts retain their existing contracts.
-
-Base-first rest-only source roots use the shared plain-loop orientation helper
-before preparation. This adds the same permitted first-parse helper boundary;
-original logical function text and prior source profiles retain their layouts.
-
-Rest-free zero-input and fixed multi-input roots, and observed-rest roots with
-required base-case definitions, use a source-only result-block normalization
-before preparation. The block has no invocation boundary and runs once after the final
-test with immutable input snapshots. Rest-only roots also compose this wrapping
-with single-input orientation when their base case comes first. For rest-only
-roots, the first source emission exposes leading total post-loop aliases and
-constructors in their enclosing result region. Its first parse establishes the same permitted scalar
-helper boundary; later graph/text
-cycles stay exact. Zero-input roots reuse the private unchanged slot and keep
-empty public arity without adding semantic input snapshots. Both conditional
-orientations evaluate the required result block once after the final test.
-Original logical function text, default JavaScript/Rust layouts and other source
-profiles retain their contracts.
-
-Terminal conditional base-result trees use that same result block when every
-leaf completes the same loop with one value. Required prefixes keep their
-lexical branches, and each base condition and selected result runs after the
-final iteration test. Skipped branches remain unevaluated; sharing, captures
-and failures keep their reached order. Either outer arm may continue. The
-first parsed graph and subsequent canonical text retain the same exact cycle
-contract; general lazy prefixes retain their existing admission.
-
-Continuing decision trees use a source-only shared plan when every leaf
-continues the exact loop with its complete next-input vector. The selected
-value block evaluates branch work and arguments once before simultaneous state
-updates. Immutable iteration snapshots preserve captures and fresh rest; a
-zero-input transition yields `undefined` after its required work. Both outer
-orientations compose with normal or conditional base results. The first source
-parse establishes the same permitted helper boundary, then graph/text cycles
-remain exact. Original function text, default JavaScript/Rust layouts and prior
-ordinary single-input source spellings retain their contracts.
-
-Zero-input, fixed multi-input and observed-rest roots with terminal decisions
-that include completion and continuation use a shared `while(true)` source
-plan. Each selected leaf either computes one normal result or establishes the
-complete next-input vector. State-bearing continuations update the private
-slot; empty continuations leave it unchanged. Multi-input state is
-packed once and read through immutable body snapshots; completion writes its
-scalar result into the same slot immediately before leaving the loop.
-Rest-only state uses the existing scalar form. Required prefixes and their
-shared allocations remain inside the iteration, retaining captures, rest
-identity and reached failures.
-This also covers one terminal condition with required work shared by its test,
-continued arguments or result: each allocation or call runs once before the
-test, and its final value remains available at completion. Earlier plain and
-branching source spellings retain their contracts.
-Zero-input roots use one private `undefined`-initialized result slot, with no
-semantic parameters or continued argument values. Reached unused arguments
-finish before each empty continuation; selected completion writes its result
-to the slot before leaving. Public arity and own-function identity survive,
-and prior plain zero-input loops keep their unchanged-slot spelling.
-The first source parse establishes the permitted helper boundary, then graph
-and text stabilize exactly. Original logical function text, default JavaScript/
-Rust layouts and prior source profiles remain unchanged; general lazy regions
-retain their existing admission.
-
-Fixed multi-input and observed-rest roots with only continuation leaves use
-the same source plan. Every leaf supplies the complete next-input vector to
-the exact loop; selected required work finishes before its packed or scalar
-state update. No normal completion is introduced. Immutable iteration values
-retain allocations, captures, own-function identity and fresh rest, including
-when reached work fails. Earlier zero-input and ordinary scalar divergent
-source spellings, default layouts and logical graph contracts stay unchanged.
-Direct and conditional continuations keep exact first-parse graph/text cycles;
-general lazy regions retain their admission.
-
-Terminal decisions may also select an explicit throw after their required
-work. The payload evaluates once in its selected iteration before leaving the
-function, without writing loop state or a normal result. Nonempty inputs may
-mix throwing and continuing paths; empty inputs enter this plan only when
-normal completion is also possible. Existing zero-input throw/continue and
-ordinary scalar layouts remain unchanged. Mixed return/throw/continue paths
-retain evaluation order, held iteration captures, fresh rest and exact
-first-parse graph/text cycles; logical function text and default target layouts
-keep their existing contracts.
+Source reconstruction preserves public fixed arity, required argument and
+payload evaluation, fresh rest identity and held creating-iteration captures.
+A selected throw leaves without a normal-result or state write. Existing
+zero-input throw/continue and divergent layouts keep their earlier plans.
+Other supplied canonical graph profiles retain their recursive source fallback
+or explicit refusal; the [remaining source-profile work](./to_fast/source/loops/todo/general-source-profiles.md)
+is separate from code-only function text's wider domain.
 
 ## A function that names itself
 

@@ -5,10 +5,12 @@
 **`export let` is not FunctionalScript.** `export let a = 1;` is valid JavaScript, and
 `fjs compile` refuses it by design: the demo below shows what it prints.
 
-An exported `let` is a binding the module could change after an importer has read it. FunctionalScript has no such binding: `let` only opens a loop, over one variable ([let](../../todo/3220-let.md)), so an export is a `const`.
+FunctionalScript admits local and module-level [variables](../../bindings/variables/README.md),
+but exports expose immutable values rather than live mutable bindings. Export
+a `const` snapshot of the selected value; `export let` remains refused.
 
 The row `mod.export-let` of [refused constructs](../../todo/refused-constructs.md)
-registers the refusal, and [let](../../todo/3220-let.md) gives its reason.
+registers the refusal; [exports](../exports/README.md) describes the admitted forms.
 
 ## Examples
 
