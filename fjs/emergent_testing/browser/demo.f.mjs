@@ -12,9 +12,9 @@
  * has no tests at all, so the demo also shows what a real page does with a
  * source that reported nothing: it has no group, and stays listed as such.
  *
- * **It is not a proof.** The example lives under `demo`, and proofs are
- * discovered by the `proof` export and nothing else, so `fjs t`, CI and the Run
- * button on every page never see it.
+ * **The example is not discovered as a proof tree.** Only the `proof` export
+ * is discovered. It checks the deliberately wrong assertion as an expected
+ * throw, so `fjs t`, CI and the Run button on every page stay green.
  *
  * **It shares the report's markup and none of the runner's hooks.** The runner
  * looks up `data-test-results`, `data-test-counts`, `data-test-summary` and
