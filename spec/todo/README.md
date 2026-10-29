@@ -167,7 +167,7 @@ information — see [serialization](../design/serialization.md) and
    follow-ups.
 2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
    and parameter reassignment, module variables and write-based capture rules.
-   Definite assignment and compound assignments remain separate proposals.
+   Definite assignment remains a separate proposal.
 3. [x] [Loops](../control-flow/loops/README.md) — zero or multiple state values,
    conditional, sequential and nested `while`, with `break`, `continue`,
    owning-function returns and throws. `for` remains [3270](./3270-for.md).
