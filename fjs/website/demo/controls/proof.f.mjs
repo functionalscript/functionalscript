@@ -1,4 +1,4 @@
-import { option, selectField, button } from './module.f.mjs'
+import { option, selectField, button } from './module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.js'
 
