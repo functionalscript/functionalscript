@@ -55,7 +55,7 @@ documented in [`../README.md`](../README.md):
 ### Settled: exact checks stay bounded
 
 Exact numeric questions are answered from the lexeme in the length of the
-token, by [`../number/module.f.mjs`](../number/module.f.mjs): no coefficient
+token, by [`../number/module.f.js`](../number/module.f.js): no coefficient
 bigint, no exponent conversion, and no `10 ** exponent`. `1e-99999999999999999999`
 is classified from a sign and a length.
 
