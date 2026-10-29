@@ -374,6 +374,15 @@ does — and a module may find it reads better as an expression once the
 is in the language; the conversion adds the `return` and changes nothing
 else.
 
+A final literal `while (true)` with no source break targeting that loop needs
+no trailing return: it is already a
+[terminating statement](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop).
+Returning paths inside it still return explicitly, and other paths throw or
+continue indefinitely. Breaks targeting an inner loop or switch do not change
+that rule; a break targeting the final loop itself does, even when unreachable.
+Ordinary function-body ends that can be reached still require an explicit
+return as above.
+
 ## 8. `BigInt`
 
 The `BigInt` global is not admitted, and `BigInt(n)` is refused

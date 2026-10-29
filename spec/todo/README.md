@@ -171,8 +171,8 @@ information — see [serialization](../design/serialization.md) and
    the record, `for` in [3270](./3270-for.md)
 3. [x] `while` — with `let` above; `while` over several variables, and
    `break` and `continue` in its block, are open there.
-   A final literal-true loop with no break targeting it is proposed as a
-   [terminating statement](./3221-terminal-while.md), preserving the refusal
+   A final literal-true loop with no break targeting it is implemented as a
+   [terminating statement](../control-flow/loops/README.md#a-terminal-unconditional-loop), preserving the refusal
    of a function that can silently fall through its closing brace.
 4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
    guard's block and `default` last, is in the language

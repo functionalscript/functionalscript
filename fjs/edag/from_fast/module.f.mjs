@@ -25,7 +25,7 @@ import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
-import { bind, call, done, run } from '../../js/ast/task/module.f.mjs'
+import { bind, call, done, run } from '../../js/ast/task/module.f.js'
 import { step } from '../../common/monoid/module.f.mjs'
 import { maxLength } from '../../types/function/length/module.f.mjs'
 import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'

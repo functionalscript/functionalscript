@@ -8,7 +8,7 @@
  *
  * @module
  * @import { Result } from '../../types/result/types.ts'
- * @import { BindingEvent, BindingId, BindingScope } from '../../js/ast/types.ts'
+ * @import { BindingEvent, BindingId, BindingScope, LoopTarget } from '../../js/ast/types.ts'
  * @import { ExpansionPlan, SourceValue, SourceFunction, SourceParameter, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
@@ -1032,9 +1032,28 @@ const functionScope = list => {
         : { ...bound, rest: plan, late: [...bound.late, { plan, init: null, rest: true }] })
 }
 
-/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | _LoopBodyFrame | null) => _State} */
-const enterLoop = (stack, scope, loop, body) =>
-    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+/** Source-only transfer scan: nested functions own their transfers; all lexical branches remain visible.
+ * @type {(root: SourceBlock, target: LoopTarget) => boolean}
+ */
+const hasTargetBreak = (root, target) => {
+    /** @type {readonly SourceBlock[]} */
+    let pending = [root]
+    while (pending.length !== 0) {
+        const [block, ...rest] = pending
+        pending = rest
+        for (const statement of block.statements) {
+            if (statement[0] === 'break' && statement[1] === target) { return true }
+            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
+            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
+        }
+    }
+    return false
+}
+
+/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
+const enterLoop = (stack, scope, loop, body, terminal = false) =>
+    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, terminal }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
 
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
@@ -1055,7 +1074,7 @@ const bodyRound = (stack, scope, frame) => {
     if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
     // A loop's condition and block are source regions. Their complete
     // evidence reaches sugar before mutable loop inputs are selected.
-    if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+    if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1543,6 +1562,14 @@ const returned = (stack, scope, frame, value) => {
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
         const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body })
+        if (frame.terminal) {
+            const syntax = frame.loop.condition
+            if (syntax[0] !== 'primitive' || syntax[1] !== true || hasTargetBreak(loop.body, loop.target)) {
+                return [stack, outer, error(foldError('terminal while must be literal true with no break targeting it')(frame.loop.start))]
+            }
+            assert(frame.body !== null && !('block' in frame.body), 'a terminal loop belongs to a function block')
+            return closed(stack, outer, { statements: toArray(frame.body.done), exit: ['terminal-loop', loop] })
+        }
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
         if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [['while', loop]])) }
         return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })

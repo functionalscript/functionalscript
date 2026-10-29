@@ -5,7 +5,11 @@
 **`{}` is not FunctionalScript.** `() => {}` is valid JavaScript, and
 `fjs compile` refuses it by design: the demo below shows what it prints.
 
-A JavaScript function whose block ends without `return` answers `undefined`, silently. FunctionalScript requires every block to end in `return`, `throw`, or a `switch` with a `default`, so what a function answers is always written ([functions](../README.md)).
+A JavaScript function whose block can fall through its closing brace answers
+`undefined`, silently. FunctionalScript requires an explicit result or an end
+that cannot be reached by normal completion: `return`, `throw`, a terminating
+`switch`, or a [terminal unconditional loop](../../control-flow/loops/README.md#a-terminal-unconditional-loop).
+What a function answers is still explicit ([functions](../README.md)).
 
 The row `st.body-end` of [refused constructs](../../todo/refused-constructs.md)
 registers the refusal, and [functions](../README.md) gives its reason.

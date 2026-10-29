@@ -84,6 +84,20 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
+    finalWhileCandidateGrammar: () => {
+        for (const source of [
+            'export default ()=>{while(true){}};',
+            'export default ()=>{while(false){}};',
+            'export default ()=>{let n=0;while(false){}while(true){return n;}};',
+            'export default n=>{switch(n){case 1:{return 1;}}while(true){return 2;}};',
+            'export default n=>{if(n){while(true){return 1;}}while(true){return 2;}};',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const source of [
+            'export default ()=>{};',
+            'export default ()=>{const n=1;};',
+            'export default ()=>{while(true){}const n=1;};',
+        ]) { assertEq(read(source)[0], 'error') }
+    },
     loopSwitchesRetainBracesAndOrderedLabels: () => {
         for (const source of [
             'export default n=>{while(n){switch(n){case 1:case 2:{break;}case 3:{continue;}default:{return n;}}n=n-1;}return 0;};',

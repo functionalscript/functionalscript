@@ -7,7 +7,7 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Context, Environment, Established, Normalized, NormalizedStatement, ReferenceTask, Results, Work } from './private.ts'
  */
@@ -321,7 +321,7 @@ const caseCondition = (discriminant, labels, value) => {
     return tests.slice(1).reduce((left, right) => logicalValue('||', left, right), first)
 }
 
-/** Source terminal branches become result regions, never generated calls. @type {(exit: SourceExit, environment: Environment, context: Context) => Block} */
+/** Source terminal branches become result regions, never generated calls. @type {(exit: Exclude<SourceExit, readonly ['terminal-loop', SourceLoop]>, environment: Environment, context: Context) => Block} */
 const normalizedExit = (exit, environment, context) => {
     const value = normalizedValue(environment, context)
     if (exit[0] === 'throw') { return { statements: [], exit: ['throw', value(exit[1])] } }
@@ -369,6 +369,48 @@ const normalizedSwitch = (source, environment, context) => {
         normal: alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target)),
         hasLoopExit: alternatives.some(made => made.hasLoopExit),
         hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
+    }
+}
+
+/**
+ * Ordinary and terminal loops share state and transfer normalization. Admission
+ * has proved a terminal loop's literal condition and absence of an owning
+ * break, so it has no normal results or condition-false continuation.
+ * @type {(loop: SourceLoop, environment: Environment, context: Context, terminal: boolean) => Normalized}
+ */
+const normalizedLoop = (loop, environment, context, terminal) => {
+    const events = eventFacts(loop.events)
+    const sources = loopSources(events.references, environment, context)
+    const parameters = sources.map(source => binding(source.index))
+    const results = terminal ? [] : sources.map(source => binding(source.index))
+    const scope = /** @type {Environment} */ ([...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
+    /** @type {NonNullable<Context['loop']>} */
+    const transfer = { target: loop.target, sources }
+    const step = normalizedBlock(loop.body, scope, { ...context, loop: transfer, breakRegion: transfer }, sources)
+    const condition = normalizedValue(scope, context)(loop.condition)
+    /** @type {Block} */
+    const continuing = step.block.exit[0] === 'yield'
+        ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
+        : step.block
+    /** @type {Block} */
+    const body = terminal || condition === true && step.hasLoopExit ? continuing : {
+        statements: [['if', [], condition,
+            continuing,
+            { statements: [], exit: ['break', loop.target, parameters.map(reference)] },
+        ]],
+        exit: ['yield', []],
+    }
+    return {
+        block: {
+            statements: [['loop', { target: loop.target, parameters, initial: sources.map(source => lookup(environment, source)), results, body }]],
+            // As for a normalized exhaustive switch, this required block exit
+            // guards an impossible fallthrough; it is no returned value.
+            exit: terminal ? ['throw', 'a terminal loop completed normally'] : ['yield', []],
+        },
+        environment: terminal ? environment : [...environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
+        normal: !terminal,
+        hasLoopExit: step.hasFunctionExit,
+        hasFunctionExit: step.hasFunctionExit,
     }
 }
 
@@ -460,35 +502,21 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             inner = made.environment
             continue
         }
-        const loop = statement[1]
-        const events = eventFacts(loop.events)
-        const sources = loopSources(events.references, inner, context)
-        const parameters = sources.map(source => binding(source.index))
-        const results = sources.map(source => binding(source.index))
-        const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
-        /** @type {NonNullable<Context['loop']>} */
-        const transfer = { target: loop.target, sources }
-        const step = normalizedBlock(loop.body, scope, { ...context, loop: transfer, breakRegion: transfer }, sources)
-        hasLoopExit = hasLoopExit || step.hasFunctionExit
-        hasFunctionExit = hasFunctionExit || step.hasFunctionExit
-        const condition = normalizedValue(scope, context)(loop.condition)
-        /** @type {Block} */
-        const continuing = step.block.exit[0] === 'yield'
-            ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
-            : step.block
-        statements = [...statements, ['loop', {
-            target: loop.target, parameters, initial: sources.map(source => lookup(inner, source)), results,
-            body: condition === true && step.hasLoopExit ? continuing : {
-                statements: [['if', [], condition,
-                    continuing,
-                    { statements: [], exit: ['break', loop.target, parameters.map(reference)] },
-                ]],
-                exit: ['yield', []],
-            },
-        }]]
-        // Read-only state crosses the loop but introduces no source write at a
-        // surrounding value/IIFE boundary. Its established value stays current.
-        inner = [...inner, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])]
+        const made = normalizedLoop(statement[1], inner, context, false)
+        statements = [...statements, ...made.block.statements]
+        hasLoopExit = hasLoopExit || made.hasLoopExit
+        hasFunctionExit = hasFunctionExit || made.hasFunctionExit
+        inner = made.environment
+    }
+    if (source.exit[0] === 'terminal-loop') {
+        const terminal = normalizedLoop(source.exit[1], inner, context, true)
+        return {
+            block: pruneAliases({ statements: [...statements, ...terminal.block.statements], exit: terminal.block.exit }, []),
+            environment: inner,
+            normal: false,
+            hasLoopExit: hasLoopExit || terminal.hasLoopExit,
+            hasFunctionExit: hasFunctionExit || terminal.hasFunctionExit,
+        }
     }
     const terminal = normalizedExit(source.exit, inner, context)
     return { block: pruneAliases({ statements: [...statements, ...terminal.statements], exit: terminal.exit }, retained.map(id => lookup(inner, id))), environment: inner, normal: terminal.exit[0] === 'yield', hasLoopExit, hasFunctionExit }

@@ -469,14 +469,28 @@ export type ParenGroupOperand = readonly [number, GroupOperand]
 export type End = Option<readonly [number]>
 
 /**
- * `{`, the body's statements, its {@link Terminator}, and `}`.
+ * `{`, the {@link BlockContents} ending in a terminator or candidate while, and `}`.
  *
  * A statement is a `const`, {@link ConstStatement}, the module's own rule
  * — a body binds names the way a module does, and which scope a name lands
  * in is the fold's answer, not the grammar's — or a guard, `if`, `(`, the
  * condition, `)` and a block, this same rule.
  */
-export type Block = readonly [number, RepeatFrom<0, Statement>, Terminator, number]
+export type Block = readonly [number, BlockContents, number]
+
+/** Non-loop body statements before a terminal or candidate terminal loop. */
+export type SimpleStatement = () => readonly ['const', {
+    readonly const: ConstStatement
+    readonly if: readonly [number, number, Value, number, Block]
+    readonly let: LetStatement
+    readonly name: BodyNameStatement
+}]
+
+/** Only a final while may omit the body's ordinary terminator. */
+export type BlockContents = () => readonly ['const', readonly [
+    RepeatFrom<0, SimpleStatement>,
+    { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>] },
+]]
 
 /** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a `let`, a loop, `while` over a {@link LoopBlock}, or what begins with a name, an assignment or a call statement, {@link BodyNameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
@@ -593,7 +607,7 @@ export type CaseTail = () => readonly ['const', {
 export type AfterCase = () => readonly ['const', {
     readonly case: readonly [number, Value, number, CaseTail]
     readonly default: readonly [number, number, Block, number]
-    readonly rest: readonly [number, RepeatFrom<0, Statement>, Terminator]
+    readonly rest: readonly [number, BlockContents]
 }]
 
 /**

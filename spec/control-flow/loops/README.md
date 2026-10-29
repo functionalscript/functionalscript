@@ -162,6 +162,45 @@ admitted: `while (false) {}` finishes immediately; `while (true) {}` does not
 finish. A source function called inside a body keeps its own returns and may
 contain its own loops.
 
+## A terminal unconditional loop
+
+A final `while (true)` can end a function body, including an existing
+terminating guard or case block, without a following return or throw when no
+source `break` targets that loop:
+
+```js
+export default n => {
+    let count = n;
+    while (true) {
+        if (count === 0) { return count; }
+        count = count - 1;
+    }
+};
+```
+
+The condition must be the boolean literal `true`, with parentheses allowed.
+No constant folding or truthiness inference is used: `1`, `!false`, and a
+reference to a constant whose value is true do not qualify. An ordinary loop
+with a following return keeps its existing rules.
+
+Only a break to this loop disqualifies it. Breaks in an inner loop or switch
+target that inner construct and remain allowed. A continue cannot complete
+the loop normally, and returns retain their owning function. Nested functions
+own their own control flow. All source breaks are considered, including an
+unreachable `if (false) { break; }` and a break after a return or throw.
+
+Such a loop has no normal completion: an execution may return explicitly,
+throw, or continue indefinitely. It cannot silently fall through and return
+`undefined`. All declaration, reference and capture checks still apply to
+unreachable source text. Module loops do not replace the module's required
+exports or terminal throw.
+
+Source resolution retains the loop's target identity and verifies the absence
+of an owning break before desugaring. Normalization uses the existing loop
+operations with no normal result or false-condition exit. Any internal
+unreachable-completion guard is an invariant check, not an implicit function
+result or a reachable post-loop continuation; no new VM operation is needed.
+
 ## Bindings and captures
 
 The ordinary [variable rules](../../bindings/variables/README.md) apply.

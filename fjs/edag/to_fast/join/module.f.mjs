@@ -12,7 +12,7 @@
 
 import { operatorOperands, mapOperator } from '../../../js/ast/module.f.mjs'
 import { exitValues, freeBindings } from '../../../js/ast/control/module.f.mjs'
-import { bind, call, done, run } from '../../../js/ast/task/module.f.mjs'
+import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.mjs'
 import { demandsInOrder } from '../../demand/module.f.mjs'
 

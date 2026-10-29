@@ -32,6 +32,12 @@ pattern, `({ a }, [b]) => [a, b]`, as a `const` does
 (below); the rest parameter takes neither. A newline before `=>` is
 refused.
 
+A block may also end in a literal `while (true)` with no source break
+targeting that loop ([terminal unconditional loops](../control-flow/loops/README.md#a-terminal-unconditional-loop)).
+Returning paths still return explicitly; other paths throw or continue
+indefinitely, so the function cannot silently fall through and answer
+`undefined`.
+
 ## Pages
 
 - [Parameters](./parameters/README.md)

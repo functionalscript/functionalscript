@@ -101,6 +101,8 @@ export type SourceExit =
     | readonly ['yield', SourceValue]
     | readonly ['return', FunctionTarget, SourceValue]
     | readonly ['throw', SourceValue]
+    /** Admitted literal-true loop with no source break to its own target. */
+    | readonly ['terminal-loop', SourceLoop]
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['switch', SourceValue, readonly SourceCase[], SourceBlock]
 

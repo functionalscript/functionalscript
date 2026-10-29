@@ -8,7 +8,7 @@
  * @import { Task } from '../../task/types.ts'
  */
 
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.js'
 
 /**
  * Fold required-definition terminal decision trees without using the host stack.
