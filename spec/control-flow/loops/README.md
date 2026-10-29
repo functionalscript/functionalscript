@@ -334,6 +334,13 @@ The general loop and binding extension was approved by `sergey-shandar` in
 The [variables approval record](../../bindings/variables/README.md#design-approval)
 also preserves the approval of the earlier single-variable loop subset.
 
+Classic `for` desugaring was explicitly requested by `sergey-shandar` in the
+[implementation session](https://chatgpt.com/local/01a1890d-59f3-7124-b8e8-a763dc98c003).
+The [authorization and scope record](../../todo/3270-for.md#classic-for-authorization-and-scope)
+quotes that request and lists the implemented header variants. No separate
+formal approval comment is recorded beyond that request. The general-loop
+approval above covers `while` and bindings, not classic `for`.
+
 ## Examples
 
 The compiler demo offers the programs `loops` in

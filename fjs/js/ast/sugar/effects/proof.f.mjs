@@ -12,7 +12,7 @@ export const proof = {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const body = /** @type {SourceBlock} */ ({ statements: [], exit: ['yield', undefined] })
         const step = /** @type {SourceBlock} */ ({ statements: [['compound-write', id, '+', 1]], exit: ['yield', undefined] })
-        const loop = { target, events: [], condition: true, body, step }
+        const loop = /** @type {const} */ ({ target, events: [], condition: true, body, step })
         for (const root of /** @type {readonly SourceBlock[]} */ ([
             { statements: [['while', loop]], exit: ['yield', undefined] },
             { statements: [], exit: ['terminal-loop', loop] },
