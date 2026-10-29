@@ -21,50 +21,31 @@ return patternsValidate(u.object, objectSetValidate(rules), value)
 ```
 
 A function or symbol therefore reaches object validation, and passes wherever
-the object pattern happens to accept it — which is not only the vacuous case,
-because `objectSetValidate` reads a declared property as `value[k]` and so sees
-a function's `length` and `name` and a symbol's `description`.
+the object pattern accepts a value with no members of its own.
 
-Measured at `1d25da6e`:
+Measured at `11e9e10`, against `f = (a, b) => 1` and against a symbol (the two
+agree on every row; `parse` agrees with `validate` on every row):
 
-Against `f = (a, b) => 1`:
+| schema | `validate` | `data.validate` |
+| --- | --- | --- |
+| `unknown` | ok | ok |
+| `or(number, unknown)` | ok | ok |
+| `{}` | error | **ok** |
+| `record(number)` | error | **ok** |
+| `or(number, {})` | error | **ok** |
+| `or(option, {}, undefined)` | error | **ok** |
+| `{ length: number }`, `{ name: string }`, `{ description: string }` | error | error |
+| `{ a: number }`, `{ length: string }` | error | error |
+| `array(number)` | error | error |
 
-| schema | `validate` | `data.validate` | `toData` kinds |
-| --- | --- | --- | --- |
-| `unknown` | ok | ok | `unit,number,string,bigint,array,object` |
-| `or(number, unknown)` | ok | ok | `unit,number,string,bigint,array,object` |
-| `{}` | error | **ok** | `object` |
-| `record(number)` | error | **ok** | `object` |
-| `or(number, {})` | error | **ok** | `number,object` |
-| `or(option, {}, undefined)` | error | **ok** | `unit,object` |
-| `{ length: number }` | error | **ok** | `object` |
-| `{ name: string }` | error | **ok** | `object` |
-| `{ length: number, name: string }` | error | **ok** | `object` |
-| `{ a: number }` | error | error | `object` |
-| `{ length: string }` | error | error | `object` |
-| `array(number)` | error | error | `array` |
-
-A symbol behaves the same way, through its own intrinsics:
-`{ description: string }` diverges, `{ a: number }` does not.
-
-Two things this shows that the one-line description does not.
-
-**The divergence is not confined to vacuous patterns**, though an earlier draft
-of this issue said it was. `objectSetValidate` reads each *declared* property as
-`value[k]`, which does not require an object and does not care about
-enumerability — so a required property diverges whenever the no-kind value
-happens to carry one of that type. A function has `length` (number) and `name`
-(string); a symbol has `description` (string). `Object.entries` is empty for
-both, so the `rest` check never objects either.
-
-The rule is therefore: **`data.validate` accepts a no-kind value for an object
-pattern whenever every declared property reads to a conforming value and the
-rest check passes vacuously** — which covers `{}`, `record(...)`, and any struct
-whose declared properties the intrinsics happen to satisfy. `{ a: number }`
-rejects only because a function has no `a`, and `{ length: string }` only
-because `f.length` is a number. That is a much wider set than "the empty
-struct", and it means a real schema can hit this: `{ name: string }` is an
-ordinary shape to write.
+**The divergence is confined to patterns that declare no member.** An earlier
+draft of this issue, measured at `1d25da6e`, found it wider: `objectSetValidate`
+then read a declared property as `value[k]`, so a function's `length` and
+`name` and a symbol's `description` satisfied `{ length: number }`,
+`{ name: string }` and `{ description: string }`. It now reads through
+`entry`, which does not see those intrinsics, so every struct with a required
+member rejects a no-kind value in all three readers. What is left is `{}`,
+`record(...)`, and the unions that contain one.
 
 **And it is not simply "`data` is too permissive".** For `unknown` the readers
 *agree*, and they agree **because** of the fall-through: the thunk reader
@@ -84,8 +65,9 @@ so agreeing on acceptance is the contract, not an extra.
 ### Proposal
 
 **The fix depends on a decision this issue does not own.** What an exported
-`unknown` means is unsettled — the module and its README promise
-DataJS-compatible values, `Ts<>` excludes functions and symbols, both thunk readers have
+`unknown` means is unsettled — the constructor's doc comment and the guide's
+[primitives](../guide/schemas/primitives/README.md) page promise any DataJS
+value, `Ts<>` excludes functions and symbols, both thunk readers have
 `unknown: () => ok`, and the printer emits TypeScript's unrestricted `unknown`.
 [rtti-type-system](../../../todo/rtti-type-system.md) records that
 disagreement and gates stage 11 on resolving it. Which repair is correct here
@@ -130,17 +112,16 @@ is an investigation, not a plan.
       [identity-aware-parse](identity-aware-parse.md) needs.
 - [ ] Whatever lands, make the three readers agree, and cover functions and
       symbols in tests against `unknown`, `{}`, `record(...)`,
-      `or(number, {})`, `or(option, {}, undefined)`, the required-property cases the intrinsics
-      satisfy (`{ length: number }`, `{ name: string }`,
-      `{ description: string }`), their near misses (`{ a: number }`,
-      `{ length: string }`), and — if descent is adopted — nested and cyclic
-      inputs.
+      `or(number, {})`, `or(option, {}, undefined)`, the required-property
+      cases that used to diverge through the intrinsics (`{ length: number }`,
+      `{ name: string }`, `{ description: string }`), and — if descent is
+      adopted — nested and cyclic inputs.
 - [ ] Check `toData`, `subset` and the other `data` entry points for the same
       "all kinds means all values" assumption.
 - [ ] A future data-driven `parse` must reject a no-kind value exactly where
       `parse` does. Note that aligning *acceptance* is not sufficient for
       `parse`: `Data` canonicalizes branch order away, so
-      `parse(or({ a: number }, { b: number }))({ a: 1, b: 2 })` is `{ a: 1 }`
+      `parse(or(open({ a: number }), open({ b: number })))({ a: 1, b: 2 })` is `{ a: 1 }`
       while the reversed union gives `{ b: 2 }` and the two `Data` values
       compare `equal`.
 

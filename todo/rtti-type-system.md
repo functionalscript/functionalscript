@@ -645,7 +645,7 @@ it as scoped to the object shapes TypeScript can name.
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
-| Documentation | [the RTTI guide](../fjs/rtti/guide/README.md) | done — one page per concept (schemas, readers, outputs, in the project), each with a demo and a proof |
+| Documentation | [the RTTI guide](../fjs/rtti/guide/README.md) | one page per concept across schemas, readers, outputs and the project; most pages have a demo and a proof, `readers/assumptions` has none by design, and function types and excluded string values are planned |
 
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
