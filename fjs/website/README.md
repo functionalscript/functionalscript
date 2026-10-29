@@ -218,6 +218,79 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 ## The build command
 
+### GitHub Actions deployment
+
+The generated `Website` workflow (`.github/workflows/gen.website.yml`) builds
+the WASM demos, styled Rust documentation and website in its own `website` job
+with the committed mise lock. Pull requests, including drafts and forks, build
+the website; same-repository PRs upload previews. Fork PRs build without uploading.
+Pushes to `main` deploy production. Other branches need an open PR (a draft is
+enough) for a preview.
+
+The original CI workflow keeps all nine test jobs on PRs and merge-group
+entries, using its existing cache. It has no deployment gates or push trigger.
+Website uploads have their own concurrency and do not affect test jobs. The
+website workflow does not run in the merge queue; the website check is not a
+required queue check. Wrangler is pinned to **4.74.0**, and builds keep the
+existing `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` metadata inputs.
+
+Cloudflare Workers Builds is disconnected. Every same-repository pull-request run uses
+`wrangler versions upload --preview-alias` after its own successful build.
+The website job uses `wrangler deploy` only on pushes to `main`, after changes
+pass review and required checks, then merge through the queue. An active main upload
+is not cancelled by a newer push. No enable-switch variables are required.
+The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
+retains existing Worker variables, and Wrangler version uploads retain existing
+secrets. Actions does not send empty OAuth overrides or require copies of the
+OAuth settings in GitHub. The legacy Workers Builds helper keeps its existing
+explicit bindings during the transition. Verify inherited GitHub sign-in on
+the resulting preview as part of the upload check.
+
+Configure one repository secret in
+**GitHub → Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Secret | `CLOUDFLARE_API_TOKEN` | Scoped token with Workers Scripts edit access for the existing Cloudflare account; add the route/zone permissions required by any configured routes. |
+
+The upload step receives the token only after the website build succeeds.
+A missing token fails the upload instead of opening an interactive login.
+
+Branch aliases are lowercased, with runs of punctuation replaced by hyphens
+and leading/trailing hyphens stripped. There is no temporary `actions-` prefix:
+Workers Builds is disconnected. The alias, separating dash and Worker name
+must together fit a 63-character DNS label, giving the `functionalscript`
+Worker a 46-character branch-alias budget. Aliases must begin with a letter;
+empty aliases and names starting with a digit are refused before upload.
+For example, `codex/cloudflare-preview-comment` becomes
+`codex-cloudflare-preview-comment`, giving the preview URL
+`https://codex-cloudflare-preview-comment-functionalscript.functionalscript.workers.dev`.
+Different branch names can normalize to the same alias, so keep them distinct.
+The upload logs report the version and alias URLs. After a successful Actions
+preview upload, github-actions[bot] posts an Open preview link on the PR and
+updates that same comment on later pushes. It reads the actual alias URL from
+Wrangler output and uses the automatic Actions token with pull-request write
+permission; no additional secret, action, or setting is required. Forks and
+merge-group runs never post preview comments. Check OAuth on the alias URL
+as well as the commit preview URL.
+
+Cutover status and verification:
+
+1. `CLOUDFLARE_API_TOKEN` is configured. The owner verified GitHub sign-in on
+   the Actions preview and disconnected Cloudflare Workers Builds.
+2. Production deployment is enabled on main pushes. After changing deployment
+   workflows, verify the production URL, commit links, Rust docs, demos and
+   GitHub sign-in on the next main upload.
+3. The temporary preview prefix is removed now that Workers Builds is
+   disconnected. Retain the legacy build script and Cloudflare-only Node pin
+   until rollback no longer needs them.
+
+To roll back, revert the production step before reconnecting Workers Builds
+with the commands below. Restore a known-good Worker deployment from the
+Cloudflare dashboard if needed. Worker secrets and OAuth callbacks stay intact.
+
+### Workers Builds during the transition
+
 Cloudflare's build command runs `sh ./gen.cloudflare/build.sh`, a generated
 script: it installs what the build image lacks, then runs
 the WASM demo build, `npm run rustdoc-bars`, `cargo doc` and `npm run website`, which publishes

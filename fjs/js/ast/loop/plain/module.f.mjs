@@ -4,12 +4,15 @@
  * dependencies are restricted to established, identity-free projections.
  *
  * @module
- * @import { Block, Definition, Loop, Value } from '../../types.ts'
+ * @import { Block, Definition, Loop, LoopTarget, Value } from '../../types.ts'
  * @import { ScalarLoop } from '../types.ts'
  * @import { PlainLoop } from './types.ts'
+ * @import { Task } from '../../task/types.ts'
  */
 
 import { freeBindings } from '../../control/module.f.mjs'
+import { run } from '../../task/module.f.mjs'
+import { terminalTree } from '../terminal/module.f.mjs'
 
 /**
  * Fixed numeric reads preserve established values. Named properties can mint
@@ -129,7 +132,17 @@ export const continueFirstPlainLoopOf = loop => {
 }
 
 /**
- * Keep a loop's required normal-arm definitions in its result.
+ * Turn exact transfers into one value region while preserving width-one lists.
+ * @type {(block: Block, target: LoopTarget, kind: 'break' | 'continue', width: number) => Task<Block | null>}
+ */
+const transferResult = (block, target, kind, width) => terminalTree(block, block => {
+    const exit = block.exit
+    return exit[0] === kind && exit[1] === target && exit[2].length === width
+        ? { statements: block.statements, exit: ['yield', width === 1 ? exit[2] : [width > 1 ? ['array', exit[2]] : undefined]] } : null
+}, (prefix, test, then, otherwise) => ({ statements: prefix, exit: ['yield', [['if', test, then, otherwise]]] }))
+
+/**
+ * Keep required normal-arm definitions and terminal decisions in its result.
  * The value block runs once after the final test, with the same bindings and
  * reached order. Single-input base-first candidates use the existing orientation
  * helper; the unchanged planner validates every other plain restriction.
@@ -137,18 +150,54 @@ export const continueFirstPlainLoopOf = loop => {
  */
 export const resultBlockPlainLoopOf = loop => {
     const last = loop.body.statements.at(-1)
-    if (loop.parameters.length === 0 || last === undefined || last[0] !== 'if') { return null }
-    const baseFirst = last[3].exit[0] === 'break'
+    if (last === undefined || last[0] !== 'if') { return null }
+    const baseFirst = last[4].exit[0] === 'continue'
     const normal = baseFirst ? last[3] : last[4]
-    const exit = normal.exit
-    if (exit[0] !== 'break' || normal.statements.length === 0
-        || !normal.statements.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
-    const result = /** @type {Block} */ ({ statements: [], exit: ['break', exit[1], [['block', {
-        statements: normal.statements, exit: ['yield', exit[2]],
-    }]]] })
+    if (normal.statements.length === 0) { return null }
+    const value = run(transferResult(normal, loop.target, 'break', 1))
+    if (value === null) { return null }
+    const result = /** @type {Block} */ ({ statements: [], exit: ['break', loop.target, [['block', value]]] })
     const retained = /** @type {Loop} */ ({ ...loop, body: { ...loop.body,
         statements: [...loop.body.statements.slice(0, -1), ['if', last[1], last[2], baseFirst ? result : last[3], baseFirst ? last[4] : result]],
     } })
     return loop.parameters.length === 1 && baseFirst ? continueFirstPlainLoopOf(retained)
         : plainLoopOf(retained) === null ? null : retained
+}
+
+/**
+ * Plan a source transition whose selected leaf computes all next values once.
+ * Required branch prefixes retain their lexical regions; the resulting value
+ * block supplies one scalar or packed vector before any state slot changes.
+ * Default plain planning keeps its existing domain and layout.
+ * @type {(loop: Loop) => PlainLoop | null}
+ */
+export const branchingPlainLoopOf = loop => {
+    const terminal = loop.body.statements.at(-1)
+    const before = loop.body.statements.slice(0, -1)
+    if (loop.results.length !== 1 || terminal === undefined || terminal[0] !== 'if' || terminal[1].length !== 0
+        || !before.every(statement => statement[0] === 'define' && statement[3] === 'required')) { return null }
+    const first = run(transferResult(terminal[3], loop.target, 'break', 1))
+    const baseFirst = first !== null
+    const normal = first ?? run(transferResult(terminal[4], loop.target, 'break', 1))
+    const step = baseFirst ? terminal[4] : terminal[3]
+    const last = step.statements.at(-1)
+    if (normal === null || last === undefined || last[0] !== 'if') { return null }
+    const next = run(transferResult(step, loop.target, 'continue', loop.parameters.length))
+    if (next === null) { return null }
+    const prefix = /** @type {readonly Definition[]} */ (before)
+    const stepPrefix = prefixFor(prefix, step)
+    const resultPrefix = prefixFor(prefix, normal)
+    if (![...stepPrefix, ...resultPrefix].every(statement => projection(statement[2]))) { return null }
+    const transition = withPrefix(stepPrefix, {
+        statements: /** @type {readonly Definition[]} */ (next.statements), exit: next.exit,
+    })
+    return {
+        prefix, resultPrefix,
+        iteration: {
+            condition: baseFirst ? ['!', terminal[2]] : terminal[2],
+            step: { statements: [], exit: step.exit },
+            next: ['block', transition],
+        },
+        result: normal.statements.length === 0 ? /** @type {Extract<Block['exit'], readonly ['yield', unknown]>} */ (normal.exit)[1][0] : ['block', normal],
+    }
 }

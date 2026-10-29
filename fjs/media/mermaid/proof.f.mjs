@@ -44,6 +44,16 @@ export const proof = {
         dottedArrow: () => assertEq(refusal('flowchart LR\na -.-> b\n'), "line 2: an arrow or the line's end expected at 2"),
         roundNode: () => assertEq(refusal('flowchart LR\na(x)\n'), "line 2: an arrow or the line's end expected at 1"),
         end: () => assertEq(refusal('flowchart LR\na --> end\n'), 'line 2: a node named end, which Mermaid reads as a keyword'),
+        keywords: () => {
+            for (const name of ['classDef', 'class', 'style', 'subgraph']) {
+                const expected = `line 2: a node named ${name}, which Mermaid reads as a keyword`
+                assertEq(refusal(`flowchart LR\n${name} --> b\n`), expected)
+                assertEq(refusal(`flowchart LR\na --> ${name}\n`), expected)
+                assertEq(refusal(`flowchart LR\n${name}["A label"]\n`), expected)
+                assertEq(refusal(`flowchart LR\n${name}\n`), expected)
+                assertEq(refusal(`flowchart LR\n${name}_node --> b\n`), null)
+            }
+        },
         unclosedLabel: () => assertEq(refusal('flowchart LR\na["x\n'), 'line 2: a label not closed by "]'),
         emptyLabel: () => assertEq(refusal('flowchart LR\na[""]\n'), 'line 2: an empty label'),
         markup: () => assertEq(refusal('flowchart LR\na["x<br/>y"]\n'), 'line 2: a label holding <, which Mermaid does not show as written'),

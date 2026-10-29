@@ -3,6 +3,10 @@
 **Priority:** P3
 **Status:** wip
 
+The owner verified GitHub sign-in on the Actions preview and disconnected
+Workers Builds. Production uses the website job on main pushes;
+verify the first production deployment after merging this change.
+
 ### Problem
 
 The website is built by Cloudflare Workers Builds, outside the repository's
@@ -26,9 +30,11 @@ and GitHub sign-in behavior. The current build sequence is documented in
 repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 
 The proposed deployment policy is production on `main` after required checks
-pass, with version previews for trusted repository branches. Fork pull requests
+pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
 run checks without deployment credentials. Preserve preview branch aliases,
-commit and branch metadata, and the OAuth callback behavior; moving hosts must
+commit and branch metadata, and the OAuth callback behavior. The temporary
+`actions-` preview prefix is removed now that the owner disconnected Workers
+Builds and authorized using the original branch aliases. Moving hosts must
 not silently remove these features.
 
 Use a scoped Cloudflare API token held in GitHub Actions secrets, with deployment
@@ -38,31 +44,57 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The first implementation adds a read-only `website` job to the existing CI
-workflow's pull-request and merge-group events. It runs independently of the
-test matrix, reuses workflow concurrency, and does not use the successful-check
-cache. The build runs with no deployment credentials, including on fork pull
-requests. The generator receives the checked-out SHA and source branch through
-the existing `WORKERS_CI_*` metadata variables.
+The website job lives in its own generated workflow, running on pull requests
+(including drafts and forks) and pushes to `main`. Other branches need an open
+PR for previews. Test CI retains its original nine jobs on PRs and merge-group
+events, with no deployment gates or push triggers. The website check is not
+required in the merge queue, so the website workflow does not run there.
+Website concurrency and credentials stay separate from the test workflow.
+Both Rustdoc and website generation receive the same commit/branch metadata.
 
-Deployment triggers, dependencies on required checks, preview policy and Wrangler
-pinning remain the next decision before adding uploads. Workers Builds stays
-active during this build-only step.
+Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
+and `versions upload --preview-alias` after its own successful website build.
+Fork pull requests never upload; merge-group events only run test CI. No enable-switch variables
+are used. Production uploads use `wrangler deploy` only for main pushes, after changes
+pass PR checks and merge through the queue. Main runs do not cancel an active upload. The API token is scoped to the upload
+step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
+and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
+only the API-token secret and sends no empty OAuth overrides. The legacy
+Workers Builds helper keeps its explicit bindings during the transition.
+
+Workers Builds is disconnected after the owner verified preview login. Setup,
+branch-alias rules, cutover and rollback are documented in
+[GitHub Actions deployment](../README.md#github-actions-deployment).
+
+### Preview links
+
+The existing CI website job creates or updates one bot-owned PR comment after
+each successful preview upload. It uses the alias URL reported by Wrangler
+and the automatic Actions token with pull-request write permission. Drafts
+are included; fork PRs stay build-only. No extra settings are
+needed, and failed uploads never publish a preview comment.
 
 ### Tasks
 
-- [ ] Settle the job's triggers, dependencies on required checks, preview policy,
+- [x] Restore original PR and merge-queue tests and isolate website previews and
+      main-push production deployments in a separate generated workflow.
+
+- [x] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
 - [x] Add the dedicated job to the CI generator and its proofs, regenerate the
       workflows, and build WASM demos, styled Rust documentation and the website
       using the pinned development environment.
-- [ ] Add production deployment and trusted-branch preview uploads, preserving
+- [x] Add automatic trusted-branch preview uploads, preserving
       aliases, build metadata and GitHub sign-in bindings. Document required
       GitHub secrets and variables, including the Cloudflare account and token.
+- [x] Enable production deployment on `main` in the existing website job,
+      after preview verification and disconnecting Workers Builds.
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
+- [x] Remove the temporary `actions-` preview-alias prefix after disconnecting
+      Workers Builds.
 - [ ] Document the GitHub Actions setup and cutover/rollback procedure, reconcile
       the old Cloudflare-only build script and Node pin with their remaining
       consumers, update related documentation, and disable Workers Builds after
@@ -73,3 +105,4 @@ active during this build-only step.
 - [Run `cargo doc` in the site build](./cargo-doc-build-host.md): the existing
   Rust documentation build must move with the site; its remaining Deno
   documentation work stays tracked there.
+

@@ -150,6 +150,13 @@ export const proof = {
             },
             mermaidSource: () => assertStructurallySame(readmeNodes(href)([['code', 'mermaid', 'pie\n']]),
                 ok([fence('pie', ['code', { class: 'language-mermaid' }, 'pie\n'])])),
+            mermaidKeywords: () => {
+                for (const name of ['classDef', 'class', 'style', 'subgraph']) {
+                    const text = `flowchart LR\n${name} --> b`
+                    assertStructurallySame(readmeNodes(href)([['code', 'mermaid', text]]),
+                        ok([fence(text, ['code', { class: 'language-mermaid' }, text])]))
+                }
+            },
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
                 ok([fence('let a = 1;', ['code', { class: 'language-rust' }, 'let a = 1;'])])),
             // Text the tokenizer refuses is not partly coloured.

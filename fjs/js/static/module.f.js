@@ -35,13 +35,16 @@
  */
 
 /**
- * Every admitted static path: `Object.is` and `Object.entries`, and the
- * four `Number` predicates, none of which converts its argument
+ * Every admitted static path: `Object.is`, `Object.entries` and
+ * `Object.fromEntries`
+ * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)),
+ * and the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)).
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
     ['Object', 'entries'],
+    ['Object', 'fromEntries'],
     ['Number', 'isInteger'],
     ['Number', 'isSafeInteger'],
     ['Number', 'isNaN'],

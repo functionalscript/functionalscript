@@ -59,17 +59,13 @@ export const stepSchema = /** @type {const} */ ({
     'continue-on-error': or(option, true)
 })
 
-// `needs` is how one job waits for another. No generated job uses it —
-// `jobNeeds` in `fjs/ci/proof.f.mjs` pins that — because GitHub creates a
-// waiting job only when the job it waits for finishes, so behind a full runner
-// queue it waits a second time. It stays modelled so an ordering edge is a
-// deliberate change rather than a key emitted past the schema:
+// `needs` is how one job waits for another. The generated platform checks and
+// website preview build run independently; previews need only their own build
+// to succeed. The schema retains the field for consumers that need ordering.
 // `parseGitHubAction` reads back the workflow this repository generates, so
 // an unmodelled key would fail that round-trip.
 //
-// `if` is the condition a job runs under. The generator writes exactly one:
-// a job that runs only in the merge queue, so a pull request's pushes do not
-// wait on it — see `mergeQueueOnly` in `../types.ts`.
+// `if` is the condition a job runs under, used by merge-queue-only platform jobs.
 //
 // `timeout-minutes` is required, so no job can be built without a limit on how
 // long it holds its runner: GitHub's default is six hours. Every generated job
@@ -90,7 +86,7 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     // Every trigger any generated workflow uses, all optional, because no
-    // workflow uses them all: `gen.ci.yml` is a pull-request gate and the publish
+// workflow uses them all: generic CI is a pull-request gate and the publish
     // workflow fires on a push to a branch. `push` carries the branch list;
     // without it a push to any branch would publish.
     on: {
@@ -98,10 +94,8 @@ export const gitHubActionSchema = /** @type {const} */ ({
         merge_group: or(option, {}),
         push: or(option, { branches: array(string) })
     },
-    // Optional, because only `gen.ci.yml` sets it: a run there that a newer
-    // push supersedes is cancelled. `cancel-in-progress` is the literal `true`
-    // for the reason `continue-on-error` is — `false` is its default.
-    concurrency: or(option, { group: string, 'cancel-in-progress': true }),
+    // A condition cancels superseded PR checks while keeping production uploads running.
+    concurrency: or(option, { group: string, 'cancel-in-progress': or(true, string) }),
     permissions: record(string),
     jobs: jobsSchema
 })

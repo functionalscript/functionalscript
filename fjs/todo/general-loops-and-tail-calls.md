@@ -250,6 +250,73 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       Source preparation exposes leading total post-loop constructors in their
       enclosing region so required allocation order survives later rest
       projections and held base captures from the first parse.
+      Zero-input roots with required normal-arm definitions now reuse the same
+      result-block normalization and private unchanged slot. Both conditional
+      orientations run base work once after the final test, preserving empty
+      public arity, sharing, captures and reached failures without semantic input
+      snapshots or another invocation boundary. Exact graph/text cycles hold
+      from the first source parse.
+      Conditional base-case result trees now use the same result value block
+      when every leaf completes the same loop with one value. Required prefixes
+      retain their lexical branches, and base decisions run after the final
+      iteration test with only the selected branch evaluated. Both outer
+      orientations preserve final input/rest sharing, captures and failure
+      order, with exact first-parse graph/text cycles. Continuing decision trees
+      now use a shared source plan when every leaf continues the same exact
+      loop with its complete next-input vector. Required branch work and reached
+      arguments run once before simultaneous updates, preserving snapshots,
+      captures, fresh rest and failure order. Zero-input transitions yield
+      `undefined` after required work to the private slot. Both outer orientations
+      compose with normal or conditional base results; graph/text cycles remain
+      exact from the first parse. Default layouts and prior ordinary single-input
+      spelling stay unchanged. General lazy prefixes retain their previous
+      admission. Fixed multi-input and observed-rest roots now also retain
+      terminal trees that mix normal completion and continuation.
+      Shared terminal analysis validates required definitions, result-free
+      decisions and exact transfers. Common preparation retains the body in
+      `while(true)` with one private state/result slot: it packs multi-input
+      initial and next values once, establishes immutable input snapshots, and
+      writes a selected completion result into the same slot immediately before
+      exit. Rest-only roots reuse the existing scalar path. Required allocations
+      shared by tests, transitions and results keep their iteration lifetime;
+      selected work, captures, fresh rest, failure order and exact first-parse
+      graph/text cycles survive. Prior source profiles, default layouts and
+      logical graph contracts remain unchanged. General lazy regions retain
+      their existing admission.
+      This path also retains a single terminal condition with required shared
+      prefix work. Each array, object, closure or call result is established
+      once before the condition and remains shared with continued arguments or
+      the completed result, including held captures after later invocations.
+      Existing plain and branching plans retain precedence, preserving prior
+      source spelling and default layouts. Reached failures, fresh rest and
+      exact first-parse graph/text cycles retain their contracts.
+      Zero-input terminal roots now use this same path, including shared
+      required prefixes and mixed completion/continuation decisions. One
+      private result slot starts as `undefined`; semantic inputs and continued
+      argument vectors stay empty. Completion writes the selected scalar to
+      that slot before leaving the loop. Empty public arity, own-function
+      identity, per-visit allocations and held captures survive, including
+      immediate completion and required unused arguments before continuation.
+      Earlier plain zero-input loops retain their unchanged-slot spelling;
+      default layouts and exact first-parse graph/text cycles remain intact.
+      Fixed multi-input and observed-rest roots now also retain terminal trees
+      whose every leaf continues the exact loop with its complete input vector.
+      The same required-prefix analysis and packed/scalar state preparation
+      preserve simultaneous updates, creating-iteration captures, fresh rest
+      and reached failures without inventing normal completion. Earlier
+      zero-input and ordinary scalar divergent spellings stay unchanged.
+      Direct and conditional continuations retain exact graph/text cycles from
+      the first source parse; default layouts and logical contracts remain
+      intact. General lazy regions keep their prior admission.
+      Explicit throw leaves now share this terminal analysis. A selected throw
+      evaluates required work and its payload once, then exits without a
+      state or normal-result write. Nonempty inputs may mix throw and
+      continuation; empty-input mixed return/throw/continue trees reuse the
+      private result slot. Earlier zero-input throw/continue and ordinary
+      scalar plans retain their layouts. Deep transfers followed by the
+      selected throw, reached evaluation order, held iteration captures, fresh
+      rest and exact first-parse graph/text cycles reuse existing preparation.
+      Default layouts and logical graph contracts stay unchanged.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

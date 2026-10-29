@@ -10,7 +10,8 @@ import { readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
-import { uploadGitHubPreview } from './github-preview.mjs'
+import { uploadGitHubPreview, uploadGitHubVersion } from './github-preview.mjs'
+import { uploadArgs } from './cloudflare/module.f.mjs'
 
 const env = /** @type {const} */ ({
     GITHUB_CLIENT_ID: 'public-client-id',
@@ -36,6 +37,32 @@ const removed = path => {
 }
 
 export const proof = /** @type {const} */ ({
+    previewHostnameFitsConfiguredWorker: async () => {
+        const config = JSON.parse(await readFile(new URL('../../wrangler.jsonc', import.meta.url), 'utf8'))
+        for (const branch of ['feature/' + 'a'.repeat(60), 'b'.repeat(80)]) {
+            const alias = uploadArgs('preview', branch).at(-1)
+            assert(alias !== undefined)
+            assertEq(`${alias}-${config.name}`.length, 63)
+            assert(!alias.endsWith('-'))
+        }
+    },
+    pinnedProductionAndPreviewUploads: async () => {
+        for (const mode of ['production', 'preview']) {
+            let path = ''
+            const command = uploadArgs(mode, 'feature/example')
+            const result = await uploadGitHubVersion(env, command, {
+                run: async args => {
+                    path = secretPath(args)
+                    assertStructurallySame(args.slice(0, command.length), command)
+                    assertStructurallySame(JSON.parse(await readFile(path, 'utf8')), { GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET })
+                    assert(args.every(arg => !arg.includes(env.GITHUB_CLIENT_SECRET)))
+                    return 0
+                },
+            })
+            assertEq(result, 0)
+            removed(path)
+        }
+    },
     uploadsPublicBindingsAndProtectedSecretFile: async () => {
         let path = ''
         const result = await uploadGitHubPreview(env, {

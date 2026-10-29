@@ -176,8 +176,9 @@ retains zero-input roots with one normal result and a conditional continuation
 in either arm. Common preparation puts the result after iteration and supplies
 a private unchanged slot, without changing the function's empty public
 signature. Its first source parse constructs the canonical scalar helper;
-later graph/text cycles stay exact. Other zero-input normal-result shapes
-retain their recursive fallback. Rest-free fixed multi-input roots are retained
+later graph/text cycles stay exact. Zero-input normal-result shapes outside
+the admitted plain and terminal plans retain their recursive fallback.
+Rest-free fixed multi-input roots are retained
 when the same plain-loop plan recognizes their terminal conditional. The source
 profile of common preparation packs those already-selected semantic inputs
 into one private array slot, preserving simultaneous updates, public arity and
@@ -198,9 +199,9 @@ roots use the graph owner's existing transfer resolver. Synthesized invocation-r
 ordinary required reads, and terminal statement conditionals return through
 source value conditionals. Computed lazy definitions keep their existing
 admission rules. The established scalar source loop remains unchanged.
-For validated rest-free roots with several fixed inputs, or observed-rest
-roots, a required define-only normal-arm prefix can move into the break-result
-value block through the shared plain-loop helper. It creates no function or
+For validated rest-free roots with zero or several fixed inputs, or
+observed-rest roots, a required define-only normal-arm prefix can move into the
+break-result value block through the shared plain-loop helper. It creates no function or
 invocation boundary. Definitions keep their bindings, order and lexical region,
 and common preparation supplies immutable final-input snapshots before evaluating
 that result once. Calls,
@@ -216,8 +217,85 @@ public fixed arity and the final rest snapshot. Preparation exposes leading
 total result aliases and constructors after the loop, preserving their required
 order when the result reads a rest projection before a shared allocation.
 Calls, lookups and selected regions retain their placement boundaries.
-Other single-input and zero-input
-roots, and lazy or structured normal-arm prefixes, keep their previous admission.
+Zero-input roots reuse the private unchanged slot in either conditional
+orientation. Their required result block runs once after the final test, without
+semantic input snapshots or a new invocation boundary, and keeps empty public
+arity. Other single-input roots, and lazy or other structured normal-arm
+prefixes, keep their previous admission.
+
+A normal arm may also end in a result-free conditional tree whose leaves all
+break the same loop with one result. Shared result-block normalization keeps
+required definitions in their lexical regions and converts the terminal tree
+into value conditionals after the final test. It does not evaluate unselected
+branches or introduce new bindings, targets or invocation boundaries. Both
+outer orientations retain the existing scalar, packed or private unchanged
+slot preparation. General lazy prefixes retain their existing admission and
+fallback.
+
+The shared source branch plan also admits a continuing decision tree whose
+leaves all continue the same exact target with the complete next-input vector.
+Required prefixes stay in their lexical branches. One selected value block
+establishes arguments in reached order, then preparation updates all state
+simultaneously using its existing scalar or packed slot. Zero-input transitions
+yield `undefined` after required work. Both outer orientations compose with
+normal or conditional base results, preserving captures, rest freshness and
+first-parse graph/text stability. A private preparation context identifies only
+the observed rest-only function's root target when its semantic width is one;
+ordinary single-input roots, including those in nested functions, keep their
+previous layouts. No graph metadata or writer-specific transfer analysis is added.
+General lazy prefixes retain their existing admission.
+
+Source admission also retains zero-input, fixed multi-input and observed-rest
+roots with a terminal decision that mixes completion and continuation. Shared
+terminal analysis accepts required-definition prefixes, result-free decisions
+and exact transfers: every completed leaf supplies one loop result, and every
+continued leaf supplies the complete invocation input vector. The adapter
+keeps the original body and targets; required work, allocations and captures
+retain their lexical regions rather than moving across condition/result
+boundaries. A single terminal condition can therefore retain required work
+shared with its continued arguments or completed result, including arrays,
+objects, closures and calls. The prefix executes once before each test and
+retains the final visit's values. Earlier plain and branching plans are selected
+first, preserving their established source spelling.
+
+Common preparation uses one private state/result slot in `while(true)`.
+Multi-input roots pack the initial values and each selected next-input vector
+once, then establish immutable per-input snapshots in the body. Completion
+evaluates the selected result, writes that same slot and exits. Rest-only roots
+reuse the existing shared scalar path. Earlier source profiles and default
+JavaScript/function-text/Rust layouts retain their contracts; no logical graph
+metadata or transfer tags are introduced. The first source parse establishes
+the permitted scalar helper boundary, and subsequent graph/text cycles stay
+exact.
+
+Zero-input terminal roots use the same original-body plan with empty semantic
+input and continuation vectors. Source preparation provides one private
+`undefined`-initialized result slot, so no synthetic argument or state snapshot
+is added. Required work stays before each reached test and empty continuation;
+completion writes its selected scalar to the slot before exit. Empty public
+arity, shared allocations, held captures and own-function identity survive.
+Earlier plain zero-input plans retain precedence and their source spelling.
+
+For nonempty semantic inputs, the terminal analysis also accepts a tree whose
+every leaf continues the exact root with its complete next-input vector.
+Fixed multi-input and observed-rest roots therefore retain source loops even
+without normal completion. Required definitions stay in their selected lexical
+regions; the existing packed or scalar state path preserves simultaneous
+updates, captures, fresh rest and reached failures. No completion or graph
+metadata is added. Earlier zero-input and ordinary scalar divergent spellings
+stay unchanged. Direct and conditional continuations retain exact graph/text
+cycles from the first source parse, while general lazy regions keep their
+previous admission.
+
+The terminal leaf analysis also recognizes explicit throws. At least one leaf
+must continue the exact loop, and empty semantic inputs require a normal
+completion leaf as well. This admits nonempty throw/continue trees and mixed
+return/throw/continue trees while retaining earlier zero-input throwing or
+divergent plans. The adapter keeps the original throw and its payload in the
+selected body region; existing preparation emits it after required work,
+without a state or normal-result write. Evaluation order, captures, rest
+identity and first-parse graph/text stability retain their contracts. Default
+JavaScript/function-text/Rust output and logical graph metadata are unchanged.
 
 The source adapter returns a `Result`: factored continuations outside its
 one-input/one-result profile are refused when their normal guards cannot be

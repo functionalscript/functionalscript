@@ -47,6 +47,9 @@ enumerated.
 Each job fetches only the tip of `build-cache` into the local cache branch and
 `refs/remotes/origin/build-cache`, then initializes the cache before expensive
 tool installation. The remote ref preserves the initial publication baseline.
+Initialization uses `GITHUB_JOB` to select the checks and platform directly
+from the same repository configuration used by the CI generator. It takes no
+arguments and needs no custom environment variables or generated settings files.
 Initialization writes one hit flag per check to `$GITHUB_OUTPUT` and saves the
 original manifests under `$RUNNER_TEMP`.
 Checks keep their producer and consumer steps under one gate. A shared install

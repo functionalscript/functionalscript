@@ -36,15 +36,24 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-This repository also adds a separate `website` job on pull requests and
-merge-group entries. It builds the WASM demos, styled Rust API documentation
-and website using the committed mise lock, in that order after `npm ci`.
-The job is read-only, has no dependency on the test matrix and always builds
-its assets outside the successful-check cache. It passes the checked-out SHA
-and source branch to both the Rustdoc header generator and the website
-generator through the same `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH`
-values. This keeps Rust documentation headers consistent with the site's pages. Deployment remains on Cloudflare Workers Builds
-until the later migration steps are complete.
+The repository keeps its original test workflow: nine jobs on pull requests
+and merge-group entries, with the existing successful-check cache. There are
+no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
+
+The separate generated `gen.website.yml` workflow contains the `website` job.
+It runs on pull requests, including drafts and forks, and pushes to `main`.
+It builds the WASM demos, styled Rust documentation and website using the mise
+lock. Same-repository PRs upload previews and update a bot comment with the
+actual URL; forks build without uploading. Main pushes deploy production.
+Other branch pushes do not create previews. The website is not a required
+merge-queue check, so its workflow does not run on merge-group events.
+
+Website concurrency cancels superseded PR runs and serializes main uploads
+without cancelling an active deployment. Build steps receive no upload secrets;
+the Cloudflare token and automatic Actions token are confined to the upload
+steps that need them. Both Rustdoc and website generation receive the same
+commit and branch metadata. No additional settings or third-party actions are
+required; see [deployment](../website/README.md#github-actions-deployment).
 
 ## Usage
 
@@ -57,6 +66,17 @@ it again, so retired generated assets become deletions.
 `smart`, and `mergeQueueOnly`. Injected shell scripts pass unchanged through
 `FJS_CI_RUN` to `bash -e -c` inside the selected environment. The packed consumer
 runs outside that environment, under `runner.temp`, with its own `setup-node`.
+
+Successful-check caching (`smart: true`) is supported only for FunctionalScript's
+own repository. `fjs ci init` selects `GITHUB_JOB` from the configuration in
+`fjs/ci/self`; it does not receive the caller's `Setup`. Other projects should
+leave `smart` unset so their checks run normally. An unknown job ID makes cache
+initialization fail, and the generated workflow falls back to running the checks.
+
+`ciWorkflow(setup)(rust)` builds the test workflow and `writeCi(workflow)`
+writes CI and npm publishing files. The repository-owned `self` module also
+writes the independent website workflow. The generic `fjs ci` command keeps
+its pull-request and merge-group triggers.
 
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and
