@@ -5,33 +5,43 @@
  */
 
 
-import { hasEntry } from '../../object/entry/module.f.js'
-import { trampoline } from '../module.f.mjs'
+import { entry, hasEntry } from '../../object/entry/module.f.js'
+import { concat, trampoline } from '../module.f.mjs'
 
 /**
  * @type {<T>(list: List<T>) => readonly T[]}
  */
 export const toArray = list => {
     /** @typedef {typeof list extends List<infer T> ? T : never} T */
+    /** @type {List<T>} */
+    let tail = null
     /** @type {readonly T[]} */
     let result = []
     while (true) {
         list = trampoline(list)
-        if (list instanceof Array) {
-            // TODO: Replace it with an optimized version of `concat` from `array/module.f.js`.
-            //       The `concat` should check if `result` or `list` is en empty array and
-            //       return `result` or `list`.
-            return [...result, ...list]
-        }
+
         if (list === null) {
-            return result
-        }
-        if (hasEntry(list, 'head')) {
-            result = [...result, ...toArray(list.head)]
-            list = list.tail
+            if (tail === null) {
+                break
+            }
+            [list, tail] = [tail, null]
             continue
         }
-        result = [...result, list.first]
+
+        if (list instanceof Array) {
+            result = [...result, ...list];
+            [list, tail] = [tail, null]
+            continue
+        }
+
+        if ('head' in list) {
+            tail = concat(list.tail)(tail)
+            list = list.head
+            continue
+        }
+
+        result = [...result, list.first];
         list = list.tail
     }
+    return result
 }

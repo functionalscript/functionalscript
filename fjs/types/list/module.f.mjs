@@ -32,6 +32,9 @@ export const fromArrayLike =
         return at(0)
     }
 
+/** @type {<T>(list: List<T>) => boolean} */
+const lazyIsEmpty = list => list === null || (list instanceof Array && list.length === 0)
+
 /** @type {<T>(head: List<T>) => (tail: List<T>) => List<T>} */
 export const concat = head => tail =>
     tail === null ? head : ({ head, tail })
@@ -51,7 +54,7 @@ export const next = head => {
 
         if (head instanceof Array) {
             head = fromArrayLike(head)
-        } else if (head !== null && hasEntry(head, 'head')) {
+        } else if (head !== null && 'head' in head) {
             [head, tail] = [head.head, concat(head.tail)(tail)]
             continue
         }
