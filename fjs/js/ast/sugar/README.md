@@ -43,7 +43,8 @@ retain only the work and updates of reached labels. The shared
 optional regions, spread expansion and object-key conversion. Normalization
 evaluates resolved source recipes through that sequencer's immutable binding
 skeleton rather than duplicating these rules. Recipe re-entry and operand
-regions share an explicit task worklist, including deep source operator chains.
+regions share an explicit task worklist, including deep source operator chains
+and switch case and label lists.
 Expressions with no outer writes retain their established normalization path.
 [`effects`](./effects/module.f.mjs) indexes source writes once for this
 dispatch. It indexes held function bodies and defaults independently without

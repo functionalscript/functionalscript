@@ -549,12 +549,17 @@ const terminalConditional = (test, branch, otherwise, context, retained) => {
 
 /** Stacked labels evaluate lazily and keep the versions established by reached labels. @type {(discriminant: BindingId, labels: readonly SourceValue[], environment: Environment, context: Context) => _Evaluated} */
 const caseState = (discriminant, labels, environment, context) => {
-    if (!labels.some(label => writesOuter(label, environment, context))) { return unchangedValue(caseCondition(discriminant, labels, normalizedValue(environment, context)), environment) }
-    const label = assertNotNullish(labels[0], 'switch case without a label')
-    const made = normalizedState(environment, context)(label)
-    const test = { ...made, value: /** @type {Value} */ (['===', reference(discriminant), made.value]) }
-    if (!made.normal || labels.length === 1) { return test }
-    return conditionalValue(test, unchangedValue(true, made.environment), caseState(discriminant, labels.slice(1), made.environment, context), context)
+    /** @type {(remaining: readonly SourceValue[], inner: Environment) => Task<_Evaluated>} */
+    const each = (remaining, inner) => call(() => {
+        if (!remaining.some(label => writesOuter(label, inner, context))) { return done(unchangedValue(caseCondition(discriminant, remaining, normalizedValue(inner, context)), inner)) }
+        const label = assertNotNullish(remaining[0], 'switch case without a label')
+        const made = normalizedState(inner, context)(label)
+        const test = { ...made, value: /** @type {Value} */ (['===', reference(discriminant), made.value]) }
+        if (!made.normal || remaining.length === 1) { return done(test) }
+        return bind(each(remaining.slice(1), made.environment), following =>
+            done(conditionalValue(test, unchangedValue(true, made.environment), following, context)))
+    })
+    return run(each(labels, environment))
 }
 
 /** Source terminal branches yield their value and retain their final source versions. @type {(exit: SourceExit, environment: Environment, context: Context, retained: readonly BindingId[]) => Normalized} */
@@ -571,15 +576,16 @@ const normalizedExit = (exit, environment, context, retained) => {
         return terminalConditional(test, normalizedBlock(exit[2], test.environment, context, keep), normalizedBlock(exit[3], test.environment, context, keep), context, keep)
     }
     const discriminant = binding(0)
-    /** @type {(index: number, inner: Environment) => Normalized} */
-    const each = (index, inner) => {
-        if (index === exit[2].length) { return normalizedBlock(exit[3], inner, context, keep) }
+    /** @type {(index: number, inner: Environment) => Task<Normalized>} */
+    const each = (index, inner) => call(() => {
+        if (index === exit[2].length) { return done(normalizedBlock(exit[3], inner, context, keep)) }
         const arm = exit[2][index]
         const condition = caseState(discriminant, arm.labels, inner, context)
-        if (!condition.normal) { return { block: evaluatedBlock(condition), environment: condition.environment, normal: false, hasLoopExit: false, hasFunctionExit: false } }
-        return terminalConditional(condition, normalizedBlock(arm.body, condition.environment, context, keep), each(index + 1, condition.environment), context, keep)
-    }
-    const tail = each(0, test.environment)
+        if (!condition.normal) { return done({ block: evaluatedBlock(condition), environment: condition.environment, normal: false, hasLoopExit: false, hasFunctionExit: false }) }
+        const branch = normalizedBlock(arm.body, condition.environment, context, keep)
+        return bind(each(index + 1, condition.environment), following => done(terminalConditional(condition, branch, following, context, keep)))
+    })
+    const tail = run(each(0, test.environment))
     return { ...tail, block: { statements: [...test.statements, ['define', discriminant, test.value, 'required'], ...tail.block.statements], exit: tail.block.exit } }
 }
 
@@ -631,23 +637,22 @@ const statefulSwitch = (source, environment, context) => {
     const local = { ...context, breakRegion: { target: source.target, sources } }
     /** @type {(made: Normalized) => Block} */
     const completed = made => made.normal ? { ...made.block, exit: ['break', source.target, sources.map(source => lookup(made.environment, source))] } : made.block
-    /** @type {(index: number, inner: Environment) => { readonly block: Block, readonly alternatives: readonly Normalized[] }} */
-    const each = (index, inner) => {
+    /** @type {(index: number, inner: Environment) => Task<{ readonly block: Block, readonly alternatives: readonly Normalized[] }>} */
+    const each = (index, inner) => call(() => {
         if (index === source.cases.length) {
             const made = normalizedBlock(source.otherwise, inner, local, sources)
-            return { block: completed(made), alternatives: [made] }
+            return done({ block: completed(made), alternatives: [made] })
         }
         const arm = source.cases[index]
         const condition = caseState(discriminant, arm.labels, inner, context)
-        if (!condition.normal) { return { block: evaluatedBlock(condition), alternatives: [] } }
+        if (!condition.normal) { return done({ block: evaluatedBlock(condition), alternatives: [] }) }
         const made = normalizedBlock(arm.body, condition.environment, local, sources)
-        const following = each(index + 1, condition.environment)
-        return {
+        return bind(each(index + 1, condition.environment), following => done({
             block: { statements: [...condition.statements, ['if', [], condition.value, completed(made), following.block]], exit: ['yield', []] },
             alternatives: [made, ...following.alternatives],
-        }
-    }
-    const { block: body, alternatives } = each(0, selected.environment)
+        }))
+    })
+    const { block: body, alternatives } = run(each(0, selected.environment))
     return {
         block: { statements: [...selected.statements, ['define', discriminant, selected.value, 'required'],
             ['loop', { target: source.target, parameters: [], initial: [], results,

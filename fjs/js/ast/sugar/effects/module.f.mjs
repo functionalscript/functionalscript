@@ -56,10 +56,14 @@ export const writes = (root, functions) => {
                 : exit[0] === 'switch' ? [exit[1], ...exit[2].flatMap(arm => [...arm.labels, arm.body]), exit[3]]
                     : [exit[0] === 'return' ? exit[2] : exit[1]])]
         }
+        // The deferred walk captures only the completed immutable plan.
+        const descendants = children
+        const localWrites = own
+        const held = opaque
         /** @type {(index: number, entries: Entries, found: List<readonly BindingId[]>) => Task<Result>} */
         const each = (index, entries, found) => call(() => {
-            if (index !== children.length) { return bind(visit(children[index], entries), result => each(index + 1, result.entries, { first: result.writes, tail: found })) }
-            const all = opaque ? [] : [...new Set([...own, ...toArray(found).flat()])]
+            if (index !== descendants.length) { return bind(visit(descendants[index], entries), result => each(index + 1, result.entries, { first: result.writes, tail: found })) }
+            const all = held ? [] : [...new Set([...localWrites, ...toArray(found).flat()])]
             return done({ writes: all, entries: { first: [node, all], tail: entries } })
         })
         return each(0, entries, null)

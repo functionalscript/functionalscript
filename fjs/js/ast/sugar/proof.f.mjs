@@ -660,6 +660,50 @@ export const proof = {
         const fast = normalize({ ...resolved, body: { statements: [], exit: ['yield', ['block', resolved.body]] } }, [])
         assertStructurallySame(fromFast(fast.body), graph('const value=[1]; export default [value,value];'))
     },
+    deepTerminalSwitchCases: () => {
+        const width = 6_000
+        const cases = Array.from({ length: width }, (_, index) => `case ${index}:{return ${index};}`).join('')
+        const normalized = fn(`export default value=>{switch(value){${cases}default:{return -1;}}};`)
+        assert(normalized.body.exit[0] === 'return')
+        let value = normalized.body.exit[2]
+        for (let index = 0; index < width; index = index + 1) {
+            assert(value instanceof Array && value[0] === 'if')
+            const branch = value[2]
+            assertStructurallySame(branch.exit, ['yield', [index]])
+            const otherwise = value[3]
+            assert(otherwise.exit[0] === 'yield')
+            value = otherwise.exit[1][0]
+        }
+        assertStructurallySame(value, ['-', 1])
+    },
+    deepStatefulSwitchCases: () => {
+        const width = 6_000
+        const cases = Array.from({ length: width }, (_, index) => `case ${index}:{break;}`).join('')
+        const normalized = fn(`export default n=>{while(n<1){switch((()=>{n=n+1;return n;})()){${cases}default:{break;}}}return n;};`)
+        const loop = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(loop !== undefined && loop[0] === 'loop')
+        const guard = loop[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const selected = guard[3].statements.find(statement => statement[0] === 'loop')
+        assert(selected !== undefined && selected[0] === 'loop')
+        let body = selected[1].body
+        for (let index = 0; index < width; index = index + 1) {
+            const branch = body.statements[body.statements.length - 1]
+            assert(branch[0] === 'if')
+            assert(branch[2] instanceof Array && branch[2][0] === '===')
+            assertEq(branch[2][2], index)
+            assertEq(branch[3].exit[0], 'break')
+            body = branch[4]
+        }
+        assertEq(body.exit[0], 'break')
+    },
+    deepStatefulSwitchLabels: () => {
+        const width = 6_000
+        const labels = Array.from({ length: width }, (_, index) => `case ${index}:`).join('')
+        const normalized = fn(`export default n=>{switch(-1){${labels}case (()=>{n=n+1;return n;})():{return n;}default:{return n;}}};`)
+        assert(normalized.body.exit[0] === 'return')
+        assert(normalized.body.statements.some(statement => statement[0] === 'if'))
+    },
     expressionBlockWrites: {
         deepStatefulOperators: () => {
             const width = /** @type {const} */ (5_000)
