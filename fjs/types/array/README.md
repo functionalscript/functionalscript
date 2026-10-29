@@ -48,3 +48,10 @@ guard does, so `const [x, y] = a` is then typed.
 
 **`occurrences` answers in linear time.** Calling `indexOf` for every name of
 a list is quadratic; `occurrences` builds both answers once.
+
+**`repeat` uses the concatenation monoid.** It repeats `[v]` with
+[`monoid.repeat`](../../common/monoid/module.f.mjs), using `[]` as the identity
+and array concatenation as the operation. Doubling takes O(log n)
+concatenations and O(n) total element copying. Each call creates a fresh array;
+object elements keep the same reference. Finite nonpositive counts give `[]`,
+and positive fractional counts round up, preserving the list-based behavior.

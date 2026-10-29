@@ -54,7 +54,7 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -192,7 +192,7 @@
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
@@ -460,7 +460,7 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -568,7 +568,7 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -671,7 +671,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -794,7 +794,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
         },
@@ -1043,7 +1043,7 @@
           "continue-on-error": true
         },
         {
-          "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
+          "run": "test \"$(mise exec -- node --version)\" = \"v26.13.0\"",
           "shell": "bash"
         },
         {
@@ -1123,7 +1123,7 @@
           "uses": "actions/setup-node@v7.1.0",
           "with": {
             "package-manager-cache": "false",
-            "node-version": "26.12.1"
+            "node-version": "26.13.0"
           },
           "if": "steps.init.outputs.hit-package != 'true'"
         },
