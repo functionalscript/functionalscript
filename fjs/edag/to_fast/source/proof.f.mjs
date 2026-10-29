@@ -13,7 +13,8 @@ import { identityAnalysis } from '../../analysis/module.f.mjs'
 import { fromAnalysis } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'
 import { sourceReason } from './module.f.mjs'
-import { reverse, toArray } from '../../../types/list/module.f.mjs'
+import { reverse } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 
 /** @type {(value: Exp, module?: boolean) => string | null} */
 const reason = (value, module = false) => {

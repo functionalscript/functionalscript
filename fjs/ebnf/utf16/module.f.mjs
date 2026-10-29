@@ -24,7 +24,7 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { listToString, stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
 import { isObject } from '../../types/object/module.f.mjs'
 

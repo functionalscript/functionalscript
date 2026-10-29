@@ -29,7 +29,8 @@
  * @import { Chunk, Marked, Run, Span, TokenKind } from './types.ts'
  */
 
-import { map, scan, toArray } from '../../types/list/module.f.mjs'
+import { map, scan } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { charIs } from '../ascii/module.f.js'

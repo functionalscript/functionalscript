@@ -17,7 +17,7 @@
 import { emptyPipelineState, levels } from './level/literal/module.f.mjs'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
 import { level3Id } from './id/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
+import { toArray } from '../types/list/alt/module.f.mjs'
 
 /**
  * `ps` with literal level `i`'s state replaced.

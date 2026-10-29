@@ -4,15 +4,15 @@
  * @module
  *
  * @import { List } from '../types/list/types.ts'
- * @import { StringMap } from '../types/object/types.ts'
  * @import { ByteSet } from '../types/byte_set/types.ts'
  * @import { SortedSet } from '../types/sorted_set/types.ts'
- * @import { RangeMap, Properties, RangeMapArray, RangeEntry } from '../types/range_map/types.ts'
+ * @import { RangeMap, Properties, RangeEntry } from '../types/range_map/types.ts'
  * @import { Fold } from '../types/function/operator/types.ts'
  * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
 
-import { sameItems, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { sameItems, fold, map, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { toArray } from '../types/list/alt/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet, mapValue, values } from '../types/range_map/module.f.mjs'

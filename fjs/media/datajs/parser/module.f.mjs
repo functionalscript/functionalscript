@@ -49,7 +49,8 @@
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
 
-import { concat, toArray } from '../../../types/list/module.f.mjs'
+import { concat } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { walk } from '../../../types/stack_walk/module.f.mjs'

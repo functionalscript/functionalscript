@@ -3,7 +3,7 @@ import {
     assertNotNullish,
     assertStructurallySame,
 } from '../../asserts/module.f.js'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import {
     bmpMax,
     eofFlush,

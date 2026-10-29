@@ -14,7 +14,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { analysis, identityAnalysis } from '../analysis/module.f.mjs'
 import { fromFast } from '../from_fast/module.f.mjs'
 import { fromAnalysis, functionFromAnalysis, toFast } from './module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { memo } from '../memo/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
