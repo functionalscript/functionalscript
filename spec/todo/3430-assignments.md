@@ -1,7 +1,8 @@
 ## Additional Assignment Operators
 
 **Priority:** P4
-**Status:** open
+**Status:** wip — proposing identifier-target `>>=` desugaring; implementation
+awaits explicit language-design approval
 
 These operators can be transformed into two operations in VM byte code.
 
