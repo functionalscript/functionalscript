@@ -382,6 +382,10 @@ export const proof = {
         },
     },
     walk: {
+        deepOperators: () => {
+            const g = ofText(`export default ${'!'.repeat(5_000)}true;`)
+            assertEq(g.nodes.filter(n => n.label === '!').length, 5_000)
+        },
         // A binding is one node however many references reach it: `a` is
         // defined once, captured by `f` and passed to it, so its node has
         // three edges in. The capture is a binding of `f`'s own, its node
@@ -546,8 +550,14 @@ export const proof = {
             const g = sourceOf('export default node => { switch (node[0]) { case "array": case "object": { return "container"; } default: { throw ["unknown", node[0]]; } } };')
             const sw = nodeOf(g, 'switch')
             assertStructurallySame(from(g, sw).map(e => [e.label, e.kind]), [['value', undefined], ['case 0', 'lazy'], ['default', 'lazy']])
-            assertStructurallySame(from(g, nodeOf(g, 'case')).map(e => e.label), ['label 0', 'label 1', 'body'])
+            assertStructurallySame(from(g, nodeOf(g, 'case')).map(e => [e.label, e.kind]), [['label 0', undefined], ['label 1', 'lazy'], ['body', 'lazy']])
             assert(g.edges.some(e => e.label === 'throw'), 'a throw row')
+        },
+        effectfulCaseLabels: () => {
+            const g = sourceOf('export default (x, f, g) => { switch (x) { case f(): case g(): { return 1; } default: { return 0; } } };')
+            const edges = from(g, nodeOf(g, 'case'))
+            assertStructurallySame(edges.map(e => [e.label, e.kind]), [['label 0', undefined], ['label 1', 'lazy'], ['body', 'lazy']])
+            assertEq(g.nodes.filter(n => n.label === '()').length, 2)
         },
         // A `switch` statement in a loop: its value, its cases and its
         // default, as the exit form has, and a `break` in a case arrows back
@@ -619,3 +629,4 @@ export const proof = {
         },
     },
 }
+

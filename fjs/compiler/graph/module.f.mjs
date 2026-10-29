@@ -80,7 +80,7 @@
  * @import { SourceCase, SourceSwitch } from '../../js/ast/sugar/source.ts'
  * @import { ResolvedModule } from '../parser/types.ts'
  * @import { Tags } from './types.ts'
- * @import { _Chain, _Child, _Definition } from './private.ts'
+ * @import { _Chain, _Child, _Definition, _DefinitionTask } from './private.ts'
  */
 
 import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
@@ -297,10 +297,10 @@ export const operatorShape = ({ array, object }) => other => {
  * @type {(module: Module) => readonly _Definition[]}
  */
 const definitions = ({ parameters, body }) => {
-    /** @type {(id: BindingId) => _Definition} */
-    const bare = id => [id, []]
-    /** @type {(value: Value) => readonly _Definition[]} */
-    const value = v => {
+    /** @type {(id: BindingId) => _DefinitionTask} */
+    const bare = id => ({ definition: [id, []] })
+    /** @type {(value: Value) => readonly _DefinitionTask[]} */
+    const value = v => [{ expand: () => {
         if (v === null || typeof v !== 'object' || v[0] === 'ref') { return [] }
         if (v[0] === 'function') {
             const { parameters, rest, self, captures, body } = v[1]
@@ -308,20 +308,20 @@ const definitions = ({ parameters, body }) => {
                 ...parameters.map(bare),
                 ...(rest === null ? [] : [bare(rest)]),
                 ...(self === null ? [] : [bare(self)]),
-                ...captures.flatMap(({ binding, value: c }) => [/** @type {_Definition} */ ([binding, [['captured', c]]]), ...value(c)]),
+                ...captures.flatMap(({ binding, value: c }) => [/** @type {_DefinitionTask} */ ({ definition: [binding, [['captured', c]]] }), ...value(c)]),
                 ...block(body),
             ]
         }
         if (v[0] === 'block') { return block(v[1]) }
         if (v[0] === 'if') { return [...value(v[1]), ...block(v[2]), ...block(v[3])] }
         return operatorOperands(v).flatMap(value)
-    }
-    /** @type {(statement: Statement) => readonly _Definition[]} */
+    } }]
+    /** @type {(statement: Statement) => readonly _DefinitionTask[]} */
     const statement = s => {
         switch (s[0]) {
             case 'define': {
                 const [, id, v, mode] = s
-                return [[id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]]], ...value(v)]
+                return [{ definition: [id, [mode === 'lazy' ? ['value', v, 'lazy'] : ['value', v]]] }, ...value(v)]
             }
             case 'block': { return [...s[1].map(bare), ...block(s[2])] }
             case 'if': { return [...s[1].map(bare), ...value(s[2]), ...block(s[3]), ...block(s[4])] }
@@ -331,7 +331,7 @@ const definitions = ({ parameters, body }) => {
             }
         }
     }
-    /** @type {(exit: Exit) => readonly _Definition[]} */
+    /** @type {(exit: Exit) => readonly _DefinitionTask[]} */
     const exit = e => {
         switch (e[0]) {
             case 'yield': { return e[1].flatMap(value) }
@@ -341,9 +341,23 @@ const definitions = ({ parameters, body }) => {
             default: { return value(e[1]) }
         }
     }
-    /** @type {(block: Block) => readonly _Definition[]} */
-    const block = ({ statements, exit: e }) => [...statements.flatMap(statement), ...exit(e)]
-    return [...parameters.map(bare), ...block(body)]
+    /** @type {(block: Block) => readonly _DefinitionTask[]} */
+    const block = ({ statements, exit: e }) => [{ expand: () => [...statements.flatMap(statement), ...exit(e)] }]
+    // Expand depth first without borrowing the host call stack. Tasks retain
+    // the order of definitions, including captures before their values.
+    let pending = [...parameters.map(bare), ...block(body)]
+    /** @type {readonly _Definition[]} */
+    let found = []
+    while (pending.length !== 0) {
+        const [task, ...rest] = pending
+        if ('definition' in task) {
+            found = [...found, task.definition]
+            pending = rest
+        } else {
+            pending = [...task.expand(), ...rest]
+        }
+    }
+    return found
 }
 
 /** An operand as its edge reaches it: a reference is an edge to the binding it names. @type {(v: unknown) => unknown} */
@@ -559,9 +573,11 @@ export const sourceGraph = module => {
             const { plan, default: d } = /** @type {SourceParameter} */ (v)
             return { kind: 'op', label: 'param', children: [...planRows(plan), ...(d === null ? [] : [/** @type {_Child} */ (['default', d.value, 'lazy'])])] }
         }
+        // The first label runs on reaching the case. Later labels are
+        // skipped after a match, and the body is skipped without a match.
         if (hasEntry(r, 'labels')) {
             const { labels, body } = /** @type {SourceCase} */ (v)
-            return { kind: 'op', label: 'case', children: [...rows('label', labels), ['body', body]] }
+            return { kind: 'op', label: 'case', children: [...labels.map((label, i) => edge(`label ${i}`, label, i !== 0)), ['body', body, 'lazy']] }
         }
         if (hasEntry(r, 'kind')) { return targetShape(v) }
         const position = origins.findIndex(o => o.id === v)
@@ -614,3 +630,4 @@ export const sourceGraph = module => {
     })
     return graphOf(v => derefChildren(v !== null && typeof v === 'object' && !(v instanceof Array) ? record(v) : operators(v)))(module)
 }
+

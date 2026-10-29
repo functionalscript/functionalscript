@@ -25,3 +25,7 @@ export type _Chain = {
 
 /** A binding a module defines, and the edges its node draws: what defines it. */
 export type _Definition = readonly [id: BindingId, children: readonly _Child[]]
+
+
+/** Deferred depth-first work in the binding-definition scan. */
+export type _DefinitionTask = { readonly definition: _Definition } | { readonly expand: () => readonly _DefinitionTask[] }
