@@ -6,7 +6,8 @@ passing it in. [`module.f.mjs`](./module.f.mjs) holds the combinators, and
 [`types.ts`](./types.ts) the shapes.
 
 ```js
-import { filter, map, take, toArray } from './module.f.mjs'
+import { filter, map, take } from './module.f.mjs'
+import { toArray } from './alt/module.f.mjs'
 
 /** The natural numbers, without end. */
 const naturals = () => ({ first: 0, tail: map(x => x + 1)(naturals) })
@@ -40,18 +41,26 @@ Every function is curried, and its configuration comes first, so
 
 |Group       |Functions                                                                                                   |
 |------------|------------------------------------------------------------------------------------------------------------|
-|reading     |`next`, `toArray`, `iterable`, `first`, `last`, `find`, `findMap`, `length`                                 |
+|reading     |`next`, `first`, `last`, `find`, `findMap`, `length`                                                        |
 |transforming|`map`, `flatMap`, `flat`, `filter`, `filterMap`, `intersperse`, `mergeAdjacent`, `entries`, `zip`, `reverse`|
 |slicing     |`take`, `takeWhile`, `drop`, `dropWhile`                                                                    |
 |testing     |`some`, `someBy`, `none`, `every`, `isEmpty`, `includes`, `equal`, `sameItems`                              |
 |accumulating|`fold`, `reduce`, `scan`, `foldScan`, `stateScan`, `tryFold`                                                |
 |building    |`empty`, `concat`, `fromArrayLike`, `countdown`, `repeat`, `cycle`                                          |
 
+Leaving the list is two modules of its own. [`alt`](./alt/module.f.mjs)'s
+`toArray` collects a list into an array with nothing but array spreads, which
+is what the FunctionalScript VM can run, so it is the one to import.
+[`iterable`](./iterable/module.f.mjs) turns a list into a host iterable, for a
+host API that expects one, and has a `toArray` through that iterator; both
+need the host's iteration protocol, which the VM does not have yet.
+
 A few of them in use:
 
 ```js
 import { addition } from '../function/operator/module.f.js'
-import { concat, fold, foldScan, reduce, toArray, zip } from './module.f.mjs'
+import { concat, fold, foldScan, reduce, zip } from './module.f.mjs'
+import { toArray } from './alt/module.f.mjs'
 
 toArray(concat([1, 2])([3]))            // [1, 2, 3]
 fold(x => acc => acc + x)(0)([1, 2, 3]) // 6

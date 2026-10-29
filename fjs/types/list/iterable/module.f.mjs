@@ -1,8 +1,11 @@
 /**
+ * A list as a host iterable, and `toArray` through one. Both need the host's
+ * iteration protocol, which the FunctionalScript VM does not have yet;
+ * [`../alt`](../alt/module.f.mjs) is `toArray` without it.
+ *
  * @module
  *
- * @import { Accumulator, List } from '../types.ts'
- * @import { Nullable } from '../../nullable/types.ts'
+ * @import { List } from '../types.ts'
  */
 
 import { next, trampoline } from '../module.f.mjs'
