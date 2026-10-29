@@ -26,9 +26,16 @@ binding identity, laziness and exit targets.
 
 ### Proposal
 
-One demo page in `fjs/js/ast/` that parses the module, normalizes it, and
-draws both trees with the shared renderer,
-[`fjs/website/demo/graph`](../../../website/demo/graph/module.f.mjs).
+One demo page that parses the module, normalizes it, and draws both trees
+with the shared renderer,
+[`fjs/website/demo/graph`](../../../website/demo/graph/module.f.mjs). The
+walkers live in [`fjs/compiler/graph`](../../../compiler/graph/module.f.mjs); the page is
+[`fjs/compiler/sugar/demo.f.mjs`](../../../compiler/sugar/demo.f.mjs), a
+stage page named after the `sugar` pass it shows, beside the other stage
+pages, because it runs the parser, and `fjs/js/ast`
+importing from `fjs/compiler` is the upward import
+[compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)
+removes.
 
 ```text
 Demo
@@ -47,12 +54,13 @@ exit targets.
 **Each pane runs the real stage.** The page calls the parser's own entry, as
 [`stage_demo`](../../../compiler/stage_demo/module.f.mjs)'s `parsed` does,
 and then `normalize`, as the [EDAG lowering](../../../compiler/edag/module.f.mjs)
-does. It copies no stage logic. Imports become placeholder values passed to
-`normalize`, so they appear as FAST module parameters.
+does. It copies no stage logic. Each import record is passed to `normalize`
+as the value it stands for, so every imported name is a FAST module parameter
+of its own, as in the EDAG lowering before linking.
 
-**Refusals are shown in each stage's own words.** A parse error replaces both
-panes with the parser's message. A module that parses but that `normalize`
-refuses keeps its source drawing, and the FAST pane shows the refusal.
+**A refusal is shown in the parser's own words**, in place of both panes.
+`normalize` has no refusal of its own: it is total over what the parser
+admits.
 
 **Under each graph, a collapsed DataJS listing of the same tree**, so the
 drawing can be checked against the exact structure.
@@ -83,7 +91,7 @@ What the drawing shows:
 | Thing | Drawn as |
 | ----- | -------- |
 | block | a node with one row per statement and an `exit` row |
-| binding (`BindingId`) | one node per identity, labeled with its source name from the parser's `origins`, or `#index` for a compiler temporary |
+| binding (`BindingId`) | one node per identity, holding what defines it. The source pane labels it with its name from the parser's `origins`; FAST has no names, so the FAST pane numbers it `$n` in definition order ([fast-binding-origins](../sugar/todo/fast-binding-origins.md)) |
 | operator | a node labeled with its tag, one port per operand |
 | primitive | inline in its parent's port |
 | lazy operand, `lazy` define | `lazy` edge, drawn dashed |
@@ -99,15 +107,24 @@ which is exactly what the DataJS text already shows.
 An unknown node form is refused with an explicit message, never left out of
 the drawing.
 
+**A binding is drawn after its deepest use**, as every node is: the
+renderer ranks by longest path, so every arrow points forward, and a
+parameter's node lands right of the body that reads it, at the end of a
+long arrow from its function. Placing a binding beside the row that
+defines it was prototyped and rejected. The renderer can draw an arrow
+pointing back only as the dotted lane it uses for recursion and exits, so
+every use looked like recursion, and lanes into one node merge, so the
+two reads of `x` in `x + x` looked like one.
+
 ### Tasks
 
 - [x] The shared `Operator<V>` shape, extracted from the EDAG demo with its
       proofs, and the EDAG demo drawing through it unchanged.
-- [ ] The FAST walker, with its proof: shared bindings, lazy defines,
+- [x] The FAST walker, with its proof: shared bindings, lazy defines,
       captures, loops with their exits, `return` to an outer function.
-- [ ] The source walker, with its proof: the logical binaries, expansion
+- [x] The source walker, with its proof: the logical binaries, expansion
       plans, `initialize`/`write`, `while`, `switch`.
-- [ ] The demo page with both panes, the refusals and the DataJS listings;
+- [x] The demo page with both panes, the refusals and the DataJS listings;
       its proof walks the shared presets.
 - [ ] Decide whether the parser demo keeps its DataJS listing or points here.
 
