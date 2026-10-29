@@ -9,7 +9,7 @@ import { apply, compile, execute, value } from './proof.f.mjs'
 /** @type {(source: string) => unknown} */
 const run = source => execute(compile(source).edag)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     eagerOperators: () => {
         /** @type {readonly (readonly [string, string, string, unknown])[]} */
         const cases = [
@@ -136,4 +136,4 @@ export const proof = {
         ]
         for (const source of cases) { assertError(parse('')(source)) }
     },
-}
+})

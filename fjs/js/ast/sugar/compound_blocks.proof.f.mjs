@@ -10,7 +10,7 @@ import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
 /** @param {string} source */
 const evaluate = source => memo(assertOk(analysis(unresolved(assertOk(parse('/compound-blocks.f.js')(source))).edag)))({ args: [] })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     eagerTargetReadPrecedesRightOperandWrites: () => {
         const source = /** @type {const} */ ('export default (()=>{let x=1;let y=0;x += (()=>{x=10;y=2;return 3;})();return [x,y];})();')
         assertStructurallySame(assertOk(toData(assertOk(evaluate(source)))), { default: [4, 2] })
@@ -39,4 +39,4 @@ export const proof = {
         const skipped = /** @type {const} */ ('export default (()=>{let x=1;let y=0;x ??= (()=>{y+=1;throw 37;})();return [x,y];})();')
         assertStructurallySame(assertOk(toData(assertOk(evaluate(skipped)))), { default: [1, 0] })
     },
-}
+})
