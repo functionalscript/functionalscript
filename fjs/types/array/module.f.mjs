@@ -123,6 +123,9 @@ export const includes =
     v =>
     a.includes(v)
 
+/** Array concatenation in operand order. @type {<T>(a: readonly T[]) => (b: readonly T[]) => readonly T[]} */
+const concat = a => b => [...a, ...b]
+
 /**
  * Repeats a singleton array under concatenation, using monoid doubling rather
  * than materializing a lazy list. Finite nonpositive counts give an empty
@@ -141,7 +144,7 @@ export const repeat =
      */
     v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
         identity: /** @type {readonly T[]} */ ([]),
-        operation: a => b => [...a, ...b],
+        operation: concat,
     })(BigInt(n <= 0 ? 0 : Math.ceil(n)))([v]))
 
 /**
