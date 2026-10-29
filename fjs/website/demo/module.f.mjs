@@ -32,12 +32,12 @@
 import { textSharing } from './sharing/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { examplePicker, name as exampleName } from './examples/module.f.mjs'
+import { examplePicker, name as exampleName } from './examples/module.f.js'
 import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../style/module.f.js'
 import { max } from '../../types/number/max/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 
-export { option, selectField, button } from './controls/module.f.mjs'
+export { option, selectField, button } from './controls/module.f.js'
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what

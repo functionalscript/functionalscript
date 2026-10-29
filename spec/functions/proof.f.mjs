@@ -1,5 +1,5 @@
 import { assert } from '../../fjs/asserts/module.f.js'
-import { examplePicker } from '../../fjs/website/demo/examples/module.f.mjs'
+import { examplePicker } from '../../fjs/website/demo/examples/module.f.js'
 import area from './module.f.js'
 import { demo } from './demo.f.mjs'
 

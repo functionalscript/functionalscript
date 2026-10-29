@@ -104,7 +104,6 @@ export const proof = /** @type {const} */ ({
             ['let state=0;const held=()=>state;while(false){state=1;}export default held;', 'reassigned variable captured'],
             ['let state=0;while(false){const held=()=>state;state=1;}export default state;', 'reassigned variable captured'],
             ['let state=0;while(state<1){state=state+1;}export default ()=>state;', 'reassigned variable captured'],
-            ['let state=0;while(false){const unused=(()=>{state=1;return 0;})();}export default state;', 'reassigned variable captured'],
             ['export const {}={};while(false){}', 'module exports nothing'],
             ['while(false){}', 'unexpected end'],
             ['while(false){};export default 1;', 'unexpected token'],

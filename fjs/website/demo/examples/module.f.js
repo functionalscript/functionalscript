@@ -25,7 +25,7 @@
  * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { option, selectField } from '../controls/module.f.mjs'
+import { option, selectField } from '../controls/module.f.js'
 
 /** The `name` of the drop-down, and of the `input` events a pick sends.
  * @type {string}

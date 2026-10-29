@@ -53,7 +53,7 @@ export const proof = {
             assert(branch !== undefined && branch[0] === 'if')
             const selected = tag === '||' ? branch[4] : branch[3]
             const skipped = tag === '||' ? branch[3] : branch[4]
-            assertEq(branch[1].length, 1)
+            assertEq(branch[1].length, 2)
             assertEq(selected.statements.length, 1)
             assertEq(selected.statements[0][0], 'define')
             assertEq(skipped.statements.length, 0)
@@ -699,12 +699,162 @@ export const proof = {
         const fast = normalize({ ...resolved, body: { statements: [], exit: ['yield', ['block', resolved.body]] } }, [])
         assertStructurallySame(fromFast(fast.body), graph('const value=[1]; export default [value,value];'))
     },
-    // A block normalized as a value drops its environment, so a write in it to
-    // a binding established before it would be lost. The parser admits no such
-    // program; this module asserts it on one built by hand: the function's
-    // `let` lifted before a block holding its assignment.
-    escapedWrite: {
-        throw: () => {
+    deepTerminalSwitchCases: () => {
+        const width = 6_000
+        const cases = Array.from({ length: width }, (_, index) => `case ${index}:{return ${index};}`).join('')
+        const normalized = fn(`export default value=>{switch(value){${cases}default:{return -1;}}};`)
+        assert(normalized.body.exit[0] === 'return')
+        let value = normalized.body.exit[2]
+        for (let index = 0; index < width; index = index + 1) {
+            assert(value instanceof Array && value[0] === 'if')
+            const branch = value[2]
+            assertStructurallySame(branch.exit, ['yield', [index]])
+            const otherwise = value[3]
+            assert(otherwise.exit[0] === 'yield')
+            value = otherwise.exit[1][0]
+        }
+        assertStructurallySame(value, ['-', 1])
+    },
+    deepStatefulSwitchCases: () => {
+        const width = 6_000
+        const cases = Array.from({ length: width }, (_, index) => `case ${index}:{break;}`).join('')
+        const normalized = fn(`export default n=>{while(n<1){switch((()=>{n=n+1;return n;})()){${cases}default:{break;}}}return n;};`)
+        const loop = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(loop !== undefined && loop[0] === 'loop')
+        const guard = loop[1].body.statements[0]
+        assert(guard[0] === 'if')
+        const selected = guard[3].statements.find(statement => statement[0] === 'loop')
+        assert(selected !== undefined && selected[0] === 'loop')
+        let body = selected[1].body
+        for (let index = 0; index < width; index = index + 1) {
+            const branch = body.statements[body.statements.length - 1]
+            assert(branch[0] === 'if')
+            assert(branch[2] instanceof Array && branch[2][0] === '===')
+            assertEq(branch[2][2], index)
+            assertEq(branch[3].exit[0], 'break')
+            body = branch[4]
+        }
+        assertEq(body.exit[0], 'break')
+    },
+    deepStatefulSwitchLabels: () => {
+        const width = 6_000
+        const labels = Array.from({ length: width }, (_, index) => `case ${index}:`).join('')
+        const normalized = fn(`export default n=>{switch(-1){${labels}case (()=>{n=n+1;return n;})():{return n;}default:{return n;}}};`)
+        assert(normalized.body.exit[0] === 'return')
+        assert(normalized.body.statements.some(statement => statement[0] === 'if'))
+    },
+    expressionBlockWrites: {
+        deepStatefulOperators: () => {
+            const width = /** @type {const} */ (5_000)
+            const source = `export default n=>((()=>{n=n+1;return n;})()${'+1'.repeat(width)});`
+            const fast = normalize(assertOk(parse('')(source)), [])
+            assert(fast.body.exit[0] === 'yield')
+            assert(fast.body.statements.length === 0)
+        },
+        expressionsRetainOrderAndLazyState: () => {
+            const next = /** @type {const} */ ('(()=>{n=n+1;return n;})()')
+            /** @type {readonly (readonly [string, unknown])[]} */
+            const cases = [
+                [next, [1, 1]],
+                [`[n,${next},n,${next},n]`, [[0, 1, 1, 2, 2], 2]],
+                [`n+${next}+n`, [2, 1]],
+                [`(${next},n+2)`, [3, 1]],
+                [`(${next},${next},n)`, [2, 2]],
+                [`!${next}`, [false, 1]],
+                [`true?${next}:0`, [1, 1]],
+                [`false?${next}:0`, [0, 0]],
+                [`true?0:${next}`, [0, 0]],
+                [`false?0:${next}`, [1, 1]],
+                [`false&&${next}`, [false, 0]],
+                [`true&&${next}`, [1, 1]],
+                [`false||${next}`, [1, 1]],
+                [`true||${next}`, [true, 0]],
+                [`null??${next}`, [1, 1]],
+                [`0??${next}`, [0, 0]],
+                [`[${next}]?.[Number(${next})]`, [undefined, 2]],
+                [`null?.[Number(${next})]`, [undefined, 0]],
+                [`null?.at(${next})`, [undefined, 0]],
+                [`[4,5].at(${next})`, [5, 1]],
+                [`((a,b)=>[a,b])(${next},${next})`, [[1, 2], 2]],
+                [`[...[${next}],${next}]`, [[1, 2], 2]],
+                [`((...args)=>args)(...[${next}],${next})`, [[1, 2], 2]],
+                [`({[String(${next})]:${next},tail:n})`, [{ 1: 2, tail: 2 }, 2]],
+                [`({...{first:${next}},tail:${next}})`, [{ first: 1, tail: 2 }, 2]],
+                [`(()=>{const x=${next};return x+n;})()`, [2, 1]],
+                [`(()=>{if(n===0){n=3;return n;}return 9;})()`, [3, 3]],
+                [`(()=>{if(false){n=n+1;throw 7;}return 0;})()`, [0, 0]],
+                [`(()=>{switch(${next}){case 1:{n=n+2;return n;}default:{return 9;}}})()`, [3, 3]],
+            ]
+            for (const [expression, expected] of cases) {
+                assertStructurallySame(result(`export default (()=>{let n=0;const r=${expression};return [r,n];})();`), { default: expected }, expression)
+            }
+        },
+        conditionsDefaultsAndLabelsCarryTheirUpdates: () => {
+            /** @type {readonly (readonly [string, unknown])[]} */
+            const cases = [
+                ['export default ((n,x=(()=>{n=n+1;return n;})(),y=n)=>[n,x,y])(0);', [1, 1, 1]],
+                ['export default ((n,x=(()=>{n=n+1;return n;})(),y=n)=>[n,x,y])(0,7);', [0, 7, 0]],
+                ['export default (()=>{let n=0;while((()=>{n=n+1;return n<3;})()){n=n+1;}return n;})();', 3],
+                ['export default (()=>{let n=0;while(n<1){if((()=>{n=n+1;return true;})()){n=n+1;}else{n=9;}}return n;})();', 2],
+                ['export default (()=>{let n=0;switch((()=>{n=n+1;return n;})()){case 1:{n=n+1;return n;}default:{return 9;}}})();', 2],
+                ['export default (()=>{let n=0;switch(2){case (()=>{n=n+1;return n;})():{return 8;}case (()=>{n=n+1;return n;})():{return n;}default:{return 9;}}})();', 2],
+                ['export default (()=>{let n=0;switch(1){case (()=>{n=n+1;return n;})():case (()=>{n=n+1;return n;})():{return n;}default:{return 9;}}})();', 1],
+                ['export default (()=>{let n=0;while(n<3){switch(2){case (()=>{n=n+1;return n;})():{break;}default:{n=n+1;break;}}}return n;})();', 4],
+                ['export default (()=>{let n=0;while(n<1){switch((()=>{n=n+1;return n;})()){case 1:{n=n+1;break;}default:{break;}}}return n;})();', 2],
+                ['export default (()=>{let n=0;while(n<1){switch(2){case (()=>{n=n+1;return n;})():{n=n+1;break;}}}return n;})();', 1],
+                ['export default (()=>{let n=0;const r=(()=>{n=n+1;return n;})();return [r,n];})();', [1, 1]],
+            ]
+            for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        },
+        failuresKeepReachedAssignmentsAndSkipContinuations: () => {
+            const fail = /** @type {const} */ ('(()=>{n=n+1;throw 7;})()')
+            const next = /** @type {const} */ ('(()=>{n=n+1;return n;})()')
+            /** @type {readonly string[]} */
+            const bodies = [
+                `return ${fail};`,
+                `const r=${fail};return n;`,
+                `n=${fail};return n;`,
+                `return [n,${fail},${next}];`,
+                `return -${fail};`,
+                `return ${fail}&&${next};`,
+                `return true?${fail}:${next};`,
+                `return false?${next}:${fail};`,
+                `if(${fail}){return 1;}return 2;`,
+                `switch(${fail}){case 1:{return n;}default:{return 0;}}`,
+                `switch(1){case ${fail}:{return n;}default:{return 0;}}`,
+                `switch(1){case 0:case ${fail}:{return n;}default:{return 0;}}`,
+                `while(n<1){if(${fail}){n=3;}else{n=4;}}return n;`,
+                `while(n<1){switch(${fail}){case 1:{break;}default:{break;}}}return n;`,
+                `while(n<1){switch(1){case ${fail}:{break;}default:{break;}}}return n;`,
+                `return (()=>{if(true){n=n+1;throw 7;}n=n+2;throw 8;})();`,
+                `return [4]?.[Number(${fail})];`,
+                `return [4].at(${fail});`,
+            ]
+            for (const body of bodies) {
+                const source = `export default (()=>{let n=0;${body}})();`
+                assertError(memo(assertOk(analysis(graph(source))))({ args: [] }))
+            }
+        },
+        sourceBlockControlKeepsLexicalBindings: () => {
+            /** @type {readonly (readonly [string, unknown])[]} */
+            const cases = [
+                ['let local=0;local=1;while(local<1){if(true){local=2;}else{local=3;}switch(local){case 1:{break;}default:{continue;}}}return (()=>{outer=outer+1;return outer;})();', 1],
+                ['if(outer===0){outer=outer+1;return outer;}outer=outer+2;return outer;', 1],
+                ['switch(outer){case 0:{outer=outer+1;return outer;}default:{outer=outer+2;return outer;}}', 1],
+            ]
+            for (const [body, expected] of cases) {
+                const resolved = assertOk(parse('')(`let outer=0;export default (()=>{${body}})();`))
+                const object = resolved.body.exit[0] === 'yield' ? resolved.body.exit[1] : null
+                assert(object instanceof Array && object[0] === 'object')
+                const member = object[1][0]
+                assert(member[0] === ':' && member[2] instanceof Array && member[2][0] === '()')
+                const callee = member[2][1]
+                assert(callee instanceof Array && callee[0] === 'function')
+                const fast = normalize({ ...resolved, body: { ...resolved.body, exit: ['yield', ['block', callee[1].body]] } }, [])
+                assertEq(assertOk(toData(assertOk(memo(assertOk(analysis(fromFast(fast.body))))({ args: [] })))), expected)
+            }
+        },
+        explicitSourceBlock: () => {
             const resolved = assertOk(parse('')('export default ()=>{let value=0; value=1; return value;};'))
             const object = resolved.body.exit[0] === 'yield' ? resolved.body.exit[1] : null
             assert(object instanceof Array && object[0] === 'object')
@@ -712,7 +862,8 @@ export const proof = {
             assert(member[0] === ':' && member[2] instanceof Array && member[2][0] === 'function')
             const [initialize, write] = member[2][1].body.statements
             assert(initialize[0] === 'initialize' && write[0] === 'write')
-            normalize({ ...resolved, body: { statements: [initialize], exit: ['yield', ['block', { statements: [write], exit: ['yield', ['ref', write[1]]] }]] } }, [])
+            const fast = normalize({ ...resolved, body: { statements: [initialize], exit: ['yield', ['block', { statements: [write], exit: ['yield', ['ref', write[1]]] }]] } }, [])
+            assertEq(assertOk(toData(assertOk(memo(assertOk(analysis(fromFast(fast.body))))({ args: [] })))), 1)
         },
         // the same write at the block's own level is the block's business: a
         // scalar loop's step and a rest parameter's assignment are such writes

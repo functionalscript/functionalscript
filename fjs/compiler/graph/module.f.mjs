@@ -431,6 +431,14 @@ const rows = (label, ids) => ids.map((id, i) => [`${label} ${i}`, id])
  * captures as bindings, and its body a dashed edge: making the function
  * does not run it. A conditional's arms are dashed too, as `?:`'s are.
  *
+ * **A binding is drawn after its deepest use**, as every node is: the
+ * renderer ranks by longest path, so every arrow points forward, and a
+ * parameter's node lands right of the body that reads it. Placing a
+ * binding beside the row that defines it was tried and rejected: the
+ * renderer draws an arrow pointing back only as the dotted lane of
+ * recursion and exits, so every use looked like recursion, and lanes into
+ * one node merge, so the two reads of `x` in `x + x` looked like one.
+ *
  * @type {(module: Module) => Graph}
  */
 export const fastGraph = module => {
