@@ -171,9 +171,9 @@ information — see [serialization](../design/serialization.md) and
 3. [x] [Loops](../control-flow/loops/README.md) — zero or multiple state values,
    conditional, sequential and nested `while`, with `break`, `continue`,
    owning-function returns and throws. `for` remains [3270](./3270-for.md).
-   A final literal-true loop with no break targeting it is proposed as a
-   [terminating statement](./3221-terminal-while.md), preserving the refusal
-   of a function that can silently fall through its closing brace.
+   A final literal-true loop with no break targeting it is a
+   [terminating statement](../control-flow/loops/README.md#a-terminal-unconditional-loop),
+   preserving the refusal of a function that can silently fall through.
 4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
    guard's block and `default` last, is in the language
    ([switch](../control-flow/switch/README.md)); surface syntax over `?:` and

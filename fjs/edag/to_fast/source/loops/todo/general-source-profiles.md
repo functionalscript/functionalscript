@@ -107,5 +107,5 @@ fallback; non-reifiable forms retain the explicit `Result` error above.
 
 - [Source loop output](../README.md)
 - [Source-loop proof boundary cases](../proof.f.mjs)
-- [Shared terminal fold](../../../../../js/ast/loop/terminal/module.f.mjs)
+- [Shared terminal fold](../../../../../js/ast/loop/terminal/module.f.js)
 - [Common preparation](../../../../../js/ast/prepare/README.md)

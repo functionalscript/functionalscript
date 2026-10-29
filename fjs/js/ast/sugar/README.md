@@ -60,6 +60,16 @@ Expressions with no outer writes retain their established normalization path.
 dispatch. It indexes held function bodies and defaults independently without
 treating function construction as their execution.
 
+A terminal literal-true loop arrives as the source exit `terminal-loop`, after
+admission has resolved every break target and proved that none leaves that
+loop. It shares ordinary loop state and transfer normalization, but has no
+normal results and no condition-false break. Returns still target the owning
+source function; throws and continues retain their ordinary meaning. An empty
+terminal loop therefore remains deliberate divergence. The required FAST block
+exit uses the existing unreachable-throw guard convention, as an exhaustive
+normalized switch does; admitted source cannot reach that guard, and it is
+neither an implicit undefined result nor a normal continuation.
+
 A conditional statement inside a loop instead keeps the surrounding statement
 continuation. Both arms normalize from the same preceding immutable mapping.
 The union of the normally completing arms' assigned outer bindings becomes

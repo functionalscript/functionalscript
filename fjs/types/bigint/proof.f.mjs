@@ -46,7 +46,7 @@ const candidateNames = [
     'mathLog2',
 ]
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { min } from '../function/compare/module.f.mjs'
+import { min } from '../function/compare/module.f.js'
 
 /** @type {(v: bigint) => bigint} */
 const oldLog2 = v => {

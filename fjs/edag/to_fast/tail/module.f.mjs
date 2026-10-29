@@ -9,7 +9,7 @@
  * @import { _Recipe, _Result, _Use, _UseTask } from './private.ts'
  */
 
-import { bind, call, done, run } from '../../../js/ast/task/module.f.mjs'
+import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { _restTransition } from '../../../js/ast/invocation/module.f.mjs'

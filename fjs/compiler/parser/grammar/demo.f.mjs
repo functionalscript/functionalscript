@@ -33,11 +33,11 @@
  */
 
 import {
-    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, body, callArguments,
+    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, simpleStatement, body, callArguments,
     circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
-    parenGroup, parenGroupOperand, parenthesized, primitive, statement, afterCase, caseTail, template, terminator, unary, unaryOperand,
+    parenGroup, parenGroupOperand, parenthesized, primitive, afterCase, caseTail, template, terminator, unary, unaryOperand,
     value, values, whileStatement,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.js'
@@ -78,7 +78,8 @@ export const diagrams = [
     ['value', value],
     ['body', body],
     ['block', block],
-    ['statement', statement],
+    ['blockContents', blockContents],
+    ['simpleStatement', simpleStatement],
     ['whileStatement', whileStatement],
     ['loopBlock', loopBlock],
     ['loopStatement', loopStatement],

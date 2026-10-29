@@ -11,8 +11,8 @@
  */
 
 import { freeBindings } from '../../control/module.f.mjs'
-import { run } from '../../task/module.f.mjs'
-import { terminalTree } from '../terminal/module.f.mjs'
+import { run } from '../../task/module.f.js'
+import { terminalTree } from '../terminal/module.f.js'
 
 /**
  * Fixed numeric reads preserve established values. Named properties can mint

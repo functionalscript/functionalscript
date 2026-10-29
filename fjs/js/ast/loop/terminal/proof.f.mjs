@@ -1,8 +1,8 @@
 /** @import { Block, Definition, Loop, Value } from '../../types.ts' */
 
 import { assert, assertEq } from '../../../../asserts/module.f.js'
-import { run } from '../../task/module.f.mjs'
-import { isTerminalLoop, terminalTree } from './module.f.mjs'
+import { run } from '../../task/module.f.js'
+import { isTerminalLoop, terminalTree } from './module.f.js'
 
 const state = /** @type {const} */ ({ index: 0 })
 const other = /** @type {const} */ ({ index: 1 })

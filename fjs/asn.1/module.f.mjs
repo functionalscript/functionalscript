@@ -28,7 +28,7 @@ import { assert } from '../asserts/module.f.js'
 import { identity } from '../types/function/module.f.js'
 import { toArray } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
-import { max } from '../types/function/compare/module.f.mjs'
+import { max } from '../types/function/compare/module.f.js'
 import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
 
 //

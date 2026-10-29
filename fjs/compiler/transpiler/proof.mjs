@@ -124,6 +124,37 @@ export const proof = {
             }
         }
     },
+    terminalDivergentExportsLoadWithoutInvocation: async () => {
+        const exports = assertOk(await run({ main: [utf8(
+            'export const spin=()=>{while(true){}};' +
+            'export const again=()=>{while(true){continue;}};' +
+            'export const nested=()=>{while((true)){while(true){break;}}};',
+        )] })(transpile(noRuntime)('main')))
+        for (const name of ['spin', 'again', 'nested']) {
+            assertEq(callable(field(exports, name)).length, 0)
+        }
+    },
+    terminalLoopCallableExports: async () => {
+        const exports = assertOk(await run({ main: [utf8(
+            'export const count=(limit,observe)=>{let i=0;while(true){i+=1;observe(i);if(i===limit){return i;}continue;}};' +
+            'export const nested=()=>{let i=0;while(true){i=i+1;switch(i){case 1:{break;}default:{return i;}}}};' +
+            'export const guarded=flag=>{if(flag){while(true){return 7;}}return 8;};' +
+            'export const cases=n=>{switch(n){case 0:{while(true){return 9;}}default:{return 10;}}};' +
+            'export const inner=()=>{let i=0;while(true){const f=()=>{while(true){return 5;}};const n=f();i=i+1;if(i===2){return i+n;}}};',
+        )] })(transpile(noRuntime)('main')))
+        /** @type {unknown[]} */
+        const observations = []
+        assertEq(callable(field(exports, 'count'))(4, /** @param {unknown} value */ value => {
+            observations.push(value)
+        }), 4)
+        assertStructurallySame(observations, [1, 2, 3, 4])
+        assertEq(callable(field(exports, 'nested'))(), 2)
+        assertEq(callable(field(exports, 'guarded'))(true), 7)
+        assertEq(callable(field(exports, 'guarded'))(false), 8)
+        assertEq(callable(field(exports, 'cases'))(0), 9)
+        assertEq(callable(field(exports, 'cases'))(1), 10)
+        assertEq(callable(field(exports, 'inner'))(), 7)
+    },
     templateCallableExports: async () => {
         const exports = assertOk(await run({
             main: [utf8('export const template = x => y => `head${x}:${y}tail`; export const explicit = x => y => "head" + String(x) + ":" + String(y) + "tail"; export default x => `own:${{ toString: () => x, valueOf: () => 7 }}`;')],

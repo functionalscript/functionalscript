@@ -54,4 +54,18 @@ export const proof = {
         const value = /** @type {SourceValue} */ (['()', ['ref', id], [0]])
         assertStructurallySame(writes(value, new Map()).get(value), [])
     },
+    terminalBodiesAreIndexedBehindTheirInvocationBoundary: () => {
+        const id = /** @type {BindingId} */ ({ index: 0 })
+        const target = /** @type {FunctionTarget} */ ({ kind: 'function', index: 0 })
+        const loop = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const body = /** @type {SourceBlock} */ ({ statements: [['compound-write', id, '+', 1]], exit: ['yield', 0] })
+        const terminal = /** @type {SourceBlock} */ ({ statements: [], exit: ['terminal-loop', { target: loop, events: [], condition: true, body }] })
+        const held = /** @type {SourceValue} */ (['function', { target, length: 0, parameters: [], rest: null, self: null, body: terminal }])
+        const call = /** @type {SourceValue} */ (['()', held, []])
+        const indexed = writes(call, new Map([[target, [id]]]))
+        assertStructurallySame(indexed.get(body), [id])
+        assertStructurallySame(indexed.get(terminal), [id])
+        assertStructurallySame(indexed.get(held), [])
+        assertStructurallySame(indexed.get(call), [id])
+    },
 }

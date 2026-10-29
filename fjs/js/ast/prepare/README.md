@@ -196,7 +196,7 @@ Default preparation does not use the source branching plan.
 
 Terminal decisions may also mix normal completion and continuation in
 source zero-input, fixed multi-input and observed-rest roots. Shared
-[terminal analysis](../loop/terminal/module.f.mjs)
+[terminal analysis](../loop/terminal/module.f.js)
 validates required definitions, result-free decisions and exact loop transfers.
 Preparation keeps the body as one `while(true)` region, preserving required
 allocations shared by its tests, continued arguments and completed results.

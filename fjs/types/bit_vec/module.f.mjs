@@ -35,7 +35,7 @@ import { map, next, toArray } from '../list/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
-import { cmp, max, min } from '../function/compare/module.f.mjs'
+import { cmp, max, min } from '../function/compare/module.f.js'
 import { map as nullableMap, mapUnwrap } from '../nullable/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 

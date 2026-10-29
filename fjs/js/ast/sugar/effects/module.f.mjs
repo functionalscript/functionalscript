@@ -11,7 +11,7 @@
  */
 
 import { operatorOperands } from '../../module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.js'
 import { toArray } from '../../../../types/list/module.f.mjs'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
@@ -55,6 +55,7 @@ export const writes = (root, functions) => {
             const exit = block.exit
             children = [...children, ...(exit[0] === 'if' ? [exit[1], exit[2], exit[3]]
                 : exit[0] === 'switch' ? [exit[1], ...exit[2].flatMap(arm => [...arm.labels, arm.body]), exit[3]]
+                    : exit[0] === 'terminal-loop' ? [exit[1].condition, exit[1].body]
                     : [exit[0] === 'return' ? exit[2] : exit[1]])]
         }
         // The deferred walk captures only the completed immutable plan.

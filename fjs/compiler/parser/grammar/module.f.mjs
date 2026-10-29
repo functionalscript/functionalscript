@@ -34,7 +34,8 @@
  *          | '(' groupOperand
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
- * block  ::= '{' statement* terminator '}'
+ * block  ::= '{' blockContents '}'
+ * blockContents ::= simpleStatement* (terminator | while [blockContents])
  * statement ::= const | 'if' '(' value ')' block | let
  *             | while | bodyNameStatement
  * while  ::= 'while' '(' value ')' loopBlock
@@ -43,7 +44,7 @@
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
- *            | '}' statement* terminator
+ *            | '}' blockContents
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | let | loopIfStatement | whileStatement
  *                 | 'break' end | 'continue' end | 'return' value end
@@ -148,7 +149,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { AssignmentOperator } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
+ * @import { BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -1142,7 +1143,7 @@ export const caseTail = () => ['const', {
 export const afterCase = () => ['const', {
     case: [sym('case'), value, sym(':'), caseTail],
     default: [sym('default'), sym(':'), block, sym('}')],
-    rest: [sym('}'), repeatFrom0(statement), terminator],
+    rest: [sym('}'), blockContents],
 }]
 
 /**
@@ -1197,15 +1198,19 @@ export const terminator = /** @type {const} */ ({
  * statement, {@link bodyNameStatement}: the keywords above each open a
  * statement of their own, and a name is none of them.
  *
- * @type {Statement}
+ * The non-loop prefix excludes `while`, which `blockContents` reads once
+ * before deciding whether more body statements follow.
+ * @type {SimpleStatement}
  */
-export const statement = () => ['const', {
+export const simpleStatement = () => ['const', {
     const: constStatement,
     if: [sym('if'), sym('('), value, sym(')'), block],
     let: letStatement,
-    while: whileStatement,
     name: bodyNameStatement,
 }]
+
+/** A body statement, with ordinary loops allowed before later statements. @type {Statement} */
+export const statement = () => ['const', { ...simpleStatement()[1], while: whileStatement }]
 
 /**
  * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
@@ -1311,10 +1316,22 @@ export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock,
 export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
 
 /**
- * A function's block body: `{ const x = 1; return value; }` — any number of
- * {@link statement}s, `const`s and guards, and then the one
- * {@link terminator}, a `return`, a `throw`, or a switch, which holds the
- * rest of the block where it has no `default`
+ * A body has non-loop statements followed by a terminator or a while. The
+ * while may be final; otherwise the remaining body uses the same rule.
+ * This left-factors the while token instead of adding it to two LL(1) branches.
+ * Source admission decides whether a final while really cannot fall through.
+ * @type {BlockContents}
+ */
+export const blockContents = () => ['const', [repeatFrom0(simpleStatement), {
+    end: terminator, loop: [whileStatement, option(blockContents)],
+}]]
+
+/**
+ * A function's block body: `{ const x = 1; return value; }` — its
+ * {@link blockContents}, ending in an ordinary terminator or a candidate
+ * terminal while. Source admission checks the candidate's literal condition
+ * and transfer targets. A switch holds the rest of the body where it has no
+ * `default`
  * ([spec: functions](../../../../spec/functions/README.md)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
@@ -1342,9 +1359,7 @@ export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBloc
  *
  * @type {Block}
  */
-export const block = /** @type {const} */ ([
-    sym('{'), repeatFrom0(statement), terminator, sym('}'),
-])
+export const block = /** @type {const} */ ([sym('{'), blockContents, sym('}')])
 
 /**
  * An import's attribute, `with { type: "json" }` as JavaScript spells the

@@ -18,7 +18,7 @@
 import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
 import { concat, toArray } from '../../../../types/list/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /** Owning returns inside deferred recipes, without crossing ordinary bodies. @type {(value: Value, target: FunctionTarget) => boolean} */

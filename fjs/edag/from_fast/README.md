@@ -6,7 +6,7 @@ admission and loop-state selection have already finished. A value block adds
 no function or invocation boundary.
 
 Graph construction, invocation-root reconstruction and memo normalization share
-the shared FAST [`task`](../../js/ast/task/module.f.mjs) evaluator. Deferred calls and result
+the shared FAST [`task`](../../js/ast/task/module.f.js) evaluator. Deferred calls and result
 continuations use its explicit stack, keeping deeply nested syntax off the
 host stack without duplicating the evaluator in each pass.
 

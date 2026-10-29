@@ -55,6 +55,11 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    terminalLoopSourceShape: () => {
+        const graph = sourceOf('export default ()=>{while(true){return 1;}};')
+        const loop = nodeOf(graph, 'terminal while')
+        assertStructurallySame(from(graph, loop).map(edge => [edge.label, edge.kind]), [['cond', undefined], ['body', 'lazy']])
+    },
     /**
      * The shape against hand-built tuples in the EDAG's spelling, not source
      * text: most of these tags — every `Op1`, some of `Op2`, a spread, a

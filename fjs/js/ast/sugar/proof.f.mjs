@@ -72,6 +72,44 @@ export const proof = {
         for (const [source, expected] of skipped) { assertStructurallySame(result(source), { default: expected }) }
         assertStructurallySame(result('const initial=[];let value=initial;value??=null.x;export default value===initial;'), { default: true })
     },
+    terminalLoopsHaveNoNormalResultsOrConditionFalseExit: () => {
+        for (const body of ['', 'continue;']) {
+            // Inspect deliberate divergence; never execute either function.
+            const normalized = fn(`export default ()=>{while(true){${body}}};`)
+            assertEq(normalized.body.statements.length, 1)
+            const loop = normalized.body.statements[0]
+            assert(loop[0] === 'loop')
+            assertEq(loop[1].parameters.length, 0)
+            assertEq(loop[1].results.length, 0)
+            assertEq(loop[1].body.statements.length, 0)
+            assert(loop[1].body.exit[0] === 'continue')
+            assertEq(loop[1].body.exit[1], loop[1].target)
+            // FAST requires an exit record even after a non-completing loop.
+            // The unreachable guard is not an implicit returned undefined.
+            assertStructurallySame(normalized.body.exit, ['throw', 'a terminal loop completed normally'])
+        }
+    },
+    terminalLoopReturnsKeepTheirOwningFunction: () => {
+        const cases = /** @type {const} */ ([
+            ['export default (()=>{let n=0;while(true){n=n+1;if(n===4){return n;}}})();', 4],
+            ['export default (()=>{let n=0;while(true){n=n+1;if(n<3){continue;}return n;}})();', 3],
+            ['export default (()=>{while(true){while(true){break;}return 7;}})();', 7],
+            ['export default (()=>{let n=0;while(true){n=n+1;switch(n){case 1:{continue;}default:{break;}}return n;}})();', 2],
+            ['export default (()=>{if(true){while(true){return 5;}}return 9;})();', 5],
+            ['export default (()=>{switch(1){case 1:{while(true){return 6;}}default:{return 9;}}})();', 6],
+            ['export default (()=>{while(true){const inner=()=>{while(true){return 11;}};return inner();}})();', 11],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        assertError(memo(assertOk(analysis(graph('export default (()=>{while(true){throw "terminal failure";}})();'))))({ args: [] }))
+    },
+    terminalLoopRegionsPreserveExpressionBlockUpdates: () => {
+        const cases = /** @type {const} */ ([
+            ['export default (()=>{let n=0;while(true){const reached=(()=>{n+=1;return n;})();if(reached<3){continue;}return n;}})();', 3],
+            ['export default (()=>{let n=0;let count=0;while(true){while((()=>{n+=1;return n<3;})()){count+=1;}return [n,count];}})();', [3, 2]],
+            ['export default (()=>{let n=0;while(true){switch((()=>{n+=1;return n;})()){case 1:{continue;}default:{return n;}}}})();', 2],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
     switchBreaksMergeStateAndResumeTheirLoop: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

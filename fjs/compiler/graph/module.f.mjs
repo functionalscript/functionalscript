@@ -622,6 +622,10 @@ export const sourceGraph = module => {
                 const { condition, body } = /** @type {SourceLoop} */ (exp[1])
                 return { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
             }
+            case 'terminal-loop': {
+                const { condition, body } = /** @type {SourceLoop} */ (exp[1])
+                return { kind: 'op', label: 'terminal while', children: [['cond', condition], ['body', body, 'lazy']] }
+            }
             // a `switch` statement, which a `break` leaves, or a `switch`
             // exit, which ends its block: the same value, cases and default
             case 'switch': {

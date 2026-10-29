@@ -86,18 +86,18 @@ export type Node =
  * The block syntax: zero or more statements — `const` declarations and
  * guards, {@link BlockStatement} — followed by the one statement that ends
  * it, a `return` or a `throw` with its value, or a switch with a `default`,
- * {@link BlockEnd}. The grammar enforces this
- * order; a bare `return`, a bare `throw` and a statement after the last are
- * unsupported.
+ * {@link BlockEnd}, or a candidate final loop retained for source admission.
+ * The grammar enforces this order; a bare `return`, a bare `throw` and a
+ * statement after the last are unsupported.
  */
 export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), BlockEnd]]
 
 /**
  * The statement a block ends with, tagged by its keyword: a `return` or a
  * `throw` with its value, or a switch with a `default`, {@link Switch},
- * which the grammar lets nothing follow.
+ * which the grammar lets nothing follow, or a candidate final while.
  */
-export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch]
+export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While]
 
 /** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
 export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['switch', Switch]
@@ -509,6 +509,7 @@ export type Out =
     | { readonly id: 'named', readonly statement: NamedStatement }
     | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'end', readonly end: Block[1] }
+    | { readonly id: 'blockContents', readonly statements: Block[1] }
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
