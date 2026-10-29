@@ -42,8 +42,11 @@ import { error, ok } from '../../types/result/module.f.js'
 /** The directions a header may name. @type {readonly Direction[]} */
 export const directions = ['LR', 'RL', 'TB', 'TD', 'BT']
 
+const isLetterChar = charIs(isLatinLetter)
+const isDigitChar = charIs(isDigit)
+
 /** @type {(c: string) => boolean} */
-const isNameChar = c => charIs(isLatinLetter)(c) || charIs(isDigit)(c) || c === '_'
+const isNameChar = c => isLetterChar(c) || isDigitChar(c) || c === '_'
 
 /** Mermaid statement keywords, which cannot name nodes. @type {readonly string[]} */
 const keywords = ['end', 'classDef', 'class', 'style', 'subgraph']
@@ -90,9 +93,10 @@ const nodeAt = (line, at) => {
     if (id === '') { return error(`a node expected at ${at}`) }
     if (keywords.includes(id)) { return error(`a node named ${id}, which Mermaid reads as a keyword`) }
     if (!line.startsWith('["', end)) { return ok([[id, null], end]) }
-    const label = labelAt(line, end + 2, '"]')
-    if (label[0] === 'error') { return label }
-    return ok([[id, label[1][0]], label[1][1]])
+    const [tag, value] = labelAt(line, end + 2, '"]')
+    if (tag === 'error') { return error(value) }
+    const [label, after] = value
+    return ok([[id, label], after])
 }
 
 /**
@@ -106,11 +110,12 @@ const arrowAt = (line, at) => {
     if (!both && !line.startsWith('-->', at)) { return ok(null) }
     const after = at + (both ? 4 : 3)
     if (line[Number(after)] !== '|') { return ok([[both, ''], after]) }
-    const label = labelAt(line, after + 1, '|')
-    if (label[0] === 'error') { return label }
-    const delimiter = [...label[1][0]].find(c => '()[]{}'.includes(c))
+    const [tag, value] = labelAt(line, after + 1, '|')
+    if (tag === 'error') { return error(value) }
+    const [label, end] = value
+    const delimiter = [...label].find(c => '()[]{}'.includes(c))
     if (delimiter !== undefined) { return error(`an unquoted edge label holding the syntax delimiter ${delimiter}`) }
-    return ok([[both, label[1][0]], label[1][1]])
+    return ok([[both, label], end])
 }
 
 /**
@@ -119,22 +124,25 @@ const arrowAt = (line, at) => {
  * @type {(line: string) => Result<readonly [readonly _Named[], readonly (readonly [boolean, string])[]], string>}
  */
 const statementOf = line => {
-    const first = nodeAt(line, skipSpaces(line, 0))
-    if (first[0] === 'error') { return first }
+    const [firstTag, firstValue] = nodeAt(line, skipSpaces(line, 0))
+    if (firstTag === 'error') { return error(firstValue) }
+    const [first, afterFirst] = firstValue
     /** @type {readonly _Named[]} */
-    let nodes = [first[1][0]]
+    let nodes = [first]
     /** @type {readonly (readonly [boolean, string])[]} */
     let arrows = []
-    let at = skipSpaces(line, first[1][1])
+    let at = skipSpaces(line, afterFirst)
     while (at < line.length) {
-        const arrow = arrowAt(line, at)
-        if (arrow[0] === 'error') { return arrow }
-        if (arrow[1] === null) { return error(`an arrow or the line's end expected at ${at}`) }
-        const node = nodeAt(line, skipSpaces(line, arrow[1][1]))
-        if (node[0] === 'error') { return node }
-        nodes = [...nodes, node[1][0]]
-        arrows = [...arrows, arrow[1][0]]
-        at = skipSpaces(line, node[1][1])
+        const [arrowTag, arrowValue] = arrowAt(line, at)
+        if (arrowTag === 'error') { return error(arrowValue) }
+        if (arrowValue === null) { return error(`an arrow or the line's end expected at ${at}`) }
+        const [arrow, afterArrow] = arrowValue
+        const [nodeTag, nodeValue] = nodeAt(line, skipSpaces(line, afterArrow))
+        if (nodeTag === 'error') { return error(nodeValue) }
+        const [node, afterNode] = nodeValue
+        nodes = [...nodes, node]
+        arrows = [...arrows, arrow]
+        at = skipSpaces(line, afterNode)
     }
     return ok([nodes, arrows])
 }
@@ -179,16 +187,17 @@ export const tryFlowchart = text => {
         k = k + 1
         const line = lines[Number(k)]
         if (line.trim() === '') { continue }
-        const statement = statementOf(line)
-        if (statement[0] === 'error') { return error(`line ${k + 1}: ${statement[1]}`) }
-        const [named, arrows] = statement[1]
+        const [statementTag, statement] = statementOf(line)
+        if (statementTag === 'error') { return error(`line ${k + 1}: ${statement}`) }
+        const [named, arrows] = statement
         /** @type {readonly number[]} */
         let indices = []
         while (indices.length < named.length) {
-            const added = withNode(nodes, named[Number(indices.length)])
-            if (added[0] === 'error') { return error(`line ${k + 1}: ${added[1]}`) }
-            nodes = added[1][0]
-            indices = [...indices, added[1][1]]
+            const [addedTag, added] = withNode(nodes, named[Number(indices.length)])
+            if (addedTag === 'error') { return error(`line ${k + 1}: ${added}`) }
+            const [updatedNodes, index] = added
+            nodes = updatedNodes
+            indices = [...indices, index]
         }
         const ends = indices
         edges = [...edges, ...arrows.map(([both, label], i) => ({ from: ends[Number(i)], to: ends[Number(i + 1)], label, both }))]
