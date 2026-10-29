@@ -47,6 +47,7 @@ const isNameChar = c => charIs(isLatinLetter)(c) || charIs(isDigit)(c) || c === 
  * What Mermaid reads inside a label rather than showing — markup, and a
  * quote, which delimits a label, `-->|"text"|` included — and a plain label
  * therefore never holds.
+ * @type {string}
  */
 const markup = '<>&#\\`"'
 
