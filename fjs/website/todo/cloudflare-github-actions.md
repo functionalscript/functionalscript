@@ -4,7 +4,7 @@
 **Status:** wip
 
 The owner verified GitHub sign-in on the Actions preview and disconnected
-Workers Builds. Production now uses the existing website job on main pushes;
+Workers Builds. Production uses the website job on main pushes;
 verify the first production deployment after merging this change.
 
 ### Problem
@@ -44,19 +44,17 @@ disabling Workers Builds so the transition does not leave competing deployments.
 
 ### Build job
 
-The `website` job runs on pull requests, including drafts and forks, and
-pushes to `main`. Other branches needing a preview
-open a draft PR. Test jobs run on PRs only; main pushes run only the website
-job. Merge-group events skip every job, reporting required check names without
-allocating runners or retesting combined changes. It runs independently of the platform matrix and test jobs,
-reuses workflow concurrency, and builds outside the successful-check
-cache. Build steps receive no deployment credentials. The generator receives
-the checked-out SHA and source branch through the existing `WORKERS_CI_*`
-metadata variables.
+The website job lives in its own generated workflow, running on pull requests
+(including drafts and forks) and pushes to `main`. Other branches need an open
+PR for previews. Test CI retains its original nine jobs on PRs and merge-group
+events, with no deployment gates or push triggers. The website check is not
+required in the merge queue, so the website workflow does not run there.
+Website concurrency and credentials stay separate from the test workflow.
+Both Rustdoc and website generation receive the same commit/branch metadata.
 
 Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after its own successful website build.
-Fork pull requests never upload; merge-group entries skip every job. No enable-switch variables
+Fork pull requests never upload; merge-group events only run test CI. No enable-switch variables
 are used. Production uploads use `wrangler deploy` only for main pushes, after changes
 pass PR checks and merge through the queue. Main runs do not cancel an active upload. The API token is scoped to the upload
 step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
@@ -73,10 +71,13 @@ branch-alias rules, cutover and rollback are documented in
 The existing CI website job creates or updates one bot-owned PR comment after
 each successful preview upload. It uses the alias URL reported by Wrangler
 and the automatic Actions token with pull-request write permission. Drafts
-are included; fork PRs stay build-only and merge groups skip every job. No extra settings are
+are included; fork PRs stay build-only. No extra settings are
 needed, and failed uploads never publish a preview comment.
 
 ### Tasks
+
+- [x] Restore original PR and merge-queue tests and isolate website previews and
+      main-push production deployments in a separate generated workflow.
 
 - [x] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under

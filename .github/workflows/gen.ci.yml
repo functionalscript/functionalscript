@@ -2,16 +2,11 @@
   "name": "CI",
   "on": {
     "pull_request": {},
-    "merge_group": {},
-    "push": {
-      "branches": [
-        "main"
-      ]
-    }
+    "merge_group": {}
   },
   "concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
-    "cancel-in-progress": "${{ github.event_name != 'push' }}"
+    "cancel-in-progress": true
   },
   "permissions": {
     "contents": "read"
@@ -28,22 +23,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -52,8 +31,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
@@ -116,7 +104,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -130,7 +119,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -139,7 +129,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -152,8 +143,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
@@ -166,22 +156,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -190,8 +164,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
@@ -369,7 +352,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -383,7 +367,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -397,7 +382,8 @@
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true'"
         },
         {
-          "run": "npm start ci report spidermonkey-compile",
+          "run": "mise exec -- npm start ci report spidermonkey-compile",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-compile != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -411,7 +397,8 @@
           "if": "steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "npm start ci report spidermonkey-suite",
+          "run": "mise exec -- npm start ci report spidermonkey-suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-spidermonkey-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -420,7 +407,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -433,8 +421,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
@@ -447,22 +434,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -471,8 +442,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
@@ -510,7 +490,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -524,7 +505,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -533,7 +515,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -546,8 +529,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "macos-arm": {
       "runs-on": "macos-26",
@@ -560,22 +542,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -584,8 +550,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- rustc --version | cut -d' ' -f1,2)\" = \"rustc 1.99.1\"",
@@ -623,7 +598,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -637,7 +613,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -646,7 +623,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -659,8 +637,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "windows-intel": {
       "runs-on": "windows-2025",
@@ -673,22 +650,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -697,8 +658,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
@@ -751,7 +721,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -765,7 +736,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -774,7 +746,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -787,8 +760,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
@@ -801,22 +773,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -825,8 +781,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
@@ -859,7 +824,8 @@
           "if": "steps.init.outputs.hit-rust != 'true'"
         },
         {
-          "run": "npm start ci report rust",
+          "run": "mise exec -- npm start ci report rust",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -873,7 +839,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -882,7 +849,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -895,8 +863,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
@@ -909,22 +876,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -933,8 +884,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- deno eval 'console.log(Deno.version.deno)')\" = \"2.9.8\"",
@@ -952,7 +912,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -961,7 +922,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -974,8 +936,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
@@ -988,22 +949,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -1012,8 +957,17 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
-          },
-          "if": "steps.init.outputs.hit-suite != 'true'"
+          }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- bun --version)\" = \"1.4.4\"",
@@ -1031,7 +985,8 @@
           "if": "steps.init.outputs.hit-suite != 'true'"
         },
         {
-          "run": "npm start ci report suite",
+          "run": "mise exec -- npm start ci report suite",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-suite != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1040,7 +995,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1053,8 +1009,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1067,22 +1022,6 @@
           }
         },
         {
-          "uses": "actions/setup-node@v7.1.0",
-          "with": {
-            "package-manager-cache": "false",
-            "node-version": "26.12.1"
-          }
-        },
-        {
-          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
-          "continue-on-error": true
-        },
-        {
-          "id": "init",
-          "run": "npm start ci init",
-          "continue-on-error": true
-        },
-        {
           "uses": "jdx/mise-action@v5",
           "with": {
             "version": "2026.10.19",
@@ -1092,6 +1031,16 @@
             "env": "false",
             "add_shims_to_path": "false"
           }
+        },
+        {
+          "run": "git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache",
+          "continue-on-error": true
+        },
+        {
+          "id": "init",
+          "run": "mise exec -- npm start ci init",
+          "shell": "bash",
+          "continue-on-error": true
         },
         {
           "run": "test \"$(mise exec -- node --version)\" = \"v26.12.1\"",
@@ -1113,7 +1062,8 @@
           "if": "steps.init.outputs.hit-tsc != 'true'"
         },
         {
-          "run": "npm start ci report tsc",
+          "run": "mise exec -- npm start ci report tsc",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-tsc != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1127,7 +1077,8 @@
           "if": "steps.init.outputs.hit-compile != 'true'"
         },
         {
-          "run": "npm start ci report compile",
+          "run": "mise exec -- npm start ci report compile",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-compile != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1141,7 +1092,8 @@
           "if": "steps.init.outputs.hit-coverage != 'true'"
         },
         {
-          "run": "npm start ci report coverage",
+          "run": "mise exec -- npm start ci report coverage",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-coverage != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1226,7 +1178,8 @@
           "if": "steps.init.outputs.hit-package != 'true'"
         },
         {
-          "run": "npm start ci report package",
+          "run": "mise exec -- npm start ci report package",
+          "shell": "bash",
           "if": "steps.init.outputs.hit-package != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1235,7 +1188,8 @@
           "continue-on-error": true
         },
         {
-          "run": "npm start ci publish",
+          "run": "mise exec -- npm start ci publish",
+          "shell": "bash",
           "if": "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
@@ -1248,82 +1202,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
-    },
-    "website": {
-      "if": "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
-      "runs-on": "ubuntu-26.04",
-      "timeout-minutes": 30,
-      "permissions": {
-        "contents": "read",
-        "pull-requests": "write"
-      },
-      "steps": [
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "uses": "jdx/mise-action@v5",
-          "with": {
-            "version": "2026.10.19",
-            "install_args": "--locked",
-            "cache": "true",
-            "cache_max_age_days": "0",
-            "env": "false",
-            "add_shims_to_path": "false"
-          }
-        },
-        {
-          "run": "mise exec -- npm ci",
-          "shell": "bash"
-        },
-        {
-          "run": "mise exec -- sh ./nanvm/demos/gen.build.sh",
-          "shell": "bash"
-        },
-        {
-          "run": "mise exec -- npm run rustdoc-bars",
-          "shell": "bash",
-          "env": {
-            "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
-          }
-        },
-        {
-          "run": "mise exec -- cargo doc --no-deps --workspace",
-          "shell": "bash",
-          "env": {
-            "RUSTDOCFLAGS": "--html-in-header ${{ github.workspace }}/_rustdoc-head.html --html-before-content ${{ github.workspace }}/_rustdoc-header.html --html-after-content ${{ github.workspace }}/_rustdoc-footer.html --extend-css ${{ github.workspace }}/_rustdoc.css"
-          }
-        },
-        {
-          "run": "mise exec -- npm run website",
-          "shell": "bash",
-          "env": {
-            "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
-          }
-        },
-        {
-          "if": "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
-          "run": "mise exec -- node ./fjs/website/github-deploy.mjs preview",
-          "shell": "bash",
-          "env": {
-            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref }}",
-            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-          }
-        },
-        {
-          "if": "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-          "run": "mise exec -- node ./fjs/website/github-deploy.mjs production",
-          "shell": "bash",
-          "env": {
-            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}"
-          }
-        }
-      ]
+      }
     }
   }
 }

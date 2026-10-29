@@ -12,7 +12,7 @@
 import { array, or, string } from '../../rtti/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { stepSchema, uses } from '../common/module.f.mjs'
-import { installNode } from '../node/module.f.mjs'
+import { miseDevelop } from '../mise/module.f.mjs'
 
 export const checkSchema = /** @type {const} */ ({
     id: string,
@@ -109,7 +109,7 @@ export const platform = image => {
 
 /**
  * A check records all of its prerequisites in their execution order. The
- * bootstrap Node and checkout are fixed by the protocol and its tool pins.
+ * mise environment and checkout are fixed by the protocol and its tool pins.
  *
  * @type {(jobId: string, job: Job) => readonly Check[]}
  */
@@ -132,21 +132,23 @@ const cachedJob = (jobId, source) => {
     const ids = plan.map(({ id }) => id)
     const work = source.steps.filter(step =>
         !isAction(step, 'actions/checkout')
+        && !isEnvironmentSetup(step)
         && !(isAction(step, 'actions/setup-node') && step.with?.['package-manager-cache'] !== 'false'))
-    // The generator drift check and demo rebuild stay uncached. Their environment
-    // installation must still run when all of the cacheable checks hit.
+    // The generator drift check and demo rebuild stay uncached. Their Node
+    // version check must still run when all of the cacheable checks hit.
     const uncachedShell = work.some(step =>
         shellPrefixes.some(prefix => step.run?.startsWith(prefix) === true) && dependencies(jobId, ids, step).length === 0)
     const gated = work.flatMap((step, index) => {
         const depends = dependencies(jobId, ids, step)
-        const condition = depends.length === 0 || uncachedShell && (isEnvironmentSetup(step) || command(step).includes('node --version'))
+        const condition = depends.length === 0 || uncachedShell && command(step).includes('node --version')
             ? {} : { if: misses(depends) }
         const own = checkId(jobId, step)
         const last = own !== undefined && !work.slice(index + 1).some(next => checkId(jobId, next) === own)
         return [
             { ...step, ...condition },
             ...(last ? [{
-                run: `npm start ci report ${own}`,
+                run: miseDevelop(`npm start ci report ${own}`),
+                shell: 'bash',
                 if: misses([own]),
                 env: botIdentity,
                 'continue-on-error': /** @type {const} */ (true),
@@ -158,20 +160,22 @@ const cachedJob = (jobId, source) => {
         permissions: { contents: 'write' },
         steps: [
             uses('actions/checkout', { 'fetch-depth': '1' }),
-            installNode({ 'package-manager-cache': 'false' }),
+            ...source.steps.filter(isEnvironmentSetup),
             {
                 run: 'git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache',
                 'continue-on-error': true,
             },
             {
                 id: 'init',
-                run: 'npm start ci init',
+                run: miseDevelop('npm start ci init'),
+                shell: 'bash',
                 // Missing hit flags run the checks when lookup is unavailable.
                 'continue-on-error': true,
             },
             ...gated,
             {
-                run: 'npm start ci publish',
+                run: miseDevelop('npm start ci publish'),
+                shell: 'bash',
                 if: "always() && steps.init.outcome == 'success' && github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
                 env: {
                     ...botIdentity,

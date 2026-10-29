@@ -220,22 +220,24 @@ these steps, without `cargo clean --doc`, which a fresh checkout does not need
 
 ### GitHub Actions deployment
 
-The generated CI workflow now supports building and deploying in the separate
-`website` job. It runs independently of test jobs and builds the WASM demos, styled Rust
-documentation and website with the committed mise lock, then uploads previews
-with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
-and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests,
-including drafts, build the website; same-repository PRs upload previews.
-Fork pull requests build without uploading. Merge-group entries skip all jobs;
-the merge queue reports the required check names without rebuilding or deploying.
-Only `main` has a push trigger: the existing website job deploys production.
-Other branches need an open PR (a draft is enough) for a preview. Test jobs
-run only on PRs, without repeating in the merge queue or on main pushes.
+The generated `Website` workflow (`.github/workflows/gen.website.yml`) builds
+the WASM demos, styled Rust documentation and website in its own `website` job
+with the committed mise lock. Pull requests, including drafts and forks, build
+the website; same-repository PRs upload previews. Fork PRs build without uploading.
+Pushes to `main` deploy production. Other branches need an open PR (a draft is
+enough) for a preview.
+
+The original CI workflow keeps all nine test jobs on PRs and merge-group
+entries, using its existing cache. It has no deployment gates or push trigger.
+Website uploads have their own concurrency and do not affect test jobs. The
+website workflow does not run in the merge queue; the website check is not a
+required queue check. Wrangler is pinned to **4.74.0**, and builds keep the
+existing `WORKERS_CI_COMMIT_SHA` and `WORKERS_CI_BRANCH` metadata inputs.
 
 Cloudflare Workers Builds is disconnected. Every same-repository pull-request run uses
 `wrangler versions upload --preview-alias` after its own successful build.
-The same job uses `wrangler deploy` only on pushes to `main`, after changes
-pass review and PR checks, then merge through the queue. An active main upload
+The website job uses `wrangler deploy` only on pushes to `main`, after changes
+pass review and required checks, then merge through the queue. An active main upload
 is not cancelled by a newer push. No enable-switch variables are required.
 The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
 retains existing Worker variables, and Wrangler version uploads retain existing
@@ -276,9 +278,9 @@ Cutover status and verification:
 
 1. `CLOUDFLARE_API_TOKEN` is configured. The owner verified GitHub sign-in on
    the Actions preview and disconnected Cloudflare Workers Builds.
-2. Merge the production step in the existing website job through review and
-   the merge queue. The merge triggers the first Actions production upload.
-   Verify the production URL, commit links, Rust docs, demos and GitHub sign-in.
+2. Production deployment is enabled on main pushes. After changing deployment
+   workflows, verify the production URL, commit links, Rust docs, demos and
+   GitHub sign-in on the next main upload.
 3. The temporary preview prefix is removed now that Workers Builds is
    disconnected. Retain the legacy build script and Cloudflare-only Node pin
    until rollback no longer needs them.
