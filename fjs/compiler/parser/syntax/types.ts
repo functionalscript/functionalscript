@@ -95,12 +95,12 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
 /**
  * The statement a block ends with, tagged by its keyword: a `return` or a
  * `throw` with its value, or a switch with a `default`, {@link Switch},
- * which the grammar lets nothing follow, or a candidate final while.
+ * which the grammar lets nothing follow, or a candidate final loop.
  */
-export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While]
+export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For]
 
 /** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
-export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['switch', Switch]
+export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', Switch]
 
 /** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
 export type NamedStatement = readonly ['const', Const] | readonly ['assign', Assignment]
@@ -151,6 +151,15 @@ export type While = {
 /** A loop's block: statements in order, including syntax after transfers, and no required terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
+/** A classic `for` keeps its lexical initializer and step until normalization. */
+export type For = {
+    readonly start: ModuleTokenWithMetadata
+    readonly initializer: NamedStatement | readonly ['let' | 'const', Const] | null
+    readonly condition: Node
+    readonly step: NamedStatement | null
+    readonly block: LoopBlock
+}
+
 /** A normal conditional resumes the surrounding block after its selected arm. An `else if` is another conditional in the alternate block. */
 export type LoopIf = {
     readonly start: ModuleTokenWithMetadata
@@ -168,7 +177,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -418,7 +427,7 @@ export type ModuleConst = {
 }
 
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While]
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an

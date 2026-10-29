@@ -2,7 +2,8 @@
 
 Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
 ordinary and exported `const` statements, `let` statements, assignments and
-plain `while` loops, with an optional final `export default` or terminal throw.
+`while` and classic `for` loops, with an optional final `export default` or
+terminal throw.
 A loop ends at its closing `}`. Other statements end with `;`, or where
 JavaScript inserts one; a module that does not throw needs at least one export.
 
@@ -26,10 +27,13 @@ rule of the language asks, whether a newline stood before a token
 and complete source binding evidence. Source values refer to original
 declaration identities; blocks retain initialization plans, assignments,
 plain loops and terminal branches for the common sugar pass. Each loop retains
-its complete condition/body event tree, including nested source-function reads.
+its complete condition, optional step and body event tree, including nested
+source-function reads.
 The parser admits zero or several outer writes without selecting loop state;
 sugar intersects those events with established bindings and the shared
 `isMutable` facts. Loop-local names remain separate resolved identities.
+Classic `for` header declarations are resolved in a scope surrounding the
+condition, step and body; the step is outside the body's nested lexical scope.
 `scope` records initialization, reads, writes,
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
@@ -100,7 +104,7 @@ concern and adds no synthetic source reads.
 
 ```
 module ::= import* moduleStatement* last eof
-moduleStatement ::= const | let | while | bodyNameStatement
+moduleStatement ::= const | let | while | forStatement | bodyNameStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
@@ -134,22 +138,25 @@ template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
 statement ::= const | 'if' '(' value ')' block | let
-            | 'while' '(' value ')' loopBlock | bodyNameStatement
+            | whileStatement | forStatement | bodyNameStatement
 terminator ::= 'return' value end | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
 caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | let | bodyNameStatement | whileStatement
+loopStatement ::= const | let | bodyNameStatement | whileStatement | forStatement
                 | loopIfStatement | 'break' end | 'continue' end
                 | 'return' value end | 'throw' value end | loopSwitch
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
 loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
+forStatement ::= 'for' '(' [ forInitializer ] ';' [ value ] ';' [ nameExpression ] ')' loopBlock
+forInitializer ::= ( 'const' | 'let' ) target '=' value | nameExpression
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
-bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
+nameExpression ::= id ( assignmentOperator value | <the rest of the value the name begins> )
+bodyNameStatement ::= nameExpression end
 func   ::= [ '...' id ] ')' '=>' body
 afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
              | '=' value [ ',' [ names ] ] ')' '=>' body

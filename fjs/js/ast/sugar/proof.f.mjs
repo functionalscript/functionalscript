@@ -33,6 +33,45 @@ const fn = source => {
 }
 
 export const proof = {
+    forUpdatesRunAtNormalCompletionAndOwningContinues: () => {
+        const cases = /** @type {const} */ ([
+            ['let sum=0;for(let i=0;i<4;i+=1){if(i===1){continue;}sum+=i;}export default sum;', 5],
+            ['let sum=0;for(let i=0;i<4;i+=1){if(i<2){sum+=10;}else{continue;}}export default sum;', 20],
+            ['let sum=0;for(let i=0;i<4;i+=1){if(i===1){if(sum===0){sum=7;continue;}}if(i===2){break;}}export default sum;', 7],
+            ['let sum=0;for(let i=0;i<3;i+=1){switch(i){case 0:{continue;}case 1:{sum+=1;break;}default:{continue;}}sum+=100;}export default sum;', 101],
+            ['let sum=0;for(let i=0;i<3;i+=1){switch(i){case 0:{switch(i){case 0:{continue;}default:{break;}}break;}default:{sum+=i;break;}}}export default sum;', 3],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    forUpdateBindingsAndTransfersKeepTheirLexicalOwners: () => {
+        const cases = /** @type {const} */ ([
+            ['let sum=0;for(let i=0;i<2;i+=1){let i=10;i+=1;sum+=i;}export default sum;', 22],
+            ['let sum=0;for(let i=0;i<3;i+=1){let j=0;while(j<3){j+=1;continue;}sum+=1;}export default sum;', 3],
+            ['let sum=0;for(let i=0;i<2;i+=1){for(let j=0;j<3;j+=1){if(j===1){continue;}sum+=1;}}export default sum;', 4],
+            ['let sum=0;for(let i=0;i<2;i+=1){const f=()=>{let j=0;while(j<3){j+=1;continue;}return j;};sum+=f();}export default sum;', 6],
+            ['let count=0;for(let i=0;i<3;i+=1){const snapshot=i;const read=()=>snapshot;count+=read();}export default count;', 3],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    forUpdateEvaluationFollowsReachedCompletion: () => {
+        const cases = /** @type {const} */ ([
+            ['let i=0;for(;false;i=null.x){const skipped=null.x;}export default i;', 0],
+            ['let i=0;for(;true;i=null.x){break;}export default i;', 0],
+            ['export default (()=>{for(let i=0;true;i=null.x){return 7;}return 0;})();', 7],
+            ['let sum=0;for(let i=0;i<3;i+=1){sum+=i;}export default sum;', 3],
+            ['let sum=0;for(let i=0;i<3;i=(()=>{sum+=i;return i+1;})()){}export default sum;', 3],
+            ['export default (()=>{let sum=0;for(let i=0;;i=(()=>{sum+=i;return i+1;})()){if(i===3){return sum;}}})();', 3],
+            ['let i=0;for(;;){i+=1;if(i<3){continue;}break;}export default i;', 3],
+            ['export default (()=>{let i=0;for(;;i+=1){if(i<3){continue;}return i;}})();', 3],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        assertStructurallySame(result('let value=0;export default [true?(()=>{for(let i=0;i<3;i=(()=>{value+=i;return i+1;})()){}return value;})():0,value];'), { default: [3, 3] })
+        for (const source of [
+            'let i=0;for(;i<1;i=null.x){}export default i;',
+            'let i=0;for(;i<1;i=null.x){continue;}export default i;',
+            'let i=0;for(;true;i=null.x){throw 7;}export default i;',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
     compoundEagerWritesNormalizeToTheExistingBinaryValues: () => {
         for (const [tag, left, right] of [
             ['+', '8', '3'], ['-', '8', '3'], ['*', '8', '3'], ['/', '8', '2'],

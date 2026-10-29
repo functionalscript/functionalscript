@@ -7,6 +7,21 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { writes } from './module.f.mjs'
 
 export const proof = {
+    forUpdatesContributeToNormalAndTerminalLoopEffects: () => {
+        const id = /** @type {BindingId} */ ({ index: 0 })
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const body = /** @type {SourceBlock} */ ({ statements: [], exit: ['yield', undefined] })
+        const step = /** @type {SourceBlock} */ ({ statements: [['compound-write', id, '+', 1]], exit: ['yield', undefined] })
+        const loop = { target, events: [], condition: true, body, step }
+        for (const root of /** @type {readonly SourceBlock[]} */ ([
+            { statements: [['while', loop]], exit: ['yield', undefined] },
+            { statements: [], exit: ['terminal-loop', loop] },
+        ])) {
+            const indexed = writes(root, new Map())
+            assertStructurallySame(indexed.get(step), [id])
+            assertStructurallySame(indexed.get(root), [id])
+        }
+    },
     compoundTargetsAndOperandsContributeWrites: () => {
         const x = /** @type {BindingId} */ ({ index: 0 })
         const y = /** @type {BindingId} */ ({ index: 1 })

@@ -36,7 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
@@ -1151,9 +1152,14 @@ const toBlockContents = ([statements, ending]) => {
     const prefix = unmapped(statements).map(statementAt)
     const [kind, branch] = unmapped(ending)
     if (kind === 'end') { return symbol({ id: 'blockContents', statements: [...prefix, ...endAt(branch)] }) }
-    const [loop, tail] = unmapped(branch)
-    const following = unmapped(tail)[0]
-    const read = loopConditionAt(loop)
+    const following = unmapped(unmapped(branch)[1])[0]
+    if (kind === 'for') {
+        const read = forAt(unmapped(branch)[0])
+        return symbol({ id: 'blockContents', statements: following === undefined
+            ? [...prefix, ['terminal-for', read]]
+            : [...prefix, ['for', read], ...blockContentsAt(following)] })
+    }
+    const read = loopConditionAt(unmapped(branch)[0])
     return symbol({ id: 'blockContents', statements: following === undefined
         ? [...prefix, ['terminal-while', read]]
         : [...prefix, ['while', read], ...blockContentsAt(following)] })
@@ -1267,6 +1273,28 @@ const loopConditionAt = node => {
     return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
 }
 
+/** Retain each clause, using literal true only when the test is omitted. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => For} */
+const forAt = node => {
+    const [first, , initial, , condition, , step, , block] = unmapped(node)
+    const initializer = unmapped(initial)[0]
+    /** @type {For['initializer']} */
+    let declaration = null
+    if (initializer !== undefined) {
+        const [kind, branch] = unmapped(initializer)
+        if (kind === 'name') { declaration = namedExpressionOf(unmapped(branch), true) }
+        else {
+            const [first, target, , value] = unmapped(branch)
+            declaration = [kind, { start: tokenAt(first), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
+        }
+    }
+    const test = unmapped(condition)[0]
+    const update = unmapped(step)[0]
+    return { start: tokenAt(first), initializer: declaration,
+        condition: test === undefined ? ['primitive', true] : nodeAt(test),
+        step: update === undefined ? null : namedExpressionOf(unmapped(update), true),
+        block: loopBlockOf(unmapped(block)) }
+}
+
 /** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
 const loopElseAt = node => {
     const out = outAt(node)
@@ -1314,14 +1342,15 @@ const toStatement = ([kind, branch]) => {
  * as a value's name branch reads it, {@link continued}, and its beginning
  * the name. Which values it may be — a call alone — is the fold's.
  *
- * @type {(name: ModuleTokenWithMetadata, rest: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>, end: _EndNode) => Const}
+ * @type {(name: ModuleTokenWithMetadata, rest: Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>, semicolon: boolean) => Const}
  */
-const discarded = (name, rest, end) =>
-    ({ start: name, semicolon: ended(end), target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
+const discarded = (name, rest, semicolon) =>
+    ({ start: name, semicolon, target: ['discard', name], value: continued({ fixed: [named(name)], rest: null }, ['ref', name], false, rest) })
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: ['for', forAt(branch)] }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
@@ -1337,18 +1366,23 @@ const toModuleStatement = ([kind, branch]) => {
  * @type {(node: Children<BodyNameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toBodyNameStatement = ([name, rest, end]) => {
+    return symbol({ id: 'named', statement: namedExpressionOf([name, rest], ended(end)) })
+}
+
+/** Shared clause and statement reader; header separators already terminate their clauses. @type {(node: Children<NameExpression, ModuleTokenWithMetadata, Out>, semicolon: boolean) => NamedStatement} */
+const namedExpressionOf = ([name, rest], semicolon) => {
     const token = tokenAt(unmapped(name)[1])
     const [tag, assigned] = unmapped(rest)
     if (tag !== 'assign') {
-        return symbol({ id: 'named', statement: ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), end)] })
+        return ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), semicolon)]
     }
     const [op, v] = unmapped(assigned)
     const [kind, operatorToken] = unmapped(op)
     const operator = assignmentOperators[kind][1]
-    return symbol({ id: 'named', statement: ['assign', {
-        start: token, semicolon: ended(end), name: token, value: nodeAt(v),
+    return ['assign', {
+        start: token, semicolon, name: token, value: nodeAt(v),
         operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
-    }] })
+    }]
 }
 
 /**
@@ -1366,6 +1400,7 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: ['for', forAt(branch)] }) }
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
 }

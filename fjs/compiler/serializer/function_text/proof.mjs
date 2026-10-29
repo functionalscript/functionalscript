@@ -8,7 +8,7 @@
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { tryFunctionText } from '../module.f.mjs'
+import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 
@@ -22,6 +22,51 @@ const compile = (e, captures = []) => Function(
 const run = body => compile(['=>', 0, [], body])()
 
 export const proof = {
+    forLoopTransfersUseWhile: async () => {
+        const source = 'export default (test,body,step)=>{for(let i=0;test(i);i=step(i)){if(i===1){continue;}if(i===3){break;}body(i);}return 9;};'
+        const graph = _defaultExport(unresolved(assertOk(parse('/for-transfers.f.js')(source))).edag)
+        assert(graph instanceof Array && graph[0] === '=>')
+        const text = assertOk(tryStringify(graph))
+        const functionText = assertOk(tryFunctionText(graph))
+        for (const output of [text, functionText]) {
+            assert(output.includes('while('), output)
+            assert(!output.includes('for('), output)
+        }
+        const module = await import(`data:text/javascript,${encodeURIComponent(text)}`)
+        for (const fn of [module.default, compile(graph)]) {
+            /** @type {readonly string[]} */
+            let trace = []
+            /** @type {(i: number) => boolean} */
+            const test = i => { trace = [...trace, `test ${i}`]; return i < 5 }
+            /** @type {(i: number) => number} */
+            const body = i => { trace = [...trace, `body ${i}`]; return i }
+            /** @type {(i: number) => number} */
+            const step = i => { trace = [...trace, `step ${i}`]; return i + 1 }
+            assertEq(fn(test, body, step), 9)
+            assertStructurallySame(trace, ['test 0', 'body 0', 'step 0', 'test 1', 'step 1', 'test 2', 'body 2', 'step 2', 'test 3'])
+            trace = []
+            assertEq(fn(() => false, body, step), 9)
+            assertStructurallySame(trace, [])
+            throws(() => fn(test, () => { throw 'body failure' }, step), e => e === 'body failure')
+            assertStructurallySame(trace, ['test 0'])
+            trace = []
+            throws(() => fn(test, body, () => { throw 'step failure' }), e => e === 'step failure')
+            assertStructurallySame(trace, ['test 0', 'body 0'])
+        }
+    },
+    forLoopBytePackingUsesWhile: async () => {
+        const source = 'export default (input,first,count)=>{let word=0;for(let i=0;i<count;i+=1){word|=input[Number(first+i)]<<8*i;}return word;};'
+        const graph = _defaultExport(unresolved(assertOk(parse('/for-byte-packing.f.js')(source))).edag)
+        assert(graph instanceof Array && graph[0] === '=>')
+        const text = assertOk(tryStringify(graph))
+        assert(text.includes('while('), text)
+        assert(!text.includes('for('), text)
+        const module = await import(`data:text/javascript,${encodeURIComponent(text)}`)
+        for (const fn of [module.default, compile(graph)]) {
+            assertEq(fn([0xff, 0x12, 0x34, 0x56], 1, 3), 0x56_3412)
+            assertEq(fn([0x12, 0x34], 0, 0), 0)
+        }
+    },
     expressions: () => {
         /** @type {readonly (readonly [Exp, unknown])[]} */
         const cases = [

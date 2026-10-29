@@ -138,7 +138,13 @@ explicit refusal. Those active compatibility paths remain in the source adapter;
 they are not replaced writer implementations. The established scalar recognizer
 also remains in common conversion to preserve its graph and output shape.
 
-Labels, additional loop syntax such as [for](../../spec/todo/3270-for.md),
+Classic `for (init; condition; step)` syntax lowers to the existing loop
+operations with a lexical initializer region and updates before normal
+continuation or an owning continue. The
+[parser proofs](parser/for.proof.f.mjs) cover scope, transfers and reached
+evaluation. No new EDAG operation is introduced.
+
+Labels, iteration syntax such as [`for…of`](../../spec/todo/3270-for.md),
 mutual-recursion elimination, general trampolining, a general CFG, global liveness
 optimization and [mutable object contents](../../spec/design/mutability.md) are
 separate work. The [compiler vocabulary issue](../todo/compiler-vocabulary-and-modularization.md)

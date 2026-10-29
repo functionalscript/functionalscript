@@ -2,9 +2,10 @@
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
 parameter patterns and defaults, assignments, guards, switches, conditional
-loop statements, targeted loop/function exits and `while` loops. These constructs contain no generated
-functions, capture frames or immutable assignment versions. The parser retains source legality and
-diagnostics; representing a construct here does not admit new source syntax.
+loop statements, targeted loop/function exits and loops with an optional
+resolved `for` step. These constructs contain no generated functions, capture
+frames or immutable assignment versions. The parser retains source legality
+and diagnostics; representing a construct here does not admit new source syntax.
 [`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) shows this pass's
 input and output side by side, as graphs.
 
@@ -34,6 +35,12 @@ explicit branch results: only the selected arm establishes the right operand,
 while the skipped arm has no definitions and yields the preceding version.
 The parser's implicit-read and possible-write evidence remains part of complete
 binding analysis even when the write is skipped at run time.
+
+Classic `for` initializers precede the existing source loop. The parser has
+already resolved the header's lexical scope and the step's binding identities,
+so a body-local shadow cannot change the step's target. Sugar inserts the
+resolved step before each owning `continue` and after normal body completion.
+Breaks, returns and throws skip it; nested loops keep their own transfers.
 
 Terminal guards and switches become yielding value regions. They introduce no
 invocation or capture boundary. A block normalized as a value — a source block
@@ -96,10 +103,10 @@ assigned outer bindings in declaration order. Its breaks supply current values;
 an absent default supplies unchanged ones. This uses existing transfer and
 completion machinery rather than adding a switch operation. The nearest break
 region and nearest repeated loop are independent: a switch changes only the
-break owner, so `continue` retains the enclosing loop and retests its condition.
-A nested `while` owns both transfers. Returns and throws keep their source
-owners. An all-terminal switch has no normal continuation, and its following
-computations are not normalized. Only actual transfers out of the repeated loop
+break owner, so `continue` retains the enclosing loop, runs any `for` step and
+retests its condition. A nested loop owns both transfers. Returns and throws
+keep their source owners. An all-terminal switch has no normal continuation,
+and its following computations are not normalized. Only actual transfers out of the repeated loop
 count toward that loop's literal-true normalization; a switch-local break does
 not. Every normalized loop root still ends in an explicit transfer. A switch's
 unreachable root traps if a case ever falls through; it introduces no state

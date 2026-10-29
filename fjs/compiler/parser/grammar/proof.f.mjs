@@ -20,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
-    afterCase, caseTail, bodyNameStatement, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
+    afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -84,6 +84,29 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
+    classicForClausesHaveExplicitSeparators: () => {
+        for (const source of [
+            'for(;;){}export default 0;',
+            'for(let i=0;i<3;i+=1){}export default 0;',
+            'for(const [i]=[0];false;){}export default 0;',
+            'let i=0;for(i=1;i<3;i=i+1){}export default i;',
+            'for(start();ready();advance()){}export default 0;',
+            'export default ()=>{for(;;){return 1;}};',
+            'export default ()=>{for(;;){}return 1;};',
+            'while(false){for(;;){break;}}export default 0;',
+            'export default ()=>{if(true){for(;;){return 1;}}for(;;){}};',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'for(let i=0\ni<3;i+=1){}export default 0;',
+            'for(let i=0;i<3\ni+=1){}export default 0;',
+            'for(let i;i<3;i+=1){}export default 0;',
+            'for(let i=0;i<3;i++){}export default 0;',
+            'for(const i of []){}export default 0;',
+            'for(const i in {}){}export default 0;',
+            'for(;;)break;export default 0;',
+            'for(;;){};export default 0;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
     finalWhileCandidateGrammar: () => {
         for (const source of [
             'export default ()=>{while(true){}};',
@@ -154,6 +177,8 @@ export const proof = {
         block: () => { parser(/** @type {Rule} */ (block)) },
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         whileStatement: () => { parser(/** @type {Rule} */ (whileStatement)) },
+        forStatement: () => { parser(/** @type {Rule} */ (forStatement)) },
+        nameExpression: () => { parser(/** @type {Rule} */ (nameExpression)) },
         loopStatement: () => { parser(/** @type {Rule} */ (loopStatement)) },
         loopSwitch: () => { parser(/** @type {Rule} */ (loopSwitch)) },
         loopCase: () => { parser(/** @type {Rule} */ (loopCase)) },
@@ -548,7 +573,7 @@ export const proof = {
         // a reserved word begins no statement, so one opening a statement
         // is refused at the word, as no rule begins with it
         assertStructurallySame(read('export default (...a) => { var r = 1; return r; };'), ['error', 'var'])
-        assertStructurallySame(read('export default (...a) => { for (r of a) { } return r; };'), ['error', 'for'])
+        assertStructurallySame(read('export default (...a) => { for (r of a) { } return r; };'), ['error', 'of'])
         assertStructurallySame(read('const r = 1; eval(r); export default r;'), ['error', 'eval'])
         // and stands where a name does elsewhere, a key and a property
         assertStructurallySame(read('export default { var: 1 }.var;'), ['ok'])
