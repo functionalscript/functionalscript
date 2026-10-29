@@ -10,6 +10,12 @@ import { apply, compile, execute, value } from './proof.f.mjs'
 const run = source => execute(compile(source).edag)
 
 export const proof = {
+    compoundAssignmentsInTerminalLoops: () => {
+        const repeated = value(compile('export default (count,a)=>{let result=0;let step=a;while(true){if((count&1n)!==0n){result+=step;}count>>=1n;if(count===0n){return result;}step+=step;}};').edag)
+        assertEq(apply(repeated, [0n, 3]), 0)
+        assertEq(apply(repeated, [13n, 3]), 39)
+        assertStructurallySame(run('export default (()=>{let i=0;let selected=null;while(true){selected??=i;i+=1;if(i===3){return [i,selected];}}})();'), [3, 0])
+    },
     returningPathsAndContinue: () => {
         const counted = value(compile('export default n=>{let i=0;while(true){i=i+1;if(i===n){return i*2;}continue;}};').edag)
         assertEq(apply(counted, [1]), 2)

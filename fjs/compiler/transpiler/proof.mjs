@@ -136,7 +136,7 @@ export const proof = {
     },
     terminalLoopCallableExports: async () => {
         const exports = assertOk(await run({ main: [utf8(
-            'export const count=(limit,observe)=>{let i=0;while(true){i=i+1;observe(i);if(i===limit){return i;}continue;}};' +
+            'export const count=(limit,observe)=>{let i=0;while(true){i+=1;observe(i);if(i===limit){return i;}continue;}};' +
             'export const nested=()=>{let i=0;while(true){i=i+1;switch(i){case 1:{break;}default:{return i;}}}};' +
             'export const guarded=flag=>{if(flag){while(true){return 7;}}return 8;};' +
             'export const cases=n=>{switch(n){case 0:{while(true){return 9;}}default:{return 10;}}};' +
