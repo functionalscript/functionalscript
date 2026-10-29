@@ -1844,8 +1844,9 @@ splits around inference, so the runnable order is 668's representation half
 - [`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md) — not an issue,
   but the record of what `Ts<T>` costs and why stage 11 exists.
 - [The RTTI guide](../fjs/rtti/guide/README.md) — not an issue either: what each
-  schema means and what each reader and output makes of it, with a demo and
-  proof per page. Its
+  schema means and what each reader and output makes of it. Most pages have a
+  demo and a proof; `readers/assumptions` has none by design, and function
+  types and excluded string values are planned pages. Its
   [TypeScript](../fjs/rtti/guide/outputs/typescript/README.md) page states the
   current `Ts<>`/printer differences that stage 1 starts from.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
@@ -1877,7 +1878,9 @@ splits around inference, so the runnable order is 668's representation half
 - [compile-the-readers](../fjs/rtti/todo/compile-the-readers.md) — `common`
   and `validate` cannot yet be renamed `.f.js`, so under commitment 4 the
   readers this epic checks with are not themselves compiler-readable. Blocked
-  on built-in admissions, not on anything here.
+  on admitting `Object.fromEntries` and `Object.keys`, on mutual recursion in
+  a function body, and on the modules `common` imports — not on anything
+  here.
 - [excluded-string-values](../fjs/rtti/todo/excluded-string-values.md) —
   `Type` has no negation, so a set like "any string but these" is unsayable.
   A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
