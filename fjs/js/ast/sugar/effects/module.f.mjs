@@ -11,7 +11,7 @@
  */
 
 import { operatorOperands } from '../../module.f.mjs'
-import { bind, call, done, run } from '../../task/module.f.mjs'
+import { bind, call, done, run } from '../../task/module.f.js'
 import { toArray } from '../../../../types/list/module.f.mjs'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
@@ -44,8 +44,9 @@ export const writes = (root, functions) => {
         } else {
             const block = /** @type {SourceBlock} */ (node)
             for (const statement of block.statements) {
-                if (statement[0] === 'write') { own = [...own, statement[1]] }
+                if (statement[0] === 'write' || statement[0] === 'compound-write') { own = [...own, statement[1]] }
                 children = [...children, ...(statement[0] === 'initialize' || statement[0] === 'write' ? [statement[2]]
+                    : statement[0] === 'compound-write' ? [statement[3]]
                     : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
                     : statement[0] === 'while' ? [statement[1].condition, statement[1].body]
                     : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]
@@ -54,6 +55,7 @@ export const writes = (root, functions) => {
             const exit = block.exit
             children = [...children, ...(exit[0] === 'if' ? [exit[1], exit[2], exit[3]]
                 : exit[0] === 'switch' ? [exit[1], ...exit[2].flatMap(arm => [...arm.labels, arm.body]), exit[3]]
+                    : exit[0] === 'terminal-loop' ? [exit[1].condition, exit[1].body]
                     : [exit[0] === 'return' ? exit[2] : exit[1]])]
         }
         // The deferred walk captures only the completed immutable plan.

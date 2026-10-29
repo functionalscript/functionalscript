@@ -1,7 +1,17 @@
-import { cmp, min, max } from './module.f.mjs'
+import { bsearch, cmp, index3, index5, min, max } from './module.f.js'
 import { assertEq } from '../../../asserts/module.f.js'
 
 export const proof = () => {
+    {
+        for (const key of [0, 1, 2]) { assertEq(index3(cmp(key))(1), key) }
+        for (const key of [1, 2, 3, 4, 5]) { assertEq(index5(cmp(key))([2, 4]), key - 1) }
+    }
+    {
+        assertEq(bsearch(0)(() => 0), 0)
+        for (const [key, expected] of [[-1, 0], [0, 0], [1, 1], [2, 1], [3, 2], [8, 4], [9, 5]]) {
+            assertEq(bsearch(5)(mid => cmp(key)(mid * 2)), expected)
+        }
+    }
     {
         const result = cmp(true)(false)
         assertEq(result, 1)

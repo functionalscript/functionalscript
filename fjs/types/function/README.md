@@ -36,7 +36,7 @@ stop changing, and `===` would never call it done.
 |Module                              |Holds                                                                                                                                                                                                                                 |
 |------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |[`operator`](./operator/module.f.js)|binary operators as curried values: `addition`, `strictEqual`, `logicalNot`, `join`, `concat`, `increment`; the `Fold`, `Reduce`, `Scan` and `StateScan` types; and the conversions between them that [`list`](../list/README.md) uses|
-|[`compare`](./compare/module.f.mjs) |`cmp`, `min`, `max` and a binary search, answering a `Sign` of `-1`, `0` or `1`                                                                                                                                                       |
+|[`compare`](./compare/module.f.js) |`cmp`, `min`, `max` and a binary search, answering a `Sign` of `-1`, `0` or `1`                                                                                                                                                       |
 |[`length`](./length/README.md)      |the `length` of a function, read the same on every engine                                                                                                                                                                             |
 
 `fold`, `reduce` and `scan` in [`list`](../list/README.md) take their operator

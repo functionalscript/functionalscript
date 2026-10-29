@@ -19,7 +19,7 @@
  * @import { NumberLexeme } from './types.ts'
  */
 
-import { cmp } from '../../../types/function/compare/module.f.mjs'
+import { cmp } from '../../../types/function/compare/module.f.js'
 
 /**
  * Splits a JSON number's lexeme into its lexical parts.

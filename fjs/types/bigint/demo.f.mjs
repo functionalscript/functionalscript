@@ -26,6 +26,7 @@
  */
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
+import { assertEq } from '../../asserts/module.f.js'
 import { codeMarker } from '../../website/style/module.f.js'
 import { log2 } from './module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
@@ -496,3 +497,14 @@ const definition = {
 }
 
 export const demo = withInputs(definition, ['size'], {})
+
+// The benchmark only passes positive inputs. Keep the older implementations'
+// non-positive guards proven here, without publishing the candidates as APIs.
+export const proof = /** @type {const} */ ({
+    nonPositiveCandidates: () => {
+        for (const f of [clz32Log2, oldLog2, mathLog2]) {
+            assertEq(f(0n), -1n)
+            assertEq(f(-1n), -1n)
+        }
+    },
+})

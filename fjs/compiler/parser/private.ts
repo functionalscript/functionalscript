@@ -99,7 +99,7 @@ export type _DeclarationKind = 'const' | 'let' | 'parameter'
 /** The statement being read: a declaration's plan, or an assignment's resolved target. */
 export type _Declaring = { readonly plan: _Plan | null; readonly assigned: BindingId | null }
 export type _BodyFrame = _Counted<SourceStatement> & _Declaring & { readonly statements: Block[1]; readonly first: number }
-export type _LoopFrame = { readonly loop: While; readonly target: LoopTarget; readonly body: _BodyFrame | _LoopBodyFrame | null; readonly condition: readonly [SourceValue] | null }
+export type _LoopFrame = { readonly loop: While; readonly target: LoopTarget; readonly body: _BodyFrame | _LoopBodyFrame | null; readonly condition: readonly [SourceValue] | null; readonly terminal: boolean }
 export type _LoopBodyFrame = _Counted<SourceStatement> & _Declaring & { readonly block: LoopBlock[1]; readonly target: LoopTarget; readonly breakTarget: LoopTarget }
 export type _LoopGuardFrame = {
     readonly loopGuard: _LoopBodyFrame

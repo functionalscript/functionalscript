@@ -37,7 +37,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Statement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
+ * @import { BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -47,11 +47,12 @@ import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
+import { assignmentOperators } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    afterCase, binaryOpTag, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, statement, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    afterCase, binaryOpTag, blockContents, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -1129,15 +1130,34 @@ const operandToNode = node => {
 }
 
 /**
- * A block from its children, `{`, the statements, the terminator and `}`:
+ * A block from its children, `{`, the retained body contents and `}`:
  * its ordered statements, `const`s and guards, then what ends it, the
  * terminator's own record, {@link toEnd} — and the `{` it begins at. A
  * function's body, a guard's block and a case's are read the same way.
  *
  * @type {(node: Children<BlockRule, ModuleTokenWithMetadata, Out>) => readonly [Block, ModuleTokenWithMetadata]}
  */
-const blockOf = ([open, statements, term]) =>
-    [['block', [...unmapped(statements).map(statementAt), ...endAt(term)]], tokenAt(open)]
+const blockOf = ([open, contents]) => [['block', blockContentsAt(contents)], tokenAt(open)]
+
+/** @type {(node: _Leaf) => Block[1]} */
+const blockContentsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'blockContents')
+    return out.statements
+}
+
+/** @type {(node: Children<BlockContents, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toBlockContents = ([statements, ending]) => {
+    const prefix = unmapped(statements).map(statementAt)
+    const [kind, branch] = unmapped(ending)
+    if (kind === 'end') { return symbol({ id: 'blockContents', statements: [...prefix, ...endAt(branch)] }) }
+    const [loop, tail] = unmapped(branch)
+    const following = unmapped(tail)[0]
+    const read = loopConditionAt(loop)
+    return symbol({ id: 'blockContents', statements: following === undefined
+        ? [...prefix, ['terminal-while', read]]
+        : [...prefix, ['while', read], ...blockContentsAt(following)] })
+}
 
 /**
  * What ends a block, from the terminator's children: the `return` or
@@ -1216,8 +1236,8 @@ const toAfterCase = node => {
         const [, , blk] = unmapped(branch)
         return symbol({ id: 'afterCase', cases: null, end: ['default', blockOf(unmapped(blk))[0]] })
     }
-    const [, statements, term] = unmapped(branch)
-    return symbol({ id: 'afterCase', cases: null, end: ['rest', [...unmapped(statements).map(statementAt), ...endAt(term)]] })
+    const [, contents] = unmapped(branch)
+    return symbol({ id: 'afterCase', cases: null, end: ['rest', blockContentsAt(contents)] })
 }
 
 /**
@@ -1271,16 +1291,15 @@ const toLoopElse = ([kind, branch]) => {
  * A block's statement, tagged by its keyword: a `const` or a `let`, its
  * record; what begins with a name, an assignment or a call statement,
  * {@link toBodyNameStatement}; a guard, `if ( condition ) block` — the `if`
- * it begins at, its condition, and its block read as a body's is; or a
- * loop, `while ( condition ) loopBlock`, read as the guard is.
+ * it begins at, its condition, and its block read as a body's is. Loops
+ * are read by `toBlockContents`, which also retains final-loop candidates.
  *
- * @type {(node: Children<Statement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<SimpleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        case 'while': { return symbol({ id: 'statement', statement: ['while', loopConditionAt(branch)] }) }
         default: {
             const [first, , condition, , blk] = unmapped(branch)
             const [block] = blockOf(unmapped(blk))
@@ -1312,7 +1331,7 @@ const toModuleStatement = ([kind, branch]) => {
 
 /**
  * A body's statement that begins with a name, tagged: the assignment,
- * `name = value end`, which begins at the name, where `=` follows it, and
+ * `name op= value end`, which begins at the name, where an assignment follows it, and
  * otherwise a call statement, {@link discarded}.
  *
  * @type {(node: Children<BodyNameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
@@ -1323,8 +1342,13 @@ const toBodyNameStatement = ([name, rest, end]) => {
     if (tag !== 'assign') {
         return symbol({ id: 'named', statement: ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), end)] })
     }
-    const [, v] = unmapped(assigned)
-    return symbol({ id: 'named', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
+    const [op, v] = unmapped(assigned)
+    const [kind, operatorToken] = unmapped(op)
+    const operator = assignmentOperators[kind][1]
+    return symbol({ id: 'named', statement: ['assign', {
+        start: token, semicolon: ended(end), name: token, value: nodeAt(v),
+        operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
+    }] })
 }
 
 /**
@@ -1706,7 +1730,8 @@ export const mappings = [
     map(letStatement, toConst),
     map(bodyNameStatement, toBodyNameStatement),
     map(moduleStatement, toModuleStatement),
-    map(statement, toStatement),
+    map(simpleStatement, toStatement),
+    map(blockContents, toBlockContents),
     map(terminator, toEnd),
     map(caseTail, toCaseTail),
     map(afterCase, toAfterCase),

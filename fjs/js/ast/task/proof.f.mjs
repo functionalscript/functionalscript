@@ -1,7 +1,7 @@
 /** @import { Task } from './types.ts' */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { bind, call, done, run } from './module.f.mjs'
+import { bind, call, done, run } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
     results: () => {

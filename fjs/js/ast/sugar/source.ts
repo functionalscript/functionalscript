@@ -78,6 +78,8 @@ export type SourceSwitch = {
 export type SourceStatement =
     | readonly ['initialize', ExpansionPlan, SourceValue]
     | readonly ['write', BindingId, SourceValue]
+    /** The implicit target read precedes the operand; sugar chooses any conditional write. */
+    | readonly ['compound-write', BindingId, BinaryTag, SourceValue]
     /** Both normal arms precede the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
@@ -99,6 +101,8 @@ export type SourceExit =
     | readonly ['yield', SourceValue]
     | readonly ['return', FunctionTarget, SourceValue]
     | readonly ['throw', SourceValue]
+    /** Admitted literal-true loop with no source break to its own target. */
+    | readonly ['terminal-loop', SourceLoop]
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['switch', SourceValue, readonly SourceCase[], SourceBlock]
 

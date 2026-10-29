@@ -44,7 +44,8 @@
   is any number of statements — `const`s, call statements
   ([call statements](../../functions/call-statements/README.md)), and guards, `if`
   (below) — and then one terminating statement, a `return` or a `throw` (below), or a
-  switch with a `default` ([switch](../switch/README.md)), each
+  switch with a `default` ([switch](../switch/README.md)), or a
+  [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop), each
   ended as every statement is — by its `;`, or by the newline before the
   next statement, a guard's by its `}`, and the last one's by the `}`
   ([module structure](../../modules/README.md)) — and an object literal is an
@@ -128,9 +129,10 @@
 - **`if (condition) block`** is a guard: a statement of a block body,
   standing where a `const` may, any number of times before the body's
   terminating statement. Its block is a block as above — any number of
-  statements and then a `return`, a `throw`, or a switch with a `default`
-  ([switch](../switch/README.md)) — so the branch always
-  terminates, and the statements after the guard, up to and including the
+  statements and then a `return`, a `throw`, a switch with a `default`
+  ([switch](../switch/README.md)), or a
+  [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop) — so the branch never completes normally,
+  and the statements after the guard, up to and including the
   body's own terminator, are what runs when the condition is falsy. The
   condition is any expression, evaluated where the statement stands and
   tested as `?:` tests its condition. This is the one form: the braces are

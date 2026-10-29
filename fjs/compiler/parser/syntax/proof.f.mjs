@@ -54,6 +54,38 @@ const returned = node => {
 }
 
 export const proof = {
+    compoundAssignmentOperatorsAndLocations: () => {
+        const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
+        for (const operator of operators) {
+            const module = unwrap(parseSyntax(tokenizeString(`let value=8;\nvalue ${operator} 1;export default value;`)))
+            const assignment = module.statements[1]
+            assert(assignment[0] === 'assign')
+            assertEq(assignment[1].operator?.tag, operator.slice(0, -1))
+            assertEq(assignment[1].operator?.token.token.kind, operator)
+            assertStructurallySame(assignment[1].operator?.token.metadata, { path: '', line: 2, column: 7 })
+            assertEq(assignment[1].semicolon, true)
+        }
+        const module = unwrap(parseSyntax(tokenizeString('let value=8;value=1;export default value;')))
+        const assignment = module.statements[1]
+        assert(assignment[0] === 'assign')
+        assertEq(assignment[1].operator, null)
+    },
+    finalWhileCandidatesRemainDistinctFromOrdinaryLoops: () => {
+        const module = unwrap(parseSyntax(tokenizeString('export default ()=>{let n=0;while(false){}while((true)){return n;}};')))
+        const value = module.exported?.value
+        assert(value !== undefined && value[0] === '=>')
+        const body = value[2]
+        assert(body[0] === 'block')
+        assertStructurallySame(body[1].map(statement => statement[0]), ['let', 'while', 'terminal-while'])
+        const terminal = body[1][2]
+        assert(terminal[0] === 'terminal-while')
+        assertStructurallySame(terminal[1].condition, ['primitive', true])
+        const ordinary = unwrap(parseSyntax(tokenizeString('export default ()=>{while(true){}return 1;};'))).exported?.value
+        assert(ordinary !== undefined && ordinary[0] === '=>')
+        const ordinaryBody = ordinary[2]
+        assert(ordinaryBody[0] === 'block')
+        assertStructurallySame(ordinaryBody[1].map(statement => statement[0]), ['while', 'return'])
+    },
     loopSwitchesKeepLabelsScopesAndFollowingStatements: () => {
         const module = unwrap(parseSyntax(tokenizeString('while(false){\nswitch(1){case 1:case 2:{break;const after=3;}case 4:{continue;}default:{throw 5;}}\nconst following=6;\nif(true){switch(7){case 7:{return 8;}}}\n}export default 0;')))
         const loop = module.statements[0]

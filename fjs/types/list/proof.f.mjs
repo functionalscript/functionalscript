@@ -160,6 +160,22 @@ const tryFoldTest = /** @type {const} */ ([
         const result = tryFold(sumUpTo(100))([])
         assertEq(result, 0)
     },
+    () => {
+        const result = tryFold({
+            init: 0,
+            update: () => null,
+            end: () => { throw 'must not finalize a rejected fold' },
+        })({ first: 1, tail: () => { throw 'must not evaluate the tail after rejection' } })
+        assertEq(result, null)
+    },
+    () => {
+        const result = tryFold({
+            init: null,
+            update: (/** @type {number} */ i) => i,
+            end: state => state === null ? 'empty' : 'nonempty',
+        })([])
+        assertEq(result, 'empty')
+    },
 ])
 
 const reverseTest = [
@@ -389,9 +405,14 @@ export const proof = {
             assertEq(result, false)
         }
     ],
+    repeat: () => {
+        assertEq(str(repeat('x')(3)), '["x","x","x"]')
+        assertEq(str(repeat('x')(0)), '[]')
+    },
     length: () => {
         assertEq(length([1, 2, 3]), 3)
         assertEq(length(null), 0)
+        assertEq(length({ first: 1, tail: { first: 2, tail: null } }), 2)
         assertEq(length(flat([[1, 3], null, () => [3], concat([12])([4, 89])])), 6)
     },
     intersperse: [

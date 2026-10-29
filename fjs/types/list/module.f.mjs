@@ -253,6 +253,24 @@ export const fold = op => init => compose(foldScan(op)(init))(last(init))
 /** @type {<T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D | T} */
 export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
+/** @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => (input: List<I>) => Thunk<R>} */
+const tryFoldStep = ({ init, update, end }) => input => () => {
+    const n = next(input)
+    if (n === null) { return [end(init)] }
+    const state = update(n.first, init)
+    return state === null ? null : tryFoldStep({ init: state, update, end })(n.tail)
+}
+
+/**
+ * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
+ * moment `update` rejects an item; otherwise finalizes with `end`. This is the
+ * list-level `try*` sibling of {@link fold} for accumulations that can fail
+ * partway through (see the `try*`/`Nullable` convention in `doc/DESIGN.md` §6).
+ *
+ * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
+ */
+export const tryFold = accumulator => compose(tryFoldStep(accumulator))(first(null))
+
 /** @type {<T>(list: List<T>) => Thunk<number>} */
 const lengthList = list => () => {
     const notLazy = trampoline(list)

@@ -164,6 +164,10 @@ export const proof = {
      * invisible in a rendering and show only in the spans.
      */
     demo: {
+        codeLabels: () => {
+            const html = htmlToString(demo.view('- [a `code` label](page.html)'))
+            assert(html.includes('<a href="page.html">a <code>code</code> label</a>'), html)
+        },
         // A code span opens on one line of the first entry and closes on the
         // next. It reaches the spans whole, which is what the block layer is
         // for, and the joined text is what a reader wrote rather than how it

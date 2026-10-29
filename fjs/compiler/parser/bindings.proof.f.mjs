@@ -30,6 +30,36 @@ const allEvents = events => events.flatMap(event => event[0] === 'function'
     ? allEvents(event[1].events) : event[0] === 'region' ? allEvents(event[1]) : [event])
 
 export const proof = {
+    compoundAssignmentEvidence: () => {
+        const eager = parsed('let x=8;const rhs=1;x >>= rhs;export default x;')
+        const x = named(eager, 'x').origin.id
+        const rhs = named(eager, 'rhs').origin.id
+        assertStructurallySame(eager.scope.events, [
+            ['initialize', x], ['initialize', rhs], ['read', x], ['read', rhs], ['write', x], ['read', x],
+        ])
+        assertStructurallySame(eager.body.statements[2], ['compound-write', x, '>>', ['ref', rhs]])
+        for (const operator of ['&&=', '||=', '??=']) {
+            const logical = parsed(`let x=8;const rhs=1;x ${operator} rhs;export default x;`)
+            const target = named(logical, 'x').origin.id
+            const right = named(logical, 'rhs').origin.id
+            assertStructurallySame(logical.scope.events, [
+                ['initialize', target], ['initialize', right], ['read', target],
+                ['region', [['read', right], ['write', target]]], ['read', target],
+            ])
+            assertEq(named(logical, 'x').binding.isMutable, true)
+        }
+    },
+    compoundAssignmentCaptureAdmission: () => {
+        for (const source of [
+            'let x=1;const captured=()=>x;x+=1;export default captured;',
+            'let x=1;x||=2;export default ()=>x;',
+            'let x=1;const captured=()=>x;x??=2;export default captured;',
+            'export default ()=>{let x=1;return ()=>{x&&=2;return x;};};',
+        ]) {
+            const failure = assertError(parseFromTokens(tokenizeString(source)))
+            assertEq(failure.message, 'reassigned variable captured', source)
+        }
+    },
     manyReadEvents: () => {
         const count = 20_000
         const module = parsed(`const value=1;export default [${Array.from({ length: count }, () => 'value').join(',')}];`)

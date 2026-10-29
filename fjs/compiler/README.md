@@ -778,11 +778,13 @@ afterwards is a later rename and no part of this decision.
 - `>` - greater
   - `>=` - greaterEqual
   - `>>` - rightShift
+  - `>>=` - rightShiftAssignment
   - `>>>` - unsignedRightShift
   - `>>>=` unsignedRightShiftAssignment
 - `?` - question
   - `?.` - optional chaining
   - `??` - nullish coalescing
+  - `??=` - nullishAssignment
 - `A..Z` - idBegin
   - `Infinity` - infinity
   - `NaN` - nan

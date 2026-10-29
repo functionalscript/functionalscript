@@ -55,6 +55,14 @@ A construct with no rule here has no admitted rewrite yet: the module keeps
 the standing measurement of what holds each remaining module is in
 [`todo/fjs-nanvm-integration.md`](../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
+Compound assignments to mutable identifiers need no rewrite: `n >>= 1n`,
+`count += 1`, `value &&= next`, `value ||= fallback` and `value ??= fallback`
+are admitted as statements
+([variables](../spec/bindings/variables/README.md#compound-assignments)).
+Source desugaring preserves right-operand evaluation order and the logical
+forms' conditional evaluation and write. Property mutation, assignment
+expressions and prefix/postfix updates remain separate constructs.
+
 ## 1. Computed keys
 
 A key in brackets is one of two things, and the language treats them apart: a
@@ -365,6 +373,15 @@ does — and a module may find it reads better as an expression once the
 `(a, b) => a !== b ? (() => { throw [a, b] })() : undefined`. Either spelling
 is in the language; the conversion adds the `return` and changes nothing
 else.
+
+A final literal `while (true)` with no source break targeting that loop needs
+no trailing return: it is already a
+[terminating statement](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop).
+Returning paths inside it still return explicitly, and other paths throw or
+continue indefinitely. Breaks targeting an inner loop or switch do not change
+that rule; a break targeting the final loop itself does, even when unreachable.
+Ordinary function-body ends that can be reached still require an explicit
+return as above.
 
 ## 8. `BigInt`
 

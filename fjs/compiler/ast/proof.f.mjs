@@ -1,8 +1,19 @@
 /** Source vocabulary agrees with grammar layers and distinguishes unary arity. */
-import { binaryTags, eagerLayers, isBinary, isUnary, lazyLayers, unaryTags } from './module.f.js'
+import { assignmentOperators, binaryTags, eagerLayers, isBinary, isUnary, lazyLayers, unaryTags } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {
+    assignmentVocabulary: () => {
+        assertEq(assignmentOperators.plain[0], '=')
+        assertEq(assignmentOperators.plain[1], null)
+        const compounds = Object.values(assignmentOperators).filter(([, tag]) => tag !== null)
+        assertEq(compounds.length, 15)
+        for (const [token, tag] of compounds) {
+            assert(tag !== null)
+            assertEq(token, `${tag}=`)
+            assert(binaryTags.includes(tag))
+        }
+    },
     binary: () => {
         for (const tag of binaryTags) { assert(isBinary([tag, 1, 2])) }
         assertEq(isBinary(['+', 1]), false)

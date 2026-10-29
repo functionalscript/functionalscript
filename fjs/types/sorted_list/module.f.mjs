@@ -9,7 +9,7 @@
  * @import { ReduceOp, SortedList, _MergeReduce } from './types.ts'
  */
 
-import { bsearch } from '../function/compare/module.f.mjs'
+import { bsearch } from '../function/compare/module.f.js'
 import { next } from '../list/module.f.mjs'
 import { identity } from '../function/module.f.js'
 

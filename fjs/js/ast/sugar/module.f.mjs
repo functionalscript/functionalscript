@@ -7,7 +7,7 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Task } from '../task/types.ts'
  * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, ReferenceTask, Results, Work } from './private.ts'
@@ -17,9 +17,9 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
 import { _hasReturn } from '../memo/cells/module.f.mjs'
-import { logicalValue } from './logical/module.f.js'
+import { logicalCondition, logicalValue } from './logical/module.f.js'
 import { _exposeOperands } from '../returns/module.f.mjs'
-import { bind, call, done, run } from '../task/module.f.mjs'
+import { bind, call, done, run } from '../task/module.f.js'
 import { writes as sourceWrites } from './effects/module.f.mjs'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
@@ -562,7 +562,7 @@ const caseState = (discriminant, labels, environment, context) => {
     return run(each(labels, environment))
 }
 
-/** Source terminal branches yield their value and retain their final source versions. @type {(exit: SourceExit, environment: Environment, context: Context, retained: readonly BindingId[]) => Normalized} */
+/** Source terminal branches yield their value and retain their final source versions. @type {(exit: Exclude<SourceExit, readonly ['terminal-loop', SourceLoop]>, environment: Environment, context: Context, retained: readonly BindingId[]) => Normalized} */
 const normalizedExit = (exit, environment, context, retained) => {
     if (exit[0] === 'throw' || exit[0] === 'yield' || exit[0] === 'return') {
         const made = normalizedState(environment, context)(exit[0] === 'return' ? exit[2] : exit[1])
@@ -664,6 +664,48 @@ const statefulSwitch = (source, environment, context) => {
 }
 
 /**
+ * Ordinary and terminal loops share state and transfer normalization. Admission
+ * has proved a terminal loop's literal condition and absence of an owning
+ * break, so it has no normal results or condition-false continuation.
+ * @type {(loop: SourceLoop, environment: Environment, context: Context, terminal: boolean) => Normalized}
+ */
+const normalizedLoop = (loop, environment, context, terminal) => {
+    const events = eventFacts(loop.events)
+    const sources = loopSources(events.references, environment, context)
+    const parameters = sources.map(source => binding(source.index))
+    const results = terminal ? [] : sources.map(source => binding(source.index))
+    const scope = /** @type {Environment} */ ([...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
+    /** @type {NonNullable<Context['loop']>} */
+    const transfer = { target: loop.target, sources }
+    const condition = normalizedState(scope, context)(loop.condition)
+    const step = normalizedBlock(loop.body, condition.environment, { ...context, loop: transfer, breakRegion: transfer }, sources)
+    /** @type {Block} */
+    const continuing = step.block.exit[0] === 'yield'
+        ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
+        : step.block
+    /** @type {Block} */
+    const body = terminal || condition.value === true && condition.statements.length === 0 && step.hasLoopExit ? continuing : {
+        statements: [...condition.statements, ['if', [], condition.value,
+            continuing,
+            { statements: [], exit: ['break', loop.target, sources.map(source => lookup(condition.environment, source))] },
+        ]],
+        exit: ['yield', []],
+    }
+    return {
+        block: {
+            statements: [['loop', { target: loop.target, parameters, initial: sources.map(source => lookup(environment, source)), results, body }]],
+            // As for a normalized exhaustive switch, this required block exit
+            // guards an impossible fallthrough; it is no returned value.
+            exit: terminal ? ['throw', 'a terminal loop completed normally'] : ['yield', []],
+        },
+        environment: terminal ? environment : [...environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
+        normal: !terminal,
+        hasLoopExit: step.hasFunctionExit,
+        hasFunctionExit: step.hasFunctionExit,
+    }
+}
+
+/**
  * Assignments retain their source identity until this complete scan. Source
  * loop inputs, iteration versions and results are chosen here, after analysis.
  *
@@ -707,6 +749,29 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             statements = [...statements, ...made.statements]
             continue
         }
+        if (statement[0] === 'compound-write') {
+            const [, id, tag, operand] = statement
+            assert(context.bindings.some(fact => fact.id === id && fact.isMutable), 'compound write without complete source analysis')
+            const current = lookup(inner, id)
+            const right = normalizedState(inner, context)(operand)
+            if (tag !== '&&' && tag !== '||' && tag !== '??') {
+                statements = [...statements, ...right.statements]
+                if (!right.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: right.environment, normal: false, hasLoopExit, hasFunctionExit } }
+                const made = establish(right.environment, id, [tag, current, right.value], false)
+                inner = made.environment
+                statements = [...statements, ...made.statements]
+                continue
+            }
+            const made = right.normal ? establish(right.environment, id, right.value, false) : null
+            const selected = made === null ? right : { ...right, statements: [...right.statements, ...made.statements],
+                environment: made.environment, value: lookup(made.environment, id) }
+            const skipped = unchangedValue(current, inner)
+            const test = unchangedValue(logicalCondition(tag, current), inner)
+            const joined = conditionalValue(test, tag === '||' ? skipped : selected, tag === '||' ? selected : skipped, context)
+            statements = [...statements, ...joined.statements]
+            inner = joined.environment
+            continue
+        }
         if (statement[0] === 'if') {
             const test = normalizedState(inner, context)(statement[1])
             statements = [...statements, ...test.statements]
@@ -739,35 +804,21 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             inner = made.environment
             continue
         }
-        const loop = statement[1]
-        const events = eventFacts(loop.events)
-        const sources = loopSources(events.references, inner, context)
-        const parameters = sources.map(source => binding(source.index))
-        const results = sources.map(source => binding(source.index))
-        const scope = /** @type {Environment} */ ([...inner, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
-        /** @type {NonNullable<Context['loop']>} */
-        const transfer = { target: loop.target, sources }
-        const condition = normalizedState(scope, context)(loop.condition)
-        const step = normalizedBlock(loop.body, condition.environment, { ...context, loop: transfer, breakRegion: transfer }, sources)
-        hasLoopExit = hasLoopExit || step.hasFunctionExit
-        hasFunctionExit = hasFunctionExit || step.hasFunctionExit
-        /** @type {Block} */
-        const continuing = step.block.exit[0] === 'yield'
-            ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
-            : step.block
-        statements = [...statements, ['loop', {
-            target: loop.target, parameters, initial: sources.map(source => lookup(inner, source)), results,
-            body: condition.value === true && condition.statements.length === 0 && step.hasLoopExit ? continuing : {
-                statements: [...condition.statements, ['if', [], condition.value,
-                    continuing,
-                    { statements: [], exit: ['break', loop.target, sources.map(source => lookup(condition.environment, source))] },
-                ]],
-                exit: ['yield', []],
-            },
-        }]]
-        // Read-only state crosses the loop but introduces no source write at a
-        // surrounding value/IIFE boundary. Its established value stays current.
-        inner = [...inner, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])]
+        const made = normalizedLoop(statement[1], inner, context, false)
+        statements = [...statements, ...made.block.statements]
+        hasLoopExit = hasLoopExit || made.hasLoopExit
+        hasFunctionExit = hasFunctionExit || made.hasFunctionExit
+        inner = made.environment
+    }
+    if (source.exit[0] === 'terminal-loop') {
+        const terminal = normalizedLoop(source.exit[1], inner, context, true)
+        return {
+            block: pruneAliases({ statements: [...statements, ...terminal.block.statements], exit: terminal.block.exit }, []),
+            environment: inner,
+            normal: false,
+            hasLoopExit: hasLoopExit || terminal.hasLoopExit,
+            hasFunctionExit: hasFunctionExit || terminal.hasFunctionExit,
+        }
     }
     const terminal = normalizedExit(source.exit, inner, context, retained)
     return { block: pruneAliases({ statements: [...statements, ...terminal.block.statements], exit: terminal.block.exit }, retained.map(id => lookup(terminal.environment, id))),

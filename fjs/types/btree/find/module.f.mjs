@@ -8,7 +8,7 @@
  * @import { First, Path, PathItem, Result } from './types.ts'
  */
 
-import { index3, index5 } from '../../function/compare/module.f.mjs'
+import { index3, index5 } from '../../function/compare/module.f.js'
 
 /** @type {<T>(c: Compare<T>) => (node: TNode<T>) => Result<T>} */
 export const find = c => {

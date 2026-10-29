@@ -12,10 +12,10 @@
 import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/root/module.f.mjs'
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
-import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.mjs'
+import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
-import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.mjs'
+import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
 
 /** @type {<T>(value: T) => Task<T>} */

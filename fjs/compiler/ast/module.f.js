@@ -21,6 +21,16 @@ export const binaryTags = /** @type {const} */ ([
     '&&', '||', '??',
 ])
 
+/** Assignment spellings and their existing binary operation; plain assignment has none. */
+export const assignmentOperators = /** @type {const} */ ({
+    plain: ['=', null],
+    add: ['+=', '+'], sub: ['-=', '-'], mul: ['*=', '*'], div: ['/=', '/'],
+    mod: ['%=', '%'], pow: ['**=', '**'],
+    left: ['<<=', '<<'], right: ['>>=', '>>'], unsigned: ['>>>=', '>>>'],
+    and: ['&=', '&'], xor: ['^=', '^'], or: ['|=', '|'],
+    logicalAnd: ['&&=', '&&'], logicalOr: ['||=', '||'], nullish: ['??=', '??'],
+})
+
 /**
  * The eager binary layers, tightest first: one record per level, each
  * operator keyed by a name no other layer uses and valued by its tag,
