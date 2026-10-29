@@ -1,8 +1,7 @@
 ## Additional Assignment Operators
 
 **Priority:** P4
-**Status:** wip — proposing identifier-target compound-assignment desugaring;
-implementation awaits explicit language-design approval
+**Status:** wip — compound-assignment desugaring approved; implementation in progress
 
 ### Problem
 
@@ -127,17 +126,19 @@ they cannot share an eager rewrite that always evaluates the right operand.
 
 ### Approval
 
-Pending formal, explicit approval from **sergey-shandar**, distinct from the
-proposer, as required by
+Approved by **sergey-shandar**, distinct from the proposer, in the
+[working session](https://chatgpt.com/local/01a18594-4211-744b-b07a-aaed2279400e):
+after the proposal was broadened to all compound assignments, the designer
+said, "ok, implement it on top of the proposal PR". This is the explicit
+implementation approval required by
 [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
-Record the approving designer and a link to the approval here before compiler
-implementation. The question proposing the feature is not itself recorded as
-approval of this concrete design. The requested scope covers all compound
-assignment operators in this proposal, including logical assignments.
+The approved scope covers all compound assignment operators in this proposal,
+including logical assignments, with mutable identifier targets and
+statement-only positions.
 
 ### Tasks
 
-- [ ] Record explicit language-design approval of all compound assignments.
+- [x] Record explicit language-design approval of all compound assignments.
 - [ ] Parse all identifier-target compound assignments with each operator's
   diagnostic location, preserving ordinary statement termination.
 - [ ] Resolve the implicit read and final write under existing binding and
