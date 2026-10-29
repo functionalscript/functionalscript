@@ -17,15 +17,19 @@ export const miseEnvironment = /** @type {const} */ ({
 })
 
 /** Setup reads the checkout's committed baseline lock. */
-export const miseInstall = /** @type {const} */ ({ type: 'test', step: uses('jdx/mise-action', {
-    version: '2026.10.19',
-    install_args: '--locked',
-    cache: 'true',
-    cache_key_prefix: 'mise-rust-v1',
-    cache_max_age_days: '0',
-    env: 'false',
-    add_shims_to_path: 'false',
-}) })
+export const miseInstall = /** @type {const} */ ({ type: 'test', step: {
+    ...uses('jdx/mise-action', {
+        version: '2026.10.19',
+        install_args: '--locked',
+        cache: 'true',
+        cache_key_prefix: 'mise-rust-v1',
+        cache_max_age_days: '0',
+        env: 'false',
+        add_shims_to_path: 'false',
+    }),
+    // The action renames its download into place; Windows needs the same drive.
+    env: { TEMP: '${{ runner.temp }}', TMP: '${{ runner.temp }}' },
+} })
 
 /** @type {(command: string) => string} */
 export const miseDevelop = command => `mise exec -- ${command}`

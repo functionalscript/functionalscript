@@ -42,6 +42,10 @@
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
+          },
+          "env": {
+            "TEMP": "${{ runner.temp }}",
+            "TMP": "${{ runner.temp }}"
           }
         },
         {
