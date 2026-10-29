@@ -78,6 +78,9 @@ needed, and failed uploads never publish a preview comment.
 
 ### Tasks
 
+- [ ] Restore the original PR and merge-queue checks; keep production website
+      deployment on pushes to main as the only additional run policy.
+
 - [x] Settle the job's triggers, dependencies on required checks, preview policy,
       concurrency and permissions. Confirm the Wrangler invocation and pin under
       [the external-tool policy](../../../AGENTS.md#6-external-tools).
