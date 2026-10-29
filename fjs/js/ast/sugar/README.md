@@ -5,6 +5,8 @@ parameter patterns and defaults, assignments, guards, switches, conditional
 loop statements, targeted loop/function exits and `while` loops. These constructs contain no generated
 functions, capture frames or immutable assignment versions. The parser retains source legality and
 diagnostics; representing a construct here does not admit new source syntax.
+[`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) shows this pass's
+input and output side by side, as graphs.
 
 [`pattern`](./pattern/module.f.mjs) plans checked patterns before the complete
 binding analysis. Its structural walk chooses iterable copies, property reads,

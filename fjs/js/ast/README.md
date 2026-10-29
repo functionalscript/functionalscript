@@ -4,6 +4,8 @@ FAST records execution steps with explicit value identities, evaluation regions
 and structured control flow. It is compiler IR; representing a construct here
 does not admit its JavaScript spelling as FunctionalScript.
 [Compiler architecture](../../compiler/architecture.md) names the stage owners.
+[`fjs/compiler/sugar`](../../compiler/sugar/demo.f.mjs) draws FAST as a graph,
+beside the source AST it is normalized from.
 
 `types.ts` defines normalized FAST. A `BindingId` is an object identity. Its
 `index` is a deterministic presentation aid; equal indices do not alias

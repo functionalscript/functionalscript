@@ -1952,6 +1952,8 @@ export const proof = {
         view: () => {
             const shown = htmlToString(demo.view(demo.init))
             assert(shown.includes('<p data-caption="">Abstract syntax tree, DataJS:</p><pre data-code="">'), shown)
+            // the same tree, drawn, and the FAST beside it, are the next page's
+            assert(shown.includes('<a href="../sugar/">compiler/sugar</a>'), shown)
             const refused = htmlToString(demo.view('export default {bad'))
             assert(refused.includes('Refused:</p><pre data-result="error">'), refused)
         },
