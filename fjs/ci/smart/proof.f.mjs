@@ -31,7 +31,7 @@ const stepWith = (source, run) => {
 }
 
 const mise = uses('jdx/mise-action')
-const nodeVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- node --version)" = "v26.12.1"' })
+const nodeVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- node --version)" = "v26.13.0"' })
 const tscVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- tsc --version)" = "Version 7.0.2"' })
 const install = /** @type {const} */ ({ run: 'mise exec -- npm ci' })
 const suite = /** @type {const} */ ({ run: 'mise exec -- node --test ./fjs/emergent_testing/js-only.mjs' })

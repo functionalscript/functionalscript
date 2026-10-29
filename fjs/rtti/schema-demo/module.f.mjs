@@ -30,7 +30,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { assertExampleIds } from '../../website/demo/examples/module.f.mjs'
+import { assertExampleIds } from '../../website/demo/examples/module.f.js'
 import { captionMarker, codeMarker, resultMarker, verdictMarker } from '../../website/style/module.f.js'
 import { unknown } from '../module.f.mjs'
 import { structSchemaEntries, tupleSchemaEntries } from '../common/module.f.mjs'

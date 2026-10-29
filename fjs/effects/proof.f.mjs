@@ -725,6 +725,7 @@ export const proof = {
             assert(html.includes('name="words"'), html)
             assert(html.includes("error &#39;refused&#39;") || html.includes("error 'refused'"), html)
             assert(htmlToString(demo.view('')).includes('(none)'), 'an empty program performs nothing')
+            assert(htmlToString(demo.view('a b')).includes("ok ['A', 'B']"), 'successful answers are rendered')
         },
     },
 }

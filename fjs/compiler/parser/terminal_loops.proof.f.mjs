@@ -57,6 +57,21 @@ export const proof = {
             assertError(parseFromTokens(tokenizeString(`export default ()=>{${body}};`)))
         }
     },
+    terminalReturnsKeepTheInvocationWriteBoundary: () => {
+        for (const source of [
+            'export default n=>(()=>{n=n+1;while(true){return n;}})();',
+            'export default n=>(()=>{while(true){n+=1;return n;}})();',
+            'export default n=>(()=>{n=n+1;if(n){while(true){return n;}}return n;})();',
+            'export default n=>(()=>{n=n+1;switch(n){case 1:{while(true){return n;}}default:{return n;}}})();',
+            'export default n=>(()=>{n=n+1;while(true){throw n;return n;}})();',
+        ]) {
+            const refusal = assertError(parseFromTokens(tokenizeString(source)))
+            assertEq(refusal.message, 'reassigned variable captured', source)
+        }
+        // A throw-only terminal loop can become an expression block. A held
+        // function's return belongs to that function and keeps no outer call.
+        assertOk(parseFromTokens(tokenizeString('export default n=>(()=>{n=n+1;while(true){const inner=()=>{while(true){return 0;}};throw n;}})();')))
+    },
     terminalAdmissionUsesSourceConditionAndBreaks: () => {
         for (const body of [
             'while(false){}', 'while(1){}', 'while(!false){}',

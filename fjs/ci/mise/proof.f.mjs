@@ -10,14 +10,14 @@ const source = {
     'timeout-minutes': jobTimeout,
     steps: [
         { uses: 'dtolnay/rust-toolchain@1.99.1' },
-        { uses: 'actions/setup-node@v1', with: { 'node-version': '26.12.1' } },
+        { uses: 'actions/setup-node@v1', with: { 'node-version': '26.13.0' } },
         { uses: 'actions/cache@v1' },
         { uses: 'actions/checkout@v1' },
         { run: 'env cargo test' },
         { run: 'test "$(env wasmtime --version)" = "wasmtime 50.0.0"' },
         { run: 'test "$(env js --version)" = "JavaScript-C140.17.0"' },
         { run: 'env npm run sm t' },
-        { run: 'test "$(node --version)" = "v26.12.1"' },
+        { run: 'test "$(node --version)" = "v26.13.0"' },
         ...['cargo test', 'npm ci', 'node --test', 'npm start test', 'tsc', 'git diff', 'mkdir consumer'].map(run => ({ run })),
         { run: 'echo extra && node extra.mjs', env: { EXTRA: 'kept' } },
         { uses: 'actions/setup-node@v1', with: { 'package-manager-cache': 'false' } },
@@ -41,7 +41,7 @@ export const proof = {
         assertEq(miseInstall.type, 'test')
         assertEq(spiderMonkeyInstall.type, 'test')
         assertStructurallySame(miseSteps(['npm ci']), [{ type: 'test', step: { run: 'mise exec -- npm ci', shell: 'bash' } }])
-        assertStructurallySame(miseVersionStep('node --version', 'v26.12.1'), { type: 'test', step: { run: 'test "$(mise exec -- node --version)" = "v26.12.1"', shell: 'bash' } })
+        assertStructurallySame(miseVersionStep('node --version', 'v26.13.0'), { type: 'test', step: { run: 'test "$(mise exec -- node --version)" = "v26.13.0"', shell: 'bash' } })
     },
     migration: () => {
         /** @type {Jobs} */
@@ -56,7 +56,7 @@ export const proof = {
             assert(steps.some(s => s.run === 'mise exec -- cargo test'))
             assert(steps.some(s => s.run === 'mise -E spidermonkey exec -- npm run sm t'))
             assert(steps.some(s => s.run?.includes("wasmtime --version | cut -d' ' -f1,2")))
-            assert(steps.some(s => s.run === 'test "$(mise exec -- node --version)" = "v26.12.1"'))
+            assert(steps.some(s => s.run === 'test "$(mise exec -- node --version)" = "v26.13.0"'))
             assert(steps.some(s => s.run === 'git diff'))
             assert(steps.some(s => s.run === 'mkdir consumer'))
             assert(steps.some(s => s.env?.FJS_CI_RUN === 'echo extra && node extra.mjs' && s.env.EXTRA === 'kept'))

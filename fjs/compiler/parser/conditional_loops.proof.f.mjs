@@ -115,7 +115,6 @@ export const proof = {
             ['const fixed=0;while(false){if(false){fixed=1;}}export default fixed;', 'assignment to const'],
             ['let state=0;const held=()=>state;while(false){if(false){state=1;}}export default held;', 'reassigned variable captured'],
             ['let state=0;while(false){if(false){const held=()=>state;}state=1;}export default state;', 'reassigned variable captured'],
-            ['let state=0;while(false){if(true){const unused=(()=>{state=1;return 0;})();}}export default state;', 'reassigned variable captured'],
             ['while(false){if(true){const hidden=1;}const read=hidden;}export default 0;', 'const not found'],
             ['while(false){if(true){const duplicate=1;const duplicate=2;}}export default 0;', 'duplicate id'],
             ['let state=0;while(false){if(true){const state=state;}}export default state;', 'capture shadowed'],

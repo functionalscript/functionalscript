@@ -209,8 +209,10 @@ binding reassigned anywhere in its scope, including after the capture or in an
 unreachable loop. Use a snapshot to preserve the value of a particular round:
 `const snapshot = value; const read = () => snapshot;`. A function called where
 it is written may read the current variable, as in
-`value = (() => value + 1)();`; assigning an outer variable from that function
-remains refused. A never-reassigned `let` or parameter is capturable.
+`value = (() => value + 1)();`. A direct call normalized to an
+[expression block](../../bindings/variables/README.md#expression-block-assignments)
+may also assign enclosing variables; a call that retains its ordinary
+invocation boundary cannot. A never-reassigned `let` or parameter is capturable.
 
 ## Normalization and output
 

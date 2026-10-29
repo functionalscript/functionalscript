@@ -12,9 +12,9 @@
  * has no tests at all, so the demo also shows what a real page does with a
  * source that reported nothing: it has no group, and stays listed as such.
  *
- * **It is not a proof.** The example lives under `demo`, and proofs are
- * discovered by the `proof` export and nothing else, so `fjs t`, CI and the Run
- * button on every page never see it.
+ * **The example is not discovered as a proof tree.** Only the `proof` export
+ * is discovered. It checks the deliberately wrong assertion as an expected
+ * throw, so `fjs t`, CI and the Run button on every page stay green.
  *
  * **It shares the report's markup and none of the runner's hooks.** The runner
  * looks up `data-test-results`, `data-test-counts`, `data-test-summary` and
@@ -40,6 +40,12 @@ import { browserResult, countsView, moduleFailure, reportOf, reportView, unrepor
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)
 
+const failing = /** @type {const} */ ({
+    empty: () => assertEq(sum([]), 0),
+    many: () => assertEq(sum([1, 2, 3]), 7),
+    throw: { onEmpty: () => sum([]) },
+})
+
 /**
  * The example suite: one module that passes, one that fails two different
  * ways — an assertion that does not hold, and a proof expected to throw that
@@ -55,11 +61,7 @@ const example = [
         single: () => assertEq(sum([5]), 5),
         many: () => assertEq(sum([1, 2, 3]), 6),
     }],
-    ['./example/failing.f.mjs', {
-        empty: () => assertEq(sum([]), 0),
-        many: () => assertEq(sum([1, 2, 3]), 7),
-        throw: { onEmpty: () => sum([]) },
-    }],
+    ['./example/failing.f.mjs', failing],
     ['./example/empty.f.mjs', {}],
 ]
 
@@ -155,3 +157,7 @@ export const demo = {
         ...sourcesView(state),
     ],
 }
+
+// The example's deliberately wrong assertion really throws. The ordinary
+// proof runner treats it as an expected failure, so the suite stays green.
+export const proof = /** @type {const} */ ({ throw: { exampleAssertion: failing.many } })

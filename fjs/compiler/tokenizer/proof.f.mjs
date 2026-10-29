@@ -2,7 +2,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { _tokensOf, demo } from './demo.f.mjs'
+import { _line, _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
@@ -212,6 +212,11 @@ export const proof = {
      * runs to the end, which the span says.
      */
     demo: {
+        errorWithoutASpan: () => assertEq(_line({
+            token: { kind: 'error', message: 'invalid token' },
+            metadata: { path: '', line: 2, column: 3 },
+            newline: false,
+        }), '2:3  error  invalid token'),
         tokens: () => {
             assertEq(_tokensOf('export default [1, "hi", 2n];'), [
                 '1:1  id  "export"', '1:8  id  "default"', '1:16  [', '1:17  number  "1"', '1:18  ,',

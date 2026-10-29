@@ -440,6 +440,11 @@ li[data-status="passed"] { color: var(--muted) }
    already inherits the page's font, as a label does. An element a browser
    starts giving its own face has to be added here. */
 button, input, select, textarea, pre { font: inherit }
+/* A native select sizes itself to its longest option, even when a shorter
+   one is selected. Cap its border box at the containing column so a long
+   label cannot make the page scroll sideways. Short selects keep their
+   natural width, and the menu and label keep their native behaviour. */
+select { box-sizing: border-box; max-width: 100% }
 pre { white-space: pre-wrap }
 /* A button draws its own frame rather than the platform's. Safari keeps its
    native push button only at the small size it was drawn for: at the page's
@@ -1012,7 +1017,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-secp-finite-negation] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; fill: none }
 [data-secp-reflection] { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 5 4 }
 [data-demo-drag] { cursor: ew-resize; touch-action: none }
-[data-secp-playground] select { max-width: 100%; min-height: 44px }
+[data-secp-playground] select { min-height: 44px }
 [data-secp-playground] input[type="range"] { width: 100%; min-height: 44px }
 [data-secp-playground] pre { white-space: pre-wrap; overflow-wrap: anywhere }
 [data-demo-click]:focus-visible { outline: 3px solid currentColor; outline-offset: 3px }

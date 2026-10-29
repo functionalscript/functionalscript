@@ -491,6 +491,30 @@ export const proof = {
             [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-count-failed': '' }, '1 failed'], ['span', { 'data-duration': '' }, '1.5 s']]),
     },
     demo: {
+        runsTheExample: () => {
+            const runner = mockRun(/** @type {MemOperationMap<Sandbox | Catch, number>} */ ({
+                // The pure mock cannot catch the deliberately wrong assertion.
+                // Its own expected-throw proof checks that leaf; here the mock
+                // supplies its failure while running every other leaf normally.
+                sandbox: f => n => [n + 1, ok({
+                    result: n === 4 ? error('example assertion failed') : ok(f()),
+                    duration: 1,
+                })],
+                catch: f => n => [n, ok(ok(f()))],
+            }))
+            const [calls, result] = runner(0)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            assertEq(calls, 6)
+            assertEq(result[0], 'ok')
+            const state = result[1]
+            assertEq(state.kind, 'done')
+            if (state.kind === 'done') {
+                assertStructurallySame(state.report.results.map(row => row.status),
+                    ['passed', 'passed', 'passed', 'passed', 'failed', 'failed'])
+                const html = htmlToString(demo.view(state))
+                assert(html.includes('data-example-report'), html)
+                assert(html.includes('example assertion failed'), html)
+            }
+        },
         // Before anything runs, the demo is its sentence, its button, and the
         // list of what it will run — as a real page lists its sources.
         idle: () => {

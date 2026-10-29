@@ -74,10 +74,10 @@ const constAssignment = foldError('assignment to const')
  * function's capture holds the value it had when the function was made, so
  * the program is refused rather than read another way — whether the
  * assignment comes before or after the reference. A function called where
- * it is written reads the value of that moment in both, and is admitted;
- * an assignment from inside it is refused all the same, at the name, since
- * the lowering inlines the function's block with values of its own, which
- * the scope around it never sees
+ * it is written reads the value of that moment in both, and is admitted.
+ * Writes across an ordinary function boundary remain refused; a direct
+ * argumentless call normalized as an expression block instead transports
+ * its updated immutable values into the surrounding continuation
  * ([spec: variables](../../../spec/bindings/variables/README.md)).
  */
 const reassignedCaptured = foldError('reassigned variable captured')
@@ -259,13 +259,13 @@ const initialized = (scope, plan) => traced({
 /** @type {() => _Scope} */
 const moduleScope = () => ({
     names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, selfVariable: false, captures: [], region: false, inFunction: false,
+    self: null, selfBinding: null, selfVariable: false, captures: [], region: false, inFunction: false, blockCall: false,
     trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
 /** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
 const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true, inFunction: outer.inFunction,
+    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true, inFunction: outer.inFunction, blockCall: false,
     trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
 })
 
@@ -559,8 +559,9 @@ const landed = (round, stack, scope, frame, kind, value) => {
  * The target of an assignment, `name = value`, resolved before the value is
  * entered: the word, then the binding it names — a name nothing binds is
  * `const not found` — which is refused unless a variable's, a `let`'s or a
- * parameter's, and refused from a nested function, held or called where it
- * is written, {@link reassignedCaptured}. The write itself is traced once
+ * parameter's. A write crossing a function boundary stays pending until
+ * that function closes: only an expression-block call can carry it back to
+ * its enclosing scope. The write itself is traced once
  * the value has been read, {@link written}, the order the statement runs in.
  *
  * @type {(scope: _Scope, name: ModuleTokenWithMetadata) => Result<readonly [_Scope, BindingId], ParseError>}
@@ -570,10 +571,20 @@ const assigned = (scope, name) => {
     if (tag === 'error') { return error(word) }
     const found = resolve(scope, word)
     if (found === null) { return error(constNotFound(name)) }
-    const [inner, ref, crossed] = selfReference(found)
+    const [inner, ref] = found
     if (!ref.assignable) { return error(constAssignment(name)) }
-    if (crossed) { return error(reassignedCaptured(name)) }
-    return ok([inner, ref.id])
+    // Resolving a cached capture need not search across its boundary again.
+    // Declaration identity, rather than that search's path, owns the write.
+    let current = inner
+    let crossed = false
+    while (!current.trace.bindings.includes(ref.id)) {
+        if (!current.region) {
+            if (!current.blockCall) { return error(reassignedCaptured(name)) }
+            crossed = true
+        }
+        current = assertNotNullish(current.outer, 'an assignment has no declaring scope')
+    }
+    return ok([crossed ? { ...inner, captures: [...inner.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false, written: true }] } : inner, ref.id])
 }
 
 /** Whether the operand and write occur in a conditional source region. @type {(statement: Assignment) => boolean} */
@@ -615,7 +626,7 @@ const selfReference = ([scope, ref, crossed]) => [scope, ref, crossed || (ref.ki
  *
  * @type {(found: readonly [_Scope, _Ref, boolean], name: ModuleTokenWithMetadata) => _Scope}
  */
-const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captures: [...scope.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false }] } : scope
+const referenced = ([scope, ref, crossed], name) => crossed ? { ...scope, captures: [...scope.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false, written: false }] } : scope
 
 /** Whether the step after a key makes the key a call's: any step but a property. @type {(step: Step | undefined) => boolean} */
 const isCallStep = step => step !== undefined && step[0] !== '|.'
@@ -1483,6 +1494,8 @@ const entered = (stack, scope, node, self) => {
     /** @type {_Scope} */
     const inner = {
         names, count, parameters, rest, enclosing: null, outer: scope, self: self?.[0] ?? null, selfBinding: self?.[1] ?? null, selfVariable: self?.[2] ?? false, captures: [], region: false, inFunction: true,
+        blockCall: stack !== null && hasEntry(stack.top, 'call') && stack.top.index === 0 && stack.top.call[2].length === 0
+            && count === 0 && late.length === 0 && rest === null,
         origins: self === null || at(self[0])(bound.origins) !== null ? bound.origins : setReplace(self[0])(self[1])(bound.origins),
         trace: { target, bindings: bound.bindings, events: bound.initialized.map(id => ['initialize', id]), count: bound.initialized.length }, sourceOrigins: bound.sourceOrigins,
     }
@@ -1853,11 +1866,36 @@ const isCalledWhereWritten = stack => {
  * @type {(stack: _Stack, scope: _Scope, body: SourceBlock) => _State}
  */
 const closed = (stack, scope, body) => {
+    // A block-call candidate with a nonterminal owning return must still
+    // keep its invocation. Other invocation boundaries were refused at the
+    // assignment, before its right-hand side was entered.
+    const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
+    if (!scope.region && externalWrite !== undefined && internalReturn(body)) { return [stack, scope, error(externalWrite.refusal)] }
     /** @type {SourceValue} */
     const value = scope.region ? ['block', body] : ['function', {
         target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
     }]
     return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
+}
+
+/** Source statement returns retain an invocation; terminal exits become yields. @type {(body: SourceBlock) => boolean} */
+const internalReturn = body => {
+    let pending = [body]
+    while (pending.length !== 0) {
+        const [block, ...rest] = pending
+        pending = rest
+        for (const statement of block.statements) {
+            if (statement[0] === 'return') { return true }
+            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
+            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
+        }
+        const exit = block.exit
+        if (exit[0] === 'if') { pending = [...pending, exit[2], exit[3]] }
+        if (exit[0] === 'switch') { pending = [...pending, ...exit[2].map(arm => arm.body), exit[3]] }
+        if (exit[0] === 'terminal-loop') { pending = [...pending, exit[1].body] }
+    }
+    return false
 }
 
 /**

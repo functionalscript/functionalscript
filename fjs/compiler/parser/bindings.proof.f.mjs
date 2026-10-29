@@ -200,6 +200,52 @@ export const proof = {
             assertStructurallySame(allEvents(module.scope.events).filter(event => event[1] === x.origin.id).map(event => event[0]), expected, source)
         }
     },
+    expressionBlockAssignments: () => {
+        for (const source of [
+            'export default n=>(()=>{n=n+1;return n;})();',
+            'export default n=>{const value=(()=>{n=n+1;return n;})();return [value,n];};',
+            'export default n=>(()=>{const value=(()=>{n=n+1;return n;})();return value+n;})();',
+            'export default n=>(()=>{if(n){n=n+1;return n;}n=2;return n;})();',
+            'export default n=>(()=>{switch(n){case 0:{n=1;return n;}default:{n=2;return n;}}})();',
+            'export default n=>(()=>{while(n<2){n=n+1;}return n;})();',
+            'export default n=>(()=>{while(n<2){if(n){n=n+1;}else{n=2;}}return n;})();',
+            'export default n=>(()=>{while(n<2){switch(n){case 0:{n=n+1;break;}default:{n=2;break;}}}return n;})();',
+            'export default n=>(()=>{if(n){while(n<2){n=n+1;}return n;}n=2;return n;})();',
+        ]) {
+            const module = parsed(source)
+            const n = named(module, 'n', 'parameter')
+            assertEq(n.binding.isMutable, true, source)
+            assert(n.binding.capturedBy.length !== 0, source)
+            assert(allEvents(module.scope.events).some(event => event[0] === 'write' && event[1] === n.origin.id), source)
+        }
+        // A nested block may write a local of its surrounding function; the
+        // enclosing function keeps that write inside its own invocation.
+        const local = parsed('export default n=>(()=>{let local=0;const value=(()=>{local=local+1;return local;})();return [n,local,value];})();')
+        assertEq(named(local, 'local', 'let').binding.isMutable, true)
+    },
+    expressionBlockAssignmentBoundaries: () => {
+        for (const source of [
+            'export default n=>()=>{n=n+1;return n;};',
+            'export default n=>()=>{n=missing;return n;};',
+            'export default n=>((unused)=>{n=n+1;return n;})();',
+            'export default n=>((unused=0)=>{n=n+1;return n;})();',
+            'export default n=>((...unused)=>{n=n+1;return n;})();',
+            'export default n=>(()=>{n=n+1;return n;})(0);',
+            'export default n=>(()=>{n=n+1;return n;})?.();',
+            'export default n=>(()=>{n=n+1;while(true){return n;}return 0;})();',
+            'export default n=>(()=>{while(true){if(n){n=n+1;return n;}break;}return 0;})();',
+            'export default n=>(()=>{while(true){switch(n){case 0:{n=n+1;return n;}default:{break;}}break;}return 0;})();',
+            'export default n=>{const read=()=>n;const value=(()=>{n=n+1;return n;})();return read;};',
+            'export default n=>()=>{const value=(()=>{n=n+1;return n;})();return value;};',
+        ]) {
+            const refusal = assertError(parseFromTokens(tokenizeString(source)))
+            assertEq(refusal.message, 'reassigned variable captured', source)
+        }
+        // A prior read caches the capture in a lexical scope. A later write
+        // still crosses its original function boundary and is checked there.
+        const cached = assertError(parseFromTokens(tokenizeString('export default n=>()=>{if(n){n=missing;return n;}return n;};')))
+        assertEq(cached.message, 'reassigned variable captured')
+    },
     completeSourceScan: () => {
         const unreachable = parsed('export default ()=>{let value=0; while(false){value=1;} return value;};')
         assertEq(named(unreachable, 'value').binding.isMutable, true)
