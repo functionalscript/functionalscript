@@ -4,8 +4,6 @@
  * @import { List } from '../types.ts'
  */
 
-
-import { entry, hasEntry } from '../../object/entry/module.f.js'
 import { concat, trampoline } from '../module.f.mjs'
 
 /**
