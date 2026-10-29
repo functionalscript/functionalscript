@@ -177,6 +177,7 @@ export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] 
  */
 export type Assignment = Statement & {
     readonly name: ModuleTokenWithMetadata
+    readonly operator: { readonly tag: BinaryTag; readonly token: ModuleTokenWithMetadata } | null
     readonly value: Node
 }
 

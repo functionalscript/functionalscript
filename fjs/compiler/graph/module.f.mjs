@@ -605,6 +605,10 @@ export const sourceGraph = module => {
             case 'block': { return sourceBlockShape(/** @type {SourceBlock} */ (exp[1])) }
             case 'initialize': { return { kind: 'op', label: 'initialize', children: [...planRows(/** @type {ExpansionPlan} */ (exp[1])), ['value', exp[2]]] } }
             case 'write': { return { kind: 'op', label: 'write', children: [['to', exp[1]], ['value', exp[2]]] } }
+            case 'compound-write': {
+                return { kind: 'op', label: `${exp[2]}=`, children: [['to', exp[1]], ['left', exp[1]],
+                    edge('right', exp[3], exp[2] === '&&' || exp[2] === '||' || exp[2] === '??')] }
+            }
             case 'if': { return { kind: 'op', label: 'if', children: [['cond', exp[1]], ['then', exp[2], 'lazy'], ['else', exp[3], 'lazy']] } }
             case 'while': {
                 const { condition, body } = /** @type {SourceLoop} */ (exp[1])

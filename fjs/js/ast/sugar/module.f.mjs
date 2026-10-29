@@ -16,7 +16,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
 import { _hasReturn } from '../memo/cells/module.f.mjs'
-import { logicalValue } from './logical/module.f.js'
+import { logicalCondition, logicalValue } from './logical/module.f.js'
 
 /** Indices are diagnostic; each allocation establishes a distinct identity. @type {(index: number) => BindingId} */
 const binding = index => ({ index })
@@ -408,6 +408,28 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const made = establish(inner, statement[1], normalizedValue(inner, context)(statement[2]), false)
             inner = made.environment
             statements = [...statements, ...made.statements]
+            continue
+        }
+        if (statement[0] === 'compound-write') {
+            const [, id, tag, operand] = statement
+            assert(context.bindings.some(fact => fact.id === id && fact.isMutable), 'compound write without complete source analysis')
+            const current = lookup(inner, id)
+            const right = normalizedValue(inner, context)(operand)
+            if (tag !== '&&' && tag !== '||' && tag !== '??') {
+                const made = establish(inner, id, [tag, current, right], false)
+                inner = made.environment
+                statements = [...statements, ...made.statements]
+                continue
+            }
+            const made = establish(inner, id, right, false)
+            /** @type {Block} */
+            const selected = { statements: made.statements, exit: ['yield', [lookup(made.environment, id)]] }
+            /** @type {Block} */
+            const skipped = { statements: [], exit: ['yield', [current]] }
+            const result = binding(id.index)
+            statements = [...statements, ['if', [result], logicalCondition(tag, current),
+                tag === '||' ? skipped : selected, tag === '||' ? selected : skipped]]
+            inner = [...inner, [id, reference(result)]]
             continue
         }
         if (statement[0] === 'if') {

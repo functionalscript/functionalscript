@@ -55,6 +55,14 @@ A construct with no rule here has no admitted rewrite yet: the module keeps
 the standing measurement of what holds each remaining module is in
 [`todo/fjs-nanvm-integration.md`](../todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
+Compound assignments to mutable identifiers need no rewrite: `n >>= 1n`,
+`count += 1`, `value &&= next`, `value ||= fallback` and `value ??= fallback`
+are admitted as statements
+([variables](../spec/bindings/variables/README.md#compound-assignments)).
+Source desugaring preserves right-operand evaluation order and the logical
+forms' conditional evaluation and write. Property mutation, assignment
+expressions and prefix/postfix updates remain separate constructs.
+
 ## 1. Computed keys
 
 A key in brackets is one of two things, and the language treats them apart: a

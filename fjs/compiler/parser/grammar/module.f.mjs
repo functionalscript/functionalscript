@@ -52,7 +52,7 @@
  * loopCase ::= ( 'case' value ':' )+ loopBlock
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
- * bodyNameStatement ::= id ( '=' value | <the rest of the value the name begins> ) end
+ * bodyNameStatement ::= id ( assignmentOperator value | <the rest of the value the name begins> ) end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
  *              | '=' value [ ',' [ names ] ] ')' '=>' body
@@ -146,6 +146,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { AssignmentOperator } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -156,7 +157,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
-import { eagerLayers, lazyLayers } from '../../ast/module.f.js'
+import { assignmentOperators, eagerLayers, lazyLayers } from '../../ast/module.f.js'
 
 const { fromEntries } = Object
 
@@ -1244,11 +1245,16 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
  * continue the statement before it as a call and an index where no `;`
  * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
  * `f(g)(x)` — so one symbol could not tell them from a new statement's;
- * and a prefix or a literal opens no call worth a statement. `=` decides the assignment in one symbol, an assignment being no
+ * and a prefix or a literal opens no call worth a statement. An assignment
+ * operator decides the assignment in one symbol, an assignment being no
  * value of the language; and the {@link end} of either. Which names an
  * assignment may rebind is the fold's to say.
  */
-export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [sym('='), value], ...arrowOrRest }, end])
+/** Plain and compound assignment choices, sharing the source operator vocabulary. */
+export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries(
+    definedEntries(assignmentOperators).map(([key, [operator]]) => [key, sym(operator)])))
+
+export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [assignmentOperator, value], ...arrowOrRest }, end])
 
 /**
  * A statement of a loop's block: a declaration, a normal conditional, a
