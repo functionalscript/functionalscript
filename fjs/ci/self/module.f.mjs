@@ -13,7 +13,9 @@
  */
 
 import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
-import { uses } from '../common/module.f.mjs'
+import { uses, _workflowsDirectory } from '../common/module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
@@ -38,7 +40,6 @@ const buildMetadata = /** @type {const} */ ({
  * @type {Job}
  */
 export const websiteJob = {
-    if: "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read', 'pull-requests': 'write' },
@@ -102,43 +103,41 @@ export const packageConsumer = {
 
 /**
  * The workflows and environment manifests this repository commits, with its own module as
- * the packed package's consumer. Every platform runs on each pull request;
- * the merge queue reports skipped checks instead of repeating them.
+ * the packed package's consumer. Test CI keeps its original PR and
+ * merge-queue behavior; website uploads live in their own workflow.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => writeCi(repositoryWorkflow)
+export const main = () => step(
+    writeCi(repositoryWorkflow),
+    () => exitStep(writeFiles([[websitePath, JSON.stringify(websiteWorkflow, null, '  ')]])))
 
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
-    extraJobs: { website: websiteJob },
 }
 
 /** The repository jobs before cache gates are applied. */
 export const jobs = ciJobs(setup)
 
-/** Shared checks; this repository always has a Rust workspace. */
-const checks = ciWorkflow(setup)(true)
+/** Original repository test CI, with no website jobs or deployment conditions. */
+export const repositoryWorkflow = ciWorkflow(setup)(true)
 
-/** PR checks and previews share a workflow with main-only production uploads.
- * Merge-queue events report skipped checks without allocating runners.
+/** Generated independently so main pushes never start the test workflow. */
+export const websitePath = /** @type {const} */ (`${_workflowsDirectory}/gen.website.yml`)
+
+/** Website previews on PRs, production deployment on main pushes.
  * @type {GitHubAction}
  */
-export const repositoryWorkflow = {
-    ...checks,
-    on: { ...checks.on, push: { branches: ['main'] } },
+export const websiteWorkflow = {
+    name: 'Website',
+    on: { pull_request: {}, push: { branches: ['main'] } },
     concurrency: {
         group: '${{ github.workflow }}-${{ github.ref }}',
         'cancel-in-progress': "${{ github.event_name != 'push' }}",
     },
-    jobs: {
-        ...Object.fromEntries(Object.entries(checks.jobs).filter(([id]) => id !== 'website').map(([id, job]) => [id, {
-            ...job,
-            if: "github.event_name == 'pull_request'",
-        }])),
-        website: websiteJob,
-    },
+    permissions: { contents: 'read' },
+    jobs: { website: websiteJob },
 }

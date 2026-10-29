@@ -2,16 +2,11 @@
   "name": "CI",
   "on": {
     "pull_request": {},
-    "merge_group": {},
-    "push": {
-      "branches": [
-        "main"
-      ]
-    }
+    "merge_group": {}
   },
   "concurrency": {
     "group": "${{ github.workflow }}-${{ github.ref }}",
-    "cancel-in-progress": "${{ github.event_name != 'push' }}"
+    "cancel-in-progress": true
   },
   "permissions": {
     "contents": "read"
@@ -148,8 +143,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
@@ -427,8 +421,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
@@ -536,8 +529,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "macos-arm": {
       "runs-on": "macos-26",
@@ -645,8 +637,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "windows-intel": {
       "runs-on": "windows-2025",
@@ -769,8 +760,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
@@ -873,8 +863,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
@@ -947,8 +936,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1021,8 +1009,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
+      }
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1215,82 +1202,7 @@
       ],
       "permissions": {
         "contents": "write"
-      },
-      "if": "github.event_name == 'pull_request'"
-    },
-    "website": {
-      "if": "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
-      "runs-on": "ubuntu-26.04",
-      "timeout-minutes": 30,
-      "permissions": {
-        "contents": "read",
-        "pull-requests": "write"
-      },
-      "steps": [
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "uses": "jdx/mise-action@v5",
-          "with": {
-            "version": "2026.10.19",
-            "install_args": "--locked",
-            "cache": "true",
-            "cache_max_age_days": "0",
-            "env": "false",
-            "add_shims_to_path": "false"
-          }
-        },
-        {
-          "run": "mise exec -- npm ci",
-          "shell": "bash"
-        },
-        {
-          "run": "mise exec -- sh ./nanvm/demos/gen.build.sh",
-          "shell": "bash"
-        },
-        {
-          "run": "mise exec -- npm run rustdoc-bars",
-          "shell": "bash",
-          "env": {
-            "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
-          }
-        },
-        {
-          "run": "mise exec -- cargo doc --no-deps --workspace",
-          "shell": "bash",
-          "env": {
-            "RUSTDOCFLAGS": "--html-in-header ${{ github.workspace }}/_rustdoc-head.html --html-before-content ${{ github.workspace }}/_rustdoc-header.html --html-after-content ${{ github.workspace }}/_rustdoc-footer.html --extend-css ${{ github.workspace }}/_rustdoc.css"
-          }
-        },
-        {
-          "run": "mise exec -- npm run website",
-          "shell": "bash",
-          "env": {
-            "WORKERS_CI_COMMIT_SHA": "${{ github.sha }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref || github.ref_name }}"
-          }
-        },
-        {
-          "if": "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
-          "run": "mise exec -- node ./fjs/website/github-deploy.mjs preview",
-          "shell": "bash",
-          "env": {
-            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref }}",
-            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-          }
-        },
-        {
-          "if": "github.event_name == 'push' && github.ref == 'refs/heads/main'",
-          "run": "mise exec -- node ./fjs/website/github-deploy.mjs production",
-          "shell": "bash",
-          "env": {
-            "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}"
-          }
-        }
-      ]
+      }
     }
   }
 }
