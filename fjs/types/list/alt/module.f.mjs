@@ -25,13 +25,14 @@ export const toArray = list => {
             if (tail === null) {
                 break
             }
-            [list, tail] = [tail, null]
+            list = tail
+            tail = null
             continue
         }
 
         if (list instanceof Array) {
             result = arrayConcat(result, list);
-            [list, tail] = [tail, null]
+            list = null
             continue
         }
 
