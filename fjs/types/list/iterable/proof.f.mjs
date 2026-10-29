@@ -9,6 +9,7 @@ export const proof = {
         assertEq(stringifySorted([...iterable(null)]), '[]')
     },
     toArray: () => {
+        /** @type {readonly number[]} */
         const a = [1, 2]
         assert(toArray(a) === a)
         assert(toArray(() => a) === a)

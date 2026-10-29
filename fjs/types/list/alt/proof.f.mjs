@@ -18,6 +18,7 @@ export const proof = {
     },
     /** An array, or a thunk's array, comes back itself. */
     array: () => {
+        /** @type {readonly number[]} */
         const a = [1, 2, 3]
         assert(toArray(a) === a)
         assert(toArray(() => a) === a)
