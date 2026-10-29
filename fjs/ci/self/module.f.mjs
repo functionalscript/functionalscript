@@ -27,8 +27,8 @@ const buildMetadata = /** @type {const} */ ({
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * job runs on pull requests, including drafts and forks, and
- * merge-group entries, and pushes to main. Same-repository pull requests upload
+ * job runs on pull requests, including drafts and forks, and pushes to main.
+ * Same-repository pull requests upload
  * a preview; main pushes deploy production.
  * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
@@ -38,6 +38,7 @@ const buildMetadata = /** @type {const} */ ({
  * @type {Job}
  */
 export const websiteJob = {
+    if: "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read', 'pull-requests': 'write' },
@@ -101,9 +102,8 @@ export const packageConsumer = {
 
 /**
  * The workflows and environment manifests this repository commits, with its own module as
- * the packed package's consumer. Every platform runs on
- * every pull request: a macOS or Windows failure found only in the merge queue
- * is found after review, by the queue's eviction.
+ * the packed package's consumer. Every platform runs on each pull request;
+ * the merge queue reports skipped checks instead of repeating them.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
@@ -123,7 +123,8 @@ export const jobs = ciJobs(setup)
 /** Shared checks; this repository always has a Rust workspace. */
 const checks = ciWorkflow(setup)(true)
 
-/** Production and PR previews share the existing website job and workflow.
+/** PR checks and previews share a workflow with main-only production uploads.
+ * Merge-queue events report skipped checks without allocating runners.
  * @type {GitHubAction}
  */
 export const repositoryWorkflow = {
@@ -136,7 +137,7 @@ export const repositoryWorkflow = {
     jobs: {
         ...Object.fromEntries(Object.entries(checks.jobs).filter(([id]) => id !== 'website').map(([id, job]) => [id, {
             ...job,
-            if: "github.event_name != 'push'",
+            if: "github.event_name == 'pull_request'",
         }])),
         website: websiteJob,
     },

@@ -40,7 +40,7 @@ export const proof = {
         assertStructurallySame(generated, repositoryWorkflow)
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         for (const [id, job] of Object.entries(checks.jobs)) {
-            assertStructurallySame(generated.jobs[id], { ...job, if: "github.event_name != 'push'" })
+            assertStructurallySame(generated.jobs[id], { ...job, if: "github.event_name == 'pull_request'" })
         }
         assertStructurallySame(checks.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
@@ -60,7 +60,7 @@ export const proof = {
         }
         assertStructurallySame(websiteJob.permissions, { contents: 'read', 'pull-requests': 'write' })
         assertEq(generated.jobs.website?.needs, undefined)
-        assertEq(generated.jobs.website?.if, undefined)
+        assertEq(generated.jobs.website?.if, "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')")
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',

@@ -45,8 +45,10 @@ disabling Workers Builds so the transition does not leave competing deployments.
 ### Build job
 
 The `website` job runs on pull requests, including drafts and forks, and
-merge-group entries, and pushes to `main`. Other branches needing a preview
-open a draft PR. Main pushes run only the website job, with test jobs skipped. It runs independently of the platform matrix and test jobs,
+pushes to `main`. Other branches needing a preview
+open a draft PR. Test jobs run on PRs only; main pushes run only the website
+job. Merge-group events skip every job, reporting required check names without
+allocating runners or retesting combined changes. It runs independently of the platform matrix and test jobs,
 reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
@@ -54,9 +56,9 @@ metadata variables.
 
 Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after its own successful website build.
-Fork pull requests and merge-group entries never upload. No enable-switch variables
+Fork pull requests never upload; merge-group entries skip every job. No enable-switch variables
 are used. Production uploads use `wrangler deploy` only for main pushes, after changes
-pass required checks through the merge queue. Main runs do not cancel an active upload. The API token is scoped to the upload
+pass PR checks and merge through the queue. Main runs do not cancel an active upload. The API token is scoped to the upload
 step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
 and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
 only the API-token secret and sends no empty OAuth overrides. The legacy
@@ -71,7 +73,7 @@ branch-alias rules, cutover and rollback are documented in
 The existing CI website job creates or updates one bot-owned PR comment after
 each successful preview upload. It uses the alias URL reported by Wrangler
 and the automatic Actions token with pull-request write permission. Drafts
-are included; fork PRs and merge groups stay build-only. No extra settings are
+are included; fork PRs stay build-only and merge groups skip every job. No extra settings are
 needed, and failed uploads never publish a preview comment.
 
 ### Tasks

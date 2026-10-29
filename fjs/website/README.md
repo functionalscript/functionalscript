@@ -226,15 +226,16 @@ documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
 and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests,
 including drafts, build the website; same-repository PRs upload previews.
-Fork pull requests and merge-group entries build without uploading.
+Fork pull requests build without uploading. Merge-group entries skip all jobs;
+the merge queue reports the required check names without rebuilding or deploying.
 Only `main` has a push trigger: the existing website job deploys production.
 Other branches need an open PR (a draft is enough) for a preview. Test jobs
-run on PRs and merge-group entries, without repeating on main pushes.
+run only on PRs, without repeating in the merge queue or on main pushes.
 
 Cloudflare Workers Builds is disconnected. Every same-repository pull-request run uses
 `wrangler versions upload --preview-alias` after its own successful build.
 The same job uses `wrangler deploy` only on pushes to `main`, after changes
-pass review and required checks through the merge queue. An active main upload
+pass review and PR checks, then merge through the queue. An active main upload
 is not cancelled by a newer push. No enable-switch variables are required.
 The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
 retains existing Worker variables, and Wrangler version uploads retain existing
