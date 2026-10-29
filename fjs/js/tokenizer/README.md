@@ -10,7 +10,7 @@ at a time, and folds what it read into a `JsToken` stream.
 ```js
 import { tokenize } from './module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 
 const tokens = toArray(tokenize(toArray(stringToCodePointList('const x = 1n')))('a.f.mjs'))
 tokens.map(t => t.token)
