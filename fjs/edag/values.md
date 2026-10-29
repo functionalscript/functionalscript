@@ -98,8 +98,8 @@ host frames. A body's outcome is therefore a value, a throw, or such a call.
 Each call made this way is a fresh invocation with its own bindings and
 state, as the recursion's was, so nothing a program observes changes: a
 function that iterates by calling itself last runs in constant host stack,
-as [tail-call-loop](todo/tail-call-loop.md) has the writers' outputs do for
-one template of it. A built-in method is answered as a value, as every other
+as [shared tail-loop lowering](to_fast/README.md#tail-call-eligibility) does
+for eligible self-calls in emitted code. A built-in method is answered as a value, as every other
 operation is.
 
 Admission, loading and output diagnostics have their own channels. Host

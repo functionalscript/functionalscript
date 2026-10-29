@@ -23,7 +23,7 @@ const fence = (text, code) => codeBlock(text, 'Copy code', [code])
 /** A link refused for a target named `bad`, and every other kept. */
 const href = (/** @type {string} */ h) => h === 'bad' ? error('no') : ok(h)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     readmeName: () => assertEq(readmeName, 'README.md'),
     resolveHref: {
         absolute: () => assertStructurallySame(local('https://e.x/a:b'), ok('https://e.x/a:b')),
@@ -142,6 +142,28 @@ export const proof = {
                     ['span', { 'data-token': 'identifier' }, 'type'], ': ',
                     ['span', { 'data-token': 'number' }, '1'], ' }']),
             ])),
+            // A flowchart is drawn; a Mermaid fence the site cannot draw
+            // stays its source.
+            mermaid: () => {
+                const r = readmeNodes(href)([['code', 'mermaid', 'flowchart LR\na --> b\n']])
+                assertStructurallySame(r[0] === 'ok' ? r[1][0].slice(0, 2) : null, ['div', { 'data-graph': '' }])
+            },
+            mermaidSource: () => assertStructurallySame(readmeNodes(href)([['code', 'mermaid', 'pie\n']]),
+                ok([fence('pie', ['code', { class: 'language-mermaid' }, 'pie\n'])])),
+            mermaidKeywords: () => {
+                for (const name of ['classDef', 'class', 'style', 'subgraph']) {
+                    const text = `flowchart LR\n${name} --> b`
+                    assertStructurallySame(readmeNodes(href)([['code', 'mermaid', text]]),
+                        ok([fence(text, ['code', { class: 'language-mermaid' }, text])]))
+                }
+            },
+            mermaidEdgeDelimiters: () => {
+                for (const label of ['f(x)', 'f[x]', 'f{x}']) {
+                    const text = `flowchart LR\na -->|${label}| b`
+                    assertStructurallySame(readmeNodes(href)([['code', 'mermaid', text]]),
+                        ok([fence(text, ['code', { class: 'language-mermaid' }, text])]))
+                }
+            },
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
                 ok([fence('let a = 1;', ['code', { class: 'language-rust' }, 'let a = 1;'])])),
             // Text the tokenizer refuses is not partly coloured.
@@ -187,4 +209,4 @@ export const proof = {
         refused: () => assertStructurallySame(readmeSection('f')(error('line 1: a table')),
             [['p', { 'data-readme-refused': '' }, ['a', { href: 'f' }, 'README.md'], ' is not rendered here: line 1: a table.']]),
     },
-}
+})

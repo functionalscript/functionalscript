@@ -65,10 +65,12 @@ import { assertNotNullish } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /**
- * Every node's rank: the longest path from the root, so every edge points
+ * Every node's rank: the longest path from a source, so every edge points
  * right by at least one rank and never straight up or down, or back. A
- * `back` edge is not a path, so it ranks nothing. A
- * node's id is its index here — a demo's own walk is expected to assign
+ * `back` edge is not a path, so it ranks nothing, and a source is a node
+ * no other edge enters: the root, in a graph a demo walks from one, and
+ * each starting point of a diagram that has several, such as a flowchart.
+ * A node's id is its index here — a demo's own walk is expected to assign
  * ids `0, 1, 2, …` in creation order with no gaps, root first — so
  * `current[edge.from]` reads a node by id directly.
  *
@@ -87,7 +89,7 @@ import { hasEntry } from '../../../types/object/entry/module.f.js'
 export const ranked = (nodes, edges) => {
     /** @type {readonly (readonly Edge[])[]} */
     const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id && e.back !== true))
-    let current = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
+    let current = nodes.map((n, i) => ({ ...n, rank: incomingOf[i].length === 0 ? 0 : -Infinity }))
     for (let round = 0; round < nodes.length; round++) {
         const prior = current
         current = prior.map((node, i) => {

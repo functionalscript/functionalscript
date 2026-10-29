@@ -59,7 +59,7 @@ const arrayShape = v => v instanceof Array
     ? { kind: 'array', label: '[ ]', children: v.map((item, i) => i === 0 ? [`${i}`, item, 'first'] : [`${i}`, item]) }
     : typeof v === 'string' ? { inline: v, kind: v } : { inline: `${v}` }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     graphOf: {
         // Two edges to one array are one node with two incoming edges, and
         // an equal array written again is a node of its own.
@@ -211,6 +211,18 @@ export const proof = {
                 { from: 1, to: 2, label: 'long' },
             ]
             assertEq(ranked(nodes, edges).find(n => n.id === 2)?.rank, 2)
+        },
+        // Each source starts at rank 0, so a diagram with two starting
+        // points ranks both, and a node they share by the longer path.
+        sources: () => {
+            const nodes = /** @type {const} */ ([
+                { id: 0, kind: 'a', label: 'a' },
+                { id: 1, kind: 'a', label: 'b' },
+                { id: 2, kind: 'a', label: 'c' },
+                { id: 3, kind: 'a', label: 'd' },
+            ])
+            const edges = /** @type {const} */ ([{ from: 0, to: 3, label: '' }, { from: 1, to: 2, label: '' }, { from: 2, to: 3, label: '' }])
+            assertStructurallySame(ranked(nodes, edges).map(n => n.rank), [0, 0, 1, 2])
         },
         // A back edge is not a path, so it ranks nothing.
         back: () => {
@@ -1465,4 +1477,4 @@ export const proof = {
             }),
         },
     },
-}
+})

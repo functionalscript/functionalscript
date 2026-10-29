@@ -292,16 +292,15 @@ tracked in [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md#tasks)
       on Node and, as compiler coverage permits, AOT-compiled Rust.
 - [ ] **Control statements.** Implemented: the guard, an `if` whose block
       ends in `return` or `throw` ([guards](../../../spec/control-flow/guards/README.md));
-      `let`, assignment and the loop over one variable
+      general `let`, assignment and structured loops
       ([variables](../../../spec/bindings/variables/README.md),
       [loops](../../../spec/control-flow/loops/README.md)); the terminating
       `switch` ([switch](../../../spec/control-flow/switch/README.md)).
-      Remaining: general loops — `break`, `continue` and `return` inside a
-      loop, nested and sequential loops — milestone H of
-      [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md),
-      which waits on E and F and on G's capture migration;
-      and `for`, which [3220](../../../spec/todo/3220-let.md#general-loops)
-      leaves a separate extension, [3270](../../../spec/todo/3270-for.md).
+      Conditional, nested and sequential loops and loop-local
+      `break`/`continue`/`return`/`throw` use the completed
+      [shared loop pipeline](../../../fjs/compiler/architecture.md#loop-integration).
+      Remaining: [for statements](../../../spec/todo/3270-for.md) and the
+      separate guard/switch follow-ups.
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -349,7 +348,7 @@ counts them, a refusal met in an import under the import's construct:
 
 | Modules | First refusal | Owner |
 | ---: | --- | --- |
-| 19 | a general loop: an `if` with `return`, `break` or `continue` inside a `while` | H of [general loops and tail calls](../../../fjs/todo/general-loops-and-tail-calls.md) |
+| 19 | a general loop: an `if` with `return`, `break` or `continue` inside a `while` | [Implemented loop integration](../../../fjs/compiler/architecture.md#loop-integration); historical refusal at this snapshot |
 | 18 | `for`, `for…of` | [3270](../../../spec/todo/3270-for.md) |
 | 11 | a block whose end is reachable: a body of calls with no `return`, an `if` with no terminator, a `switch` with no `default` | [3210](../../../spec/todo/3210-reachable-block-end.md), [3230](../../../spec/todo/3230-switch.md) |
 | 11 | a global name: `Object`, `Array`, `String`, `JSON`, `Boolean`, `parseFloat` | [2360](../../../spec/todo/2360-built-in.md), [2365](../../../spec/todo/2365-global-names.md) |
