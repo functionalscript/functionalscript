@@ -77,8 +77,10 @@ state/result path and keeps earlier exported constants as snapshots.
 These facts decide the capture policy: a variable assigned anywhere in its
 scope, a `let`'s or a parameter's, is refused to a function held as a value,
 while a function called where it is written, by a plain or an optional call,
-keeps reading it — reading, not assigning, since its block is inlined with
-values of its own — and a variable
+keeps reading it. Direct immediate calls that normalize to expression blocks
+may also assign enclosing variables; normalization exports their updated
+immutable binding versions to the continuation. A call that retains an ordinary
+invocation boundary cannot write an enclosing variable. A variable
 assigned nowhere is captured as a `const` is
 ([spec: variables](../../../spec/bindings/variables/README.md)). The fold
 records each reference across a function boundary and decides it when the

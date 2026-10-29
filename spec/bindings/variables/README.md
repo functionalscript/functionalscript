@@ -73,11 +73,10 @@ declaration, such as `[a, b] = values;`, remains a separate language extension.
   refused rather than read another way. Two spellings say what is meant:
   a function called where it is written, `r = (() => r + 1)();`, reads
   the value of that moment in both languages and is admitted, through any
-  depth of such functions — reads alone: an assignment from inside it,
-  `(() => { r = 1; return 0; })();`, is refused the same way, since the
-  compiler inlines such a function's block with values of its own, which
-  the scope around it never sees, where JavaScript's assignment reaches the
-  variable; and a **snapshot**, `const s = r; return () => s;`, holds what
+  depth of such functions. An immediate call that normalizes to an expression
+  block may also assign the variable: the block returns the updated binding
+  versions to its continuation, as described below. A **snapshot**,
+  `const s = r; return () => s;`, holds what
   the capture would hold, as a `const` does. A variable
   never assigned is captured as a `const` is: a `let` nothing assigns and
   a parameter nothing assigns are a `const` by another spelling, and the
@@ -117,10 +116,44 @@ A snapshot holds the same value without cloning an object. Object-content
 mutation has its own [mutability design](../../design/mutability.md).
 
 A never-reassigned `let` or parameter remains capturable. A function called
-where it is written can still read a reassigned binding, through nested
-immediate calls as well. Assigning to an outer binding from inside such a
-function remains refused. This read admission is retained; it does not allow a
-held closure over the mutable binding.
+where it is written can read a reassigned binding, through nested immediate
+calls as well. A direct call that normalizes to an expression block can also
+write an enclosing binding. This does not permit a held closure over a mutable
+binding, or a write across an ordinary invocation boundary that is retained.
+
+## Expression block assignments
+
+An expression block runs in its surrounding execution region. An assignment
+inside it establishes the latest value for later reads, both inside the block
+and after the expression has completed:
+
+```js
+export default n => {
+    const result = (() => { n = n + 1; return n; })();
+    return [result, n];
+};
+```
+
+With `n` equal to `2`, this returns `[3, 3]`. Plain direct immediate calls with no
+arguments, no parameter or rest declarations, and no internal return
+that requires an ordinary function boundary normalize to these blocks. A
+terminal return supplies the block's value.
+
+Operand evaluation stays ordered. In `[n, (() => { n = n + 1; return n; })(), n]`,
+the first element holds the incoming value and the last two hold the updated
+value. A skipped conditional, logical or optional operand makes no assignment.
+A reached loop condition may update a variable even when its result ends the
+loop. Assignments to a `const` and captures by held functions remain refused
+before optimization, including in unreachable code.
+
+The compiler may serialize an expression block as an immediately invoked arrow
+function, including assignments when needed. It may instead spell the same
+immutable versions with fresh `const` names. Recompiling the output preserves
+the result, required evaluations and shared identities.
+Graphs with internal member-lookup queries or shared values established in lazy
+regions retain the source writer's existing explicit refusals; their source
+profiles are tracked in the
+[follow-up](../../../fjs/edag/to_fast/source/todo/block-assignment-source-profiles.md).
 
 ## Normalization
 
@@ -143,7 +176,17 @@ arm supplies no normal result. The [loop normalization contract](../../control-f
 defines ordered branch and loop signatures. The shared representation belongs
 to the [FAST binding contract](../../../fjs/todo/compiler-vocabulary-and-modularization.md#fast-contract).
 
+Value-producing regions also pass their expression result and updated outer
+bindings explicitly. Normalization sequences these updates before subsequent
+operands and statements; lazy paths join their selected versions. This happens
+in AST-to-FAST normalization, before graph construction, and introduces no
+shared mutable cell in FAST or EDAG.
+
 ## Design approval
+
+`sergey-shandar` approved assignments in expression blocks and serialization to
+that spelling in the
+[design session](https://chatgpt.com/local/01a185f1-43c3-7453-babf-5d7d9cc48000).
 
 `sergey-shandar` approved the general binding, capture and loop rules in
 [PR #3167](https://github.com/functionalscript/functionalscript/pull/3167#issuecomment-6350745131).

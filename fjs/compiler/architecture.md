@@ -51,8 +51,11 @@ admission applies the current capture policy before generated helpers exist.
 
 Normalized FAST has immutable values and explicit branch results, loop inputs,
 loop results and resolved transfers. A value-producing block has no function
-or invocation boundary. Required initializers remain required even when their
-values are overwritten or discarded. A shared lazy value is established on
+or invocation boundary. Assignments in such a block export new immutable
+binding versions to its continuation, including later operands. Conditional
+regions join only the reached updates, and loop conditions carry their updates
+through both true and false results. Required initializers remain required even
+when their values are overwritten or discarded. A shared lazy value is established on
 its first reached use within its owning invocation, preserving its identity.
 Graph construction consumes these contracts without rediscovering source
 mutability or selecting loop state.
