@@ -48,11 +48,11 @@ Five commitments make that concrete.
 
 There is **no type language to invent**. A type is an ordinary expression —
 written in the language, in a `const`, never in a comment — built from
-[`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) —
-`boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
-`option`, `never`, `rest`, `open`, plus `Const` (a primitive, tuple, or struct
-used directly as its own schema, closed). It is a value: it can be named, imported,
-exported, passed to a function, and returned from one.
+[`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) — `boolean`, `number`,
+`string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`,
+`rest`, `open`, plus `Const` (a primitive, tuple, or struct used directly as its
+own schema, closed). It is a value: it can be named, imported, exported, passed
+to a function, and returned from one.
 
 Being a value is not automatically free at run time, and an earlier draft of
 this paragraph said it was. A schema used *only* in annotations is droppable
@@ -75,8 +75,7 @@ type grammar", which is the thing this project exists to avoid
 
 **The eDSL is expected to grow, and growing it is library work.** Today it says
 primitives, `array`, `record`, `or`, `option`, `never`, `rest`, `open`, and
-consts. It
-does not yet say functions
+consts. It does not yet say functions
 ([668](../fjs/rtti/todo/668-rtti-function-types.md)) or brands
 ([134](./134-nominal-types-proposal.md)), and it will need to say more than
 that. Because a type is a *value*, each of those is a new exported function in
@@ -232,8 +231,9 @@ carries it.
 
 [type-annotations](../spec/todo/3360-type-annotations.md) is the design note for
 this annotation convention despite living under `spec/todo`; it does not add
-type semantics to FunctionalScript. It states the body as an expression; **this
-epic narrows it to a name**, and stage 2 is where that narrowing lands.
+type semantics to FunctionalScript. Its opening and its "Narrowed by the epic"
+note already state **the name rule this epic sets**, but the rest of its text
+still reads the body as an expression; reconciling that text is stage 2.
 
 #### 3. Every RTTI type is immutable, and that is what makes it sound
 
@@ -313,14 +313,15 @@ deep-copying what `unknown` admits, or saying plainly that a parsed `unknown`
 is a borrowed reference.
 
 **The general rule, of which `unknown` and a closed struct are instances:
-nothing about a type establishes runtime ownership.** "Inside FunctionalScript nothing can
-write" is a statement about FunctionalScript's *own* code. It says nothing
-about a caller in ordinary JavaScript that passed a reference in and kept one.
-An exported function that accepts and retains an array or object can have that
-value mutated underneath it afterwards, and the compiler containing no writes
-does not help: the write happens outside. A generated `readonly` declaration
-does not close it either — `readonly` constrains what the callee may do, and
-TypeScript accepts a mutable array or object where a readonly type is expected.
+nothing about a type establishes runtime ownership.** "Inside FunctionalScript
+nothing can write" is a statement about FunctionalScript's *own* code. It says
+nothing about a caller in ordinary JavaScript that passed a reference in and
+kept one. An exported function that accepts and retains an array or object can
+have that value mutated underneath it afterwards, and the compiler containing no
+writes does not help: the write happens outside. A generated `readonly`
+declaration does not close it either — `readonly` constrains what the callee may
+do, and TypeScript accepts a mutable array or object where a readonly type is
+expected.
 
 So the boundary rule has to apply to **every reference crossing the boundary
 that both sides retain**, in either direction, not only to the schema features
@@ -359,10 +360,10 @@ enforceability condition, since a note in a README binds the receiver no more
 than it binds the caller.
 
 Which remedy is a cost/ergonomics decision, and it belongs with the same person
-deciding the closed-struct policy — all of it is one question asked about different
-values and directions, and **[stage 13](#tasks) owns it**. Naming the question
-without giving it a stage is what let it sit unowned through several revisions
-of this section.
+deciding the closed-struct policy — all of it is one question asked about
+different values and directions, and [stage 13](#tasks) **owns it**. Naming the
+question without giving it a stage is what let it sit unowned through several
+revisions of this section.
 
 That is one more reason the regime follows what the compiler can read
 (commitment 4), and a reason the guarantee in commitment 3 is worth reading as
@@ -417,16 +418,17 @@ job — the schema *is* the type-level API, and it is a value rather than a
 declaration. **Provided the compiler can read that module**: per the rule
 below, a `.f.mjs` the parser does not yet accept has no RTTI checking whatever
 it is annotated with, so its `types.ts` is still carrying the types and
-retiring it would leave the module checked by nothing. 92 of the 94 `types.ts` files in the tree sit next to a
-`module.f.mjs`, so the *file* is adjacent to a schema-bearing module in nearly
-every case.
+retiring it would leave the module checked by nothing. Of the 202 `types.ts`
+files in the tree, 196 sit next to a `module.f.mjs` or a `module.f.js`
+(counted at `11e9e10`), so the *file* is adjacent to a schema-bearing module in
+nearly every case.
 
-That is a fact about placement, not about contents, and the distinction
-matters: a `types.ts` also holds declarations that describe no runtime value at
-all — [`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports
-`Index`, `FixedArray`, `KeyOf`, `Includes`, conditional utilities over other types —
-and no schema, printer, or reification produces those. Stage 11 states the
-rule and the known exceptions.
+That is a fact about placement, not about contents, and the distinction matters:
+a `types.ts` also holds declarations that describe no runtime value at all —
+[`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports `Index`,
+`FixedArray`, `KeyOf`, `Includes`, conditional utilities over other types — and
+no schema, printer, or reification produces those. Stage 11 states the rule and
+the known exceptions.
 
 That is not a contradiction of the stage-1 migration, which said four times
 that authored `types.ts` "may remain permanently" (the surviving statement is in
@@ -446,14 +448,14 @@ document already establishes, and `.f.mjs` modules keep their JSDoc and their
 
 An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
-[`fjs/rtti/ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) is already
-that printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
+[`fjs/rtti/ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) is already that
+printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
 recursion handled — so this is close to plumbing plus an `fjs` command, and it
-is the stage that can land earliest. Not *only* plumbing, though, and not entirely on
-its own: the printer documents two places where it and `Ts<>` disagree, both of
-which change what a generated declaration means, and rendering a schema is not
-the same as knowing which export carries it. See stage 1. It is also what lets a
-`.f.mjs` module drop its JSDoc without any consumer noticing.
+is the stage that can land earliest. Not *only* plumbing, though, and not
+entirely on its own: the printer documents two places where it and `Ts<>`
+disagree, both of which change what a generated declaration means, and rendering
+a schema is not the same as knowing which export carries it. See stage 1. It is
+also what lets a `.f.mjs` module drop its JSDoc without any consumer noticing.
 
 ### Inference, narrowing, and specialization
 
@@ -635,13 +637,15 @@ it as scoped to the object shapes TypeScript can name.
 | Schema constructors | [`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) | done |
 | Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.mjs), [`validate/`](../fjs/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
 | Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
-| TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
+| TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on recognizing an empty rest, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
+| JSON Schema emission | [`fjs/media/json/schema`](../fjs/media/json/schema/module.f.mjs) | done — `toJsonSchema` writes draft 2020-12 through the same data form, as an MCP tool's `inputSchema`; a second output of one schema, not a type-system piece |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
-| Annotation convention | — | not started |
+| Annotation convention | [type-annotations](../spec/todo/3360-type-annotations.md) | designed, and narrowed to a name; recognition not started |
 | Compile-time evaluation | [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
+| Documentation | [the RTTI guide](../fjs/rtti/guide/README.md) | one page per concept across schemas, readers, outputs and the project; most pages have a demo and a proof, `readers/assumptions` has none by design, and function types and excluded string values are planned |
 
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
@@ -652,17 +656,17 @@ The standing objection to types-as-values is cost: TypeScript erases its types,
 and a type that is an ordinary value looks like one more thing to ship. It does
 not apply here, and answering it needs no erasure rule.
 
-A FunctionalScript module compiles to an [EDAG](../fjs/edag/README.md), and source is
-serialized back **out of the graph**, by reference count, emitting only what is
-reachable —
+A FunctionalScript module compiles to an [EDAG](../fjs/edag/README.md), and
+source is serialized back **out of the graph**, by reference count, emitting
+only what is reachable —
 [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
 already does exactly this for DataJS values, counting references, hoisting
-shared ones to `const $N`, and emitting nothing for what nothing points at. A schema imported and named
-only to be mentioned in `//: myType` annotations has no edge from anything the
-program evaluates: the annotation is a comment, the compiler consumed it at
-compile time, and no node refers to the binding, so **the schema is not built in
-the shipped program** — subject to one unsettled question about the *import*
-itself, below.
+shared ones to `const $N`, and emitting nothing for what nothing points at. A
+schema imported and named only to be mentioned in `//: myType` annotations has
+no edge from anything the program evaluates: the annotation is a comment, the
+compiler consumed it at compile time, and no node refers to the binding, so
+**the schema is not built in the shipped program** — subject to one unsettled
+question about the *import* itself, below.
 
 The same schema passed to `validate` *is* referenced, so it stays — once, shared
 by both uses, because the graph deduplicates by identity rather than by import
@@ -697,31 +701,31 @@ the module the schema was imported from: the transpiler evaluates every imported
 module before the importing body, even when the binding is never referenced, so
 an import whose module has a throwing top-level computation is observable
 precisely by throwing. Dropping such an import would delete a failure from the
-program. [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
-is explicit about it: an import parameter the export does not reach is
-**anchored** by the `,` operation — "deliberately a reachability rule, not an
-effect analysis" — so the imported module's root stays in the graph and is
-evaluated.
+program.
+[compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md) is
+explicit about it: an import parameter the export does not reach is **anchored**
+by the `,` operation — "deliberately a reachability rule, not an effect
+analysis" — so the imported module's root stays in the graph and is evaluated.
 
 An annotation-only import is exactly that shape. So, stated honestly:
 
 - **within a module**, an unreferenced schema node is dropped **when the whole
   initializer expression is total** — every subexpression, not just the
-  outermost call. The RTTI constructors build immutable values and cannot
-  throw, so an initializer made only of them is total and total nodes are
-  droppable. Classifying by the outer constructor is not enough:
+  outermost call. The RTTI constructors build immutable values and cannot throw,
+  so an initializer made only of them is total and total nodes are droppable.
+  Classifying by the outer constructor is not enough:
   `const t = array(makeType())` is "built from the RTTI constructors" by that
   reading, and JavaScript still evaluates `makeType()` first, so dropping the
   initializer can delete a throw. Nor does it extend to `const t = makeType()`,
-  where the immutability of the result proves nothing about the call. The same rule
-  that anchors unreachable imports applies inside the body — a potentially
+  where the immutability of the result proves nothing about the call. The same
+  rule that anchors unreachable imports applies inside the body — a potentially
   throwing entry is anchored rather than discarded
-  ([compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)) — so
-  an annotation-only local schema from such a call is in exactly the position
+  ([compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)) —
+  so an annotation-only local schema from such a call is in exactly the position
   stage 12 addresses. **Stage 12 covers both** — imported roots and local
-  initializers — so the work is owned; what stays open is whether the local
-  half is served by anchoring or by a totality analysis that can prove the call
-  safe to drop;
+  initializers — so the work is owned; what stays open is whether the local half
+  is served by anchoring or by a totality analysis that can prove the call safe
+  to drop;
 - **across a module boundary, anchoring does not make it free** — it makes it
   *legal*. `,` "establishes all of its operands and takes the value of the last
   one; the earlier operands exist for their throw-potential only"
@@ -745,8 +749,8 @@ execution, where importing the RTTI module is an ordinary run-time import. And
 it says nothing about `.mjs`, which is ordinary JavaScript held to ordinary
 bundler rules.
 
-There is a pleasing closure here: `fjs/edag/` defines the EDAG as an RTTI
-schema ([`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs)), so the graph that decides
+There is a pleasing closure here: `fjs/edag/` defines the EDAG as an RTTI schema
+([`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs)), so the graph that decides
 what ships is itself described by the type system whose cost it decides.
 
 ### Editor support is part of the work, not an extra
@@ -848,9 +852,8 @@ so that issue's open question is answered yes by this stage.
 **The numbers are labels, not a schedule.** They were assigned as this document
 grew and have been renumbered twice; the gates below are the real order, and at
 least one stage — 12 — had to land near the front; its legality half has.
-Renumbering again would
-churn every reference in and out of this file for no gain, so the dependencies
-are stated instead:
+Renumbering again would churn every reference in and out of this file for no
+gain, so the dependencies are stated instead:
 
 - **12 and 4.** Anchoring concerns the first stage that *consumes* an
   annotation, not the one that recognizes it. Stage 3 adds a compile-time
@@ -858,23 +861,25 @@ are stated instead:
   When stage 4 erases that reference while lowering to EDAG, the binding is
   left unreachable from the root — and the compiler already anchors such a
   binding with `','` rather than rejecting it (`anchors` in
-  [`fjs/compiler/ast`](../fjs/compiler/ast/module.f.js)), so 12's legality half has
-  landed and does not block stage 4. What 12 still owns is the totality
+  [`fjs/edag/from_fast`](../fjs/edag/from_fast/module.f.mjs), shown in the
+  [compiler's EDAG demo](../fjs/compiler/edag/demo.f.mjs)), so 12's legality
+  half has landed and does not block stage 4. What 12 still owns is the totality
   exemption, which decides whether such a binding is evaluated or dropped;
   whether stage 4 waits on it for cost is open.
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
-  compile-time evaluation ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)).
+  compile-time evaluation
+  ([047-compiler-meta-programming](../fjs/compiler/todo/047-compiler-meta-programming.md)).
 - **7 splits, and the halves sit on either side of 6.** 7 as one unit is a
   cycle: 6's general form needs a function case in RTTI, while 7's
   definition-checking needs the body's *inferred* result, which is 6. The seam
   is between representing a contract and checking against one — **7a**
   (the schema form, its place in the canonical algebra, the printer path, and
   whatever stage 4's stabilization needs of a function schema) gates the
-  general form of 6; **7b** (static
-  checking of readable definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
-  which this file said until review of #1719, is only true of 7a.
+  general form of 6; **7b** (static checking of readable definitions)
+  consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6", which this file
+  said until review of #1719, is only true of 7a.
   Inferring a call to an *unannotated* function is not part of this cycle: it
   is ordinary recursion inside inference, and 6 owns its fixpoint.
 - **7, 8, 9, 10 and 13 gate 11.** 7 was missing from this list until review of
@@ -889,795 +894,800 @@ are stated instead:
   first diagnostic.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
-      [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs), wired into
-      packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
-      No compiler work and no language change — but **not just a command**.
-      The printer's own doc comment records two divergences from `Ts<>`. They
-      are **not the same kind of problem**, and an earlier draft of this stage
-      wrongly said both let a declaration admit values the schema rejects:
+  [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs), wired into
+  packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
+  No compiler work and no language change — but **not just a command**.
+  The printer's own doc comment records two divergences from `Ts<>`. They
+  are **not the same kind of problem**, and an earlier draft of this stage
+  wrongly said both let a declaration admit values the schema rejects:
 
-      - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
-        one.** Both readers implement the `unknown` case as `() => ok`
-        ([`validate`](../fjs/rtti/validate/module.f.mjs),
-        [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
-        *executed* accepts anything, functions and symbols included. The
-        printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
-        the DataJS-shaped `Primitive | Array | Object` and so promises less
-        than the schema delivers. **Do not "fix" this by emitting the DataJS
-        union:**
-        that would make a declaration reject values the runtime accepts —
-        reversing the mismatch rather than removing it. Reconciling `Ts<>` with
-        the readers, or narrowing both readers deliberately, is the real
-        question, and it is a decision about what `unknown` *means*, not about
-        emission.
-      - **Tuple openness — settled, and it went the other way.** A bare tuple
-        schema is now *closed*, so the exact-length rendering `Ts<>` gives it is
-        the model rather than an approximation of it, and the printer prints the
-        same exact tuple. `open(c)` is what admits a longer array, and both
-        renderers emit the tail that says so. This bullet used to record a live
-        divergence and no longer does; stage 1 of `option` as omission
-        (landed, both stages) removed it.
+  - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
+    one.** Both readers implement the `unknown` case as `() => ok`
+    ([`validate`](../fjs/rtti/validate/module.f.mjs),
+    [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
+    *executed* accepts anything, functions and symbols included. The
+    printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
+    rtti's own `Unknown`, `Primitive | Array | Object`
+    ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) — shaped like DataJS's without
+    being it — and so promises less than the schema delivers. **Do not "fix"
+    this by emitting that union:** it would make a declaration reject values
+    the runtime accepts —
+    reversing the mismatch rather than removing it. Reconciling `Ts<>` with
+    the readers, or narrowing both readers deliberately, is the real
+    question, and it is a decision about what `unknown` *means*, not about
+    emission.
+  - **Tuple openness — settled, and it went the other way.** A bare tuple
+    schema is now *closed*, so the exact-length rendering `Ts<>` gives it is
+    the model rather than an approximation of it, and the printer prints the
+    same exact tuple. `open(c)` is what admits a longer array, and both
+    renderers emit the tail that says so. This bullet used to record a live
+    divergence and no longer does; stage 1 of `option` as omission
+    (landed, both stages) removed it.
 
-      **A third disagreement runs the other way, and has narrowed.** `RestTs`
-      ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) now renders a stated
-      rest's tuple tail, so the two agree on every rest a schema states
-      directly. What is left is the *empty*-rest recognition: the printer goes
-      through the data form and recognizes one semantically, while `RestTs`
-      recognizes only the directly spellable `or()` and keeps the tail
-      otherwise. On the object kind the printer still errs **wide** (an index of
-      `number | string`, above) where `Ts<>` renders the declared fields alone.
-      They are wrong in opposite directions there, which is worth knowing before
-      anyone tries to reconcile them by moving one toward the other.
+  **A third disagreement runs the other way, and has narrowed.** `RestTs`
+  ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) now renders a stated
+  rest's tuple tail, so the two agree on every rest a schema states
+  directly. What is left is the *empty*-rest recognition: the printer goes
+  through the data form and recognizes one semantically, while `RestTs`
+  recognizes only the directly spellable `or()` and keeps the tail
+  otherwise. On the object kind the printer still errs **wide** (an index of
+  `number | string`, above) where `Ts<>` renders the declared fields alone.
+  They are wrong in opposite directions there, which is worth knowing before
+  anyone tries to reconcile them by moving one toward the other.
 
-      **The other two divergences turn out to be the same shape**, and neither is fixed
-      by changing the printer: in each case the printer agrees with what the
-      readers accept and `Ts<>` is narrower. So stage 1 changes the printer for
-      neither. What is left in both is **compatibility** — the previously
-      published declarations came from `Ts<>`, so emitting the printer's form
-      widens what callers may pass — plus, for `unknown`, a genuine open
-      question about which of `Ts<>` and the readers is right. Compatibility is
-      stage 11's, under its rule about reproducing what was published.
+  **The other two divergences turn out to be the same shape**, and neither is
+  fixed by changing the printer: in each case the printer agrees with what the
+  readers accept and `Ts<>` is narrower. So stage 1 changes the printer for
+  neither. What is left in both is **compatibility** — the previously published
+  declarations came from `Ts<>`, so emitting the printer's form widens what
+  callers may pass — plus, for `unknown`, a genuine open question about which of
+  `Ts<>` and the readers is right. Compatibility is stage 11's, under its rule
+  about reproducing what was published.
 
-      **The `unknown` meaning question needs an owner with a gate, not just a
-      home.** Its natural home is [`rtti`](../fjs/rtti/README.md) rather
-      than this epic — but an earlier draft stopped there, and a question
-      deferred without a gate is one stage 11 can walk straight past. Four
-      sources disagree about what an exported `unknown` promises: the module
-      and its README say DataJS-compatible values; `Ts<>` excludes functions and
-      symbols; the readers accept them
-      ([`validate`](../fjs/rtti/validate/module.f.mjs) and
-      [`parse`](../fjs/rtti/parse/module.f.mjs) both have
-      `unknown: () => ok`); and the printer emits TypeScript's unrestricted
-      `unknown`. Until one is chosen, an exported `unknown` has no settled
-      published meaning — so **stage 11 cannot retire a declaration containing
-      one** without either failing its own reproduce-what-was-published rule or
-      picking the answer implicitly, as a consumer-visible widening nobody
-      decided. Recorded in the stage 11 table as a blocked category so it
-      cannot be skipped.
+  **The `unknown` meaning question needs an owner with a gate, not just a
+  home.** Its natural home is [`rtti`](../fjs/rtti/README.md) rather
+  than this epic — but an earlier draft stopped there, and a question
+  deferred without a gate is one stage 11 can walk straight past. Four
+  sources disagree about what an exported `unknown` promises: the
+  constructor's doc comment and the guide's
+  [primitives](../fjs/rtti/guide/schemas/primitives/README.md) page say any
+  DataJS value; `Ts<>` excludes functions and
+  symbols; the readers accept them
+  ([`validate`](../fjs/rtti/validate/module.f.mjs) and
+  [`parse`](../fjs/rtti/parse/module.f.mjs) both have
+  `unknown: () => ok`); and the printer emits TypeScript's unrestricted
+  `unknown`. Until one is chosen, an exported `unknown` has no settled
+  published meaning — so **stage 11 cannot retire a declaration containing
+  one** without either failing its own reproduce-what-was-published rule or
+  picking the answer implicitly, as a consumer-visible widening nobody
+  decided. Recorded in the stage 11 table as a blocked category so it
+  cannot be skipped.
 
-      That symmetry is worth stating because two rounds of review corrected
-      this stage in opposite directions before it appeared. Anyone re-scoping
-      stage 1 should start from the readers' behaviour, not from `Ts<>` or the
-      printer's doc comment.
+  That symmetry is worth stating because two rounds of review corrected
+  this stage in opposite directions before it appeared. Anyone re-scoping
+  stage 1 should start from the readers' behaviour, not from `Ts<>` or the
+  printer's doc comment.
 
-      A further gap is **not** settleable, and belongs in a different column.
-      The closed `{ a: number }` prints as `{ readonly a: number }`, and `Ts<>`
-      renders it identically, because — in the printer's own words —
-      "TypeScript object types are structurally open, so 'and no other key' has
-      no spelling there". A consumer can hold a `{ a: 1, b: 2 }` in a variable,
-      pass it against that declaration, and be rejected at run time by the
-      schema that declaration came from. Unlike the two above, no emission
-      choice fixes it: the set the schema denotes is not expressible in the
-      target language. See
-      [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise).
+  A further gap is **not** settleable, and belongs in a different column. The
+  closed `{ a: number }` prints as `{ readonly a: number }`, and `Ts<>` renders
+  it identically, because — in the printer's own words — "TypeScript object
+  types are structurally open, so 'and no other key' has no spelling there". A
+  consumer can hold a `{ a: 1, b: 2 }` in a variable, pass it against that
+  declaration, and be rejected at run time by the schema that declaration came
+  from. Unlike the two above, no emission choice fixes it: the set the schema
+  denotes is not expressible in the target language. See
+  [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise).
 
-      **And it is not fully independent of the compiler stages.** The printer
-      renders *a schema* to a type expression;
-      [`dataToTs`](../fjs/rtti/ts/module.f.mjs) returns aliases plus that
-      expression, not `export const ks: …`. Generating a module's `.d.ts` also
-      needs to know **which export has which schema**, and that association is
-      exactly what an annotation supplies — which does not exist until stages
-      3–4. So stage 1 splits:
-      - *independent, startable today* — schema → type expression, the
-        `unknown` and tuple decisions above, and the `fjs` command around them;
-      - *needs a schema for **every** export* — emitting a module's
-        declarations. Annotation recognition is not enough: this design wants
-        annotations **rare**, with inference carrying the burden
-        ([type-annotations](../spec/todo/3360-type-annotations.md)), so after
-        stages 3–4 a typical module has annotated exports and unannotated ones,
-        and emitting only the former silently drops public API from the
-        `.d.ts`. Partial input yields a partial declaration file, which is
-        worse than none.
+  **And it is not fully independent of the compiler stages.** The printer
+  renders *a schema* to a type expression;
+  [`dataToTs`](../fjs/rtti/ts/module.f.mjs) returns aliases plus that
+  expression, not `export const ks: …`. Generating a module's `.d.ts` also
+  needs to know **which export has which schema**, and that association is
+  exactly what an annotation supplies — which does not exist until stages
+  3–4. So stage 1 splits:
+  - *independent, startable today* — schema → type expression, the
+    `unknown` and tuple decisions above, and the `fjs` command around them;
+  - *needs a schema for every export* — emitting a module's
+    declarations. Annotation recognition is not enough: this design wants
+    annotations **rare**, with inference carrying the burden
+    ([type-annotations](../spec/todo/3360-type-annotations.md)), so after
+    stages 3–4 a typical module has annotated exports and unannotated ones,
+    and emitting only the former silently drops public API from the
+    `.d.ts`. Partial input yields a partial declaration file, which is
+    worse than none.
 
-      That leaves three ways to close it, and one must be chosen rather than
-      assumed: a **complete manifest** naming every export's schema; a rule
-      that **every export is annotated** (in tension with keeping annotations
-      rare); or **waiting for stage 6**, so inference supplies the schemas
-      annotations do not. A manifest is the cheapest way to ship `.d.ts` output
-      before the compiler exists; otherwise this half waits for stage 6, not
-      stage 3.
+  That leaves three ways to close it, and one must be chosen rather than
+  assumed: a **complete manifest** naming every export's schema; a rule
+  that **every export is annotated** (in tension with keeping annotations
+  rare); or **waiting for stage 6**, so inference supplies the schemas
+  annotations do not. A manifest is the cheapest way to ship `.d.ts` output
+  before the compiler exists; otherwise this half waits for stage 6, not
+  stage 3.
 
-      **Annotations are not sufficient even then, for a module that exports a
-      schema.** `export const myType = or(number, string)` —
-      [type-annotations](../spec/todo/3360-type-annotations.md)'s own example —
-      is a case an annotation cannot describe: annotations say what *other*
-      exports are, and `myType`'s own runtime value is an `Or` thunk, not a
-      `number | string`. Emitting `dataToTs(myType)` would declare the
-      represented type and misdeclare the value; omitting the export would
-      delete public API a consumer needs in order to reuse the schema. Since
-      schemas are values and this epic expects them to be shared and imported,
-      this is the common case, not an exotic one.
+  **Annotations are not sufficient even then, for a module that exports a
+  schema.** `export const myType = or(number, string)` —
+  [type-annotations](../spec/todo/3360-type-annotations.md)'s own example —
+  is a case an annotation cannot describe: annotations say what *other*
+  exports are, and `myType`'s own runtime value is an `Or` thunk, not a
+  `number | string`. Emitting `dataToTs(myType)` would declare the
+  represented type and misdeclare the value; omitting the export would
+  delete public API a consumer needs in order to reuse the schema. Since
+  schemas are values and this epic expects them to be shared and imported,
+  this is the common case, not an exotic one.
 
-      What it needs is a way to declare a schema's *own* type — a meta-schema
-      describing `Type`, inference over schema-valued expressions, or a
-      manifest that carries the export's runtime type alongside its schema.
-      Whichever, it is stage 1 work and does not fall out of stages 3–4.
-- [ ] **2. Settle the annotation form.** Narrow the body from an expression to a
-      name in [type-annotations](../spec/todo/3360-type-annotations.md), and
-      settle which positions accept an annotation — `const`, parameter, return,
-      export — and what the line form attaches to.
+  What it needs is a way to declare a schema's *own* type — a meta-schema
+  describing `Type`, inference over schema-valued expressions, or a
+  manifest that carries the export's runtime type alongside its schema.
+  Whichever, it is stage 1 work and does not fall out of stages 3–4.
+- [ ] **2. Settle the annotation form.** Finish narrowing the body from an
+  expression to a name in
+  [type-annotations](../spec/todo/3360-type-annotations.md) — its opening and
+  a "Narrowed by the epic" note already say so; the sections below them still
+  read the body as an expression — and settle which positions accept an
+  annotation — `const`, parameter, return, export — and what the line form
+  attaches to.
 - [ ] **3. Recognize `//:` and `/*: */` in the RTTI type-system frontend** from
-      the tokenizer/parser comment stream and resolve the one identifier in the
-      body against the module's bindings — under the scope rule stage 2 settles
-      per [open question 2](#open-questions), since module-scope-only and
-      "anything reducible" are different lookups. A distinct token kind is
-      cleaner than inspecting the body's first character; neither adds a
-      grammar, and neither needs the expression parser.
+  the tokenizer/parser comment stream and resolve the one identifier in the
+  body against the module's bindings — under the scope rule stage 2 settles
+  per [open question 2](#open-questions), since module-scope-only and
+  "anything reducible" are different lookups. A distinct token kind is
+  cleaner than inspecting the body's first character; neither adds a
+  grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
-      ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)) — the binding the name
-      resolves to must be reducible to a schema value, and the error when it is
-      not is a compile error.
+  ([`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md))
+  — the binding the name resolves to must be reducible to a schema value, and
+  the error when it is not is a compile error.
 
-      **"Evaluate" needs a bound and a sandbox here too, and an earlier draft
-      required them only of stage 10.** That was inconsistent: the editor path
-      and the compiler path run the same arbitrary workspace code, and this
-      stage's is the one that has to produce the compile error above. An
-      initializer — or an imported `.mjs` module reached through it — may not
-      terminate, in which case compilation hangs *before* it can report
-      anything; may throw, which must become a diagnostic rather than a
-      compiler crash; and may be effectful, in which case it runs with whatever
-      privileges the compiler has.
-      [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) does not state a policy
-      today. So this stage needs the same answer stage 10 does — static schema
-      metadata consultable without evaluating, or an explicit
-      sandboxed-and-bounded evaluation policy — and it is the same question a
-      **fourth** time, after stage 5's well-formedness problem,
-      [open question 3](#open-questions), and stage 10's completion. Whoever
-      answers it should answer it once, for the compiler and the editor
-      together.
+  **"Evaluate" needs a bound and a sandbox here too, and an earlier draft
+  required them only of stage 10.** That was inconsistent: the editor path and
+  the compiler path run the same arbitrary workspace code, and this stage's is
+  the one that has to produce the compile error above. An initializer — or an
+  imported `.mjs` module reached through it — may not terminate, in which case
+  compilation hangs *before* it can report anything; may throw, which must
+  become a diagnostic rather than a compiler crash; and may be effectful, in
+  which case it runs with whatever privileges the compiler has.
+  [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)
+  does not state a policy today. So this stage needs the same answer stage 10
+  does — static schema metadata consultable without evaluating, or an explicit
+  sandboxed-and-bounded evaluation policy — and it is the same question a
+  **fourth** time, after stage 5's well-formedness problem,
+  [open question 3](#open-questions), and stage 10's completion. Whoever answers
+  it should answer it once, for the compiler and the editor together.
 
-      **A schema must be stable across phases, and nothing yet requires that.**
-      A `Thunk` is a function, `visit` calls it, and commitment 4 permits a
-      schema to be imported from ordinary JavaScript — where its thunk or
-      initializer may be stateful or nondeterministic. So stage 4 can evaluate
-      a schema as `number`, emit a declaration from that, accept a program
-      against it, and then `validate` can call the same thunk at run time and
-      see `string`. Compile time and run time would disagree about what the
-      type *is*, which is the one thing this epic exists to prevent, and no
-      check anywhere would catch it.
+  **A schema must be stable across phases, and nothing yet requires that.**
+  A `Thunk` is a function, `visit` calls it, and commitment 4 permits a
+  schema to be imported from ordinary JavaScript — where its thunk or
+  initializer may be stateful or nondeterministic. So stage 4 can evaluate
+  a schema as `number`, emit a declaration from that, accept a program
+  against it, and then `validate` can call the same thunk at run time and
+  see `string`. Compile time and run time would disagree about what the
+  type *is*, which is the one thing this epic exists to prevent, and no
+  check anywhere would catch it.
 
-      Two ways to close it. Require schema construction to be **provably pure
-      and stable** — straightforward inside FunctionalScript, where there is no
-      state, and not enforceable for a schema imported from `.mjs`. Or
-      **serialize the compile-time schema for run-time use**, which is what
-      `toData` already produces: a function-free canonical form that cannot
-      re-evaluate to something else. The second needs no new analysis and makes
-      the guarantee structural, so it is the one to beat.
+  Two ways to close it. Require schema construction to be **provably pure
+  and stable** — straightforward inside FunctionalScript, where there is no
+  state, and not enforceable for a schema imported from `.mjs`. Or
+  **serialize the compile-time schema for run-time use**, which is what
+  `toData` already produces: a function-free canonical form that cannot
+  re-evaluate to something else. The second needs no new analysis and makes
+  the guarantee structural, so it is the one to beat.
 
-      **But the snapshot only reaches the readers, and the thunk stays a
-      first-class value.** A schema binding is an ordinary value: it can be
-      exported, passed to user code, or handed to `validate(t)` by the program
-      itself. Embedding a serialized snapshot for the compiler's use does not
-      make any of those observe it — the original thunk is still there and can
-      still re-evaluate differently. Closing that needs a semantics-preserving
-      rewrite of **every** runtime use, and neither obvious rewrite is
-      semantics-preserving: substituting the `Data` changes the type of the
-      binding and breaks the `Type` API its consumers are written against,
-      while reconstructing a fresh thunk from the snapshot changes observable
-      identity — `Object.is` on two references to the same schema, and any
-      memoization keyed on it.
+  **But the snapshot only reaches the readers, and the thunk stays a
+  first-class value.** A schema binding is an ordinary value: it can be
+  exported, passed to user code, or handed to `validate(t)` by the program
+  itself. Embedding a serialized snapshot for the compiler's use does not
+  make any of those observe it — the original thunk is still there and can
+  still re-evaluate differently. Closing that needs a semantics-preserving
+  rewrite of **every** runtime use, and neither obvious rewrite is
+  semantics-preserving: substituting the `Data` changes the type of the
+  binding and breaks the `Type` API its consumers are written against,
+  while reconstructing a fresh thunk from the snapshot changes observable
+  identity — `Object.is` on two references to the same schema, and any
+  memoization keyed on it.
 
-      This is the strongest argument for the *first* remedy, and it is why the
-      two are not simply cheaper-versus-dearer. **Purity is a property of the
-      binding**, so it holds for every use of it at once; a snapshot is an
-      artifact handed to particular consumers, so it holds only where it is
-      threaded. If the snapshot route is taken, this stage owes an explicit
-      statement of which uses it covers and what happens to the rest — not a
-      claim that run time reuses it.
+  This is the strongest argument for the *first* remedy, and it is why the
+  two are not simply cheaper-versus-dearer. **Purity is a property of the
+  binding**, so it holds for every use of it at once; a snapshot is an
+  artifact handed to particular consumers, so it holds only where it is
+  threaded. If the snapshot route is taken, this stage owes an explicit
+  statement of which uses it covers and what happens to the rest — not a
+  claim that run time reuses it.
 
-      **And the snapshot has to survive being written down.** Reusing the
-      compile-time schema at run time means embedding it in the shipped
-      program, which means serializing it — and
-      [`data/README.md`](../fjs/rtti/data/README.md) states the corner
-      itself: JSON's number model "writes a `NaN` or `±Infinity` literal
-      member as `null`, so a schema using one does not round-trip through
-      JSON text". DataJS does not have the corner — it writes `NaN`,
-      `±Infinity` and `-0` as themselves — so which serializer the snapshot
-      goes through decides it. Written as JSON
-      ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)), a
-      snapshot of `{ x: NaN }` would come back as `{ x: null }`,
-      so the run-time schema would differ from the one the compiler checked
-      against — the exact disagreement this remedy exists to prevent, arrived
-      at through the fix rather than the bug. So this stage needs a
-      number-lossless serializer — DataJS is one — or an explicit restriction
-      on the literal members of a snapshotted schema, before the remedy is
-      sound. **The restriction has to cover every non-finite number, not just
-      `NaN`** — JSON's `numberSerialize` renders `Infinity` and `-Infinity` as
-      `null` too, so `{ x: Infinity }` snapshots as `{ x: null }` exactly as
-      the `NaN` case does. `-0` is not among them: the standard JSON
-      serializer writes it as `-0`, and its parser reads it back. An earlier
-      draft of this paragraph named only `NaN` and `-0`, while the printer
-      paragraph above already said *non-finite* — the same slip in one file,
-      one section apart.
+  **And the snapshot has to survive being written down.** Reusing the
+  compile-time schema at run time means embedding it in the shipped
+  program, which means serializing it — and
+  [`data/README.md`](../fjs/rtti/data/README.md) states the corner
+  itself: JSON's number model "writes a `NaN` or `±Infinity` literal
+  member as `null`, so a schema using one does not round-trip through
+  JSON text". DataJS does not have the corner — it writes `NaN`,
+  `±Infinity` and `-0` as themselves — so which serializer the snapshot
+  goes through decides it. Written as JSON
+  ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)), a
+  snapshot of `{ x: NaN }` would come back as `{ x: null }`,
+  so the run-time schema would differ from the one the compiler checked
+  against — the exact disagreement this remedy exists to prevent, arrived
+  at through the fix rather than the bug. So this stage needs a
+  number-lossless serializer — DataJS is one — or an explicit restriction
+  on the literal members of a snapshotted schema, before the remedy is
+  sound. **The restriction has to cover every non-finite number, not just
+  `NaN`** — JSON's `numberSerialize` renders `Infinity` and `-Infinity` as
+  `null` too, so `{ x: Infinity }` snapshots as `{ x: null }` exactly as
+  the `NaN` case does. `-0` is not among them: the standard JSON
+  serializer writes it as `-0`, and its parser reads it back. An earlier
+  draft of this paragraph named only `NaN` and `-0`, while the printer
+  paragraph above already said *non-finite* — the same slip in one file,
+  one section apart.
 
-      Note this is the **third** mechanism the non-finite values break, after
-      the printer rendering a non-finite const as `number`, and `validate`
-      matching them with `Object.is` on purpose; `-0` breaks only those two —
-      the printer renders it as `0` — since serialization keeps it. Whoever
-      picks up the `.d.ts` policy should treat non-finite numbers and `-0` as
-      one question across all three rather than three unrelated corners.
+  Note this is the **third** mechanism the non-finite values break, after
+  the printer rendering a non-finite const as `number`, and `validate`
+  matching them with `Object.is` on purpose; `-0` breaks only those two —
+  the printer renders it as `0` — since serialization keeps it. Whoever
+  picks up the `.d.ts` policy should treat non-finite numbers and `-0` as
+  one question across all three rather than three unrelated corners.
 
-      **And it only reaches one of the two readers.** Of `data`'s readers and
-      comparisons — `toData`, `validate`, `subset`, `cmp`, `equal` — there is
-      **no `parse`**, and no
-      `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
-      stabilize a `validate` call and cannot stabilize a `parse` one:
-      [`parse`](../fjs/rtti/parse/module.f.mjs) takes the thunk-form
-      `Type` and walks it, re-entering the thunk, while handing it the `Data`
-      instead would change its signature. That is the reader this epic leans on
-      hardest — stage 13's inbound remedy is "`parse` against a schema that
-      names every part", and commitment 3's argument for reconstruction over
-      freezing rests on it — so leaving `parse` unstabilized undercuts the
-      boundary work rather than a corner of it.
+  **And it only reaches one of the two readers.** Of `data`'s readers and
+  comparisons — `toData`, `validate`, `subset`, `cmp`, `equal` — there is
+  **no `parse`**, and no
+  `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
+  stabilize a `validate` call and cannot stabilize a `parse` one:
+  [`parse`](../fjs/rtti/parse/module.f.mjs) takes the thunk-form
+  `Type` and walks it, re-entering the thunk, while handing it the `Data`
+  instead would change its signature. That is the reader this epic leans on
+  hardest — stage 13's inbound remedy is "`parse` against a schema that
+  names every part", and commitment 3's argument for reconstruction over
+  freezing rests on it — so leaving `parse` unstabilized undercuts the
+  boundary work rather than a corner of it.
 
-      So this stage owes **one of two things, named rather than assumed**: a
-      data-driven `parse` beside `data.validate`, or a `Data` → `Type`
-      reconstruction that every reader can take. Either way it is a
-      deliverable, not an implementation detail, because without it the phrase
-      "run time reuses the snapshot" is only true of half the run time.
+  So this stage owes **one of two things, named rather than assumed**: a
+  data-driven `parse` beside `data.validate`, or a `Data` → `Type`
+  reconstruction that every reader can take. Either way it is a
+  deliverable, not an implementation detail, because without it the phrase
+  "run time reuses the snapshot" is only true of half the run time.
 
-      **And neither path is free, because `Data` does not preserve what `parse`
-      returns.** An earlier draft of this paragraph called the reconstruction
-      "lossless" without saying lossless *of what*. `Data` is a canonical form
-      of the **set of accepted values**; `parse`'s result is not a function of
-      that set. `parse` reconstructs from the **first matching branch**, so
-      branch order is observable in its output, and `toData` normalizes it
-      away. Measured at `fd805961`:
+  **And neither path is free, because `Data` does not preserve what `parse`
+  returns.** An earlier draft of this paragraph called the reconstruction
+  "lossless" without saying lossless *of what*. `Data` is a canonical form
+  of the **set of accepted values**; `parse`'s result is not a function of
+  that set. `parse` reconstructs from the **first matching branch**, so
+  branch order is observable in its output, and `toData` normalizes it
+  away. A bare struct is closed, so two branches overlap on one input only
+  when they are `open`, and `parse` keeps only what the matching branch
+  declares. Measured at `11e9e10`:
 
-      ```
-      parse(or({ a: number }, { b: number }))({ a: 1, b: 2 })  ->  ok { a: 1 }
-      parse(or({ b: number }, { a: number }))({ a: 1, b: 2 })  ->  ok { b: 2 }
-      toData of the two                                        ->  identical
-      cmp = 0, equal = true
-      ```
+  ```text
+  parse(or(open({ a: number }), open({ b: number })))({ a: 1, b: 2 })  ->  ok { a: 1 }
+  parse(or(open({ b: number }), open({ a: number })))({ a: 1, b: 2 })  ->  ok { b: 2 }
+  toData of the two                                                    ->  identical
+  cmp = 0, equal = true
+  ```
 
-      So a snapshot that round-trips acceptance perfectly can still change
-      which value `parse` hands back, for any union whose branches overlap on
-      the input. That is not a corner: **stage 13's inbound remedy is `parse`
-      against a naming schema**, so the value the boundary reconstructs is
-      exactly what would silently change.
+  So a snapshot that round-trips acceptance perfectly can still change
+  which value `parse` hands back, for any union whose branches overlap on
+  the input. That is not a corner: **stage 13's inbound remedy is `parse`
+  against a naming schema**, so the value the boundary reconstructs is
+  exactly what would silently change.
 
-      This stage therefore owes a third thing, and it is a genuine fork:
-      either the snapshot **retains branch and reconstruction information**
-      beyond canonical `Data` — in which case it is not `Data` and `subset`
-      cannot consume it directly — or `parse` is **redesigned to canonical
-      output semantics** and that becomes a deliberate, documented change to
-      what it returns. Both are larger than "add a reader", and choosing
-      neither means the snapshot quietly changes program behaviour.
+  This stage therefore owes a third thing, and it is a genuine fork:
+  either the snapshot **retains branch and reconstruction information**
+  beyond canonical `Data` — in which case it is not `Data` and `subset`
+  cannot consume it directly — or `parse` is **redesigned to canonical
+  output semantics** and that becomes a deliberate, documented change to
+  what it returns. Both are larger than "add a reader", and choosing
+  neither means the snapshot quietly changes program behaviour.
 
-      **It is not semantics-preserving today either, and that is a
-      precondition, not a caveat.** Reusing the `data` form at run time means validating through
-      `data`'s reader, and it accepts values the thunk readers reject:
-      `unionValidate` dispatches on primitives and arrays and lets everything
-      else fall through to object validation, while `validate` and `parse`
-      guard object positions with `isObject`. Measured at `b47b1376`,
-      `validate({})(() => 1)` is an error and
-      `data.validate(toData({}))(() => 1)` is `ok`; the same holds for a symbol,
-      and for `record(number)` in place of `{}`. It reaches further than vacuous
-      patterns: `objectSetValidate` reads each declared property as `value[k]`
-      without requiring an object, so `{ length: number }` and `{ name: string }`
-      also diverge for a function, and `{ description: string }` for a symbol.
-      `{ a: number }` rejects in both only because a function has no `a`. Swapping readers to fix *which schema* run time
-      sees would change *what that schema accepts*, trading one compile-time /
-      run-time disagreement for another. Nor is the repair a one-liner: for
-      `unknown` the two readers *agree*, and agree only because of the same
-      fall-through, so guarding it produces the mirror-image divergence. Filed as
-      [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md),
-      which this stage is gated on.
+  **It is not semantics-preserving today either, and that is a precondition, not
+  a caveat.** Reusing the `data` form at run time means validating through
+  `data`'s reader, and it accepts values the thunk readers reject:
+  `unionValidate` dispatches on primitives and arrays and lets everything else
+  fall through to object validation, while `validate` and `parse` guard object
+  positions with `isObject`. Measured at `11e9e10`, `validate({})(() => 1)` is
+  an error and `data.validate(toData({}))(() => 1)` is `ok`; the same holds for
+  a symbol, and for `record(number)` in place of `{}`. The divergence has
+  narrowed since it was filed: a declared member such as `{ length: number }` or
+  `{ name: string }` against a function, or `{ description: string }` against a
+  symbol, is now an error in both readers, so what is left is the patterns that
+  declare no member. Swapping readers to fix *which schema* run time sees would
+  change *what that schema accepts*, trading one compile-time / run-time
+  disagreement for another. Nor is the repair a one-liner: for `unknown` the two
+  readers *agree*, and agree only because of the same fall-through, so guarding
+  it produces the mirror-image divergence. Filed as
+  [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md),
+  which this stage is gated on.
 
-      **It does not reach function schemas if stage 7a goes extern.** `data` is
-      function-free by construction, so a function contract living outside it
-      has nothing for `toData` to serialize and this remedy silently does not
-      apply there. So **if** this stage takes the snapshot route, a canonical
-      serializable form becomes a requirement on the extern option rather than
-      a nicety — recorded as [stage 7](#tasks)'s fourth deliverable, which is
-      conditional on this same choice — and it is a reason to prefer function
-      contracts inside `data`.
+  **It does not reach function schemas if stage 7a goes extern.** `data` is
+  function-free by construction, so a function contract living outside it
+  has nothing for `toData` to serialize and this remedy silently does not
+  apply there. So **if** this stage takes the snapshot route, a canonical
+  serializable form becomes a requirement on the extern option rather than
+  a nicety — recorded as [stage 7](#tasks)'s fourth deliverable, which is
+  conditional on this same choice — and it is a reason to prefer function
+  contracts inside `data`.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
-      point at which the epic checks anything.
+  point at which the epic checks anything.
 
-      **Check against stage 4's snapshot, not by re-entering the thunk.**
-      `validate` walks the thunk graph, so `visit` calls the schema's thunk
-      again — which means stage 4 stabilizing the schema does not reach this
-      stage. A stateful imported thunk alternating between `number` and
-      `string` hands `toData` one answer for the snapshot, the declaration and
-      run time, and hands this stage the other for the literal check: the
-      program is then compile-time-checked against a schema nothing else in the
-      pipeline uses. Stage 4's remedy only holds if every later phase reads the
-      *snapshot*, so this stage reads it too — which makes it depend on the
-      `data` reader divergence being fixed first
-      ([data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md)),
-      since checking against the snapshot means checking with `data`'s reader.
-      Requiring schema purity instead is the alternative, and it is the same
-      choice stage 4 already records — decided once, for both stages.
+  **Check against stage 4's snapshot, not by re-entering the thunk.** `validate`
+  walks the thunk graph, so `visit` calls the schema's thunk again — which means
+  stage 4 stabilizing the schema does not reach this stage. A stateful imported
+  thunk alternating between `number` and `string` hands `toData` one answer for
+  the snapshot, the declaration and run time, and hands this stage the other for
+  the literal check: the program is then compile-time-checked against a schema
+  nothing else in the pipeline uses. Stage 4's remedy only holds if every later
+  phase reads the *snapshot*, so this stage reads it too — which makes it depend
+  on the `data` reader divergence being fixed first
+  ([data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md)),
+  since checking against the snapshot means checking with `data`'s reader.
+  Requiring schema purity instead is the alternative, and it is the same choice
+  stage 4 already records — decided once, for both stages.
 
-      **It needs the schema itself checked first, and nothing yet does that.**
-      `visit` assumes its input already satisfies the static `Type` contract:
-      an unrecognized tag falls through to `v.primitive0(tag)`
-      ([`rtti/common`](../fjs/rtti/common/module.f.mjs)), so a binding
-      whose value is `() => ['wat']` is reducible, callable, and behaves as a
-      type that rejects everything — rather than producing the "that is not a
-      schema" compile error stage 4 owes. An always-failing type is the worst
-      possible diagnostic: every annotated site fails, and none of them says
-      why.
+  **It needs the schema itself checked first, and nothing yet does that.**
+  `visit` assumes its input already satisfies the static `Type` contract:
+  an unrecognized tag falls through to `v.primitive0(tag)`
+  ([`rtti/common`](../fjs/rtti/common/module.f.mjs)), so a binding
+  whose value is `() => ['wat']` is reducible, callable, and behaves as a
+  type that rejects everything — rather than producing the "that is not a
+  schema" compile error stage 4 owes. An always-failing type is the worst
+  possible diagnostic: every annotated site fails, and none of them says
+  why.
 
-      So either stage 4 checks well-formedness when it evaluates a binding, or
-      a meta-schema over `Type` is a prerequisite here. That is
-      [open question 3](#open-questions) becoming load-bearing rather than
-      speculative, and it wants deciding before the checker is written, not
-      after.
+  So either stage 4 checks well-formedness when it evaluates a binding, or
+  a meta-schema over `Type` is a prerequisite here. That is
+  [open question 3](#open-questions) becoming load-bearing rather than
+  speculative, and it wants deciding before the checker is written, not
+  after.
 - [ ] **6. Inference, then general right-hand sides.** Infer a schema for an
-      arbitrary expression and ask `subset(inferred, declared)`. `subset`
-      exists; the inference does not
-      ([type inference](../spec/todo/3370-type-inference.md)). Most of the work.
-      **Its general form is gated on stage 7a, not the other way round** — on
-      the function *schema form*, not on stage 7b's checking of definitions,
-      which runs the other way and consumes this stage.
-      [type-annotations](../spec/todo/3360-type-annotations.md) uses
-      `const a /*: t */ = f(x)` as the representative non-literal right-hand
-      side, and inferring a call means having `f`'s contract and its result
-      schema — which RTTI cannot hold until stage 7a gives it a function case.
-      Since FunctionalScript modules are almost entirely functions, this is the
-      common case rather than a corner. So either stage 7a runs before this one,
-      or this one is explicitly narrowed to call-free, function-free
-      expressions first and widened afterwards. Say which; do not leave the
-      order implied by the numbering.
-      **A `false` from `subset` is not a type error.** It is
-      [sound and deliberately incomplete](../fjs/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
-      it never says `true` wrongly, but it says `false` for inclusions that hold
-      only semantically — `readonly [number | string] ⊆ readonly [number] |
-      readonly [string]` is the documented case, along with non-syntactically
-      empty left sides and short array patterns. Rejecting on every `false`
-      would reject valid programs. So this stage owes a third answer —
-      `true` / `false` / *cannot decide* — which **today's API cannot express**:
-      `subset` is `(a: Data) => (b: Data) => boolean`, so producing the third
-      answer needs a tri-state API or a separate completeness witness before any
-      policy can be applied. Then a policy for the third: accept
-      with a run-time check, ask for an annotation, or complete the algorithm in
-      the direction `data/README.md` names (semantic subtyping, CDuce-style).
-      Deciding that is part of the stage, not a detail under it.
+  arbitrary expression and ask `subset(inferred, declared)`. `subset` exists;
+  the inference does not
+  ([type inference](../spec/todo/3370-type-inference.md)). Most of the work.
+  **Its general form is gated on stage 7a, not the other way round** — on the
+  function *schema form*, not on stage 7b's checking of definitions, which runs
+  the other way and consumes this stage.
+  [type-annotations](../spec/todo/3360-type-annotations.md) uses
+  `const a /*: t */ = f(x)` as the representative non-literal right-hand side,
+  and inferring a call means having `f`'s contract and its result schema — which
+  RTTI cannot hold until stage 7a gives it a function case. Since
+  FunctionalScript modules are almost entirely functions, this is the common
+  case rather than a corner. So either stage 7a runs before this one, or this
+  one is explicitly narrowed to call-free, function-free expressions first and
+  widened afterwards. Say which; do not leave the order implied by the
+  numbering.
+
+  **A `false` from `subset` is not a type error.** It is
+  [sound and deliberately incomplete](../fjs/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
+  it never says `true` wrongly, but it says `false` for inclusions that hold
+  only semantically —
+  `readonly [number | string] ⊆ readonly [number] | readonly [string]` is the
+  documented case, along with non-syntactically empty left sides and short array
+  patterns. Rejecting on every `false` would reject valid programs. So this
+  stage owes a third answer — `true` / `false` / *cannot decide* — which
+  **today's API cannot express**: `subset` is
+  `(a: Data) => (b: Data) => boolean`, so producing the third answer needs a
+  tri-state API or a separate completeness witness before any policy can be
+  applied. Then a policy for the third: accept with a run-time check, ask for an
+  annotation, or complete the algorithm in the direction `data/README.md` names
+  (semantic subtyping, CDuce-style). Deciding that is part of the stage, not a
+  detail under it.
 - [ ] **7. Function schemas**
-      ([668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md)),
-      and what an annotation on a function *means*. An earlier draft posed that
-      as two choices — a compile-time check that cannot be completed, or a
-      wrapper validating each call — and **that is a false choice**, inherited
-      from a framing about runtime validation. It splits by provenance:
+  ([668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md)),
+  and what an annotation on a function *means*. An earlier draft posed that
+  as two choices — a compile-time check that cannot be completed, or a
+  wrapper validating each call — and **that is a false choice**, inherited
+  from a framing about runtime validation. It splits by provenance:
 
-      - **A function defined in a compiler-readable module** is statically
-        checkable, with no wrapper and no API change: check the body's inferred
-        result against the declared result schema, and check each call site
-        against the parameter schemas. This is ordinary type checking and it is
-        what stages 5–6 already do for other values.
-      - **An opaque function crossing a runtime boundary** — one arriving from
-        ordinary JavaScript, or whose definition the compiler cannot see — is
-        the case 668's wrapper is for, and the case where its `Result` return
-        is justified.
+  - **A function defined in a compiler-readable module** is statically
+    checkable, with no wrapper and no API change: check the body's inferred
+    result against the declared result schema, and check each call site
+    against the parameter schemas. This is ordinary type checking and it is
+    what stages 5–6 already do for other values.
+  - **An opaque function crossing a runtime boundary** — one arriving from
+    ordinary JavaScript, or whose definition the compiler cannot see — is
+    the case 668's wrapper is for, and the case where its `Result` return
+    is justified.
 
-      **The split is over definitions, and call sites split separately.** A
-      readable definition makes the *body* checkable and every call site the
-      compiler can see checkable with it; it says nothing about a call the
-      compiler cannot see. An exported function called from outside the
-      compiler's view is exactly that — readable definition, foreign call
-      site — and
-      [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
-      already named the consequence: where the emitted declaration is *wider*
-      than the schema (the closed-struct, `rest(c, r)`, and non-finite / `-0`
-      cases),
-      a consumer can pass a value its `.d.ts` accepts and the schema rejects,
-      and "nothing validates it". A consumer in **ordinary JavaScript** is not
-      bound by the declaration at all, so for that half the width of the
-      declaration is beside the point. Either way, restricting wrappers to
-      opaque functions is right about *why* the `Result`-returning wrapper must
-      stay off ordinary exports, and would be wrong if read as "no readable
-      export needs an entry check".
+  **The split is over definitions, and call sites split separately.** A
+  readable definition makes the *body* checkable and every call site the
+  compiler can see checkable with it; it says nothing about a call the
+  compiler cannot see. An exported function called from outside the
+  compiler's view is exactly that — readable definition, foreign call
+  site — and
+  [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
+  already named the consequence: where the emitted declaration is *wider*
+  than the schema (the closed-struct, `rest(c, r)`, and non-finite / `-0`
+  cases),
+  a consumer can pass a value its `.d.ts` accepts and the schema rejects,
+  and "nothing validates it". A consumer in **ordinary JavaScript** is not
+  bound by the declaration at all, so for that half the width of the
+  declaration is beside the point. Either way, restricting wrappers to
+  opaque functions is right about *why* the `Result`-returning wrapper must
+  stay off ordinary exports, and would be wrong if read as "no readable
+  export needs an entry check".
 
-      **That path is stage 13's**, not a fourth deliverable here — it is a
-      foreign call crossing the language boundary inbound, and stage 13 already
-      owns the boundary in both directions and already says the closed-struct policy
-      and 668's wrapper are one decision. What stage 13 owes there splits by
-      call site: conditional on the `.d.ts` policy where the call was
-      statically checked against the declaration, unconditional everywhere else
-      — and the callee cannot tell which it got. Either way the adapter is not 668's
-      wrapper as written: that wrapper returns `Result<…>` and so changes the
-      published signature, which collides with stage 11's rule that a retiring
-      declaration must reproduce what it published.
+  **That path is stage 13's**, not a fourth deliverable here — it is a
+  foreign call crossing the language boundary inbound, and stage 13 already
+  owns the boundary in both directions and already says the closed-struct policy
+  and 668's wrapper are one decision. What stage 13 owes there splits by
+  call site: conditional on the `.d.ts` policy where the call was
+  statically checked against the declaration, unconditional everywhere else
+  — and the callee cannot tell which it got. Either way the adapter is not 668's
+  wrapper as written: that wrapper returns `Result<…>` and so changes the
+  published signature, which collides with stage 11's rule that a retiring
+  declaration must reproduce what it published.
 
-      668's limitation is that *runtime validation* cannot prove an arbitrary
-      function's future behaviour. True, and it says nothing about statically
-      checking a definition the compiler can read. Reading it as the general
-      case would have forced the API-changing wrapper onto ordinary exported
-      functions, or left the commonest case unchecked — either of which blocks
-      stages 6 and 11 for most of the tree.
+  668's limitation is that *runtime validation* cannot prove an arbitrary
+  function's future behaviour. True, and it says nothing about statically
+  checking a definition the compiler can read. Reading it as the general
+  case would have forced the API-changing wrapper onto ordinary exported
+  functions, or left the commonest case unchecked — either of which blocks
+  stages 6 and 11 for most of the tree.
 
-      **This stage is two halves with a gate between them, and stage 6 sits in
-      the gap.** Checking a definition means checking "the body's inferred
-      result against the declared result schema" — and that inference *is*
-      stage 6, whose general form in turn needs the function schema form from
-      here. Read as one unit this stage and stage 6 deadlock. The seam is
-      between **representing** a contract and **checking against** one:
+  **This stage is two halves with a gate between them, and stage 6 sits in
+  the gap.** Checking a definition means checking "the body's inferred
+  result against the declared result schema" — and that inference *is*
+  stage 6, whose general form in turn needs the function schema form from
+  here. Read as one unit this stage and stage 6 deadlock. The seam is
+  between **representing** a contract and **checking against** one:
 
-      - **7a — representation.** The schema form, its place in the canonical
-        algebra, and the printer path (items 1–3 below). Needs no inference,
-        and gates the general form of stage 6.
-      - **7b — static checking of readable definitions.** The provenance split
-        above. Consumes stage 6's inference, so it follows it.
+  - **7a — representation.** The schema form, its place in the canonical
+    algebra, and the printer path (items 1–3 below). Needs no inference,
+    and gates the general form of stage 6.
+  - **7b — static checking of readable definitions.** The provenance split
+    above. Consumes stage 6's inference, so it follows it.
 
-      The runnable order is **7a → 6 → 7b**. Nothing else in the file depends
-      on 7's two halves landing together, and stage 11 waits for both anyway.
+  The runnable order is **7a → 6 → 7b**. Nothing else in the file depends
+  on 7's two halves landing together, and stage 11 waits for both anyway.
 
-      **Adding the schema form is necessary and not sufficient**, because
-      everything downstream of it runs on the canonical `data` form, and that
-      form is *function-free* by construction
-      ([`data/README.md`](../fjs/rtti/data/README.md)). Stage 6 checks
-      through `data`'s `subset`; stage 1's printer goes `toData → dataToTs`.
-      668 itself contemplates an **extern** form that "may need to remain
-      outside that core form" — and a schema outside it has no assignability
-      and no declaration to emit, so function JSDoc still could not retire.
-      This stage therefore owes four things, not one:
+  **Adding the schema form is necessary and not sufficient**, because
+  everything downstream of it runs on the canonical `data` form, and that
+  form is *function-free* by construction
+  ([`data/README.md`](../fjs/rtti/data/README.md)). Stage 6 checks
+  through `data`'s `subset`; stage 1's printer goes `toData → dataToTs`.
+  668 itself contemplates an **extern** form that "may need to remain
+  outside that core form" — and a schema outside it has no assignability
+  and no declaration to emit, so function JSDoc still could not retire.
+  This stage therefore owes four things, not one:
 
-      1. the function schema form itself;
-      2. a place in the canonical algebra — either function contracts inside
-         `data`, or an equivalent `subset` path for extern schemas. Note this
-         is where **variance** enters the epic for the first time: function
-         inclusion is contravariant in parameters and covariant in results,
-         and `subset` today is inclusion over kinds with no variance notion at
-         all;
-      3. a printer path, so a function-typed export has a declaration to
-         generate;
-      4. **whatever stage 4's stabilization strategy requires of a function
-         schema** — conditional, because stage 4 leaves purity-versus-snapshot
-         open. Under **purity**, a function schema has to be able to satisfy it
-         and nothing needs serializing. Under the **snapshot**, it needs a
-         canonical serializable form, which the extern option most easily
-         fails: `data` is function-free by construction, so an extern function
-         schema is exactly the thing `toData` cannot pin, and a stateful
-         imported thunk could then yield one contract while the compiler checks
-         and another when `validate` runs — the disagreement stage 4 exists to
-         prevent, in the one part of the type language its remedy would not
-         reach. An earlier draft stated this deliverable unconditionally, which
-         presumed the snapshot had won.
+  1. the function schema form itself;
+  2. a place in the canonical algebra — either function contracts inside
+     `data`, or an equivalent `subset` path for extern schemas. Note this
+     is where **variance** enters the epic for the first time: function
+     inclusion is contravariant in parameters and covariant in results,
+     and `subset` today is inclusion over kinds with no variance notion at
+     all;
+  3. a printer path, so a function-typed export has a declaration to
+     generate;
+  4. **whatever stage 4's stabilization strategy requires of a function
+     schema** — conditional, because stage 4 leaves purity-versus-snapshot
+     open. Under **purity**, a function schema has to be able to satisfy it
+     and nothing needs serializing. Under the **snapshot**, it needs a
+     canonical serializable form, which the extern option most easily
+     fails: `data` is function-free by construction, so an extern function
+     schema is exactly the thing `toData` cannot pin, and a stateful
+     imported thunk could then yield one contract while the compiler checks
+     and another when `validate` runs — the disagreement stage 4 exists to
+     prevent, in the one part of the type language its remedy would not
+     reach. An earlier draft stated this deliverable unconditionally, which
+     presumed the snapshot had won.
 
-      Whether 668's extern direction can carry 2, 3 and 4, or whether function
-      contracts must go into `data` proper, is the decision that unblocks the
-      function-typed JSDoc bodies — the ~46% measured in the table above — and
-      it belongs in 668, so this stage is not done until 668 answers it.
+  Whether 668's extern direction can carry 2, 3 and 4, or whether function
+  contracts must go into `data` proper, is the decision that unblocks the
+  function-typed JSDoc bodies — the ~46% measured in the table above — and
+  it belongs in 668, so this stage is not done until 668 answers it.
 - [ ] **8. Generic schemas.** A generic type is a function from schemas to
-      schemas — `array` and `record` already are — so *writing and using* one
-      needs nothing new. **Emitting a declaration for one does.** The printer
-      walks a concrete schema graph, while a constructor like
-      `pair = t => [t, t]` is an opaque function whose argument-to-result
-      relationship is nowhere represented as data, and instantiating it at
-      concrete types does not recover
-      `<T>(t: Type<T>) => Type<readonly [T, T]>`. This stage therefore needs
-      that relationship **reified** — a type-variable schema the constructor can
-      be applied to symbolically, or an equivalent — and only then the
-      `.d.ts` / `Ts<>` rendering.
+  schemas — `array` and `record` already are — so *writing and using* one
+  needs nothing new. **Emitting a declaration for one does.** The printer
+  walks a concrete schema graph, while a constructor like
+  `pair = t => [t, t]` is an opaque function whose argument-to-result
+  relationship is nowhere represented as data, and instantiating it at
+  concrete types does not recover
+  `<T>(t: Type<T>) => Type<readonly [T, T]>`. This stage therefore needs
+  that relationship **reified** — a type-variable schema the constructor can
+  be applied to symbolically, or an equivalent — and only then the
+  `.d.ts` / `Ts<>` rendering.
 
-      **Symbolic application works only if the constructor is parametric**, and
-      commitment 1 as written does not require that. `t => t === number ?
-      string : bigint` is a schema-to-schema function that *observes* its
-      argument: applied to a synthetic variable it takes the `bigint` branch,
-      while the real `number` instantiation yields `string`, so the emitted
-      declaration would be confidently wrong rather than absent. This stage
-      therefore has to either restrict exported generic constructors to
-      parametric composition in the eDSL — a real narrowing of commitment 1,
-      and worth stating there if chosen — or reify the operations and control
-      flow that inspect a schema, which is a much larger thing. Pick before
-      building; symbolic application is not a strategy on its own. Also confirm that naming every instantiation
-      (`const keys = array(key)`), which the name-only rule requires, does not
-      become noise across the tree's `@template` uses.
-- [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.js)
-      has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
-      nominal types stay a TypeScript-era construct
-      ([134-nominal-types-proposal](./134-nominal-types-proposal.md)). Gates
-      stage 11 for every declaration with a nominal public type — branding is a
-      compile-time fiction (`asNominal` is `identity`), so nothing in the value
-      carries it and a generated `.d.ts` cannot recover it.
+  **Symbolic application works only if the constructor is parametric**, and
+  commitment 1 as written does not require that.
+  `t => t === number ? string : bigint` is a schema-to-schema function that
+  *observes* its argument: applied to a synthetic variable it takes the `bigint`
+  branch, while the real `number` instantiation yields `string`, so the emitted
+  declaration would be confidently wrong rather than absent. This stage
+  therefore has to either restrict exported generic constructors to parametric
+  composition in the eDSL — a real narrowing of commitment 1, and worth stating
+  there if chosen — or reify the operations and control flow that inspect a
+  schema, which is a much larger thing. Pick before building; symbolic
+  application is not a strategy on its own. Also confirm that naming every
+  instantiation (`const keys = array(key)`), which the name-only rule requires,
+  does not become noise across the tree's `@template` uses.
+- [ ] **9. Nominal types.**
+  [`fjs/types/nominal`](../fjs/types/nominal/module.f.js) has no RTTI
+  representation: either RTTI gains a brand-carrying wrapper, or nominal types
+  stay a TypeScript-era construct
+  ([134-nominal-types-proposal](./134-nominal-types-proposal.md)). Gates stage
+  11 for every declaration with a nominal public type — branding is a
+  compile-time fiction (`asNominal` is `identity`), so nothing in the value
+  carries it and a generated `.d.ts` cannot recover it.
 - [ ] **10. A language server.** LSP over
-      [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
-      spans, hover, go-to-definition, completion — so that removing JSDoc does
-      not remove the editor experience. Must ship *before* stage 11, and can
-      start once stage 5 produces its first real diagnostic — so it overlaps
-      stages 6–9 rather than following them, the one place the numbering is a
-      dependency order and not a schedule.
+  [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
+  spans, hover, go-to-definition, completion — so that removing JSDoc does
+  not remove the editor experience. Must ship *before* stage 11, and can
+  start once stage 5 produces its first real diagnostic — so it overlaps
+  stages 6–9 rather than following them, the one place the numbering is a
+  dependency order and not a schedule.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in every compiler-readable
-      FunctionalScript module — `.f.js`, and a `.f.mjs` only once it has been
-      renamed to `.f.js` — and the `types.ts` beside them.**
+  FunctionalScript module — `.f.js`, and a `.f.mjs` only once it has been
+  renamed to `.f.js` — and the `types.ts` beside them.**
 
-      **"Once the parser accepts it" is the wrong test, and an earlier draft of
-      this heading used it.** It disagreed with this file's own readability rule
-      above — "the rename to `.f.js` is exactly the event that says it can" —
-      and with the source migration, which makes its `.f.mjs` -> `.f.js` stage
-      a prerequisite rather than a parallel track. The
-      difference is not pedantic: an authored `.f.js` is a **compatibility
-      commitment** the parser must keep
-      ([`fjs/compiler/README.md`](../fjs/compiler/README.md)), while a `.f.mjs` that the
-      parser happens to accept today carries no such promise. Retiring JSDoc on
-      the strength of "it parses right now" leaves the module checked by
-      nothing the first time that stops being true — and nothing would flag it,
-      because the JSDoc it would have fallen back on is gone.
+  **"Once the parser accepts it" is the wrong test, and an earlier draft of this
+  heading used it.** It disagreed with this file's own readability rule above —
+  "the rename to `.f.js` is exactly the event that says it can" — and with the
+  source migration, which makes its `.f.mjs` -> `.f.js` stage a prerequisite
+  rather than a parallel track. The difference is not pedantic: an authored
+  `.f.js` is a **compatibility commitment** the parser must keep
+  ([`fjs/compiler/README.md`](../fjs/compiler/README.md)), while a `.f.mjs` that
+  the parser happens to accept today carries no such promise. Retiring JSDoc on
+  the strength of "it parses right now" leaves the module checked by nothing the
+  first time that stops being true — and nothing would flag it, because the
+  JSDoc it would have fallen back on is gone.
 
-      **Retirement has two granularities, and they are not the same.** Removing
-      a declaration's JSDoc is *per-declaration*: the two annotation forms are
-      disjoint, so a module can carry both, one, or neither, with no flag day.
-      Switching where a module's `.d.ts` comes from is *per-module*, because
-      the artifact is. A mixed module — some declarations retired, some not —
-      has no source for a complete one: `tsc` cannot see `//:` and so cannot
-      emit a retired declaration's contract, and the generator knows only
-      schemas, while stage 1 rules that a partial `.d.ts` is worse than none.
+  **Retirement has two granularities, and they are not the same.** Removing
+  a declaration's JSDoc is *per-declaration*: the two annotation forms are
+  disjoint, so a module can carry both, one, or neither, with no flag day.
+  Switching where a module's `.d.ts` comes from is *per-module*, because
+  the artifact is. A mixed module — some declarations retired, some not —
+  has no source for a complete one: `tsc` cannot see `//:` and so cannot
+  emit a retired declaration's contract, and the generator knows only
+  schemas, while stage 1 rules that a partial `.d.ts` is worse than none.
 
-      So one of two things has to be true, and this stage must say which:
-      either the generator can **merge** — schema-generated contracts for
-      retired declarations, `tsc`-derived ones for the rest, in one file — or
-      the `.d.ts` switch is **module-at-a-time** even while the source edits
-      stay per-declaration, meaning a module's JSDoc all goes at once or none
-      of it does. The merge is more work and keeps the incremental property
-      that made per-declaration attractive; module-at-a-time is simpler and
-      gives up that property for `.d.ts`-publishing modules.
+  So one of two things has to be true, and this stage must say which:
+  either the generator can **merge** — schema-generated contracts for
+  retired declarations, `tsc`-derived ones for the rest, in one file — or
+  the `.d.ts` switch is **module-at-a-time** even while the source edits
+  stay per-declaration, meaning a module's JSDoc all goes at once or none
+  of it does. The merge is more work and keeps the incremental property
+  that made per-declaration attractive; module-at-a-time is simpler and
+  gives up that property for `.d.ts`-publishing modules.
 
-      **One rule governs the whole stage: a declaration retires only when the
-      generated `.d.ts` reproduces what it published.** Not "when a schema
-      exists for it" — when the emitted declaration means the same thing.
-      Anything else silently changes a published API, and does it in the
-      artifact consumers actually read.
+  **One rule governs the whole stage: a declaration retires only when the
+  generated `.d.ts` reproduces what it published.** Not "when a schema
+  exists for it" — when the emitted declaration means the same thing.
+  Anything else silently changes a published API, and does it in the
+  artifact consumers actually read.
 
-      That rule is necessary and **not sufficient**. It preserves the published
-      API; it does not by itself deliver the schema/declaration agreement the
-      epic promises, because a declaration can be reproduced faithfully and
-      still be wider than the schema — the closed struct is the standing case, and the
-      old and new declarations there are identical *and* both wider. Retiring
-      such a declaration is safe for consumers and still leaves the gap
-      [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise)
-      describes, which is why that section asks for a policy before this stage
-      runs.
+  That rule is necessary and **not sufficient**. It preserves the published
+  API; it does not by itself deliver the schema/declaration agreement the
+  epic promises, because a declaration can be reproduced faithfully and
+  still be wider than the schema — the closed struct is the standing case, and the
+  old and new declarations there are identical *and* both wider. Retiring
+  such a declaration is safe for consumers and still leaves the gap
+  [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise)
+  describes, which is why that section asks for a policy before this stage
+  runs.
 
-      Six categories are known not to satisfy that rule today. The list is
-      **open**: assume there are more until someone enumerates `types.ts`
-      exhaustively.
+  Six categories are known not to satisfy that rule today. The list is
+  **open**: assume there are more until someone enumerates `types.ts`
+  exhaustively.
 
-      | Category | Example | Blocked on |
-      | --- | --- | --- |
-      | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
-      | Generic schema constructors | `pair = t => [t, t]` | stage 8 — the argument-to-result relationship must be reified first |
-      | Type-only utilities | `Index`, `FixedArray`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
-      | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.js)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
-      | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the module/README, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
-      | Inexpressible sets | the closed `{ a: number }`; `rest({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
+  | Category | Example | Blocked on |
+  | --- | --- | --- |
+  | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
+  | Generic schema constructors | `pair = t => [t, t]` | stage 8 — the argument-to-result relationship must be reified first |
+  | Type-only utilities | `Index`, `FixedArray`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
+  | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.js)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
+  | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the constructor's doc comment and the guide, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
+  | Inexpressible sets | the closed `{ a: number }`; `rest({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 
-      **Type-only utilities** and **polymorphic functions** have no stage
-      assigned, and that is the honest state: a type-only utility is not a
-      schema of anything, and RTTI has no type variables, so neither `.d.ts`
-      generation nor stage 8's reification reaches them. Either the eDSL grows
-      a representation (commitment 1 says that is where such gaps get closed)
-      or those files are **explicitly retained** and the stage's claim narrows
-      accordingly. Pick one before starting; do not discover it per module.
+  **Type-only utilities** and **polymorphic functions** have no stage
+  assigned, and that is the honest state: a type-only utility is not a
+  schema of anything, and RTTI has no type variables, so neither `.d.ts`
+  generation nor stage 8's reification reaches them. Either the eDSL grows
+  a representation (commitment 1 says that is where such gaps get closed)
+  or those files are **explicitly retained** and the stage's claim narrows
+  accordingly. Pick one before starting; do not discover it per module.
 
-      The last two rows are not stages either, but for a different reason:
-      each is a **decision** someone has to take — what an exported `unknown`
-      promises, and which `.d.ts` policy wins — and neither can be deferred
-      past this stage without deciding it by accident.
+  The last two rows are not stages either, but for a different reason:
+  each is a **decision** someone has to take — what an exported `unknown`
+  promises, and which `.d.ts` policy wins — and neither can be deferred
+  past this stage without deciding it by accident.
 
-      Convert against a declaration comparison rather than against both
-      checkers accepting the initializer, since they agree on a value without
-      agreeing on a type — but compare against **the declaration that will
-      actually be emitted**, not against `Ts<>`. A bare
-      `Assert<Equal<Ts<typeof schema>, Declared>>` passes for an exact tuple
-      declaration and the generated `.d.ts` then widens it, because the printer
-      emits the open form where `Ts<>` renders the closed one. Either this
-      check runs against emitted-declaration semantics, or stage 1 first makes
-      `Ts<>` and the printer agree.
+  Convert against a declaration comparison rather than against both
+  checkers accepting the initializer, since they agree on a value without
+  agreeing on a type — but compare against **the declaration that will
+  actually be emitted**, not against `Ts<>`. Tuples no longer separate the
+  two, but `unknown` still does: a bare
+  `Assert<Equal<Ts<typeof schema>, Declared>>` passes for a declaration
+  that says `Primitive | Array | Object`, and the generated `.d.ts` then
+  widens it to TypeScript's `unknown`. An empty rest the data form
+  normalizes away separates them in the other direction. Either this check
+  runs against emitted-declaration semantics, or stage 1 first makes `Ts<>`
+  and the printer agree.
 
-      A `types.ts` goes when every declaration in it retires under the rule
-      above and nothing outside still imports it — **and that is not sufficient
-      for a published module.** The package has no `exports` map and ships
-      `**/*.d.ts`, so `types.d.ts` is a public subpath: emitted declarations
-      reference `…/types.ts` specifiers, and
-      [packed-consumer-validation](../fjs/ci/packed-consumer-validation.md)
-      exists to prove those resolve to the shipped `types.d.ts` on every
-      consumer toolchain. Deleting the file removes that subpath even when
-      every declaration in it is reproduced elsewhere, which breaks a consumer
-      that imports it by path. Retirement therefore needs either a
-      compatibility `types.d.ts` that re-exports from the generated
-      declarations, or an explicit explanation of the API change —
-      "no internal importer" is a necessary condition, not the whole one. This is the stage where
-      TypeScript stops being the type system for FunctionalScript — for the
-      declarations it can reach.
+  A `types.ts` goes when every declaration in it retires under the rule above
+  and nothing outside still imports it — **and that is not sufficient for a
+  published module.** The package has no `exports` map and ships `**/*.d.ts`, so
+  `types.d.ts` is a public subpath: emitted declarations reference `…/types.ts`
+  specifiers, and
+  [packed-consumer-validation](../fjs/ci/packed-consumer-validation.md) exists
+  to prove those resolve to the shipped `types.d.ts` on every consumer
+  toolchain. Deleting the file removes that subpath even when every declaration
+  in it is reproduced elsewhere, which breaks a consumer that imports it by
+  path. Retirement therefore needs either a compatibility `types.d.ts` that
+  re-exports from the generated declarations, or an explicit explanation of the
+  API change — "no internal importer" is a necessary condition, not the whole
+  one. This is the stage where TypeScript stops being the type system for
+  FunctionalScript — for the declarations it can reach.
 - [ ] **12. Anchor every unreachable non-resulting computation an annotation
-      leaves behind** — both **imported module roots** and **local
-      initializers** — so that an annotation-only schema neither is rejected
-      nor silently deletes a failure. This is the `','` anchoring operation
-      [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
-      emits for whatever a module's export does not reach — imported roots
-      and local entries alike, by reachability — read from this epic's side:
-      the legality half is done by the compiler, and what this stage owns is
-      the totality exemption below. Anchoring makes such a schema **legal**,
-      not free: an anchored computation is still evaluated, which is the point
-      of anchoring.
+  leaves behind** — both **imported module roots** and **local
+  initializers** — so that an annotation-only schema neither is rejected
+  nor silently deletes a failure. This is the `','` anchoring operation
+  [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
+  emits for whatever a module's export does not reach — imported roots
+  and local entries alike, by reachability — read from this epic's side:
+  the legality half is done by the compiler, and what this stage owns is
+  the totality exemption below. Anchoring makes such a schema **legal**,
+  not free: an anchored computation is still evaluated, which is the point
+  of anchoring.
 
-      **This is a prerequisite, not a side quest, and an earlier draft of this
-      file said otherwise.** The rule in
-      [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
-      *anchors* an import parameter unreachable from the EDAG root, and
-      equally a potentially throwing body entry, rather than discarding
-      either. Once the compiler consumes an annotation, a binding used only to
-      name or build that annotation's schema is exactly that — so such a
-      module compiles and pays for the anchored computation, which is what
-      stages 4–5 and stage 11 inherit — **not** stage 3, which only records
-      and resolves the annotation.
+  **This is a prerequisite, not a side quest, and an earlier draft of this
+  file said otherwise.** The rule in
+  [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md)
+  *anchors* an import parameter unreachable from the EDAG root, and
+  equally a potentially throwing body entry, rather than discarding
+  either. Once the compiler consumes an annotation, a binding used only to
+  name or build that annotation's schema is exactly that — so such a
+  module compiles and pays for the anchored computation, which is what
+  stages 4–5 and stage 11 inherit — **not** stage 3, which only records
+  and resolves the annotation.
 
-      Both halves bind where the use is annotation-*only* — a module that also
-      passes the schema to `validate` keeps it reachable and is unaffected.
-      **The totality exemption applies to locals only.** An initializer built
-      entirely from the RTTI constructors is droppable without anchoring,
-      because droppability there is a property of the node. The import rule is
-      not an effect analysis and says so: it anchors on *reachability*, so an
-      annotation-only import is anchored and evaluated even when the module it
-      names is wholly total, and nothing in the compiler establishes that
-      totality across a module boundary anyway. Exempting total imports would
-      need that cross-module analysis first. What is left is an
-      annotation-only import, or an annotation-only local whose initializer
-      contains a call — `const t = array(makeType())` included, since the
-      argument is evaluated first: both compile, anchored, and neither is
-      free.
+  Both halves bind where the use is annotation-*only* — a module that also
+  passes the schema to `validate` keeps it reachable and is unaffected.
+  **The totality exemption applies to locals only.** An initializer built
+  entirely from the RTTI constructors is droppable without anchoring,
+  because droppability there is a property of the node. The import rule is
+  not an effect analysis and says so: it anchors on *reachability*, so an
+  annotation-only import is anchored and evaluated even when the module it
+  names is wholly total, and nothing in the compiler establishes that
+  totality across a module boundary anyway. Exempting total imports would
+  need that cross-module analysis first. What is left is an
+  annotation-only import, or an annotation-only local whose initializer
+  contains a call — `const t = array(makeType())` included, since the
+  argument is evaluated first: both compile, anchored, and neither is
+  free.
 
-      An alternative to anchoring the local half is a totality analysis that
-      can prove the initializer safe to drop. That is a different and larger
-      piece of work; whichever is chosen, one of them owns this.
+  An alternative to anchoring the local half is a totality analysis that
+  can prove the initializer safe to drop. That is a different and larger
+  piece of work; whichever is chosen, one of them owns this.
 - [ ] **13. Ownership at the language boundary.** Decide and implement what
-      happens to a reference crossing between FunctionalScript and ordinary
-      JavaScript in either direction, per
-      [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise)
-      and the boundary paragraphs above: `parse` against a fully naming schema,
-      a deep copy, a **recursive** freeze — shallow `Object.freeze` seals only
-      the outer container and establishes nothing, see the boundary paragraphs
-      for why that makes reconstruction the better default — or an
-      **enforceable** ownership transfer —
-      inbound, and the mirror of it outbound, where an exported schema object
-      is the sharp case. Enforceable is the operative word: a transfer that is
-      merely *documented* establishes nothing, since an ordinary JavaScript
-      caller can keep an alias and TypeScript accepts a mutable value where a
-      readonly input is expected. Either the language gains the ownership
-      tracking [mutability](../spec/design/mutability.md) already contemplates —
-      which is the only mechanism in sight that could make a transfer
-      checkable — or the remedy is reconstruction or recursive freezing, which
-      do not depend on the caller's cooperation. The closed-struct policy and 668's call-validating wrapper are the same
-      decision seen from two angles, so settle them together.
+  happens to a reference crossing between FunctionalScript and ordinary
+  JavaScript in either direction, per
+  [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise)
+  and the boundary paragraphs above: `parse` against a fully naming schema, a
+  deep copy, a **recursive** freeze — shallow `Object.freeze` seals only the
+  outer container and establishes nothing, see the boundary paragraphs for why
+  that makes reconstruction the better default — or an **enforceable** ownership
+  transfer — inbound, and the mirror of it outbound, where an exported schema
+  object is the sharp case. Enforceable is the operative word: a transfer that
+  is merely *documented* establishes nothing, since an ordinary JavaScript
+  caller can keep an alias and TypeScript accepts a mutable value where a
+  readonly input is expected. Either the language gains the ownership tracking
+  [mutability](../spec/design/mutability.md) already contemplates — which is the
+  only mechanism in sight that could make a transfer checkable — or the remedy
+  is reconstruction or recursive freezing, which do not depend on the caller's
+  cooperation. The closed-struct policy and 668's call-validating wrapper are
+  the same decision seen from two angles, so settle them together.
 
-      **`parse` is not fit for a hostile boundary today, and this stage cannot
-      be planned until someone investigates what it would take.** Three
-      measured facts, all reproducible, none of them designed here:
+  **`parse` is not fit for a hostile boundary today, and this stage cannot
+  be planned until someone investigates what it would take.** Three
+  measured facts, all reproducible, none of them designed here:
 
-      - a cyclic foreign value overflows the stack rather than being rejected —
-        `const t = () => ['array', t]` with a self-referential array gives
-        `RangeError: Maximum call stack size exceeded`;
-      - `parse` flattens shared references, changing the hash of a value whose
-        sharing is part of its meaning
-        ([identity-aware-parse](../fjs/rtti/todo/identity-aware-parse.md),
-        which already owns this);
-      - `validate` costs time exponential in sharing depth, which that same
-        issue classifies as a DoS vector against untrusted input. Its recorded
-        figure is 509 ms for a 19-array value; absolute timings vary by more
-        than an order of magnitude across machines, so the growth rate is the
-        claim, not any particular number.
+  - a cyclic foreign value overflows the stack rather than being rejected —
+    `const t = () => ['array', t]` with a self-referential array gives
+    `RangeError: Maximum call stack size exceeded`;
+  - `parse` flattens shared references, changing the hash of a value whose
+    sharing is part of its meaning
+    ([identity-aware-parse](../fjs/rtti/todo/identity-aware-parse.md),
+    which already owns this);
+  - `validate` costs time exponential in sharing depth, which that same
+    issue classifies as a DoS vector against untrusted input. Its recorded
+    figure is 509 ms for a 19-array value; absolute timings vary by more
+    than an order of magnitude across machines, so the growth rate is the
+    claim, not any particular number.
 
-      A naïve deep copy shares the first two. **The scope of the fix is the
-      open question**: whether these are three defects or one missing
-      capability (input-keyed identity tracking would address all three), what
-      it costs, and whether the boundary should reconstruct at all rather than
-      reject. That belongs in an investigation with the readers in front of it,
-      not in this document.
+  A naïve deep copy shares the first two. **The scope of the fix is the
+  open question**: whether these are three defects or one missing
+  capability (input-keyed identity tracking would address all three), what
+  it costs, and whether the boundary should reconstruct at all rather than
+  reject. That belongs in an investigation with the readers in front of it,
+  not in this document.
 
-      **Foreign calls into readable exports are in scope here**, and are the
-      case most easily missed, because stage 7's provenance split makes their
-      *definitions* statically checkable and so reads as if nothing is left to
-      do. A TypeScript consumer calling an ordinary exported function is a
-      foreign call site, and where the emitted declaration is wider than the
-      schema — a closed struct, `rest(c, r)`, non-finite / `-0` — it can pass a
-      value
-      the declaration accepts and the schema rejects.
+  **Foreign calls into readable exports are in scope here**, and are the
+  case most easily missed, because stage 7's provenance split makes their
+  *definitions* statically checkable and so reads as if nothing is left to
+  do. A TypeScript consumer calling an ordinary exported function is a
+  foreign call site, and where the emitted declaration is wider than the
+  schema — a closed struct, `rest(c, r)`, non-finite / `-0` — it can pass a
+  value
+  the declaration accepts and the schema rejects.
 
-      **This splits by call site, and only one half is conditional.** An earlier
-      draft of this paragraph said the `.d.ts` policy decides whether the stage
-      owes an entry check at all — that options 2 and 3 close the hole in the
-      declaration and leave nothing to adapt. That is true of a **TypeScript**
-      consumer and false of an **ordinary JavaScript** one, which no
-      declaration binds. A raw JavaScript caller passes a string to a
-      `number` parameter, or a malformed object to a closed struct, whatever the
-      `.d.ts` says; so do a TypeScript caller reaching the export through
-      `any`, a `@ts-ignore`, or a dynamic property access. A declaration
-      constrains a consumer who type-checks against it and nobody else.
+  **This splits by call site, and only one half is conditional.** An earlier
+  draft of this paragraph said the `.d.ts` policy decides whether the stage
+  owes an entry check at all — that options 2 and 3 close the hole in the
+  declaration and leave nothing to adapt. That is true of a **TypeScript**
+  consumer and false of an **ordinary JavaScript** one, which no
+  declaration binds. A raw JavaScript caller passes a string to a
+  `number` parameter, or a malformed object to a closed struct, whatever the
+  `.d.ts` says; so do a TypeScript caller reaching the export through
+  `any`, a `@ts-ignore`, or a dynamic property access. A declaration
+  constrains a consumer who type-checks against it and nobody else.
 
-      **The line is drawn at the call site, not at the consumer's language.**
-      An earlier draft of these bullets split by consumer — TypeScript
-      conditional, JavaScript unconditional — which contradicts the sentence
-      immediately above it: a TypeScript consumer reaching the export through
-      `any`, a `@ts-ignore`, or a dynamic property access is unchecked too, and
-      would have fallen in the conditional half. What matters is whether *this
-      call* was statically checked against the declaration:
+  **The line is drawn at the call site, not at the consumer's language.**
+  An earlier draft of these bullets split by consumer — TypeScript
+  conditional, JavaScript unconditional — which contradicts the sentence
+  immediately above it: a TypeScript consumer reaching the export through
+  `any`, a `@ts-ignore`, or a dynamic property access is unchecked too, and
+  would have fallen in the conditional half. What matters is whether *this
+  call* was statically checked against the declaration:
 
-      - **Statically checked call sites** — conditional, but on less than an
-        earlier draft claimed. Options 2 and 3 make the declaration exact *for
-        the shapes TypeScript can name*, and that buys exactly one thing:
-        the argument was a member of the schema's set **at the moment of the
-        call**. Two holes survive it, and both are this stage's:
-        - **Numeric singletons.** Option 2 restricts closed structs, and option 3
-          needs an encoding to exist — TypeScript has no `NaN` literal type and
-          cannot distinguish `-0` from `0`, so neither option reaches a `NaN`,
-          `±Infinity` or `-0` schema in an input position. Those need an
-          adapter under *every* policy.
-        - **Ownership of a retained reference.** An exact `.d.ts` proves
-          membership, not ownership. A checked caller passing a mutable object
-          or array to an exact `readonly` parameter keeps its alias and can
-          mutate after the callee retains it, because `readonly` in TypeScript
-          constrains the callee's use, not the caller's. So any retained
-          reference still needs reconstruction, recursive freezing, or
-          enforceable transfer — checked call site or not.
+  - **Statically checked call sites** — conditional, but on less than an
+    earlier draft claimed. Options 2 and 3 make the declaration exact *for
+    the shapes TypeScript can name*, and that buys exactly one thing:
+    the argument was a member of the schema's set **at the moment of the
+    call**. Two holes survive it, and both are this stage's:
+    - **Numeric singletons.** Option 2 restricts closed structs, and option 3
+      needs an encoding to exist — TypeScript has no `NaN` literal type and
+      cannot distinguish `-0` from `0`, so neither option reaches a `NaN`,
+      `±Infinity` or `-0` schema in an input position. Those need an
+      adapter under *every* policy.
+    - **Ownership of a retained reference.** An exact `.d.ts` proves
+      membership, not ownership. A checked caller passing a mutable object
+      or array to an exact `readonly` parameter keeps its alias and can
+      mutate after the callee retains it, because `readonly` in TypeScript
+      constrains the callee's use, not the caller's. So any retained
+      reference still needs reconstruction, recursive freezing, or
+      enforceable transfer — checked call site or not.
 
-        What is left as genuinely conditional is narrow: a *non-retained*
-        argument of a shape TypeScript can name exactly. Option 1 leaves even
-        that open and needs an adapter.
-      - **Every other call site** — **unconditional**: raw JavaScript, `any`,
-        `@ts-ignore`, dynamic access, `eval`, a call from a consumer who simply
-        does not run `tsc`.
+    What is left as genuinely conditional is narrow: a *non-retained*
+    argument of a shape TypeScript can name exactly. Option 1 leaves even
+    that open and needs an adapter.
+  - **Every other call site** — **unconditional**: raw JavaScript, `any`,
+    `@ts-ignore`, dynamic access, `eval`, a call from a consumer who simply
+    does not run `tsc`.
 
-      **And the callee cannot tell the two apart**, which is what makes the
-      unconditional half dominate rather than merely coexist. Nothing at run
-      time distinguishes an argument that arrived through a checked call from
-      one that did not, so this stage owes a stated policy for arriving values
-      regardless of which `.d.ts` policy wins: validate at entry, or declare
-      the boundary explicitly untrusted and say what a FunctionalScript
-      function may assume about its arguments.
+  **And the callee cannot tell the two apart**, which is what makes the
+  unconditional half dominate rather than merely coexist. Nothing at run
+  time distinguishes an argument that arrived through a checked call from
+  one that did not, so this stage owes a stated policy for arriving values
+  regardless of which `.d.ts` policy wins: validate at entry, or declare
+  the boundary explicitly untrusted and say what a FunctionalScript
+  function may assume about its arguments.
 
-      **"Validate at entry" is gated on the reader work above**, not merely
-      informed by it: the exponential-in-sharing cost is reachable by an
-      *acyclic*, well-typed foreign argument, so a cycle guard alone does not
-      cover it. The second is a legitimate
-      answer — it is roughly what the language does today — but it has to be
-      *chosen*, because commitment 3's soundness argument is about what the
-      language guarantees, and an unchecked foreign call is outside it. The
-      conditional half then decides only whether a *checked* call needs
-      adaptation on top of that policy.
+  **"Validate at entry" is gated on the reader work above**, not merely
+  informed by it: the exponential-in-sharing cost is reachable by an
+  *acyclic*, well-typed foreign argument, so a cycle guard alone does not
+  cover it. The second is a legitimate
+  answer — it is roughly what the language does today — but it has to be
+  *chosen*, because commitment 3's soundness argument is about what the
+  language guarantees, and an unchecked foreign call is outside it. The
+  conditional half then decides only whether a *checked* call needs
+  adaptation on top of that policy.
 
-      In neither case can the adapter be 668's `Result`-returning wrapper on an
-      ordinary export, which would change the published signature that stage 11
-      requires be reproduced.
+  In neither case can the adapter be 668's `Result`-returning wrapper on an
+  ordinary export, which would change the published signature that stage 11
+  requires be reproduced.
 
-      **The general form of the error is worth stating once**, because this
-      file made it three times in a row while review of #1719 was in flight:
-      that a readable *definition* leaves nothing to enforce; then that an
-      exact *declaration* does; then that being written in *TypeScript* makes a
-      consumer a checked one. All three confuse *knowing the right type* with
-      *something checking it*. A `.d.ts` is a description that a consumer may
-      opt into checking against; it is never an enforcement mechanism, nothing
-      in this epic makes it one, and the callee cannot observe whether anyone
-      opted in. Enforcement at this boundary is whatever the callee does with
-      the value it was handed — nothing else on the outside counts.
+  **The general form of the error is worth stating once**, because this
+  file made it three times in a row while review of #1719 was in flight:
+  that a readable *definition* leaves nothing to enforce; then that an
+  exact *declaration* does; then that being written in *TypeScript* makes a
+  consumer a checked one. All three confuse *knowing the right type* with
+  *something checking it*. A `.d.ts` is a description that a consumer may
+  opt into checking against; it is never an enforcement mechanism, nothing
+  in this epic makes it one, and the callee cannot observe whether anyone
+  opted in. Enforcement at this boundary is whatever the callee does with
+  the value it was handed — nothing else on the outside counts.
 
-      **Gates stage 11.** Retiring JSDoc does not create this hole, but it
-      removes the last thing that documents the intended shape at the boundary,
-      and commitment 3's soundness argument assumes an answer this stage has to
-      supply. Without it stage 11 can complete while ordinary JavaScript can
-      still mutate a value the checker relied on.
+  **Gates stage 11.** Retiring JSDoc does not create this hole, but it
+  removes the last thing that documents the intended shape at the boundary,
+  and commitment 3's soundness argument assumes an answer this stage has to
+  supply. Without it stage 11 can complete while ordinary JavaScript can
+  still mutate a value the checker relied on.
 
 ### Open questions
 
@@ -1734,9 +1744,10 @@ splits around inference, so the runnable order is 668's representation half
 
 - [type-annotations](../spec/todo/3360-type-annotations.md) — the annotation
   form, the tooling consequences, and the argument for why there is no type
-  grammar. The design note for commitments 1 and 2; stages 2–5 land there. It
-  states the annotation body as an ordinary expression handed to the expression
-  parser; **this epic narrows it to a name**, and stage 2 is that edit.
+  grammar. The design note for commitments 1 and 2; stages 2–5 land there. Its
+  opening already states **the name rule**, under a "Narrowed by the epic"
+  note; the rest still reads the body as an expression handed to the
+  expression parser, and stage 2 is the edit that reconciles it.
 - [type inference](../spec/todo/3370-type-inference.md) — annotations are only
   as useful as what can be inferred without them. Stage 6.
 - [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) —
@@ -1772,8 +1783,9 @@ splits around inference, so the runnable order is 668's representation half
 - [`fjs/edag`](../fjs/edag/README.md) — already specifies the EDAG with RTTI
   ([`module.f.mjs`](../fjs/edag/module.f.mjs) is the schema of record), and a
   Rust generator from that schema is
-  [rust-schema-codegen](../fjs/edag/todo/rust-schema-codegen.md), still
-  open; the same schemas would feed both. The EDAG is also the mechanism
+  [rust-schema-codegen](../fjs/edag/todo/rust-schema-codegen.md), on hold
+  with the rest of the optional Rust EDAG work; the same schemas would feed
+  both. The EDAG is also the mechanism
   behind the cost discussion: source is serialized out of the graph, so an
   unreferenced node is not emitted. **Not the same as free** — see
   [What a compile-time-only type costs](#what-a-compile-time-only-type-costs),
@@ -1785,22 +1797,23 @@ splits around inference, so the runnable order is 668's representation half
   its whole initializer is total**, which the RTTI constructors are and an
   arbitrary call is not.
 - [serialization](../spec/design/serialization.md) and
-  [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md) — code
-  as an FJS value, and the rollout that brings the above from DataJS values to
-  modules.
+  [compile-modules-to-edag](../fjs/compiler/todo/compile-modules-to-edag.md) —
+  code as an FJS value, and the rollout that brings the above from DataJS values
+  to modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.
 
 **Depends on:**
 
-- [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md) — the compiler loading and
-  running modules as meta-programming, which is what compile-time evaluation of
-  an annotation *is*. **Stage 4 onward** needs it — stage 3 is comment
-  recognition plus resolving one identifier against the module's bindings, which
-  needs neither the expression parser nor compile-time evaluation.
-- [`fjs/compiler/README.md`](../fjs/compiler/README.md) — establishes the `.f.mjs` /
-  `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns type systems to.
-  Its "`types.ts` may remain permanently" is permanence with respect to *that*
-  migration; stage 11 here is what eventually retires them.
+- [`fjs/compiler/todo/047-compiler-meta-programming.md`](../fjs/compiler/todo/047-compiler-meta-programming.md)
+  — the compiler loading and running modules as meta-programming, which is what
+  compile-time evaluation of an annotation *is*. **Stage 4 onward** needs it —
+  stage 3 is comment recognition plus resolving one identifier against the
+  module's bindings, which needs neither the expression parser nor compile-time
+  evaluation.
+- [`fjs/compiler/README.md`](../fjs/compiler/README.md) — establishes the
+  `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns type
+  systems to. Its "`types.ts` may remain permanently" is permanence with respect
+  to *that* migration; stage 11 here is what eventually retires them.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
 - [`fjs/ebnf/todo/layered-parser.md`](../fjs/ebnf/todo/layered-parser.md) — the
@@ -1820,17 +1833,22 @@ splits around inference, so the runnable order is 668's representation half
   unaffected. `tsc` remains the checker throughout.
 - [eslint.md](./eslint.md) — its three proposed custom rules (inline `@type`
   cast, unknown JSDoc tag, type-predicate placement; it names no rule ids, and
-  none exist yet)
-  are **transitional**, and must not be used to justify building a
+  none exist yet) are **transitional**, and must not be used to justify building a
   TypeScript-type grammar.
-- [inline-type-casts.md](./inline-type-casts.md) — **implemented**, not
-  pending: its header records 273 of 357 sites removed or converted, with 84
-  remaining and a reason given for each. Nothing here changes that work or is
+- [inline-type-casts.md](./inline-type-casts.md) — **done**, kept as the
+  record: 273 of 357 sites removed or converted, with 84 remaining and a
+  reason given for each. Nothing here changes that work or is
   changed by it.
 - [publishing-packages](../fjs/ci/todo/publishing-packages.md) — consumes stage
   1's generated `.d.ts`.
 - [`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md) — not an issue,
   but the record of what `Ts<T>` costs and why stage 11 exists.
+- [The RTTI guide](../fjs/rtti/guide/README.md) — not an issue either: what each
+  schema means and what each reader and output makes of it. Most pages have a
+  demo and a proof; `readers/assumptions` has none by design, and function
+  types and excluded string values are planned pages. Its
+  [TypeScript](../fjs/rtti/guide/outputs/typescript/README.md) page states the
+  current `Ts<>`/printer differences that stage 1 starts from.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
@@ -1851,15 +1869,27 @@ splits around inference, so the runnable order is 668's representation half
 - [checked-const-pin](../fjs/rtti/todo/checked-const-pin.md) — how a
   schema bound to a `const` pins its literal; open, no design agreed. It is the
   ergonomics of commitment 2's "write it as a `const` first".
+- [or-cycle-overflows](../fjs/rtti/todo/or-cycle-overflows.md) — a schema
+  that is an `or` of only itself sends `validate` and `parse` into unbounded
+  recursion where the data form answers `never`. It is a schema the readers
+  neither refuse nor answer, so it belongs with stage 5's well-formedness
+  question: a checker built on those readers would crash on it rather than
+  report it.
+- [compile-the-readers](../fjs/rtti/todo/compile-the-readers.md) — `common`
+  and `validate` cannot yet be renamed `.f.js`, so under commitment 4 the
+  readers this epic checks with are not themselves compiler-readable. Blocked
+  on admitting `Object.fromEntries` and `Object.keys`, on mutual recursion in
+  a function body, and on the modules `common` imports — not on anything
+  here.
 - [excluded-string-values](../fjs/rtti/todo/excluded-string-values.md) —
   `Type` has no negation, so a set like "any string but these" is unsayable.
   A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
-- [error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md) —
-  its parked "continue after an error" is unparked by stage 10; an editor needs
-  more than one diagnostic per file.
+- [error-message-specificity](../fjs/compiler/tokenizer/todo/error-message-specificity.md)
+  — its parked "continue after an error" is unparked by stage 10; an editor
+  needs more than one diagnostic per file.
 - [Operators](../spec/operators/README.md) — expressions are **not** a
   dependency, which is the point of the name-only rule: an annotation body
   needs no expression parser.
