@@ -5,6 +5,6 @@ export const proof = {
         assertEq(commandPrefix, 'env ')
         assertEq(environmentCommand('node --version'), 'env node --version')
         assertStructurallySame(environmentSteps(['npm ci']), [{ type: 'test', step: { run: 'env npm ci' } }])
-        assertStructurallySame(environmentVersionStep('node --version', 'v26.12.1'), { type: 'test', step: { run: 'test "$(env node --version)" = "v26.12.1"' } })
+        assertStructurallySame(environmentVersionStep('node --version', 'v26.13.0'), { type: 'test', step: { run: 'test "$(env node --version)" = "v26.13.0"' } })
     },
 }
