@@ -23,7 +23,7 @@ const fence = (text, code) => codeBlock(text, 'Copy code', [code])
 /** A link refused for a target named `bad`, and every other kept. */
 const href = (/** @type {string} */ h) => h === 'bad' ? error('no') : ok(h)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     readmeName: () => assertEq(readmeName, 'README.md'),
     resolveHref: {
         absolute: () => assertStructurallySame(local('https://e.x/a:b'), ok('https://e.x/a:b')),
@@ -209,4 +209,4 @@ export const proof = {
         refused: () => assertStructurallySame(readmeSection('f')(error('line 1: a table')),
             [['p', { 'data-readme-refused': '' }, ['a', { href: 'f' }, 'README.md'], ' is not rendered here: line 1: a table.']]),
     },
-}
+})

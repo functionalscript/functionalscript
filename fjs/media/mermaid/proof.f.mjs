@@ -8,7 +8,7 @@ const refusal = text => {
     return r[0] === 'error' ? r[1] : null
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     directions: () => assertEq(directions.join(), 'LR,RL,TB,TD,BT'),
     // Every form the subset reads, at once.
     reads: () => assertStructurallySame(tryFlowchart([
@@ -81,4 +81,4 @@ export const proof = {
         labelledTwice: () => assertEq(refusal('flowchart LR\na["x"]\na["y"]\n'), 'line 3: a node labelled twice: a'),
     },
     errorShape: () => assertStructurallySame(tryFlowchart('flowchart LR\n-->\n'), error('line 2: a node expected at 0')),
-}
+})

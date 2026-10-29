@@ -15,7 +15,7 @@ const shape = chart => {
     return g[0] === 'error' ? g[1] : g[1].edges.map(e => `${e.from}>${String(e.to)}${e.back === true ? '!' : ''}`).join(' ')
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     nodes: () => {
         const g = flowchartGraph({ direction: 'TD', nodes: nodes(2), edges: [arrow(0, 1, 'x')] })
         assertStructurallySame(g[0] === 'ok' ? g[1].nodes : null, [
@@ -49,4 +49,4 @@ export const proof = {
         notDrawable: () => assertStructurallySame(flowchartSvg('flowchart LR\na -->|x| b\na --> c\n'),
             error('a node whose arrows are labelled only in part: a')),
     },
-}
+})
