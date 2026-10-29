@@ -55,10 +55,10 @@ const entryView = entry => ['li', ['ul', ...entry.map(spanView)]]
 
 // spanView accepts Inline, including images. Release entries refuse images,
 // so prove that part of the renderer's contract directly.
-export const proof = {
+export const proof = /** @type {const} */ ({
     image: () => assertStructurallySame(spanView(['image', 'diagram', 'image.svg']),
         ['li', ['code', 'image'], ' ', 'diagram', ' → ', ['code', 'image.svg']]),
-}
+})
 
 /**
  * The state is the text itself, not the entries: the entries are a function

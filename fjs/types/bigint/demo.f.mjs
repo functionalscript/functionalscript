@@ -500,11 +500,11 @@ export const demo = withInputs(definition, ['size'], {})
 
 // The benchmark only passes positive inputs. Keep the older implementations'
 // non-positive guards proven here, without publishing the candidates as APIs.
-export const proof = {
+export const proof = /** @type {const} */ ({
     nonPositiveCandidates: () => {
         for (const f of [clz32Log2, oldLog2, mathLog2]) {
             assertEq(f(0n), -1n)
             assertEq(f(-1n), -1n)
         }
     },
-}
+})

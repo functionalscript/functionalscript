@@ -40,11 +40,11 @@ import { browserResult, countsView, moduleFailure, reportOf, reportView, unrepor
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)
 
-const failing = {
+const failing = /** @type {const} */ ({
     empty: () => assertEq(sum([]), 0),
     many: () => assertEq(sum([1, 2, 3]), 7),
     throw: { onEmpty: () => sum([]) },
-}
+})
 
 /**
  * The example suite: one module that passes, one that fails two different
@@ -160,4 +160,4 @@ export const demo = {
 
 // The example's deliberately wrong assertion really throws. The ordinary
 // proof runner treats it as an expected failure, so the suite stays green.
-export const proof = { throw: { exampleAssertion: failing.many } }
+export const proof = /** @type {const} */ ({ throw: { exampleAssertion: failing.many } })
