@@ -64,6 +64,8 @@ export type SourceLoop = {
     readonly events: readonly BindingEvent[]
     readonly condition: SourceValue
     readonly body: SourceBlock
+    /** A classic for's header-scoped update; its block exits normally. */
+    readonly step?: SourceBlock
 }
 
 /** A switch owns break completion without changing the enclosing continue target. */

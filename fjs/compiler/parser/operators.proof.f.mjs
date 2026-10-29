@@ -423,10 +423,10 @@ export const proof = {
             // expression
             expect('export default "a" in;', 20)
             // `for (k in o)` is the other place JavaScript uses the word, a
-            // statement the language has no rule for. It is refused at the
-            // `for`, which says nothing about the operator.
-            expect('export default (...a) => { for (const k in a) { return k } };', 28)
-            expect('for (const k in {}) {}\nexport default 1;', 1)
+            // statement the language has no rule for. Classic for headers
+            // reach the `in` before refusing this iteration form.
+            expect('export default (...a) => { for (const k in a) { return k } };', 41)
+            expect('for (const k in {}) {}\nexport default 1;', 14)
         },
         // `in` is reserved, so it names no binding, but it stays a key and a
         // property name as every reserved word does: the refusal is of the

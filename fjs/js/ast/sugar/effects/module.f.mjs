@@ -48,14 +48,14 @@ export const writes = (root, functions) => {
                 children = [...children, ...(statement[0] === 'initialize' || statement[0] === 'write' ? [statement[2]]
                     : statement[0] === 'compound-write' ? [statement[3]]
                     : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
-                    : statement[0] === 'while' ? [statement[1].condition, statement[1].body]
+                    : statement[0] === 'while' ? [statement[1].condition, statement[1].body, ...(statement[1].step === undefined ? [] : [statement[1].step])]
                     : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]
                     : statement[0] === 'return' ? [statement[2]] : statement[0] === 'throw' ? [statement[1]] : [])]
             }
             const exit = block.exit
             children = [...children, ...(exit[0] === 'if' ? [exit[1], exit[2], exit[3]]
                 : exit[0] === 'switch' ? [exit[1], ...exit[2].flatMap(arm => [...arm.labels, arm.body]), exit[3]]
-                    : exit[0] === 'terminal-loop' ? [exit[1].condition, exit[1].body]
+                    : exit[0] === 'terminal-loop' ? [exit[1].condition, exit[1].body, ...(exit[1].step === undefined ? [] : [exit[1].step])]
                     : [exit[0] === 'return' ? exit[2] : exit[1]])]
         }
         // The deferred walk captures only the completed immutable plan.

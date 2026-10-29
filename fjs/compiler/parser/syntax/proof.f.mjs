@@ -54,6 +54,56 @@ const returned = node => {
 }
 
 export const proof = {
+    classicForRetainsClausesAndLexicalDeclarations: () => {
+        const module = unwrap(parseSyntax(tokenizeString('for(let i=0;i<3;i+=1){for(;;){continue;}}export default 0;')))
+        const loop = module.statements[0]
+        assert(loop[0] === 'for')
+        const { initializer, condition, step, block, start } = loop[1]
+        assertEq(start.metadata.column, 1)
+        assert(initializer !== null && initializer[0] === 'let')
+        assertEq(initializer[1].semicolon, true)
+        assertEq(initializer[1].target[0], 'name')
+        assertStructurallySame(initializer[1].value, ['primitive', 0])
+        assertEq(condition[0], '<')
+        assert(step !== null && step[0] === 'assign')
+        assertEq(step[1].operator?.tag, '+')
+        assertEq(step[1].operator?.token.metadata.column, 18)
+        assertEq(step[1].semicolon, true)
+        const nested = block[1][0]
+        assert(nested[0] === 'for')
+        assertEq(nested[1].initializer, null)
+        assertStructurallySame(nested[1].condition, ['primitive', true])
+        assertEq(nested[1].step, null)
+        assertEq(nested[1].block[1][0][0], 'continue')
+        const declared = unwrap(parseSyntax(tokenizeString('for(const [i]=[0];false;){}export default 0;'))).statements[0]
+        assert(declared[0] === 'for' && declared[1].initializer !== null && declared[1].initializer[0] === 'const')
+        assertEq(declared[1].initializer[1].target[0], 'array')
+        for (const source of [
+            'for(i=0;test();i=i+1){}export default 0;',
+            'for(start();test();advance()){}export default 0;',
+        ]) {
+            const named = unwrap(parseSyntax(tokenizeString(source))).statements[0]
+            assert(named[0] === 'for' && named[1].initializer !== null && named[1].step !== null)
+            assertEq(named[1].initializer[1].semicolon, true)
+            assertEq(named[1].step[1].semicolon, true)
+        }
+    },
+    finalForCandidatesRemainDistinctFromOrdinaryLoops: () => {
+        const module = unwrap(parseSyntax(tokenizeString('export default ()=>{for(;false;){}for(;;){return 1;}};')))
+        const value = module.exported?.value
+        assert(value !== undefined && value[0] === '=>')
+        const body = value[2]
+        assert(body[0] === 'block')
+        assertStructurallySame(body[1].map(statement => statement[0]), ['for', 'terminal-for'])
+        const terminal = body[1][1]
+        assert(terminal[0] === 'terminal-for')
+        assertStructurallySame(terminal[1].condition, ['primitive', true])
+        const ordinary = unwrap(parseSyntax(tokenizeString('export default ()=>{for(;;){}return 1;};'))).exported?.value
+        assert(ordinary !== undefined && ordinary[0] === '=>')
+        const ordinaryBody = ordinary[2]
+        assert(ordinaryBody[0] === 'block')
+        assertStructurallySame(ordinaryBody[1].map(statement => statement[0]), ['for', 'return'])
+    },
     compoundAssignmentOperatorsAndLocations: () => {
         const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {

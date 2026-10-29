@@ -4,7 +4,7 @@
  *
  * ```text
  * module ::= import* moduleStatement* last eof
- * moduleStatement ::= const | let | while | bodyNameStatement
+ * moduleStatement ::= const | let | while | for | bodyNameStatement
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
@@ -35,10 +35,12 @@
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
- * blockContents ::= simpleStatement* (terminator | while [blockContents])
+ * blockContents ::= simpleStatement* (terminator | (while | for) [blockContents])
  * statement ::= const | 'if' '(' value ')' block | let
- *             | while | bodyNameStatement
+ *             | while | for | bodyNameStatement
  * while  ::= 'while' '(' value ')' loopBlock
+ * for    ::= 'for' '(' [forInitializer] ';' [value] ';' [nameExpression] ')' loopBlock
+ * forInitializer ::= ('const' | 'let') bindingTarget '=' value | nameExpression
  * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
@@ -46,14 +48,15 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' blockContents
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | loopIfStatement | whileStatement
+ * loopStatement ::= const | let | loopIfStatement | whileStatement | forStatement
  *                 | 'break' end | 'continue' end | 'return' value end
  *                 | 'throw' value end | loopSwitch | bodyNameStatement
  * loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
  * loopCase ::= ( 'case' value ':' )+ loopBlock
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
  * loopElse ::= loopBlock | loopIfStatement
- * bodyNameStatement ::= id ( assignmentOperator value | <the rest of the value the name begins> ) end
+ * nameExpression ::= id ( assignmentOperator value | <the rest of the value the name begins> )
+ * bodyNameStatement ::= nameExpression end
  * func   ::= [ '...' id ] ')' '=>' body
  * afterValue ::= ',' [ parenItems ] ')' arrowOrRest | ')' arrowOrRest
  *              | '=' value [ ',' [ names ] ] ')' '=>' body
@@ -147,7 +150,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator } from './types.ts'
+ * @import { AssignmentOperator, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -209,7 +212,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else', 'break', 'continue'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -228,14 +231,14 @@ export const sym = alphabet.encode
 /**
  * One token as the parser's input: the symbol of its kind — of its word,
  * for a keyword with its own symbol, and `keyword` for any other word
- * `fjs/js/keywords` reserves, `var` or `for` — with the whole token as
+ * `fjs/js/keywords` reserves, such as `var` — with the whole token as
  * metadata, so that a fold above still has its value and its position.
  *
  * `keyword` stands wherever {@link identifier} does, so a reserved word is
  * a key and a property name as in JavaScript, and a binding or a reference
  * the fold refuses at the word; and it is kept out of
  * {@link assignable}, the words a statement may begin with, so `else`,
- * `var` or `for` opening a statement is refused at the word, as no rule
+ * or `var` opening a statement is refused at the word, as no rule
  * begins with it.
  *
  * `eof` has no symbol: a stream reaching here has had it split off, and
@@ -272,6 +275,7 @@ export const identifier = /** @type {const} */ ({
     else: sym('else'),
     let: sym('let'),
     while: sym('while'),
+    for: sym('for'),
     break: sym('break'),
     continue: sym('continue'),
     switch: sym('switch'),
@@ -1198,7 +1202,7 @@ export const terminator = /** @type {const} */ ({
  * statement, {@link bodyNameStatement}: the keywords above each open a
  * statement of their own, and a name is none of them.
  *
- * The non-loop prefix excludes `while`, which `blockContents` reads once
+ * The non-loop prefix excludes `while` and `for`, which `blockContents` reads once
  * before deciding whether more body statements follow.
  * @type {SimpleStatement}
  */
@@ -1210,7 +1214,7 @@ export const simpleStatement = () => ['const', {
 }]
 
 /** A body statement, with ordinary loops allowed before later statements. @type {Statement} */
-export const statement = () => ['const', { ...simpleStatement()[1], while: whileStatement }]
+export const statement = () => ['const', { ...simpleStatement()[1], while: whileStatement, for: forStatement }]
 
 /**
  * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
@@ -1259,7 +1263,10 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
 export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries(
     definedEntries(assignmentOperators).map(([key, [operator]]) => [key, sym(operator)])))
 
-export const bodyNameStatement = /** @type {const} */ ([assignable, { assign: [assignmentOperator, value], ...arrowOrRest }, end])
+/** The assignment or call shared by ordinary statements and `for` clauses. @type {NameExpression} */
+export const nameExpression = [assignable, { assign: [assignmentOperator, value], ...arrowOrRest }]
+
+export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
 
 /**
  * A statement of a loop's block: a declaration, a normal conditional, a
@@ -1285,6 +1292,7 @@ export const loopStatement = () => ['const', {
     switch: loopSwitch,
     throw: terminator.throw,
     while: whileStatement,
+    for: forStatement,
 }]
 
 /**
@@ -1315,21 +1323,28 @@ export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock,
 /** The plain loop statement shared by module and function bodies. @type {WhileStatement} */
 export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
 
+/** Classic `for` headers have explicit separators; clauses do not use ASI. @type {ForStatement} */
+export const forStatement = [sym('for'), sym('('), option({
+    const: [sym('const'), bindingTarget, sym('='), value],
+    let: [sym('let'), bindingTarget, sym('='), value],
+    name: nameExpression,
+}), sym(';'), option(value), sym(';'), option(nameExpression), sym(')'), loopBlock]
+
 /**
- * A body has non-loop statements followed by a terminator or a while. The
- * while may be final; otherwise the remaining body uses the same rule.
- * This left-factors the while token instead of adding it to two LL(1) branches.
- * Source admission decides whether a final while really cannot fall through.
+ * A body has non-loop statements followed by a terminator or a loop. The
+ * loop may be final; otherwise the remaining body uses the same rule.
+ * This left-factors each loop token instead of adding it to two LL(1) branches.
+ * Source admission decides whether a final loop really cannot fall through.
  * @type {BlockContents}
  */
 export const blockContents = () => ['const', [repeatFrom0(simpleStatement), {
-    end: terminator, loop: [whileStatement, option(blockContents)],
+    end: terminator, loop: [whileStatement, option(blockContents)], for: [forStatement, option(blockContents)],
 }]]
 
 /**
  * A function's block body: `{ const x = 1; return value; }` — its
  * {@link blockContents}, ending in an ordinary terminator or a candidate
- * terminal while. Source admission checks the candidate's literal condition
+ * terminal loop. Source admission checks the candidate's literal condition
  * and transfer targets. A switch holds the rest of the body where it has no
  * `default`
  * ([spec: functions](../../../../spec/functions/README.md)).
@@ -1406,7 +1421,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, while: whileStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

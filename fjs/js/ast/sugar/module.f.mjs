@@ -7,7 +7,7 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceSwitch, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Task } from '../task/types.ts'
  * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, ReferenceTask, Results, Work } from './private.ts'
@@ -664,6 +664,29 @@ const statefulSwitch = (source, environment, context) => {
 }
 
 /**
+ * Run a for's resolved update before its continues. Inner loops and functions
+ * own their transfers; resolved header identities survive body shadowing.
+ * @type {(block: SourceBlock, step: SourceBlock) => SourceBlock}
+ */
+const continuedSteps = (block, step) => ({
+    ...block,
+    statements: block.statements.flatMap(/** @type {(statement: SourceStatement) => readonly SourceStatement[]} */ (statement => {
+        if (statement[0] === 'continue') { return [...step.statements, statement] }
+        if (statement[0] === 'if') {
+            return [['if', statement[1], continuedSteps(statement[2], step), continuedSteps(statement[3], step)]]
+        }
+        if (statement[0] === 'switch') {
+            const region = statement[1]
+            return [['switch', { ...region,
+                cases: region.cases.map(arm => ({ ...arm, body: continuedSteps(arm.body, step) })),
+                otherwise: continuedSteps(region.otherwise, step),
+            }]]
+        }
+        return [statement]
+    })),
+})
+
+/**
  * Ordinary and terminal loops share state and transfer normalization. Admission
  * has proved a terminal loop's literal condition and absence of an owning
  * break, so it has no normal results or condition-false continuation.
@@ -678,7 +701,12 @@ const normalizedLoop = (loop, environment, context, terminal) => {
     /** @type {NonNullable<Context['loop']>} */
     const transfer = { target: loop.target, sources }
     const condition = normalizedState(scope, context)(loop.condition)
-    const step = normalizedBlock(loop.body, condition.environment, { ...context, loop: transfer, breakRegion: transfer }, sources)
+    let sourceBody = loop.body
+    if (loop.step !== undefined) {
+        const continued = continuedSteps(loop.body, loop.step)
+        sourceBody = { ...continued, statements: [...continued.statements, ...loop.step.statements] }
+    }
+    const step = normalizedBlock(sourceBody, condition.environment, { ...context, loop: transfer, breakRegion: transfer }, sources)
     /** @type {Block} */
     const continuing = step.block.exit[0] === 'yield'
         ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
