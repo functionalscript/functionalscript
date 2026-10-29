@@ -132,7 +132,7 @@ shape instead. The node is that shape.
       proposer, and names one designer; whether the designer's own decision
       stands as the record, or §12 names how a sole designer's proposal is
       approved, is the owner's call, written here.
-- [ ] The runtime body `runtime.in` and its proof against the host's `in`:
+- [x] The runtime body `runtime.in` and its proof against the host's `in`:
       every admitted key on an object, an array and a function, an entry
       holding `undefined`, and the throw on `null`, `undefined` and each
       primitive; `npm run gen` for the generated runtime.
