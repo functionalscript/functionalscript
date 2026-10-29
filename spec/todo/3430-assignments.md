@@ -1,7 +1,9 @@
 ## Additional Assignment Operators
 
 **Priority:** P4
-**Status:** wip — compound-assignment desugaring approved; implementation in progress
+**Status:** wip — compound assignments implemented
+([variables](../bindings/variables/README.md#compound-assignments)); prefix and
+postfix updates remain open
 
 ### Problem
 
@@ -139,25 +141,25 @@ statement-only positions.
 ### Tasks
 
 - [x] Record explicit language-design approval of all compound assignments.
-- [ ] Parse all identifier-target compound assignments with each operator's
+- [x] Parse all identifier-target compound assignments with each operator's
   diagnostic location, preserving ordinary statement termination.
-- [ ] Resolve the implicit read and final write under existing binding and
+- [x] Resolve the implicit read and final write under existing binding and
   capture rules, and lower eager operators to assignment plus the existing
   binary operation and logical operators to conditional writes.
-- [ ] Prove every eager operator against the expanded spelling, covering
+- [x] Prove every eager operator against the expanded spelling, covering
   string `+=`, Number and supported BigInt operations, negative Number
   operands, shift-count behavior and existing failure cases such as mixed
   numeric kinds and BigInt `>>>=`.
-- [ ] Prove both paths of each logical assignment: skipped throwing operands,
+- [x] Prove both paths of each logical assignment: skipped throwing operands,
   selected operands evaluated once, preserved value identity and truthiness
   versus nullishness for `false`, zero, empty strings, `NaN`, `null` and
   `undefined`. Check source admission in an unreachable right operand and
   confirm that the skipped normalized branch performs no write.
-- [ ] Prove operand evaluation once and in order, and assignments in module,
+- [x] Prove operand evaluation once and in order, and assignments in module,
   function, guard and loop bodies, with termination and precedence examples.
-- [ ] Prove refusals for const/import targets, undeclared or premature names,
+- [x] Prove refusals for const/import targets, undeclared or premature names,
   reassigned captures, property mutation and expression-position assignment.
-- [ ] Update the implemented variable specification, examples and the
+- [x] Update the implemented variable specification, examples and the
   refused-construct inventory after the feature lands; retain this issue while
   update operators remain open.
 

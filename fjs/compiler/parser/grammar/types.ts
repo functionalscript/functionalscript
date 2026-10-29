@@ -487,8 +487,10 @@ export type Statement = () => readonly ['const', {
     readonly name: BodyNameStatement
 }]
 
-/** A body's statement that begins with a name: the name, then `=` and the assigned value or the rest of the value the name begins, and {@link End}. */
-export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [number, Value] }, End]
+/** Plain and compound assignment spellings read as one token. */
+export type AssignmentOperator = { readonly [K in keyof typeof import('../../ast/module.f.js').assignmentOperators]: number }
+/** A body's statement that begins with a name: the name, then an assignment operator and value or the rest of the value the name begins, and {@link End}. */
+export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [AssignmentOperator, Value] }, End]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {

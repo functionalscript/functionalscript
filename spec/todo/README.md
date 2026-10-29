@@ -202,7 +202,10 @@ information — see [serialization](../design/serialization.md) and
 
 ### 3.4. Syntactic Sugar
 
-1. [ ] [assignments](./3430-assignments.md)
+1. [ ] [assignments](./3430-assignments.md) — all compound assignments to
+   mutable identifiers implemented as statements
+   ([variables](../bindings/variables/README.md#compound-assignments)); prefix
+   and postfix updates remain open.
 2. [x] [Untagged template literals](../values/template-literals/README.md), lowered to
    the existing `String` and binary `+` operations.
 3. [ ] `async`/`await`. Depends on the implementation of promises.

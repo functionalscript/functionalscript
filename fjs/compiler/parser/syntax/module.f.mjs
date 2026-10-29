@@ -47,6 +47,7 @@ import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
+import { assignmentOperators } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
@@ -1312,7 +1313,7 @@ const toModuleStatement = ([kind, branch]) => {
 
 /**
  * A body's statement that begins with a name, tagged: the assignment,
- * `name = value end`, which begins at the name, where `=` follows it, and
+ * `name op= value end`, which begins at the name, where an assignment follows it, and
  * otherwise a call statement, {@link discarded}.
  *
  * @type {(node: Children<BodyNameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
@@ -1323,8 +1324,13 @@ const toBodyNameStatement = ([name, rest, end]) => {
     if (tag !== 'assign') {
         return symbol({ id: 'named', statement: ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), end)] })
     }
-    const [, v] = unmapped(assigned)
-    return symbol({ id: 'named', statement: ['assign', { start: token, semicolon: ended(end), name: token, value: nodeAt(v) }] })
+    const [op, v] = unmapped(assigned)
+    const [kind, operatorToken] = unmapped(op)
+    const operator = assignmentOperators[kind][1]
+    return symbol({ id: 'named', statement: ['assign', {
+        start: token, semicolon: ended(end), name: token, value: nodeAt(v),
+        operator: operator === null ? null : { tag: operator, token: tokenAt(operatorToken) },
+    }] })
 }
 
 /**

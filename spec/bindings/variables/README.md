@@ -89,6 +89,53 @@ parameter is a variable too, fixed or rest.
   variables, at module level as well as in a function body
   ([loops](../../control-flow/loops/README.md)).
 
+## Compound assignments
+
+A compound assignment is an assignment statement to a mutable identifier,
+under the same declaration, capture and statement-termination rules as `=`.
+Arithmetic and bitwise forms reuse the corresponding binary operation:
+
+```js
+let n = 8n;
+n >>= 1n; // n = n >> 1n
+n += 2n; // n = n + 2n
+```
+
+The eager forms are `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`,
+`>>>=`, `&=`, `^=` and `|=`. Read the current target value first, evaluate
+the right operand once, apply the existing binary operator, then establish
+the new value. Existing string, Number and BigInt semantics and failures
+apply without new coercions: `+=` can concatenate strings, and `>>>=` still
+does not shift a BigInt.
+
+Logical assignments read the target before deciding whether to evaluate the
+right operand and write:
+
+| Form | Evaluate and assign the right operand when |
+| --- | --- |
+| `a &&= b` | `a` is truthy |
+| `a \|\|= b` | `a` is falsy |
+| `a ??= b` | `a` is `null` or `undefined` |
+
+The skipped path performs neither a right-operand evaluation nor a write,
+preserving the existing value and identity. On the selected path, assign the
+right operand's value without converting it to a boolean. `a ??= b` differs
+from `a = a ?? b`, which always writes; similarly for `&&=` and `||=`.
+
+Targets remain mutable identifiers, including where a logical write would be
+skipped. Thus `const a = 1; a ??= 2;` is refused by the static assignment rule,
+although JavaScript can execute it without writing. Every source operand is
+checked before desugaring, including an unreachable right operand, and a held
+closure over a potentially reassigned binding is refused even if the logical
+write is never reached. Property mutation and assignment expressions, such as
+`o.a += 1` or `f(a += 1)`, remain refused. Prefix and postfix updates are
+separate constructs and remain outside the language.
+
+Compound syntax is expanded by source desugaring into the existing binary
+operations and immutable binding versions, with conditional regions for the
+logical forms. No compound-assignment node reaches EDAG or the VM, and a
+serializer may write the expanded spelling.
+
 ## Capture compatibility
 
 General bindings replace the earlier treatment of a loop's final variable as an
