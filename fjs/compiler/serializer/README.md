@@ -166,7 +166,16 @@ allocations, creating-iteration captures, fresh rest and reached failures keep
 their iteration lifetime. Earlier zero-input and ordinary scalar divergent
 spellings stay unchanged, as do default layouts and logical graph contracts.
 Direct and conditional continuations preserve exact first-parse graph/text
-cycles; general lazy regions and other terminal exits keep their admission.
+cycles; general lazy regions keep their admission.
+
+These terminal decisions also admit explicit throw leaves. A selected throw
+evaluates its required prefix and payload, then exits without a state or result
+write. Nonempty invocation inputs may mix throw and continuation without a
+normal completion; empty inputs use this plan only when a normal result is
+also present. Existing zero-input throw/continue and ordinary scalar spellings
+keep their earlier plans. Mixed return/throw/continue decisions preserve
+iteration captures, fresh rest, reached evaluation order and exact graph/text
+cycles from the first source parse. Default layouts remain unchanged.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result

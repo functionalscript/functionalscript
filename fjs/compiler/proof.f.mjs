@@ -724,6 +724,20 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        explicitThrowTailLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a+1);};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5===0){throw $6;}else{const $7=[$5-1,$6+1];$4=$7;continue;}}return $4;};export default $0;'],
+                ['const f=(n,a)=>{if(n!==0){return f(n-1,a+1);}throw a;};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5!==0){const $7=[$5-1,$6+1];$4=$7;continue;}else{throw $6;}}return $4;};export default $0;'],
+                ['const f=(n,...xs)=>{if(n===0){throw xs;}return f(n-1,...xs);};export default f;', 'const $0=($1,...$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5===0){throw $6;}else{const $7=[$5-1,...$6];const $8=[$7[0],(($9,$10,$11)=>$9.slice($10,$11))($7,1)];$4=$8;continue;}}return $4;};export default $0;'],
+                ['const f=(...xs)=>{if(xs[0]===0){throw xs;}return f(xs[0]-1,...xs.slice(1));};export default f;', 'const $0=(...$1)=>{const $2=$1;let $3=$2;while(true){const $4=$3;if($4[0]===0){throw $4;}else{const $5=[$4[0]-1,...$4.slice(1)];const $6=(($7,$8,$9)=>$7.slice($8,$9))($5,0);$3=$6;continue;}}return $3;};export default $0;'],
+                ['export default test=>{const f=()=>{if(test()===0){throw 7;}return test()===1?0:f();};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if($0()===0){throw 7;}else{if($0()===1){const $3=0;$2=$3;break;}else{continue;}}}return $2;};return $1;};'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         continuingOnlyTailLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=(a,b)=>f(b,a);export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$6,$5];$4=$7;continue;}return $4;};export default $0;'],

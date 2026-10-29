@@ -235,7 +235,17 @@ retain allocations, captures, own-function identity and fresh rest, including
 when reached work fails. Earlier zero-input and ordinary scalar divergent
 source spellings, default layouts and logical graph contracts stay unchanged.
 Direct and conditional continuations keep exact first-parse graph/text cycles;
-general lazy regions and other terminal exits retain their admission.
+general lazy regions retain their admission.
+
+Terminal decisions may also select an explicit throw after their required
+work. The payload evaluates once in its selected iteration before leaving the
+function, without writing loop state or a normal result. Nonempty inputs may
+mix throwing and continuing paths; empty inputs enter this plan only when
+normal completion is also possible. Existing zero-input throw/continue and
+ordinary scalar layouts remain unchanged. Mixed return/throw/continue paths
+retain evaluation order, held iteration captures, fresh rest and exact
+first-parse graph/text cycles; logical function text and default target layouts
+keep their existing contracts.
 
 ## A function that names itself
 

@@ -45,6 +45,76 @@ const lazyPrefixFunction = () => {
 }
 
 export const proof = /** @type {const} */ ({
+    explicitThrowRootsKeepFirstParseFixedPoints: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a+1);};export default f;',
+            'const f=(n,a)=>{if(n!==0){return f(n-1,a+1);}throw a;};export default f;',
+            'const f=(n,a)=>{const pair=[n,a];const read=()=>pair;if(read()[0]===0){throw pair;}return f(n-1,pair[1]+1);};export default f;',
+            'const f=(n,...xs)=>{if(n===0){throw xs;}return f(n-1,...xs);};export default f;',
+            'const f=(n,...xs)=>{if(n!==0){return f(n-1,...xs);}throw xs;};export default f;',
+            'const f=(...xs)=>{if(xs[0]===0){throw xs;}return f(xs[0]-1,...xs.slice(1));};export default f;',
+            'const f=(...xs)=>{if(xs[0]!==0){return f(xs[0]-1,...xs.slice(1));}throw xs;};export default f;',
+            'const f=(n,a)=>{if(n===0){throw a;}return n<0?a:f(n-1,a+1);};export default f;',
+            'const f=(n,...xs)=>{if(n===0){throw xs;}return n<0?xs:f(n-1,...xs);};export default f;',
+            'const f=(...xs)=>{if(xs[0]===0){throw xs;}return xs[0]<0?xs:f(xs[0]-1,...xs.slice(1));};export default f;',
+            'export default test=>{const f=()=>{if(test()===0){throw 7;}return test()===1?0:f();};return f;};',
+            'export default test=>{const f=()=>{if(test()!==0){return test()===1?0:f();}throw 7;};return f;};',
+        ])) {
+            const original = graph(source)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            assert(output.includes('throw '), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            const logical = fromFast(assertOk(toFast(original)))
+            assertStructurallySame(assertOk(identityAnalysis(fromFast(assertOk(toFast(logical))))), assertOk(identityAnalysis(logical)), source)
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+    },
+    explicitThrowRootsKeepReachedFailuresAndNormalResults: () => {
+        for (const source of /** @type {const} */ ([
+            'const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a+1);};export default f(3,7);',
+            'const f=(n,a)=>{if(n!==0){return f(n-1,a+1);}throw a;};export default f(3,7);',
+            'const f=(n,...xs)=>{if(n===0){throw xs;}return f(n-1,...xs);};export default f(3,7,9);',
+            'const f=(...xs)=>{if(xs[0]===0){throw xs;}return f(xs[0]-1,...xs.slice(1));};export default f(3,7,9);',
+            'const f=(n,a)=>{const required=null.prefix;if(n===0){throw a;}return f(n-1,a);};export default f(3,7);',
+            'const f=(n,a)=>{if(null.condition){throw a;}return f(n-1,a);};export default f(3,7);',
+            'const f=(n,a)=>{if(n===0){throw null.payload;}return f(n-1,a);};export default f(3,7);',
+            'const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a,null.ignored);};export default f(3,7);',
+            'const f=(n,a)=>{if(n===0){throw a;}return f(n-1,a,...null);};export default f(3,7);',
+        ])) {
+            const original = graph(source)
+            const expected = failure(original)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            const normalized = graph(output)
+            const canonical = assertOk(tryStringify(normalized))
+            let current = normalized
+            for (let generation = 0; generation < 7; ++generation) {
+                assertStructurallySame(failure(current), expected, source)
+                assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
+                assertEq(assertOk(tryStringify(current)), canonical, source)
+                current = graph(canonical)
+            }
+        }
+        for (const [source, expected] of /** @type {const} */ ([
+            ['const f=(n,a)=>{if(n===0){throw a;}return n<0?a:f(n-1,a+1);};export default f(-1,7);', 7],
+            ['const f=(n,...xs)=>{if(n===0){throw xs;}return n<0?xs[0]:f(n-1,...xs);};export default f(-1,7);', 7],
+            ['const f=(...xs)=>{if(xs[0]===0){throw xs;}return xs[0]<0?xs[1]:f(xs[0]-1,...xs.slice(1));};export default f(-1,7);', 7],
+            ['const make=test=>{const f=()=>{if(test()===0){throw 7;}return test()===1?0:f();};return f;};export default make(()=>1)();', 0],
+        ])) {
+            const original = graph(source)
+            const output = assertOk(tryStringify(original))
+            assert(output.includes('while('), output)
+            assertEq(evaluate(original), expected)
+            assertEq(evaluate(graph(output)), expected)
+        }
+    },
     continuingOnlyRootsKeepFirstParseFixedPoints: () => {
         for (const source of /** @type {const} */ ([
             'const f=(a,b)=>f(b,a);export default f;',

@@ -227,9 +227,19 @@ Fixed multi-input and observed-rest roots reuse the same packed/scalar
 work and arguments finish before each state write; immutable snapshots retain
 captures and allocations, and rest arrays remain fresh. Earlier zero-input and
 ordinary scalar divergent layouts keep their existing path. Default preparation
-and logical graph contracts stay unchanged, as do the admission of general
-lazy prefixes and other terminal exits. Source graph/text cycles remain exact
-from the first parse.
+and logical graph contracts stay unchanged, as does the admission of general
+lazy prefixes. Source graph/text cycles remain exact from the first parse.
+
+The terminal predicate also admits explicit throw leaves while requiring an
+exact continuation. Empty semantic inputs additionally require a normal
+completion leaf, preserving earlier zero-input throw/continue and divergent
+layouts. Existing preparation retains each selected throw after its required
+work and evaluates its payload once before leaving the function. The exit
+neither writes state nor fabricates a normal result; mixed normal leaves
+continue to write the existing result slot. Shared allocations, iteration
+captures, fresh rest and reached failure order remain in their lexical region.
+Default preparation, logical graph contracts and exact first-parse graph/text
+cycles are unchanged.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation

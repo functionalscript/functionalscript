@@ -45,6 +45,71 @@ const sourceFunction = fn => {
 }
 
 export const proof = {
+    sourceTerminalThrowsExitWithoutWritingStateOrResultSlots: () => {
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const state = id(0), other = id(1), result = id(2), pair = id(3)
+        for (const empty of /** @type {const} */ ([false, true])) {
+            /** @type {NormalValue} */
+            const allocation = ['array', empty ? [false] : [['ref', state], ['ref', other]]]
+            /** @type {NormalValue} */
+            const condition = ['.', ['ref', pair], 0]
+            /** @type {NormalValue} */
+            const payload = ['array', [['ref', pair]]]
+            /** @type {NormalBlock} */
+            const failed = { statements: [], exit: ['throw', payload] }
+            /** @type {NormalBlock} */
+            const completed = { statements: [], exit: ['break', target, [['ref', pair]]] }
+            /** @type {readonly NormalValue[]} */
+            const next = empty ? [] : [['ref', other], ['ref', state]]
+            /** @type {NormalBlock} */
+            const continued = { statements: [], exit: ['continue', target, next] }
+            /** @type {NormalBlock} */
+            const selected = empty ? { statements: [['if', [], condition, completed, continued]], exit: ['yield', []] } : continued
+            for (const throwFirst of /** @type {const} */ ([false, true])) {
+                /** @type {Loop} */
+                const loop = { target, parameters: empty ? [] : [state, other], initial: empty ? [] : [2, 3], results: [result], body: {
+                    statements: [['define', pair, allocation, 'required'],
+                        ['if', [], condition, throwFirst ? failed : selected, throwFirst ? selected : failed]], exit: ['yield', []],
+                } }
+                const source = prepare({ statements: [['loop', loop]], exit: ['yield', [['ref', result]]] }, { sourceLoops: true })
+                const physical = source.statements.at(-1)
+                assert(physical !== undefined && physical[0] === 'while')
+                assertEq(physical[1].condition, true)
+                assertEq(physical[1].result, result)
+                assertEq(physical[1].mutable, true)
+                assertEq(source.statements.length, empty ? 1 : 2)
+                const prefix = physical[1].body.statements[loop.parameters.length]
+                assert(prefix[0] === 'define')
+                assertEq(prefix[1], pair)
+                assertStructurallySame(prefix[2], allocation)
+                const terminal = physical[1].body.statements.at(-1)
+                assert(terminal !== undefined && terminal[0] === 'if')
+                assertStructurallySame(terminal[1], condition)
+                const thrown = throwFirst ? terminal[2] : terminal[3]
+                assertEq(thrown.statements.length, 0)
+                assertStructurallySame(thrown.exit, ['throw', payload])
+                const resumed = throwFirst ? terminal[3] : terminal[2]
+                let step = resumed
+                if (empty) {
+                    const nested = resumed.statements[0]
+                    assert(nested[0] === 'if')
+                    step = nested[3]
+                    const write = nested[2].statements[1]
+                    assert(write[0] === 'write')
+                    assertEq(write[1], physical[1].slot)
+                } else {
+                    const established = resumed.statements[0], write = resumed.statements[1]
+                    assert(established[0] === 'define' && write[0] === 'write')
+                    assertStructurallySame(established[2], ['array', next])
+                    assertEq(write[1], physical[1].slot)
+                    assertStructurallySame(write[2], ['ref', established[1]])
+                }
+                assertEq(step.statements.length, empty ? 0 : 2)
+                assertEq(step.exit[0], 'continue')
+                assertEq(step.exit[1], target)
+            }
+        }
+    },
     sourceContinuingOnlyTreesPackInputsBeforeTheStateWrite: () => {
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
         const state = id(0), other = id(1), result = id(2), pair = id(3)

@@ -251,8 +251,17 @@ rest and reached failures keep
 their existing contracts. Earlier zero-input and ordinary scalar divergent
 source spellings remain unchanged. Direct and conditional continuations keep
 exact first-parse graph/text cycles, with unchanged default layouts and logical
-graph contracts. General lazy regions and other terminal exits retain their
-previous admission.
+graph contracts. General lazy regions retain their previous admission.
+
+Terminal decisions also retain explicit throw leaves after required prefixes.
+A selected throw evaluates its payload once and exits without updating state
+or writing a normal result. Nonempty inputs may mix throws and exact
+continuations without normal completion; empty-input mixed return/throw/continue
+trees reuse the private result slot. Earlier zero-input throw/continue and
+ordinary scalar plans retain their layouts. Deep transfers followed by the
+selected explicit throw, reached failure order, held iteration captures, fresh
+rest and exact first-parse graph/text cycles use existing preparation. Default
+layouts and logical graph contracts remain unchanged.
 
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or
