@@ -7,7 +7,7 @@
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
-import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
+import { repeat as monoidRepeat } from '../../common/monoid/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
 
 /**
@@ -123,6 +123,11 @@ export const includes =
     v =>
     a.includes(v)
 
+/**
+ * Repeats a singleton array under concatenation, using monoid doubling rather
+ * than materializing a lazy list. Finite nonpositive counts give an empty
+ * array; positive fractional counts round up, as the list countdown did.
+ */
 export const repeat =
     /**
      * @template {number} N
@@ -134,7 +139,10 @@ export const repeat =
      * @param {T} v
      * @return {FixedArray<N, T>}
      */
-    v => /**@type{any}*/(toArray(listRepeat(v)(n)))
+    v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
+        identity: /** @type {readonly T[]} */ ([]),
+        operation: a => b => [...a, ...b],
+    })(BigInt(n <= 0 ? 0 : Math.ceil(n)))([v]))
 
 /**
  * The array without repeated items, each kept at its first position. Items are

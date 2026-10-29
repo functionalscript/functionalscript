@@ -125,7 +125,32 @@ export const proof = {
     },
     repeat: [
         () => assertStructurallySame(repeat(0)('x'), []),
-        () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x'])
+        () => assertStructurallySame(repeat(1)('x'), ['x']),
+        () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x']),
+        () => {
+            const value = { x: 1 }
+            const result = repeat(13)(value)
+            assertEq(result.length, 13)
+            assert(result.every(item => item === value))
+        },
+        () => {
+            const result = repeat(4)(undefined)
+            assertStructurallySame(result, [undefined, undefined, undefined, undefined])
+            assertEq(Object.keys(result).length, 4)
+        },
+        () => {
+            const zero = repeat(0)
+            const one = repeat(1)
+            assert(zero('x') !== zero('x'))
+            assert(one('x') !== one('x'))
+        },
+        () => {
+            // Widen the counts: FixedArray intentionally admits only natural literals.
+            const nonpositive = /** @type {number} */ (-2)
+            const fractional = /** @type {number} */ (2.5)
+            assertStructurallySame(repeat(nonpositive)('x'), [])
+            assertStructurallySame(repeat(fractional)('x'), ['x', 'x', 'x'])
+        },
     ],
     dedup: [
         () => assertStructurallySame(dedup([]), []),
