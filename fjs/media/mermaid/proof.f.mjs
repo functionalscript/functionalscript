@@ -31,6 +31,8 @@ export const proof = {
         ],
     })),
     header: () => assertStructurallySame(tryFlowchart('flowchart LR\n'), ok({ direction: 'LR', nodes: [], edges: [] })),
+    quotedNodePunctuation: () => assertStructurallySame(tryFlowchart('flowchart LR\na["f(x)[y]{z}"]\n'),
+        ok({ direction: 'LR', nodes: [{ id: 'a', label: 'f(x)[y]{z}' }], edges: [] })),
     refuses: {
         empty: () => assertEq(refusal(''), 'a diagram other than a flowchart with a direction'),
         sequence: () => assertEq(refusal('sequenceDiagram\n    a->>b: x\n'), 'a diagram other than a flowchart with a direction'),
@@ -62,6 +64,14 @@ export const proof = {
         quotedEdgeLabel: () => assertEq(refusal('flowchart LR\na -->|"copy"| b\n'), 'line 2: a label holding ", which Mermaid does not show as written'),
         quoteInLabel: () => assertEq(refusal('flowchart LR\na["x"y"]\n'), 'line 2: a label holding ", which Mermaid does not show as written'),
         edgeMarkup: () => assertEq(refusal('flowchart LR\na -->|a&b| b\n'), 'line 2: a label holding &, which Mermaid does not show as written'),
+        edgeDelimiters: () => {
+            for (const delimiter of '()[]{}') {
+                for (const arrow of ['-->', '<-->']) {
+                    assertEq(refusal(`flowchart LR\na ${arrow}|f${delimiter}x| b\n`),
+                        `line 2: an unquoted edge label holding the syntax delimiter ${delimiter}`)
+                }
+            }
+        },
         // Mermaid draws at most `maxEdges` arrows; one more is refused.
         tooManyArrows: () => {
             const chain = Array.from({ length: maxEdges + 1 }, (_, i) => `n${i} --> n${i + 1}`).join('\n')

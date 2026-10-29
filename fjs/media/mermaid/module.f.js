@@ -27,6 +27,8 @@
  * drawn as its spelling. A
  * node labelled twice is refused unless both labels agree. Mermaid's statement
  * keywords `end`, `classDef`, `class`, `style` and `subgraph` are no names.
+ * Unquoted edge labels also refuse `(`, `)`, `[`, `]`, `{` and `}`, which
+ * Mermaid reads as syntax; quoted node labels may hold those characters.
  *
  * @module
  *
@@ -114,6 +116,8 @@ const arrowAt = (line, at) => {
     if (line[Number(after)] !== '|') { return ok([[both, ''], after]) }
     const label = labelAt(line, after + 1, '|')
     if (label[0] === 'error') { return label }
+    const delimiter = [...label[1][0]].find(c => '()[]{}'.includes(c))
+    if (delimiter !== undefined) { return error(`an unquoted edge label holding the syntax delimiter ${delimiter}`) }
     return ok([[both, label[1][0]], label[1][1]])
 }
 

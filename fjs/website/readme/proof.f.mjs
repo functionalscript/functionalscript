@@ -157,6 +157,13 @@ export const proof = {
                         ok([fence(text, ['code', { class: 'language-mermaid' }, text])]))
                 }
             },
+            mermaidEdgeDelimiters: () => {
+                for (const label of ['f(x)', 'f[x]', 'f{x}']) {
+                    const text = `flowchart LR\na -->|${label}| b`
+                    assertStructurallySame(readmeNodes(href)([['code', 'mermaid', text]]),
+                        ok([fence(text, ['code', { class: 'language-mermaid' }, text])]))
+                }
+            },
             other: () => assertStructurallySame(readmeNodes(href)([['code', 'rust', 'let a = 1;']]),
                 ok([fence('let a = 1;', ['code', { class: 'language-rust' }, 'let a = 1;'])])),
             // Text the tokenizer refuses is not partly coloured.
