@@ -112,7 +112,7 @@ describes:
 | ID | Construct | Why |
 |---|---|---|
 | `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
-| `st.for` | `for (;;) { }` | planned ([let](./3220-let.md), "Later") |
+| `st.for` | `for (;;) { }` | planned ([for](./3270-for.md)) |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |
 | `st.switch` | a case without braces, a case path that falls through, `break` in a case outside a loop-body switch, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch directly at module level | planned ([switch](./3230-switch.md), "Later": follow-ups additive on [switch](../control-flow/switch/README.md); loop-body cases also admit switch-local `break` and enclosing-loop `continue`) |
