@@ -6,6 +6,9 @@
 
 import { concat, trampoline } from '../module.f.mjs'
 
+/** @type {<T>(a: readonly T[], b: readonly T[]) => readonly T[]} */
+const arrayConcat = (a, b) => a.length === 0 ? b : b.length === 0 ? a : [...a, ...b]
+
 /**
  * @type {<T>(list: List<T>) => readonly T[]}
  */
@@ -27,7 +30,7 @@ export const toArray = list => {
         }
 
         if (list instanceof Array) {
-            result = [...result, ...list];
+            result = arrayConcat(result, list);
             [list, tail] = [tail, null]
             continue
         }
@@ -38,7 +41,7 @@ export const toArray = list => {
             continue
         }
 
-        result = [...result, list.first];
+        result = arrayConcat(result, [list.first])
         list = list.tail
     }
     return result
