@@ -85,8 +85,9 @@ source grammar, preserving code-only JavaScript/Rust output and existing
 reifiable recursive source profiles.
 
 Other canonical invocation roots retain recursive source spelling: zero-input
-or multi-input roots outside the plain-loop plan, observed-rest roots outside
-that plan, transfers to outer loop targets and returns escaping a value region. Prefix
+or multi-input roots outside the admitted plain and terminal plans,
+observed-rest roots outside those plans, transfers to outer loop targets and
+returns escaping a value region. Prefix
 computations that create identity can remain inside an admitted one-state
 structured loop, without being copied into a
 condition or result. Broader source placement remains H work. The source
@@ -114,8 +115,9 @@ copying prevents duplicated calls or allocations.
 Independent result storage inside a breaking loop would introduce an aggregate
 result helper on the first source parse and split it on the next. The unchanged
 slot instead establishes the canonical scalar helper on the first parse, so
-subsequent graph/text cycles stay exact. Other zero-input normal-result shapes
-and observed-rest roots outside the plain plan retain their existing fallback
+subsequent graph/text cycles stay exact. Zero-input normal-result shapes and
+observed-rest roots outside the admitted plain and terminal plans retain their
+existing fallback
 and remain [H](../../todo/general-loops-and-tail-calls.md) work.
 
 Rest-free fixed multi-input roots admitted by the plain-loop plan now also
@@ -207,8 +209,8 @@ single-input source spellings stay unchanged; general lazy prefixes retain
 their existing admission. Graph/text cycles remain exact from
 the first source parse.
 
-Fixed multi-input and observed-rest roots now also retain nested terminal trees
-that mix normal completion and continuation. Shared terminal analysis validates
+Zero-input, fixed multi-input and observed-rest roots now also retain terminal
+trees that mix normal completion and continuation. Shared terminal analysis validates
 required-definition prefixes and result-free decisions whose leaves complete
 the exact loop with one result or continue with its complete input vector.
 Source admission keeps the original body and targets. Common preparation emits
@@ -223,8 +225,21 @@ simultaneous updates, captures, fresh rest and failure order. Earlier source
 profiles and default JavaScript/function-text/Rust layouts stay unchanged; no
 logical graph metadata or selector tags are added. The first source parse
 establishes the permitted scalar helper boundary, then graph/text cycles stay
-exact. Zero-input and general lazy-region extensions retain their previous
-admission.
+exact. General lazy-region extensions retain their previous admission.
+The same path now includes a single terminal condition whose
+required prefix is shared with its test, continuing arguments or completed
+result. Arrays, objects, closures and call results are established once per
+body visit before the condition, preserving final values and held captures.
+Earlier plain and branching plans retain precedence and their source spelling.
+
+Zero-input terminal roots initialize one private result slot to `undefined`
+without adding semantic parameters or continuation values. Required unused
+arguments finish before an empty continuation, while completion writes its
+selected scalar into that slot before exiting. Empty public arity,
+own-function identity, shared allocations and held creating-iteration captures
+survive, including immediate completion. Earlier plain zero-input plans keep
+their unchanged-slot spelling. Default layouts and exact first-parse
+graph/text cycles retain their contracts.
 
 This profile is limited to canonical rest-free roots with zero or multiple fixed
 parameters or roots with observed rest. Other single-input roots, and lazy or

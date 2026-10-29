@@ -186,12 +186,17 @@ records the exact observed rest-only root target for the single-input case;
 ordinary single-input layouts, including nested functions, remain unchanged.
 Default preparation does not use the source branching plan.
 
-Nested terminal decisions may also mix normal completion and continuation in
-source fixed multi-input and observed-rest roots. Shared
+Terminal decisions may also mix normal completion and continuation in
+source zero-input, fixed multi-input and observed-rest roots. Shared
 [terminal analysis](../loop/terminal/module.f.mjs)
 validates required definitions, result-free decisions and exact loop transfers.
 Preparation keeps the body as one `while(true)` region, preserving required
 allocations shared by its tests, continued arguments and completed results.
+The same analysis admits a single terminal condition with required shared
+prefix work. Arrays, objects, closures and calls are established once before
+each test and retain their identity throughout that visit, including normal
+completion. Existing plain and branching plans take precedence and keep their
+layouts.
 
 The existing generic single-input/result layout supplies one private slot.
 For multiple semantic inputs, preparation packs the initial values into that
@@ -205,6 +210,15 @@ adding logical bindings, graph metadata or a tagged transition protocol.
 Existing source profiles and default preparation keep their layouts. The first
 source parse establishes a scalar helper boundary; graph/text cycles remain
 exact from that first parsed graph.
+
+For empty semantic inputs, the source terminal plan initializes one private
+result slot to `undefined`. Its loop context still has no input slots:
+required unused arguments run before `continue`, which neither writes the
+result slot nor invents an argument. A completed leaf writes its selected
+scalar to that slot and exits. The body has no synthetic parameter snapshots,
+so public arity stays zero and per-visit allocations, captures and own-function
+identity retain their original lifetimes. Prior plain zero-input preparation
+keeps its unchanged-slot spelling; default preparation is unaffected.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation

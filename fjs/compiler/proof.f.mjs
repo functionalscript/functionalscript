@@ -724,6 +724,30 @@ export const proof = {
                 assert(canonical.includes('while('), canonical)
             }
         },
+        zeroInputTerminalLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['export default test=>{const f=()=>{const pair=[test()];return pair[0]?f():pair;};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){const $3=[$0()];if($3[0]){continue;}else{const $4=$3;$2=$4;break;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>{const pair=[test()];return !pair[0]?pair:f();};return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){const $3=[$0()];if(!$3[0]){const $4=$3;$2=$4;break;}else{continue;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>test()?(test()?0:f()):1;return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if($0()){if($0()){const $3=0;$2=$3;break;}else{continue;}}else{const $4=1;$2=$4;break;}}return $2;};return $1;};'],
+                ['export default test=>{const f=()=>!test()?1:!test()?f():0;return f;};', 'export default ($0)=>{const $1=()=>{let $2=undefined;while(true){if(!$0()){const $3=1;$2=$3;break;}else{if(!$0()){continue;}else{const $4=0;$2=$4;break;}}}return $2;};return $1;};'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
+        sharedRequiredPrefixLoopOutput: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['const f=(n,a)=>{const pair=[n,a];return n>0?f(n-1,pair[1]+1):pair;};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$5,$6];if($5>0){const $8=[$5-1,$7[1]+1];$4=$8;continue;}else{const $9=$7;$4=$9;break;}}return $4;};export default $0;'],
+                ['const f=(n,a)=>{const pair=[n,a];return n<=0?pair:f(n-1,pair[1]+1);};export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];const $7=[$5,$6];if($5<=0){const $8=$7;$4=$8;break;}else{const $9=[$5-1,$7[1]+1];$4=$9;continue;}}return $4;};export default $0;'],
+            ])) {
+                const output = compileSource(source)('output.f.js')
+                assertEq(output, expected)
+                const canonical = fjsRoundTrip(output)
+                assert(canonical.includes('while('), canonical)
+            }
+        },
         mixedTailLoopOutput: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['const f=(n,a)=>n>0?(n===1?a:f(n-1,a+1)):a;export default f;', 'const $0=($1,$2)=>{const $3=[$1,$2];let $4=$3;while(true){const $5=$4[0];const $6=$4[1];if($5>0){if($5===1){const $7=$6;$4=$7;break;}else{const $8=[$5-1,$6+1];$4=$8;continue;}}else{const $9=$6;$4=$9;break;}}return $4;};export default $0;'],

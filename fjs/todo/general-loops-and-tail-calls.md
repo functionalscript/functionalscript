@@ -271,7 +271,7 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       exact from the first parse. Default layouts and prior ordinary single-input
       spelling stay unchanged. General lazy prefixes retain their previous
       admission. Fixed multi-input and observed-rest roots now also retain
-      nested terminal trees that mix normal completion and continuation.
+      terminal trees that mix normal completion and continuation.
       Shared terminal analysis validates required definitions, result-free
       decisions and exact transfers. Common preparation retains the body in
       `while(true)` with one private state/result slot: it packs multi-input
@@ -281,8 +281,24 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       shared by tests, transitions and results keep their iteration lifetime;
       selected work, captures, fresh rest, failure order and exact first-parse
       graph/text cycles survive. Prior source profiles, default layouts and
-      logical graph contracts remain unchanged. Zero-input and general lazy
-      regions retain their existing admission.
+      logical graph contracts remain unchanged. General lazy regions retain
+      their existing admission.
+      This path also retains a single terminal condition with required shared
+      prefix work. Each array, object, closure or call result is established
+      once before the condition and remains shared with continued arguments or
+      the completed result, including held captures after later invocations.
+      Existing plain and branching plans retain precedence, preserving prior
+      source spelling and default layouts. Reached failures, fresh rest and
+      exact first-parse graph/text cycles retain their contracts.
+      Zero-input terminal roots now use this same path, including shared
+      required prefixes and mixed completion/continuation decisions. One
+      private result slot starts as `undefined`; semantic inputs and continued
+      argument vectors stay empty. Completion writes the selected scalar to
+      that slot before leaving the loop. Empty public arity, own-function
+      identity, per-visit allocations and held captures survive, including
+      immediate completion and required unused arguments before continuation.
+      Earlier plain zero-input loops retain their unchanged-slot spelling;
+      default layouts and exact first-parse graph/text cycles remain intact.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.
