@@ -5,7 +5,7 @@
  *
  * @import { Nullable } from '../nullable/types.ts'
  * @import {Binary, Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
- * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
+ * @import { Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
 import { identity, compose } from '../function/module.f.js'
@@ -37,7 +37,7 @@ export const concat = head => tail =>
     tail === null ? head : ({ head, tail })
 
 /** @type {<T>(list: List<T>) => NotLazy<T>} */
-const trampoline = list => {
+export const trampoline = list => {
     while (typeof list === 'function') { list = list() }
     return list
 }
@@ -64,27 +64,6 @@ export const next = head => {
 
         [head, tail] = [tail, null]
     }
-}
-
-/** @type {<T>(list: List<T>) => Iterable<T>} */
-export const iterable = list => ({
-    *[Symbol.iterator]() {
-        let i = list
-        while (true) {
-            const r = next(i)
-            if (r === null) { return }
-            yield r.first
-            i = r.tail
-        }
-    }
-})
-
-const { from } = Array
-
-/** @type {<T>(list: List<T>) => readonly T[]} */
-export const toArray = list => {
-    const u = trampoline(list)
-    return u instanceof Array ? u : from(iterable(u))
 }
 
 /** @type {<I, O>(f: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */
@@ -273,24 +252,6 @@ export const fold = op => init => compose(foldScan(op)(init))(last(init))
 
 /** @type {<T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D | T} */
 export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
-
-/**
- * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
- * moment `update` rejects an item; otherwise finalizes with `end`. This is the
- * list-level `try*` sibling of {@link fold} for accumulations that can fail
- * partway through (see the `try*`/`Nullable` convention in `doc/DESIGN.md` §6).
- *
- * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
- */
-export const tryFold = ({ init, update, end }) => input => {
-    let state = init
-    for (const i of iterable(input)) {
-        const candidate = update(i, state)
-        if (candidate === null) { return null }
-        state = candidate
-    }
-    return end(state)
-}
 
 /** @type {<T>(list: List<T>) => Thunk<number>} */
 const lengthList = list => () => {
