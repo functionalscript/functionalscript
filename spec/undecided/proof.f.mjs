@@ -35,7 +35,7 @@ const refusals = {
     'op.tagged-template': '2:19 - error: unexpected token',
     'acc.property-assignment': '1:22 - error: unexpected token',
     'name.forward-reference': '1:17 - error: const not found',
-    'st.for-in-of': '1:29 - error: unexpected token',
+    'st.for-in-of': '1:42 - error: unexpected token',
     'st.do-while': '1:30 - error: unexpected token',
     'st.try': '1:19 - error: unexpected token',
     'st.debugger': '1:19 - error: unexpected token',
