@@ -12,6 +12,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+import { definedValues } from '../../types/object/module.f.mjs'
 import { parseGitHubAction } from '../common/module.f.mjs'
 import { miseEnvironment } from '../mise/module.f.mjs'
 
@@ -42,8 +43,8 @@ export const proof = {
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
         assertEq(Object.keys(generated.jobs).length, 9)
-        for (const job of Object.values(generated.jobs)) {
-            assertStructurallySame(job?.env, miseEnvironment)
+        for (const job of definedValues(generated.jobs)) {
+            assertStructurallySame(job.env, miseEnvironment)
         }
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
