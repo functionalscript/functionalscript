@@ -69,4 +69,4 @@ retain their required/lazy modes and lexical order. Owning-function returns
 from admitted operand regions are lifted by the shared FAST return pass before
 root reconstruction. Loop transfers still require a locally owned target.
 Rest/default/spread invocation transitions use the same contract as
-[tail-call analysis](../../../todo/tail-call-loop.md#general-tail-calls).
+[tail-call analysis](../../../to_fast/README.md#tail-call-eligibility).

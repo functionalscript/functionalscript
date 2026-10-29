@@ -1517,7 +1517,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/property-access/README.md)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number/README.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions/README.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
 | `new` with a built-in constructor | nothing proposes it; `Map` and `Set` are undecided in [`2360-built-in.md`](../spec/todo/2360-built-in.md) | structurally_same, keywords, map, set, demo/examples |
-| `let`, reassignment, `+=`, `while` | [`spec/todo/3220-let.md`](../spec/todo/3220-let.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
+| `let`, reassignment, `+=`, `while` | [variables](../spec/bindings/variables/README.md) and [loops](../spec/control-flow/loops/README.md); `+=` is [`3430-assignments.md`](../spec/todo/3430-assignments.md); `while` is [roadmap §3.2](../spec/todo/README.md#32-priority-2) | function, set, browser-source |
 | String escapes `\u{…}`, `\v`, `\0` | [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) | nanvm/member, demo/code, git/config |
 | A non-terminating `if`, `break`, `continue` | [roadmap §3.2](../spec/todo/README.md#32-priority-2), the guard's follow-ups; `break` and `continue` are `while`'s | set, browser-source |
 | `for … of` | nothing proposes it | result |
@@ -1621,7 +1621,7 @@ the rows' members.
 | ---: | --- |
 | 43 | `for`, `for…of` ([3270](../spec/todo/3270-for.md)) |
 | 35 | a computed member, `a[i]`, its key not `Number(…)` |
-| 34 | a general loop: an `if` with `return`, `break` or `continue` inside a `while`, a nested `while`, a second variable the loop assigns ([general loops and tail calls](../fjs/todo/general-loops-and-tail-calls.md), H) |
+| 34 | a general loop: an `if` with `return`, `break` or `continue` inside a `while`, a nested `while`, a second variable the loop assigns ([implemented loop integration](../fjs/compiler/architecture.md#loop-integration); historical refusal at this snapshot) |
 | 27 | a global name: `Object`, `Array`, `String`, `BigInt`, `JSON`, `Math`, `Boolean`, `parseFloat`, `encodeURIComponent` ([2360](../spec/todo/2360-built-in.md), [2365](../spec/todo/2365-global-names.md)) |
 | 26 | a block whose end is reachable: a body of calls with no `return` (`assert(…)`), an `if` with no terminator, `else` among them, a `switch` with no `default` or with `break` ([3210](../spec/todo/3210-reachable-block-end.md), [3230](../spec/todo/3230-switch.md)) |
 | 19 | a property name a prototype owns: `name` 12 times, `concat`, `reduce`, `sub`, `push`, `with` |

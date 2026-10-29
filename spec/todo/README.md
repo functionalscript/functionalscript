@@ -165,12 +165,12 @@ information — see [serialization](../design/serialization.md) and
    non-terminating branch with `else` ([3210](./3210-reachable-block-end.md),
    with a body that runs off its end), and the module-level guard are
    follow-ups.
-2. [x] [let](./3220-let.md) — the one-variable loop, `let x = init;` and
-   its `while`, is in the language ([loops](../control-flow/loops/README.md)); several
-   variables, `break`, `continue` and a `let` outside a loop are open in
-   the record, `for` in [3270](./3270-for.md)
-3. [x] `while` — with `let` above; `while` over several variables, and
-   `break` and `continue` in its block, are open there
+2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
+   and parameter reassignment, module variables and write-based capture rules.
+   Definite assignment and compound assignments remain separate proposals.
+3. [x] [Loops](../control-flow/loops/README.md) — zero or multiple state values,
+   conditional, sequential and nested `while`, with `break`, `continue`,
+   owning-function returns and throws. `for` remains [3270](./3270-for.md).
 4. [x] [switch](./3230-switch.md) — the terminating `switch`, every case a
    guard's block and `default` last, is in the language
    ([switch](../control-flow/switch/README.md)); surface syntax over `?:` and
