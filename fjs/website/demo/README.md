@@ -143,6 +143,9 @@ empty initial input is right only when empty is itself the point.
 `button(name, label, disabled?)` are exported by the shared demo module.
 A select accepts both options and option groups. Its label and ID use the
 local name; the control-ID boundary scopes their references when rendered.
+The shared stylesheet caps a select's border box at its containing column,
+so long options fit on phones while short selects keep their natural width.
+The menu and accessible label remain native.
 Buttons use `type="button"` and keep their semantic event names.
 
 The implementations live in `controls/`, below both the examples picker and
