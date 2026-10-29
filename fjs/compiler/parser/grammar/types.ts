@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else' | 'break' | 'continue'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -486,10 +486,10 @@ export type SimpleStatement = () => readonly ['const', {
     readonly name: BodyNameStatement
 }]
 
-/** Only a final while may omit the body's ordinary terminator. */
+/** A candidate final loop may omit the body's ordinary terminator. */
 export type BlockContents = () => readonly ['const', readonly [
     RepeatFrom<0, SimpleStatement>,
-    { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>] },
+    { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>]; readonly for: readonly [ForStatement, Option<BlockContents>] },
 ]]
 
 /** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a `let`, a loop, `while` over a {@link LoopBlock}, or what begins with a name, an assignment or a call statement, {@link BodyNameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
@@ -498,24 +498,38 @@ export type Statement = () => readonly ['const', {
     readonly if: readonly [number, number, Value, number, Block]
     readonly let: LetStatement
     readonly while: WhileStatement
+    readonly for: ForStatement
     readonly name: BodyNameStatement
 }]
 
 /** Plain and compound assignment spellings read as one token. */
 export type AssignmentOperator = { readonly [K in keyof typeof import('../../ast/module.f.js').assignmentOperators]: number }
-/** A body's statement that begins with a name: the name, then an assignment operator and value or the rest of the value the name begins, and {@link End}. */
-export type BodyNameStatement = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [AssignmentOperator, Value] }, End]
+/** The named assignment or call shared by statements and `for` clauses. */
+export type NameExpression = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [AssignmentOperator, Value] }]
+/** A body's named expression followed by its optional statement terminator. */
+export type BodyNameStatement = readonly [...NameExpression, End]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
     readonly let: LetStatement
     readonly while: WhileStatement
+    readonly for: ForStatement
     readonly name: BodyNameStatement
 }
 
 /** The plain loop form shared by module and function statements. */
 export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
+
+/** The initialized declaration or named expression before a classic `for` test. */
+export type ForInitializer = {
+    readonly const: readonly [number, BindingTarget, number, Value]
+    readonly let: readonly [number, BindingTarget, number, Value]
+    readonly name: NameExpression
+}
+
+/** Explicit separators distinguish empty clauses without automatic semicolons. */
+export type ForStatement = readonly [number, number, Option<ForInitializer>, number, Option<Value>, number, Option<NameExpression>, number, LoopBlock]
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
@@ -532,6 +546,7 @@ export type LoopStatement = () => readonly ['const', {
     readonly switch: LoopSwitch
     readonly throw: Terminator['throw']
     readonly while: WhileStatement
+    readonly for: ForStatement
 }]
 
 /** A normal loop-body switch: at least one case and an optional last default. */

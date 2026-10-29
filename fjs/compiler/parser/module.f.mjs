@@ -14,7 +14,7 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { Assignment, BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -1062,9 +1062,17 @@ const hasTargetBreak = (root, target) => {
     return false
 }
 
-/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
+/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While | For, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
 const enterLoop = (stack, scope, loop, body, terminal = false) =>
-    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, terminal }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, step: null, terminal }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+
+/** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
+const enterFor = (stack, scope, loop, body, terminal = false) => {
+    const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
+    return loopRound({ top: { for: loop, body, initial: null, terminal }, rest: stack }, regionScope(scope, empty, null), {
+        block: loop.initializer === null ? [] : [loop.initializer], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null, open: true,
+    })
+}
 
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
@@ -1086,6 +1094,7 @@ const bodyRound = (stack, scope, frame) => {
     // A loop's condition and block are source regions. Their complete
     // evidence reaches sugar before mutable loop inputs are selected.
     if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
+    if (kind === 'for' || kind === 'terminal-for') { return enterFor(stack, scope, statement, frame, kind === 'terminal-for') }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1566,15 +1575,45 @@ const returned = (stack, scope, frame, value) => {
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
+    if (hasEntry(frame, 'for')) {
+        const block = regionBlock(value)
+        if (frame.initial === null) {
+            return enterLoop({ top: { ...frame, initial: block.statements }, rest: stack }, scope, frame.for, null)
+        }
+        const outer = restoredScope(scope, false)
+        const statement = block.statements[0]
+        assert(statement[0] === 'while', 'a for resolves to one loop')
+        if (frame.terminal) {
+            const syntax = frame.for.condition
+            if (syntax[0] !== 'primitive' || syntax[1] !== true || hasTargetBreak(statement[1].body, statement[1].target)) {
+                return [stack, outer, error(foldError('terminal for must be literal true with no break targeting it')(frame.for.start))]
+            }
+            assert(frame.body !== null && !('block' in frame.body), 'a terminal loop belongs to a function block')
+            return closed(stack, outer, { statements: [...toArray(frame.body.done), ...frame.initial], exit: ['terminal-loop', statement[1]] })
+        }
+        const statements = [...frame.initial, ...block.statements]
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements, exit: ['yield', undefined] }])] }
+        if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, statements)) }
+        return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)(statements) })
+    }
     if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
+            if ('initializer' in frame.loop && frame.loop.step !== null) {
+                return loopRound({ top: { ...frame, condition: [value] }, rest: stack }, regionScope(scope, empty, null),
+                    { block: [frame.loop.step], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
+            }
             return loopRound({ top: { ...frame, condition: [value] }, rest: stack },
                 regionScope(scope, empty, null),
                 { block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
         }
+        if ('initializer' in frame.loop && frame.loop.step !== null && frame.step === null) {
+            return loopRound({ top: { ...frame, step: regionBlock(value) }, rest: stack }, regionScope(scope, empty, null),
+                { block: frame.loop.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null })
+        }
         const body = regionBlock(value)
         const outer = restoredScope(scope, false)
-        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body })
+        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body,
+            ...(frame.step === null ? {} : { step: frame.step }) })
         if (frame.terminal) {
             const syntax = frame.loop.condition
             if (syntax[0] !== 'primitive' || syntax[1] !== true || hasTargetBreak(loop.body, loop.target)) {
@@ -1599,7 +1638,7 @@ const returned = (stack, scope, frame, value) => {
         }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
-        assert(kind !== 'while' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        assert(kind !== 'while' && kind !== 'for' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
@@ -1781,6 +1820,7 @@ const loopRound = (stack, scope, frame) => {
     while (true) {
         const { block, index } = frame
         if (index === block.length) {
+            if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
             return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
@@ -1798,6 +1838,7 @@ const loopRound = (stack, scope, frame) => {
         }
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
+        if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
         if (kind === 'switch') {
             return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
                 regionScope(scope, empty, null), ['enter', statement.discriminant]]
@@ -2056,11 +2097,11 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
-        if (statement[0] === 'while') {
+        if (statement[0] === 'while' || statement[0] === 'for') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
             previous = loop
-            const [tag, evaluated] = evaluateState(enterLoop(null, scope, loop, null))
+            const [tag, evaluated] = evaluateState(statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, loop, null))
             if (tag === 'error') { return error(evaluated) }
             scope = evaluated.scope
             body = [...body, ...regionBlock(evaluated.value).statements]

@@ -186,8 +186,9 @@ information — see [serialization](../design/serialization.md) and
    level ([functions](../functions/README.md),
    [module structure](../modules/README.md)); with `if` it is what
    `assert` needs.
-7. [ ] [for](./3270-for.md) — `for…of`, the counting loop and `for (;;)`,
-   over the general `while`; the kinds `for…of` admits are open.
+7. [ ] [for](./3270-for.md) — the remaining `for…of` and `for…in` forms;
+   the kinds `for…of` admits are open. Classic counting loops and `for (;;)`
+   lower to the general `while`.
 
 ### 3.3. Priority 3
 

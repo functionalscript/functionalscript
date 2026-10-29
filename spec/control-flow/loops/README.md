@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while` bodies with conditionals and explicit exits
+**Status:** implemented — nested `while` and classic `for` bodies with conditionals and explicit exits
 
 ```js
 export default n => {
@@ -29,6 +29,47 @@ It may assign zero, one or several outer variables, including parameters.
 Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
 belong to that round, and a shadowed name denotes its own binding.
+
+## Classic `for`
+
+`for (init; condition; step) { … }` uses the same loop machinery as `while`.
+The initializer runs once before the first test. Each truthy test runs the
+body, then the step, then the next test. A falsy test skips both the body and
+step. The three header clauses are optional; an omitted condition is `true`.
+Both semicolons and the body braces are required.
+
+```js
+let word = 0;
+for (let i = 0; i < count; i += 1) {
+    word |= input[Number(first + i)] << 8 * i;
+}
+```
+
+The initializer may be one initialized `let` or `const` declaration, an
+assignment, a call statement, or empty. The step may be an assignment, a call
+statement, or empty. Existing pattern, assignment and call restrictions apply
+to those clauses. `++`, `--`, `for…of` and `for…in` remain separate features.
+The condition is an ordinary expression. Computed property keys still require
+their explicit conversion, as `Number(first + i)` does above.
+
+A header declaration belongs to the loop: it is visible in the condition,
+step and body, and ends after the loop. The body owns a nested lexical scope;
+a declaration there may shadow the header binding without changing which
+binding the step updates. Sequential loops may reuse the same header name.
+The usual write-based capture rule applies to header bindings, so a held
+function cannot capture an index reassigned by the step. A body-local const
+snapshot can preserve that round's value.
+
+An owning `continue` runs the step before testing again, including a continue
+inside a conditional or switch. An owning `break`, return or throw skips the
+step. A nested loop keeps its own transfers. Normal body completion and
+continue each run the step exactly once.
+
+The direct expansion is a lexical region containing the initializer followed
+by `while (condition) { body; step; }`, with the same step before each owning
+continue. No new graph or VM operation is needed.
+
+## Loop bodies and exits
 
 Initializers, call statements and assignment computations run when reached,
 even if nothing reads their values. For example, `r = null.x; r = 1;` throws
@@ -164,7 +205,7 @@ contain its own loops.
 
 ## A terminal unconditional loop
 
-A final `while (true)` can end a function body, including an existing
+A final `while (true)`, `for (;;)` or `for (init; true; step)` can end a function body, including an existing
 terminating guard or case block, without a following return or throw when no
 source `break` targets that loop:
 
@@ -178,7 +219,8 @@ export default n => {
 };
 ```
 
-The condition must be the boolean literal `true`, with parentheses allowed.
+The condition must be the boolean literal `true`, with parentheses allowed,
+or omitted in a `for` header.
 No constant folding or truthiness inference is used: `1`, `!false`, and a
 reference to a constant whose value is true do not qualify. An ordinary loop
 with a following return keeps its existing rules.
@@ -280,12 +322,24 @@ failing conditions, continue re-tests, multiple exits and following code.
 They compare execution and the graph/text fixed point from the first source
 parse, including the 18-state transfer and owning-return cases.
 
+The [classic-for proofs](../../../fjs/compiler/parser/for.proof.f.mjs) cover
+header scope and shadowing, optional clauses, update timing, nested transfers,
+switch continues, owning function exits, required failures and unreachable
+source checks through parsing, normalization and EDAG execution.
+
 ## Design approval
 
 The general loop and binding extension was approved by `sergey-shandar` in
 [PR #3167](https://github.com/functionalscript/functionalscript/pull/3167#issuecomment-6350745131).
 The [variables approval record](../../bindings/variables/README.md#design-approval)
 also preserves the approval of the earlier single-variable loop subset.
+
+Classic `for` desugaring was explicitly requested by `sergey-shandar` in the
+[implementation session](https://chatgpt.com/local/01a1890d-59f3-7124-b8e8-a763dc98c003).
+The [authorization and scope record](../../todo/3270-for.md#classic-for-authorization-and-scope)
+quotes that request and lists the implemented header variants. No separate
+formal approval comment is recorded beyond that request. The general-loop
+approval above covers `while` and bindings, not classic `for`.
 
 ## Examples
 
@@ -301,4 +355,5 @@ default export with `5` and `100`, as JavaScript and WebAssembly, and returns
 ## Reference
 
 - ECMA-262: [The while statement](https://tc39.es/ecma262/#sec-while-statement)
+- ECMA-262: [The for statement](https://tc39.es/ecma262/#sec-for-statement)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/while>
