@@ -9,37 +9,40 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { PackageConsumer, Setup } from '../types.ts'
- * @import { Job } from '../common/types.ts'
+ * @import { Job, GitHubAction } from '../common/types.ts'
  */
 
-import { ci, ciJobs } from '../module.f.mjs'
-import { uses } from '../common/module.f.mjs'
+import { ciWorkflow, ciJobs, writeCi } from '../module.f.mjs'
+import { uses, _workflowsDirectory } from '../common/module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
+import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
 /** Branch and commit metadata shared by the Rustdoc bars and website pages. */
-const buildMetadata = {
+const buildMetadata = /** @type {const} */ ({
     WORKERS_CI_COMMIT_SHA: '${{ github.sha }}',
     WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
-}
+})
 
 /**
  * Website assets are built once, independently of the platform matrix. This
- * read-only job runs on pull requests, including drafts and forks, and
- * merge-group entries. Same-repository pull requests upload a preview.
+ * job runs on pull requests, including drafts and forks, and pushes to main.
+ * Same-repository pull requests upload
+ * a preview; main pushes deploy production.
  * It runs independently of the test jobs
  * and always builds rather than consulting the check cache,
- * and keeps deployment credentials confined to preview uploads.
- * Production uploads are omitted until cutover. Mise installs the committed lock,
+ * and keeps deployment credentials confined to upload steps.
+ * Mise installs the committed lock,
  * including the Rust WASM target; the Cloudflare installer is not needed.
  * @type {Job}
  */
 export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
-    permissions: { contents: 'read' },
+    permissions: { contents: 'read', 'pull-requests': 'write' },
     steps: [
         uses('actions/checkout'),
         miseInstall.step,
@@ -65,7 +68,14 @@ export const websiteJob = {
             env: {
                 CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
                 WORKERS_CI_BRANCH: '${{ github.head_ref }}',
+                GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
             },
+        },
+        {
+            if: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+            run: miseDevelop('node ./fjs/website/github-deploy.mjs production'),
+            shell: 'bash',
+            env: { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' },
         },
     ],
 }
@@ -93,21 +103,41 @@ export const packageConsumer = {
 
 /**
  * The workflows and environment manifests this repository commits, with its own module as
- * the packed package's consumer. Every platform runs on
- * every pull request: a macOS or Windows failure found only in the merge queue
- * is found after review, by the queue's eviction.
+ * the packed package's consumer. Test CI keeps its original PR and
+ * merge-queue behavior; website uploads live in their own workflow.
  *
  * @type {() => Effect<NodeOp, 0, number>}
  */
-export const main = () => ci(setup)
+export const main = () => step(
+    writeCi(repositoryWorkflow),
+    () => exitStep(writeFiles([[websitePath, JSON.stringify(websiteWorkflow, null, '  ')]])))
 
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
     nodeExtra: () => [],
     packageConsumer,
     smart: true,
-    extraJobs: { website: websiteJob },
 }
 
 /** The repository jobs before cache gates are applied. */
 export const jobs = ciJobs(setup)
+
+/** Original repository test CI, with no website jobs or deployment conditions. */
+export const repositoryWorkflow = ciWorkflow(setup)(true)
+
+/** Generated independently so main pushes never start the test workflow. */
+export const websitePath = /** @type {const} */ (`${_workflowsDirectory}/gen.website.yml`)
+
+/** Website previews on PRs, production deployment on main pushes.
+ * @type {GitHubAction}
+ */
+export const websiteWorkflow = {
+    name: 'Website',
+    on: { pull_request: {}, push: { branches: ['main'] } },
+    concurrency: {
+        group: '${{ github.workflow }}-${{ github.ref }}',
+        'cancel-in-progress': "${{ github.event_name != 'push' }}",
+    },
+    permissions: { contents: 'read' },
+    jobs: { website: websiteJob },
+}

@@ -35,10 +35,14 @@ export type _Loop = {
     readonly target: LoopTarget
     readonly parameters: readonly BindingId[]
     readonly results: readonly BindingId[]
+    /** A source-only packed continuation establishes one complete input vector. */
+    readonly packed: boolean
 }
 
 export type _Context = {
     readonly sourceLoops: boolean
+    /** Only an observed-rest invocation root widens the existing scalar profile. */
+    readonly sourceBranchTarget: LoopTarget | null
     readonly flows: _Flows
     readonly owner: FunctionTarget | null
     readonly next: number

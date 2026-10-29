@@ -166,6 +166,81 @@ conditional orientation. This adds no invocation boundary and keeps empty
 public arity.
 Default preparation and the plain-loop planner's original domain stay unchanged.
 
+Source admission also places terminal conditional base-result trees in that
+ordinary result value block. Their leaves complete the same loop with one
+value, and required prefixes stay in their original lexical branches. This
+pass keeps the base decisions after the final iteration test, so runtime
+evaluates only the selected branch, retaining final captures, sharing and
+failure order. Existing scalar, packed and private unchanged slot plans cover
+both outer orientations; no new physical loop layout is needed.
+
+For source loops, the shared branching plan can provide one selected
+next-input value block instead of a linear continuing arm. Preparation evaluates
+its required branch work and complete scalar or array vector before changing
+state, so argument order and simultaneous updates retain their existing owners.
+Iteration snapshots keep captured values and rest identities immutable. An
+empty-input transition evaluates its selected work, yields `undefined` and
+updates the existing private slot; it adds no semantic input or public arity.
+Both outer orientations use the existing normal-result path. A private context
+records the exact observed rest-only root target for the single-input case;
+ordinary single-input layouts, including nested functions, remain unchanged.
+Default preparation does not use the source branching plan.
+
+Terminal decisions may also mix normal completion and continuation in
+source zero-input, fixed multi-input and observed-rest roots. Shared
+[terminal analysis](../loop/terminal/module.f.mjs)
+validates required definitions, result-free decisions and exact loop transfers.
+Preparation keeps the body as one `while(true)` region, preserving required
+allocations shared by its tests, continued arguments and completed results.
+The same analysis admits a single terminal condition with required shared
+prefix work. Arrays, objects, closures and calls are established once before
+each test and retain their identity throughout that visit, including normal
+completion. Existing plain and branching plans take precedence and keep their
+layouts.
+
+The existing generic single-input/result layout supplies one private slot.
+For multiple semantic inputs, preparation packs the initial values into that
+slot and establishes immutable per-input projections at each body entry.
+A continued leaf evaluates one complete next-input array before the write;
+the private loop context records this physical packing. A completed leaf
+evaluates its scalar result once, writes the same slot and exits. Rest-only
+roots use the existing scalar path. These choices retain simultaneous updates,
+held creating-iteration captures, fresh rest and reached failure order without
+adding logical bindings, graph metadata or a tagged transition protocol.
+Existing source profiles and default preparation keep their layouts. The first
+source parse establishes a scalar helper boundary; graph/text cycles remain
+exact from that first parsed graph.
+
+For empty semantic inputs, the source terminal plan initializes one private
+result slot to `undefined`. Its loop context still has no input slots:
+required unused arguments run before `continue`, which neither writes the
+result slot nor invents an argument. A completed leaf writes its selected
+scalar to that slot and exits. The body has no synthetic parameter snapshots,
+so public arity stays zero and per-visit allocations, captures and own-function
+identity retain their original lifetimes. Prior plain zero-input preparation
+keeps its unchanged-slot spelling; default preparation is unaffected.
+
+For nonempty semantic inputs, the shared terminal predicate also admits trees
+whose leaves only continue the exact loop with the complete next-input vector.
+Fixed multi-input and observed-rest roots reuse the same packed/scalar
+`while(true)` preparation without adding a normal completion. Required branch
+work and arguments finish before each state write; immutable snapshots retain
+captures and allocations, and rest arrays remain fresh. Earlier zero-input and
+ordinary scalar divergent layouts keep their existing path. Default preparation
+and logical graph contracts stay unchanged, as does the admission of general
+lazy prefixes. Source graph/text cycles remain exact from the first parse.
+
+The terminal predicate also admits explicit throw leaves while requiring an
+exact continuation. Empty semantic inputs additionally require a normal
+completion leaf, preserving earlier zero-input throw/continue and divergent
+layouts. Existing preparation retains each selected throw after its required
+work and evaluates its payload once before leaving the function. The exit
+neither writes state nor fabricates a normal result; mixed normal leaves
+continue to write the existing result slot. Shared allocations, iteration
+captures, fresh rest and reached failure order remain in their lexical region.
+Default preparation, logical graph contracts and exact first-parse graph/text
+cycles are unchanged.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

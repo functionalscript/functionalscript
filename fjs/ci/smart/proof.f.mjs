@@ -71,20 +71,21 @@ export const proof = /** @type {const} */ ({
         ])
         assertOk(parse(checksSchema)(result))
     },
-    /** The expensive installation waits for init, and a hit skips its prerequisites. */
+    /** mise supplies Node before init; cache hits still skip check prerequisites. */
     bootstrap: () => {
         const source = cached([mise, installNode(), uses('actions/checkout'), nodeVersion, install, suite])
         assertStructurallySame(source.permissions, { contents: 'write' })
         assertStructurallySame(source.steps[0], uses('actions/checkout', { 'fetch-depth': '1' }))
-        assertStructurallySame(source.steps[1], installNode({ 'package-manager-cache': 'false' }))
-        assertEq(source.steps.filter(step => step.uses?.startsWith('actions/setup-node@')).length, 1)
-        assertEq(source.steps.find(step => step.id === 'init')?.run, 'npm start ci init')
-        assertEq(source.steps.find(step => step.uses === mise.uses)?.if, "steps.init.outputs.hit-suite != 'true'")
+        assertStructurallySame(source.steps[1], mise)
+        assertEq(source.steps.filter(step => step.uses?.startsWith('actions/setup-node@')).length, 0)
+        assertEq(source.steps.find(step => step.id === 'init')?.run, 'mise exec -- npm start ci init')
+        assertEq(source.steps.find(step => step.uses === mise.uses)?.if, undefined)
+        assert(source.steps.indexOf(mise) < source.steps.findIndex(step => step.id === 'init'))
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(stepWith(source, 'npm start ci report suite').if, "steps.init.outputs.hit-suite != 'true'")
+        assertEq(stepWith(source, 'mise exec -- npm start ci report suite').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'git fetch --depth 1 origin build-cache:build-cache build-cache:refs/remotes/origin/build-cache')['continue-on-error'], true)
-        const publish = stepWith(source, 'npm start ci publish')
+        const publish = stepWith(source, 'mise exec -- npm start ci publish')
         assertEq(publish['continue-on-error'], true)
         assert(publish.if?.includes('always()') === true)
         assert(publish.if?.includes("steps.init.outcome == 'success'") === true)
@@ -102,9 +103,9 @@ export const proof = /** @type {const} */ ({
     cacheFailuresDoNotStopChecks: () => {
         const source = cached([{ run: 'cargo test' }, suite], 'ubuntu-intel')
         const rust = stepWith(source, 'cargo test')
-        const report = stepWith(source, 'npm start ci report rust')
+        const report = stepWith(source, 'mise exec -- npm start ci report rust')
         const next = stepWith(source, suite.run)
-        const bootstrap = stepWith(source, 'npm start ci init')
+        const bootstrap = stepWith(source, 'mise exec -- npm start ci init')
         assertEq(bootstrap['continue-on-error'], true)
         assertEq(report['continue-on-error'], true)
         assertStructurallySame(report.env, {
@@ -117,7 +118,7 @@ export const proof = /** @type {const} */ ({
         assertEq(next['continue-on-error'], undefined)
         assertEq(next.if, "steps.init.outputs.hit-suite != 'true'")
         assert(source.steps.every(step => !step.run?.startsWith('git config user.')))
-        assert(source.steps.filter(step => step.run?.startsWith('npm start ci report '))
+        assert(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report '))
             .every(step => step['continue-on-error'] === true))
     },
     /** A partial hit cannot skip npm ci when another dependent check misses. */
@@ -135,7 +136,7 @@ export const proof = /** @type {const} */ ({
         assertEq(source.steps.find(step => step.uses?.startsWith('actions/setup-node@') && step.if !== undefined)?.if, "steps.init.outputs.hit-package != 'true'")
         assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
         assert(checks('node26', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
-        assertEq(source.steps.filter(step => step.run === 'npm start ci report package').length, 1)
+        assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report package').length, 1)
     },
     /** Uncached generator and injected demo work still gets its mise environment. */
     uncachedShell: () => {
@@ -151,7 +152,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'mise exec -- npm run gen').if, undefined)
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- custom-generator').if, undefined)
         assertEq(stepWith(source, 'git add -A && git diff --cached --exit-code').if, undefined)
-        assertEq(source.steps.filter(step => step.run?.startsWith('npm start ci report ')).length, 1)
+        assertEq(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).length, 1)
     },
     /** Rust and SpiderMonkey never inherit the JavaScript suite's success. */
     independentChecks: () => {
@@ -175,21 +176,21 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'mise -E spidermonkey exec -- npm run sm t').if, "steps.init.outputs.hit-spidermonkey-suite != 'true'")
         assertEq(stepWith(source, install.run).if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, 'node --test ./fjs/emergent_testing/js-only.mjs').if, "steps.init.outputs.hit-suite != 'true'")
-        assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
+        assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report suite').length, 1)
     },
     /** Each alternative engine groups its install, pin verification and coverage. */
     engines: () => {
         for (const id of ['deno', 'bun']) {
             const source = cached([mise, uses('actions/checkout'), { run: `${id} install` }, { run: `${id} test` }], id)
             assertEq(stepWith(source, `${id} install`).if, "steps.init.outputs.hit-suite != 'true'")
-            assertEq(source.steps.filter(step => step.run === 'npm start ci report suite').length, 1)
+            assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report suite').length, 1)
         }
     },
     /** An unclassified operation runs and certifies nothing. */
     unknown: () => {
         const source = cached([{ run: 'custom-command' }, {}])
         assertEq(stepWith(source, 'custom-command').if, undefined)
-        assertEq(source.steps.filter(step => step.run?.startsWith('npm start ci report ')).length, 0)
+        assertEq(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).length, 0)
         assertStructurallySame(checks('empty', job([])), [])
         assertStructurallySame(smartJobs({}), {})
     },

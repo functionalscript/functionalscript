@@ -62,8 +62,8 @@ the public function's empty parameter list and result computations outside
 iteration. Parsing that first source introduces the canonical scalar helper,
 and its normalized graph and text then stay exact. Condition-only definitions
 run at every test; only identity-free projection dependencies may be copied
-into the step or result. Other zero-input normal-result shapes retain their
-existing recursive fallback.
+into the step or result. Zero-input normal-result shapes outside the admitted
+plain and terminal plans retain their existing recursive fallback.
 
 Rest-free fixed multi-input roots in that same plain profile also emit source
 loops. Source preparation packs their initial and simultaneous next inputs into
@@ -109,13 +109,79 @@ selected regions keep their evaluation boundaries. Zero-input roots use the
 existing private unchanged slot, with no semantic input snapshots or extra
 invocation boundary. Both conditional orientations run the required base work
 once after the final test and retain empty public arity. Other single-input
-profiles and nonrequired or structured base prefixes keep their existing
+profiles and nonrequired or other structured base prefixes keep their existing
 admission and fallback.
+
+The base result may also be a terminal conditional tree whose leaves all
+complete the same loop with one value. The shared normalizer keeps required
+definitions in their original branch and converts that tree into the existing
+result value block. Base conditions run only after the final iteration test;
+only the selected branch evaluates its calls, allocations or failures. Both
+outer orientations retain final input/rest identities and captures. General
+lazy prefixes keep their previous admission.
+
+A continuing arm may also contain a terminal conditional tree whose leaves
+all continue the same loop with its complete input vector. Shared planning
+evaluates one selected transition as a value block: required branch work and
+all reached arguments finish before the scalar or packed state changes. This
+preserves simultaneous updates, shared allocations and captures of the creating
+iteration, including fresh rest arrays. Zero-input transitions finish their
+required work and yield `undefined` to the existing private slot. Either outer
+arm may continue, and conditional base results use the same final-result path.
+The public parameter list and prior ordinary single-input spelling stay intact;
+general lazy prefixes retain their existing admission.
+
+Zero-input, fixed multi-input and observed-rest roots may also retain terminal
+decisions whose leaves mix normal completion and tail continuation. Shared
+terminal analysis validates required definitions and result-free decisions,
+then keeps each leaf at its exact loop target: one result on completion, or
+the complete next-input vector on continuation. Required work remains in the
+selected body region, including allocations shared by a condition, transition
+and result. This includes a single condition whose required prefix creates a
+shared array, object, closure or call result. The prefix runs once per body
+visit, before the condition, including the visit that completes the loop.
+Existing plain and branching plans retain their earlier source spellings.
+
+Common preparation emits `while(true)` with one private state/result slot.
+Multi-input roots initialize and update that slot with one packed vector;
+immutable per-input snapshots retain creating-iteration captures. A completed
+leaf computes its result once, writes the same slot and leaves the loop.
+Rest-only roots use the existing scalar form. Reached arguments finish before
+state changes, preserving simultaneous updates, fresh rest and failure order.
+Zero-input roots initialize only a private result slot to `undefined`; their
+semantic inputs and continued argument vectors stay empty. Reached unused
+arguments still finish before continuation, and completion writes its selected
+result into that slot. Public arity stays zero, including when the result
+retains the function's own identity. Existing plain zero-input loops keep
+their earlier unchanged-slot spelling.
+This path keeps earlier source profiles and default JavaScript/function-text/
+Rust layouts unchanged. The first parsed source graph establishes the scalar
+helper boundary, and later graph/text cycles remain exact.
+
+Fixed multi-input and observed-rest roots also retain terminal trees whose
+every leaf continues the exact loop with its complete next-input vector.
+Required prefixes and selected arguments finish before the existing packed or
+scalar state update. There is no normal completion result to compute. Shared
+allocations, creating-iteration captures, fresh rest and reached failures keep
+their iteration lifetime. Earlier zero-input and ordinary scalar divergent
+spellings stay unchanged, as do default layouts and logical graph contracts.
+Direct and conditional continuations preserve exact first-parse graph/text
+cycles; general lazy regions keep their admission.
+
+These terminal decisions also admit explicit throw leaves. A selected throw
+evaluates its required prefix and payload, then exits without a state or result
+write. Nonempty invocation inputs may mix throw and continuation without a
+normal completion; empty inputs use this plan only when a normal result is
+also present. Existing zero-input throw/continue and ordinary scalar spellings
+keep their earlier plans. Mixed return/throw/continue decisions preserve
+iteration captures, fresh rest, reached evaluation order and exact graph/text
+cycles from the first source parse. Default layouts remain unchanged.
 
 Source preparation returns a refusal when a newly factored terminal recipe
 requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input or multi-input roots outside the plain-loop plan
-and observed-rest roots outside that plan keep their existing reifiable recursive
+loop profile. Raw zero-input or multi-input roots outside the admitted plain
+and terminal plans, and observed-rest roots outside those plans, keep their
+existing reifiable recursive
 forms; unsupported factored profiles return an error instead of asserting or
 emitting unreadable source.
 

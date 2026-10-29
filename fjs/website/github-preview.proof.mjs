@@ -39,7 +39,7 @@ const removed = path => {
 export const proof = /** @type {const} */ ({
     previewHostnameFitsConfiguredWorker: async () => {
         const config = JSON.parse(await readFile(new URL('../../wrangler.jsonc', import.meta.url), 'utf8'))
-        for (const branch of ['feature/' + 'a'.repeat(45), 'b'.repeat(80)]) {
+        for (const branch of ['feature/' + 'a'.repeat(60), 'b'.repeat(80)]) {
             const alias = uploadArgs('preview', branch).at(-1)
             assert(alias !== undefined)
             assertEq(`${alias}-${config.name}`.length, 63)
