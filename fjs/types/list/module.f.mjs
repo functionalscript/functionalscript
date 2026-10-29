@@ -32,9 +32,6 @@ export const fromArrayLike =
         return at(0)
     }
 
-/** @type {<T>(list: List<T>) => boolean} */
-const lazyIsEmpty = list => list === null || (list instanceof Array && list.length === 0)
-
 /** @type {<T>(head: List<T>) => (tail: List<T>) => List<T>} */
 export const concat = head => tail =>
     tail === null ? head : ({ head, tail })
