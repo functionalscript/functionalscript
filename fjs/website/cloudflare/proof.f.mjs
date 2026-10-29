@@ -12,19 +12,20 @@ export const proof = {
     },
     previews: () => {
         for (const [branch, alias] of [
-            ['codex/cloudflare-deploy-job', 'actions-codex-cloudflare-deploy-job'],
-            ['Feature/A_1..B', 'actions-feature-a-1-b'],
-            ['--hello--', 'actions-hello'],
-            ['a'.repeat(37) + '-tail', 'actions-' + 'a'.repeat(37)],
-            ['b'.repeat(80), 'actions-' + 'b'.repeat(38)],
-            ['feature/' + 'a'.repeat(45), 'actions-feature-' + 'a'.repeat(30)],
-            ['你好/world', 'actions-world'],
+            ['codex/cloudflare-deploy-job', 'codex-cloudflare-deploy-job'],
+            ['Feature/A_1..B', 'feature-a-1-b'],
+            ['--hello--', 'hello'],
+            ['a'.repeat(45) + '-tail', '' + 'a'.repeat(45)],
+            ['b'.repeat(80), '' + 'b'.repeat(46)],
+            ['feature/' + 'a'.repeat(45), 'feature-' + 'a'.repeat(38)],
+            ['你好/world', 'world'],
         ]) {
             assertStructurallySame(uploadArgs('preview', branch), ['--yes', 'wrangler@4.74.0', 'versions', 'upload', '--preview-alias', alias])
         }
     },
     throw: {
         unknownMode: () => uploadArgs('invalid', 'branch'),
+        startsWithDigit: () => uploadArgs('preview', '123-feature'),
         emptyAlias: () => uploadArgs('preview', '---'),
     },
     // Fixed text: the pin written in full, no pipe to hide a failed download

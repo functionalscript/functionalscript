@@ -32,9 +32,9 @@ repository root as configured in [`wrangler.jsonc`](../../../wrangler.jsonc).
 The proposed deployment policy is production on `main` after required checks
 pass, with version previews for same-repository pull requests, including drafts. Fork pull requests
 run checks without deployment credentials. Preserve preview branch aliases,
-commit and branch metadata, and the OAuth callback behavior. During validation,
-Actions previews temporarily use an `actions-` alias prefix to distinguish them
-from Workers Builds; remove it after cutover. Moving hosts must
+commit and branch metadata, and the OAuth callback behavior. The temporary
+`actions-` preview prefix is removed now that the owner disconnected Workers
+Builds and authorized using the original branch aliases. Moving hosts must
 not silently remove these features.
 
 Use a scoped Cloudflare API token held in GitHub Actions secrets, with deployment
@@ -45,8 +45,10 @@ disabling Workers Builds so the transition does not leave competing deployments.
 ### Build job
 
 The `website` job runs on pull requests, including drafts and forks, and
-merge-group entries, and pushes to `main`. Other branches needing a preview
-open a draft PR. Main pushes run only the website job, with test jobs skipped. It runs independently of the platform matrix and test jobs,
+pushes to `main`. Other branches needing a preview
+open a draft PR. Test jobs run on PRs only; main pushes run only the website
+job. Merge-group events skip every job, reporting required check names without
+allocating runners or retesting combined changes. It runs independently of the platform matrix and test jobs,
 reuses workflow concurrency, and builds outside the successful-check
 cache. Build steps receive no deployment credentials. The generator receives
 the checked-out SHA and source branch through the existing `WORKERS_CI_*`
@@ -54,9 +56,9 @@ metadata variables.
 
 Every same-repository pull-request run uploads a preview with Wrangler 4.74.0
 and `versions upload --preview-alias` after its own successful website build.
-Fork pull requests and merge-group entries never upload. No enable-switch variables
+Fork pull requests never upload; merge-group entries skip every job. No enable-switch variables
 are used. Production uploads use `wrangler deploy` only for main pushes, after changes
-pass required checks through the merge queue. Main runs do not cancel an active upload. The API token is scoped to the upload
+pass PR checks and merge through the queue. Main runs do not cancel an active upload. The API token is scoped to the upload
 step. The account ID is committed in `wrangler.jsonc`; its `keep_vars` setting
 and Wrangler's secret inheritance reuse existing Worker bindings. Actions needs
 only the API-token secret and sends no empty OAuth overrides. The legacy
@@ -65,6 +67,14 @@ Workers Builds helper keeps its explicit bindings during the transition.
 Workers Builds is disconnected after the owner verified preview login. Setup,
 branch-alias rules, cutover and rollback are documented in
 [GitHub Actions deployment](../README.md#github-actions-deployment).
+
+### Preview links
+
+The existing CI website job creates or updates one bot-owned PR comment after
+each successful preview upload. It uses the alias URL reported by Wrangler
+and the automatic Actions token with pull-request write permission. Drafts
+are included; fork PRs stay build-only and merge groups skip every job. No extra settings are
+needed, and failed uploads never publish a preview comment.
 
 ### Tasks
 
@@ -82,7 +92,8 @@ branch-alias rules, cutover and rollback are documented in
 - [ ] Validate generated-workflow consistency and build output, then verify a
       branch preview and production deployment with the configured credentials.
       Check assets, Rust documentation, demos and GitHub sign-in.
-- [ ] Remove the temporary `actions-` preview-alias prefix after cutover.
+- [x] Remove the temporary `actions-` preview-alias prefix after disconnecting
+      Workers Builds.
 - [ ] Document the GitHub Actions setup and cutover/rollback procedure, reconcile
       the old Cloudflare-only build script and Node pin with their remaining
       consumers, update related documentation, and disable Workers Builds after

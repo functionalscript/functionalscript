@@ -153,7 +153,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "ubuntu-arm": {
       "runs-on": "ubuntu-26.04-arm",
@@ -434,7 +434,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "macos-intel": {
       "runs-on": "macos-26-intel",
@@ -547,7 +547,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "macos-arm": {
       "runs-on": "macos-26",
@@ -660,7 +660,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "windows-intel": {
       "runs-on": "windows-2025",
@@ -788,7 +788,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "windows-arm": {
       "runs-on": "windows-11-arm",
@@ -896,7 +896,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "deno": {
       "runs-on": "ubuntu-26.04-arm",
@@ -975,7 +975,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "bun": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1054,7 +1054,7 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "node26": {
       "runs-on": "ubuntu-26.04-arm",
@@ -1249,13 +1249,15 @@
       "permissions": {
         "contents": "write"
       },
-      "if": "github.event_name != 'push'"
+      "if": "github.event_name == 'pull_request'"
     },
     "website": {
+      "if": "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
       "runs-on": "ubuntu-26.04",
       "timeout-minutes": 30,
       "permissions": {
-        "contents": "read"
+        "contents": "read",
+        "pull-requests": "write"
       },
       "steps": [
         {
@@ -1309,7 +1311,8 @@
           "shell": "bash",
           "env": {
             "CLOUDFLARE_API_TOKEN": "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-            "WORKERS_CI_BRANCH": "${{ github.head_ref }}"
+            "WORKERS_CI_BRANCH": "${{ github.head_ref }}",
+            "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
           }
         },
         {

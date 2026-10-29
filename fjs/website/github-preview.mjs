@@ -5,6 +5,7 @@
  *
  * @module
  * @import { WorkerEnv, PreviewUploadHost } from './github/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  */
 
 import { spawn } from 'node:child_process'
@@ -14,9 +15,9 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 /** Run the selected Cloudflare CLI without invoking a shell. */
-/** @type {(args: readonly string[]) => Promise<number>} */
-export const runWrangler = args => new Promise((resolve, reject) => {
-    const child = spawn('npx', args, { stdio: 'inherit', shell: false })
+/** @type {(args: readonly string[], env?: StringMap<string>) => Promise<number>} */
+export const runWrangler = (args, env = process.env) => new Promise((resolve, reject) => {
+    const child = spawn('npx', args, { stdio: 'inherit', shell: false, env })
     child.once('error', () => reject(new Error('Unable to start the Worker upload.')))
     child.once('exit', code => resolve(code ?? 1))
 })

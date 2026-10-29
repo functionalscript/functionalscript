@@ -27,17 +27,14 @@ import { assert } from '../../asserts/module.f.js'
 /** Exact CLI pin used by GitHub Actions; legacy Workers Builds keeps its own CLI. */
 export const wranglerVersion = /** @type {const} */ ('4.74.0')
 
-/** Temporary separation from Workers Builds previews; remove after cutover. */
-const previewPrefix = /** @type {const} */ ('actions-')
-
 /** The Worker name in wrangler.jsonc shares the alias's DNS-label budget. */
 const workerName = /** @type {const} */ ('functionalscript')
 
 /**
  * Build argv without a shell. Branch names become lowercase DNS aliases,
- * with punctuation collapsed to hyphens. The temporary prefix, branch alias,
+ * with punctuation collapsed to hyphens. The branch alias,
  * separating dash and Worker name together fit within 63 characters.
- * An empty alias or unknown mode is refused before any upload. Normalized
+ * An empty alias, a leading digit or unknown mode is refused before upload. Normalized
  * branch names can collide, as Workers Builds aliases can; use distinct aliases
  * when naming preview branches.
  * @type {(mode: string, branch: string) => readonly string[]}
@@ -49,9 +46,10 @@ export const uploadArgs = (mode, branch) => {
     const alias = branch.toLowerCase().split('')
         .map(c => 'abcdefghijklmnopqrstuvwxyz0123456789'.includes(c) ? c : '-')
         .join('').split('-').filter(part => part !== '').join('-')
-        .slice(0, 63 - previewPrefix.length - 1 - workerName.length).split('-').filter(part => part !== '').join('-')
+        .slice(0, 63 - 1 - workerName.length).split('-').filter(part => part !== '').join('-')
     assert(alias !== '', 'The branch has no usable preview alias.')
-    return [...cli, 'versions', 'upload', '--preview-alias', `${previewPrefix}${alias}`]
+    assert('abcdefghijklmnopqrstuvwxyz'.includes(alias.slice(0, 1)), 'The preview alias must begin with a letter.')
+    return [...cli, 'versions', 'upload', '--preview-alias', alias]
 }
 
 /**

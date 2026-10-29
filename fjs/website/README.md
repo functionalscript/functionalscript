@@ -226,15 +226,16 @@ documentation and website with the committed mise lock, then uploads previews
 with Wrangler **4.74.0**. The build uses the existing `WORKERS_CI_COMMIT_SHA`
 and `WORKERS_CI_BRANCH` inputs for links and branch metadata. Pull requests,
 including drafts, build the website; same-repository PRs upload previews.
-Fork pull requests and merge-group entries build without uploading.
+Fork pull requests build without uploading. Merge-group entries skip all jobs;
+the merge queue reports the required check names without rebuilding or deploying.
 Only `main` has a push trigger: the existing website job deploys production.
 Other branches need an open PR (a draft is enough) for a preview. Test jobs
-run on PRs and merge-group entries, without repeating on main pushes.
+run only on PRs, without repeating in the merge queue or on main pushes.
 
 Cloudflare Workers Builds is disconnected. Every same-repository pull-request run uses
 `wrangler versions upload --preview-alias` after its own successful build.
 The same job uses `wrangler deploy` only on pushes to `main`, after changes
-pass review and required checks through the merge queue. An active main upload
+pass review and PR checks, then merge through the queue. An active main upload
 is not cancelled by a newer push. No enable-switch variables are required.
 The account ID is committed in `wrangler.jsonc`. Its `keep_vars: true` setting
 retains existing Worker variables, and Wrangler version uploads retain existing
@@ -253,21 +254,23 @@ Configure one repository secret in
 The upload step receives the token only after the website build succeeds.
 A missing token fails the upload instead of opening an interactive login.
 
-Branch aliases temporarily start with `actions-` so Actions uploads can be
-tested separately from Workers Builds previews. The branch portion is lowercased,
-with runs of punctuation replaced by hyphens and leading/trailing hyphens
-stripped. The alias, separating dash and Worker name must together fit in a
-63-character DNS label. For the `functionalscript` Worker and `actions-` prefix,
-the branch portion has a 38-character budget.
-For example, `codex/cloudflare-deploy-job` becomes
-`actions-codex-cloudflare-deploy-job`, giving the preview URL
-`https://actions-codex-cloudflare-deploy-job-functionalscript.functionalscript.workers.dev`.
-An empty branch portion is refused. Different branch names
-can normalize to the same alias, so keep preview branch aliases distinct.
-The upload logs report the version and alias URLs. Workers Builds keeps its
-existing unprefixed aliases during testing; remove the temporary Actions prefix
-after cutover. Check OAuth on the alias URL as well as
-the commit preview URL.
+Branch aliases are lowercased, with runs of punctuation replaced by hyphens
+and leading/trailing hyphens stripped. There is no temporary `actions-` prefix:
+Workers Builds is disconnected. The alias, separating dash and Worker name
+must together fit a 63-character DNS label, giving the `functionalscript`
+Worker a 46-character branch-alias budget. Aliases must begin with a letter;
+empty aliases and names starting with a digit are refused before upload.
+For example, `codex/cloudflare-preview-comment` becomes
+`codex-cloudflare-preview-comment`, giving the preview URL
+`https://codex-cloudflare-preview-comment-functionalscript.functionalscript.workers.dev`.
+Different branch names can normalize to the same alias, so keep them distinct.
+The upload logs report the version and alias URLs. After a successful Actions
+preview upload, github-actions[bot] posts an Open preview link on the PR and
+updates that same comment on later pushes. It reads the actual alias URL from
+Wrangler output and uses the automatic Actions token with pull-request write
+permission; no additional secret, action, or setting is required. Forks and
+merge-group runs never post preview comments. Check OAuth on the alias URL
+as well as the commit preview URL.
 
 Cutover status and verification:
 
@@ -276,9 +279,9 @@ Cutover status and verification:
 2. Merge the production step in the existing website job through review and
    the merge queue. The merge triggers the first Actions production upload.
    Verify the production URL, commit links, Rust docs, demos and GitHub sign-in.
-3. Remove the temporary `actions-` preview prefix in a cleanup PR after
-   production is verified. Retain the legacy build script and Cloudflare-only
-   Node pin until rollback no longer needs them.
+3. The temporary preview prefix is removed now that Workers Builds is
+   disconnected. Retain the legacy build script and Cloudflare-only Node pin
+   until rollback no longer needs them.
 
 To roll back, revert the production step before reconnecting Workers Builds
 with the commands below. Restore a known-good Worker deployment from the
