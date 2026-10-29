@@ -377,11 +377,6 @@ export const proof = {
                 // held function's own or a function held inside it makes it
                 ['export default () => { let x = 0; let y = 0; const f = () => { const a = x; const g = () => y; return a; }; x = 1; y = 1; return f; };', 'reassigned variable captured', 74],
                 ['export default () => { let r = 0; const f = () => { const g = () => r; return g; }; r = 1; return f; };', 'reassigned variable captured', 69],
-                // a function called where it is written reads a variable, and
-                // assigns none: its block is inlined with values of its own,
-                // which the scope around it never sees, where JavaScript's
-                // assignment reaches the variable
-                ['export default () => { let r = 0; const x = (() => { r = 1; return 0; })(); return r; };', 'reassigned variable captured', 54],
                 // a variable is a name of the body as a `const` is
                 ['export default n => { x = 1; return n; };', 'const not found', 23],
                 ['export default n => { let r = r; return r; };', 'const not found', 31],
@@ -525,7 +520,6 @@ export const proof = {
                 ['export default n => { let r = 0; while (r < n) { r = ((f) => f())(() => r); } return r; };', 'reassigned variable captured', 73],
                 ['export default n => { let r = 0; while (r < n) { r = (() => () => r)()(); } return r; };', 'reassigned variable captured', 67],
                 ['export default n => { let r = 0; while (r < n) { r = (() => { const g = () => r; return g(); })(); } return r; };', 'reassigned variable captured', 79],
-                ['export default n => { let r = 0; while (r < n) { r = (() => { r = r + 1; return r; })(); } return r; };', 'reassigned variable captured', 63],
                 // the read is every enclosing function's up to the one that
                 // declares the variable: a function held as a value is
                 // refused for a read a function it calls where written makes,

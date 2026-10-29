@@ -58,6 +58,8 @@ export type _Scope = {
     readonly region: boolean
     /** Regions retain whether their owner is an ordinary function, not a module. */
     readonly inFunction: boolean
+    /** A direct, argumentless call with no parameter or rest setup. */
+    readonly blockCall: boolean
     readonly count: number
     readonly parameters: readonly SourceParameter[]
     readonly rest: _Plan | null
@@ -70,7 +72,7 @@ export type _Scope = {
     /** Each reference from a nested function to a binding outside it, in document order, with the refusal a write to the binding earns it once `escaped`: once a function between the two closed held as a value, rather than called where it is written. */
     readonly captures: readonly _Capture[]
 }
-export type _Capture = { readonly id: BindingId; readonly refusal: ParseError; readonly escaped: boolean }
+export type _Capture = { readonly id: BindingId; readonly refusal: ParseError; readonly escaped: boolean; readonly written: boolean }
 export type _Counted<T> = { readonly index: number; readonly done: List<T> }
 export type _ContainerFrame = _Counted<ValueItem | ValueMember> & { readonly container: Container; readonly key: readonly [SourceValue] | null }
 export type _CallFrame = _Counted<ValueItem> & { readonly call: readonly ['()', Node, readonly SyntaxItem[]] }

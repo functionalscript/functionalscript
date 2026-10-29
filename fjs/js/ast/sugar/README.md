@@ -29,11 +29,28 @@ and the alternative name that binding. The fixed prefix preserves `length`.
 
 Terminal guards and switches become yielding value regions. They introduce no
 invocation or capture boundary. A block normalized as a value — a source block
-or a function called where it is written, which the scope around it goes on
-after — keeps its writes to itself: the parser admits none that reaches a
-binding established before the block, and normalization asserts it. A terminal arm, a
-guard's or a case's block, needs no such check: nothing in the enclosing scope
-runs after it, so a write in it is read by the arm alone, as JavaScript reads it.
+or a direct immediate call admitted as a block — returns its expression value
+and the latest immutable versions of any changed outer bindings together.
+Following source reads use those results. Block-local declarations remain local.
+Terminal arms transport only versions retained by their enclosing value region;
+an ordinary function's final result needs no unused state results.
+
+Expression normalization threads this source environment in evaluation order.
+Earlier eager operands are established before a later assignment; lazy arms
+merge their expression value and changed bindings through explicit FAST branch
+results. Loop conditions pass their updates to the body and to their final false
+exit, defaults pass reached updates to subsequent parameters, and switch labels
+retain only the work and updates of reached labels. The shared
+[`returns`](../returns/module.f.mjs) operand sequencer owns member lookup,
+optional regions, spread expansion and object-key conversion. Normalization
+evaluates resolved source recipes through that sequencer's immutable binding
+skeleton rather than duplicating these rules. Recipe re-entry and operand
+regions share an explicit task worklist, including deep source operator chains
+and switch case and label lists.
+Expressions with no outer writes retain their established normalization path.
+[`effects`](./effects/module.f.mjs) indexes source writes once for this
+dispatch. It indexes held function bodies and defaults independently without
+treating function construction as their execution.
 
 A conditional statement inside a loop instead keeps the surrounding statement
 continuation. Both arms normalize from the same preceding immutable mapping.
@@ -120,7 +137,13 @@ functions forward values needed to construct deeper closures without inventing
 source reference events. Captures establish the current immutable version when
 the closure is constructed; normalized use pruning removes unused aliases and
 unused invocation bindings. Safe immediate calls with no fixed parameters,
-arguments or used rest binding become value regions.
+arguments or used rest binding become value regions. Source admission of outer
+writes currently requires a plain direct call with no parameters or rest setup.
+When argument blocks update an enclosing variable read by a directly invoked
+literal function, normalization establishes the arguments before snapshotting
+the callee's captures. Those captures then hold the versions its invocation
+reads. This ordering also retains spread expansion, defaults and any following
+optional-chain steps.
 An immediate call with an owning return inside its body or final value keeps
 its ordinary function boundary, so that return stays local to the call. The
 shared targeted return traversal determines this condition; a final return alone
