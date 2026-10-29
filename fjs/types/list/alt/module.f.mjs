@@ -5,9 +5,8 @@
  */
 
 
-import { todo } from '../../../asserts/module.f.js'
 import { hasEntry } from '../../object/entry/module.f.js'
-import { fromArrayLike, next, trampoline } from '../module.f.mjs'
+import { trampoline } from '../module.f.mjs'
 
 /**
  * @type {<T>(list: List<T>) => readonly T[]}
