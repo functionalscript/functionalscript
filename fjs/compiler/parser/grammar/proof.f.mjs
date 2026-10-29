@@ -15,7 +15,7 @@ import { demo, diagrams } from './demo.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,

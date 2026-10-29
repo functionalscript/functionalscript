@@ -28,7 +28,7 @@ import { objectPath, objectsDir, readIn, tryRead as readObject } from '../../git
 import { initConfig, initSha256Config, latin1 } from '../../git/testlib.f.mjs'
 import { compare, write as writeTree } from '../../git/tree/module.f.mjs'
 import { length, maxLength, msb, u8ListToVecMsb, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { collectRead, toPath } from '../module.f.mjs'
