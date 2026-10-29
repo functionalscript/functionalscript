@@ -1,7 +1,7 @@
 ## A terminal unconditional loop
 
 **Priority:** P2
-**Status:** wip — proposal awaiting explicit language-design approval
+**Status:** wip — approved; implementation in progress
 
 ### Problem
 
@@ -124,16 +124,16 @@ one that returns a value.
 
 ### Approval
 
-Pending formal, explicit approval from **sergey-shandar**, distinct from the
-proposer, under
+Approved by **sergey-shandar**, distinct from the proposer, in the
+[working session](https://chatgpt.com/local/01a18594-4211-744b-b07a-aaed2279400e).
+After reviewing proposal PR #3417, the designer said, "Implement it in a new
+PR stacked on top of 3417". This is the explicit implementation approval
+required under
 [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
-Record the approving designer and a link to their approval here before
-implementation. The request for this separate proposal PR is not recorded as
-approval to implement the concrete design.
 
 ### Tasks
 
-- [ ] Record explicit language-design approval.
+- [x] Record explicit language-design approval.
 - [ ] Retain candidate terminal loops in syntax and resolve their transfer
   targets under ordinary source admission.
 - [ ] Admit the final literal-true loop only when no source break targets it;
