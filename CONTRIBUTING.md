@@ -168,6 +168,7 @@ d=fjs/basen              # at the repository root
 INIT_CWD=$d node --test --experimental-test-coverage \
   --test-coverage-include="$d/**/module.f.mjs" \
   --test-coverage-include="$d/**/module.f.js" \
+  --test-coverage-include="$d/**/demo.f.mjs" \
   --test-coverage-lines=100 \
   --test-coverage-branches=100 \
   --test-coverage-functions=100
@@ -180,6 +181,11 @@ run takes seconds where the full suite takes minutes, and it is what
 `npm run cov` is CI's. The block is POSIX shell; on bare Windows, `npm run cov`
 measures the whole tree, and the command this stands in for is proposed in
 [`fjs/emergent_testing/todo/per-module-coverage.md`](./fjs/emergent_testing/todo/per-module-coverage.md).
+
+Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
+`module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
+already includes imported demos without a filename filter; CI uses Node's
+100% line, branch and function thresholds as the coverage gate.
 
 `npm run cov` reports through
 [`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs):
