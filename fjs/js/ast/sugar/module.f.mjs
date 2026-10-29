@@ -629,25 +629,25 @@ const statefulSwitch = (source, environment, context) => {
     const results = sources.map(source => binding(source.index))
     const discriminant = binding(0)
     const local = { ...context, breakRegion: { target: source.target, sources } }
-    /** @type {readonly Normalized[]} */
-    let alternatives = []
     /** @type {(made: Normalized) => Block} */
     const completed = made => made.normal ? { ...made.block, exit: ['break', source.target, sources.map(source => lookup(made.environment, source))] } : made.block
-    /** @type {(index: number, inner: Environment) => Block} */
+    /** @type {(index: number, inner: Environment) => { readonly block: Block, readonly alternatives: readonly Normalized[] }} */
     const each = (index, inner) => {
         if (index === source.cases.length) {
             const made = normalizedBlock(source.otherwise, inner, local, sources)
-            alternatives = [...alternatives, made]
-            return completed(made)
+            return { block: completed(made), alternatives: [made] }
         }
         const arm = source.cases[index]
         const condition = caseState(discriminant, arm.labels, inner, context)
-        if (!condition.normal) { return evaluatedBlock(condition) }
+        if (!condition.normal) { return { block: evaluatedBlock(condition), alternatives: [] } }
         const made = normalizedBlock(arm.body, condition.environment, local, sources)
-        alternatives = [...alternatives, made]
-        return { statements: [...condition.statements, ['if', [], condition.value, completed(made), each(index + 1, condition.environment)]], exit: ['yield', []] }
+        const following = each(index + 1, condition.environment)
+        return {
+            block: { statements: [...condition.statements, ['if', [], condition.value, completed(made), following.block]], exit: ['yield', []] },
+            alternatives: [made, ...following.alternatives],
+        }
     }
-    const body = each(0, selected.environment)
+    const { block: body, alternatives } = each(0, selected.environment)
     return {
         block: { statements: [...selected.statements, ['define', discriminant, selected.value, 'required'],
             ['loop', { target: source.target, parameters: [], initial: [], results,
