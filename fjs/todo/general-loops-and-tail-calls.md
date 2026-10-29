@@ -356,3 +356,7 @@ formal approval under
 [DESIGN.md section 12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions);
 the original single-variable approval does not authorize the broader source
 semantics.
+
+Current increment: audit H/I integration gates, move shipped contracts to
+permanent owners, preserve explicit canonical-graph fallback follow-ups,
+and retire completed loop task files after repairing inbound links.
