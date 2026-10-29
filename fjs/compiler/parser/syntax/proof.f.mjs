@@ -55,7 +55,7 @@ const returned = node => {
 
 export const proof = {
     compoundAssignmentOperatorsAndLocations: () => {
-        const operators = ['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??=']
+        const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {
             const module = unwrap(parseSyntax(tokenizeString(`let value=8;\nvalue ${operator} 1;export default value;`)))
             const assignment = module.statements[1]

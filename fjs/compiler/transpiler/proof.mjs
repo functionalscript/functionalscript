@@ -94,12 +94,12 @@ export const proof = {
             'export const or=(a,right)=>{a ||= right(a);return a;};' +
             'export const nullish=(a,right)=>{a ??= right(a);return a;};',
         )] })(transpile(noRuntime)('main')))
-        const present = {}
-        const cases = [
+        const present = /** @type {const} */ ({})
+        const cases = /** @type {const} */ ([
             { name: 'and', skipped: [false, 0, -0, 0n, '', NaN, null, undefined], taken: [true, 1, 1n, 'x', present] },
             { name: 'or', skipped: [true, 1, 1n, 'x', present], taken: [false, 0, -0, 0n, '', NaN, null, undefined] },
             { name: 'nullish', skipped: [false, 0, -0, 0n, '', NaN, true, 1, 'x', present], taken: [null, undefined] },
-        ]
+        ])
         for (const { name, skipped, taken } of cases) {
             const apply = callable(field(exports, name))
             for (const initial of skipped) {
@@ -112,7 +112,7 @@ export const proof = {
                 assertEq(calls, 0)
             }
             for (const initial of taken) {
-                const marker = {}
+                const marker = /** @type {const} */ ({})
                 let calls = 0
                 const result = apply(initial, /** @param {unknown} before */ before => {
                     calls += 1

@@ -9,7 +9,7 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
     compoundAssignmentTokens: () => {
-        const operators = ['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??=']
+        const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {
             const tokens = toArray(tokenize(stringToList(`value ${operator} 1`))('compound.f.js'))
             assertEq(tokens[1].token.kind, operator)
