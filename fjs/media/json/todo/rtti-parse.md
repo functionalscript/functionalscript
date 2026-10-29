@@ -27,7 +27,7 @@ the codec's `NumberPolicy` and derives nothing from it first
 so the lexeme is the canonical exact source for schema-directed validation, and
 the bounded lexical helpers such validation needs — `numberLexeme`,
 `isBareInteger`, `isIntegral` — ship in
-[`number/module.f.mjs`](../number/module.f.mjs).
+[`number/module.f.js`](../number/module.f.js).
 
 The existing `fjs/rtti/parse` should remain unchanged: it parses arbitrary
 runtime values and therefore correctly requires primitive runtime types to match
@@ -92,7 +92,7 @@ decimal/exponent lexeme -> bigint only when BOTH:
 ```
 
 For a decimal/exponent lexeme, the first test must be lexical and input-bounded:
-`isIntegral` in [`number/module.f.mjs`](../number/module.f.mjs) is that test,
+`isIntegral` in [`number/module.f.js`](../number/module.f.js) is that test,
 reading the coefficient, fraction and exponent text in the length of the token,
 so `1e-99999999999999999999` is recognized as fractional without overflowing an
 exponent variable or evaluating an enormous `10 ** exponent` expression.
@@ -186,7 +186,7 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [`fjs/media/json/README.md`](../README.md) — the shipped grammar reader, its
   numeric-policy seam, and the extended runtime materialization this parser
   reuses.
-- [`fjs/media/json/number/module.f.mjs`](../number/module.f.mjs) — the bounded
+- [`fjs/media/json/number/module.f.js`](../number/module.f.js) — the bounded
   lexical helpers (`isBareInteger`, `isIntegral`) for exact checks on a token
   before it is narrowed.
 - [Standard JSON transformer](./standard-transform.md) — runtime value conversion

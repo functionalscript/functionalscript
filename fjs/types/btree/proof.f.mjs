@@ -11,7 +11,7 @@
 import { values } from './module.f.mjs'
 import { cmp, occurrences } from '../string/module.f.mjs'
 import { next, toArray } from '../list/module.f.mjs'
-import { value, find as findFind } from './find/module.f.mjs'
+import { value, find as findFind } from './find/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'

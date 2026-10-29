@@ -60,14 +60,14 @@ export const isBareInteger = ({ frac, exp }) => frac === '' && exp === ''
 /** @type {(digits: string) => string} */
 const stripLeadingZeros = digits => {
     let i = 0
-    while (i < digits.length && digits[i] === '0') { i += 1 }
+    while (i < digits.length && digits[Number(i)] === '0') { i += 1 }
     return digits.slice(i)
 }
 
 /** @type {(digits: string) => number} */
 const trailingZeroCount = digits => {
     let n = 0
-    while (n < digits.length && digits[digits.length - 1 - n] === '0') { n += 1 }
+    while (n < digits.length && digits[Number(digits.length - 1 - n)] === '0') { n += 1 }
     return n
 }
 
