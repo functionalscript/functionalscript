@@ -220,6 +220,17 @@ so public arity stays zero and per-visit allocations, captures and own-function
 identity retain their original lifetimes. Prior plain zero-input preparation
 keeps its unchanged-slot spelling; default preparation is unaffected.
 
+For nonempty semantic inputs, the shared terminal predicate also admits trees
+whose leaves only continue the exact loop with the complete next-input vector.
+Fixed multi-input and observed-rest roots reuse the same packed/scalar
+`while(true)` preparation without adding a normal completion. Required branch
+work and arguments finish before each state write; immutable snapshots retain
+captures and allocations, and rest arrays remain fresh. Earlier zero-input and
+ordinary scalar divergent layouts keep their existing path. Default preparation
+and logical graph contracts stay unchanged, as do the admission of general
+lazy prefixes and other terminal exits. Source graph/text cycles remain exact
+from the first parse.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the

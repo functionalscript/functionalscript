@@ -299,6 +299,16 @@ continues to satisfy its supported grammar and round-trip contracts throughout.
       immediate completion and required unused arguments before continuation.
       Earlier plain zero-input loops retain their unchanged-slot spelling;
       default layouts and exact first-parse graph/text cycles remain intact.
+      Fixed multi-input and observed-rest roots now also retain terminal trees
+      whose every leaf continues the exact loop with its complete input vector.
+      The same required-prefix analysis and packed/scalar state preparation
+      preserve simultaneous updates, creating-iteration captures, fresh rest
+      and reached failures without inventing normal completion. Earlier
+      zero-input and ordinary scalar divergent spellings stay unchanged.
+      Direct and conditional continuations retain exact graph/text cycles from
+      the first source parse; default layouts and logical contracts remain
+      intact. General lazy regions and other terminal exits keep their prior
+      admission.
       Other normal-arm profiles retain their documented fallback.
       Final integration evidence and public contract reconciliation remain before
       H/I close.

@@ -19,6 +19,31 @@ const decision = (then, otherwise, statements = []) => ({ statements: [...statem
 const loop = body => ({ target, parameters: [state, other], initial: [0, 1], results: [result], body })
 
 export const proof = {
+    continuingOnlyTreesKeepExactNonemptyInvocationVectors: () => {
+        /** @type {Definition} */
+        const required = ['define', shared, ['array', [['ref', state], ['ref', other]]], 'required']
+        for (const body of [
+            step,
+            { ...step, statements: [required] },
+            decision(step, step, [required]),
+            decision(decision(step, step), step, [required]),
+            decision(step, decision(step, step), [required]),
+        ]) {
+            const source = loop(body)
+            assert(isTerminalLoop(source))
+            assertEq(source.body, body)
+        }
+        /** @type {Block} */
+        const scalar = { statements: [], exit: ['continue', target, [['ref', state]]] }
+        assert(isTerminalLoop({ ...loop(scalar), parameters: [state], initial: [0] }))
+        /** @type {Block} */
+        const empty = { statements: [], exit: ['continue', target, []] }
+        for (const body of [empty, decision(empty, empty, [required])]) {
+            assertEq(isTerminalLoop({ ...loop(body), parameters: [], initial: [] }), false)
+        }
+        assertEq(isTerminalLoop(loop({ ...step, statements: [['define', shared, 0, 'lazy']] })), false)
+        assertEq(isTerminalLoop(loop({ ...step, exit: ['continue', target, [['ref', state]]] })), false)
+    },
     emptyInputTerminalTreesKeepExactEmptyContinuations: () => {
         /** @type {Block} */
         const continued = { statements: [], exit: ['continue', target, []] }
@@ -72,7 +97,7 @@ export const proof = {
             }
         }
     },
-    terminalTreesPreserveExactTargetsAndBothTransferKinds: () => {
+    terminalTreesPreserveExactTargetsAndTransferWidths: () => {
         /** @type {Definition} */
         const required = ['define', shared, ['array', [['ref', state], ['ref', other]]], 'required']
         const mixed = decision(step, normal, [required])
@@ -83,7 +108,7 @@ export const proof = {
         ]) { assert(isTerminalLoop(loop(body))) }
         const scalarStep = /** @type {Block} */ ({ statements: [], exit: ['continue', target, [['ref', state]]] })
         assert(isTerminalLoop({ ...loop(decision(decision(scalarStep, normal), normal)), parameters: [state], initial: [0] }))
-        assertEq(isTerminalLoop(loop(step)), false)
+        assert(isTerminalLoop(loop(step)))
         assertEq(isTerminalLoop(loop(normal)), false)
         assert(isTerminalLoop(loop(decision(step, normal))))
         assert(isTerminalLoop(loop(decision(decision(step, step), normal))))
