@@ -4,7 +4,7 @@
 
 import { codeMarker, resultMarker, stylesheet } from '../style/module.f.js'
 import { textDemo, textField, inputField, fieldUpdate, caption, refusal, radios, dragAxis, dragAxisAttributes, dragValue } from './module.f.mjs'
-import { name as exampleName } from './examples/module.f.mjs'
+import { name as exampleName } from './examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
