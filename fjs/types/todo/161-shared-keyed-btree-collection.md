@@ -13,7 +13,7 @@ key *is* its value.
 
 The lookup both collections duplicated — run `btree/find` with a comparator and
 handle the empty tree — has one owner,
-[`btree/find`](../btree/find/module.f.mjs): `findValue` (the matched value or
+[`btree/find`](../btree/find/module.f.js): `findValue` (the matched value or
 `null`) and `contains`, both over a possibly empty `Tree<T>`.
 `string_set.contains` is `contains ∘ cmp`, and `ordered_map.at` is `findValue`
 with its entry-key comparator plus the projection to the entry's value.

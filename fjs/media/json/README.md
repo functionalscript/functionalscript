@@ -99,7 +99,7 @@ data.
 
 Exact questions that a policy must answer *before* narrowing — "is this token
 an integer?", which `1.00000000000000001` and `1` answer differently while
-being one `number` — belong to [`number/module.f.mjs`](./number/module.f.mjs).
+being one `number` — belong to [`number/module.f.js`](./number/module.f.js).
 Its helpers read the lexeme in the length of the token: no coefficient bigint,
 no exponent conversion, and no `10 ** exponent`, so an input like
 `1e-99999999999999999999` is classified from a sign and a length.
