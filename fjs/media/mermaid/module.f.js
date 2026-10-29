@@ -24,8 +24,8 @@
  * backtick's Markdown and a quote's delimiting inside a label, so a label
  * holding `<`, `>`, `&`, `#`, `\`, a backtick or `"` is refused rather than
  * drawn as its spelling. A
- * node labelled twice is refused unless both labels agree, and `end`, which
- * Mermaid's own grammar takes as a keyword, is no name.
+ * node labelled twice is refused unless both labels agree. Mermaid's statement
+ * keywords `end`, `classDef`, `class`, `style` and `subgraph` are no names.
  *
  * @module
  *
@@ -42,6 +42,9 @@ export const directions = ['LR', 'RL', 'TB', 'TD', 'BT']
 
 /** @type {(c: string) => boolean} */
 const isNameChar = c => charIs(isLatinLetter)(c) || charIs(isDigit)(c) || c === '_'
+
+/** Mermaid statement keywords, which cannot name nodes. @type {readonly string[]} */
+const keywords = ['end', 'classDef', 'class', 'style', 'subgraph']
 
 /**
  * What Mermaid reads inside a label rather than showing — markup, and a
@@ -83,7 +86,7 @@ const nodeAt = (line, at) => {
     while (end < line.length && isNameChar(line[Number(end)])) { end = end + 1 }
     const id = line.slice(at, end)
     if (id === '') { return error(`a node expected at ${at}`) }
-    if (id === 'end') { return error('a node named end, which Mermaid reads as a keyword') }
+    if (keywords.includes(id)) { return error(`a node named ${id}, which Mermaid reads as a keyword`) }
     if (!line.startsWith('["', end)) { return ok([[id, null], end]) }
     const label = labelAt(line, end + 2, '"]')
     if (label[0] === 'error') { return label }
