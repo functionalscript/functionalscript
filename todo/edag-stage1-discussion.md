@@ -503,7 +503,7 @@ recursion with no special machinery.
   function expressions remain outside FJS source admission (subject 12).
 - **Useless before `"?:"`**: with no branch there is no base case, so
   every `["self"]` call diverges. It lands with the operators, and
-  before [let](../spec/todo/3220-let.md) (subject 11) — recursion is the
+  before [let](../spec/bindings/variables/README.md) (subject 11) — recursion is the
   baseline that `let` exists to make cheap on engines without TCO.
 
 `throw` keeps a word tag because JS spells it as a **statement**, not an
@@ -551,7 +551,7 @@ statement form in the source language lowers to an expression
 operation — `const x = …` to a shared node, an unused `const` or a bare
 `assert(…)` to a `","` operand, `return e` to the root node, `if` to
 `"?:"`. The expression graph is the whole language; statements are
-surface syntax over it. [let](../spec/todo/3220-let.md) and loops are
+surface syntax over it. [let](../spec/bindings/variables/README.md) and loops are
 the pressure point on this — see subject 11.
 
 The cost lands on the compiler: lowering `if` must be **deterministic**,
@@ -1467,7 +1467,7 @@ Everything expressible by looping is expressible by recursion —
 implement **TCO** — but most JavaScript engines do not, and FJS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
-ordinary loops. [let](../spec/todo/3220-let.md) exists to give loops a
+ordinary loops. [let](../spec/bindings/variables/README.md) exists to give loops a
 trampoline instead.
 
 **The hard constraint: a mutable variable is not a DAG node.** A node
@@ -1496,7 +1496,7 @@ Two shapes to decide between:
    the invocation's place, whatever the callee
    ([values.md](../fjs/edag/values.md#operations-and-failures)); the
    writers spell one template as a loop
-   ([tail-call-loop](../fjs/edag/todo/tail-call-loop.md)).
+   ([tail-call-loop](../fjs/edag/to_fast/source/loops/README.md)).
 
 Note that A2 does *not* rescue option 2 by itself: a stack overflow is
 an engine artifact an engine may report as a failure, but a language

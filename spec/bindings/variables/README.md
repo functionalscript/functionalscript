@@ -38,6 +38,10 @@ a `const`'s is: it takes the words a `const` takes, bound twice is
 `const not found`, and from outside a nested function it is a capture. A
 parameter is a variable too, fixed or rest.
 
+A declaration pattern initializes each of its bindings once; defaults and
+destructuring do not count as assignments. Destructuring assignment without a
+declaration, such as `[a, b] = values;`, remains a separate language extension.
+
 - **An assignment**, `x = value;`, rebinds the variable for the statements
   after it, in order, as JavaScript reads them: `let r = 0; r = r + n; r =
   r * 2; return r;` returns `(0 + n) * 2`. It is a statement, ended as
@@ -109,11 +113,44 @@ export default n => {
 };
 ```
 
+A snapshot holds the same value without cloning an object. Object-content
+mutation has its own [mutability design](../../design/mutability.md).
+
 A never-reassigned `let` or parameter remains capturable. A function called
 where it is written can still read a reassigned binding, through nested
 immediate calls as well. Assigning to an outer binding from inside such a
 function remains refused. This read admission is retained; it does not allow a
 held closure over the mutable binding.
+
+## Normalization
+
+Write and capture analysis uses resolved binding identities throughout the
+source scope before optimization. A binding is mutable when it is reassigned
+after initialization, including a write in an unreachable branch or nested
+function. A shadowed name has its own write classification. Destructured
+parameters and locals follow the same rules as ordinary bindings.
+Source declaration legality is checked before declaration kinds are discarded:
+the shared `isMutable` fact does not authorize an assignment to a source
+`const`.
+
+After source admission, normalization maps each resolved source binding to its
+current immutable FAST value. An assignment establishes a fresh value and
+updates that map. Required initializers and assignment computations remain
+required even when a later write overwrites their values. Admitted conditional
+regions pass the selected current values to their normal continuation; an arm
+that leaves a binding unchanged supplies its incoming value, and an abrupt
+arm supplies no normal result. The [loop normalization contract](../../control-flow/loops/README.md#normalization-and-output)
+defines ordered branch and loop signatures. The shared representation belongs
+to the [FAST binding contract](../../../fjs/todo/compiler-vocabulary-and-modularization.md#fast-contract).
+
+## Design approval
+
+`sergey-shandar` approved the general binding, capture and loop rules in
+[PR #3167](https://github.com/functionalscript/functionalscript/pull/3167#issuecomment-6350745131).
+The earlier single-variable `let`/`while` subset was approved in
+[PR #2852](https://github.com/functionalscript/functionalscript/pull/2852#issuecomment-6136592213).
+The [capture compatibility record](#capture-compatibility) describes the
+extension's replacement of the earlier post-loop capture policy.
 
 ## Examples
 

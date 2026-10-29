@@ -49,6 +49,14 @@ iteration first creates immutable parameter snapshots; closures capture those
 snapshots rather than mutable slots. Slot mutability is recorded in the plan,
 including loops that never update a parameter.
 
+## Source loop preparation
+
+[Source loop eligibility and normalization](../../../edag/to_fast/source/loops/README.md)
+are owned by the source coordinator. This pass consumes its admitted logical
+regions and chooses the physical layout below; it does not widen source grammar.
+The [remaining supplied-profile limits](../../../edag/to_fast/source/loops/todo/general-source-profiles.md)
+retain recursive fallback or an explicit source-admission error.
+
 The source coordinator calls `prepare(block, { sourceLoops: true })` after
 admitting the loop's transfers and source regions. In that profile, a
 one-input/one-result loop shares one physical state slot: a continue

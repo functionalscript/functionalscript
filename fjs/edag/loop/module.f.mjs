@@ -1,8 +1,7 @@
 /**
- * A loop recognized in the analysis table, so that every writer spells it
- * as one rather than as the recursion it is written as. V8 and Rust
- * implement no tail calls, so a function iterating by a call to itself
- * overflows the stack on every target but a VM with them.
+ * Established scalar-loop recognition for common EDAG-to-FAST conversion.
+ * Writers consume prepared FAST; they do not query this analysis themselves.
+ * General evaluation-aware tail recovery lives in `fjs/edag/to_fast`.
  *
  * One template, the loop over one state value whose condition continues
  * it:
@@ -21,15 +20,12 @@
  * a shared node is written once, as an expression, where no statement can
  * stand.
  *
- * One recognizer for every writer: the function text and the source
- * writer ask it of the table they write from, and the Rust writer, which
- * walks the graph by node identity, builds the table of the one function
- * it asks about. {@link keepsRecursion} is the other half of the rule,
- * the shapes every writer spells as the recursion though they match: the
- * writers agree on every function, and a shape kept in one is kept in
- * all.
+ * Common conversion uses this recognizer to retain established scalar graph
+ * and output compatibility. {@link keepsRecursion} excludes shapes from this
+ * scalar shortcut; general tail recovery can still handle them with complete
+ * invocation and placement analysis.
  *
- * `fjs/edag/todo/tail-call-loop.md` has the design and the consumers.
+ * `fjs/edag/to_fast/README.md` owns tail-call eligibility and consumers.
  *
  * @module
  *
@@ -130,9 +126,9 @@ const reached = a => v => {
 export const reaches = (a, shared) => v => reached(a)(v).some(i => shared.includes(i))
 
 /**
- * Whether every writer keeps the recursion for function `i`, a loop by
- * {@link loopOf}, rather than spell it as the loop
- * (`fjs/edag/todo/tail-call-loop.md`): an assert before the condition,
+ * Whether the established scalar shortcut keeps recursion for function `i`,
+ * a loop by {@link loopOf}, rather than applying that shortcut
+ * (`fjs/edag/to_fast/README.md`): an assert before the condition,
  * which runs every round where a `const` before the loop would run once;
  * a read of the rest array, which each round of the recursion sees empty
  * from the second on, where a loop would keep the first call's; and a
@@ -143,8 +139,8 @@ export const reaches = (a, shared) => v => reached(a)(v).some(i => shared.includ
  * block and would establish it twice, two values where the graph has
  * one. A value that merges, a read the condition and the block
  * repeat, `r[0]`, is one value however many times it is evaluated, and
- * loops. A writer may keep the recursion for more, for a reason of its
- * own spelling, and never for less.
+ * loops. These exclusions belong to this compatibility recognizer; shared
+ * general recovery and source-profile admission have their own contracts.
  *
  * What both reach is asked of the graph, not of the table's count of
  * sharing, so a table that merges twins and one that keeps every node its

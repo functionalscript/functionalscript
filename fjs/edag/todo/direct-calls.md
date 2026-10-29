@@ -23,8 +23,8 @@ not yet, since the design principles rank simplicity above an
 optimization no measurement has asked for.
 
 A module-level loop function needs nothing here: a function of the shape
-`r => COND ? self(NEXT) : r` is `loopClosure`'s wherever it is written
-([`tail-call-loop.md`](./tail-call-loop.md)), a module's scope included.
+`r => COND ? self(NEXT) : r` uses [common tail-loop lowering](../to_fast/README.md#tail-call-eligibility)
+wherever it is written, a module's scope included.
 
 ### Proposal
 

@@ -34,164 +34,39 @@ Named scalar loop functions establish capture aliases in signature order before
 the condition. This removes the former inline writer's capture-order refusal
 using the existing source grammar.
 
-General fixed-parameter tail calls use loops in code-only JavaScript and Rust.
-Source output retains rest-free canonical invocation roots recognized by the
-shared scalar or plain-loop plan, plus one-input/one-result structured loops
-whose loop transfers target their nearest loop and whose regions the source
-grammar admits. Their returns retain the enclosing function owner, and statement
-throws retain their reached evaluation and failure propagation. This includes
-aggregate helpers for zero or multiple source state values. Common preparation
-emits ordinary `while` statements; the plain-loop
-plan computes its normal result after the final false test. The structured
-source profile shares one physical state/result slot, spelling `break` and
-`continue` without labels. Rest-free zero-input roots without a break to their
-own target also retain bounded-stack source loops. They need no state or result
-storage; shared preparation supplies the source grammar's unreachable terminal
-return after a diverging loop. The first source parse introduces the ordinary
-aggregate helper and may change graph bytes/hashes; its graph and canonical
-text then stabilize. Reached work and capture lifetimes stay in their existing
-regions. Other canonical invocation roots retain recursive source spelling
-through the existing transfer resolver. The adapter repeats no
-graph placement or tail eligibility analysis; required function owners retain
-recursive names where needed.
+## Source loop output
 
-The shared plain-loop plan also admits rest-free zero-input roots with a normal
-result. Either conditional arm may continue; the other supplies the result
-after the final test. Common preparation uses a private unchanged slot, keeping
-the public function's empty parameter list and result computations outside
-iteration. Parsing that first source introduces the canonical scalar helper,
-and its normalized graph and text then stay exact. Condition-only definitions
-run at every test; only identity-free projection dependencies may be copied
-into the step or result. Zero-input normal-result shapes outside the admitted
-plain and terminal plans retain their existing recursive fallback.
+General tail calls use shared loop conversion and preparation in code-only
+JavaScript/function text and Rust. Source output retains its admitted scalar,
+plain, structured and terminal invocation profiles through the separate source
+coordinator. It performs no second graph-placement or tail-eligibility analysis.
+The detailed [source loop contract](../../edag/to_fast/source/loops/README.md)
+owns their exact admission, evaluation regions, fallback and graph normalization.
 
-Rest-free fixed multi-input roots in that same plain profile also emit source
-loops. Source preparation packs their initial and simultaneous next inputs into
-one private array slot, with immutable projected snapshots for each iteration
-and the final result. Either conditional arm may continue; the normal result
-runs after iteration. The public parameter list stays unchanged. This is a
-physical source layout: normalized logical loops and default JavaScript/Rust
-layouts retain their existing contracts. The first source parse establishes
-the scalar helper and its stable graph/text normal form.
+Those profiles cover empty and multiple semantic inputs, observed rest, required
+normal-arm work, conditional results and transitions, mixed completion and
+continuation, and selected explicit throws. Common preparation retains exact
+loop targets and establishes reached arguments before simultaneous state
+updates. Immutable iteration/final snapshots preserve held captures and shared
+allocations; rest arrays remain fresh between invocations. A throw evaluates
+its selected payload once and leaves without a state or normal-result write.
+Public fixed arity and earlier scalar and zero-input divergent spellings retain
+their contracts.
 
-Observed-rest invocation roots now retain source loops when the same plain
-plan admits them. The shared invocation transition establishes all reached
-arguments before projecting fixed inputs and slicing a fresh rest array.
-Preparation treats rest as one semantic input, preserving sharing within an
-invocation and fresh identity between iterations, including empty rest arrays.
-Saved closures retain their iteration's array; the public fixed arity and rest
-parameter stay intact. Fixed-plus-rest roots support either conditional arm.
-Rest-only roots have one semantic input. For an admitted base-first root, the
-source coordinator uses the shared plain-loop helper to negate its terminal
-test and swap the arms, preserving prefixes, targets and selected regions.
-Existing preparation then consumes the continue-first loop, so both rest-only
-orientations emit bounded-stack source. First-parse graph/text stability and
-the existing default JavaScript/Rust layouts follow the same contracts as
-fixed-input roots.
+Physical source packing does not change logical loop signatures or default
+JavaScript/function-text/Rust layouts. Parsing the first broader source output
+can introduce the canonical scalar-helper/result boundary, changing graph
+bytes/hashes and function text once under its existing exception. The graph
+from that first source parse and its canonical text then stabilize exactly,
+without accumulating helpers, projection demands or invocation wrappers.
+Existing raw scalar and exact-graph source fixtures retain their declared domains.
 
-Rest-free zero-input and fixed multi-input roots, fixed-plus-rest roots and
-rest-only roots may also retain loops when the normal arm has required
-definitions before its result.
-A shared source-only helper wraps that define-only prefix in the break-result value
-block, preserving bindings and order. Existing preparation establishes final
-input snapshots, then runs the block once after the last test. Base allocations
-remain shared within a result and fresh between invocations. Required calls run
-once, preserving their
-result identities, and base work stays absent from continuing iterations.
-Base results and escaped closures retain the final rest array's identity.
-For a rest-only root with its base case first, result wrapping composes with the
-existing single-input orientation helper before scalar preparation. Public fixed
-arity stays zero and the final rest array is not sliced again. Both conditional
-orientations use the same plain-plan validation. Leading total result aliases
-and constructors are emitted in the enclosing post-loop region, retaining
-required allocation order before later rest projections. Calls, lookups and
-selected regions keep their evaluation boundaries. Zero-input roots use the
-existing private unchanged slot, with no semantic input snapshots or extra
-invocation boundary. Both conditional orientations run the required base work
-once after the final test and retain empty public arity. Other single-input
-profiles and nonrequired or other structured base prefixes keep their existing
-admission and fallback.
-
-The base result may also be a terminal conditional tree whose leaves all
-complete the same loop with one value. The shared normalizer keeps required
-definitions in their original branch and converts that tree into the existing
-result value block. Base conditions run only after the final iteration test;
-only the selected branch evaluates its calls, allocations or failures. Both
-outer orientations retain final input/rest identities and captures. General
-lazy prefixes keep their previous admission.
-
-A continuing arm may also contain a terminal conditional tree whose leaves
-all continue the same loop with its complete input vector. Shared planning
-evaluates one selected transition as a value block: required branch work and
-all reached arguments finish before the scalar or packed state changes. This
-preserves simultaneous updates, shared allocations and captures of the creating
-iteration, including fresh rest arrays. Zero-input transitions finish their
-required work and yield `undefined` to the existing private slot. Either outer
-arm may continue, and conditional base results use the same final-result path.
-The public parameter list and prior ordinary single-input spelling stay intact;
-general lazy prefixes retain their existing admission.
-
-Zero-input, fixed multi-input and observed-rest roots may also retain terminal
-decisions whose leaves mix normal completion and tail continuation. Shared
-terminal analysis validates required definitions and result-free decisions,
-then keeps each leaf at its exact loop target: one result on completion, or
-the complete next-input vector on continuation. Required work remains in the
-selected body region, including allocations shared by a condition, transition
-and result. This includes a single condition whose required prefix creates a
-shared array, object, closure or call result. The prefix runs once per body
-visit, before the condition, including the visit that completes the loop.
-Existing plain and branching plans retain their earlier source spellings.
-
-Common preparation emits `while(true)` with one private state/result slot.
-Multi-input roots initialize and update that slot with one packed vector;
-immutable per-input snapshots retain creating-iteration captures. A completed
-leaf computes its result once, writes the same slot and leaves the loop.
-Rest-only roots use the existing scalar form. Reached arguments finish before
-state changes, preserving simultaneous updates, fresh rest and failure order.
-Zero-input roots initialize only a private result slot to `undefined`; their
-semantic inputs and continued argument vectors stay empty. Reached unused
-arguments still finish before continuation, and completion writes its selected
-result into that slot. Public arity stays zero, including when the result
-retains the function's own identity. Existing plain zero-input loops keep
-their earlier unchanged-slot spelling.
-This path keeps earlier source profiles and default JavaScript/function-text/
-Rust layouts unchanged. The first parsed source graph establishes the scalar
-helper boundary, and later graph/text cycles remain exact.
-
-Fixed multi-input and observed-rest roots also retain terminal trees whose
-every leaf continues the exact loop with its complete next-input vector.
-Required prefixes and selected arguments finish before the existing packed or
-scalar state update. There is no normal completion result to compute. Shared
-allocations, creating-iteration captures, fresh rest and reached failures keep
-their iteration lifetime. Earlier zero-input and ordinary scalar divergent
-spellings stay unchanged, as do default layouts and logical graph contracts.
-Direct and conditional continuations preserve exact first-parse graph/text
-cycles; general lazy regions keep their admission.
-
-These terminal decisions also admit explicit throw leaves. A selected throw
-evaluates its required prefix and payload, then exits without a state or result
-write. Nonempty invocation inputs may mix throw and continuation without a
-normal completion; empty inputs use this plan only when a normal result is
-also present. Existing zero-input throw/continue and ordinary scalar spellings
-keep their earlier plans. Mixed return/throw/continue decisions preserve
-iteration captures, fresh rest, reached evaluation order and exact graph/text
-cycles from the first source parse. Default layouts remain unchanged.
-
-Source preparation returns a refusal when a newly factored terminal recipe
-requires normally completing guards outside the admitted one-input/one-result
-loop profile. Raw zero-input or multi-input roots outside the admitted plain
-and terminal plans, and observed-rest roots outside those plans, keep their
-existing reifiable recursive
-forms; unsupported factored profiles return an error instead of asserting or
-emitting unreadable source.
-
-The plain-loop spelling separates iteration from normal-result computation.
-Parsing its first output can therefore introduce a scalar helper boundary and
-change graph bytes/hashes. That source-normalized graph and its canonical text
-stabilize on subsequent conversions without accumulating helpers or projection
-demands. Existing canonical scalar-loop cases keep their exact graphs and source
-spelling. Condition-only required prefix work can now use an ordinary `while`
-where output previously used recursion or the general labelled loop.
+Reifiable roots outside the admitted source plans retain recursive spelling.
+Other supplied factored profiles return
+`a factored terminal continuation outside the source loop profile` through
+`Result`, preserving correct code-only JavaScript/Rust output. The
+[remaining source-profile work](../../edag/to_fast/source/loops/todo/general-source-profiles.md)
+tracks these explicit canonical-graph limits separately from the source grammar.
 
 Discarded literal `undefined` anchors also normalize away during graph
 construction. They perform no failing work and create no identity; keeping them

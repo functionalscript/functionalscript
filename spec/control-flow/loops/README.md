@@ -184,6 +184,13 @@ values simultaneously after its source assignments have run in order. Explicit
 `continue` supplies those current loop inputs; explicit `break` supplies the
 current normal results. Source admission resolves the target, and sugar packs
 the state through the existing FAST transfers.
+
+Loop parameters initialize from the current values at the loop's execution
+point. Normal completion supplies their latest values once to the following
+statements. Source binding analysis selects the state; graph conversion
+consumes the explicit signatures. The [structured loop construction contract](../../../fjs/edag/from_fast/loops.md)
+owns helper construction, completion propagation and graph identities.
+
 For a literal `true` condition and an explicit exit from that loop, sugar uses
 the body directly instead of adding an unreachable false-condition arm. This
 includes an owning-function return or statement throw in a nested loop. An
@@ -212,8 +219,32 @@ spelling can introduce a scalar helper boundary on its first round trip; its
 normalized graph and canonical text then stabilize. Existing scalar source
 output retains its graph and bounded-stack spelling, including loops that read
 an unchanged outer mutable value. The
-[output contract](../../../fjs/edag/todo/tail-call-loop.md#remaining-general-source-output)
+[output contract](../../../fjs/edag/to_fast/source/loops/README.md)
 records the eligible helper shape and recursive fallback for other graphs.
+
+## Implementation evidence
+
+The parser's `loops.generalStateAdmission` proof in
+[`parser/proof.f.mjs`](../../../fjs/compiler/parser/proof.f.mjs) covers zero and
+multiple state bindings, sequential and selected loops, snapshots and 18 state
+bindings. Shared sugar proofs in
+[`sugar/proof.f.mjs`](../../../fjs/js/ast/sugar/proof.f.mjs) cover binding order,
+fresh locals, nested return ownership, explicit transfer targets, required
+failures and state beyond the function-arity limit.
+
+The source-output proofs in
+[`source/loops/proof.f.mjs`](../../../fjs/edag/to_fast/source/loops/proof.f.mjs)
+cover conditional and nested bodies, switch exits, initially skipped and
+failing conditions, continue re-tests, multiple exits and following code.
+They compare execution and the graph/text fixed point from the first source
+parse, including the 18-state transfer and owning-return cases.
+
+## Design approval
+
+The general loop and binding extension was approved by `sergey-shandar` in
+[PR #3167](https://github.com/functionalscript/functionalscript/pull/3167#issuecomment-6350745131).
+The [variables approval record](../../bindings/variables/README.md#design-approval)
+also preserves the approval of the earlier single-variable loop subset.
 
 ## Examples
 

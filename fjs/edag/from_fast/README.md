@@ -30,6 +30,8 @@ declaration on every parse. Removing these redundant literal anchors changes
 the graph identity of inputs containing them; those inputs normalize before
 the exact required-anchor round-trip domain applies.
 
+## Required evaluation and graph normalization
+
 Required initializers and loop calls also retain their order when their values
 are reached only by a later export or result. A possible failure stays before
 later divergent work, and earlier divergent work stays before a later failure.
@@ -104,6 +106,8 @@ The source consumer is the admitted-source adapter in
 [`js/ast/sugar`](../../js/ast/sugar/module.f.mjs). Source admission finishes
 before graph construction. Physical prepared FAST is never an input to this API.
 
+## Helper construction
+
 The baseline supports the established scalar loop: one parameter and result,
 a condition, definitions followed by its continue, and an unchanged-state
 break. It constructs the same one-argument recursive helper as the previous
@@ -138,6 +142,8 @@ evaluation. Required-order comma anchors extend the aggregate-helper graph
 normalization; state/result order and established scalar emitted source remain
 unchanged. General helper round trips preserve their documented
 sharing normalization and repeated conversions stabilize.
+
+## Shared lazy demand state
 
 [`loop/memo`](./loop/memo/module.f.mjs) preserves lazy identity
 across normal-exit helpers. Its lexical inventory selects deferred recipes used
@@ -232,6 +238,8 @@ function. Return payloads demand the current cells before completion lowering
 propagates the source value through nested helpers. Normal exits still carry
 the updated vector for following work; a function return needs no resumable
 vector. Standalone blocks do not invent function ownership.
+
+## Owning returns in value regions
 
 At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.mjs) pass lifts owning
 returns in direct plain value blocks and conditionals used as required
@@ -344,6 +352,8 @@ Blocks without a crossing deferred binding retain their identity and previous
 graph construction. Memo normalization runs before completion lowering and
 root matching at each owning block boundary.
 
+## Enclosing-function returns
+
 [`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
 returns and outer-loop transfers through helpers. Only nonroot loops with
 escaping control gain a private completion result: `["normal", resultValues]`,
@@ -382,7 +392,8 @@ retain their previous graph path. Canonical invocation roots are exempt from
 completion wrapping, so terminal public results and self calls stay direct;
 their inner helpers can still return to the owning source function. Return
 payload computations remain ordinary evaluations; broader tail-call eligibility
-belongs to milestone F. Throws and failures use the existing failure channel.
+belongs to shared [tail-call analysis](../to_fast/README.md). Throws and failures
+use the existing failure channel.
 
 The graph join replaces the former continuation expansion for helper callers
 and canonical invocation roots. The root resolver preserves statement regions
@@ -406,6 +417,8 @@ with ordinary result-only lowering.
 Regions whose paths all throw also end graph control immediately, without
 lowering their unreachable continuation.
 
+## Canonical root loops
+
 A canonical scalar invocation loop reuses its enclosing function. Its body
 contains only aliases of established arguments, captures or self before the
 loop, then a direct return of the loop's single result. Capture and self aliases
@@ -414,7 +427,7 @@ array, and the loop enters with that current argument. Reuse keeps the same
 frame and self identity. One-time setup, a different invocation layout or
 following result processing retains a separate helper.
 
-The next supported root domain generalizes the invocation signature:
+The general root domain uses the complete invocation signature:
 zero through sixteen fixed parameters, optional rest, and one opaque public
 result. [`loop/root`](./loop/root/module.f.mjs) checks that each loop entry
 aliases the corresponding current argument and the function directly returns
@@ -449,8 +462,10 @@ ordinary graph constructor. Ordinary regions retain their original values and
 sharing. No completion/state envelope surrounds a tail call or public result;
 an existing helper's argument and returned arrays remain opaque values.
 Captures, retained self values, required work and observable arity keep their
-ordinary function contracts. This extends internal reconstruction; source
-admission and broader tail-call recognition remain their later milestones.
+ordinary function contracts. Source admission and shared
+[tail-call analysis](../to_fast/README.md) remain separate owners.
+
+## Graph identity and normalization
 
 The direct graph round-trip domain uses canonical binding reads: one node per
 argument, frame slot, rest or self binding in each scope, with explicit shared
@@ -474,12 +489,11 @@ contract. Existing source round trips retain
 their analysis-normalized comparison, including the documented lazy-region
 splits and redundant-anchor normalization.
 
-E's construction domain is implemented. F lowers terminal self-call evaluations
-through canonical invocation roots, including spread and observed-rest
-invocations with per-iteration parameter setup. Unsupported
-forms are refused explicitly. Foreign or nonlexical loop targets remain refused, as do foreign
-function-return targets and loop-body normal yields. Standalone block
-construction has no source function to own helper returns. A deferred free
-binding is never eagerly captured to construct a helper. The
-[loop construction contract](../todo/fast-loop-construction.md) records the
-completion and memo-state contracts for that extension.
+Shared tail-call analysis lowers terminal self-call evaluations through
+canonical invocation roots, including spread and observed-rest invocations
+with per-iteration parameter setup. Foreign or nonlexical loop targets, foreign
+function-return targets and loop-body normal yields are refused explicitly.
+Standalone block construction has no source function to own helper returns.
+A deferred free binding is never eagerly captured to construct a helper.
+[Structured loop construction](./loops.md) indexes these contracts and records
+the member-resolution decision, spread boundary and integration evidence.

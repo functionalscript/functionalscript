@@ -66,8 +66,8 @@ uses BAST for a different concept, "Binary Abstract Syntax Tree". That
 historical meaning is not renamed or adopted by this proposal.
 
 The [FAST contract](#fast-contract) below defines the common representation.
-The [epic](./general-loops-and-tail-calls.md#implementation-order) requires its
-implementation and migration of the existing language before new features.
+The completed [loop integration](../compiler/architecture.md#loop-integration)
+used this foundation before extending source admission.
 Language admission and detailed conversion algorithms stay with their owners.
 
 The symmetry is in the conversion boundaries:
@@ -135,7 +135,7 @@ owners; this proposal does not require a Rust input parser.
   refer to one graph node. Distinct equal expressions remain distinct unless
   an explicit, permitted optimization merges them.
 - **Graph construction consumes explicit control flow.** State/result selection
-  belongs to AST-to-FAST. The [loop-construction owner](../edag/todo/fast-loop-construction.md)
+  belongs to AST-to-FAST. The [loop-construction owner](../edag/from_fast/loops.md)
   specifies helper encoding, completion propagation and root-loop reuse.
   `from_fast` has no source-mutability or liveness analysis.
 - **Optimization is independent of correct lowering.** Graph construction
@@ -150,7 +150,7 @@ owners; this proposal does not require a Rust input parser.
   for emission belongs in common FAST processing used by all targets, rather
   than a separate binding policy in the Rust serializer.
 - **Graph-to-FAST owns tail-loop lowering.** The
-  [tail-call owner](../edag/todo/tail-call-loop.md) defines existing-case migration,
+  [tail-call owner](../edag/to_fast/README.md#tail-call-eligibility) defines existing-case migration,
   evaluation-aware eligibility and invocation requirements. It uses the common
   placement analysis; every serializer renders the same decisions.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
@@ -304,12 +304,11 @@ Source checks always finish before a pass erases the evidence they inspect.
 Source capture checks precede generated functions, and only graph construction
 introduces recursive helpers.
 
-A/B establish the binding representation and shared analysis while preserving
-current source acceptance, including its existing loop capture exceptions.
-Retain source-origin metadata needed by that admission policy until G replaces
-it with the [proposed uniform rule](../../spec/todo/3220-let.md#general-bindings).
-G enables the new policy and general rebinding in these same passes; it does
-not introduce a second analysis or require retrofitting FAST.
+The foundation established binding identities and shared analysis before
+changing source acceptance. General rebinding now applies the
+[uniform write-based capture rule](../../spec/bindings/variables/README.md#capture-compatibility)
+in those same passes. Source-origin metadata survives until admission checks
+have consumed it; there is no second binding analysis.
 
 A's examples/proofs cover written/unwritten locals and parameters, destructured
 initialization, source `const` errors, a value-producing block without a function
@@ -569,9 +568,9 @@ contracts preserved. New source features, broader tail-call handling and
 short-circuit tag removal follow that gate; none is first implemented in the
 old fold or a writer for later migration.
 
-The [let proposal](../../spec/todo/3220-let.md#later),
-[loop construction](../edag/todo/fast-loop-construction.md),
-[tail-call analysis](../edag/todo/tail-call-loop.md#general-tail-calls) and
+The [source-loop contract](../../spec/control-flow/loops/README.md#normalization-and-output),
+[loop construction](../edag/from_fast/loops.md),
+[tail-call analysis](../edag/to_fast/README.md#tail-call-eligibility) and
 [short-circuit removal](../edag/README.md#source-logical-operators) own those
 extensions. This architecture issue owns the shared foundation.
 Unrelated tokenizer moves and general directory reorganization do not block it.
@@ -600,7 +599,7 @@ documentation and run the affected checks with each implementation increment.
       loop-construction owner extends its capability later.
 - [x] **C:** Extract EDAG-to-FAST placement once, using existing sharing analysis.
       Move current tail-loop decisions and immediate-call elimination there
-      under the [migration contract](../edag/todo/tail-call-loop.md#fast-migration).
+      under the [migration contract](../compiler/architecture.md#loop-integration).
 - [x] **C:** Complete common preparation and migrate source JS, runtime/function
       text and Rust consumers. Reuse token/marked-text and target helpers;
       retire each replaced graph-aware writer path with its consumer.
@@ -622,9 +621,9 @@ parts do not delay the epic's foundation gate:
 
 ### Related
 
-- [General loops and tail calls](./general-loops-and-tail-calls.md) — dependency
-  epic for the FAST prerequisites, general rebinding, loop normalization and
-  broader tail-call analysis; its feature milestones follow this foundation.
+- [Completed loop integration](../compiler/architecture.md#loop-integration) —
+  evidence for the shared foundation, rebinding, loop normalization and
+  general tail-call analysis.
 - [Compiler README](../compiler/README.md) and
   [parser README](../compiler/parser/README.md) — current architecture.
 - [EDAG](../edag/README.md) — graph identity, scopes and operations.
@@ -632,12 +631,12 @@ parts do not delay the epic's foundation gate:
   counting already completed and remaining traversal questions.
 - [Rust serialization](../rust/serializer/README.md) — compiler temporaries and
   caller-supplied corpus bindings use the common prepared FAST path.
-- [Tail-call loops](../edag/todo/tail-call-loop.md#fast-migration) — existing
+- [Tail-call loops](../compiler/architecture.md#loop-integration) — existing
   loop emission and its migration from writers into common FAST conversion.
 - [Short-circuit conditionals](../edag/README.md#source-logical-operators)
   — later source sugar and canonical EDAG schema change.
-- [FAST loop construction](../edag/todo/fast-loop-construction.md)
-  — later explicit-loop helper construction and graph round-trip rules.
+- [FAST loop construction](../edag/from_fast/loops.md)
+  — explicit-loop helper construction and graph round-trip rules.
 - [Operand classification ownership](../edag/todo/operand-classification-owner.md)
   — existing eager/lazy analysis work to reconcile with common placement.
 - [Marked text](../text/marked/README.md) — existing representation and demarking.

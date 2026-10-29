@@ -17,7 +17,7 @@ A `let` takes its initializer, as a `const` does: JavaScript's `let x;`, the
 variable `undefined` until its first assignment, is refused
 ([variables](../bindings/variables/README.md)). The refusal is the language
 designer's decision at the implementation of general bindings
-([let](./3220-let.md), "General bindings"): a variable names its value where
+([variables](../bindings/variables/README.md)): a variable names its value where
 it is declared, as a body names what it returns in an explicit `return`, and
 the compiler tracks no first assignment along paths, so it admits no program
 that depends on one.
@@ -40,7 +40,7 @@ denotes what `const x = c ? 2 : 3` denotes, the same graph, and the writer may
 spell either.
 
 The analysis is definite assignment over the normalized FAST, where a block's
-writes are its results ([let](./3220-let.md), "General loops"): a binding
+writes are its results ([normalization](../control-flow/loops/README.md#normalization-and-output)): a binding
 declared without a value is assigned on a path once a write to it has been
 established on it, and a read before that on any path is refused at the read.
 
