@@ -41,7 +41,8 @@ import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f
 import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
-import { intersperse, toArray } from '../../types/list/module.f.mjs'
+import { intersperse } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { priorities, statuses } from '../issue/module.f.js'
 
 /**

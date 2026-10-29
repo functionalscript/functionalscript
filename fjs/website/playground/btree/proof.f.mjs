@@ -9,7 +9,7 @@ import { demo, depthOf, frameTime, goalNodes, keyCount, land, marked, move, node
 import { structure, tensUpTo } from '../../../types/btree/demo.f.mjs'
 import { graphOf } from '../../demo/versions/module.f.mjs'
 import { values } from '../../../types/btree/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { commandsOf } from '../../../effects/module.f.mjs'
 import { partialRun, run as mockRun } from '../../../effects/mock/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'

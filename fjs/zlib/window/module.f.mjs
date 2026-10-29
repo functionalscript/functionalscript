@@ -17,7 +17,8 @@
  * @import { Window } from './types.ts'
  */
 
-import { reverse, take, toArray } from '../../types/list/module.f.mjs'
+import { reverse, take } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /** How many bytes a block holds. */
 const blockLength = 256

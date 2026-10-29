@@ -21,7 +21,8 @@
  */
 
 import { byteLength, u8ArrayMsb, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
-import { flat, toArray } from '../../types/list/module.f.mjs'
+import { flat } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { append, end, init } from '../adler32/module.f.mjs'
 
 /** The most bytes a stored block holds: `LEN` is sixteen bits. */

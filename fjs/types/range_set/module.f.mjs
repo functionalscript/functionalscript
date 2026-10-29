@@ -10,7 +10,7 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { bsearch } from '../function/compare/module.f.mjs'
-import { toArray } from '../list/module.f.mjs'
+import { toArray } from '../list/alt/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { merge } from '../sorted_list/module.f.mjs'
 

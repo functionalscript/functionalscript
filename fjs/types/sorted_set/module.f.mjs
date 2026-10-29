@@ -30,7 +30,7 @@
  * @import { SortedSet } from './types.ts'
  */
 
-import { toArray } from "../list/module.f.mjs"
+import { toArray } from "../list/alt/module.f.mjs"
 import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.mjs'
 
 export const union =

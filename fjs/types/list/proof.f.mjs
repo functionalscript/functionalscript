@@ -4,7 +4,8 @@
  * @import { List } from './types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, toArray, zip, first, filterMap, findMap, isEmpty, sameItems, tryFold, intersperse, mergeAdjacent } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent } from './module.f.mjs'
+import { toArray, tryFold } from './alt/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan } from '../function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
