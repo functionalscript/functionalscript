@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/website/demo/examples/module.f.mjs`: the examples a
+ * Type-level API for `fjs/website/demo/examples/module.f.js`: the examples a
  * demo offers in a drop-down above its source.
  *
  * @module

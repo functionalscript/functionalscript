@@ -1,5 +1,5 @@
 import { assert } from '../../fjs/asserts/module.f.js'
-import { examplePicker } from '../../fjs/website/demo/examples/module.f.mjs'
+import { examplePicker } from '../../fjs/website/demo/examples/module.f.js'
 import lexical from './module.f.js'
 
 export const proof = {
