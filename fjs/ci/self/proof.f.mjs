@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob, repositoryWorkflow } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -18,9 +18,9 @@ import { parseGitHubAction } from '../common/module.f.mjs'
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no
  * `package.json`, not even the workflows directory: the generator creates it.
  *
- * @type {(program: Effect<NodeOp, 0, number>) => string}
+ * @type {(program: Effect<NodeOp, 0, number>, filename?: string) => string}
  */
-const workflowOf = program => {
+const workflowOf = (program, filename = 'gen.ci.yml') => {
     /** @type {Dir} */
     const root = {}
     const [state, code] = virtualAt(root)(program)
@@ -29,7 +29,7 @@ const workflowOf = program => {
     assert(typeof github === 'object' && !(github instanceof Array), github)
     const workflows = github['workflows']
     assert(typeof workflows === 'object' && !(workflows instanceof Array), workflows)
-    const file = workflows['gen.ci.yml']
+    const file = workflows[filename]
     assert(file instanceof Array && file.length !== 0, file)
     return utf8ToString(file[0])
 }
@@ -39,28 +39,27 @@ export const proof = {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated, repositoryWorkflow)
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
-        for (const [id, job] of Object.entries(checks.jobs)) {
-            assertStructurallySame(generated.jobs[id], { ...job, if: "github.event_name == 'pull_request'" })
-        }
-        assertStructurallySame(checks.on, { pull_request: {}, merge_group: {} })
+        assertStructurallySame(generated, checks)
+        assertEq(Object.keys(generated.jobs).length, 9)
+        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
         const github = state.root['.github']
         assert(typeof github === 'object' && !(github instanceof Array))
         const workflows = github.workflows
         assert(typeof workflows === 'object' && !(workflows instanceof Array))
-        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml'])
+        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml', 'gen.website.yml'])
     },
     websiteBuild: () => {
-        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
+        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.website.yml')))))
+        assertEq(websitePath, '.github/workflows/gen.website.yml')
+        assertStructurallySame(generated, websiteWorkflow)
         assertStructurallySame(generated.jobs.website, websiteJob)
-        assertEq(Object.keys(generated.jobs).length, 10)
-        assertStructurallySame(generated.on, { pull_request: {}, merge_group: {}, push: { branches: ['main'] } })
-        for (const id of Object.keys(generated.jobs).filter(id => id !== 'website')) {
-            assert(!generated.jobs[id]?.steps.some(step => step.run?.includes('sh ./nanvm/demos/gen.build.sh')))
-        }
+        assertEq(Object.keys(generated.jobs).length, 1)
+        assertStructurallySame(generated.on, { pull_request: {}, push: { branches: ['main'] } })
+        assert(!workflowOf(main()).includes('sh ./nanvm/demos/gen.build.sh'))
         assertStructurallySame(websiteJob.permissions, { contents: 'read', 'pull-requests': 'write' })
         assertEq(generated.jobs.website?.needs, undefined)
-        assertEq(generated.jobs.website?.if, "github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')")
+        assertEq(generated.jobs.website?.if, undefined)
         assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
@@ -79,7 +78,7 @@ export const proof = {
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
     },
     production: () => {
-        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
+        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.website.yml')))))
         assertStructurallySame(generated.concurrency, {
             group: '${{ github.workflow }}-${{ github.ref }}',
             'cancel-in-progress': "${{ github.event_name != 'push' }}",
