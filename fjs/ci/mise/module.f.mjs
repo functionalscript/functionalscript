@@ -11,9 +11,9 @@ import { commandPrefix } from '../environment/module.f.mjs'
  * The sibling directory stays outside the checkout on every runner platform.
  */
 export const miseEnvironment = /** @type {const} */ ({
-    MISE_DATA_DIR: '${{ github.workspace }}/../.mise-ci',
-    MISE_RUSTUP_HOME: '${{ github.workspace }}/../.mise-ci/rustup',
-    MISE_CARGO_HOME: '${{ github.workspace }}/../.mise-ci/cargo',
+    MISE_DATA_DIR: '${{ github.workspace }}-mise',
+    MISE_RUSTUP_HOME: '${{ github.workspace }}-mise/rustup',
+    MISE_CARGO_HOME: '${{ github.workspace }}-mise/cargo',
 })
 
 /** Setup reads the checkout's committed baseline lock. */

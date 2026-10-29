@@ -14,8 +14,9 @@ i686 Linux multilib and optional runtime limitations are documented in
 
 ## Installed-tool cache
 
-Every mise job keeps its data directory in the checkout's sibling `.mise-ci`
-directory. `MISE_RUSTUP_HOME` and `MISE_CARGO_HOME` live inside that tree, so
+Every mise job keeps its data directory at `${{ github.workspace }}-mise`, a
+sibling of the checkout. The suffix avoids `..` path segments, which GitHub's
+cache globber rejects. `MISE_RUSTUP_HOME` and `MISE_CARGO_HOME` live inside that tree, so
 the action caches Rust's actual toolchains, components and targets together with
 mise's install records. The job environment keeps later `mise exec` commands on
 the same homes across Linux, macOS and Windows. The `mise-rust-v1` cache prefix

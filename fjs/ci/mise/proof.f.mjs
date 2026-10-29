@@ -78,9 +78,9 @@ export const proof = {
         } }, false)
         assertStructurallySame(migrated.node26?.env, {
             EXTRA: 'kept',
-            MISE_DATA_DIR: '${{ github.workspace }}/../.mise-ci',
-            MISE_RUSTUP_HOME: '${{ github.workspace }}/../.mise-ci/rustup',
-            MISE_CARGO_HOME: '${{ github.workspace }}/../.mise-ci/cargo',
+            MISE_DATA_DIR: '${{ github.workspace }}-mise',
+            MISE_RUSTUP_HOME: '${{ github.workspace }}-mise/rustup',
+            MISE_CARGO_HOME: '${{ github.workspace }}-mise/cargo',
         })
     },
 }
