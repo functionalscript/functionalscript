@@ -1,21 +1,27 @@
 # `in` Is Refused
 
-**Status:** refused by design
+**Status:** refused; the operator with a string-literal key is planned
 
-**`in` is not FunctionalScript.** `"a" in o` is valid JavaScript, and
-`fjs compile` refuses it by design: the demo below shows what it prints.
+**`in` is not FunctionalScript yet.** `"a" in o` is valid JavaScript, and
+`fjs compile` refuses it today: the demo below shows what it prints. The
+operator with a string-literal key that names no prototype property, `"a" in o`
+for the enumerable own entry `a`, is planned
+([the `in` record](../../todo/2346-in-operator.md)); the general operator, with
+a computed key or a prototype name, stays out for the reasons below.
 
-`"a" in o` is a compilation error, and stays one by design. JavaScript's `in`
+`"a" in o` is a compilation error today. JavaScript's `in`
 asks whether a property exists anywhere on the prototype chain, so
 `"toString" in {}` and `"length" in []` are `true`; FunctionalScript has no
 prototype chain to consult, and answering for own entries only would give
 accepted text a different successful result than JavaScript gives it. Neither
-is acceptable, so the operator is refused rather than approximated. To read an
+is acceptable for a key the chain can answer, so the general operator is
+refused rather than approximated; a literal key outside the chain's names is
+the planned operator's. To read an
 entry, use [`entry`](../../property-access/entries/README.md), and to ask whether
 there is one, `hasEntry` beside it: `true` for an enumerable own entry and
 `false` for an absent key. The reasons, the
-alternatives rejected and what a migration does are in
-[the `in` decision](../../todo/2346-in-operator.md), and the row `op.in` of
+alternatives rejected and the planned operator are in
+[the `in` record](../../todo/2346-in-operator.md), and the row `op.in` of
 [refused constructs](../../todo/refused-constructs.md) registers the refusal.
 
 ## Examples

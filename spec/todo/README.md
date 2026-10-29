@@ -86,9 +86,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 7. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects/README.md#property-keys)).
-8. [ ] [the `in` operator](./2346-in-operator.md) — stays out of the language
-   by design; open for designer approval
-   (its file says P3, not this list's P2).
+8. [ ] [the `in` operator](./2346-in-operator.md) — admitted with a
+   string-literal key that names no prototype property, `"k" in o`; the
+   general operator stays out (its file says P3, not this list's P2).
 
 ### 2.3. Syntactic Sugar
 
