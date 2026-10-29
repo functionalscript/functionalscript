@@ -11,7 +11,7 @@
  */
 
 import { collapseRoot } from '../types/module.f.js'
-import { find } from '../find/module.f.mjs'
+import { find } from '../find/module.f.js'
 import { fold, concat, next } from '../../list/module.f.mjs'
 import { map } from '../../nullable/module.f.js'
 

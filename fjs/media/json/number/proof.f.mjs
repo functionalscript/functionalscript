@@ -1,4 +1,4 @@
-import { isBareInteger, isIntegral, numberLexeme } from './module.f.mjs'
+import { isBareInteger, isIntegral, numberLexeme } from './module.f.js'
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
 
 /** @type {(value: string) => boolean} */

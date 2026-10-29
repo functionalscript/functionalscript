@@ -9,7 +9,7 @@
  */
 
 import { collapseRoot } from '../types/module.f.js'
-import { find } from '../find/module.f.mjs'
+import { find } from '../find/module.f.js'
 import { fold } from '../../list/module.f.mjs'
 import { assert } from '../../../asserts/module.f.js'
 

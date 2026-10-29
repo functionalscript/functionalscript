@@ -28,7 +28,7 @@ export const find = c => {
                 const i = i3(node[1])
                 // `index3` asserts `i` is 0, 1 or 2
                 switch (i) {
-                    case 0: case 2: { return append([i, node])(node[i]) }
+                    case 0: case 2: { return append([i, node])(i === 0 ? node[0] : node[2]) }
                     default: { return done([i, node]) }
                 }
             }
@@ -36,7 +36,7 @@ export const find = c => {
                 const i = i5([node[1], node[3]])
                 // `index5` asserts `i` is 0 to 4
                 switch (i) {
-                    case 0: case 2: case 4: { return append([i, node])(node[i]) }
+                    case 0: case 2: case 4: { return append([i, node])(i === 0 ? node[0] : i === 2 ? node[2] : node[4]) }
                     default: { return done([i, node]) }
                 }
             }

@@ -9,7 +9,7 @@
  * @import { Entry, OrderedMap } from './types.ts'
  */
 
-import { findValue } from '../btree/find/module.f.mjs'
+import { findValue } from '../btree/find/module.f.js'
 import { set } from '../btree/set/module.f.mjs'
 import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
 import { values } from '../btree/module.f.mjs'

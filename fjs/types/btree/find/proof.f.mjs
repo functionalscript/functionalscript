@@ -4,7 +4,7 @@
  * @import { TNode } from '../types/types.ts'
  */
 
-import { find as btreeFind, findValue, contains } from './module.f.mjs'
+import { find as btreeFind, findValue, contains } from './module.f.js'
 import { map, toArray } from '../../list/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'

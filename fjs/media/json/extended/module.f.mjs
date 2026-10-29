@@ -63,7 +63,7 @@
 
 import { error, ok } from '../../../types/result/module.f.js'
 import { parse as parseWith } from '../parser/module.f.mjs'
-import { isBareInteger, numberLexeme } from '../number/module.f.mjs'
+import { isBareInteger, numberLexeme } from '../number/module.f.js'
 import { codec, leafSerialize, nullSerialize } from '../serializer/module.f.mjs'
 
 
