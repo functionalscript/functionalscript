@@ -77,8 +77,9 @@ const runtime = /** @type {Runtime} */ (assertOk(read(
 const data = v => {
     const d = toData(v)
     if (d[0] === 'error') { return `(${d[1]})` }
-    const text = trySerialize(d[1])
-    return text[0] === 'ok' ? toArray(text[1]).join('') : `(${text[1]})`
+    // toData produces function-free data with plain containers, which the
+    // DataJS serializer accepts by construction.
+    return toArray(assertOk(trySerialize(d[1]))).join('')
 }
 
 /**
@@ -100,9 +101,9 @@ export const run = text => {
     if (ast[0] === 'error') { return error(ast[1].message) }
     /** @type {Exp} */
     const graph = unresolved(ast[1]).edag
-    const analyzed = identityAnalysis(graph)
-    if (analyzed[0] === 'error') { return error(String(analyzed[1])) }
-    return ok([answer(memo(analyzed[1])({ args: [], runtime })), answer(vm({ frame: [], args: [], runtime })(graph))])
+    // The compiler establishes the graph's lengths and scope invariants.
+    const analyzed = assertOk(identityAnalysis(graph))
+    return ok([answer(memo(analyzed)({ args: [], runtime })), answer(vm({ frame: [], args: [], runtime })(graph))])
 }
 
 /** @type {Demo<string, DemoEvent>} */
@@ -114,10 +115,9 @@ export const demo = textDemo({
     init: 'const sq = x => x * x\nconst a = sq(3)\nconst o = {}\nexport default [a, a + 1, [1, 2].map(sq), o === o]\n',
 })(text => {
     const edag = compiled(text)('output.edag.data.js')
-    const answers = run(text)
     if (edag[0] === 'error') { return [refusal(edag[1])] }
-    if (answers[0] === 'error') { return [refusal(answers[1])] }
-    const [byMemo, byAmnesia] = answers[1]
+    // compiled already parsed this source successfully; run uses that parser.
+    const [byMemo, byAmnesia] = assertOk(run(text))
     return [
         caption('The EDAG (output.edag.data.js):'),
         ['pre', { [codeMarker]: '' }, toText(edag[1])],

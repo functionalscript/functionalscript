@@ -678,7 +678,9 @@ export const proof = {
             assertEq(at('20000'), null)
             assertEq(at('twenty'), null)
             assertEq(at('300000'), 'about 2 minutes')
+            assertEq(at('220000'), 'about a minute')
             assertEq(at('3000000'), 'about 3 hours')
+            assertEq(at('10000000'), 'about 2 days')
             assertEq(at('999999999'), 'about 42 years')
         },
         /**

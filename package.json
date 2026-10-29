@@ -13,7 +13,7 @@
   "scripts": {
     "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc",
     "test": "tsc && node ./fjs/module.mjs t",
-    "cov": "node --test --test-reporter=./fjs/emergent_testing/node/module.mjs --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-include=**/module.f.js --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 ./fjs/emergent_testing/fjs-only.mjs",
+    "cov": "node --test --test-reporter=./fjs/emergent_testing/node/module.mjs --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-include=**/module.f.js --test-coverage-include=**/demo.f.mjs --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 ./fjs/emergent_testing/fjs-only.mjs",
     "start": "node ./fjs/module.mjs",
     "sm": "js --module ./fjs/spidermonkey.mjs --",
     "gen:clean": "node ./fjs/module.mjs r ./fjs/dev/clean/module.f.mjs",
