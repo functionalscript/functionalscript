@@ -136,16 +136,20 @@ export const repeat =
      * @template {number} N
      * @param {N} n
      */
-    n =>
-    /**
-     * @template T
-     * @param {T} v
-     * @return {FixedArray<N, T>}
-     */
-    v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
-        identity: /** @type {readonly T[]} */ ([]),
-        operation: concat,
-    })(BigInt(n <= 0 ? 0 : Math.ceil(n)))([v]))
+    n => {
+        const count = BigInt(n <= 0 ? 0 : Math.ceil(n))
+        return (
+            /**
+             * @template T
+             * @param {T} v
+             * @return {FixedArray<N, T>}
+             */
+            v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
+                identity: /** @type {readonly T[]} */ ([]),
+                operation: concat,
+            })(count)([v]))
+        )
+    }
 
 /**
  * The array without repeated items, each kept at its first position. Items are

@@ -128,7 +128,7 @@ export const proof = {
         () => assertStructurallySame(repeat(1)('x'), ['x']),
         () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x']),
         () => {
-            const value = { x: 1 }
+            const value = /** @type {const} */ ({ x: 1 })
             const result = repeat(13)(value)
             assertEq(result.length, 13)
             assert(result.every(item => item === value))
