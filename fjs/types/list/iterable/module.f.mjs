@@ -27,21 +27,3 @@ export const toArray = list => {
     const u = trampoline(list)
     return u instanceof Array ? u : from(iterable(u))
 }
-
-/**
- * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
- * moment `update` rejects an item; otherwise finalizes with `end`. This is the
- * list-level `try*` sibling of {@link fold} for accumulations that can fail
- * partway through (see the `try*`/`Nullable` convention in `doc/DESIGN.md` §6).
- *
- * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
- */
-export const tryFold = ({ init, update, end }) => input => {
-    let state = init
-    for (const i of iterable(input)) {
-        const candidate = update(i, state)
-        if (candidate === null) { return null }
-        state = candidate
-    }
-    return end(state)
-}
