@@ -1,7 +1,7 @@
 ## Fit selects on small screens
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
