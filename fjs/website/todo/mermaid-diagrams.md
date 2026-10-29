@@ -52,15 +52,21 @@ sideways: its picture changes direction, not its content.
 
 ### Tasks
 
-- [ ] A reader for the flowchart subset, as a FunctionalScript module with its
+- [x] A reader for the flowchart subset, as a FunctionalScript module with its
       proof: text in, nodes and edges out, or the refusal of a form outside
-      the subset.
-- [ ] Mark an edge that closes a cycle as a `back` edge, so the layout ranks
-      the rest: `disot`'s document → hash → document drew badly without it.
+      the subset ([`media/mermaid`](../../media/mermaid/module.f.js)'s
+      `tryFlowchart`).
+- [x] Mark an edge that closes a cycle as a `back` edge, so the layout ranks
+      the rest: `disot`'s document → hash → document drew badly without it
+      ([`mermaid`](../mermaid/module.f.mjs)'s `flowchartGraph`; `ranked` in
+      `demo/graph` starts every source at rank 0, so a flowchart with
+      several starting points ranks them all).
 - [ ] Draw a label of several lines (`<br/>`, `\n`), and an edge with no
       label without a record row of its own, as `fjs/js/runtime`'s flowchart
-      needs.
-- [ ] Draw a README's flowchart fence as its diagram in
+      needs. Until then the reader refuses a multi-line label, and
+      `flowchartGraph` refuses a node whose arrows are labelled only in
+      part, whose rows would repeat its targets' names.
+- [x] Draw a README's flowchart fence as its diagram in
       [`readme`](../readme/module.f.mjs), and keep any other fence as source.
 - [ ] Sequence diagrams: a layout of their own, if a second README wants one.
 

@@ -160,7 +160,8 @@ read another way, each by name
   visible to every case and in its temporal dead zone for the ones before
   it, which is the statement's other known mistake; the braces make each
   block's scope its own, as a guard's is.
-- `break` and `continue`, as everywhere ([let](./3220-let.md), "Later").
+- `break` and `continue` outside the admitted loop-body switch profile
+  ([current switch forms](../control-flow/switch/README.md)).
 
 A case block is a block of JavaScript's own, so it may bind what the body
 has bound or read, shadowing it as a guard's block may; and the
@@ -246,7 +247,7 @@ implementation's pull request:
 
 ### Later
 
-The loop-body increment of [general loops](./3220-let.md#general-loops)
+The implemented [general loops](../control-flow/loops/README.md) profile
 admits braced switch cases inside loops and conditional arms, including module
 loops. A case exits with switch-local `break`, enclosing-loop `continue`, an
 owning return or throw; nested control retains its targets. Every case path
@@ -256,7 +257,8 @@ values resume after a switch break or no match. This uses the existing FAST
 control and completion encoding without adding graph operations. Its benefits
 are familiar dispatch within ordinary loops and correct nearest-target
 transfers; its cost is a distinct switch break owner and explicit state joins.
-The general-loop approval and source evidence are recorded in the let proposal.
+The [loop contract](../control-flow/loops/README.md#design-approval) records
+the approval and source evidence.
 
 - A case without braces, `case 'x': return v;` and `case 'x': throw w;`:
   a block of one terminator, admitted where the block holds no `const`,
@@ -284,4 +286,5 @@ The general-loop approval and source evidence are recorded in the let proposal.
   once the one form lands
 - [bodies and guards](../control-flow/guards/README.md) — the guard whose block,
   arms and scoping rules the case block takes
-- [let](./3220-let.md) — the loop, whose "Later" holds `break`
+- [Loops](../control-flow/loops/README.md) — nearest-loop transfers and
+  switch-local breaks in loop bodies.

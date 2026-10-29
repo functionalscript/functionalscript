@@ -76,8 +76,8 @@ not forgotten.
 continues with what follows the `if`, with or without an `else`, and adds no
 EDAG node. The function still ends in its own terminator, so §12's guarantee
 is untouched. Bindings assigned in either arm are the branch result
-[3220](./3220-let.md#general-bindings) already specifies for general
-bindings: the current values of the outer mutable bindings, an unchanged arm
+the [variable contract](../bindings/variables/README.md#normalization) specifies
+for general bindings: the current values of the outer mutable bindings, an unchanged arm
 supplying the value before it. What follows the `if` is one shared
 continuation; it is not copied into both arms, which would double the code at
 every `if` in a sequence.
@@ -112,7 +112,7 @@ of repeating that code in the arm.
 - [ ] Settle the `if` form and record formal language-design approval, with a
       link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
 - [ ] An `if` block whose end is reachable, and `else`, over the branch result
-      of [3220](./3220-let.md#general-bindings) and a shared continuation,
+      of the [variable contract](../bindings/variables/README.md#normalization) and a shared continuation,
       through every output; the guard page and
       [refused constructs](./refused-constructs.md) updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
@@ -124,6 +124,6 @@ of repeating that code in the arm.
 - [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
   — why a function body keeps its explicit result.
 - [3230 switch](./3230-switch.md) — `break` and the brace-less case.
-- [3220 let](./3220-let.md) — general bindings and their branch results.
+- [Variables](../bindings/variables/README.md) — general bindings and their branch results.
 - [MVP roadmap](../../nanvm/lib/todo/mvp-roadmap.md#where-self-hosting-stands)
   — what self-hosting waits on.
