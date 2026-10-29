@@ -12,9 +12,13 @@
 /** @type {(value: Value) => Block} */
 const yielded = value => ({ statements: [], exit: ['yield', [value]] })
 
-/** A nullish test uses the primitive undefined value, never a source name. @type {(tag: LogicalTag, read: Value, right: Value) => Value} */
+/** Shared logical selection predicate; a nullish test uses primitive undefined. @type {(tag: LogicalTag, read: Value) => Value} */
+export const logicalCondition = (tag, read) =>
+    tag === '??' ? ['if', ['===', read, null], yielded(true), yielded(['===', read, undefined])] : read
+
+/** @type {(tag: LogicalTag, read: Value, right: Value) => Value} */
 const choice = (tag, read, right) => {
-    const condition = tag === '??' ? /** @type {Value} */ (['if', ['===', read, null], yielded(true), yielded(['===', read, undefined])]) : read
+    const condition = logicalCondition(tag, read)
     return ['if', condition, yielded(tag === '||' ? read : right), yielded(tag === '||' ? right : read)]
 }
 

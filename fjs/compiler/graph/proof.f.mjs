@@ -537,6 +537,18 @@ export const proof = {
             assertStructurallySame(from(g, nodeOf(g, '&&')).map(e => [e.label, e.kind]), [['left', undefined], ['right', 'lazy']])
             assertStructurallySame(from(g, nodeOf(g, 'return')).map(e => [e.label, e.back]), [['to', true], ['value', undefined]])
         },
+        compoundAssignments: () => {
+            for (const tag of ['+', '&&', '||', '??']) {
+                const g = sourceOf(`export default (value,right)=>{value ${tag}= right;return value;};`)
+                const assignment = nodeOf(g, `${tag}=`)
+                const edges = from(g, assignment)
+                assertStructurallySame(edges.map(e => e.label), ['to', 'left', 'right'])
+                assertEq(edges[0].to, nodeOf(g, 'value'))
+                assertEq(edges[1].to, nodeOf(g, 'value'))
+                assertEq(edges[2].to, nodeOf(g, 'right'))
+                assertEq(edges[2].kind, tag === '+' ? undefined : 'lazy')
+            }
+        },
         // `||` and `??` as `&&` is, and `continue` back to its loop.
         logical: () => {
             const g = sourceOf('export default (a, b) => { let i = 0; while (i < 3) { i = i + 1; if (a) { continue; } } return [a || b, a ?? b]; };')

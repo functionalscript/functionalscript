@@ -17,7 +17,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
 import { _hasReturn } from '../memo/cells/module.f.mjs'
-import { logicalValue } from './logical/module.f.js'
+import { logicalCondition, logicalValue } from './logical/module.f.js'
 import { _exposeOperands } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.mjs'
 import { writes as sourceWrites } from './effects/module.f.mjs'
@@ -705,6 +705,29 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const made = establish(value.environment, statement[1], value.value, false)
             inner = made.environment
             statements = [...statements, ...made.statements]
+            continue
+        }
+        if (statement[0] === 'compound-write') {
+            const [, id, tag, operand] = statement
+            assert(context.bindings.some(fact => fact.id === id && fact.isMutable), 'compound write without complete source analysis')
+            const current = lookup(inner, id)
+            const right = normalizedState(inner, context)(operand)
+            if (tag !== '&&' && tag !== '||' && tag !== '??') {
+                statements = [...statements, ...right.statements]
+                if (!right.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: right.environment, normal: false, hasLoopExit, hasFunctionExit } }
+                const made = establish(right.environment, id, [tag, current, right.value], false)
+                inner = made.environment
+                statements = [...statements, ...made.statements]
+                continue
+            }
+            const made = right.normal ? establish(right.environment, id, right.value, false) : null
+            const selected = made === null ? right : { ...right, statements: [...right.statements, ...made.statements],
+                environment: made.environment, value: lookup(made.environment, id) }
+            const skipped = unchangedValue(current, inner)
+            const test = unchangedValue(logicalCondition(tag, current), inner)
+            const joined = conditionalValue(test, tag === '||' ? skipped : selected, tag === '||' ? selected : skipped, context)
+            statements = [...statements, ...joined.statements]
+            inner = joined.environment
             continue
         }
         if (statement[0] === 'if') {

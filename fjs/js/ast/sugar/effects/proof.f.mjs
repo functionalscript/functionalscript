@@ -7,6 +7,15 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { writes } from './module.f.mjs'
 
 export const proof = {
+    compoundTargetsAndOperandsContributeWrites: () => {
+        const x = /** @type {BindingId} */ ({ index: 0 })
+        const y = /** @type {BindingId} */ ({ index: 1 })
+        const operand = /** @type {SourceBlock} */ ({ statements: [['compound-write', y, '+', 2]], exit: ['yield', 3] })
+        const body = /** @type {SourceBlock} */ ({ statements: [['compound-write', x, '+', ['block', operand]]], exit: ['yield', 0] })
+        const indexed = writes(body, new Map())
+        assertStructurallySame(indexed.get(operand), [y])
+        assertStructurallySame(indexed.get(body), [x, y])
+    },
     regionsAndInvocationBoundaries: () => {
         const x = /** @type {BindingId} */ ({ index: 0 })
         const y = /** @type {BindingId} */ ({ index: 1 })

@@ -73,7 +73,6 @@ describes:
 | `op.in` | `"a" in o` | design ([in](./2346-in-operator.md); page: [`in` Is Refused](../operators/in/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
-| `op.compound-assignment` | `a += 1`, `a **= 2`, `a &&= 2` | planned ([assignments](./3430-assignments.md)) |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |

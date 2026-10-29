@@ -50,6 +50,80 @@ const elements = value => {
 }
 
 export const proof = {
+    compoundAssignmentCallbacks: async () => {
+        /** @type {readonly (readonly [string, string, number, number, number])[]} */
+        const operators = [
+            ['add', '+=', 7, 3, 10],
+            ['subtract', '-=', 7, 3, 4],
+            ['multiply', '*=', 7, 3, 21],
+            ['divide', '/=', 12, 3, 4],
+            ['remainder', '%=', 7, 3, 1],
+            ['power', '**=', 2, 3, 8],
+            ['left', '<<=', 7, 1, 14],
+            ['right', '>>=', -8, 1, -4],
+            ['unsigned', '>>>=', -8, 1, 0x7fff_fffc],
+            ['and', '&=', 7, 3, 3],
+            ['xor', '^=', 7, 3, 4],
+            ['or', '|=', 4, 3, 7],
+        ]
+        const source = operators.map(([name, operator]) =>
+            `export const ${name}=(a,right)=>{a ${operator} right(a);return a;};`).join('')
+        const exports = assertOk(await run({ main: [utf8(source)] })(transpile(noRuntime)('main')))
+        for (const [name, , initial, operand, expected] of operators) {
+            let calls = 0
+            const result = callable(field(exports, name))(initial, /** @param {unknown} before */ before => {
+                calls += 1
+                assertEq(before, initial)
+                return operand
+            })
+            assertEq(result, expected)
+            assertEq(calls, 1)
+        }
+        let calls = 0
+        assertEq(callable(field(exports, 'right'))(-8n, /** @param {unknown} before */ before => {
+            calls += 1
+            assertEq(before, -8n)
+            return 1n
+        }), -4n)
+        assertEq(calls, 1)
+        assertEq(callable(field(exports, 'add'))('a', () => 'b'), 'ab')
+    },
+    logicalAssignmentCallbacks: async () => {
+        const exports = assertOk(await run({ main: [utf8(
+            'export const and=(a,right)=>{a &&= right(a);return a;};' +
+            'export const or=(a,right)=>{a ||= right(a);return a;};' +
+            'export const nullish=(a,right)=>{a ??= right(a);return a;};',
+        )] })(transpile(noRuntime)('main')))
+        const present = /** @type {const} */ ({})
+        const cases = /** @type {const} */ ([
+            { name: 'and', skipped: [false, 0, -0, 0n, '', NaN, null, undefined], taken: [true, 1, 1n, 'x', present] },
+            { name: 'or', skipped: [true, 1, 1n, 'x', present], taken: [false, 0, -0, 0n, '', NaN, null, undefined] },
+            { name: 'nullish', skipped: [false, 0, -0, 0n, '', NaN, true, 1, 'x', present], taken: [null, undefined] },
+        ])
+        for (const { name, skipped, taken } of cases) {
+            const apply = callable(field(exports, name))
+            for (const initial of skipped) {
+                let calls = 0
+                const result = apply(initial, () => {
+                    calls += 1
+                    throw 'logical assignment evaluated a skipped operand'
+                })
+                assert(Object.is(result, initial))
+                assertEq(calls, 0)
+            }
+            for (const initial of taken) {
+                const marker = /** @type {const} */ ({})
+                let calls = 0
+                const result = apply(initial, /** @param {unknown} before */ before => {
+                    calls += 1
+                    assert(Object.is(before, initial))
+                    return marker
+                })
+                assertEq(result, marker)
+                assertEq(calls, 1)
+            }
+        }
+    },
     templateCallableExports: async () => {
         const exports = assertOk(await run({
             main: [utf8('export const template = x => y => `head${x}:${y}tail`; export const explicit = x => y => "head" + String(x) + ":" + String(y) + "tail"; export default x => `own:${{ toString: () => x, valueOf: () => 7 }}`;')],

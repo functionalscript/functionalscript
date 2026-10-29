@@ -33,6 +33,45 @@ const fn = source => {
 }
 
 export const proof = {
+    compoundEagerWritesNormalizeToTheExistingBinaryValues: () => {
+        for (const [tag, left, right] of [
+            ['+', '8', '3'], ['-', '8', '3'], ['*', '8', '3'], ['/', '8', '2'],
+            ['%', '8', '3'], ['**', '2', '3'], ['<<', '3', '2'], ['>>', '-8', '2'],
+            ['>>>', '-8', '2'], ['&', '7', '3'], ['^', '7', '3'], ['|', '4', '3'],
+            ['+', '"a"', '"b"'], ['>>', '8n', '1n'],
+        ]) {
+            assertStructurallySame(
+                graph(`let value=${left};value ${tag}= ${right};export default value;`),
+                graph(`let value=${left};value=value ${tag} ${right};export default value;`), tag)
+        }
+        assertStructurallySame(result('let value=8;value+=value;export default value;'), { default: 16 })
+    },
+    compoundLogicalWritesExistOnlyInTheSelectedRegion: () => {
+        for (const tag of ['&&', '||', '??']) {
+            const normalized = fn(`export default (value,right)=>{value ${tag}= right;return value;};`)
+            const branch = normalized.body.statements.find(statement => statement[0] === 'if')
+            assert(branch !== undefined && branch[0] === 'if')
+            const selected = tag === '||' ? branch[4] : branch[3]
+            const skipped = tag === '||' ? branch[3] : branch[4]
+            assertEq(branch[1].length, 2)
+            assertEq(selected.statements.length, 1)
+            assertEq(selected.statements[0][0], 'define')
+            assertEq(skipped.statements.length, 0)
+            assert(skipped.exit[0] === 'yield')
+            const previous = skipped.exit[1][0]
+            assert(previous instanceof Array && previous[0] === 'ref')
+            assertEq(previous[1], normalized.parameters[0])
+            assertStructurallySame(result(`let value=null;value ${tag}= 37;export default value;`),
+                { default: tag === '&&' ? null : 37 })
+        }
+        const skipped = /** @type {const} */ ([
+            ['let value=0;value&&=null.x;export default value;', 0],
+            ['let value=1;value||=null.x;export default value;', 1],
+            ['let value=false;value??=null.x;export default value;', false],
+        ])
+        for (const [source, expected] of skipped) { assertStructurallySame(result(source), { default: expected }) }
+        assertStructurallySame(result('const initial=[];let value=initial;value??=null.x;export default value===initial;'), { default: true })
+    },
     switchBreaksMergeStateAndResumeTheirLoop: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
         const cases = [

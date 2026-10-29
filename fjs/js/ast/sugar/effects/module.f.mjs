@@ -44,8 +44,9 @@ export const writes = (root, functions) => {
         } else {
             const block = /** @type {SourceBlock} */ (node)
             for (const statement of block.statements) {
-                if (statement[0] === 'write') { own = [...own, statement[1]] }
+                if (statement[0] === 'write' || statement[0] === 'compound-write') { own = [...own, statement[1]] }
                 children = [...children, ...(statement[0] === 'initialize' || statement[0] === 'write' ? [statement[2]]
+                    : statement[0] === 'compound-write' ? [statement[3]]
                     : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
                     : statement[0] === 'while' ? [statement[1].condition, statement[1].body]
                     : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]

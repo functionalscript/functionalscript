@@ -54,6 +54,22 @@ const returned = node => {
 }
 
 export const proof = {
+    compoundAssignmentOperatorsAndLocations: () => {
+        const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
+        for (const operator of operators) {
+            const module = unwrap(parseSyntax(tokenizeString(`let value=8;\nvalue ${operator} 1;export default value;`)))
+            const assignment = module.statements[1]
+            assert(assignment[0] === 'assign')
+            assertEq(assignment[1].operator?.tag, operator.slice(0, -1))
+            assertEq(assignment[1].operator?.token.token.kind, operator)
+            assertStructurallySame(assignment[1].operator?.token.metadata, { path: '', line: 2, column: 7 })
+            assertEq(assignment[1].semicolon, true)
+        }
+        const module = unwrap(parseSyntax(tokenizeString('let value=8;value=1;export default value;')))
+        const assignment = module.statements[1]
+        assert(assignment[0] === 'assign')
+        assertEq(assignment[1].operator, null)
+    },
     loopSwitchesKeepLabelsScopesAndFollowingStatements: () => {
         const module = unwrap(parseSyntax(tokenizeString('while(false){\nswitch(1){case 1:case 2:{break;const after=3;}case 4:{continue;}default:{throw 5;}}\nconst following=6;\nif(true){switch(7){case 7:{return 8;}}}\n}export default 0;')))
         const loop = module.statements[0]

@@ -14,7 +14,7 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { Assignment, BindingElement, BindingProperty, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -587,8 +587,25 @@ const assigned = (scope, name) => {
     return ok([crossed ? { ...inner, captures: [...inner.captures, { id: ref.id, refusal: reassignedCaptured(name), escaped: false, written: true }] } : inner, ref.id])
 }
 
-/** The scope after an assignment's value has been read: the write to its target, {@link assigned}. @type {(scope: _Scope, frame: _Declaring) => _Scope} */
-const written = (scope, frame) => traced(scope, [['write', assertNotNullish(frame.assigned, 'an assignment with no target')]])
+/** Whether the operand and write occur in a conditional source region. @type {(statement: Assignment) => boolean} */
+const logicalAssignment = ({ operator }) => operator !== null && (operator.tag === '&&' || operator.tag === '||' || operator.tag === '??')
+
+/** Record a compound target's read before entering its operand. @type {(scope: _Scope, statement: Assignment, id: BindingId) => _Scope} */
+const assignmentScope = (scope, statement, id) => {
+    const read = statement.operator === null ? scope : traced(scope, [['read', id]])
+    return logicalAssignment(statement) ? regionScope(read, empty, null) : read
+}
+
+/** The operand's events precede its write; a logical assignment restores its conditional region. @type {(scope: _Scope, statement: Assignment, id: BindingId) => _Scope} */
+const written = (scope, statement, id) => {
+    const write = traced(scope, [['write', id]])
+    return logicalAssignment(statement) ? restoredScope(write, false) : write
+}
+
+/** Preserve the source operation until the shared sugar pass. @type {(statement: Assignment, id: BindingId, value: SourceValue) => SourceStatement} */
+const assignmentStatement = (statement, id, value) => statement.operator === null
+    ? ['write', id, value]
+    : ['compound-write', id, statement.operator.tag, value]
 
 /**
  * A resolved reference, a function's reference to itself counted as crossing
@@ -1053,7 +1070,7 @@ const bodyRound = (stack, scope, frame) => {
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
-        return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, target[0], ['enter', statement.value]]
+        return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
     }
     if (kind !== 'const' && kind !== 'let') {
         return brokenLine(statement)
@@ -1549,7 +1566,10 @@ const returned = (stack, scope, frame, value) => {
             return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
                 { block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null })
         }
-        if (kind === 'assign') { return loopRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
+        if (kind === 'assign') {
+            const id = assertNotNullish(frame.assigned, 'an assignment with no target')
+            return loopRound(stack, written(scope, statement, id), advanced(frame, [assignmentStatement(statement, id, value)]))
+        }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
         assert(kind !== 'while' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
@@ -1568,7 +1588,10 @@ const returned = (stack, scope, frame, value) => {
     if (hasEntry(frame, 'statements')) {
         const [kind, statement] = frame.statements[frame.index]
         if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
-        if (kind === 'assign') { return bodyRound(stack, written(scope, frame), advanced(frame, [['write', assertNotNullish(frame.assigned, 'an assignment with no target'), value]])) }
+        if (kind === 'assign') {
+            const id = assertNotNullish(frame.assigned, 'an assignment with no target')
+            return bodyRound(stack, written(scope, statement, id), advanced(frame, [assignmentStatement(statement, id, value)]))
+        }
         if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
         if (kind === 'switch') {
             return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value, index: 0, label: 0, labels: [], arms: null })
@@ -1755,7 +1778,7 @@ const loopRound = (stack, scope, frame) => {
         if (kind === 'assign') {
             const [tag, target] = assigned(scope, statement.name)
             if (tag === 'error') { return [stack, scope, error(target)] }
-            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, target[0], ['enter', statement.value]]
+            return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
         }
         const { target, value } = statement
         const namespace = namespaceOf(target, value)
@@ -2021,10 +2044,10 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
             previous = assignment
             const [tag, target] = assigned(scope, assignment.name)
             if (tag === 'error') { return error(target) }
-            const [resolved, evaluated] = evaluate(target[0], null)(assignment.value)
+            const [resolved, evaluated] = evaluate(assignmentScope(target[0], assignment, target[1]), null)(assignment.value)
             if (resolved === 'error') { return error(evaluated) }
-            scope = traced(evaluated.scope, [['write', target[1]]])
-            body = [...body, ['write', target[1], evaluated.value]]
+            scope = written(evaluated.scope, assignment, target[1])
+            body = [...body, assignmentStatement(assignment, target[1], evaluated.value)]
             continue
         }
         const [kind, { declaration, exported: named }] = statement

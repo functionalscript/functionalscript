@@ -27,6 +27,14 @@ result. A late parameter's raw argument read is established once before default
 selection; both the test
 and the alternative name that binding. The fixed prefix preserves `length`.
 
+Compound assignments retain their operator and source target until normalization.
+Eager operators establish a new version from the previous value and the right
+operand. Logical assignments use the shared logical selection predicate and
+explicit branch results: only the selected arm establishes the right operand,
+while the skipped arm has no definitions and yields the preceding version.
+The parser's implicit-read and possible-write evidence remains part of complete
+binding analysis even when the write is skipped at run time.
+
 Terminal guards and switches become yielding value regions. They introduce no
 invocation or capture boundary. A block normalized as a value — a source block
 or a direct immediate call admitted as a block — returns its expression value

@@ -167,7 +167,7 @@ information — see [serialization](../design/serialization.md) and
    follow-ups.
 2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
    and parameter reassignment, module variables and write-based capture rules.
-   Definite assignment and compound assignments remain separate proposals.
+   Definite assignment remains a separate proposal.
 3. [x] [Loops](../control-flow/loops/README.md) — zero or multiple state values,
    conditional, sequential and nested `while`, with `break`, `continue`,
    owning-function returns and throws. `for` remains [3270](./3270-for.md).
@@ -205,7 +205,10 @@ information — see [serialization](../design/serialization.md) and
 
 ### 3.4. Syntactic Sugar
 
-1. [ ] [assignments](./3430-assignments.md)
+1. [ ] [assignments](./3430-assignments.md) — all compound assignments to
+   mutable identifiers implemented as statements
+   ([variables](../bindings/variables/README.md#compound-assignments)); prefix
+   and postfix updates remain open.
 2. [x] [Untagged template literals](../values/template-literals/README.md), lowered to
    the existing `String` and binary `+` operations.
 3. [ ] `async`/`await`. Depends on the implementation of promises.
