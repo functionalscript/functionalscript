@@ -28,6 +28,7 @@
 
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
 import { tryParse } from './module.f.mjs'
+import { assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
  * One span: the name the parser gave it, then the span rendered as itself.
@@ -51,6 +52,13 @@ const spanView = span => {
 
 /** @type {(entry: Entry) => Element} */
 const entryView = entry => ['li', ['ul', ...entry.map(spanView)]]
+
+// spanView accepts Inline, including images. Release entries refuse images,
+// so prove that part of the renderer's contract directly.
+export const proof = {
+    image: () => assertStructurallySame(spanView(['image', 'diagram', 'image.svg']),
+        ['li', ['code', 'image'], ' ', 'diagram', ' → ', ['code', 'image.svg']]),
+}
 
 /**
  * The state is the text itself, not the entries: the entries are a function

@@ -40,6 +40,12 @@ import { browserResult, countsView, moduleFailure, reportOf, reportView, unrepor
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)
 
+const failing = {
+    empty: () => assertEq(sum([]), 0),
+    many: () => assertEq(sum([1, 2, 3]), 7),
+    throw: { onEmpty: () => sum([]) },
+}
+
 /**
  * The example suite: one module that passes, one that fails two different
  * ways — an assertion that does not hold, and a proof expected to throw that
@@ -55,11 +61,7 @@ const example = [
         single: () => assertEq(sum([5]), 5),
         many: () => assertEq(sum([1, 2, 3]), 6),
     }],
-    ['./example/failing.f.mjs', {
-        empty: () => assertEq(sum([]), 0),
-        many: () => assertEq(sum([1, 2, 3]), 7),
-        throw: { onEmpty: () => sum([]) },
-    }],
+    ['./example/failing.f.mjs', failing],
     ['./example/empty.f.mjs', {}],
 ]
 
@@ -155,3 +157,7 @@ export const demo = {
         ...sourcesView(state),
     ],
 }
+
+// The example's deliberately wrong assertion really throws. The ordinary
+// proof runner treats it as an expected failure, so the suite stays green.
+export const proof = { throw: { exampleAssertion: failing.many } }
