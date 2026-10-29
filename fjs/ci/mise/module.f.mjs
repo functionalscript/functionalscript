@@ -7,11 +7,21 @@ import { node, rust as rustVersion } from '../config/module.f.js'
 import { test, uses } from '../common/module.f.mjs'
 import { commandPrefix } from '../environment/module.f.mjs'
 
+/** Keep rustup's toolchains and Cargo proxies inside the cached mise tree.
+ * The sibling directory stays outside the checkout on every runner platform.
+ */
+export const miseEnvironment = /** @type {const} */ ({
+    MISE_DATA_DIR: '${{ github.workspace }}/../.mise-ci',
+    MISE_RUSTUP_HOME: '${{ github.workspace }}/../.mise-ci/rustup',
+    MISE_CARGO_HOME: '${{ github.workspace }}/../.mise-ci/cargo',
+})
+
 /** Setup reads the checkout's committed baseline lock. */
 export const miseInstall = /** @type {const} */ ({ type: 'test', step: uses('jdx/mise-action', {
     version: '2026.10.19',
     install_args: '--locked',
     cache: 'true',
+    cache_key_prefix: 'mise-rust-v1',
     cache_max_age_days: '0',
     env: 'false',
     add_shims_to_path: 'false',
@@ -89,6 +99,7 @@ export const miseJobs = (jobs, rust) => Object.fromEntries(definedEntries(jobs).
     /** @type {Job} */
     const result = {
         ...job,
+        env: { ...job.env, ...miseEnvironment },
         steps: [
             ...before.filter(step => step.run === undefined),
             ...kept.slice(checkout, checkout + 1),

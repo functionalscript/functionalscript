@@ -17,7 +17,7 @@ import { uses, _workflowsDirectory } from '../common/module.f.mjs'
 import { step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
-import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
+import { miseDevelop, miseEnvironment, miseInstall } from '../mise/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
@@ -43,6 +43,7 @@ export const websiteJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read', 'pull-requests': 'write' },
+    env: miseEnvironment,
     steps: [
         uses('actions/checkout'),
         miseInstall.step,

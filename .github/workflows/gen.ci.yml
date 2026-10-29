@@ -28,6 +28,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -141,6 +142,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -161,6 +167,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -419,6 +426,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -439,6 +451,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -527,6 +540,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -547,6 +565,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -635,6 +654,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -655,6 +679,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -758,6 +783,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -778,6 +808,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -861,6 +892,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -881,6 +917,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -934,6 +971,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -954,6 +996,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -1007,6 +1050,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }
@@ -1027,6 +1075,7 @@
             "version": "2026.10.19",
             "install_args": "--locked",
             "cache": "true",
+            "cache_key_prefix": "mise-rust-v1",
             "cache_max_age_days": "0",
             "env": "false",
             "add_shims_to_path": "false"
@@ -1200,6 +1249,11 @@
           "continue-on-error": true
         }
       ],
+      "env": {
+        "MISE_DATA_DIR": "${{ github.workspace }}/../.mise-ci",
+        "MISE_RUSTUP_HOME": "${{ github.workspace }}/../.mise-ci/rustup",
+        "MISE_CARGO_HOME": "${{ github.workspace }}/../.mise-ci/cargo"
+      },
       "permissions": {
         "contents": "write"
       }

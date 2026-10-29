@@ -13,6 +13,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { parseGitHubAction } from '../common/module.f.mjs'
+import { miseEnvironment } from '../mise/module.f.mjs'
 
 /**
  * The `gen.ci.yml` a program writes over an empty project — no `Cargo.toml`, no
@@ -41,6 +42,9 @@ export const proof = {
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
         assertEq(Object.keys(generated.jobs).length, 9)
+        for (const job of Object.values(generated.jobs)) {
+            assertStructurallySame(job?.env, miseEnvironment)
+        }
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
         const github = state.root['.github']
@@ -54,6 +58,7 @@ export const proof = {
         assertEq(websitePath, '.github/workflows/gen.website.yml')
         assertStructurallySame(generated, websiteWorkflow)
         assertStructurallySame(generated.jobs.website, websiteJob)
+        assertStructurallySame(generated.jobs.website?.env, miseEnvironment)
         assertEq(Object.keys(generated.jobs).length, 1)
         assertStructurallySame(generated.on, { pull_request: {}, push: { branches: ['main'] } })
         assert(!workflowOf(main()).includes('sh ./nanvm/demos/gen.build.sh'))

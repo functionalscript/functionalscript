@@ -2,7 +2,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { jobTimeout } from '../config/module.f.js'
-import { miseDevelop, miseInstall, miseJobs, miseSteps, miseVersionStep, spiderMonkeyDevelop, spiderMonkeyInstall } from './module.f.mjs'
+import { miseDevelop, miseEnvironment, miseInstall, miseJobs, miseSteps, miseVersionStep, spiderMonkeyDevelop, spiderMonkeyInstall } from './module.f.mjs'
 
 /** @type {Job} */
 const source = {
@@ -40,6 +40,7 @@ export const proof = {
         assertEq(spiderMonkeyDevelop('js --version'), 'mise -E spidermonkey exec -- js --version')
         assertEq(miseInstall.type, 'test')
         assertEq(spiderMonkeyInstall.type, 'test')
+        assertEq(miseInstall.step.with?.cache_key_prefix, 'mise-rust-v1')
         assertStructurallySame(miseSteps(['npm ci']), [{ type: 'test', step: { run: 'mise exec -- npm ci', shell: 'bash' } }])
         assertStructurallySame(miseVersionStep('node --version', 'v26.12.1'), { type: 'test', step: { run: 'test "$(mise exec -- node --version)" = "v26.12.1"', shell: 'bash' } })
     },
@@ -48,6 +49,7 @@ export const proof = {
         const jobs = { 'ubuntu-intel': source, 'ubuntu-arm': source, 'windows-arm': source, node26: source }
         const migrated = miseJobs(jobs, true)
         for (const [id, job] of definedEntries(migrated)) {
+            assertStructurallySame(job.env, miseEnvironment)
             const steps = job.steps
             assertEq(steps.filter(s => s.uses?.startsWith('jdx/mise-action@')).length, 1)
             assert(!steps.some(s => s.uses?.startsWith('cachix/') || s.uses?.startsWith('dtolnay/')))
@@ -68,5 +70,17 @@ export const proof = {
         }
         const noRust = miseJobs({ 'ubuntu-intel': source }, false)
         assert(!noRust['ubuntu-intel']?.steps.some(s => s.run?.includes('gcc-multilib')))
+    },
+    toolHomes: () => {
+        const migrated = miseJobs({ node26: {
+            ...source,
+            env: { EXTRA: 'kept', MISE_DATA_DIR: 'old' },
+        } }, false)
+        assertStructurallySame(migrated.node26?.env, {
+            EXTRA: 'kept',
+            MISE_DATA_DIR: '${{ github.workspace }}/../.mise-ci',
+            MISE_RUSTUP_HOME: '${{ github.workspace }}/../.mise-ci/rustup',
+            MISE_CARGO_HOME: '${{ github.workspace }}/../.mise-ci/cargo',
+        })
     },
 }

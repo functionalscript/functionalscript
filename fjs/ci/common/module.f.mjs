@@ -75,6 +75,8 @@ export const jobSchema = /** @type {const} */ ({
     // Only jobs using the build cache need to publish commits. The workflow
     // stays read-only for the generic generator and publishing workflow.
     permissions: or(option, record(string)),
+    // Tool homes must remain the same during setup and subsequent commands.
+    env: or(option, record(string)),
     if: or(option, string),
     needs: or(option, array(string)),
     'timeout-minutes': number,
