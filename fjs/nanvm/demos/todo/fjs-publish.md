@@ -17,9 +17,9 @@ Complete the steps in order.
 
 #### Step 1: WASM parser and WASM/WAT writers
 
-- [ ] Define a reusable WebAssembly AST and implement an FJS parser from
+- [x] Define a reusable WebAssembly AST and implement an FJS parser from
       binary `.wasm` bytes to that AST.
-- [ ] Implement an FJS writer from the AST to binary `.wasm` bytes.
+- [x] Implement an FJS writer from the AST to binary `.wasm` bytes.
 - [ ] Implement an FJS writer from the same AST to `.wat` text. Keep the
       parser and both writers separate and reusable, with no dependency
       on the demo publisher.
