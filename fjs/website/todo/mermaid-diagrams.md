@@ -64,7 +64,8 @@ sideways: its picture changes direction, not its content.
 - [x] Draw a node's label of several lines: the reader reads Mermaid's
       `<br>`, `<br/>` and `<br />` as `\n`, and `demo/graph` stacks a
       label's lines. A `\n` written in a label is no line break Mermaid
-      documents, so `disot`'s labels that spell one stay source. An arrow
+      documents, so the reader refuses one; `doc/sergey/disot`'s labels
+      spell their breaks `<br/>`, and every one of its flowcharts draws. An arrow
       with no label beside labelled ones is a row naming its target, as the
       renderer draws one; an arrow label of several lines is refused, as a
       row is one line.
