@@ -35,7 +35,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
  * @import { Monoid, Stack, Walk } from './types.ts'
- * @import { Span, State } from './private.ts'
+ * @import { _Span, _State } from './private.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -51,17 +51,17 @@ const { floor, imul } = Math
 /** How many values every sequence holds, the `N` of the page. @type {number} */
 export const n = 30
 
-/** @type {Monoid<Span>} */
+/** @type {Monoid<_Span>} */
 const addition = {
     identity: { sum: 0, count: 0 },
     operation: a => b => ({ sum: a.sum + b.sum, count: a.count + b.count }),
     weight: span => span.sum,
 }
 
-/** One move of a push. @type {(walk: Walk<Span>) => Walk<Span>} */
+/** One move of a push. @type {(walk: Walk<_Span>) => Walk<_Span>} */
 const push = move(addition)(false)
 
-/** One move of the fold at the end. @type {(walk: Walk<Span>) => Walk<Span>} */
+/** One move of the fold at the end. @type {(walk: Walk<_Span>) => Walk<_Span>} */
 const collect = move(addition)(true)
 
 /** `0` to `n - 1`. @type {readonly number[]} */
@@ -96,7 +96,7 @@ export const sequence = (kind, seed) =>
  * The runs of a walk in the order of the input: the stack bottom to top,
  * the value, then the pending runs nearest first.
  *
- * @type {(walk: Walk<Span>) => readonly Span[]}
+ * @type {(walk: Walk<_Span>) => readonly _Span[]}
  */
 const row = ({ stack, value, pending }) => [...toArray(runs(stack)).toReversed(), value, ...toArray(runs(pending))]
 
@@ -105,7 +105,7 @@ const row = ({ stack, value, pending }) => [...toArray(runs(stack)).toReversed()
  * values it covers, `width` characters each, and the run at `merging` joined
  * to the next by underscores.
  *
- * @type {(width: number) => (spans: readonly Span[], merging: number | null) => string}
+ * @type {(width: number) => (spans: readonly _Span[], merging: number | null) => string}
  */
 const line = width => (spans, merging) => spans.reduce(({ text, column }, { sum, count }, index) => {
     const digits = String(sum)
@@ -128,7 +128,7 @@ export const trace = input => {
      * move keeps every run it does not merge, so the merged pair starts at
      * the first run the next row does not hold.
      *
-     * @type {(next: (walk: Walk<Span>) => Walk<Span>, mark: string) => (lines: readonly string[], from: Walk<Span>) => readonly [readonly string[], Walk<Span>]}
+     * @type {(next: (walk: Walk<_Span>) => Walk<_Span>, mark: string) => (lines: readonly string[], from: Walk<_Span>) => readonly [readonly string[], Walk<_Span>]}
      */
     const settle = (next, mark) => (lines, from) => {
         let drawn = lines
@@ -148,7 +148,7 @@ export const trace = input => {
     const folded = settle(collect, ' .')
     /** @type {readonly string[]} */
     let lines = []
-    /** @type {Stack<Span>} */
+    /** @type {Stack<_Span>} */
     let stack = null
     for (const value of input) {
         const [drawn, walk] = pushed(lines, { stack, value: { sum: value, count: 1 }, pending: null })
@@ -167,7 +167,7 @@ const sequences = [
     ['random', 'shuffled'],
 ]
 
-/** @type {Demo<State, DemoEvent>} */
+/** @type {Demo<_State, DemoEvent>} */
 const definition = {
     init: { sequence: 'random', seed: 0 },
     update: state => event => pureOk(

@@ -14,6 +14,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { decodeQuery, encodeQuery, restoreInputs } from '../../website/demo/sharing/module.f.mjs'
+import { stylesheet } from '../../website/style/module.f.js'
 
 const { abs } = Math
 
@@ -393,6 +394,13 @@ export const proof = {
             assert(counting.includes('<option value="increasing" selected="">1, 2, …, 30</option>'))
             assert(counting.includes('name="shuffle" disabled=""'))
             assert(counting.includes('<pre data-code="" data-drawing=""> 1 |\n 1  2 |\n 1__2  3\n  3    3 |\n'))
+            // the drawing is an output box, whose rule wraps a long line; the
+            // drawing's rule comes after it in the stylesheet, so it wins the
+            // cascade at the same specificity and the rows keep their columns
+            const box = stylesheet.indexOf('[data-code], [data-result] {')
+            const drawing = stylesheet.indexOf('[data-drawing] {')
+            assert(box >= 0 && drawing > box)
+            assert(stylesheet.slice(drawing).startsWith('[data-drawing] { overflow-wrap: normal; overflow-x: auto; white-space: pre }'))
         },
         // The inputs a link carries are the sequence and the seed; a kind the
         // select does not offer is refused.

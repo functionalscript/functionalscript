@@ -8,13 +8,13 @@
  * A span of the demo's input: the sum of the values it covers and how many
  * it covers. Spans add, and a span weighs its sum.
  */
-export type Span = {
+export type _Span = {
     readonly sum: number
     readonly count: number
 }
 
 /** The demo's state: which sequence is drawn, and the seed of the shuffle. */
-export type State = {
+export type _State = {
     readonly sequence: string
     readonly seed: number
 }
