@@ -1,7 +1,7 @@
 ## size-aware-fold. Fold the concatenations by weight
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -38,6 +38,9 @@ stack of its own:
       and never the value that arrives, and the stack is folded by the same
       rule at the end, so a long value is never copied on arrival and the
       runs of one weight stay a binary counter
+- [ ] Draw the fold as a merge tree: a demo beside the module that walks a
+      sequence — `1..N`, `N..1` or a shuffle of it — one move at a time on
+      the kernel's own transition, so a reader sees which runs merge and when
 - [ ] Rebuild `list/alt`'s `toArray` on `fold`, feeding it the list's arrays
       whole, and delete its private stack
 
