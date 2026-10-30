@@ -212,7 +212,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'typeof', 'instanceof', 'else', 'break', 'continue'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'typeof', 'instanceof', 'in', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -285,6 +285,9 @@ export const identifier = /** @type {const} */ ({
     // reference may stand — so unlike `typeof` it opens no second branch
     // on one symbol here, and reaches the fold as `if` does
     instanceof: sym('instanceof'),
+    // `in` likewise: an operator only after an operand, so a word here
+    // as every other keyword, `{ in: 1 }.in`
+    in: sym('in'),
 })
 
 /**

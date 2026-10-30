@@ -1,6 +1,9 @@
 # `in` Is Refused
 
-**Status:** refused; the operator with a string-literal key is planned
+**Status:** the operator with a string-literal key is implemented; a
+prototype's name as the key, this page's sample, stays refused, and the
+page is rewritten for the operator by
+[the `in` record](../../todo/2346-in-operator.md)
 
 **`in` is not FunctionalScript yet.** `"a" in o` is valid JavaScript, and
 `fjs compile` refuses it today: the demo below shows what it prints. The
@@ -55,11 +58,13 @@ from the one `in` asks, which is why `in` is not given this meaning.
 
 ## A Better Message
 
-Today `fjs compile` says only where it stopped, `unexpected token` at the
-`in`. The demo proposes what it should print instead: the reason at the same
-token, what JavaScript would answer there, and the allowed spelling, the line
-`alternative.f.js` writes, as `help`. The page compiles the alternative too,
-so the suggestion is one the compiler accepts.
+Today `fjs compile` says `prohibited property name` at the `in`: the key
+names a property `Object.prototype` gives every object, which the operator
+refuses as a read of it is refused. The demo proposes what it should print
+instead: the reason at the same token, what JavaScript would answer there,
+and the allowed spelling, the line `alternative.f.js` writes, as `help`. The
+page compiles the alternative too, so the suggestion is one the compiler
+accepts.
 
 ## Reference
 

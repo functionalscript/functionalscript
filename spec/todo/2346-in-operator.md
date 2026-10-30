@@ -142,7 +142,7 @@ shape instead. The node is that shape.
       the FunctionalScript writer, the Rust writer printing the runtime's
       body, and the interpreters' answer in `fjs/edag/operations`, a call
       of the runtime's body, each with its proof.
-- [ ] The parser: the grammar reads `in` at the relational level as it
+- [x] The parser: the grammar reads `in` at the relational level as it
       reads `instanceof`; the fold checks the left operand is a string
       literal and applies the key rule, `length` included; the
       `refusedByDesign` entries of `operators.proof.f.mjs` for `a in b`

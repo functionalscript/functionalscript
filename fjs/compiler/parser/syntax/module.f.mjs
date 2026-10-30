@@ -772,8 +772,9 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
-    // of the right side has a token
-    return tag === 'instanceof' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
+    // of the right side has a token; `in` keeps it for its left operand,
+    // which the fold admits only as a string literal
+    return tag === 'instanceof' || tag === 'in' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
 }, base)
 
 /**
