@@ -10,6 +10,8 @@ pub mod div;
 pub mod eq;
 pub mod ge;
 pub mod gt;
+pub mod in_0;
+pub mod in_x;
 pub mod instanceof_array;
 pub mod le;
 pub mod logical_and;
@@ -109,6 +111,8 @@ pub fn all<A: IStaticFunction>() {
     conditional::run::<A>();
     typeof_::run::<A>();
     instanceof_array::run::<A>();
+    in_x::run::<A>();
+    in_0::run::<A>();
     throw::run::<A>();
     string_coercion::run::<A>();
     number_cast::run::<A>();

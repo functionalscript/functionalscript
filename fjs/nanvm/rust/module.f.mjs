@@ -136,6 +136,8 @@ export const rustName = {
     '!==': 'ne',
     typeof: 'typeof_',
     'instanceof Array': 'instanceof_array',
+    'in "x"': 'in_x',
+    'in "0"': 'in_0',
     throw: 'throw',
     String: 'string_coercion',
     Number: 'number_cast',
