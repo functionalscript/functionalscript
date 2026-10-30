@@ -79,21 +79,40 @@ the map names and who vouches for it; that stays open in
 - Each commit's tree holds **one file**, `tts.json`, with three members:
   the message, the authority's URL, and the authority's response.
 - The **message** is what the timestamp is over. It names the commits the
-  timestamp covers by SHA-1, `commits` — one or several, the heads of as
-  many branches as a run is given — and with each everything it reaches;
-  and the parent `disot` commit, `parent`, through which the parent's tree
-  and its `tts.json`, which the parent could not name itself. A SHA-1 is
-  what a reader has in hand and what every host indexes, so the message
-  names a commit the way the hosts do, and a reader goes from the message
-  to the commit without a table. The map later extends the same
-  message with a second name per object
+  timestamp covers by SHA-1 — one or several, the heads of as many
+  branches as a run is given — and with each everything it reaches; and
+  the parent `disot` commit, through which the parent's tree and its
+  `tts.json`, which the parent could not name itself. A SHA-1 is what a
+  reader has in hand and what every host indexes, so the message names a
+  commit the way the hosts do, and a reader goes from the message to the
+  commit without a table. The map later extends the same message with a
+  second name per object
   ([git-sha256-map-branch](./git-sha256-map-branch.md)); nothing in the
   message is redefined by it.
-- The **imprint** is a hash over the message's bytes — its canonical
-  spelling, below — in the algorithm the authority requires. SHA-256 unless
-  it asks otherwise; an authority that takes only SHA-1 is refused, since
-  that would bind a name an attacker can collide. The response records
-  which algorithm was used, in the token's `messageImprint`.
+- The message is **text**, held in `tts.json` as a string, and the bytes
+  of that text are what the imprint hashes. A JSON string decodes to one
+  sequence of bytes however it was spelled, where an object or an array
+  decodes to a structure that has no bytes until a normalization rule
+  gives it some — and that rule is a second place to be wrong, and a
+  second thing every reader must agree on. So the hash is over what the
+  decoder yields, and nothing is ever re-spelled. The text has the shape
+  of Git's own commit headers, `<key> SP <value> LF`:
+
+  ```text
+  commit <sha1>
+  commit <sha1>
+  parent <sha1>
+  ```
+
+  one `commit` line per commit the run was given, then `parent` for the
+  `disot` parent, absent on the first commit. The writer emits commits
+  distinct and in ascending order; a reader checks the imprint against the
+  bytes and the parse, not the order.
+- The **imprint** is a hash over the message's bytes in the algorithm the
+  authority requires. SHA-256 unless it asks otherwise; an authority that
+  takes only SHA-1 is refused, since that would bind a name an attacker
+  can collide. The response records which algorithm was used, in the
+  token's `messageImprint`.
 - The **response** is the RFC 3161 `TimeStampResp` as the authority sent
   it, status and token together, rather than the extracted token the
   commit-header design stores
@@ -115,17 +134,16 @@ index or the working tree.
 
 1. **Read the branch head.** If `refs/heads/disot` exists, its commit is
    the parent. Otherwise the new commit has none.
-2. **Write the message.** `{"commits":["…"],"parent":"…"}`: the commits
-   the revisions name, distinct, in ascending order, and the parent `disot`
-   commit, SHA-1s in lowercase hex, members in that order, `parent` absent
-   on the first commit, no whitespace. A revision that names no commit, or
-   that is `disot`, is refused. This spelling is the message's bytes: the
-   imprint is hashed over it, and a reader re-spells the message to check.
-3. **Timestamp it.** Request an RFC 3161 timestamp with the message's hash
-   as imprint, from `--tsa`. On a granted response write `tts.json`:
-   `{"message":{…},"tsa":"…","response":"…"}`, members in that order, the
-   message as written in step 2, the URL as given, the response as DER in
-   standard base64 with padding, no whitespace, no escapes.
+2. **Write the message.** A `commit` line per commit the revisions name,
+   distinct, in ascending order, then a `parent` line for the `disot`
+   parent when there is one; SHA-1s in lowercase hex, every line ended by
+   LF. A revision that names no commit, or that is `disot`, is refused.
+3. **Timestamp it.** Request an RFC 3161 timestamp with the hash of the
+   message's bytes as imprint, from `--tsa`. On a granted response write
+   `tts.json`: `{"message":"…","tsa":"…","response":"…"}`, members in that
+   order, the message as the string whose bytes were hashed, the URL as
+   given, the response as DER in standard base64 with padding, no
+   whitespace outside the strings.
 4. **Commit** the blob and its tree, with the `disot` head as the one
    parent, and move `refs/heads/disot` to it. Nothing is fetched or pushed.
 
@@ -141,8 +159,8 @@ comes first, then the fix.
   can check it from the blob alone.
 - **The parent is not checked.** A damaged or substituted `tts.json` is
   built on, and the chain then renews a wrong link. Hash the parent's
-  message and require the imprint in its response; refuse a `tts.json`
-  spelled any way but the canonical one.
+  message and require the imprint in its response; refuse a message that
+  does not parse.
 - **Two local runs can race.** The second moves the ref over the first's
   commit. Move `refs/heads/disot` only if it still holds what step 1 read,
   a compare-and-swap

@@ -38,15 +38,19 @@ it.
   which is safe because post-order recording keeps the table closed under
   reachability. A pruned pair records that the commit reaches the object
   *as observed earlier*. So a run costs the new content.
-- The **delta**, the pairs new since the parent, is a further member of
-  the message, `map`, after `parent`:
-  `{"commits":["…"],"parent":"…","map":{"<sha1>":"<sha256>",…}}`. The rest of
-  `tts.json` is unchanged: the authority's URL, and its response over the
-  message's hash. The parent commit, its tree and its `tts.json` no delta
-  holds yet, so the next delta records them.
+- The **delta**, the pairs new since the parent, is further lines of the
+  message after `parent`, `map <sha1> <sha256>`, one per pair, in the
+  same `<key> SP <value> LF` shape; the text stays the message and its
+  bytes stay what the imprint hashes. The rest of `tts.json` is unchanged:
+  the authority's URL, and its response. The parent commit, its tree and
+  its `tts.json` no delta holds yet, so the next delta records them. Open:
+  a first run over a large history writes a large message; if that is a
+  problem in practice, the delta becomes a sibling blob named in the
+  message by the SHA-256 of its bytes, `map <sha256>`, which keeps the
+  message small at the cost of one more thing a reader hashes.
 - A run over a covered repository still commits: its delta holds the
   parent's objects and its token renews the chain.
-- A branch grown before this issue holds messages without a `map`. They stay as they are: their timestamps hold, and the first run
+- A branch grown before this issue holds messages without `map` lines. They stay as they are: their timestamps hold, and the first run
   with the map walks the whole history, since nothing before it is paired.
   From that commit on, every head carries both names.
 
@@ -58,16 +62,16 @@ on, `--tsa <url>`, committed objects in, objects and one ref out, never the
 index or the working tree.
 
 1. **Read the cache.** If `refs/heads/disot` exists, scan its commits and
-   take the union of their `map` members in memory. A message without a
-   `map` contributes nothing. Otherwise the cache is empty and the new
+   take the union of their `map` lines in memory. A message without any
+   contributes nothing. Otherwise the cache is empty and the new
    commit has no parent.
 2. **Walk** from the commits the message names — the revisions given, and
    the `disot` head, whose commit, tree and `tts.json` no delta holds yet —
    recording what the cache lacks. Commits, trees and blobs only; anything
    else met is refused.
-3. **Write the message**, `commits` and `parent` as the timestamp issue
-   writes them, then `map`: SHA-1 keys in lowercase hex in ascending order,
-   SHA-256 values in lowercase hex, no whitespace.
+3. **Write the message**, the `commit` and `parent` lines as the timestamp
+   issue writes them, then the `map` lines, SHA-1s in ascending order, both
+   hashes in lowercase hex.
 4. **Timestamp it** and write `tts.json` as the timestamp issue does.
 5. **Commit** the blob and its tree, with the `disot` head as the one
    parent, and move `refs/heads/disot` to it. Nothing is fetched or
@@ -82,7 +86,7 @@ the fix.
 - **The cache is not checked.** A damaged or substituted delta feeds the
   cache, and pruning then stops the walk at wrong pairs. Hash each message
   and require the imprint in its response; refuse two names for one SHA-1;
-  refuse a message spelled any way but the canonical one.
+  refuse a message that does not parse.
 - **A SHA-256 repository.** Its content already has the name, and the
   reverse conversion is not this command's. Refuse; this is the answer the
   timestamp issue left open.
