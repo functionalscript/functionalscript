@@ -384,9 +384,15 @@ export const proof = {
             const again = sequence('random', 1)
             assertStructurallySame(again.toSorted((a, b) => a - b), up)
             assert(again.some((value, i) => value !== shuffled[i]))
-            // the sum of `1` to `n`, whatever the order
-            for (const kind of ['increasing', 'decreasing', 'random']) {
-                assert(trace(sequence(kind, 0)).endsWith('465'))
+            // the signed sequence is `1` to `n / 2` and their negations, shuffled
+            const signed = sequence('signed', 0)
+            assertStructurallySame(signed, [11, -14, -9, -8, 13, -13, 9, 3, -3, 5, -1, 1, 7, -2, -5, 12, -7, 6, -11, 14, -4, 10, -15, -10, -12, 2, 4, -6, 8, 15])
+            assertStructurallySame(signed.toSorted((a, b) => a - b), [...up.slice(0, n / 2).map(v => -v).toReversed(), ...up.slice(0, n / 2)])
+            assert(sequence('signed', 1).some((value, i) => value !== signed[i]))
+            // the last line is the sum, whatever the order: `465` for `1` to
+            // `n`, `0` where every value has its negation
+            for (const [kind, total] of [['increasing', '465'], ['decreasing', '465'], ['random', '465'], ['signed', '0']]) {
+                assertEq(trace(sequence(kind, 0)).split('\n').at(-1)?.trim(), total)
             }
         },
         // The select picks the sequence, the button advances the seed, and
@@ -413,6 +419,15 @@ export const proof = {
             assert(counting.includes('<option value="increasing" selected="">1, 2, …, 30</option>'))
             assert(counting.includes('name="shuffle" disabled=""'))
             assert(counting.includes('<pre data-code="" data-drawing=""> 1 |\n 1  2 |\n 1__2  3\n  3    3 |\n'))
+            // with signs, a value weighs its magnitude: `13` arrives over `-8`
+            // and `-9`, which does not outweigh it, so `-9` and `-8` merge to
+            // `-17`, which then outweighs `11` beneath, and `11` and `-14`
+            // merge to `-3`, lighter than either
+            const signed = htmlToString(demo.view({ sequence: 'signed', seed: 0 }))
+            assert(signed.includes('<option value="signed" selected="">±1, …, ±15, shuffled</option>'))
+            assert(signed.includes('<button type="button" name="shuffle">Shuffle</button>'))
+            assert(signed.includes('<pre data-code="" data-drawing=""> 11 |\n 11 -14 |\n 11 -14  -9 |\n 11 -14  -9  -8 |\n 11 -14  -9__-8  13\n 11_-14   -17    13\n   -3_____-17    13\n      -20        13 |\n'))
+            assert(signed.endsWith('0</pre></div>'))
             // the drawing is an output box, whose rule wraps a long line; the
             // drawing's rule comes after it in the stylesheet, so it wins the
             // cascade at the same specificity and the rows keep their columns

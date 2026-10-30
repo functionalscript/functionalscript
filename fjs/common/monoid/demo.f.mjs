@@ -1,14 +1,17 @@
 /**
  * The weighted fold, drawn as a merge tree: pick a sequence of `N` numbers,
- * counting up, counting down or shuffled, and watch `fold` add them one move
- * at a time.
+ * counting up, counting down, shuffled, or shuffled with signs, and watch
+ * `fold` add them one move at a time.
  *
- * **The monoid is addition, and a value weighs what it is.** A merged run
- * weighs its sum, as a concatenation weighs the lengths of its operands, so
- * the drawing shows the rule `fold` applies to one: a value sits on the stack
- * where the run two below it outweighs it, and otherwise the two runs
- * beneath it merge first. A heavy value is never merged on arrival, and
- * values of one weight carry like a binary counter.
+ * **The monoid is addition, and a value weighs its magnitude.** A merged run
+ * weighs the magnitude of its sum, as a concatenation weighs the lengths of
+ * its operands, so the drawing shows the rule `fold` applies to one: a value
+ * sits on the stack where the run two below it outweighs it, and otherwise
+ * the two runs beneath it merge first. A heavy value is never merged on
+ * arrival, and values of one weight carry like a binary counter. The signed
+ * sequence, `1` to `N / 2` and their negations shuffled, sums to zero: a
+ * merged run there can weigh less than either of its operands, and the fold
+ * reads that weight afresh, so the terms above a light run merge in turn.
  *
  * **Each line is one state of the fold.** The runs are drawn in the columns
  * of the values they cover, so a run keeps its place as it grows:
@@ -46,7 +49,7 @@ import { toArray } from '../../types/list/alt/module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
 import { move, runs } from './module.f.mjs'
 
-const { floor, imul } = Math
+const { abs, floor, imul } = Math
 
 /** How many values every sequence holds, the `N` of the page. @type {number} */
 export const n = 30
@@ -55,7 +58,7 @@ export const n = 30
 const addition = {
     identity: { sum: 0, count: 0 },
     operation: a => b => ({ sum: a.sum + b.sum, count: a.count + b.count }),
-    weight: span => span.sum,
+    weight: span => abs(span.sum),
 }
 
 /** One move of a push. @type {(walk: Walk<_Span>) => Walk<_Span>} */
@@ -80,17 +83,35 @@ const mix = x => {
     return (b ^ (b >>> 16)) >>> 0
 }
 
+/** `1` to `n`. @type {readonly number[]} */
+const counting = indices.map(i => i + 1)
+
+/** `1` to `n / 2` and their negations, which sum to zero. @type {readonly number[]} */
+const cancelling = indices.map(i => (i % (n / 2) + 1) * (i < n / 2 ? 1 : -1))
+
+/**
+ * The values in the order of their hashes with `seed`, a different order for
+ * every seed.
+ *
+ * @type {(seed: number) => (values: readonly number[]) => readonly number[]}
+ */
+const shuffle = seed => values => values.toSorted((a, b) => mix(seed ^ a) - mix(seed ^ b))
+
+/** Whether a kind's sequence is shuffled, so that the seed changes it. @type {(kind: string) => boolean} */
+const shuffled = kind => kind === 'random' || kind === 'signed'
+
 /**
  * The sequence a kind names: `1` to `n` counting up for `increasing`, down
- * for `decreasing`, and in the order of their hashes with `seed` for
- * `random`, a different order for every seed.
+ * for `decreasing` and shuffled with `seed` for `random`; `1` to `n / 2` and
+ * their negations shuffled for `signed`.
  *
  * @type {(kind: string, seed: number) => readonly number[]}
  */
 export const sequence = (kind, seed) =>
-    kind === 'decreasing' ? indices.map(i => n - i)
-    : kind === 'random' ? indices.map(i => i + 1).toSorted((a, b) => mix(seed ^ a) - mix(seed ^ b))
-    : indices.map(i => i + 1)
+    kind === 'decreasing' ? counting.toReversed()
+    : kind === 'random' ? shuffle(seed)(counting)
+    : kind === 'signed' ? shuffle(seed)(cancelling)
+    : counting
 
 /**
  * The runs of a walk in the order of the input: the stack bottom to top,
@@ -165,6 +186,7 @@ const sequences = [
     ['increasing', `1, 2, …, ${n}`],
     ['decreasing', `${n}, ${n - 1}, …, 1`],
     ['random', 'shuffled'],
+    ['signed', `±1, …, ±${n / 2}, shuffled`],
 ]
 
 /** @type {Demo<_State, DemoEvent>} */
@@ -177,10 +199,10 @@ const definition = {
     view: state => {
         const input = sequence(state.sequence, state.seed)
         return ['div',
-            ['p', `Adds ${n} numbers with the weighted fold, each weighing what it is, and draws every move. A value sits on the stack where the run two below it outweighs it; otherwise the two runs beneath it merge first, so a heavy value is never merged on arrival and equal values carry like a binary counter.`],
+            ['p', `Adds ${n} numbers with the weighted fold, each weighing its magnitude, and draws every move. A value sits on the stack where the run two below it outweighs it; otherwise the two runs beneath it merge first, so a heavy value is never merged on arrival and equal values carry like a binary counter.`],
             ['p', 'Each line is one state, the runs over the values they cover: underscores join the two runs about to merge, a line ending in | is a push complete, lines ending in . are the fold at the end, and the last line is the sum.'],
             selectField({ name: 'sequence', label: 'Sequence' }, sequences.map(([kind, text]) => option(kind, text, kind === state.sequence))),
-            ['p', button('shuffle', 'Shuffle', state.sequence !== 'random')],
+            ['p', button('shuffle', 'Shuffle', !shuffled(state.sequence))],
             caption('Input:'),
             ['pre', { [codeMarker]: '' }, input.join(' ')],
             caption('Merge tree:'),
