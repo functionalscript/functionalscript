@@ -1,7 +1,7 @@
 ## Generate an array by index
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
