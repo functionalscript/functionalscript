@@ -39,10 +39,12 @@ default, as `a[k] ?? d` is, the default taken for an entry holding
 `undefined` too; where that entry must keep its `undefined`,
 `hasEntry(a, b) ? entry(a, b) : d` reads twice and keeps it; and
 `keys.filter(k => hasEntry(a, k))` is the keys present, in key order.
-Presence has no other spelling: `in` is refused
-([`in`](../../operators/in/README.md)), and `Object.hasOwn` and
-`a.hasOwnProperty(b)` are not in the language, each asking a different
-question — a non-enumerable own property, or the prototype chain.
+Presence with a constant key is the operator `"k" in a`
+([`in`](../../operators/in/README.md)), the same question for a key written
+in the source, as `a.k` is the read; `hasEntry` is its computed-key
+spelling, and `Object.hasOwn` and `a.hasOwnProperty(b)` are not in the
+language, each asking a different question — a non-enumerable own
+property, or the prototype chain.
 
 The helpers are exactly what they spell. The compiler recognizes each
 function whole — its two parameters, the `const` the descriptor binds and

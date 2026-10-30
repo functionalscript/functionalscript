@@ -1,12 +1,12 @@
 /**
- * Host proof of the page's files ([`hostProof`](../../../fjs/compiler/refused_demo/host.mjs)):
+ * Host proof of the page's files ([`hostProof`](../../../../fjs/compiler/refused_demo/host.mjs)):
  * `sample.mjs` is no FunctionalScript, so no FunctionalScript module imports
  * it; this host proof does.
  *
  * @module
  */
 
-import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
+import { hostProof } from '../../../../fjs/compiler/refused_demo/host.mjs'
 import sample from './sample.mjs'
 import * as page from './demo.f.mjs'
 

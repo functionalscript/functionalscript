@@ -70,7 +70,7 @@ describes:
 | ID | Construct | Why |
 |---|---|---|
 | `op.loose-equality` | `a == b`, `a != b` | design ([operators](../operators/README.md); page: [`==` Is Refused](../operators/loose-equality/README.md)) |
-| `op.in` | `"a" in o` | planned ([in](./2346-in-operator.md) admits a string-literal key that names no prototype property; page: [`in` Is Refused](../operators/in/README.md)) |
+| `op.in` | `k in o` | design ([`in`](../operators/in/README.md), whose key is a string literal; page: [`in` With a Computed Key Is Refused](../operators/in/computed-key/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
 | `op.update` | `++a`, `a--` | planned ([assignments](./3430-assignments.md)) |

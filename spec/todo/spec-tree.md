@@ -150,8 +150,8 @@ which is refused as a read but accepted as a call) is an included page with a
    - `●` Arithmetic, comparison, bitwise
    - `●` Lazy operators `&& || ??` and `?:`; `●` `!`
    - `●` `typeof`; `●` `instanceof`
-   - `◌` `==` `!=` (refused by design); `◌` [`in`](./2346-in-operator.md)
-     (refused); `◌` unary `+`, comma
+   - `●` `in`
+   - `◌` `==` `!=` (refused by design); `◌` unary `+`, comma
 7. **Conversions**
    - `●` `Number(...)`; `○` `String(...)`; `◌` other call shapes ([refused by design](../principles/README.md#operators-and-functions))
 8. **Property access**

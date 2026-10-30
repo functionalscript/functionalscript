@@ -136,6 +136,11 @@ export const samples = [
         [0, ['returned', 'true']],
         [1, ['returned', 'false']],
     ] },
+    // `in_operator`, since `in` is a Rust keyword and the name is a module's
+    { name: 'in_operator', directory: 'spec/operators/in', calls: [
+        [0, ['returned', 'true']],
+        [1, ['returned', 'false']],
+    ] },
     { name: 'property_access', directory: 'spec/property-access', calls: [
         [0, ['returned', '[80,2]']],
         [1, ['returned', '[443,2]']],

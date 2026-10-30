@@ -173,7 +173,8 @@ export const proof = {
              * The left operand of `in` is a string literal, and no other
              * value — a number, a name, an operator's result, `in`'s own
              * — is refused at the operator, the one token every spelling
-             * of the left side shares.
+             * of the left side shares: `op.in` of
+             * `spec/todo/refused-constructs.md`.
              *
              * @type {(source: string, message: string, column: number) => void}
              */

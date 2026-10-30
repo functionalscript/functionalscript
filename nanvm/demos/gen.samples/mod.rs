@@ -18,6 +18,7 @@ pub mod grouping;
 pub mod guards;
 pub mod hello;
 pub mod identifiers;
+pub mod in_operator;
 pub mod instanceof;
 pub mod loops;
 pub mod member_functions;
@@ -146,6 +147,12 @@ pub extern "C" fn hello() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn identifiers() -> i32 {
     crate::export(identifiers::module::<nanvm_lib::naive::Naive>)
+}
+
+/// Loads the `in_operator` sample.
+#[unsafe(no_mangle)]
+pub extern "C" fn in_operator() -> i32 {
+    crate::export(in_operator::module::<nanvm_lib::naive::Naive>)
 }
 
 /// Loads the `instanceof` sample.
@@ -391,6 +398,13 @@ mod tests {
         let entry = crate::load(super::identifiers::module::<Naive>).unwrap();
         crate::assert_call(&entry, 1.0, Ok("[2,2,3,4]"));
         crate::assert_call(&entry, 2.0, Ok("[3,2,3,4]"));
+    }
+
+    #[test]
+    fn in_operator() {
+        let entry = crate::load(super::in_operator::module::<Naive>).unwrap();
+        crate::assert_call(&entry, 0.0, Ok("true"));
+        crate::assert_call(&entry, 1.0, Ok("false"));
     }
 
     #[test]

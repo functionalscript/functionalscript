@@ -13,9 +13,10 @@ first the language had — and, above them, the lazy operators
 (`&& || ??`) and the conditional (`?:`), Stage B — and `!` and `typeof`, the
 logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
+`"k" in o`, the entry check with a literal key ([below](in/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice, and so does `in` ([below](in/README.md)). Unary `+` is not in the language:
+twice. Unary `+` is not in the language:
 the conversion to a number is `Number(x)`
 ([number conversion](../conversions/number/README.md)). The EDAG admits every pure
 operation, unary `+` among them, and the language spells a subset of them;
@@ -176,10 +177,11 @@ and `7` as JSON.
 - [Grouping](./grouping/README.md)
 - [Comma](./comma/README.md)
 - [`instanceof`](./instanceof/README.md)
+- [`in`](./in/README.md)
 
 Refused by design, each page showing what `fjs compile` prints and what to write instead:
 
-- [`in` Is Refused](./in/README.md)
+- [`in` With a Computed Key Is Refused](./in/computed-key/README.md)
 - [`instanceof` Other Than `Array` Is Refused](./instanceof/other-classes/README.md)
 - [`==` Is Refused](./loose-equality/README.md)
 - [`this` Is Refused](./this/README.md)

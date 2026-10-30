@@ -9,7 +9,7 @@ compiler prints for each.
 
 The [refused constructs](../todo/refused-constructs.md) register gives every
 refusal a **Why**: **design** when it is meant to last, as for
-[`in`](../operators/in/README.md); **planned** when a record proposes
+[`==`](../operators/loose-equality/README.md); **planned** when a record proposes
 admitting it; and **open** when only the whitelist refuses it. This page is
 the open rows, the ones still waiting for a language designer's decision.
 
@@ -33,7 +33,7 @@ asks: a refusal that moves, or changes its message, fails it.
 The pull request that decides a row changes its **Why** in the register, and
 the row leaves this page with it. The same pull request removes the row's
 sample here, and the construct gets a page of its own: a refused construct's
-page, like [`in`](../operators/in/README.md), when it stays out, or the
+page, like [`==`](../operators/loose-equality/README.md), when it stays out, or the
 feature's page in the specification when it comes in.
 
 ## Reference

@@ -9,7 +9,7 @@
  * pull request leaves this page in the same one, with nothing here to edit.
  *
  * **The verdicts are this build's compiler's**, as on a refused construct's
- * page ([`in`](../operators/in/README.md)): each sample is compiled in the
+ * page ([`==`](../operators/loose-equality/README.md)): each sample is compiled in the
  * page. A sample the compiler accepts, an open row with no sample, and a
  * sample whose row is no longer open are each shown as such, since each
  * means this page and the register disagree.
