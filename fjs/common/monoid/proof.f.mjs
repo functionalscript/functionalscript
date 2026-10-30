@@ -399,7 +399,7 @@ export const proof = {
                 assertStructurallySame(sequence(kind, 0), expected)
                 assertStructurallySame(sequence(kind, 7), expected)
                 assertEq(trace(expected).split('\n').at(-1)?.trim(), '60')
-                const state = { sequence: kind, seed: 7 }
+                const state = /** @type {const} */ ({ sequence: kind, seed: 7 })
                 const rendered = htmlToString(demo.view(state))
                 assert(rendered.includes(`<option value="${kind}" selected="">${label}</option>`))
                 assert(rendered.includes('name="shuffle" disabled=""'))
