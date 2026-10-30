@@ -123,13 +123,8 @@ export const includes =
     v =>
     a.includes(v)
 
-/**
- * Array concatenation in operand order: with `empty` as its identity, the
- * monoid `repeat` doubles under and `list/alt`'s `toArray` folds with.
- *
- * @type {<T>(a: readonly T[]) => (b: readonly T[]) => readonly T[]}
- */
-export const concat = a => b => [...a, ...b]
+/** Array concatenation in operand order. @type {<T>(a: readonly T[]) => (b: readonly T[]) => readonly T[]} */
+const concat = a => b => [...a, ...b]
 
 /**
  * Repeats a singleton array under concatenation, using monoid doubling rather
