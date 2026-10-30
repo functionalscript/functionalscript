@@ -4,12 +4,14 @@ import alternative from './alternative.f.js'
 import { demo, sample, suggestion } from './demo.f.mjs'
 
 export const proof = {
-    // `op.in` (spec/todo/refused-constructs.md): refused at the `in`.
+    // `op.in` (spec/todo/refused-constructs.md): refused at the `in` — the
+    // key is a prototype's name, which the operator with a literal key
+    // refuses as a read of it is refused.
     refused: () => {
         const r = report(sample)
         assert(r[0] === 'error', 'in is accepted')
         assertEq(reportText(sample)(r[1]), [
-            'sample.mjs:1:27 - error: unexpected token',
+            'sample.mjs:1:27 - error: prohibited property name',
             '1 | export default "toString" in {};',
             '  |                           ^',
         ].join('\n'))

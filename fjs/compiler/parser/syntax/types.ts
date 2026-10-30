@@ -72,6 +72,11 @@ export type Node =
     // there, a reference to `Array`, refusing the rest at the operator —
     // the one token every spelling of the right side shares
     | readonly ['instanceof', Node, Node, ModuleTokenWithMetadata]
+    // `in` with its operator token: the grammar reads both operands as any
+    // relational operator's, and the fold admits one left operand, a
+    // string literal naming no prototype property, refusing the rest at
+    // the operator
+    | readonly ['in', Node, Node, ModuleTokenWithMetadata]
     | readonly ['?:', Node, Node, Node]
     // the comma operator, `(a, b)`: its operands in order, two at least,
     // and the token the fold refuses it at where the parentheses also

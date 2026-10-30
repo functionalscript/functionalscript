@@ -51,15 +51,16 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'else' | 'break' | 'continue'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
  * {@link BinaryTag}s, whose node is two operands, and `instanceof`, whose
  * right operand the fold reads as a constructor name rather than a value —
- * so it is a layer's operator here and not a binary tag there.
+ * so it is a layer's operator here and not a binary tag there — and `in`,
+ * whose left operand the fold reads as a key spelling, likewise.
  */
-export type InfixTag = BinaryTag | 'instanceof'
+export type InfixTag = BinaryTag | 'instanceof' | 'in'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof'> | 'id' | 'keyword'>>

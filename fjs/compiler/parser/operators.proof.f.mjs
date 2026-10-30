@@ -131,6 +131,24 @@ export const proof = {
             expect('export default (...a) => a[0] instanceof Array && a;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?:\",[\"instanceof\",[\".\",[\"rest\"],0],\"Array\"],[\"rest\"],[\"instanceof\",[\".\",[\"rest\"],0],\"Array\"]]]]]]")
             // and a key or a property name, as every keyword is
             expect('export default { instanceof: 1 }.instanceof;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"instanceof\",1]]],\"instanceof\"]]]]")
+            // `"k" in o` is a relational operator too, one level with `<`
+            // and left-associative; its left side is the key, a string
+            // literal carried as a spelling, and its right side any value
+            expect('export default "a" in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"a\",[\"{}\",[]]]]]]")
+            expect('export default "" in [];', "[\"{}\",[[\":\",\"default\",[\"in\",\"\",[\"[]\",[]]]]]]")
+            // a group around the key vanishes, as one around `instanceof`'s name does
+            expect('export default ("a") in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"a\",[\"{}\",[]]]]]]")
+            expect('export default "a" in {} === true;', "[\"{}\",[[\":\",\"default\",[\"===\",[\"in\",\"a\",[\"{}\",[]]],true]]]]")
+            expect('export default "a" in 1 + 2;', "[\"{}\",[[\":\",\"default\",[\"in\",\"a\",[\"+\",1,2]]]]]")
+            expect('export default "a" in [] < 2;', "[\"{}\",[[\":\",\"default\",[\"<\",[\"in\",\"a\",[\"[]\",[]]],2]]]]")
+            expect('export default 1 | "a" in {};', "[\"{}\",[[\":\",\"default\",[\"|\",1,[\"in\",\"a\",[\"{}\",[]]]]]]]")
+            expect('export default (...a) => "0" in a[0] && a;', "[\"{}\",[[\":\",\"default\",[\"=>\",0,[],[\"?:\",[\"in\",\"0\",[\".\",[\"rest\"],0]],[\"rest\"],[\"in\",\"0\",[\".\",[\"rest\"],0]]]]]]]")
+            // the key's spelling is the literal's, any string, a keyword's
+            // word and an index-like one included
+            expect('export default "if" in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"if\",[\"{}\",[]]]]]]")
+            expect('export default "a b" in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"a b\",[\"{}\",[]]]]]]")
+            // and `in` a key or a property name, as every keyword is
+            expect('export default { in: 1 }.in;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"in\",1]]],\"in\"]]]]")
             /**
              * The right operand is the one reference the language has a
              * meaning for: any other value is refused at the operator —
@@ -151,6 +169,37 @@ export const proof = {
             refused('export default [] instanceof 1;', 19)
             refused('export default [] instanceof ((...a) => a);', 19)
             refused('export default 1 < [] instanceof (Array)[0];', 23)
+            /**
+             * The left operand of `in` is a string literal, and no other
+             * value — a number, a name, an operator's result, `in`'s own
+             * — is refused at the operator, the one token every spelling
+             * of the left side shares.
+             *
+             * @type {(source: string, message: string, column: number) => void}
+             */
+            const refusedIn = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            const literal = 'the left operand of in must be a string literal'
+            refusedIn('export default 1 in [];', literal, 18)
+            refusedIn('export default 0 in [1];', literal, 18)
+            refusedIn('const o = {}; export default o in o;', literal, 32)
+            refusedIn('export default 1 < 2 in [];', literal, 22)
+            refusedIn('export default "a" in [] in {};', literal, 26)
+            refusedIn('export default [] in {};', literal, 19)
+            // a name a built-in prototype gives a value is refused as the
+            // key of a read is, and `length` with it, which a read exempts:
+            // `"length" in []` is `true` in JavaScript, the own entry absent
+            refusedIn('export default "toString" in {};', 'prohibited property name', 27)
+            refusedIn('export default "length" in [];', 'prohibited property name', 25)
+            refusedIn('export default "__proto__" in {};', 'prohibited property name', 28)
+            refusedIn('export default "name" in (() => 1);', 'prohibited property name', 23)
+            // the right operand missing is the grammar's refusal, at the
+            // token no rule takes
+            refusedIn('export default "a" in;', 'unexpected token', 22)
             // the left operand is resolved first, as every binary
             // operator's: with both sides wrong, the left's fault is the
             // one reported, the first in document order
@@ -403,7 +452,11 @@ export const proof = {
         },
     },
     refusedByDesign: {
-        in: () => {
+        // `for (k in o)` is the other place JavaScript uses the word, a
+        // statement the language has no rule for: classic for headers
+        // reach the `in` before refusing this iteration form, which says
+        // nothing about the operator, admitted above with a literal key.
+        forIn: () => {
             /** @type {(source: string, column: number) => void} */
             const expect = (source, column) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
@@ -411,20 +464,6 @@ export const proof = {
                 assertEq(value.message, 'unexpected token')
                 assertEq(value.metadata?.column, column)
             }
-            // the operator, at the `in`, whatever stands either side of it:
-            // a literal key and an object, an array, a name, an element of
-            // the arguments, inside a body
-            expect('export default "a" in {};', 20)
-            expect('export default 1 in [];', 18)
-            expect('const o = { a: 1 }; export default "a" in o;', 40)
-            expect('export default (...a) => "a" in a[0];', 30)
-            // with the right operand missing, the refusal is still at the
-            // `in`: it is the token no rule takes, not a half-formed
-            // expression
-            expect('export default "a" in;', 20)
-            // `for (k in o)` is the other place JavaScript uses the word, a
-            // statement the language has no rule for. Classic for headers
-            // reach the `in` before refusing this iteration form.
             expect('export default (...a) => { for (const k in a) { return k } };', 41)
             expect('for (const k in {}) {}\nexport default 1;', 14)
         },
