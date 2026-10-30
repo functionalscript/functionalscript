@@ -8,8 +8,8 @@
  *
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
- * `nanvm-demos-publish` copying it into `nanvm/demos/wasm/` with each
- * sample's WAT beside it. The website deploy builds these ignored assets
+ * [`publish`](./publish/module.f.mjs) copying it into `nanvm/demos/wasm/`
+ * with each sample's WAT beside it. The website deploy builds these ignored assets
  * before generating pages. The script
  * requires the pinned Rust so local builds use the same compiler as deploys.
  *
@@ -143,6 +143,9 @@ export const wasmTarget = 'wasm32-unknown-unknown'
 /** Where `cargo build` writes that module. */
 export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
 
+/** The program that publishes the module and its disassembly. */
+export const publishPath = 'fjs/nanvm/demos/publish/module.f.mjs'
+
 /**
  * The script that builds the module and its disassembly: a `gen.` name, run
  * through `sh` as `sh ./nanvm/demos/gen.build.sh`, since a regenerated file
@@ -165,7 +168,7 @@ case "$(rustc --version)" in
 *) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./${buildScriptPath}" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
-cargo run -p nanvm-demos-publish --release -- ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
 `
 
 /**
