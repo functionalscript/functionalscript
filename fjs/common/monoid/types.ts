@@ -131,3 +131,13 @@ export type Walk<T> = {
     readonly value: T
     readonly pending: Stack<T>
 }
+
+/**
+ * The state of the module's demo (`./demo.f.mjs`): which sequence is drawn,
+ * and the seed of the shuffle. Private to the demo, and here rather than in
+ * `private.ts` because the demo's shipped declaration reaches it.
+ */
+export type _DemoState = {
+    readonly sequence: string
+    readonly seed: number
+}

@@ -1,20 +1,15 @@
 /**
- * The types of the monoid's demo (`demo.f.mjs`), private to it.
+ * The implementation-private type of the monoid's demo (`demo.f.mjs`): no
+ * shipped declaration reaches it, so it stays out of `types.ts`.
  *
  * @module
  */
 
 /**
  * A span of the demo's input: the sum of the values it covers and how many
- * it covers. Spans add, and a span weighs its sum.
+ * it covers. Spans add, and a span weighs the magnitude of its sum.
  */
 export type _Span = {
     readonly sum: number
     readonly count: number
-}
-
-/** The demo's state: which sequence is drawn, and the seed of the shuffle. */
-export type _State = {
-    readonly sequence: string
-    readonly seed: number
 }

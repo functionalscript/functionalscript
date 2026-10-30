@@ -37,8 +37,8 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { Monoid, Stack, Walk } from './types.ts'
- * @import { _Span, _State } from './private.ts'
+ * @import { _DemoState, Monoid, Stack, Walk } from './types.ts'
+ * @import { _Span } from './private.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -189,7 +189,7 @@ const sequences = [
     ['signed', `±1, …, ±${n / 2}, shuffled`],
 ]
 
-/** @type {Demo<_State, DemoEvent>} */
+/** @type {Demo<_DemoState, DemoEvent>} */
 const definition = {
     init: { sequence: 'random', seed: 0 },
     update: state => event => pureOk(
