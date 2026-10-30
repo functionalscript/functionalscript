@@ -42,7 +42,7 @@ SHA-1 history before any second name exists.
 [git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md)
 timestamps the history as the hosts hold it, and carries the risk analysis
 under which that is accepted — the timestamp is over a message that names
-the commit by SHA-1, and the exposure is to an attack not known today, in
+the commits it covers by SHA-1, and the exposure is to an attack not known today, in
 the window before the map lands.
 [git-sha256-map-branch](./git-sha256-map-branch.md) then adds the SHA-256
 names to the same branch. The questions below decide what that map names

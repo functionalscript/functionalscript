@@ -26,11 +26,12 @@ own from the day it lands.
 
 ### Risk: what a timestamp over SHA-1 names proves
 
-The imprint a timestamp binds is a SHA-256 digest over the message the
-branch records, and the message names the commits it covers by SHA-1
+The imprint a timestamp binds is a digest over the message the branch
+records — SHA-256, or whatever else the authority requires, never SHA-1 —
+and the message names the commits it covers by SHA-1
 ([what a timestamp proves](#what-a-timestamp-proves)). So until the map
-lands, everything the timestamp vouches for — the head commit, and
-through its tree and parents everything it reaches — is named by a hash
+lands, everything the timestamp vouches for — each commit, and through
+its tree and parents everything it reaches — is named by a hash
 whose collision resistance is broken. The risk is that one of those names
 names two objects.
 
@@ -75,45 +76,57 @@ the map names and who vouches for it; that stays open in
   header — each descending from the previous one, so the chain keeps adding
   timestamps for as long as the repository lives. The branch holds only
   what was observed and records no decisions.
-- Each commit's tree holds **two files**: the message and the record.
-- The **message**, `message.json`, is what the timestamp is over. It names
-  the commits the timestamp covers by SHA-1, each with everything it
-  reaches: the `HEAD` commit, and the parent `disot` commit, through which
-  the parent's tree and record, which the parent could not name itself.
-  A SHA-1 is what a reader has in hand and what every host indexes, so the
-  message names a commit the way the hosts do, and a reader goes from the
-  message to the commit without a table. The map later extends the same
+- Each commit's tree holds **one file**, `tts.json`, with three members:
+  the message, the authority's URL, and the authority's response.
+- The **message** is what the timestamp is over. It names the commits the
+  timestamp covers by SHA-1, `commits` — one or several, the heads of as
+  many branches as a run is given — and with each everything it reaches;
+  and the parent `disot` commit, `parent`, through which the parent's tree
+  and its `tts.json`, which the parent could not name itself. A SHA-1 is
+  what a reader has in hand and what every host indexes, so the message
+  names a commit the way the hosts do, and a reader goes from the message
+  to the commit without a table. The map later extends the same
   message with a second name per object
   ([git-sha256-map-branch](./git-sha256-map-branch.md)); nothing in the
   message is redefined by it.
-- The **record**, `tts.json`, holds the message's SHA-256 blob name beside
-  the RFC 3161 token whose imprint is that name. The token is over the
-  message, never over an object: the message is what names the objects.
+- The **imprint** is a hash over the message's bytes — its canonical
+  spelling, below — in the algorithm the authority requires. SHA-256 unless
+  it asks otherwise; an authority that takes only SHA-1 is refused, since
+  that would bind a name an attacker can collide. The response records
+  which algorithm was used, in the token's `messageImprint`.
+- The **response** is the RFC 3161 `TimeStampResp` as the authority sent
+  it, status and token together, rather than the extracted token the
+  commit-header design stores
+  ([git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)):
+  the branch records what was observed, and a verifier reads the token out
+  of it. The **URL** is the authority it came from.
 - A run over an unchanged repository still commits: its message names the
-  parent and its token renews the chain.
+  parent and its response renews the chain.
 
 ### Skeleton: `fjs tts`
 
 The smallest version that works: a milestone to build on, not a release,
-since it checks nothing the additions below check. One option,
-`--tsa <url>`, a URL until
+since it checks nothing the additions below check. `fjs tts [<revision>…]`
+timestamps the commits the revisions name, `HEAD` when none is given; one
+option, `--tsa <url>`, a URL until
 [disot-cli-epic](../fjs/todo/disot-cli-epic.md)'s profiles exist. It reads
 committed objects and writes objects and one ref; it never touches the
 index or the working tree.
 
-1. **Read the branch head.** If `refs/heads/disot` exists, its commit, its
-   tree and its record are the parent objects. Otherwise there are none and
-   the new commit has no parent.
-2. **Name the heads.** The `HEAD` commit and, when there is one, the parent
-   `disot` commit. An unborn `HEAD`, or one that is `disot`, is refused.
-3. **Write the message**, `message.json`: one JSON object with one member,
-   `heads`, an array of the SHA-1s in lowercase hex in ascending order, no
-   whitespace: `{"heads":["…","…"]}`.
-4. **Timestamp it.** Request an RFC 3161 timestamp with the message's
-   SHA-256 blob name as imprint; on a granted response write the record,
-   `tts.json`: `{"sha256":"…","tts":"…"}`, members in that order, the token
-   as DER in standard base64 with padding, no whitespace, no escapes.
-5. **Commit** the two blobs and their tree, with the `disot` head as the one
+1. **Read the branch head.** If `refs/heads/disot` exists, its commit is
+   the parent. Otherwise the new commit has none.
+2. **Write the message.** `{"commits":["…"],"parent":"…"}`: the commits
+   the revisions name, distinct, in ascending order, and the parent `disot`
+   commit, SHA-1s in lowercase hex, members in that order, `parent` absent
+   on the first commit, no whitespace. A revision that names no commit, or
+   that is `disot`, is refused. This spelling is the message's bytes: the
+   imprint is hashed over it, and a reader re-spells the message to check.
+3. **Timestamp it.** Request an RFC 3161 timestamp with the message's hash
+   as imprint, from `--tsa`. On a granted response write `tts.json`:
+   `{"message":{…},"tsa":"…","response":"…"}`, members in that order, the
+   message as written in step 2, the URL as given, the response as DER in
+   standard base64 with padding, no whitespace, no escapes.
+4. **Commit** the blob and its tree, with the `disot` head as the one
    parent, and move `refs/heads/disot` to it. Nothing is fetched or pushed.
 
 ### Additions
@@ -125,10 +138,10 @@ comes first, then the fix.
   Check status, imprint, nonce, signature and the signer's certificate chain
   before writing, as [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks;
   request with `certReq` so the token carries the certificate and a clone
-  can check it from the blobs alone.
-- **The parent is not checked.** A damaged or substituted record is built
-  on, and the chain then renews a wrong link. Hash the parent's message as
-  a blob and require the record's SHA-256; refuse a message or record
+  can check it from the blob alone.
+- **The parent is not checked.** A damaged or substituted `tts.json` is
+  built on, and the chain then renews a wrong link. Hash the parent's
+  message and require the imprint in its response; refuse a `tts.json`
   spelled any way but the canonical one.
 - **Two local runs can race.** The second moves the ref over the first's
   commit. Move `refs/heads/disot` only if it still holds what step 1 read,
@@ -136,8 +149,8 @@ comes first, then the fix.
   [`fjs/git/refstore/write`](../fjs/git/refstore/write/module.f.mjs)'s
   `tryWrite` does not do yet.
 - **A checked-out `disot`.** Moving its ref under a worktree disturbs that
-  worktree, and a `HEAD` that is `disot` names nothing to timestamp. Refuse,
-  as `git branch -f` does.
+  worktree, and `disot` among the revisions names nothing to timestamp.
+  Refuse, as `git branch -f` does.
 - **A SHA-256 repository.** Its content already has the name the map would
   add, and whether this branch should still timestamp it is the map's
   question. Refuse until it is answered.
@@ -145,7 +158,7 @@ comes first, then the fix.
   skeleton writes one parent; `git branch -f` replaces rather than joins. A
   way to name a second trusted head as a further parent.
 - **Remote heads.** The skeleton reads only the local branch, since
-  building on another party's record is trusting them. A user adopts a
+  building on another party's `tts.json` is trusting them. A user adopts a
   remote's `disot` by making it their own branch; anything more is the
   trust question below.
 
@@ -160,18 +173,18 @@ comes first, then the fix.
   authority's certificate does; a later token over the chain proves the
   earlier one existed before that, if the later bound comes first. That is
   the renewal RFC 3161 describes.
-- **The imprint is a SHA-256 name of the message.** The token binds the
-  message's bytes with a hash whose collision resistance is intact; what
-  the message binds is whatever names it holds — SHA-1 here, SHA-256
-  beside it once the map lands — which is the
+- **The imprint is a hash of the message.** The token binds the message's
+  bytes with a hash whose collision resistance is intact; what the message
+  binds is whatever names it holds — SHA-1 here, SHA-256 beside it once
+  the map lands — which is the
   [risk](#risk-what-a-timestamp-over-sha-1-names-proves) above.
 
 ### Out of scope
 
-Reading the record is a separate design: verifying a branch (tokens against
-their authorities, substituted twins), trust between parties, suppression of
-the honest head, and a miss. The record authenticates only the timestamp
-authority; the commit is unsigned and its author line is a claim. The map,
+Reading the branch is a separate design: verifying it (responses against
+their authorities, substituted twins), trust between parties, suppression
+of the honest head, and a miss. A `tts.json` authenticates only the
+timestamp authority; the commit is unsigned and its author line is a claim. The map,
 and everything that is only a concern once there is one — the walk, pruning,
 closure, two names for one SHA-1 — is
 [git-sha256-map-branch](./git-sha256-map-branch.md).
@@ -180,15 +193,15 @@ closure, two names for one SHA-1 — is
 
 Skeleton:
 
-- [ ] The message and record writers and readers, with a proof that a
-      second run over an unchanged repository records only the renewal.
+- [ ] The `tts.json` writer and reader, with a proof that a second run
+      over an unchanged repository records only the renewal.
 - [ ] The timestamp request, reusing the RFC 3161 handling
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
       defines.
 - [ ] A loose-object writer: nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object yet, and the effects have `inflate` and no
       `deflate`. Then the branch tip.
-- [ ] `fjs tts`: read, name, write, timestamp, commit.
+- [ ] `fjs tts`: read, write, timestamp, commit.
 
 Then the additions, one each.
 
@@ -200,7 +213,7 @@ Then the additions, one each.
   and the open questions about what the map names.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — the RFC 3161 handling this reuses; its commit headers are not used
-  here.
+  here, and it stores the token where this stores the response.
 - [git-name-resolution](./git-name-resolution.md) — the other DISOT
   metadata.
 - [disot-cli-epic](../fjs/todo/disot-cli-epic.md) — where the command lands.
