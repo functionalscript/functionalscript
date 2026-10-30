@@ -32,6 +32,7 @@
  * @import { Write } from '../../../effects/common/types.ts'
  * @import { Module } from '../../../media/wasm/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
+ * @import { _Checked } from './private.ts'
  */
 
 import { errorExit } from '../../../effects/common/module.f.mjs'
@@ -95,26 +96,43 @@ const removeStale = (directory, samples) => step(
         ({ name }) => rm(`${directory}/${name}`)))
 
 /**
+ * The module at `from`, read and parsed, with each sample's WAT, or why
+ * there is none, naming `from`.
+ *
+ * @type {(from: string, samples: readonly string[]) => Effect<ReadWhole, _Checked, IoChannel>}
+ */
+const check = (from, samples) => step(readWhole(from), chunks => {
+    const parsed = parse(chunks.flatMap(u8ArrayMsb))
+    const wats = parsed[0] === 'error' ? parsed : sampleWats(parsed[1], samples)
+    return wats[0] === 'error'
+        ? pureError(ioError({ message: `${from}: ${wats[1]}` }))
+        : pureOk({ chunks, wats: wats[1] })
+})
+
+/**
+ * Writes what {@link check} read: the module's chunks to `to` and each
+ * sample's WAT to `watDirectory`, making each directory first, then removes
+ * any other WAT there.
+ *
+ * @type {(to: string, watDirectory: string, samples: readonly string[]) => (checked: _Checked) => Effect<Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
+ */
+const save = (to, watDirectory, samples) => ({ chunks, wats }) => {
+    const madeTo = mkdir(parent(to), { recursive: true })
+    const copied = step(madeTo, () => writeChunks(to, chunks))
+    const madeWat = step(copied, () => mkdir(watDirectory, { recursive: true }))
+    const written = step(madeWat, () => writeFiles(wats.map(([sample, text]) => [`${watDirectory}/${sample}.wat`, text])))
+    return step(written, () => removeStale(watDirectory, samples))
+}
+
+/**
  * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat` in
  * `watDirectory`, making each directory first, then removes any other WAT
  * there.
  *
  * @type {(from: string, to: string, watDirectory: string, samples: readonly string[]) => Effect<ReadWhole | Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
  */
-export const publish = (from, to, watDirectory, samples) => step(readWhole(from), chunks => {
-    const parsed = parse(chunks.flatMap(u8ArrayMsb))
-    const wats = parsed[0] === 'error' ? parsed : sampleWats(parsed[1], samples)
-    if (wats[0] === 'error') { return pureError(ioError({ message: `${from}: ${wats[1]}` })) }
-    return step(
-        mkdir(parent(to), { recursive: true }),
-        () => step(
-            writeChunks(to, chunks),
-            () => step(
-                mkdir(watDirectory, { recursive: true }),
-                () => step(
-                    writeFiles(wats[1].map(([sample, text]) => [`${watDirectory}/${sample}.wat`, text])),
-                    () => removeStale(watDirectory, samples)))))
-})
+export const publish = (from, to, watDirectory, samples) =>
+    step(check(from, samples), save(to, watDirectory, samples))
 
 /** The command line, when it has too few arguments. */
 export const usage = 'usage: fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...'

@@ -29,9 +29,18 @@ export const proof = {
             0x41, 0x3f, 0x41, 0xc0, 0x00, 0x41, 0x40, 0x41, 0xbf, 0x7f, 0x10, 0x80, 0x01, 0x0b,
         ])
     },
-    // A custom section stays where it was, even after a section left out.
+    // A custom section stays after the section it follows, which is written
+    // empty to hold it there, and read back after that section.
     customPlace: () => {
-        const bytes = write({ ...emptyModule, customs: [{ after: 'import', content: ['raw', 'x', [7]] }] })
-        assertStructurallySame(bytes, [...header, 0, 3, 1, 0x78, 7])
+        const m = { ...emptyModule, customs: [{ after: /** @type {const} */ ('import'), content: /** @type {const} */ (['raw', 'x', [7]]) }] }
+        const bytes = write(m)
+        assertStructurallySame(bytes, [...header, 2, 1, 0, 0, 3, 1, 0x78, 7])
+        assertStructurallySame(assertOk(parse(bytes)), m)
+    },
+    // An empty type section read with a custom section after it is written
+    // back as it was.
+    customAfterEmpty: () => {
+        const bytes = [...header, 1, 1, 0, 0, 2, 1, 0x78]
+        assertStructurallySame(write(assertOk(parse(bytes))), bytes)
     },
 }

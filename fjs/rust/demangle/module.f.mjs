@@ -21,7 +21,7 @@
  *
  * @module
  *
- * @import { Read } from './private.ts'
+ * @import { _Read } from './private.ts'
  */
 
 /** The deepest a symbol may nest, the crate's own limit. */
@@ -146,14 +146,14 @@ const utf8Nibbles = nibbles => {
  * at offset `i`, printing it with `bound` lifetimes bound around it, `depth`
  * deep.
  *
- * @type {(s: string) => (i: number) => Read<string>}
+ * @type {(s: string) => (i: number) => _Read<string>}
  */
 const demangler = s => {
     /**
      * A base-62 integer closed by `_`, one more than its digits spell, so
      * that a lone `_` is 0; `null` past `u64`, as the crate refuses it.
      *
-     * @type {(i: number) => Read<bigint>}
+     * @type {(i: number) => _Read<bigint>}
      */
     const integer62 = i => {
         if (s[i] === '_') { return [0n, i + 1] }
@@ -172,7 +172,7 @@ const demangler = s => {
         return x + 1n > 0xffff_ffff_ffff_ffffn ? null : [x + 1n, j + 1]
     }
 
-    /** @type {(tag: string) => (i: number) => Read<bigint>} */
+    /** @type {(tag: string) => (i: number) => _Read<bigint>} */
     const optInteger62 = tag => i => {
         if (s[i] !== tag) { return [0n, i] }
         const r = integer62(i + 1)
@@ -181,7 +181,7 @@ const demangler = s => {
 
     const disambiguator = optInteger62('s')
 
-    /** @type {(i: number) => Read<string>} */
+    /** @type {(i: number) => _Read<string>} */
     const hexNibbles = i => {
         let j = i
         while (s[j] !== '_') {
@@ -195,7 +195,7 @@ const demangler = s => {
     /**
      * An identifier: its ASCII part and its Punycode, apart.
      *
-     * @type {(i: number) => Read<readonly [string, string]>}
+     * @type {(i: number) => _Read<readonly [string, string]>}
      */
     const ident = i => {
         const punycode = s[i] === 'u'
@@ -228,7 +228,7 @@ const demangler = s => {
      * A backref's target, read by `f` from where it points, and where the
      * symbol goes on after it.
      *
-     * @type {<T>(i: number, depth: number, f: (j: number, depth: number) => Read<T>) => Read<T>}
+     * @type {<T>(i: number, depth: number, f: (j: number, depth: number) => _Read<T>) => _Read<T>}
      */
     const backref = (i, depth, f) => {
         const r = integer62(i + 1)
@@ -252,7 +252,7 @@ const demangler = s => {
     /**
      * Items read by `f` until an `E`, joined by `sep`, and how many there were.
      *
-     * @type {(i: number, sep: string, f: (j: number) => Read<string>) => Read<readonly [string, number]>}
+     * @type {(i: number, sep: string, f: (j: number) => _Read<string>) => _Read<readonly [string, number]>}
      */
     const list = (i, sep, f) => {
         /** @type {readonly string[]} */
@@ -271,7 +271,7 @@ const demangler = s => {
     /**
      * `f` inside a binder of `G` lifetimes, printed `for<'a, 'b> ` before it.
      *
-     * @type {(i: number, bound: number, f: (j: number, bound: number) => Read<string>) => Read<string>}
+     * @type {(i: number, bound: number, f: (j: number, bound: number) => _Read<string>) => _Read<string>}
      */
     const binder = (i, bound, f) => {
         const g = optInteger62('G')(i)
@@ -284,7 +284,7 @@ const demangler = s => {
             : [`${count === 0 ? '' : `for<${names.join(', ')}> `}${r[0]}`, r[1]]
     }
 
-    /** @type {(i: number, inValue: boolean, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, inValue: boolean, bound: number, depth: number) => _Read<string>} */
     const path = (i, inValue, bound, depth) => {
         if (depth + 1 > maxDepth) { return null }
         const d = depth + 1
@@ -331,7 +331,7 @@ const demangler = s => {
         return null
     }
 
-    /** @type {(i: number, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const genericArg = (i, bound, depth) => {
         if (s[i] === 'L') {
             const lt = integer62(i + 1)
@@ -341,7 +341,7 @@ const demangler = s => {
         return s[i] === 'K' ? constant(i + 1, false, bound, depth) : type(i, bound, depth)
     }
 
-    /** @type {(i: number, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const type = (i, bound, depth) => {
         const splat = s[i] === 'w'
         const j = splat ? i + 1 : i
@@ -349,7 +349,7 @@ const demangler = s => {
         return r === null ? null : [`${splat ? '#[splat] ' : ''}${r[0]}`, r[1]]
     }
 
-    /** @type {(i: number, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const typeBody = (i, bound, depth) => {
         const tag = s[i]
         if (tag === undefined) { return null }
@@ -357,7 +357,7 @@ const demangler = s => {
         if (basic !== undefined) { return [basic, i + 1] }
         if (depth + 1 > maxDepth) { return null }
         const d = depth + 1
-        /** @type {(prefix: string, r: Read<string>, suffix?: string) => Read<string>} */
+        /** @type {(prefix: string, r: _Read<string>, suffix?: string) => _Read<string>} */
         const wrap = (prefix, r, suffix = '') => r === null ? null : [`${prefix}${r[0]}${suffix}`, r[1]]
         if (tag === 'R' || tag === 'Q') {
             const lt = s[i + 1] === 'L' ? integer62(i + 2) : /** @type {const} */ ([0n, i + 1])
@@ -398,11 +398,11 @@ const demangler = s => {
         return path(i, false, bound, d)
     }
 
-    /** @type {(i: number, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const fnSig = (i, bound, depth) => {
         const isUnsafe = s[i] === 'U'
         const j = isUnsafe ? i + 1 : i
-        /** @type {Read<string | null>} */
+        /** @type {_Read<string | null>} */
         const abi = s[j] !== 'K' ? [null, j]
             : s[j + 1] === 'C' ? ['C', j + 2]
             : (() => {
@@ -412,7 +412,7 @@ const demangler = s => {
         if (abi === null) { return null }
         const params = list(abi[1], ', ', k => type(k, bound, depth))
         if (params === null) { return null }
-        /** @type {Read<string>} */
+        /** @type {_Read<string>} */
         const result = s[params[1]] === 'u' ? ['', params[1] + 1] : type(params[1], bound, depth)
         if (result === null) { return null }
         const abiText = abi[0] === null ? '' : `extern "${abi[0].split('_').join('-')}" `
@@ -426,10 +426,10 @@ const demangler = s => {
      * A trait of a trait object, with its associated type bindings inside
      * its generics.
      *
-     * @type {(i: number, bound: number, depth: number) => Read<string>}
+     * @type {(i: number, bound: number, depth: number) => _Read<string>}
      */
     const dynTrait = (i, bound, depth) => {
-        /** @type {(i: number, depth: number) => Read<readonly [string, boolean]>} */
+        /** @type {(i: number, depth: number) => _Read<readonly [string, boolean]>} */
         const openPath = (i, depth) => {
             if (s[i] === 'B') { return backref(i, depth, openPath) }
             if (s[i] === 'I') {
@@ -455,7 +455,7 @@ const demangler = s => {
         return [`${text}${open ? '>' : ''}`, j]
     }
 
-    /** @type {(i: number, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, bound: number, depth: number) => _Read<string>} */
     const pattern = (i, bound, depth) => {
         const tag = s[i]
         if (tag === 'R') {
@@ -481,7 +481,7 @@ const demangler = s => {
         return tag === 'N' ? ['!null', i + 1] : null
     }
 
-    /** @type {(i: number) => Read<string>} */
+    /** @type {(i: number) => _Read<string>} */
     const uint = i => {
         const hex = hexNibbles(i)
         if (hex === null) { return null }
@@ -490,14 +490,14 @@ const demangler = s => {
         return [significant.length > 16 ? `0x${hex[0]}` : BigInt(`0x0${significant}`).toString(), hex[1]]
     }
 
-    /** @type {(i: number, inValue: boolean, bound: number, depth: number) => Read<string>} */
+    /** @type {(i: number, inValue: boolean, bound: number, depth: number) => _Read<string>} */
     const constant = (i, inValue, bound, depth) => {
         const tag = s[i]
         if (tag === undefined || depth + 1 > maxDepth) { return null }
         const d = depth + 1
-        /** @type {(r: Read<string>) => Read<string>} */
+        /** @type {(r: _Read<string>) => _Read<string>} */
         const braced = r => r === null ? null : inValue ? r : [`{${r[0]}}`, r[1]]
-        /** @type {(j: number) => Read<string>} */
+        /** @type {(j: number) => _Read<string>} */
         const element = j => constant(j, true, bound, d)
         if (tag === 'p') { return ['_', i + 1] }
         if ('htmyoj'.includes(tag)) { return uint(i + 1) }
@@ -516,7 +516,7 @@ const demangler = s => {
             return r === null || v < 0 || v > 0x10_ffff || (v >= 0xd800 && v <= 0xdfff) ? null
                 : [`'${escapeChar("'")(String.fromCodePoint(v))}'`, r[1]]
         }
-        /** @type {(j: number) => Read<string>} */
+        /** @type {(j: number) => _Read<string>} */
         const strLiteral = j => {
             const hex = hexNibbles(j)
             const text = hex === null ? null : utf8Nibbles(hex[0])

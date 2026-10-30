@@ -24,7 +24,7 @@
  *
  * @import { BlockType, Bytes, Custom, Data, Element, Export, Expr, FuncType, Global, GlobalType, ImportDesc, Instruction, Limits, Locals, MemArg, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
- * @import { Context, Names, Naming } from './private.ts'
+ * @import { _Context, _Names, _Naming } from './private.ts'
  */
 
 import { reverse } from '../../../types/list/module.f.mjs'
@@ -68,17 +68,17 @@ const bytesLiteral = bytes => `"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 
  * of `group` and the index where it is empty, starts with `#`, or was given
  * to an index before it.
  *
- * @type {(group: string) => (map: NameMap) => ReadonlyMap<number, Naming>}
+ * @type {(group: string) => (map: NameMap) => ReadonlyMap<number, _Naming>}
  */
 const namings = group => map => {
     /** @type {ReadonlySet<string>} */
     let used = new Set()
-    /** @type {ReadonlyMap<number, Naming>} */
+    /** @type {ReadonlyMap<number, _Naming>} */
     let result = new Map()
     for (const [index, name] of map) {
         const unusable = name === '' || name.startsWith('#') || used.has(name)
         used = name === '' || name.startsWith('#') ? used : new Set([...used, name])
-        /** @type {Naming} */
+        /** @type {_Naming} */
         const naming = unusable ? { name, prefix: `#${group}${index}` }
             : Array.from(name).every(isIdChar) ? { name, prefix: null, quoted: false }
             : { name, prefix: null, quoted: true }
@@ -87,7 +87,7 @@ const namings = group => map => {
     return result
 }
 
-/** @type {(naming: Naming) => string} */
+/** @type {(naming: _Naming) => string} */
 const identifier = naming =>
     naming.prefix !== null ? `$"${naming.prefix} ${strContents(naming.name)}"`
     : naming.quoted ? `$"${strContents(naming.name)}"`
@@ -96,7 +96,7 @@ const identifier = naming =>
 /**
  * An item where it is defined: its name, if it has one, then its index.
  *
- * @type {(names: ReadonlyMap<number, Naming>, index: number) => string}
+ * @type {(names: ReadonlyMap<number, _Naming>, index: number) => string}
  */
 const declaration = (names, index) => {
     const naming = names.get(index)
@@ -108,7 +108,7 @@ const declaration = (names, index) => {
 /**
  * An item where it is used: its name, or its index.
  *
- * @type {(names: ReadonlyMap<number, Naming>, index: number) => string}
+ * @type {(names: ReadonlyMap<number, _Naming>, index: number) => string}
  */
 const reference = (names, index) => {
     const naming = names.get(index)
@@ -118,11 +118,11 @@ const reference = (names, index) => {
 /** The empty naming of a kind the name section does not name. */
 const none = new Map()
 
-/** @type {(names: readonly NameSubsection[], key: NameSubsection[0], group: string) => ReadonlyMap<number, Naming>} */
+/** @type {(names: readonly NameSubsection[], key: NameSubsection[0], group: string) => ReadonlyMap<number, _Naming>} */
 const mapOf = (names, key, group) => new Map(names.flatMap(s =>
     s[0] === key ? [...namings(group)(/** @type {NameMap} */ (s[1]))] : []))
 
-/** @type {(customs: readonly Custom[]) => Names} */
+/** @type {(customs: readonly Custom[]) => _Names} */
 const namesOf = customs => {
     /** @type {readonly NameSubsection[]} */
     const names = customs.flatMap(({ content }) => content[0] === 'name' ? content[1] : [])
@@ -151,10 +151,10 @@ const limits = ({ min, max }) => max === null ? `${min}` : `${min} ${max}`
  * A run of parameters or locals: unnamed ones of a run in one group, each
  * named one in a group of its own.
  *
- * @type {(group: string, names: ReadonlyMap<number, Naming>, first: number, types: readonly ValType[]) => string}
+ * @type {(group: string, names: ReadonlyMap<number, _Naming>, first: number, types: readonly ValType[]) => string}
  */
 const namedGroups = (group, names, first, types) => {
-    /** @type {readonly (readonly [Naming | undefined, readonly ValType[]])[]} */
+    /** @type {readonly (readonly [_Naming | undefined, readonly ValType[]])[]} */
     const runs = types.reduce(
         (runs, type, k) => {
             const naming = names.get(first + k)
@@ -163,7 +163,7 @@ const namedGroups = (group, names, first, types) => {
                 ? [...runs.slice(0, -1), /** @type {const} */ ([undefined, [...last[1], type]])]
                 : [...runs, /** @type {const} */ ([naming, [type]])]
         },
-        /** @type {readonly (readonly [Naming | undefined, readonly ValType[]])[]} */ ([]))
+        /** @type {readonly (readonly [_Naming | undefined, readonly ValType[]])[]} */ ([]))
     return runs.map(([naming, run]) => naming === undefined
         ? `(${group} ${run.join(' ')})`
         : `(${group} ${identifier(naming)} ${run[0]})`).join(' ')
@@ -272,19 +272,19 @@ const float = (width, bits) => {
 
 // instructions
 
-/** The `(type N)` of a function type, with its parameters and results. @type {(c: Context, index: number, params: string) => string} */
+/** The `(type N)` of a function type, with its parameters and results. @type {(c: _Context, index: number, params: string) => string} */
 const typeUse = (c, index, params) => {
     const type = c.module.types[index]
     return `(type ${reference(c.names.type, index)})${type === undefined ? '' : signature(type, params)}`
 }
 
-/** @type {(c: Context, index: number) => string} */
+/** @type {(c: _Context, index: number) => string} */
 const plainTypeUse = (c, index) => {
     const type = c.module.types[index]
     return typeUse(c, index, type === undefined ? '' : namedGroups('param', none, 0, type.params))
 }
 
-/** @type {(c: Context, t: BlockType) => string} */
+/** @type {(c: _Context, t: BlockType) => string} */
 const blockType = (c, t) =>
     t === null ? ''
     : typeof t === 'number' ? ` ${plainTypeUse(c, t)}`
@@ -294,7 +294,7 @@ const blockType = (c, t) =>
  * A branch target: its relative depth, and the label it reaches as `(;@N;)`
  * unless that is the function itself.
  *
- * @type {(c: Context, depth: number) => string}
+ * @type {(c: _Context, depth: number) => string}
  */
 const label = (c, depth) => {
     const target = c.depth - depth
@@ -315,7 +315,7 @@ const naturalAlign = mnemonic => {
 const memarg = (mnemonic, { align, offset }) =>
     `${offset === 0 ? '' : ` offset=${offset}`}${align === naturalAlign(mnemonic) ? '' : ` align=${2 ** align}`}`
 
-/** A `call_indirect`'s type: the reference alone, without its signature. @type {(c: Context, index: number) => string} */
+/** A `call_indirect`'s type: the reference alone, without its signature. @type {(c: _Context, index: number) => string} */
 const typeUseRef = (c, index) => `(type ${reference(c.names.type, index)})`
 
 /** @type {(t: RefType) => string} */
@@ -324,12 +324,12 @@ const heapType = t => t === 'funcref' ? 'func' : 'extern'
 /**
  * An instruction's text after its mnemonic.
  *
- * @type {(c: Context, x: Instruction) => string}
+ * @type {(c: _Context, x: Instruction) => string}
  */
 const operands = (c, x) => {
     const { names } = c
-    /** @type {(space: keyof Names, index: number) => string} */
-    const ref = (space, index) => ` ${reference(/** @type {ReadonlyMap<number, Naming>} */ (names[space]), index)}`
+    /** @type {(space: keyof _Names, index: number) => string} */
+    const ref = (space, index) => ` ${reference(/** @type {ReadonlyMap<number, _Naming>} */ (names[space]), index)}`
     /** @type {(index: number) => string} */
     const memory = index => index === 0 ? '' : ref('memory', index)
     switch (x[0]) {
@@ -378,7 +378,7 @@ const operands = (c, x) => {
     }
 }
 
-/** @type {(c: Context, x: Instruction) => string} */
+/** @type {(c: _Context, x: Instruction) => string} */
 const instruction = (c, x) => `${x[0]}${operands(c, x)}`
 
 /**
@@ -386,7 +386,7 @@ const instruction = (c, x) => `${x[0]}${operands(c, x)}`
  * the blocks open around them: a block's opening at the depth outside it,
  * its `else` and `end` there too.
  *
- * @type {(c: Context, nesting: number, body: Expr) => readonly string[]}
+ * @type {(c: _Context, nesting: number, body: Expr) => readonly string[]}
  */
 const lines = (c, nesting, body) => {
     /** @type {List<string>} */
@@ -414,7 +414,7 @@ const indentation = nesting => '  '.repeat(Math.min(nesting, 50))
 /**
  * A constant expression on one line, its instructions space-separated.
  *
- * @type {(c: Context, e: Expr) => string}
+ * @type {(c: _Context, e: Expr) => string}
  */
 const constExpr = (c, e) => e.map(x => instruction(c, x)).join(' ')
 
@@ -422,7 +422,7 @@ const constExpr = (c, e) => e.map(x => instruction(c, x)).join(' ')
  * A constant expression in parentheses: alone where it is one instruction,
  * after `keyword` where it is more.
  *
- * @type {(c: Context, keyword: string, e: Expr) => string}
+ * @type {(c: _Context, keyword: string, e: Expr) => string}
  */
 const sugar = (c, keyword, e) => e.length === 1 ? `(${constExpr(c, e)})` : `(${keyword} ${constExpr(c, e)})`
 
@@ -458,11 +458,11 @@ const place = (m, after) => {
 /** How many of each kind the imports hold. @type {(m: Module, kind: ImportDesc[0]) => number} */
 const imported = (m, kind) => m.imports.filter(({ desc }) => desc[0] === kind).length
 
-/** @type {(c: Context) => readonly string[]} */
+/** @type {(c: _Context) => readonly string[]} */
 const types = c => c.module.types.map((t, k) =>
     `(type ${declaration(c.names.type, k)} (func${signature(t, namedGroups('param', none, 0, t.params))}))`)
 
-/** @type {(c: Context) => readonly string[]} */
+/** @type {(c: _Context) => readonly string[]} */
 const imports = c => {
     const { module: m, names } = c
     /** @type {(kind: ImportDesc[0], k: number) => number} */
@@ -484,7 +484,7 @@ const imports = c => {
  * A defined function: its header, its locals, its body, and the closing
  * parenthesis on a line of its own, each line indented as in a module.
  *
- * @type {(c: Context, k: number) => readonly string[]}
+ * @type {(c: _Context, k: number) => readonly string[]}
  */
 const func = (c, k) => {
     const { module: m, names } = c
@@ -502,7 +502,7 @@ const func = (c, k) => {
     return inner.length === 0 ? [`${header})`] : [header, ...inner, '  )']
 }
 
-/** @type {(c: Context, e: Element, k: number) => string} */
+/** @type {(c: _Context, e: Element, k: number) => string} */
 const element = (c, { mode, init }, k) => {
     const implicit = mode[0] === 'active' && mode[1] === 0 && (init[0] === 'func' || init[1] === 'funcref')
     const modeText = mode[0] === 'passive' ? ''
@@ -514,14 +514,14 @@ const element = (c, { mode, init }, k) => {
     return `(elem ${declaration(c.names.elem, k)}${modeText} ${items})`
 }
 
-/** @type {(c: Context, d: Data, k: number) => string} */
+/** @type {(c: _Context, d: Data, k: number) => string} */
 const data = (c, { mode, bytes }, k) => {
     const modeText = mode[0] === 'passive' ? ''
         : `${mode[1] === 0 ? '' : `(memory ${reference(c.names.memory, mode[1])}) `}${sugar(c, 'offset', mode[2])} `
     return `(data ${declaration(c.names.data, k)} ${modeText}${bytesLiteral(bytes)})`
 }
 
-/** @type {(m: Module) => Context} */
+/** @type {(m: Module) => _Context} */
 const context = m => ({ module: m, names: namesOf(m.customs), locals: none, depth: 0 })
 
 /**

@@ -23,7 +23,8 @@ demo module. Anything outside it is refused, never skipped.
 
 `parse(write(m))` is `m`, and `write` depends on the module alone. The
 bytes need not survive `write(parse(bytes))`: the writer is canonical
-(shortest LEB128, shortest element encoding, no empty sections) and
+(shortest LEB128, shortest element encoding, and no empty section
+unless a custom section follows it) and
 `wasm-ld` is not, so the 1,007,871-byte demo module comes back as 962,789
 bytes that `wasmprinter` prints identically. The demo module of these
 figures is the one Rust 1.99.1 built from

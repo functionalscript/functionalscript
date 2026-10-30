@@ -11,16 +11,16 @@ import type { Bytes, Func, Module } from '../../types.ts'
  * A reader: what it reads at offset `i` of `b`, with the offset after it, or
  * why it cannot.
  */
-export type Read<T> = (b: Bytes, i: number) => Result<readonly [T, number], string>
+export type _Read<T> = (b: Bytes, i: number) => Result<readonly [T, number], string>
 
 /** A function's code, before the function section's type is joined to it. */
-export type Code = Omit<Func, 'type'>
+export type _Code = Omit<Func, 'type'>
 
 /**
  * What the known sections read: the module's fields, with the function
  * section's type indices and the code section's bodies apart until the end.
  */
-export type Sections = Omit<Module, 'functions' | 'customs'> & {
+export type _Sections = Omit<Module, 'functions' | 'customs'> & {
     readonly funcs: readonly number[]
-    readonly code: readonly Code[]
+    readonly code: readonly _Code[]
 }

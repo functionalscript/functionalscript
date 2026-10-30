@@ -21,7 +21,7 @@
  * @import { Result } from '../../../../types/result/types.ts'
  * @import { List } from '../../../../types/list/types.ts'
  * @import { BlockType, Bytes, Custom, Data, Element, ElementInit, Export, ExternKind, FuncType, Global, GlobalType, Immediates, Import, ImportDesc, IndirectNameMap, Instruction, Kind, Limits, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../../types.ts'
- * @import { Code, Read, Sections } from './private.ts'
+ * @import { _Code, _Read, _Sections } from './private.ts'
  */
 
 import { error, ok } from '../../../../types/result/module.f.js'
@@ -35,13 +35,13 @@ import { afterPrefix, prefix, single } from '../../instruction/module.f.mjs'
 /** @type {(i: number, message: string) => Result<never, string>} */
 const fail = (i, message) => error(`${message} at byte ${i}`)
 
-/** @type {<T>(v: T) => Read<T>} */
+/** @type {<T>(v: T) => _Read<T>} */
 const pure = v => (_, i) => ok([v, i])
 
 /**
  * `p`, then the reader `f` makes of what it read.
  *
- * @type {<A, B>(p: Read<A>, f: (a: A) => Read<B>) => Read<B>}
+ * @type {<A, B>(p: _Read<A>, f: (a: A) => _Read<B>) => _Read<B>}
  */
 const then = (p, f) => (b, i) => {
     const r = p(b, i)
@@ -50,16 +50,16 @@ const then = (p, f) => (b, i) => {
     return f(a)(b, j)
 }
 
-/** @type {<A, B>(p: Read<A>, f: (a: A) => B) => Read<B>} */
+/** @type {<A, B>(p: _Read<A>, f: (a: A) => B) => _Read<B>} */
 const map = (p, f) => then(p, a => pure(f(a)))
 
-/** @type {Read<number>} */
+/** @type {_Read<number>} */
 const byte = (b, i) => i < b.length ? ok([b[i], i + 1]) : fail(i, 'unexpected end')
 
 /**
  * `n` bytes.
  *
- * @type {(n: number) => Read<Bytes>}
+ * @type {(n: number) => _Read<Bytes>}
  */
 const bytes = n => (b, i) => i + n <= b.length ? ok([b.slice(i, i + n), i + n]) : fail(i, 'unexpected end')
 
@@ -67,7 +67,7 @@ const bytes = n => (b, i) => i + n <= b.length ? ok([b.slice(i, i + n), i + n]) 
  * A LEB128 integer of `bits` bits, as the binary format writes them: in at
  * most `ceil(bits / 7)` bytes, its value in range.
  *
- * @type {(bits: number, signed: boolean) => Read<bigint>}
+ * @type {(bits: number, signed: boolean) => _Read<bigint>}
  */
 const leb = (bits, signed) => (b, i) => {
     const maxBytes = Math.ceil(bits / 7)
@@ -88,35 +88,35 @@ const leb = (bits, signed) => (b, i) => {
     return value >= limit || value < -limit ? fail(i, 'integer out of range') : ok([value, j])
 }
 
-/** @type {Read<number>} */
+/** @type {_Read<number>} */
 const u32 = map(leb(32, false), Number)
 
-/** @type {Read<number>} */
+/** @type {_Read<number>} */
 const s32 = map(leb(32, true), Number)
 
-/** @type {Read<bigint>} */
+/** @type {_Read<bigint>} */
 const s64 = leb(64, true)
 
-/** @type {Read<bigint>} */
+/** @type {_Read<bigint>} */
 const s33 = leb(33, true)
 
 /**
  * A little-endian integer of `n` bytes.
  *
- * @type {(n: number) => Read<bigint>}
+ * @type {(n: number) => _Read<bigint>}
  */
 const fixed = n => map(bytes(n), x => x.reduceRight((v, byte) => (v << 8n) | BigInt(byte), 0n))
 
-/** @type {Read<number>} */
+/** @type {_Read<number>} */
 const f32 = map(fixed(4), Number)
 
-/** @type {Read<bigint>} */
+/** @type {_Read<bigint>} */
 const f64 = fixed(8)
 
 /**
  * A count, then that many of what `p` reads.
  *
- * @type {<T>(p: Read<T>) => Read<readonly T[]>}
+ * @type {<T>(p: _Read<T>) => _Read<readonly T[]>}
  */
 const vec = p => then(u32, n => (b, i) => {
     /** @type {List<any>} */
@@ -131,7 +131,7 @@ const vec = p => then(u32, n => (b, i) => {
     return ok([toArray(reverse(items)), j])
 })
 
-/** @type {Read<string>} */
+/** @type {_Read<string>} */
 const name = then(u32, n => (b, i) => {
     const r = bytes(n)(b, i)
     if (r[0] === 'error') { return r }
@@ -142,7 +142,7 @@ const name = then(u32, n => (b, i) => {
 /**
  * One byte, answered by `table`, or refused as `what`.
  *
- * @type {<T>(what: string, table: Readonly<Record<number, T>>) => Read<T>}
+ * @type {<T>(what: string, table: Readonly<Record<number, T>>) => _Read<T>}
  */
 const tag = (what, table) => (b, i) => {
     const r = byte(b, i)
@@ -159,39 +159,39 @@ const refTypes = { 0x70: 'funcref', 0x6f: 'externref' }
 /** @type {Readonly<Record<number, ValType>>} */
 const valTypes = { 0x7f: 'i32', 0x7e: 'i64', 0x7d: 'f32', 0x7c: 'f64', ...refTypes }
 
-/** @type {Read<ValType>} */
+/** @type {_Read<ValType>} */
 const valType = tag('value type', valTypes)
 
-/** @type {Read<RefType>} */
+/** @type {_Read<RefType>} */
 const refType = tag('reference type', refTypes)
 
-/** @type {Read<FuncType>} */
+/** @type {_Read<FuncType>} */
 const funcType = then(
     tag('type form', { 0x60: null }),
     () => then(vec(valType), params => map(vec(valType), results => ({ params, results }))))
 
-/** @type {Read<Limits>} */
+/** @type {_Read<Limits>} */
 const limits = then(
     tag('limits flag', { 0: false, 1: true }),
     hasMax => then(u32, min => hasMax
         ? map(u32, max => /** @type {Limits} */ ({ min, max }))
         : pure(/** @type {Limits} */ ({ min, max: null }))))
 
-/** @type {Read<TableType>} */
+/** @type {_Read<TableType>} */
 const tableType = then(refType, element => map(limits, limits => ({ element, limits })))
 
-/** @type {Read<GlobalType>} */
+/** @type {_Read<GlobalType>} */
 const globalType = then(valType, type => map(tag('mutability', { 0: false, 1: true }), mutable => ({ type, mutable })))
 
 // instructions
 
-/** @type {Read<BlockType>} */
+/** @type {_Read<BlockType>} */
 const blockType = (b, i) =>
     b[i] === 0x40 ? ok([null, i + 1])
     : b[i] in valTypes ? valType(b, i)
     : then(s33, x => x < 0n ? () => fail(i, 'malformed block type') : pure(Number(x)))(b, i)
 
-/** @type {{ readonly [K in Kind]: Read<Immediates[K]> }} */
+/** @type {{ readonly [K in Kind]: _Read<Immediates[K]> }} */
 const immediates = {
     none: pure(/** @type {const} */ ([])),
     block: map(blockType, t => /** @type {const} */ ([t])),
@@ -209,7 +209,7 @@ const immediates = {
     ref: map(refType, t => /** @type {const} */ ([t])),
 }
 
-/** @type {Read<Instruction>} */
+/** @type {_Read<Instruction>} */
 const instruction = (b, i) => {
     const opcode = byte(b, i)
     if (opcode[0] === 'error') { return opcode }
@@ -222,7 +222,7 @@ const instruction = (b, i) => {
         return fail(i, `unknown opcode 0x${code === prefix ? `fc ${index}` : code.toString(16)}`)
     }
     const [, mnemonic, kind] = row
-    /** @type {Read<readonly unknown[]>} */
+    /** @type {_Read<readonly unknown[]>} */
     const read = immediates[kind]
     // `immediates[kind]` reads the immediates of the row's kind, so the tuple
     // is one of the row's instructions.
@@ -233,7 +233,7 @@ const instruction = (b, i) => {
  * Instructions up to the `end` that closes the expression, which is read and
  * left out.
  *
- * @type {Read<readonly Instruction[]>}
+ * @type {_Read<readonly Instruction[]>}
  */
 const expr = (b, i) => {
     /** @type {List<Instruction>} */
@@ -260,31 +260,31 @@ const expr = (b, i) => {
 /** @type {Readonly<Record<number, ExternKind>>} */
 const externKinds = { 0: 'func', 1: 'table', 2: 'memory', 3: 'global' }
 
-/** @type {(kind: ExternKind) => Read<ImportDesc>} */
+/** @type {(kind: ExternKind) => _Read<ImportDesc>} */
 const importDesc = kind =>
     kind === 'func' ? map(u32, x => /** @type {ImportDesc} */ (['func', x]))
     : kind === 'table' ? map(tableType, x => /** @type {ImportDesc} */ (['table', x]))
     : kind === 'memory' ? map(limits, x => /** @type {ImportDesc} */ (['memory', x]))
     : map(globalType, x => /** @type {ImportDesc} */ (['global', x]))
 
-/** @type {Read<Import>} */
+/** @type {_Read<Import>} */
 const import_ = then(name, module => then(name, name => map(
     then(tag('import kind', externKinds), importDesc),
     desc => ({ module, name, desc }))))
 
-/** @type {Read<Global>} */
+/** @type {_Read<Global>} */
 const global = then(globalType, type => map(expr, init => ({ type, init })))
 
-/** @type {Read<Export>} */
+/** @type {_Read<Export>} */
 const export_ = then(name, name => then(tag('export kind', externKinds), kind => map(u32, index => ({ name, kind, index }))))
 
-/** @type {Read<ElementInit>} */
+/** @type {_Read<ElementInit>} */
 const funcs = then(tag('element kind', { 0: null }), () => map(vec(u32), x => /** @type {const} */ (['func', x])))
 
-/** @type {(type: RefType) => Read<ElementInit>} */
+/** @type {(type: RefType) => _Read<ElementInit>} */
 const exprs = type => map(vec(expr), x => /** @type {const} */ (['expr', type, x]))
 
-/** @type {Read<ElementInit>} */
+/** @type {_Read<ElementInit>} */
 const typedExprs = then(refType, exprs)
 
 /**
@@ -292,12 +292,12 @@ const typedExprs = then(refType, exprs)
  * bit 1 an explicit table (when active) or declarative (when not), bit 2
  * expressions rather than function indices.
  *
- * @type {Read<Element>}
+ * @type {_Read<Element>}
  */
 const element = (b, i) => then(u32, flag => {
-    /** @type {(mode: Read<Element['mode']>, init: Read<ElementInit>) => Read<Element>} */
+    /** @type {(mode: _Read<Element['mode']>, init: _Read<ElementInit>) => _Read<Element>} */
     const segment = (mode, init) => then(mode, mode => map(init, init => ({ mode, init })))
-    /** @type {(table: number) => Read<Element['mode']>} */
+    /** @type {(table: number) => _Read<Element['mode']>} */
     const active = table => map(expr, offset => /** @type {const} */ (['active', table, offset]))
     const passive = pure(/** @type {const} */ (['passive']))
     const declarative = pure(/** @type {const} */ (['declarative']))
@@ -312,12 +312,12 @@ const element = (b, i) => then(u32, flag => {
         : () => fail(i, `unsupported element segment flag ${flag}`)
 })(b, i)
 
-/** @type {Read<Bytes>} */
+/** @type {_Read<Bytes>} */
 const dataBytes = then(u32, bytes)
 
-/** @type {Read<Data>} */
+/** @type {_Read<Data>} */
 const data = (b, i) => then(u32, flag => {
-    /** @type {(memory: number) => Read<Data>} */
+    /** @type {(memory: number) => _Read<Data>} */
     const active = memory => then(expr, offset => map(dataBytes, bytes => ({ mode: /** @type {const} */ (['active', memory, offset]), bytes })))
     return flag === 0 ? active(0)
         : flag === 1 ? map(dataBytes, bytes => ({ mode: /** @type {const} */ (['passive']), bytes }))
@@ -330,7 +330,7 @@ const data = (b, i) => then(u32, flag => {
  * `p` is not stopped at the boundary: a reader that crosses it ends somewhere
  * else, which is the same refusal.
  *
- * @type {<T>(what: string, p: Read<T>) => (size: number) => Read<T>}
+ * @type {<T>(what: string, p: _Read<T>) => (size: number) => _Read<T>}
  */
 const sized = (what, p) => size => (b, i) => {
     const end = i + size
@@ -340,17 +340,17 @@ const sized = (what, p) => size => (b, i) => {
     return r[1][1] === end ? r : fail(end, `${what} size mismatch`)
 }
 
-/** @type {Read<Code>} */
+/** @type {_Read<_Code>} */
 const code = then(u32, sized('function body', then(
     vec(then(u32, count => map(valType, type => /** @type {const} */ ([count, type])))),
     locals => map(expr, body => ({ locals, body })))))
 
 // names
 
-/** @type {Read<NameMap>} */
+/** @type {_Read<NameMap>} */
 const nameMap = vec(then(u32, index => map(name, name => /** @type {const} */ ([index, name]))))
 
-/** @type {Read<IndirectNameMap>} */
+/** @type {_Read<IndirectNameMap>} */
 const indirectNameMap = vec(then(u32, index => map(nameMap, names => /** @type {const} */ ([index, names]))))
 
 /** The name subsections, by id. */
@@ -358,7 +358,7 @@ const nameIds = /** @type {const} */ ([
     'module', 'function', 'local', 'label', 'type', 'table', 'memory', 'global', 'elem', 'data', 'field', 'tag',
 ])
 
-/** @type {Read<NameSubsection>} */
+/** @type {_Read<NameSubsection>} */
 const nameSubsection = then(byte, id => then(u32, size => {
     const key = nameIds[id]
     return sized('name subsection', key === 'module' ? map(name, x => /** @type {NameSubsection} */ (['module', x]))
@@ -370,7 +370,7 @@ const nameSubsection = then(byte, id => then(u32, size => {
 /**
  * Subsections until `end`.
  *
- * @type {(end: number) => Read<readonly NameSubsection[]>}
+ * @type {(end: number) => _Read<readonly NameSubsection[]>}
  */
 const nameSubsections = end => (b, i) => {
     /** @type {List<NameSubsection>} */
@@ -385,8 +385,15 @@ const nameSubsections = end => (b, i) => {
     return ok([toArray(reverse(items)), j])
 }
 
-/** @type {(size: number) => Read<Custom['content']>} */
-const custom = size => (b, i) => then(name, n => (b, j) => n === 'name'
+/**
+ * A custom section's content: its name, which must end inside the section's
+ * `size` bytes, then the rest of them.
+ *
+ * @type {(size: number) => _Read<Custom['content']>}
+ */
+const custom = size => (b, i) => then(name, n => (b, j) => j > i + size
+    ? fail(i, 'custom section name extends past the section')
+    : n === 'name'
     ? map(nameSubsections(i + size), x => /** @type {Custom['content']} */ (['name', x]))(b, j)
     : map(bytes(i + size - j), x => /** @type {Custom['content']} */ (['raw', n, x]))(b, j))(b, i)
 
@@ -395,7 +402,7 @@ const custom = size => (b, i) => then(name, n => (b, j) => n === 'name'
 /**
  * Each known section by id: its text name and what it reads.
  *
- * @type {Readonly<Record<number, readonly [SectionName, Read<Partial<Sections>>]>>}
+ * @type {Readonly<Record<number, readonly [SectionName, _Read<Partial<_Sections>>]>>}
  */
 const known = {
     1: ['type', map(vec(funcType), types => ({ types }))],
@@ -415,7 +422,7 @@ const known = {
 /** The order the known sections must come in, by id: the data count before the code. */
 const order = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 10, 11]
 
-/** @type {Sections} */
+/** @type {_Sections} */
 const empty = {
     types: [], imports: [], funcs: [], tables: [], memories: [], globals: [], exports: [],
     start: null, elements: [], dataCount: null, code: [], data: [],

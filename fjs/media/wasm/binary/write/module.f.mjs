@@ -8,8 +8,9 @@
  * given, while the bytes need not be the ones that module was read from:
  * `wasm-ld`, for one, pads the indices it relocates to five bytes.
  *
- * A custom section is written after the known section it records, so its
- * place survives where that section is empty and left out.
+ * A custom section is written after the known section it records. Where that
+ * section has no items, it is written empty rather than left out, so `parse`
+ * records the custom section after it again.
  *
  * @module
  *
@@ -225,13 +226,14 @@ const section = (id, content) => [id, ...u32(content.length), ...content]
 
 /**
  * Each known section in the order the format fixes: its id, its text name,
- * and its content, or `null` where the module has none.
+ * and its content: `null` where the module has none, and `'empty'` where it
+ * is a vector of no items, written only where a custom section follows it.
  *
- * @type {(m: Module) => readonly (readonly [number, SectionName, Bytes | null])[]}
+ * @type {(m: Module) => readonly (readonly [number, SectionName, Bytes | null | 'empty'])[]}
  */
 const known = m => {
-    /** @type {<T>(items: readonly T[], f: (x: T) => Bytes) => Bytes | null} */
-    const some = (items, f) => items.length === 0 ? null : vec(items.map(f))
+    /** @type {<T>(items: readonly T[], f: (x: T) => Bytes) => Bytes | 'empty'} */
+    const some = (items, f) => items.length === 0 ? 'empty' : vec(items.map(f))
     return [
         [1, 'type', some(m.types, funcType)],
         [2, 'import', some(m.imports, import_)],
@@ -256,11 +258,17 @@ const known = m => {
 export const write = m => {
     /** @type {(after: SectionName | null) => Bytes} */
     const customs = after => m.customs.filter(c => c.after === after).flatMap(c => section(0, custom(c.content)))
+    /** @type {(id: number, text: SectionName, content: Bytes | null | 'empty') => Bytes} */
+    const known_ = (id, text, content) =>
+        content === null ? []
+        : content !== 'empty' ? section(id, content)
+        : m.customs.some(c => c.after === text) ? section(id, vec([]))
+        : []
     return [
         0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
         ...customs(null),
         ...known(m).flatMap(([id, text, content]) => [
-            ...(content === null ? [] : section(id, content)),
+            ...known_(id, text, content),
             ...customs(text),
         ]),
     ]

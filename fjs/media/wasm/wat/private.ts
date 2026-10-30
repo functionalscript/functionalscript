@@ -10,22 +10,22 @@ import type { Module } from '../types.ts'
  * How an item is named: as itself, quoted where it holds a character no
  * identifier may, or under a `#` prefix that makes it unique.
  */
-export type Naming =
+export type _Naming =
     | { readonly name: string, readonly prefix: null, readonly quoted: boolean }
     | { readonly name: string, readonly prefix: string }
 
 /** The namings the name section gives, by kind and index. */
-export type Names = {
-    readonly module: Naming | null
-    readonly func: ReadonlyMap<number, Naming>
-    readonly type: ReadonlyMap<number, Naming>
-    readonly table: ReadonlyMap<number, Naming>
-    readonly memory: ReadonlyMap<number, Naming>
-    readonly global: ReadonlyMap<number, Naming>
-    readonly elem: ReadonlyMap<number, Naming>
-    readonly data: ReadonlyMap<number, Naming>
+export type _Names = {
+    readonly module: _Naming | null
+    readonly func: ReadonlyMap<number, _Naming>
+    readonly type: ReadonlyMap<number, _Naming>
+    readonly table: ReadonlyMap<number, _Naming>
+    readonly memory: ReadonlyMap<number, _Naming>
+    readonly global: ReadonlyMap<number, _Naming>
+    readonly elem: ReadonlyMap<number, _Naming>
+    readonly data: ReadonlyMap<number, _Naming>
     /** Each function's parameters and locals, by function index. */
-    readonly local: ReadonlyMap<number, ReadonlyMap<number, Naming>>
+    readonly local: ReadonlyMap<number, ReadonlyMap<number, _Naming>>
 }
 
 /**
@@ -33,9 +33,9 @@ export type Names = {
  * namings of the current function's parameters and locals, and how many
  * blocks are open around it.
  */
-export type Context = {
+export type _Context = {
     readonly module: Module
-    readonly names: Names
-    readonly locals: ReadonlyMap<number, Naming>
+    readonly names: _Names
+    readonly locals: ReadonlyMap<number, _Naming>
     readonly depth: number
 }

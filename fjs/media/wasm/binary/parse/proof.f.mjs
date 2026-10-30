@@ -53,6 +53,8 @@ export const proof = {
         pastEnd: () => refused([...header, 1, 5, 0], 'type section extends past the end at byte 10'),
         sizeMismatch: () => refused(mod(sec(1, [0, 0])), 'type section size mismatch at byte 12'),
         customName: () => refused(mod([0, 2, 5, 0x61]), 'unexpected end at byte 11'),
+        // A name that runs into the next section's bytes.
+        customNameCrosses: () => refused([...header, 0, 1, 1, 1, 1, 0], 'custom section name extends past the section at byte 10'),
         nameSubsectionSize: () => refused(
             mod(sec(0, [4, 0x6e, 0x61, 0x6d, 0x65, 0, 3, 1, 0x61, 0])),
             'name subsection size mismatch at byte 20'),
