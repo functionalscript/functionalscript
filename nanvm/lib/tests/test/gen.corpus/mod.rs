@@ -11,6 +11,7 @@ pub mod eq;
 pub mod ge;
 pub mod gt;
 pub mod in_0;
+pub mod in_length;
 pub mod in_x;
 pub mod instanceof_array;
 pub mod le;
@@ -113,6 +114,7 @@ pub fn all<A: IStaticFunction>() {
     instanceof_array::run::<A>();
     in_x::run::<A>();
     in_0::run::<A>();
+    in_length::run::<A>();
     throw::run::<A>();
     string_coercion::run::<A>();
     number_cast::run::<A>();

@@ -39,33 +39,33 @@ pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         if Any::<A>::to_boolean(_b28.clone()) { Any::call(A::frame(_self)[1].clone(), [_args.argument(1)].to_array().to_any()) } else { Ok(_b28.clone()) }
     } }, 2, [_b7.clone(), _b19.clone()].to_array(), Some("function is() { [native code] }")).to_any()), (string_key("Object.entries"), A::static_function(|_self, _args| Any::entries(_args.argument(0)), 1, Array::default(), Some("function entries() { [native code] }")).to_any()), (string_key("Object.fromEntries"), A::static_function(|_self, _args| { if Any::<A>::to_boolean((<Any<A> as core::ops::Not>::not((Any::instanceof_(_args.argument(0), Constructor::Array))?))?) { Err(string_any("Object.fromEntries: not an array")) } else {
         let _b67: Any<A> = A::static_function(|_self, _args| {
-            let mut _b61481: Any<A> = _args.argument(0);
+            let mut _b65009: Any<A> = _args.argument(0);
             '_loop67: while Any::<A>::to_boolean({
-                let _b61482: Any<A> = _b61481.clone();
-                let _b39: Any<A> = (Any::dot(_b61482.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b40: Any<A> = (Any::dot(_b61482.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b65010: Any<A> = _b65009.clone();
+                let _b39: Any<A> = (Any::dot(_b65010.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b40: Any<A> = (Any::dot(_b65010.clone(), f64_any(0x3ff0000000000000)).end())?;
                 (Any::lt(_b40.clone(), (Any::dot(A::frame(_self)[0].clone(), string_any("length")).end())?))?
             }) {
-                let _b17920_31: Any<A> = _b61481.clone();
-                let _b40: Any<A> = (Any::dot(_b17920_31.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b18396_31: Any<A> = _b65009.clone();
+                let _b40: Any<A> = (Any::dot(_b18396_31.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b45: Any<A> = (Any::dot(A::frame(_self)[0].clone(), (Any::number(_b40.clone()))?).end())?;
                 let _b46: Any<A> = (strict_eq(_b45.clone(), Nullish::Null.to_any()))?;
-                let _b61480: Any<A> = if Any::<A>::to_boolean(if Any::<A>::to_boolean(_b46.clone()) { _b46.clone() } else {
+                let _b65008: Any<A> = if Any::<A>::to_boolean(if Any::<A>::to_boolean(_b46.clone()) { _b46.clone() } else {
                     let _b48: Any<A> = (strict_ne((Any::typeof_(_b45.clone()))?, string_any("object")))?;
                     if Any::<A>::to_boolean(_b48.clone()) { (strict_ne((Any::typeof_(_b45.clone()))?, string_any("function")))? } else { _b48.clone() }
                 }) { (Err::<Any<A>, Any<A>>(string_any("Object.fromEntries: an entry is not an object")))? } else { Array::default().to_any() };
-                let _b39: Any<A> = (Any::dot(_b17920_31.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b61485: Any<A> = [spread_object([spread_entries(_b39.clone()), property_item(((Any::dot(_b45.clone(), f64_any(0x0000000000000000)).end())?).to_string()?, (Any::dot(_b45.clone(), f64_any(0x3ff0000000000000)).end())?)]), (_b40.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any();
-                _b61481 = _b61485.clone();
+                let _b39: Any<A> = (Any::dot(_b18396_31.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b65013: Any<A> = [spread_object([spread_entries(_b39.clone()), property_item(((Any::dot(_b45.clone(), f64_any(0x0000000000000000)).end())?).to_string()?, (Any::dot(_b45.clone(), f64_any(0x3ff0000000000000)).end())?)]), (_b40.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any();
+                _b65009 = _b65013.clone();
             }
-            let _b61483: Any<A> = _b61481;
-            let _b17939: Any<A> = {
-                let _b61484: Any<A> = _b61483.clone();
-                let _b39: Any<A> = (Any::dot(_b61484.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b40: Any<A> = (Any::dot(_b61484.clone(), f64_any(0x3ff0000000000000)).end())?;
+            let _b65011: Any<A> = _b65009;
+            let _b18415: Any<A> = {
+                let _b65012: Any<A> = _b65011.clone();
+                let _b39: Any<A> = (Any::dot(_b65012.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b40: Any<A> = (Any::dot(_b65012.clone(), f64_any(0x3ff0000000000000)).end())?;
                 [_b39.clone(), _b40.clone()].to_array().to_any()
             };
-            Ok(_b17939.clone())
+            Ok(_b18415.clone())
         }, 1, [_args.argument(0)].to_array(), Some("($1)=>{let $2=$1;while((()=>{const $3=$2;const $4=$3[0];const $5=$3[1];return $5<$0.length;})()){const $6=$2;const $5=$6[1];const $7=$0[Number($5)];const $8=$7===null;const $9=($8?$8:(()=>{const $10=typeof $7!==\"object\";return $10?typeof $7!==\"function\":$10;})())?(()=>{throw \"Object.fromEntries: an entry is not an object\";})():[];const $4=$6[0];const $11=[{...$4,[$7[0]]:$7[1]},$5+1];$2=$11;}const $12=(()=>{const $13=$2;const $4=$13[0];const $5=$13[1];return [$4,$5];})();return $12;}")).to_any();
         Any::dot((Any::call(_b67.clone(), [[Object::default().to_any(), f64_any(0x0000000000000000)].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end()
     } }, 1, Array::default(), Some("function fromEntries() { [native code] }")).to_any()), (string_key("Number.isInteger"), _b80.clone()), (string_key("Number.isSafeInteger"), A::static_function(|_self, _args| {
@@ -83,7 +83,7 @@ pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let _b135: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()))?;
         if Any::<A>::to_boolean((Any::lt(_b135.clone(), f64_any(0x0000000000000000)))?) { Ok(f64_any(0x0000000000000000)) } else { if Any::<A>::to_boolean((Any::gt(_b135.clone(), _args.argument(1)))?) { Ok(_args.argument(1)) } else { Ok(_b135.clone()) } }
     }, 2, [_b132.clone()].to_array(), Some("($1,$2)=>{const $3=$0($1);return $3<0?0:$3>$2?$2:$3;}")).to_any();
-    let _b230: Any<A> = [(string_key("static"), A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), _args.argument(0)].to_array().to_any()) }, 1, [_b11.clone(), _b99.clone()].to_array(), Some("($2)=>$0($1,$2)")).to_any()), (string_key("dot"), {
+    let _b237: Any<A> = [(string_key("static"), A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [A::frame(_self)[1].clone(), _args.argument(0)].to_array().to_any()) }, 1, [_b11.clone(), _b99.clone()].to_array(), Some("($2)=>$0($1,$2)")).to_any()), (string_key("dot"), {
         let _b200: Any<A> = [(string_key("startsWith"), {
             let _b117: Any<A> = {
                 let _b105: Any<A> = (Any::dot(_b15.clone(), string_any("slice")).end())?;
@@ -123,6 +123,15 @@ pub fn runtime<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
             let _b219: Any<A> = (strict_ne((Any::typeof_(_args.argument(1)))?, string_any("object")))?;
             if Any::<A>::to_boolean(_b219.clone()) { (strict_ne((Any::typeof_(_args.argument(1)))?, string_any("function")))? } else { _b219.clone() }
         }
-    }) { Err(string_any("in: not an object")) } else { Any::call(A::frame(_self)[0].clone(), [_args.argument(1), _args.argument(0)].to_array().to_any()) } }, 2, [_b12.clone()].to_array(), Some("($1,$2)=>(()=>{const $3=$2===null;return $3?$3:(()=>{const $4=typeof $2!==\"object\";return $4?typeof $2!==\"function\":$4;})();})()?(()=>{throw \"in: not an object\";})():$0($2,$1)")).to_any())].to_object().to_any();
-    Ok(_b230.clone())
+    }) { Err(string_any("in: not an object")) } else {
+        let _b227: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_args.argument(1), _args.argument(0)].to_array().to_any()))?;
+        if Any::<A>::to_boolean(_b227.clone()) { Ok(_b227.clone()) } else {
+            let _b228: Any<A> = (strict_eq(_args.argument(0), string_any("length")))?;
+            if Any::<A>::to_boolean(_b228.clone()) {
+                let _b229: Any<A> = (Any::instanceof_(_args.argument(1), Constructor::Array))?;
+                if Any::<A>::to_boolean(_b229.clone()) { Ok(_b229.clone()) } else { strict_eq((Any::typeof_(_args.argument(1)))?, string_any("function")) }
+            } else { Ok(_b228.clone()) }
+        }
+    } }, 2, [_b12.clone()].to_array(), Some("($1,$2)=>(()=>{const $3=$2===null;return $3?$3:(()=>{const $4=typeof $2!==\"object\";return $4?typeof $2!==\"function\":$4;})();})()?(()=>{throw \"in: not an object\";})():(()=>{const $5=$0($2,$1);return $5?$5:(()=>{const $6=$1===\"length\";return $6?(()=>{const $7=$2 instanceof Array;return $7?$7:typeof $2===\"function\";})():$6;})();})()")).to_any())].to_object().to_any();
+    Ok(_b237.clone())
 }
