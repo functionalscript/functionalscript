@@ -10,7 +10,7 @@
  */
 
 import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
-import { repeat, uniform } from '../../common/monoid/module.f.mjs'
+import { repeat } from '../../common/monoid/module.f.mjs'
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.
@@ -94,7 +94,7 @@ export const curve = ({ p, c: [c0, c1], n, g }) => {
             return [x, neg(y)]
         },
         add: addPoint,
-        mul: repeat({ identity: null, operation: addPoint, weight: uniform })
+        mul: repeat({ identity: null, operation: addPoint })
     }
 }
 
