@@ -840,6 +840,12 @@ export const proof = {
         assertStructurallySame(read('const a = 1; export default a instanceof Array ? a instanceof (Array) : [] instanceof Map;'), ['ok'])
         assertStructurallySame(read('export default { instanceof: 1 }.instanceof;'), ['ok'])
         assertStructurallySame(read('export default instanceof;'), ['ok'])
+        // `in` is read the same way, at the same level: both operands any
+        // relational operand's, the key's shape the fold's to check
+        assertStructurallySame(read('const a = 1; export default "x" in a ? a in (a) : [] in {} < 1;'), ['ok'])
+        assertStructurallySame(read('export default { in: 1 }.in;'), ['ok'])
+        assertStructurallySame(read('export default in;'), ['ok'])
+        assertStructurallySame(read('export default "x" in;'), ['error', ';'])
         // the arms are values, not one of them a function's parameter
         // list or a hole; both are required, and the conditional is no
         // operand of the operators below it

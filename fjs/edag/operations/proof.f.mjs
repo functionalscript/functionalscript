@@ -207,8 +207,10 @@ export const proof = {
         assertStructurallySame(under(real, ['in', 'y', ['{}', [[':', 'x', 1]]]]), ['ok', false])
         assertStructurallySame(under(real, ['in', '0', ['[]', [7]]]), ['ok', true])
         assertStructurallySame(under(real, ['in', '1', ['[]', [7]]]), ['ok', false])
-        assertStructurallySame(under(real, ['in', 'length', ['[]', [7]]]), ['ok', false])
-        assertStructurallySame(under(real, ['in', 'length', ['=>', 0, [], 1]]), ['ok', false])
+        assertStructurallySame(under(real, ['in', 'length', ['[]', [7]]]), ['ok', true])
+        assertStructurallySame(under(real, ['in', 'length', ['=>', 0, [], 1]]), ['ok', true])
+        assertStructurallySame(under(real, ['in', 'length', ['{}', []]]), ['ok', false])
+        assertStructurallySame(under(real, ['in', 'length', ['{}', [[':', 'length', 0]]]]), ['ok', true])
         for (const primitive of /** @type {readonly Exp[]} */ ([null, ['undefined'], 1, 'abc', true, 1n])) {
             assertStructurallySame(under(real, ['in', 'x', primitive]), ['error', 'in: not an object'])
         }

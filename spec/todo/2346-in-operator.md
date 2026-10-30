@@ -47,16 +47,22 @@ different grammar and stays refused, as before.
 **The key rule.** The literal may not be a name in `prototypeNames` of
 [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js), the inventory a
 read's key is checked against, and the refusal is the read's,
-`prohibited property name`. One difference: a read exempts `length`, which
-an array, a string and a function own, and `in` does not, because
-`"length" in []` is `true` in JavaScript where the own enumerable entry is
-absent. Every other name whose answer would differ — `name`, `caller` and
-`arguments` on a function, `__proto__` and `constructor` on everything — is
-in the inventory already. An index-like string, `"0"`, is an ordinary key.
+`prohibited property name`, with the read's one exemption, `length`, which
+an array, a string and a function own: `"length" in []` is `true` in
+JavaScript, and the body answers it so, reading the `length` of an array
+and a function as the read does. (As first proposed, `in` refused `length`
+because the helper did not count it; the designer decided in the session
+that `.` and `in` read `length` where `entry` and `hasEntry`, which list
+what `Object.entries` lists, do not, so the key rule is the read's, and the
+operator and the helper are two implementations by design.) Every other
+name whose answer would differ — `name`, `caller` and `arguments` on a
+function, `__proto__` and `constructor` on everything — is in the
+inventory already. An index-like string, `"0"`, is an ordinary key.
 
 **Semantics.** For an object, an array or a function, `"k" in o` is
-`hasEntry(o, "k")`: `true` for an enumerable own entry, one holding
-`undefined` included, `false` otherwise. For `null`, `undefined` and every
+`hasEntry(o, "k")`, or `true` for the `length` an array and a function
+own: `true` for an enumerable own entry, one holding `undefined` included,
+`false` otherwise. For `null`, `undefined` and every
 primitive it throws, as JavaScript's `TypeError` does; the thrown value's
 text is free, since [failure is one outcome](../principles/README.md#failure-is-one-outcome).
 This is JavaScript's answer for every value the language can build: a
@@ -84,7 +90,7 @@ nothing the writer could print alone.
 ```js
 in: (key, self) => {
     if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
-    return hasEntry(self, key)
+    return hasEntry(self, key) || key === 'length' && (self instanceof Array || typeof self === 'function')
 },
 ```
 
@@ -142,14 +148,21 @@ shape instead. The node is that shape.
       the FunctionalScript writer, the Rust writer printing the runtime's
       body, and the interpreters' answer in `fjs/edag/operations`, a call
       of the runtime's body, each with its proof.
-- [ ] The parser: the grammar reads `in` at the relational level as it
+- [x] The parser: the grammar reads `in` at the relational level as it
       reads `instanceof`; the fold checks the left operand is a string
-      literal and applies the key rule, `length` included; the
+      literal and applies the key rule, the read's; the
       `refusedByDesign` entries of `operators.proof.f.mjs` for `a in b`
       move to the accepted forms, and `for (k in o)` stays pinned refused.
       `npm start compile` from the root.
-- [ ] `nanvm-lib`: `Any::in_` over `Unpacked`, the node's Rust spelling,
-      the operator's row in `nanvm/lib/README.md`.
+- [x] `nanvm-lib`: the corpus groups `in "x"` and `in "0"` in `fjs/nanvm`,
+      proving the naive spelling — the runtime's body called through the
+      runtime value — against the host on both sides, the operator's row
+      in `nanvm/lib/README.md`, and the runtime's module comment. A native
+      `Any::in_` is a substitution rule, not an implementation (DESIGN.md
+      §13), filed as `nanvm/lib/todo/in-native-substitution.md` and taken
+      when a measurement asks for it; one implementation for the operator
+      and the helper is no option, since `hasEntry` lists enumerable
+      entries alone, as `Object.entries` does, where `in` reads `length`.
 - [ ] The specification: [`in`](../operators/in/README.md) becomes the
       operator's page, implemented, with a sample and the demo, the refused
       page and its `alternative.f.js` gone; the `op.in` row of

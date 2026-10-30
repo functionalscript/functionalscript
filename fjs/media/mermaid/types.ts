@@ -13,7 +13,7 @@ export type Direction = 'LR' | 'RL' | 'TB' | 'TD' | 'BT'
 
 /**
  * A node: the name the text calls it by, and the label it shows, which is
- * its name where the text gives it none.
+ * its name where the text gives it none. A label's line breaks are `\n`.
  */
 export type FlowNode = {
     readonly id: string
