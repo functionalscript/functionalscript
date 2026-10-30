@@ -148,8 +148,15 @@ shape instead. The node is that shape.
       `refusedByDesign` entries of `operators.proof.f.mjs` for `a in b`
       move to the accepted forms, and `for (k in o)` stays pinned refused.
       `npm start compile` from the root.
-- [ ] `nanvm-lib`: `Any::in_` over `Unpacked`, the node's Rust spelling,
-      the operator's row in `nanvm/lib/README.md`.
+- [x] `nanvm-lib`: the corpus groups `in "x"` and `in "0"` in `fjs/nanvm`,
+      proving the naive spelling — the runtime's body called through the
+      runtime value — against the host on both sides, the operator's row
+      in `nanvm/lib/README.md`, and the runtime's module comment. A native
+      `Any::in_` is a substitution rule, not an implementation (DESIGN.md
+      §13), filed as `nanvm/lib/todo/in-native-substitution.md` and taken
+      when a measurement asks for it; one implementation for the operator
+      and the helper is no option, since `hasEntry` lists enumerable
+      entries alone, as `Object.entries` does, where `in` reads `length`.
 - [ ] The specification: [`in`](../operators/in/README.md) becomes the
       operator's page, implemented, with a sample and the demo, the refused
       page and its `alternative.f.js` gone; the `op.in` row of
