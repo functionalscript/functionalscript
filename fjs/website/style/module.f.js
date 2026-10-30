@@ -850,7 +850,9 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-readme] h4 { font-size: 1.25em }
 [data-readme] h5 { font-size: 1em }
 [data-readme] h6 { color: var(--muted); font-size: .875em }
-[data-readme] :is(p, ul, pre, table) { margin: 0 0 1rem }
+[data-readme] :is(p, ul, pre, table, blockquote) { margin: 0 0 1rem }
+[data-readme] blockquote { border-left: .25em solid var(--border); color: var(--muted); padding: 0 1em }
+[data-readme] blockquote > :last-child { margin-bottom: 0 }
 [data-readme] ul { padding-left: 2em }
 [data-readme] li + li { margin-top: .25em }
 [data-readme] li > :is(p, pre) { margin-top: 1rem }

@@ -102,6 +102,8 @@ export const proof = /** @type {const} */ ({
                 ['olist', 3, true, [[['paragraph', [['text', 'n']]]]]],
                 ['list', false, [[['task', true], ['paragraph', [['text', 'o']]]], [['task', false], ['paragraph', [['text', 'p']]]]]],
                 ['list', true, [[['task', false], ['paragraph', [['text', 'q']]], ['paragraph', [['text', 'r']]]]]],
+                ['quote', [['paragraph', [['text', 'u']]], ['list', false, [[['paragraph', [['text', 'v']]]]]]]],
+                ['list', false, [[['quote', [['paragraph', [['text', 'w']]]]]]]],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 linkedHeading(2, 't', 'T', ['T']),
@@ -117,8 +119,12 @@ export const proof = /** @type {const} */ ({
                 ['ul', ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '', checked: '' }], ' ', 'o'],
                     ['li', { class: 'task-list-item' }, ['input', { type: 'checkbox', disabled: '' }], ' ', 'p']],
                 ['ul', ['li', { class: 'task-list-item' }, ['p', ['input', { type: 'checkbox', disabled: '' }], ' ', 'q'], ['p', 'r']]],
+                // A quote's paragraph is a `p`, in a tight list's item too.
+                ['blockquote', ['p', 'u'], ['ul', ['li', 'v']]],
+                ['ul', ['li', ['blockquote', ['p', 'w']]]],
             ]))
         },
+        quoteRefusal: () => assertStructurallySame(readmeNodes(href)([['quote', [['paragraph', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
         // A fence the tokenizer reads is coloured, in any case of its
         // language's name; any other stays its text.
         fences: {

@@ -53,7 +53,7 @@ the README renderer needed are now read as GitHub reads them or refused
 | a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
 | `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
 | a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
-| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; refused in a README, but for `- - a`, a nested list there |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; in a README the heading is refused and the quote and lists are read as GitHub reads them |
 | `  1. x`, `  # h` on a continuation | the same | prose |
 
 The last two rows are the sharpest: an indented `- child` **is** refused, as a
