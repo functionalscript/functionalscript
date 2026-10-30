@@ -371,7 +371,7 @@ export const proof = {
             assertEq(trace([]), '')
             assertEq(trace([7]), '7 |\n7')
         },
-        // Every sequence is `1` to `n` in some order; the shuffle's order is a
+        // Counting sequences hold `1` to `n`; the shuffle's order is a
         // function of the seed, so a shared link draws the same tree.
         sequences: () => {
             assertEq(n, 30)
@@ -394,6 +394,26 @@ export const proof = {
             // `n`, `0` where every value has its negation
             for (const [kind, total] of [['increasing', '465'], ['decreasing', '465'], ['random', '465'], ['signed', '0']]) {
                 assertEq(trace(sequence(kind, 0)).split('\n').at(-1)?.trim(), total)
+            }
+        },
+        heavyEnds: () => {
+            const ones = Array.from({ length: n - 1 }, () => 1)
+            for (const [kind, expected, label] of /** @type {const} */ ([
+                ['heavy-first', [31, ...ones], '31, 1, …, 1 (|....)'],
+                ['heavy-last', [...ones, 31], '1, …, 1, 31 (....|)'],
+            ])) {
+                assertStructurallySame(sequence(kind, 0), expected)
+                assertStructurallySame(sequence(kind, 7), expected)
+                assertEq(trace(expected).split('\n').at(-1)?.trim(), '60')
+                const state = /** @type {const} */ ({ sequence: kind, seed: 7 })
+                const rendered = htmlToString(demo.view(state))
+                assert(rendered.includes(`<option value="${kind}" selected="">${label}</option>`))
+                assert(rendered.includes('name="shuffle" disabled=""'))
+                assert(rendered.includes(`<pre data-code="">${expected.join(' ')}</pre>`))
+                const sharing = assertNotNullish(demo.sharing)
+                const link = unwrap(encodeQuery(sharing, sharing.read(state)))
+                const restored = sharing.restore(unwrap(restoreInputs(sharing, unwrap(decodeQuery(link.slice(0, -5))))))
+                assertStructurallySame(restored, state)
             }
         },
         // The select picks the sequence, the button advances the seed, and
