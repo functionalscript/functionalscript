@@ -2,7 +2,7 @@
  * Parses a binary WebAssembly module into the [AST](../../types.ts).
  *
  * **It refuses what it cannot represent, and says where.** An opcode outside
- * [the instruction table](../../instruction/module.f.mjs), a value type or
+ * [the instruction table](../../instruction/module.f.js), a value type or
  * limits flag of an unsupported proposal, a malformed integer or name, a
  * section out of order, past the end or not filling its size, a function
  * count the code section does not match: each is an error naming the byte it
@@ -30,7 +30,7 @@ import { error, ok } from '../../../../types/result/module.f.js'
 import { reverse } from '../../../../types/list/module.f.mjs'
 import { toArray } from '../../../../types/list/alt/module.f.mjs'
 import { fromU8List } from '../../../../text/utf8/module.f.mjs'
-import { afterPrefix, prefix, single } from '../../instruction/module.f.mjs'
+import { afterPrefix, prefix, single } from '../../instruction/module.f.js'
 
 // readers
 

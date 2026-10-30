@@ -19,7 +19,7 @@
 
 import { stringToU8List } from '../../../../text/utf8/module.f.mjs'
 import { toArray } from '../../../../types/list/alt/module.f.mjs'
-import { encoding } from '../../instruction/module.f.mjs'
+import { encoding } from '../../instruction/module.f.js'
 
 // values
 

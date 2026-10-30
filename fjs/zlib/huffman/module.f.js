@@ -15,6 +15,7 @@
 
 import { more, read } from '../bits/module.f.js'
 import { generate } from '../../types/array/generate/module.f.js'
+import { repeat } from '../../types/array/repeat/module.f.js'
 
 /**
  * The code a list of lengths names, or `null` where zlib refuses it: more
@@ -53,11 +54,11 @@ export const decode = ({ count, symbol, incomplete }, input, pos) => {
     let index = 0
     for (let length = 1; length < 16; length += 1) {
         const at = pos + length - 1
-        const byte = input[at >> 3]
+        const byte = input[Number(at >> 3)]
         if (byte === undefined) { return more }
         bits |= byte >> (at & 7) & 1
-        const n = count[length]
-        if (bits - n < first) { return [symbol[index + bits - first], length] }
+        const n = count[Number(length)]
+        if (bits - n < first) { return [symbol[Number(index + bits - first)], length] }
         index += n
         first = first + n << 1
         bits <<= 1
@@ -69,12 +70,12 @@ export const decode = ({ count, symbol, incomplete }, input, pos) => {
 
 /** The fixed literal/length code: 8, 9, 7 and 8 bits over 288 symbols. */
 export const fixedLiterals = /** @type {Code} */ (code(
-    [...Array(144).fill(8), ...Array(112).fill(9), ...Array(24).fill(7), ...Array(8).fill(8)],
+    [...repeat(144)(8), ...repeat(112)(9), ...repeat(24)(7), ...repeat(8)(8)],
     true,
 ))
 
 /** The fixed distance code: five bits for each of 32 symbols, the last two of which name no distance. */
-export const fixedDistances = /** @type {Code} */ (code(Array(32).fill(5), true))
+export const fixedDistances = /** @type {Code} */ (code(repeat(32)(5), true))
 
 /** The two codes of a fixed block. */
 export const fixed = /** @type {Codes} */ ({ literals: fixedLiterals, distances: fixedDistances })
@@ -101,13 +102,13 @@ const nextLengths = (lengthsCode, lengths, input, pos) => {
     if (symbol === more || symbol === null) { return symbol }
     const [value, taken] = symbol
     if (value < 16) { return [[value], pos + taken] }
-    const [width, base] = repeats[value - 16]
+    const [width, base] = repeats[Number(value - 16)]
     const extra = read(input, pos + taken, width)
     if (extra === more) { return more }
     // 16 repeats the last length, and there is none before the first
     return value === 16 && lengths.length === 0
         ? null
-        : [Array(base + extra).fill(value === 16 ? lengths[lengths.length - 1] : 0), pos + taken + width]
+        : [repeat(base + extra)(value === 16 ? lengths[Number(lengths.length - 1)] : 0), pos + taken + width]
 }
 
 /**
@@ -128,11 +129,12 @@ export const dynamic = (input, pos) => {
     if (literals > 286 || distances > 30) { return null }
     let at = pos + 14
     /** @type {readonly number[]} */
-    let order = Array(19).fill(0)
+    let order = repeat(19)(0)
     for (let i = 0; i < lengthsCount; i += 1) {
         const length = read(input, at, 3)
         if (length === more) { return more }
-        order = order.map((x, slot) => slot === lengthsOrder[i] ? length : x)
+        const target = lengthsOrder[Number(i)]
+        order = order.map((x, slot) => slot === target ? length : x)
         at += 3
     }
     const lengthsCode = code(order, true)
