@@ -285,7 +285,9 @@ export const proof = {
     in: () => {
         const has = runtime.in
         assertEq(has.length, 2)
+        /** @type {readonly string[]} */
         const keys = ['x', '0', '1', '', 'in', 'if', 'hasOwnProperty_', '__proto', 'NaN', 'undefined']
+        /** @type {readonly unknown[]} */
         const receivers = [
             ...samples.filter(v => v !== null && typeof v === 'object' || typeof v === 'function'),
             { x: 1 }, { x: undefined }, { '': 0, in: 0, if: 0, undefined: 0 }, { ['__proto__']: 1 }, [undefined], [, 1],
