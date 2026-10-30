@@ -151,10 +151,12 @@ shape instead. The node is that shape.
 - [x] `nanvm-lib`: the corpus groups `in "x"` and `in "0"` in `fjs/nanvm`,
       proving the naive spelling — the runtime's body called through the
       runtime value — against the host on both sides, the operator's row
-      in `nanvm/lib/README.md`, and the runtime's module comment. No
-      native answer of its own: once the helpers answer as `.` and `in`
-      do, the node is a `hasEntry` call and the helper's native answers
-      both, one implementation ([has-entry-as-in](./has-entry-as-in.md)).
+      in `nanvm/lib/README.md`, and the runtime's module comment. A native
+      `Any::in_` is a substitution rule, not an implementation (DESIGN.md
+      §13), filed as `nanvm/lib/todo/in-native-substitution.md` and taken
+      when a measurement asks for it; one implementation for the operator
+      and the helper is no option, since `hasEntry` lists enumerable
+      entries alone, as `Object.entries` does, where `in` reads `length`.
 - [ ] The specification: [`in`](../operators/in/README.md) becomes the
       operator's page, implemented, with a sample and the demo, the refused
       page and its `alternative.f.js` gone; the `op.in` row of
