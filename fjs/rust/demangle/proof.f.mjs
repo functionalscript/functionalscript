@@ -3,8 +3,8 @@
  * `rustc-demangle`'s (0.1.28) with `{:#}`, many from its own suite and the
  * rest each a refusal or a corner of the grammar; those of `refuses` are
  * where the crate reads a legacy symbol, prints `{invalid syntax}` inside
- * the name, or prints billions of lifetimes, and this answers the name as it
- * is.
+ * the name, or prints more than 1,000 bound lifetimes, and this answers the
+ * name as it is.
  */
 
 import { assertEq } from '../../asserts/module.f.js'
@@ -218,6 +218,9 @@ export const proof = {
         ["_RMC0B1_", "_RMC0B1_"],
         ["_RIC0LZ_E", "_RIC0LZ_E"],
         ["_RMC0FGZZZZZZ_Eu", "_RMC0FGZZZZZZ_Eu"],
+        // 2^32 - 1 lifetimes, and 1,001 over two nested binders.
+        ["_RIC1aFG4GFfc1_uEuE", "_RIC1aFG4GFfc1_uEuE"],
+        ["_RIC1aFGg6_FG_uEuEuE", "_RIC1aFGg6_FG_uEuEuE"],
     ]),
     // The crate's own limit, 500 deep: a symbol nested more, and one less.
     depth: () => {

@@ -15,9 +15,10 @@
  * Like the crate, it drops a trailing `.llvm.<hex>` that ThinLTO appends, and
  * keeps any other suffix of dot-separated ASCII after the path.
  *
- * One divergence, in what no demo symbol holds: a `char` or `&str` constant
+ * Two divergences, in what no demo symbol holds: a `char` or `&str` constant
  * prints a non-ASCII character as itself, where the crate escapes those
- * Unicode deems unprintable.
+ * Unicode deems unprintable, and a type bound inside more than
+ * {@link maxBound} lifetimes is left as it is.
  *
  * @module
  *
@@ -28,6 +29,13 @@ import { fromU8List } from '../../text/utf8/module.f.mjs'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
+
+/**
+ * The most lifetimes the binders around a type may bind. The crate has no
+ * such limit, and prints the billions a few bytes of symbol can bind, so
+ * this answers such a symbol as it is rather than spell them all.
+ */
+const maxBound = 1000
 
 /** @type {Readonly<Record<string, string>>} */
 const basicTypes = {
@@ -260,7 +268,7 @@ const demangler = s => {
      */
     const binder = (i, bound, f) => {
         const g = optInteger62('G')(i)
-        if (g === null || g[0] > 0xffff_ffffn) { return null }
+        if (g === null || BigInt(bound) + g[0] > maxBound) { return null }
         const count = Number(g[0])
         const j = g[1]
         const names = Array.from({ length: count }, (_, k) => lifetime(1n, bound + k + 1))
