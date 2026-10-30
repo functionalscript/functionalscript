@@ -99,9 +99,19 @@ export const repeat = ({ identity, operation }) => n => a => {
  *   given: a push is complete, with its value sitting on the stack, or the
  *   fold has merged everything into the value.
  *
- * The value itself is never merged on the push that brings it, so a heavy
- * value costs nothing on arrival, and runs of one weight carry like a binary
- * counter. Every run on the stack outweighs the run two above it; the stack
+ * The rule is the local-minimum rule of the Garsia–Wachs and Hu–Tucker
+ * algorithms for the optimal alphabetic tree, run online: two adjacent runs
+ * merge as soon as their pair is known to weigh no more than either pair
+ * beside it. The invariant, every run outweighs the run two above it,
+ * settles the pair beneath, and the arriving value settles the pair above,
+ * which is why a value is never merged on the push that brings it. The
+ * offline algorithms then move the merged node beside the first heavier one
+ * and rebuild the tree in order from the levels; here the merge tree is the
+ * result, so the merged run stays in place and the runs beneath it merge
+ * instead: a greedy, order-preserving approximation of the optimum.
+ *
+ * A heavy value costs nothing on arrival, and runs of one weight carry like
+ * a binary counter. Every run on the stack outweighs the run two above it; the stack
  * is logarithmic in the total weight for runs of a kind and grows only where
  * lengths strictly decrease, which the fold at the end merges pairwise for
  * the same cost as any other, in `O(w·log(w))` where a plain fold from the

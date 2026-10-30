@@ -50,3 +50,12 @@ stack of its own:
   the length-aware stack `fold` replaces
 - [`fjs/types/set/module.f.mjs`](../../../types/set/module.f.mjs) — keeps
   `step`: its runs are disjoint `Set`s, so count and weight agree
+- Garsia–Wachs (1977) and Hu–Tucker (1971), the optimal alphabetic binary
+  tree — the offline optimum for concatenating in order with the least
+  copying. `move` is their local-minimum rule run online, without the step
+  that relocates the merged node, so it approximates the optimum in order
+- Adaptive ShiversSort (Jugé, 2020) and PowerSort (Munro and Wild, 2018) —
+  run-stack merge policies for natural mergesort that likewise never merge
+  the newest run; they compare levels or powers where `move` compares the
+  weights themselves, which lets strictly decreasing lengths sit at the
+  cost of a deeper stack
