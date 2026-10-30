@@ -72,7 +72,7 @@ const bytesLiteral = bytes => `"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 
  */
 const namings = group => map => {
     /** Where each name is first given, by its place in `map`. */
-    const first = new Map(map.map(([, name], k) => /** @type {const} */ ([name, k])).reverse())
+    const first = new Map(map.map(([, name], k) => /** @type {const} */ ([name, k])).toReversed())
     return new Map(map.map(([index, name], k) => {
         const unusable = name === '' || name.startsWith('#') || first.get(name) !== k
         /** @type {_Naming} */
