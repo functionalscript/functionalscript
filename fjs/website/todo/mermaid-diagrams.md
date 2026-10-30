@@ -61,11 +61,17 @@ sideways: its picture changes direction, not its content.
       ([`mermaid`](../mermaid/module.f.mjs)'s `flowchartGraph`; `ranked` in
       `demo/graph` starts every source at rank 0, so a flowchart with
       several starting points ranks them all).
-- [ ] Draw a label of several lines (`<br/>`, `\n`), and an edge with no
-      label without a record row of its own, as `fjs/js/runtime`'s flowchart
-      needs. Until then the reader refuses a multi-line label, and
-      `flowchartGraph` refuses a node whose arrows are labelled only in
-      part, whose rows would repeat its targets' names.
+- [x] Draw a node's label of several lines: the reader reads Mermaid's
+      `<br>`, `<br/>` and `<br />` as `\n`, and `demo/graph` stacks a
+      label's lines. A `\n` written in a label is no line break Mermaid
+      documents, so `disot`'s labels that spell one stay source. An arrow
+      with no label beside labelled ones is a row naming its target, as the
+      renderer draws one; an arrow label of several lines is refused, as a
+      row is one line.
+- [ ] Mermaid's entity codes, `#lt;` and the like, in a label: then
+      `fjs/js/runtime`'s flowchart can spell `runtime::<A>()` as Mermaid
+      shows it, `#lt;A#gt;`. As written, Mermaid reads `<A>` as a tag and
+      GitHub drops it, and the reader refuses the label.
 - [x] Draw a README's flowchart fence as its diagram in
       [`readme`](../readme/module.f.mjs), and keep any other fence as source.
 - [ ] Sequence diagrams: a layout of their own, if a second README wants one.
