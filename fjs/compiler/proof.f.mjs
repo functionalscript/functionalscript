@@ -1495,6 +1495,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Logical not': 'ooooo',
                 'typeof': 'ooooo',
                 'instanceof': 'ooooo',
+                'in': 'ooooo',
                 'Number conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',
