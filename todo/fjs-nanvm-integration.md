@@ -144,6 +144,36 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `d4b096a3a`, the conversion step of
+[#3463](https://github.com/functionalscript/functionalscript/pull/3463),
+stacked on [#3462](https://github.com/functionalscript/functionalscript/pull/3462).
+Runtime import and re-export declarations were rediscovered from the JavaScript
+ASTs of authored non-proof `.f.mjs` files under `fjs/` and `spec/`, skipping
+generated files and JSDoc-only imports. Every remaining leaf was compiled as
+written; all three are refused.
+
+| Leaf file | First refused construct | Additional leaves its conversion exposes |
+| --- | --- | ---: |
+| `fjs/types/array/module.f.mjs` | `new Map` in `occurrences`, whose keys are strings ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 6 |
+| `fjs/types/list/module.f.mjs` | The forward reference to `flat` in `flatStep` (`const not found`; [forward references](../spec/todo/3140-forward-references.md)) | 8 |
+| `fjs/types/map/module.f.mjs` | `new Map` in `mapSet`; its EDAG-node keys do not meet conversion rule 9 | 0 |
+
+The compiler-compatible population is 158 authored `.f.js` files; 446 authored
+non-proof `.f.mjs` files remain. The new `.f.js` modules are the independent
+monoid repetition, array repetition and `generate` helpers, plus the converted
+[`WASM instruction table`](../fjs/media/wasm/instruction/module.f.js) and
+[`Huffman module`](../fjs/zlib/huffman/module.f.js). Extracting repetition exposes
+`types/array` as a leaf; renaming the two table modules exposes no further leaf.
+
+`Array.from` becomes `generate`; Huffman's `Array(n).fill(v)` becomes
+`repeat(n)(v)`, and numeric computed keys use `Number`. The WASM table reduces
+its opcodes with the existing numeric `max` and reads mnemonic entries with
+`entry`. Huffman's mapping callback captures a constant target index instead
+of the reassigned loop variable. The compiler accepts both complete modules,
+including the `break` in `decode`, which earlier audits had not reached.
+
+#### Leaf migration fixed point at `d6b55c6` (historical)
+
 Measured on `d6b55c6`, the head of
 [#3443](https://github.com/functionalscript/functionalscript/pull/3443), the
 specification step of the `in` operator, which stands on
