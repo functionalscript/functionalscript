@@ -2,7 +2,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { Absorbing, Monoid, Walk, Weight } from './types.ts'
+ * @import { Absorbing, Monoid, Stack, Walk, Weight } from './types.ts'
  */
 
 import { repeat, fold, foldAbsorbing, move, runs, step } from './module.f.mjs'
@@ -208,6 +208,25 @@ export const proof = {
             assertEq(down.length, 524_800)
             assertEq(down.copies, 5_117_693)
             assertEq(fold(cost)(map((/** @type {number} */ n) => chunk(1024 - n))(countdown(1024))).copies, 5_117_693)
+        },
+        // The fold assumes nothing about a merged value's weight: it reads the
+        // result's and applies the rule again. Weighed by magnitude, `2` and
+        // `-2` merge to `0`, lighter than either, and a run of weight zero
+        // lets every term above it merge in turn, so the stack never holds
+        // more than two runs and the terms add in order, small ones first.
+        cancelling: () => {
+            /** @type {Monoid<{ readonly sum: number, readonly text: string }>} */
+            const signed = {
+                identity: { sum: 0, text: '' },
+                operation: a => b => ({ sum: a.sum + b.sum, text: `(${a.text}${b.text})` }),
+                weight: term => abs(term.sum),
+            }
+            const terms = [2, -2, 2, -2, 2].map((sum, i) => ({ sum, text: String.fromCharCode(0x61 + i) }))
+            const folded = fold(signed)(terms)
+            assertEq(folded.sum, 2)
+            assertEq(folded.text, '((((ab)c)d)e)')
+            const stack = terms.reduce((s, term) => step(signed)(term)(s), /** @type {Stack<{ readonly sum: number, readonly text: string }>} */ (null))
+            assertStructurallySame(toArray(runs(stack)).map(run => run.sum), [2, 0])
         },
     },
     foldAbsorbing: {

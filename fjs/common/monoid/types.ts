@@ -83,14 +83,17 @@ export type Absorbing<T> = {
 }
 
 /**
- * How heavy a value is, for the balanced fold: `fold` takes the cost of the
- * monoid's `operation` to grow with the weight of its operands — an array's
- * length, a vector's bit count, a number's magnitude — and merges the light
- * runs first. The weight is read from the value itself, a merged run's from
- * the merged value, so it has to grow under the operation as the cost does:
- * a length adds, a magnitude adds at most. A weight of zero for every value
- * makes the fold sequential, which is the cheapest fold there is for an
- * operation whose cost does not grow with its operands.
+ * How heavy a value is, for the balanced fold: `fold` merges the light runs
+ * first, so the weight is whatever the operation should meet small first —
+ * an array's length or a vector's bit count where the operation copies its
+ * operands, a number's magnitude where it rounds. The weight is read from
+ * the value itself, a merged run's from the merged value, and the fold
+ * assumes nothing about how it behaves under the operation: a length adds,
+ * a magnitude adds at most, and `|a + b|` is below both `|a|` and `|b|`
+ * when the signs differ; the fold reads the result's weight and applies its
+ * rule again. A weight of zero for every value makes the fold sequential,
+ * which is the cheapest fold there is for an operation whose cost does not
+ * grow with its operands.
  */
 export type Weight<T> = (value: T) => number
 

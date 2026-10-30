@@ -9,13 +9,20 @@
  * `fold` lets a value sit on its stack only where the run two below it is
  * heavier, merging the two runs beneath it first otherwise. The weight is
  * the value's own, so a merged run weighs what its value weighs and nothing
- * is counted. Where the operation's cost grows with its operands, as
- * concatenation does, this is what keeps one long value among many short
- * ones from being copied at every merge: it is never merged on the push that
- * brings it, it waits until the values above it outweigh the run beneath,
- * and it is copied once. A weight of zero for every value makes the fold
- * sequential, which is the cheapest fold for an operation whose cost does
- * not depend on its operands.
+ * is counted; the fold assumes nothing about that weight, it reads the
+ * merged value's and applies the rule again, so a weight may fall under the
+ * operation — `|a + b|` is below both `|a|` and `|b|` when the signs differ
+ * — and the stack stays well formed either way. Where the operation's cost
+ * grows with its operands, as concatenation does, this is what keeps one
+ * long value among many short ones from being copied at every merge: it is
+ * never merged on the push that brings it, it waits until the values above
+ * it outweigh the run beneath, and it is copied once. Where the operation
+ * rounds, as `+` on `number` does, a magnitude as the weight meets the small
+ * terms first without reordering them, which is what an operation that is
+ * not commutative needs, since its terms cannot be sorted; a commutative one
+ * may still do better by sorting its terms first. A weight of zero
+ * for every value makes the fold sequential, which is the cheapest fold for
+ * an operation whose cost does not depend on its operands.
  *
  * The fold's state, a {@link Stack} of runs, is exported too — `step` and
  * `runs` — for a structure that keeps the stack itself rather than folding it
@@ -234,12 +241,17 @@ const collect = monoid => {
  * operand on the left, so `fold` stays correct for non-commutative monoids
  * (e.g. string concatenation as `a => b => a + b`).
  *
- * Re-grouping does move the rounding of an inexact operation. IEEE-754
- * addition is not truly associative, so `number.sum`, weighed by magnitude,
- * adds the small terms among themselves before they meet a large one and
- * returns a (marginally more accurate) different value than a left fold for
- * some inputs. That is a consequence of the uniform treatment, not a goal:
- * a `Monoid` promises associativity, and every monoid folds the same way.
+ * Re-grouping does move the rounding of an inexact operation, and the
+ * weight steers where. IEEE-754 addition is not truly associative, so
+ * `number.sum`, weighed by magnitude, adds the small terms among themselves
+ * before they meet a large one and returns a different, marginally more
+ * accurate, value than a left fold for some inputs. The fold reads the
+ * magnitude of each sum as it is made and assumes nothing about it —
+ * `|a + b|` may be below both `|a|` and `|b|` — so this is how an operation
+ * meets its small terms first without sorting them, the only way where the
+ * operation is not commutative; where it is, sorting the terms by magnitude
+ * first may still do better. A `Monoid` promises associativity, and every
+ * monoid folds the same way.
  *
  * @template T The type of the elements in the monoid.
  * @param {Monoid<T>} monoid The monoid structure: identity, binary operation and weight.
