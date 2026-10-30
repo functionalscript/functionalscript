@@ -1,7 +1,7 @@
 ## size-aware-fold. Fold the concatenations by weight
 
 **Priority:** P3
-**Status:** wip
+**Status:** open
 
 ### Problem
 
@@ -14,26 +14,15 @@ many short ones is copied again at every carry that reaches its run,
 `log2(n)` times for `n` items, when once would do. The copies are the smaller
 cost; each is a fresh allocation the size of the result.
 
-`foldBy(weight)` balances by weight instead, with the invariant its doc
-comment states, and `fold` is `foldBy` at weight one. Two concatenations still
-balance by count:
+`fold` balances by the monoid's `weight` instead, with the invariant `step`'s
+doc comment states, and `uniform` is the count. One concatenation still
+balances on a stack of its own:
 
 - `fjs/types/list/alt`'s `toArray` keeps a stack of its own that merges a
   chunk with the top only while the top is no longer than the chunk. It
   copies a long array once, but arrays of strictly decreasing length never
   merge on it, so that input costs it the square root of the total length
   times the total, where `foldBy` stays logarithmic.
-- `bit_vec`'s `unpackListToVec` folds with `foldAbsorbing`, by count, so one
-  long vector among short ones is shifted at every carry.
-
-### Proposal
-
-The weight belongs to the monoid, not to the fold: it describes the
-operation, how much a merge costs or where its rounding goes, so each monoid
-states it once and every fold reads it. `Monoid<T>` gains a required
-`weight`, `fold`, `foldAbsorbing` and `step` take it from there, and the
-`foldBy` family goes. A shared `uniform` weight is the count-balanced case;
-anything under one weighs one, so a weight of zero means the same.
 
 ### Tasks
 
@@ -41,15 +30,15 @@ anything under one weighs one, so a weight of zero means the same.
       `foldAbsorbingBy`, `stepBy`, each `weight` first)
 - [x] Implement the weighted stack with its proof, including a long value among
       many short ones and strictly decreasing lengths
-- [ ] Move `weight` onto `Monoid`, drop `foldBy`, `foldAbsorbingBy` and
+- [x] Move `weight` onto `Monoid`, drop `foldBy`, `foldAbsorbingBy` and
       `stepBy`, and give every monoid in the tree its weight
-- [ ] Fold `bit_vec`'s `unpackListToVec` by the vector's length
+- [x] Fold `bit_vec`'s `unpackListToVec` by the vector's length
 - [ ] Rebuild `list/alt`'s `toArray` on `fold`, feeding it the list's arrays
       whole, and delete its private stack
 
 ### Related
 
 - [`fjs/types/list/alt/module.f.mjs`](../../../types/list/alt/module.f.mjs) —
-  the length-aware stack `foldBy` replaces
+  the length-aware stack `fold` replaces
 - [`fjs/types/set/module.f.mjs`](../../../types/set/module.f.mjs) — keeps
   `step`: its runs are disjoint `Set`s, so count and weight agree

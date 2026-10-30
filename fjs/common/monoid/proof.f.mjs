@@ -4,7 +4,7 @@
  * @import { Absorbing, Monoid, Stack, Weight } from './types.ts'
  */
 
-import { repeat, fold, foldBy, foldAbsorbing, foldAbsorbingBy, runs, step, stepBy } from './module.f.mjs'
+import { repeat, fold, foldAbsorbing, runs, step, uniform } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { concat, countdown, map, repeat as repeatItem } from '../../types/list/module.f.mjs'
@@ -22,10 +22,14 @@ import { concat, countdown, map, repeat as repeatItem } from '../../types/list/m
 const bracket = {
     identity: '',
     operation: a => b => a === '' ? b : b === '' ? a : `(${a}${b})`,
+    weight: uniform,
 }
 
 /** @type {Weight<string>} */
 const length = s => s.length
+
+/** {@link bracket}, weighed by length. @type {Monoid<string>} */
+const weighedBracket = { identity: bracket.identity, operation: bracket.operation, weight: length }
 
 /**
  * What concatenating arrays would copy: a value is an array's length and the
@@ -36,19 +40,21 @@ const length = s => s.length
 const cost = {
     identity: { length: 0, copies: 0 },
     operation: a => b => ({ length: a.length + b.length, copies: a.copies + b.copies + a.length + b.length }),
+    weight: c => c.length,
 }
+
+/** {@link cost} balanced by count, as `fold` was before it weighed. @type {Monoid<{ readonly length: number, readonly copies: number }>} */
+const countedCost = { identity: cost.identity, operation: cost.operation, weight: uniform }
 
 /** @type {(length: number) => { readonly length: number, readonly copies: number }} */
 const chunk = length => ({ length, copies: 0 })
-
-/** @type {Weight<{ readonly length: number, readonly copies: number }>} */
-const byLength = c => c.length
 
 /** @type {Absorbing<number>} */
 const multiply = {
     monoid: {
         identity: 1,
         operation: a => b => a * b,
+        weight: uniform,
     },
     absorbing: 0,
 }
@@ -59,6 +65,7 @@ export const proof = {
         const add = {
              identity: 0,
              operation: a => b => a + b,
+             weight: uniform,
         };
         const resultAdd = repeat(add)(10n)(2) // 20
         assertEq(resultAdd, 20)
@@ -71,6 +78,7 @@ export const proof = {
         const concat = {
              identity: '',
              operation: a => b => a + b,
+             weight: length,
         };
 
         const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
@@ -82,6 +90,7 @@ export const proof = {
             const add = {
                 identity: 0,
                 operation: a => b => a + b,
+                weight: uniform,
             };
             assertEq(fold(add)([1, 2, 3, 4]), 10)
         },
@@ -92,6 +101,7 @@ export const proof = {
             const concat = {
                 identity: '',
                 operation: a => b => a + b,
+                weight: length,
             };
             assertEq(fold(concat)(['a', 'b', 'c']), 'abc')
         },
@@ -100,6 +110,7 @@ export const proof = {
             const concat = {
                 identity: '',
                 operation: a => b => a + b,
+                weight: length,
             };
             // an empty list folds to the identity
             assertEq(fold(concat)([]), '')
@@ -121,11 +132,11 @@ export const proof = {
             assertEq(f(['a', 'b', 'c', 'd', 'e', 'f', 'g']), '(((ab)(cd))((ef)g))')
         },
     },
-    foldBy: {
+    weighed: {
         // Weighed by length, a long value waits at the bottom of the stack
         // until the runs above it together outweigh it.
         grouping: () => {
-            const f = foldBy(length)(bracket)
+            const f = fold(weighedBracket)
             assertEq(f([]), '')
             assertEq(f(['aaaa', 'b', 'c']), '(aaaa(bc))')
             assertEq(fold(bracket)(['aaaa', 'b', 'c']), '((aaaab)c)')
@@ -136,17 +147,17 @@ export const proof = {
             assertEq(f(['aa', 'bb', 'c']), '((aabb)c)')
             assertEq(f(['a', 'b', 'c', 'd', 'e']), fold(bracket)(['a', 'b', 'c', 'd', 'e']))
         },
-        // One array of 1024 items followed by 1024 arrays of one: `fold`
-        // merges the long array at every carry that reaches its run, ten
-        // times; `foldBy` its length merges it once, when the short ones
+        // One array of 1024 items followed by 1024 arrays of one: counted,
+        // the long array merges at every carry that reaches its run, ten
+        // times; weighed by length it merges once, when the short ones
         // together outweigh it. Both then pass the result through the
         // identity once, which is the `2048` in each count.
         longAmongShort: () => {
             const list = concat([chunk(1024)])(repeatItem(chunk(1))(1024))
-            const weighed = foldBy(byLength)(cost)(list)
+            const weighed = fold(cost)(list)
             assertEq(weighed.length, 2048)
             assertEq(weighed.copies, 14_336)
-            const counted = fold(cost)(list)
+            const counted = fold(countedCost)(list)
             assertEq(counted.length, 2048)
             assertEq(counted.copies, 22_519)
         },
@@ -156,10 +167,10 @@ export const proof = {
         // and stays within a few per cent of the count-balanced fold.
         decreasing: () => {
             const list = map((/** @type {number} */ n) => chunk(n + 1))(countdown(1024))
-            const weighed = foldBy(byLength)(cost)(list)
+            const weighed = fold(cost)(list)
             assertEq(weighed.length, 524_800)
             assertEq(weighed.copies, 5_835_821)
-            assertEq(fold(cost)(list).copies, 5_772_800)
+            assertEq(fold(countedCost)(list).copies, 5_772_800)
         },
     },
     foldAbsorbing: {
@@ -185,6 +196,7 @@ export const proof = {
                     identity: null,
                     operation: a => b =>
                         a === null ? b : b === null ? a : a <= b ? a : b,
+                    weight: uniform,
                 },
                 absorbing: 0,
             }
@@ -210,7 +222,7 @@ export const proof = {
                 0)
         },
     },
-    foldAbsorbingBy: () => {
+    foldAbsorbingWeighed: () => {
         // concatenation capped at five characters, `null` once over the cap
         /** @type {Absorbing<string | null>} */
         const capped = {
@@ -218,10 +230,11 @@ export const proof = {
                 identity: '',
                 operation: a => b =>
                     a === null || b === null || a.length + b.length > 5 ? null : a + b,
+                weight: s => s === null ? 0 : s.length,
             },
             absorbing: null,
         }
-        const f = foldAbsorbingBy((/** @type {string | null} */ s) => s === null ? 0 : s.length)(capped)
+        const f = foldAbsorbing(capped)
         assertEq(f([]), '')
         assertEq(f(['ab', 'c', 'd']), 'abcd')
         assertEq(f(['abcd', 'e', 'f']), null)
@@ -240,8 +253,8 @@ export const proof = {
     // bits of the number of elements pushed, and each merge keeps the earlier
     // run on the left.
     stack: () => {
-        /** @type {(a: string) => (b: string) => string} */
-        const concat = a => b => a + b
+        /** @type {Monoid<string>} */
+        const concat = { identity: '', operation: a => b => a + b, weight: uniform }
         const s = step(concat)
         /** @type {Stack<string>} */
         const empty = null
@@ -254,15 +267,16 @@ export const proof = {
     },
     // Weighed, a run's size is the weight of what it holds, and a heavy run
     // stays below the light ones.
-    stackBy: () => {
-        /** @type {(a: string) => (b: string) => string} */
-        const concat = a => b => a + b
-        const s = stepBy(length)(concat)
+    stackWeighed: () => {
+        /** @type {Monoid<string>} */
+        const concat = { identity: '', operation: a => b => a + b, weight: length }
+        const s = step(concat)
         const three = s('c')(s('b')(s('aaaa')(null)))
         assertStructurallySame(toArray(runs(three)), ['bc', 'aaaa'])
         assertEq(three.size, 2)
         assertEq(three.rest === null ? 0 : three.rest.size, 4)
         // nothing weighs less than one
         assertEq(s('')(null).size, 1)
+        assertEq(uniform(), 1)
     },
 }

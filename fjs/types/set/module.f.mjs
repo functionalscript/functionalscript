@@ -21,6 +21,7 @@
  *
  * @module
  *
+ * @import { Monoid } from '../../common/monoid/types.ts'
  * @import { PersistentSet } from './types.ts'
  */
 
@@ -34,11 +35,20 @@ export const empty = null
 
 /**
  * Pushes a run onto the stack, every run of the same size on the way merged
- * into it by the union of two disjoint `Set`s.
+ * into it by the union of two disjoint `Set`s; a run weighs its size.
  *
  * @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>}
  */
-const carry = step(a => b => new Set([...a, ...b]))
+const carry = run => {
+    /** @typedef {typeof run extends ReadonlySet<infer T> ? T : never} T */
+    /** @type {Monoid<ReadonlySet<T>>} */
+    const union = {
+        identity: new Set(),
+        operation: a => b => new Set([...a, ...b]),
+        weight: s => s.size,
+    }
+    return step(union)(run)
+}
 
 export const has =
     /**
