@@ -166,7 +166,7 @@ rediscovered.
 | Pass | Leaves checked | Converted to `.f.js` |
 | --- | ---: | --- |
 | 1 | 6 | `spec/undecided/samples`, accepted as written; `zlib/bits`, `js/ast/invocation` and `types/stack_walk`, each with the respelling below |
-| 2 | 3 | None: `zlib/huffman`, which the `zlib/bits` rename exposed, is refused as written, and `types/list` and `types/map` as before |
+| 2 | 3 | None: `zlib/huffman`, which the `zlib/bits` rename exposed, is refused as written; `types/list` at a forward reference once its destructuring assignments are written as assignments; `types/map` as before |
 
 What each conversion changed, beside the extension and the references
 that follow it — the proof's import, the importers, and the documents that
@@ -211,6 +211,12 @@ link the module:
   since [#3418](https://github.com/functionalscript/functionalscript/pull/3418).
   Its importers are `ebnf/ll1`, `media/datajs/parser`,
   `media/datajs/serializer` and `rust/serializer`.
+- `types/list`, which stays `.f.mjs`: the two destructuring assignments
+  in `next`, `[head, tail] = [head.head, concat(head.tail)(tail)]` and
+  `[head, tail] = [tail, null]`, written as the plain assignments they
+  are, `tail = concat(head.tail)(tail)` then `head = head.head`, and
+  `head = tail` then `tail = null`. Each formed an array to take it apart
+  again; with them gone the compiler reaches the forward reference below.
 
 The authored `.f.js` population under `fjs/` grows from 62 to 65 — from
 51 at `1ce90e7`, `types/function/compare` among the ones in between, since
@@ -223,7 +229,7 @@ The three leaves left, measured at the same compiler. Locations are
 | Leaf file | Location | First refused construct | Measured behind it |
 | --- | ---: | --- | --- |
 | `fjs/zlib/huffman/module.f.mjs` | 28:19 | `Array` in `Array.from({ length: 16 }, …)` in `code`, a global name (`reserved word`; [built-ins](../spec/todo/2360-built-in.md), [global names](../spec/todo/2365-global-names.md)), counting the lengths | With that, the second `Array.from` in `code`, the five `Array(n).fill(v)` of the fixed codes, `dynamic` and `nextLengths`, and every key computed at run time written out: `i`, the `for` variable of `dynamic`, captured by the `map` callback that places a length (`reassigned variable captured`, [variables](../spec/bindings/variables/README.md)). Not measured further; the `break` in `decode` is behind it |
-| `fjs/types/list/module.f.mjs` | 55:13 | `[head, tail] = [head.head, concat(head.tail)(tail)]` in `next`, a destructuring assignment; `'head' in head` on the line before it, a blocker of the `1ce90e7` row, is admitted by the `in` operator this is measured with | Not accepted: past its two destructuring assignments, the other at 65:9, the next refusal is `flat` read in `flatStep` before its declaration (`const not found`, [forward references](../spec/todo/3140-forward-references.md)), the shape every `…Step` helper here shares with the export after it, which no respelling removes. Eight modules import no `.f.mjs` but this one — `common/monoid`, `text/code_point`, `types/btree` and its `remove` and `set`, `types/list/alt` and `iterable`, `types/sorted_list` — so it is the leaf whose conversion opens the most |
+| `fjs/types/list/module.f.mjs` | 80:19 | `flat` read in `flatStep` before its declaration, `flat` being `apply(flatStep)` (`const not found`, [forward references](../spec/todo/3140-forward-references.md)), the shape every `…Step` helper here shares with the export after it. The two destructuring assignments in `next` the first measurement stopped at are written as plain assignments in this step, and `'head' in head` before them, a blocker of the `1ce90e7` row, is admitted by the `in` operator this is measured with | Nothing: a forward reference is no respelling's to remove. Eight modules import no `.f.mjs` but this one — `common/monoid`, `text/code_point`, `types/btree` and its `remove` and `set`, `types/list/alt` and `iterable`, `types/sorted_list` — so it is the leaf whose conversion opens the most |
 | `fjs/types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word: the `1ce90e7` row, unchanged; `Map` is not a language type, and its one importer, `edag/analysis`, keys the map by EDAG nodes, so rule 9 does not apply | Nothing |
 
 To recheck the table without writing output, run this from the repository
