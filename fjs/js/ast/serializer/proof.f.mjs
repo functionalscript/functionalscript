@@ -77,6 +77,7 @@ export const proof = {
             choice(false, false, 2), nullishValue, choice(true, 2, true),
             ['|', 1, 2], ['^', 1, 2], ['&', 1, 2], ['===', 1, 2], ['!==', 1, 2],
             ['<', 1, 2], ['<=', 1, 2], ['>', 1, 2], ['>=', 1, 2], ['instanceof', ['array', []], 'Array'],
+            ['in', 'x', ['object', []]], ['in', 'a-b', ['<', 1, 2]],
             ['<<', 1, 2], ['>>', 8, 2], ['>>>', -1, 2], ['*', 2, 3], ['/', 4, 2], ['%', 5, 2],
             choice(choice(['===', andValue, null], true, ['===', andValue, undefined]), 2, andValue), choice(true, nullishValue, true),
             choice(choice(['===', orValue, null], true, ['===', orValue, undefined]), choice(true, 2, true), orValue),
@@ -94,6 +95,9 @@ export const proof = {
         assertEq(expression(['.', ['object', [[':', 'a-b', 2]]], 'a-b']), '{"a-b":2}["a-b"]')
         assertEq(expression(['()', -1, []]), '(-1)()')
         assertEq(expression(['?.()', -1n, []]), '(-1n)?.()')
+        // the key is a string literal, and the right operand groups as `<`'s right operand would
+        assertEq(expression(['in', 'a-b', ['<', 1, 2]]), '"a-b" in (1<2)')
+        assertEq(expression(['in', 'x', ['+', 1, 2]]), '"x" in 1+2')
     },
     detachedWrappedCallees: () => {
         const member = /** @type {Value} */ (['.', 'abc', 'slice'])

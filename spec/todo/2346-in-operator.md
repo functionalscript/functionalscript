@@ -136,11 +136,11 @@ shape instead. The node is that shape.
       every admitted key on an object, an array and a function, an entry
       holding `undefined`, and the throw on `null`, `undefined` and each
       primitive; `npm run gen` for the generated runtime.
-- [ ] The EDAG node `['in', key, exp]`: `fjs/edag` (`module.f.mjs`,
+- [x] The EDAG node `['in', key, exp]`: `fjs/edag` (`module.f.mjs`,
       `types.ts`, the README row), the AST's operand walks in `fjs/js/ast`,
       the FunctionalScript writer, the Rust writer printing the runtime's
-      body, and the interpreters' answer in `fjs/edag/value/semantics`,
-      each with its proof.
+      body, and the interpreters' answer in `fjs/edag/operations`, a call
+      of the runtime's body, each with its proof.
 - [ ] The parser: the grammar reads `in` at the relational level as it
       reads `instanceof`; the fold checks the left operand is a string
       literal and applies the key rule, `length` included; the

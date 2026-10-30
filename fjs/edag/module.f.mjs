@@ -56,6 +56,7 @@ import {
  *  typeof op1,
  *  typeof op0,
  *  typeof instanceOf,
+ *  typeof inOp,
  *  typeof memberPresent,
  *  typeof func,
  *  typeof arg,
@@ -77,6 +78,7 @@ export const _exp = () => (['or',
     op1,
     op0,
     instanceOf,
+    inOp,
     memberPresent,
     func,
     arg,
@@ -834,6 +836,24 @@ export const constructorId = or('Array')
  * expression, and the name would be walked as a literal.
  */
 export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])
+
+// Entry Check
+
+/**
+ * `['in', key, x]` is the language's `"key" in x`: whether `x`, an object,
+ * an array or a function, owns an enumerable entry under `key`, one
+ * holding `undefined` included, and a throw for `null`, `undefined` and
+ * every primitive, the `TypeError` JavaScript's `in` throws. The key is a
+ * *spelling*, not an operand: a string literal the compiler admitted, one
+ * that names no property a built-in prototype gives a value, so that the
+ * own-entry answer is JavaScript's; it is never evaluated, as
+ * `instanceof`'s constructor name is not, and a reader walking operands
+ * generically needs an arm for it, since a string is otherwise a literal
+ * operand. The answer is the runtime's body, `runtime.in(key, x)`, which
+ * an executor calls or substitutes natively
+ * (`../../spec/todo/2346-in-operator.md`).
+ */
+export const inOp = /** @type {const} */ (['in', string, exp])
 
 // Traversal
 

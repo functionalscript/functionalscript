@@ -324,6 +324,13 @@ export const proof = {
             assertEq(shape.label, 'instanceof Array')
             assertStructurallySame(shape.children, [['operand', ['a']]])
         },
+        // An entry check's key is a spelling in the label, not a child:
+        // the one edge is the operand's.
+        in: () => {
+            const shape = nodeShapeOf(['in', 'x', ['a']], 'expected a shape')
+            assertEq(shape.label, '"x" in')
+            assertStructurallySame(shape.children, [['operand', ['a']]])
+        },
         op1: () => {
             for (const tag of ['String', 'Number', '!', '~', 'typeof']) {
                 const shape = nodeShapeOf([tag, ['a']], tag)

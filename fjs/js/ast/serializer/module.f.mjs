@@ -135,7 +135,7 @@ const precedence = input => {
     if (op === '^') { return 6 }
     if (op === '&') { return 7 }
     if (op === '===' || op === '!==') { return 8 }
-    if (op === '<' || op === '<=' || op === '>' || op === '>=' || op === 'instanceof') { return 9 }
+    if (op === '<' || op === '<=' || op === '>' || op === '>=' || op === 'instanceof' || op === 'in') { return 9 }
     if (op === '<<' || op === '>>' || op === '>>>') { return 10 }
     if ((op === '+' || op === '-') && value.length === 3) { return 11 }
     if (op === '*' || op === '/' || op === '%') { return 12 }
@@ -280,6 +280,9 @@ const operatorText = (context, operator) => {
             return `${expression(context, operator[1], 11)}-${untagged(right).startsWith('-') ? ' ' : ''}${right}`
         }
         case 'instanceof': { return `${expression(context, operator[1], 9)} ${keyword('instanceof')} ${operator[2]}` }
+        // the key is a string literal, the one left operand the language
+        // admits; the right operand groups as `<`'s right operand would
+        case 'in': { return `${primitive(operator[1])} ${keyword('in')} ${expression(context, operator[2], 10)}` }
         default: {
             const level = precedence(operator)
             const [tag, left, right] = operator

@@ -11,7 +11,7 @@ import type { StaticId } from '../../../edag/types.ts'
 import type { AstImport, BinaryTag } from '../../../compiler/ast/types.ts'
 import type {
     BindingEvent, BindingId, FunctionTarget, LoopTarget, Operator,
-    _Unary, _InstanceOf, _Array, _Object, _Access, _ContinuedAccess,
+    _Unary, _InstanceOf, _In, _Array, _Object, _Access, _ContinuedAccess,
     _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf,
 } from '../types.ts'
 
@@ -51,7 +51,7 @@ export type SourceFunction = {
 export type SourceValue =
     | Primitive
     | readonly ['ref', BindingId]
-    | _Unary<SourceValue> | _SourceBinary<SourceValue> | _InstanceOf<SourceValue>
+    | _Unary<SourceValue> | _SourceBinary<SourceValue> | _InstanceOf<SourceValue> | _In<SourceValue>
     | _Array<SourceValue> | _Object<SourceValue> | _Access<SourceValue> | _ContinuedAccess<SourceValue>
     | _GuardedCall<SourceValue> | _ContinuedGuardedCall<SourceValue> | _Call<SourceValue>
     | _Conditional<SourceValue> | _Comma<SourceValue> | _Leaf

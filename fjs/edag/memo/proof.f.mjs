@@ -12,6 +12,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
+import { noIn } from '../operations/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
@@ -55,6 +56,11 @@ const elements = v => /** @type {ValueArray} */ (v)[1]
 const fails = (e, expected = ['undefined']) => assertStructurallySame(result(e), ['error', expected])
 
 export const proof = {
+    // The entry check is the runtime's to answer, and this executor is
+    // given none: the operator is refused by name, as its node specifies.
+    inWithoutRuntime: () => {
+        assertEq(assertError(result(['in', 'x', ['{}', []]])), noIn)
+    },
     // An invocation's runtime reaches a member call in the module and in
     // every function it calls, as `amnesia`'s does.
     runtime: () => {

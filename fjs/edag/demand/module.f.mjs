@@ -60,6 +60,8 @@ const prefix = (node, selected) => {
     }
     if (node[0] === '?.' || node[0] === '?.()') { return [[node[1]], null] }
     if (node[0] === 'instanceof') { return [[node[1]]] }
+    // the key is a spelling; the check can throw, on a primitive
+    if (node[0] === 'in') { return [[node[2]], null] }
     if (['!', 'typeof', '===', '!=='].includes(node[0])) { return values(/** @type {readonly Exp[]} */ (node.slice(1))) }
     return [...values(/** @type {readonly Exp[]} */ (node.slice(1))), null]
 }
