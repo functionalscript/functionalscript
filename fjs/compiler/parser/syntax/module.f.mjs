@@ -387,7 +387,7 @@ const chunkOf = node => {
 const toTemplate = ([tag, branch]) => {
     if (tag === 'plain') {
         const start = tokenAt(branch)
-        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: start, target: invalid(start) })
+        return symbol({ id: 'value', node: ['template', chunkOf(branch)], first: start, target: invalid(start) })
     }
     const [head, firstValue, rounds, tail] = unmapped(branch)
     /** @type {Node} */
@@ -772,8 +772,9 @@ const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const tag = assertNotNullish(binaryOpTag[opTag], ['binary operator without a tag', opTag])
     // `instanceof` keeps its operator token: the fold refuses a right
     // operand that is no reference to `Array` there, where every spelling
-    // of the right side has a token
-    return tag === 'instanceof' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
+    // of the right side has a token; `in` keeps it for its left operand,
+    // which the fold admits only as a string literal
+    return tag === 'instanceof' || tag === 'in' ? [tag, left, right, tokenAt(op)] : [tag, left, right]
 }, base)
 
 /**

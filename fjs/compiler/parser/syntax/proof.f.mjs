@@ -298,7 +298,8 @@ export const proof = {
     templates: () => {
         const plain = unwrap(parseSyntax(tokenizeString('export default `plain`;')))
         assert(plain.exported !== null)
-        assertStructurallySame(plain.exported.value, ['primitive', 'plain'])
+        // a template without substitutions is its text, under a tag of its own
+        assertStructurallySame(plain.exported.value, ['template', 'plain'])
         assertEq(plain.exported.first.metadata.column, 16)
         const one = unwrap(parseSyntax(tokenizeString('export default `a${1}b`;')))
         assert(one.exported !== null)

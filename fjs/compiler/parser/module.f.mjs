@@ -15,7 +15,7 @@
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -298,6 +298,15 @@ const identifierOf = name => {
  * in JavaScript.
  */
 const instanceofRight = foldError('the right operand of instanceof must be Array')
+
+/**
+ * An `in` whose left operand is not a string literal, at the operator: the
+ * language admits that one key, written in the source, so that the names
+ * it refuses are refused here, as the key of a read is; a key computed at
+ * run time is the `hasEntry` helper's to test
+ * ([spec: the `in` record](../../../spec/todo/2346-in-operator.md)).
+ */
+const inLeft = foldError('the left operand of in must be a string literal')
 
 /** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
 const unknownAttribute = foldError('unknown import attribute')
@@ -1147,7 +1156,8 @@ const enter = (stack, scope, node) => {
     if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
     if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
-        case 'primitive': { return [stack, scope, ok(node[1])] }
+        // a template without substitutions is its text, as a literal is
+        case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
         case 'ref': {
             const [tag, word] = identifierOf(node[1])
             if (tag === 'error') { return [stack, scope, error(word)] }
@@ -1170,6 +1180,19 @@ const enter = (stack, scope, node) => {
         // side is checked when the left returns, so a fault in the left is
         // the one reported, the first in document order
         case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
+        // the key first, as every operator's left operand is checked first:
+        // a string literal — not a template, even one without substitutions,
+        // which the syntax keeps apart — and no name a built-in prototype gives a value,
+        // `length` included — `"length" in []` is `true` in JavaScript where
+        // the own entry is absent, which a read of `length` is not — both
+        // refused at the operator, the one token every spelling of the
+        // left side shares; then the right operand is entered
+        case 'in': {
+            const [, left, right, at] = node
+            if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
+            if (prohibitedNames.has(left[1]) || left[1] === 'length') { return [stack, scope, error(prohibitedKey(at))] }
+            return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
+        }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         // a comma the parentheses also hold what no comma has in is
         // refused at the first of it: a default, a rest or a trailing comma
@@ -1439,7 +1462,7 @@ const entryFunction = ([, list, body]) => {
 /** Resolved reads inside the exact, capture-free helper forms matched above. @type {(node: Node, origins: _Scope['origins']) => readonly BindingEvent[]} */
 const templateReads = (node, origins) => {
     switch (node[0]) {
-        case 'primitive': { return [] }
+        case 'primitive': case 'template': { return [] }
         case 'ref': {
             const id = at(nameOf(node[1]))(origins)
             return id === null ? [] : [['read', id]]
@@ -1568,6 +1591,11 @@ const returned = (stack, scope, frame, value) => {
         if (right[0] !== 'ref' || nameOf(right[1]) !== 'Array') { return [stack, scope, error(instanceofRight(frame.at))] }
         /** @type {ValueInstanceOf} */
         const checked = ['instanceof', value, 'Array']
+        return [stack, scope, ok(checked)]
+    }
+    if (hasEntry(frame, 'in')) {
+        /** @type {ValueIn} */
+        const checked = ['in', frame.in, value]
         return [stack, scope, ok(checked)]
     }
     if (hasEntry(frame, 'right')) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }

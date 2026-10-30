@@ -23,4 +23,4 @@ type _UnaryTagsAreComplete = Assert<Equal<(typeof unaryTags)[number], UnaryTag>>
 type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTag>>
 type _Values<T> = T extends unknown ? T[keyof T] : never
 type _LayerTag = _Values<(typeof eagerLayers)[number] | (typeof lazyLayers)[number]>
-type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof'>>
+type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof' | 'in'>>
