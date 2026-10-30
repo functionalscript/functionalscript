@@ -1156,7 +1156,8 @@ const enter = (stack, scope, node) => {
     if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
     if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
-        case 'primitive': { return [stack, scope, ok(node[1])] }
+        // a template without substitutions is its text, as a literal is
+        case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
         case 'ref': {
             const [tag, word] = identifierOf(node[1])
             if (tag === 'error') { return [stack, scope, error(word)] }
@@ -1180,7 +1181,8 @@ const enter = (stack, scope, node) => {
         // the one reported, the first in document order
         case 'instanceof': { return [{ top: { instanceof: node[2], at: node[3] }, rest: stack }, scope, ['enter', node[1]]] }
         // the key first, as every operator's left operand is checked first:
-        // a string literal, and no name a built-in prototype gives a value,
+        // a string literal — not a template, even one without substitutions,
+        // which the syntax keeps apart — and no name a built-in prototype gives a value,
         // `length` included — `"length" in []` is `true` in JavaScript where
         // the own entry is absent, which a read of `length` is not — both
         // refused at the operator, the one token every spelling of the
@@ -1460,7 +1462,7 @@ const entryFunction = ([, list, body]) => {
 /** Resolved reads inside the exact, capture-free helper forms matched above. @type {(node: Node, origins: _Scope['origins']) => readonly BindingEvent[]} */
 const templateReads = (node, origins) => {
     switch (node[0]) {
-        case 'primitive': { return [] }
+        case 'primitive': case 'template': { return [] }
         case 'ref': {
             const id = at(nameOf(node[1]))(origins)
             return id === null ? [] : [['read', id]]

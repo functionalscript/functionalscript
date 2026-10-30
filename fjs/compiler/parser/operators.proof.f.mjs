@@ -192,6 +192,10 @@ export const proof = {
             refusedIn('export default 1 < 2 in [];', literal, 22)
             refusedIn('export default "a" in [] in {};', literal, 26)
             refusedIn('export default [] in {};', literal, 19)
+            // a template is no string literal, without substitutions or in a group
+            refusedIn('export default `a` in {};', literal, 20)
+            refusedIn('export default (`a`) in {};', literal, 22)
+            refusedIn('export default `${1}` in {};', literal, 23)
             // a name a built-in prototype gives a value is refused as the
             // key of a read is, and `length` with it, which a read exempts:
             // `"length" in []` is `true` in JavaScript, the own entry absent
