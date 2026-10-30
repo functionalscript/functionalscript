@@ -247,10 +247,11 @@ is a summary rather than code. How a demo's code blocks look is
 Some text has no producer behind it: an example a reader typed, or a
 JavaScript or JSON code fence in a `README.md` the site renders
 ([`website/readme`](../../website/readme/module.f.mjs)). For that,
-`highlight(text)` finds the runs by tokenizing, with the real tokenizer
-([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)):
+[`fjs/js/marked`](../../js/marked/module.f.mjs) finds the runs by tokenizing,
+with the real tokenizer ([`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)),
+and the website's `highlight(text)` draws them:
 
-- `spansOf(text)` answers the `Span`s the tokenizer finds (`keyword`,
+- `spansOf(text)`, in `js/marked`, answers the `Span`s the tokenizer finds (`keyword`,
   `literal`, `string`, `number`, `comment`, and `identifier` for an `id` token;
   the literal words are `literalWords` of
   [`js/keywords`](../../js/keywords/module.f.js), and a word after `.` or `?.`
@@ -259,7 +260,7 @@ JavaScript or JSON code fence in a `README.md` the site renders
   partly valid. It feeds the tokenizer code points and finds each token's
   offset through the tokenizer's own position fold (`_positions`), so it
   counts lines as the tokenizer does.
-- `fromSpans(text)(spans)` turns spans beside a text into `Marked`. The spans
+- `fromSpans(text)(spans)`, in this module, turns spans beside a text into `Marked`. The spans
   must be in order, non-empty, whole and not overlapping, or it answers an
   error: **refused, never clamped.** The refusal is a `Result`, not a panic
   ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
@@ -268,8 +269,9 @@ JavaScript or JSON code fence in a `README.md` the site renders
   tokens are the case it is shaped for — so a bad span is bad input, not a
   defect of the program. A caller whose spans are its own, as `highlight`'s
   are, `unwrap`s.
-- `highlight(text)` is `render` of `fromSpans` of `spansOf`.
-- `tsSpansOf(text)` and `tsHighlight(text)` read TypeScript: the same tokens,
+- `highlight(text)`, in [`website/demo/highlight`](../../website/demo/highlight/module.f.mjs),
+  is `render` of `fromSpans` of `spansOf`.
+- `tsSpansOf(text)` and `tsHighlight(text)`, beside them, read TypeScript: the same tokens,
   and TypeScript's own words (`type`, `readonly`, `as`, `keyof`, …) as
   `keyword`s where an operand follows them on their line, so a variable named
   `type` stays an `identifier`. The primitive type names stay `identifier`s:
@@ -277,7 +279,7 @@ JavaScript or JSON code fence in a `README.md` the site renders
   tell. A README's `ts` fence is drawn this way.
 
 The fallback is also the **oracle** a producer is held to
-([§9](#9-proving-a-producer)): `disagreement(marked)` answers where a
+([§9](#9-proving-a-producer)): `disagreement(marked)`, in `js/marked`, answers where a
 producer's markup and the tokenizer part ways, or `null`. The comparison allows
 for a leading `-` in a producer's signed leaf, so it proves agreement modulo
 that boundary ([§6](#6-rendering)), not identical rendered spans.
@@ -475,8 +477,11 @@ points, as the tokenizer's are).
   tokenizer's reading for the languages it reads, and "no word left plain" for
   Rust. It never overrides a kind, so a refinement can come later. The colour
   is a new stylesheet variable, `--syntax-name`.
-- **The code lives in `fjs/text/marked`**, with only `render` under the website,
-  so that the compiler does not depend on the website.
+- **The model lives in `fjs/text/marked`, the JavaScript fallback and oracle in
+  [`fjs/js/marked`](../../js/marked/module.f.mjs)**, and only the drawing,
+  `render` and `highlight`, under the website: the compiler's proofs hold its
+  output to the oracle without depending on the website, and this module
+  stays language-independent, with no tokenizer behind it.
 - **`fromSpans` answers a `Result`** ([§7](#7-the-fallback-for-text-with-no-producer)).
 - **Markup reaches the page by the compiler's own seam.** A file system carries
   text, so runs cannot cross it. The demo uses `_outputMarked`; `compileFile`
