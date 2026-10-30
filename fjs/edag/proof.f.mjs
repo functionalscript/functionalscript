@@ -805,6 +805,21 @@ export const proof = {
         // the name is not an operand: a fourth position is no node
         extraOperandIsError: () => assertNoMatch(v(['instanceof', 1, 'Array', 2])),
     },
+    // The entry check: a key spelling, which is a string, and one operand.
+    in: {
+        ok: () => {
+            assertOk(v(['in', 'x', 1]))
+            assertOk(v(['in', '', ['{}', [[':', 'in', ['in', 'y', null]]]]]))
+        },
+        missingOperandIsError: () => assertNoMatch(v(['in', 'x'])),
+        // the key is a spelling: a number, a node or a nullish is no key
+        nonStringKeyIsRejected: () => {
+            assertNoMatch(v(['in', 1, 1]))
+            assertNoMatch(v(['in', ['[]', []], 1]))
+            assertNoMatch(v(['in', null, 1]))
+        },
+        extraOperandIsError: () => assertNoMatch(v(['in', 'x', 1, 2])),
+    },
     // The vocabulary whose ids are legal at both arities. The node's length
     // is what tells `['-', a]` from `['-', a, b]`, so both arms are pinned
     // for each id, and so is the fact that neither arm is a member of the

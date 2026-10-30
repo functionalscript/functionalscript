@@ -85,6 +85,8 @@ export const proof = {
             [['!', a], [a]], [['+', a], [a]], [['+', a, b], [a, b]],
             // the constructor name is metadata, never an operand
             [['instanceof', a, 'Array'], [a]], [['instanceof', 'Array', 'Array'], ['Array']],
+            // and so is the key of an entry check, a string that is no literal operand
+            [['in', 'x', a], [a]], [['in', 'x', 'x'], ['x']],
             [['memberPresent', a, b], [a, b]], [['memberPresent', a, 'length'], [a, 'length']],
             [['?:', false, a, false], [false, a, false]], [['?:', true, true, b], [true, true, b]],
             [['?:', null, a, null], [null, a, null]], [['?:', true, a, b], [true, a, b]],
@@ -155,6 +157,14 @@ export const proof = {
         ])
         assertStructurallySame(nodesOf(['instanceof', empty, 'Array']), [
             ['[]', []], ['instanceof', ['#', 0], 'Array'],
+        ])
+        // The key of an entry check survives the same way, its operand
+        // numbered and the key kept as the spelling it is.
+        assertStructurallySame(nodesOf(['in', 'x', 'x']), [
+            ['in', 'x', 'x'],
+        ])
+        assertStructurallySame(nodesOf(['in', 'x', empty]), [
+            ['[]', []], ['in', 'x', ['#', 0]],
         ])
     },
     // `Object.is` is a value wherever one stands — a callee, the root, an

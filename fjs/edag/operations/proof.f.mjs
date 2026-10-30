@@ -11,7 +11,9 @@
 
 import { conditional } from '../testlib.f.js'
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { invokerWith, operation, staticCall } from './module.f.mjs'
+import { invokerWith, noIn, operation, staticCall } from './module.f.mjs'
+import { read } from '../value/property/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { noStatic, staticIds, staticPath } from '../module.f.mjs'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -41,6 +43,12 @@ const eq = (e, expected) => { assertStructurallySame(run(e, [])[1], ['ok', expec
 const failure = (e, expected = ['undefined']) => { assertStructurallySame(run(e, [])[1], ['error', expected]) }
 /** @type {import('../types.ts').Function} */
 const identity = ['=>', 1, [], ['arg', 0]]
+
+/** A runtime whose `in` is a function of two parameters with the body given. @type {(body: Exp) => Runtime} */
+const inRuntime = body => ['{}', [[':', 'in', ['=>', 2, [], body]]]]
+
+/** A node evaluated under the executor's context with the runtime given, or none. @type {(runtime: Runtime | undefined, node: Exp) => unknown} */
+const under = (runtime, node) => vm({ ...context, runtime })(node)
 /** @type {import('../types.ts').Object} */
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
@@ -173,6 +181,38 @@ export const proof = {
         eq([',', [['memberPresent', ['{}', []], 'missing'], 7]], 7)
         eq(['?:', ['memberPresent', ['{}', []], 'missing'], ['throw', 'skipped'], 7], 7)
         failure([',', [['memberPresent', null, 'missing'], 7]])
+    },
+    // The entry check: the runtime's `in` body called with the key, read
+    // from the node, and the evaluated operand, in that order; its answer
+    // or its throw is the node's, the operand's failure comes first, and
+    // an executor with no runtime, or a runtime without the body, refuses
+    // the operator by name.
+    inOperator: () => {
+        const echo = inRuntime(['[]', [['arg', 0], ['arg', 1]]])
+        assertStructurallySame(under(echo, ['in', 'x', 5]), ['ok', ['[]', ['x', 5]]])
+        assertStructurallySame(under(echo, ['in', '', ['{}', []]]), ['ok', ['[]', ['', ['{}', []]]]])
+        assertStructurallySame(under(inRuntime(['throw', 'not an object']), ['in', 'x', 1]), ['error', 'not an object'])
+        assertStructurallySame(under(inRuntime(['throw', 'asked']), ['in', 'x', ['throw', 'operand']]), ['error', 'operand'])
+        failure(['in', 'x', 5], noIn)
+        for (const missing of [/** @type {Runtime} */ (['{}', []]), /** @type {Runtime} */ (['{}', [[':', 'in', 0]]])]) {
+            assertStructurallySame(under(missing, ['in', 'x', 5]), ['error', noIn])
+        }
+        // the language's own runtime, `fjs/js/runtime`, answers it as the
+        // record specifies: an enumerable own entry of an object, an array
+        // or a function, one holding `undefined` included; neither a
+        // `length` nor a function's properties; and a throw on a primitive
+        const real = /** @type {Runtime} */ (assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime')))
+        assertStructurallySame(under(real, ['in', 'x', ['{}', [[':', 'x', 1]]]]), ['ok', true])
+        assertStructurallySame(under(real, ['in', 'x', ['{}', [[':', 'x', ['undefined']]]]]), ['ok', true])
+        assertStructurallySame(under(real, ['in', 'y', ['{}', [[':', 'x', 1]]]]), ['ok', false])
+        assertStructurallySame(under(real, ['in', '0', ['[]', [7]]]), ['ok', true])
+        assertStructurallySame(under(real, ['in', '1', ['[]', [7]]]), ['ok', false])
+        assertStructurallySame(under(real, ['in', 'length', ['[]', [7]]]), ['ok', false])
+        assertStructurallySame(under(real, ['in', 'length', ['=>', 0, [], 1]]), ['ok', false])
+        for (const primitive of /** @type {readonly Exp[]} */ ([null, ['undefined'], 1, 'abc', true, 1n])) {
+            assertStructurallySame(under(real, ['in', 'x', primitive]), ['error', 'in: not an object'])
+        }
+        assertStructurallySame(under(real, ['in', '0', 'abc']), ['error', 'in: not an object'])
     },
     memberRuntime: () => {
         /** @type {(answer: Exp) => Runtime} */

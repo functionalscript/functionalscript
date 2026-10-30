@@ -143,7 +143,7 @@ export const proof = /** @type {const} */ ({
             ['block', body(['throw', 7])],
             ['if', true, yielded([3]), body(['throw', 7])], ['?:', true, 1, 2],
             ['+', 1], ['+', 1, 2], ['()', ref(value), []],
-            ['instanceof', ref(value), 'Array'],
+            ['instanceof', ref(value), 'Array'], ['in', 'x', ref(value)],
             ['object', []], ['object', [[':', 'x', ref(value)]]],
             ['object', [['...', ['object', []]], [':', 'x', ref(value)]]],
             ['object', [[':', 'x', 1], ['...', null], ['...', 'a😀b']]],

@@ -152,6 +152,8 @@ export const needsRuntime = root => visit(withBodies)([])(root).some(([node]) =>
     const operation = /** @type {ExpOp} */ (node)
     switch (operation[0]) {
         case 'memberPresent': { return true }
+        // the entry check calls the runtime's `in` body
+        case 'in': { return true }
         case '.': case '?.': { return memberCall(operation[3], true) }
         case '?.()': { return memberCall(operation[3], false) }
         default: { return false }

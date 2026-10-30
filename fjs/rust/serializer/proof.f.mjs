@@ -42,11 +42,17 @@ export const proof = {
             ['===', 1, 2], ['!==', 1, 2], ['<', 1, 2], ['<=', 1, 2], ['>', 1, 2], ['>=', 1, 2],
             ['?:', true, 1, 2],
             ['instanceof', ['array', []], 'Array'],
+            ['in', 'x', ['object', []]],
         ]
         for (const value of values) {
             assert(text(value).endsWith('?'))
             assert(text(value, true).length > 0)
         }
+        // the entry check is the runtime's `in` body called with the key
+        // and the value, the naive spelling a VM may substitute; with no
+        // runtime in scope it is refused, as a member call is
+        assert(text(['in', 'x', 1], true).startsWith('Any::call((Any::dot(runtime.clone(), string_any("in")).end())?, [string_any("x"), '))
+        assertEq(valueTagged(['in', 'x', 1], { ...options, runtime: null }, [], false)[0], 'error')
         assertEq(op1Rust['+']?.('v'), 'Any::unary_plus(v)')
         assertEq(op1Rust.throw?.('v'), 'Err(v)')
     },

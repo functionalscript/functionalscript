@@ -224,6 +224,7 @@ export const proof = {
             [['.', first, 'x'], [first], true],
             [['?:', first, second, 0], [first], true],
             [['instanceof', first, 'Array'], [first], true],
+            [['in', 'x', first], [first], true],
             [['!', first], [first], true],
             [['typeof', first], [first], true],
             [['===', first, second], [first, second], true],
