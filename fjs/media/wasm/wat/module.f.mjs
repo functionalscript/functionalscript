@@ -27,7 +27,8 @@
  * @import { Context, Names, Naming } from './private.ts'
  */
 
-import { reverse, toArray } from '../../../types/list/module.f.mjs'
+import { reverse } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 
 // strings
 
