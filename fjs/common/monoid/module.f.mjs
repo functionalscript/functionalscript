@@ -17,11 +17,13 @@
  * sequential, which is the cheapest fold for an operation whose cost does
  * not depend on its operands.
  *
- * The fold's state, a {@link Stack} of runs, is exported too — `step` and
- * `runs` — for a structure that keeps the stack itself rather than folding it
- * away, as [`fjs/types/set`](../../types/set/module.f.mjs) does. `step` is
- * the only way in: every stack it builds from `null` keeps the {@link Stack}
- * invariant.
+ * The fold's state, a {@link Stack} of runs, is exported too — `step`,
+ * `collect` and `runs` — for a structure that keeps the stack itself rather
+ * than folding it away, as [`fjs/types/set`](../../types/set/module.f.mjs)
+ * does, or that folds it only once it knows the answer is wanted, as
+ * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.mjs) does under its
+ * length cap. `step` is the only way in: every stack it builds from `null`
+ * keeps the {@link Stack} invariant.
  *
  * @module
  *
@@ -140,10 +142,10 @@ export const runs = stack =>
     stack === null ? null : { first: stack.value, tail: () => runs(stack.rest) }
 
 /**
- * Folds the stack's runs into one value: `identity` for the empty stack, and
- * a lone run merged with `identity`, which passes a lone element through the
- * operation once, as a fold seeded at the identity does; two runs or more
- * merge each other and need no seed. It is {@link pushUnless}'s walk with the
+ * Folds the stack's runs into one value, the second half of {@link fold}:
+ * `identity` for the empty stack, and a lone run merged with `identity`,
+ * which passes a lone element through the operation once, as a fold seeded
+ * at the identity does; two runs or more merge each other and need no seed. It is {@link pushUnless}'s walk with the
  * value already taken off the top: where the value would come to rest on
  * the stack and nothing waits in the buffer, it merges into the run beneath
  * it instead, lightest first, so a well-formed stack folds with each run
@@ -155,7 +157,7 @@ export const runs = stack =>
  *
  * @type {<T>(monoid: Monoid<T>) => (stack: Stack<T>) => T}
  */
-const collect = ({ identity, operation, weight }) => stack => {
+export const collect = ({ identity, operation, weight }) => stack => {
     /** @typedef {typeof identity} T */
     if (stack === null) { return identity }
     if (stack.rest === null) { return operation(identity)(stack.value) }
@@ -282,12 +284,16 @@ const absorbingAccumulator = ({ monoid, absorbing }) => {
  *
  * It stops at the element that is absorbing on its own (`0` in a product),
  * and otherwise at the merge that first produces the absorbing value. When
- * only a combination is absorbing — `bit_vec`'s length cap — that merge waits
- * until the stack's rule brings the two runs together, which the values
- * pushed above them do once they outweigh the run beneath: the stop lags the
- * element that decided the answer by about that much weight. Values of
- * weight zero add nothing to that, so a list that goes on with them past the
- * answer is read until they end; weigh such values where that matters.
+ * only a combination is absorbing, that merge waits until the stack's rule
+ * brings the two runs together, which the values pushed above them do once
+ * they outweigh the run beneath: the stop lags the element that decided the
+ * answer by about that much weight, and values of weight zero never bring
+ * it, so a list that goes on with them past the answer is read until they
+ * end. Where the answer can be read from the values before they merge, as a
+ * length cap can from the lengths, stop the list on that instead:
+ * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.mjs) caps the total
+ * length as each vector is pushed, with `step` and `collect`, and never waits
+ * for a merge.
  *
  * Grouping, order, and the stack bound are `fold`'s; only the walk gains an
  * exit. `foldAbsorbing(a)(list)` and `fold(a.monoid)(list)` agree on every

@@ -71,8 +71,7 @@ export type Monoid<T> = {
  * the list there instead of walking to its end. That is the difference between
  * answering and not returning at all when the list is an unbounded `Thunk`.
  *
- * Multiplication over numbers has `0`; `bit_vec`'s length-capped concatenation
- * has a vector longer than `maxLength` that stands for every overflow.
+ * Multiplication over numbers has `0`.
  *
  * The monoid is carried as a field rather than intersected in, so it stays
  * independently constructed and consumed (`fjs/AGENTS.md` §3.2).
