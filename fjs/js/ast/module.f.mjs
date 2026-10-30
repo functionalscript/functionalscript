@@ -9,7 +9,8 @@
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
 
-import { concat, next, reverse, toArray } from '../../types/list/module.f.mjs'
+import { concat, next, reverse } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.

@@ -29,7 +29,8 @@ import {
     isLatinLetter,
     lowLine,
 } from '../../text/ascii/module.f.js'
-import { flat, flatMap, intersperse, map, mergeAdjacent, toArray } from '../../types/list/module.f.mjs'
+import { flat, flatMap, intersperse, map, mergeAdjacent } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',

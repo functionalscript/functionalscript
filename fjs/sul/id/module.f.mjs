@@ -11,7 +11,7 @@
  * @import { Id } from './types.ts'
  */
 
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'

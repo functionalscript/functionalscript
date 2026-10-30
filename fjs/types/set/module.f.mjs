@@ -25,7 +25,8 @@
  */
 
 import { runs, step } from '../../common/monoid/module.f.mjs'
-import { flatMap, map, someBy, toArray } from '../list/module.f.mjs'
+import { flatMap, map, someBy } from '../list/module.f.mjs'
+import { toArray } from '../list/alt/module.f.mjs'
 import { sum } from '../number/module.f.mjs'
 
 /** The set with nothing in it. @type {PersistentSet<never>} */

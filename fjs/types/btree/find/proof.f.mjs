@@ -5,7 +5,8 @@
  */
 
 import { find as btreeFind, findValue, contains } from './module.f.js'
-import { map, toArray } from '../../list/module.f.mjs'
+import { map } from '../../list/module.f.mjs'
+import { toArray } from '../../list/alt/module.f.mjs'
 import { cmp } from '../../string/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'

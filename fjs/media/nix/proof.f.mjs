@@ -3,7 +3,8 @@
  */
 
 import { assertEq } from '../../asserts/module.f.js'
-import { countdown, fold, toArray } from '../../types/list/module.f.mjs'
+import { countdown, fold } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { nix, nixToString } from './module.f.mjs'
 

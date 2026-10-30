@@ -12,7 +12,6 @@
  * @module
  *
  * @import { Entry } from '../../types/object/types.ts'
- * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { DataRule, Rule as FRule, Thunk } from '../types.ts'
  * @import { EmptyTag, EmptyTagMap, GrammarData, Rule, RuleNameMap, RuleSet, RuleVisitor, Sequence, Terminal, Variant } from './types.ts'
@@ -23,7 +22,7 @@ import { assert } from '../../asserts/module.f.js'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { fixpoint } from '../../types/function/module.f.js'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.mjs'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.mjs'

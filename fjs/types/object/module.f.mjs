@@ -14,7 +14,7 @@
  */
 
 import { isArray } from '../array/module.f.mjs'
-import { iterable } from '../list/module.f.mjs'
+import { iterable } from '../list/iterable/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.mjs'
 import { structurallySame as importedStructurallySame } from './structurally_same/module.f.js'

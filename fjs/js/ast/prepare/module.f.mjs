@@ -28,7 +28,8 @@ import { isTerminalLoop } from '../loop/terminal/module.f.js'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { iterable, toArray } from '../../../types/list/module.f.mjs'
+import { iterable } from '../../../types/list/iterable/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { normalizeLazyReturns } from '../memo/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */

@@ -10,7 +10,7 @@
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 import { stringToU8List } from '../../../text/utf8/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { parse } from '../../../media/json/module.f.mjs'
 import { percentDecode } from '../../../text/percent/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'

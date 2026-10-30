@@ -45,13 +45,13 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { EffectList } from '../../effects/list/types.ts'
- * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
+ * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
-import { iterable } from '../../types/list/module.f.mjs'
+import { iterable } from '../../types/list/iterable/module.f.mjs'
 import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'

@@ -37,7 +37,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
 import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { toVec } from '../../types/uint8array/module.f.mjs'
