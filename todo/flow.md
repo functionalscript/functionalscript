@@ -242,6 +242,9 @@ Planned engine work, each a separate change:
 
 ### Related
 
+- [Shared state-machine interface](../fjs/types/function/operator/todo/shared-state-machine-interface.md)
+  — establishes the reusable operator lifecycle and migrates existing folds,
+  hashes, builders, and decoders independently of the graph and its engines.
 - [fjs/types/list/module.f.mjs](../fjs/types/list/module.f.mjs) — the sequence
   type the naive engine binds to
 - [fjs/types/function/operator/module.f.js](../fjs/types/function/operator/module.f.js)

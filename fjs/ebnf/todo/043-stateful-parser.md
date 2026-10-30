@@ -152,6 +152,9 @@ is small enough to answer in a pull request that implements nothing.
 
 ### Related
 
+- [Shared state-machine interface](../../types/function/operator/todo/shared-state-machine-interface.md)
+  — migrates the existing machines to the common lifecycle; this parser adopts
+  it when it ships, as the proposal above anticipates.
 - [layered parser](./layered-parser.md) — the pipeline that needs every layer to
   be a streaming fold.
 - [eof-as-ordinary-symbol](../terminal/todo/eof-as-ordinary-symbol.md) — the
