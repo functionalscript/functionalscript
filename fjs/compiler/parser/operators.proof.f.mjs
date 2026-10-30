@@ -12,6 +12,23 @@ import { parseFromTokens } from './module.f.mjs'
 import { stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
+/**
+ * The left operand of `in` is a string literal, and no other value — a
+ * number, a name, an operator's result, `in`'s own — is refused at the
+ * operator, the one token every spelling of the left side shares.
+ *
+ * @type {(source: string, message: string, column: number) => void}
+ */
+const refusedIn = (source, message, column) => {
+    const [tag, value] = parseFromTokens(tokenizeString(source))
+    assert(tag === 'error', tag)
+    assertEq(value.message, message)
+    assertEq(value.metadata?.column, column)
+}
+
+/** The refusal of every left operand of `in` but a string literal. @type {string} */
+const literal = 'the left operand of in must be a string literal'
+
 export const proof = {
     // The one prefix operator. `-` is a token the grammar reads, so what it
     // takes is a whole value with its steps — JavaScript's reading — and
@@ -169,21 +186,6 @@ export const proof = {
             refused('export default [] instanceof 1;', 19)
             refused('export default [] instanceof ((...a) => a);', 19)
             refused('export default 1 < [] instanceof (Array)[0];', 23)
-            /**
-             * The left operand of `in` is a string literal, and no other
-             * value — a number, a name, an operator's result, `in`'s own
-             * — is refused at the operator, the one token every spelling
-             * of the left side shares.
-             *
-             * @type {(source: string, message: string, column: number) => void}
-             */
-            const refusedIn = (source, message, column) => {
-                const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, message)
-                assertEq(value.metadata?.column, column)
-            }
-            const literal = 'the left operand of in must be a string literal'
             refusedIn('export default 1 in [];', literal, 18)
             refusedIn('export default 0 in [1];', literal, 18)
             refusedIn('const o = {}; export default o in o;', literal, 32)
