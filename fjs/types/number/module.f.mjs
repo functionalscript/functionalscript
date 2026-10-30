@@ -13,12 +13,13 @@
 import { reduce } from '../list/module.f.mjs'
 import { addition } from '../function/operator/module.f.js'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.js'
-import { fold, uniform } from '../../common/monoid/module.f.mjs'
+import { fold } from '../../common/monoid/module.f.mjs'
 
 const { is: sameValue } = Object
+const { abs } = Math
 
 /** @type {(input: List<number>) => number} */
-export const sum = fold({ identity: 0, operation: addition, weight: uniform })
+export const sum = fold({ identity: 0, operation: addition, weight: abs })
 
 /** @type {Reduce<number>} */
 const minReduce = uMin

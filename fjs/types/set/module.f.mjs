@@ -34,8 +34,9 @@ import { sum } from '../number/module.f.mjs'
 export const empty = null
 
 /**
- * Pushes a run onto the stack, every run of the same size on the way merged
- * into it by the union of two disjoint `Set`s; a run weighs its size.
+ * Pushes a run onto the stack, merging the two runs beneath it by the union
+ * of two disjoint `Set`s wherever the second is no larger than it; a run
+ * weighs its size.
  *
  * @type {<T>(run: ReadonlySet<T>) => (set: PersistentSet<T>) => PersistentSet<T>}
  */
@@ -64,7 +65,8 @@ export const add =
     /**
      * The set with the value in it: the same set where it already was, and
      * otherwise the value pushed onto the run stack as a one-element `Set`,
-     * carried like a binary counter.
+     * carried like a binary counter one push late, so the stack is at most
+     * twice the binary length of the size.
      *
      * @template T
      * @param {T} value

@@ -5,13 +5,17 @@
  * of a list as a balanced binary tree.
  *
  * The tree is balanced by **weight**. A monoid says how heavy each value is
- * — an array's length, a vector's bit count, or {@link uniform}, one for
- * every value — and `fold` merges runs so that every run on its stack
- * outweighs the two above it together; under `uniform` the stack is a binary
- * counter over the element count. Where the operation's cost grows with its
- * operands, as concatenation does, this is what keeps one long value among
- * many short ones from being copied at every merge: it waits at the bottom
- * until the runs above it together outweigh it, and is copied once.
+ * — an array's length, a vector's bit count, a number's magnitude — and
+ * `fold` lets a value sit on its stack only where the run two below it is
+ * heavier, merging the two runs beneath it first otherwise. The weight is
+ * the value's own, so a merged run weighs what its value weighs and nothing
+ * is counted. Where the operation's cost grows with its operands, as
+ * concatenation does, this is what keeps one long value among many short
+ * ones from being copied at every merge: it is never merged on the push that
+ * brings it, it waits until the values above it outweigh the run beneath,
+ * and it is copied once. A weight of zero for every value makes the fold
+ * sequential, which is the cheapest fold for an operation whose cost does
+ * not depend on its operands.
  *
  * The fold's state, a {@link Stack} of runs, is exported too — `step` and
  * `runs` — for a structure that keeps the stack itself rather than folding it
@@ -33,8 +37,11 @@ import { compose } from '../../types/function/module.f.js'
  * Repeats a monoid operation `n` times on the given element `a`.
  * This function efficiently performs the operation using exponentiation by squaring.
  *
+ * `repeat` squares and never folds, so it reads no weight: an identity and an
+ * operation are all it asks for.
+ *
  * @template T The type of the elements in the monoid.
- * @param {Monoid<T>} monoid The monoid structure, including the identity and binary operation.
+ * @param {Pick<Monoid<T>, 'identity' | 'operation'>} monoid The identity and the binary operation.
  * @returns {Fold<bigint, T>} A function that takes an element `a` and a repetition count `n`,
  * and returns the result of applying the operation `n` times.
  *
@@ -75,68 +82,57 @@ export const repeat = ({ identity, operation }) => n => a => {
 }
 
 /**
- * Merges the top two runs for as long as the top three break the stack's
- * invariant: a run outweighs the two above it together, and the second run
- * outweighs the top. Weights then shrink at least as fast as Fibonacci
- * numbers from the bottom up, so a stack of total weight `w` holds about
- * `1.44·log2(w)` runs and a value is merged about that many times at most;
- * under {@link uniform}, the rule is exactly the carry of a binary counter,
- * and only equal runs merge. A heavy run stays at the bottom until the runs
- * above it together outweigh it, which is what spares a long array among
- * short items from being copied at every carry.
+ * Pushes a value onto the stack, merging as the stack's invariant demands,
+ * and answers `null` instead as soon as a merge produces a value `absorbed`
+ * accepts — the exit {@link foldAbsorbing} takes; {@link step} never takes
+ * it.
  *
- * Only the two topmost runs ever merge, and `operation(lower)(upper)` keeps
- * the earlier run on the left, so re-associating never re-orders; the
- * conditions are re-checked after every merge, down the stack, which is
- * what keeps the invariant true below the top as well.
+ * The value may sit on the stack as it is where the stack is empty, holds one
+ * run, or its second run outweighs the value. Otherwise the two runs beneath
+ * the value merge, earlier on the left, and the merged run takes the value's
+ * place against the rest of the stack while the value waits in `buffer`;
+ * every run that found its place is pushed back in order once the stack
+ * below has settled. The value itself is never merged on the push that
+ * brings it, so a heavy value costs nothing on arrival, and runs of one
+ * weight carry like a binary counter. Every run on the stack outweighs the
+ * run two above it; the stack is logarithmic in the total weight for runs
+ * of a kind and grows only where lengths strictly decrease, which
+ * {@link collect} folds pairwise at the end for the same cost as any other.
  *
- * @type {<T>(operation: Reduce<T>) => (top: Run<T>) => Run<T>}
+ * @type {<T>(monoid: Monoid<T>) => (absorbed: (value: T) => boolean) => (value: T) => (stack: Stack<T>) => Stack<T>}
  */
-const settle = operation => top => {
-    const { rest } = top
-    if (rest === null) { return top }
-    const below = rest.rest
-    if (rest.size > top.size && (below === null || below.size > rest.size + top.size)) { return top }
-    return settle(operation)({ size: rest.size + top.size, value: operation(rest.value)(top.value), rest: below })
-}
-
-const { max } = Math
-
-/**
- * Pushes a value onto the stack as a run of its own weight, merging as the
- * invariant demands ({@link settle}). The result is always a run, never the
- * empty stack — which is what lets {@link absorbingAccumulator} read `null`
- * as a stop signal rather than a state.
- *
- * A value weighs at least one, whatever the monoid's `weight` answers: a run
- * of weight zero would never outweigh the top beneath it and so never merge
- * into it, and a list that goes on with empty values after the answer is
- * decided would keep {@link foldAbsorbing} walking. Counting each as one
- * keeps every value carrying eventually.
- *
- * @type {<T>(monoid: Monoid<T>) => (value: T) => (stack: Stack<T>) => Run<T>}
- */
-export const step = ({ operation, weight }) => {
-    const settleOperation = settle(operation)
-    return value => {
-        const size = max(1, weight(value))
-        return stack => settleOperation({ size, value, rest: stack })
+const pushUnless = ({ operation, weight }) => absorbed => value => stack => {
+    /** @typedef {typeof value} T */
+    /** @type {Stack<T>} */
+    let buffer = null
+    while (true) {
+        if (stack === null || stack.rest === null || weight(stack.rest.value) > weight(value)) {
+            stack = { value, rest: stack }
+            if (buffer === null) { return stack }
+            [value, buffer] = [buffer.value, buffer.rest]
+        } else {
+            const merged = operation(stack.rest.value)(stack.value)
+            if (absorbed(merged)) { return null }
+            [buffer, value, stack] = [{ value, rest: buffer }, merged, stack.rest.rest]
+        }
     }
 }
 
-/**
- * The weight for a monoid whose values all cost the same — numbers under
- * addition, points under their group law: every value weighs one, and the
- * fold's stack is a binary counter over the element count. It takes no
- * argument, so it is a `Weight<T>` for every `T`.
- *
- * @type {() => number}
- */
-export const uniform = () => 1
+/** No merge stops a plain push. @type {() => boolean} */
+const never = () => false
 
 /**
- * The values of the stack's runs, newest (top, lightest) first, as a lazy
- * list, so a walk that stops early reads only the runs it needs.
+ * Pushes a value onto the stack, merging as the stack's invariant demands
+ * ({@link pushUnless}). The result is never the empty stack: the value
+ * pushed is its top.
+ *
+ * @type {<T>(monoid: Monoid<T>) => (value: T) => (stack: Stack<T>) => Stack<T>}
+ */
+export const step = monoid => pushUnless(monoid)(never)
+
+/**
+ * The values of the stack's runs, newest (top) first, as a lazy list, so a
+ * walk that stops early reads only the runs it needs.
  *
  * @type {<T>(stack: Stack<T>) => List<T>}
  */
@@ -144,28 +140,42 @@ export const runs = stack =>
     stack === null ? null : { first: stack.value, tail: () => runs(stack.rest) }
 
 /**
- * {@link step} seen as the {@link Fold} `list.fold` takes: the same function,
- * with its result widened from a run to the stack `list.fold` threads.
- *
- * @type {<T>(monoid: Monoid<T>) => Fold<T, Stack<T>>}
- */
-const foldStep = step
-
-/**
- * Combines the stack's runs into one value, seeded at `identity`: the
- * lightest run first, against the identity, and the heaviest, at the bottom,
- * last, so that one is copied once. Earlier runs stay on the left. The seed
- * is on the light end for the same reason, and it is what passes a lone
- * element through the operation once, as a fold seeded at the identity does.
+ * Folds the stack's runs into one value: `identity` for the empty stack, and
+ * a lone run merged with `identity`, which passes a lone element through the
+ * operation once, as a fold seeded at the identity does; two runs or more
+ * merge each other and need no seed. It is {@link pushUnless}'s walk with the
+ * value already taken off the top: where the value would come to rest on
+ * the stack and nothing waits in the buffer, it merges into the run beneath
+ * it instead, lightest first, so a well-formed stack folds with each run
+ * copied once; where a run below turns out lighter than what has
+ * accumulated, the two runs beneath merge pairwise and come back in order,
+ * which is what folds a stack of strictly decreasing lengths in
+ * `O(w·log(w))` where a plain fold from the top would cost `O(w·√w)`.
+ * Earlier runs stay on the left throughout.
  *
  * @type {<T>(monoid: Monoid<T>) => (stack: Stack<T>) => T}
  */
-const combine = ({ identity, operation }) => stack => {
-    let value = identity
-    while (stack !== null) {
-        [value, stack] = [operation(stack.value)(value), stack.rest]
+const collect = ({ identity, operation, weight }) => stack => {
+    /** @typedef {typeof identity} T */
+    if (stack === null) { return identity }
+    if (stack.rest === null) { return operation(identity)(stack.value) }
+    let value = stack.value
+    stack = stack.rest
+    /** @type {Stack<T>} */
+    let buffer = null
+    while (true) {
+        if (stack === null || stack.rest === null || weight(stack.rest.value) > weight(value)) {
+            if (buffer !== null) {
+                [stack, value, buffer] = [{ value, rest: stack }, buffer.value, buffer.rest]
+            } else if (stack === null) {
+                return value
+            } else {
+                [value, stack] = [operation(stack.value)(value), stack.rest]
+            }
+        } else {
+            [buffer, value, stack] = [{ value, rest: buffer }, operation(stack.rest.value)(stack.value), stack.rest.rest]
+        }
     }
-    return value
 }
 
 /**
@@ -190,19 +200,21 @@ const combine = ({ identity, operation }) => stack => {
  * size costs O(n log n). It is the list-shaped sibling of {@link repeat}'s
  * exponentiation by squaring.
  *
- * The balance follows the monoid's `weight`. Under {@link uniform} it is by
- * element count; by a length, a long array among short items is merged once,
- * when the short ones together outweigh it, where the count would merge it at
- * every carry that reaches its run, `log2(n)` times for `n` items.
+ * The balance follows the monoid's `weight`, read from each value: a long
+ * array among short items is never merged on arrival and merges once, when
+ * the short ones above it outweigh the run beneath, where a count-balanced
+ * fold merged it at every carry that reached its run. Values of one weight
+ * carry like a binary counter, and values of weight zero fold sequentially.
  *
  * Only the grouping changes, never the order: each merge keeps the earlier
  * operand on the left, so `fold` stays correct for non-commutative monoids
  * (e.g. string concatenation as `a => b => a + b`).
  *
- * Re-grouping does move the rounding of an inexact operation. IEEE-754 addition
- * is not truly associative, so `number.sum` returns a (marginally more
- * accurate — O(log n · ε) instead of O(n · ε)) different value than a left fold
- * for some inputs. That is a consequence of the uniform treatment, not a goal:
+ * Re-grouping does move the rounding of an inexact operation. IEEE-754
+ * addition is not truly associative, so `number.sum`, weighed by magnitude,
+ * adds the small terms among themselves before they meet a large one and
+ * returns a (marginally more accurate) different value than a left fold for
+ * some inputs. That is a consequence of the uniform treatment, not a goal:
  * a `Monoid` promises associativity, and every monoid folds the same way.
  *
  * @template T The type of the elements in the monoid.
@@ -215,7 +227,7 @@ const combine = ({ identity, operation }) => stack => {
  * const add: Monoid<number> = {
  *     identity: 0,
  *     operation: a => b => a + b,
- *     weight: uniform,
+ *     weight: Math.abs,
  * };
  *
  * fold(add)([1, 2, 3, 4]) // 10
@@ -231,15 +243,12 @@ const combine = ({ identity, operation }) => stack => {
  * ```
  */
 export const fold = monoid =>
-    compose(listFold(foldStep(monoid))(null))(combine(monoid))
+    compose(listFold(step(monoid))(null))(collect(monoid))
 
 /**
  * The run stack as a short-circuiting {@link Accumulator}: `update` returns
- * `null` — `tryFold`'s stop signal — as soon as a merge produces the absorbing
- * element.
- *
- * Only the newest run can be `absorbing`: an earlier one would have stopped the
- * walk already.
+ * `null` — `tryFold`'s stop signal — for an element that is the absorbing
+ * one, and as soon as a merge produces it ({@link pushUnless}).
  *
  * `end` wraps the folded value in a one-element tuple because `tryFold` reports
  * both "stopped" and "finished with this result" through the same
@@ -247,19 +256,19 @@ export const fold = monoid =>
  * tell a completed fold that produced `null` from an abandoned walk. The tuple
  * costs one allocation per fold, not per element.
  *
- * @type {<T>(monoid: Monoid<T>) => (absorbing: T) => Accumulator<T, Stack<T>, readonly[T]>}
+ * @type {<T>(absorbing: Absorbing<T>) => Accumulator<T, Stack<T>, readonly[T]>}
  */
-const absorbingAccumulator = monoid => {
-    const p = step(monoid)
-    const c = combine(monoid)
-    return absorbing => ({
+const absorbingAccumulator = ({ monoid, absorbing }) => {
+    /** @typedef {typeof absorbing} T */
+    /** @type {(value: T) => boolean} */
+    const absorbed = value => value === absorbing
+    const push = pushUnless(monoid)(absorbed)
+    const c = collect(monoid)
+    return {
         init: null,
-        update: (value, stack) => {
-            const next = p(value)(stack)
-            return next.value === absorbing ? null : next
-        },
+        update: (value, stack) => absorbed(value) ? null : push(value)(stack),
         end: stack => [c(stack)],
-    })
+    }
 }
 
 /**
@@ -271,14 +280,14 @@ const absorbingAccumulator = monoid => {
  * is what makes it usable on an unbounded lazy `List`, where `fold` keeps
  * pulling elements forever after the answer is already decided.
  *
- * It stops as soon as a **run** reaches `absorbing`: immediately when an element
- * is absorbing on its own (`0` in a product), otherwise at the merge that first
- * produces it. When only a combination is absorbing — `bit_vec`'s length cap —
- * that merge can lag the element that actually decided the answer, because runs
- * merge only as the stack's invariant demands: under {@link uniform}, at most
- * one doubling, so under twice as many elements as a left fold's per-element
- * check would read. Bounded either way, which is the property that matters
- * against an unbounded list.
+ * It stops at the element that is absorbing on its own (`0` in a product),
+ * and otherwise at the merge that first produces the absorbing value. When
+ * only a combination is absorbing — `bit_vec`'s length cap — that merge waits
+ * until the stack's rule brings the two runs together, which the values
+ * pushed above them do once they outweigh the run beneath: the stop lags the
+ * element that decided the answer by about that much weight. Values of
+ * weight zero add nothing to that, so a list that goes on with them past the
+ * answer is read until they end; weigh such values where that matters.
  *
  * Grouping, order, and the stack bound are `fold`'s; only the walk gains an
  * exit. `foldAbsorbing(a)(list)` and `fold(a.monoid)(list)` agree on every
@@ -292,7 +301,7 @@ const absorbingAccumulator = monoid => {
  *
  * ```ts
  * const multiply: Absorbing<number> = {
- *     monoid: { identity: 1, operation: a => b => a * b, weight: uniform },
+ *     monoid: { identity: 1, operation: a => b => a * b, weight: Math.abs },
  *     absorbing: 0,
  * }
  *
@@ -300,11 +309,11 @@ const absorbingAccumulator = monoid => {
  * foldAbsorbing(multiply)([2, 0, 4]) // 0 — `4` is never read
  * ```
  */
-export const foldAbsorbing = ({ monoid, absorbing }) => {
-    const f = tryFold(absorbingAccumulator(monoid)(absorbing))
+export const foldAbsorbing = absorbing => {
+    const f = tryFold(absorbingAccumulator(absorbing))
     return list => {
         const result = f(list)
-        if (result === null) { return absorbing }
+        if (result === null) { return absorbing.absorbing }
         const [value] = result
         return value
     }

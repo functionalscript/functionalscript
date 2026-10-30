@@ -6,21 +6,21 @@ Algebraic structures shared across the library. Today that is one module,
 ## Monoid
 
 A `Monoid<T>` is an identity, an associative operation and a weight, how
-heavy a value is for the balanced fold: `uniform` where every value costs the
-same, a length where the operation copies its operands.
+heavy a value is for the balanced fold: a length where the operation copies
+its operands, a magnitude where it rounds, zero where its cost does not depend
+on the operands. The weight is read from each value, a merged one included.
 
 ```js
-const add = { identity: 0, operation: a => b => a + b, weight: uniform }
+const add = { identity: 0, operation: a => b => a + b, weight: Math.abs }
 const concat = { identity: '', operation: a => b => a + b, weight: s => s.length }
 ```
 
 | Function | Does |
 |---|---|
-| `repeat(monoid)(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps; `n` is a non-negative `bigint` |
+| `repeat({ identity, operation })(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps; `n` is a non-negative `bigint`; reads no weight |
 | `fold(monoid)(list)` | combines a list as a balanced tree, balanced by the monoid's weight, keeping order |
 | `foldAbsorbing({ monoid, absorbing })(list)` | `fold` that stops at the absorbing element |
 | `step` and `runs` | the balanced fold's stack, for a structure that keeps it |
-| `uniform` | the weight of a monoid whose values all cost the same |
 
 ```js
 repeat(add)(10n)(3)          // 30
@@ -29,7 +29,7 @@ fold(add)([1, 2, 3, 4])      // 10
 fold(concat)([])             // ''
 
 const multiply = {
-    monoid: { identity: 1, operation: a => b => a * b, weight: uniform },
+    monoid: { identity: 1, operation: a => b => a * b, weight: Math.abs },
     absorbing: 0,
 }
 foldAbsorbing(multiply)([2, 0, 4])  // 0, and 4 is never read

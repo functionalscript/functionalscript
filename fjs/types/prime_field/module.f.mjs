@@ -10,7 +10,7 @@
  * @import { PrimeField } from './types.ts'
  */
 
-import { repeat, uniform } from '../../common/monoid/module.f.mjs'
+import { repeat } from '../../common/monoid/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**
@@ -49,7 +49,7 @@ export const prime_field = p => {
     /** @type {Unary} */
     const pow2 = a => mul(a)(a)
     /** @type {Reduce} */
-    const pow = repeat({ identity: 1n, operation: mul, weight: uniform })
+    const pow = repeat({ identity: 1n, operation: mul })
     /** @type {Reduce} */
     const add = a => b => {
         const r = a + b

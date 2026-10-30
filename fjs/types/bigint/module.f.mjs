@@ -23,7 +23,7 @@
 
 import { cmp } from '../function/compare/module.f.js'
 import { addition as additionOp } from '../function/operator/module.f.js'
-import { fold, uniform } from '../../common/monoid/module.f.mjs'
+import { fold } from '../../common/monoid/module.f.mjs'
 
 /**
  * Adds two `bigint` values.
@@ -38,7 +38,10 @@ export const addition = additionOp
  * @param {List<bigint>} input - A list of bigint values.
  * @returns {bigint} The sum of all values in the list.
  */
-export const sum = fold({ identity: 0n, operation: addition, weight: uniform })
+/** How heavy a `bigint` is for a fold: the bits it takes, which is what its addition and multiplication cost. @type {(v: bigint) => number} */
+const bits = v => Number(bitLength(v))
+
+export const sum = fold({ identity: 0n, operation: addition, weight: bits })
 
 /**
  * Multiplies two `bigint` values.
@@ -54,7 +57,7 @@ export const multiple = a => b => a * b
  * @param {List<bigint>} input - A list of bigint values.
  * @returns {bigint} The product of all values in the list.
  */
-export const product = fold({ identity: 1n, operation: multiple, weight: uniform })
+export const product = fold({ identity: 1n, operation: multiple, weight: bits })
 
 /**
  * Calculates the absolute value of a `bigint`.

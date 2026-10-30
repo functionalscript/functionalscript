@@ -35,9 +35,9 @@ import { map, next } from '../list/module.f.mjs'
 import { toArray } from '../list/alt/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { foldAbsorbing, repeat as mRepeat, uniform } from '../../common/monoid/module.f.mjs'
+import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.js'
-import { map as nullableMap, mapUnwrap, match } from '../nullable/module.f.js'
+import { mapUnwrap } from '../nullable/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 
 /**
@@ -283,15 +283,28 @@ const u8ToUnpacked = b => {
 }
 
 /**
- * Concatenation as a monoid over `Nullable<Unpacked>`, where `null` means "the
+ * Stands for every concatenation longer than `maxLength`: a vector that is
+ * itself longer, so a merge with it is longer still and {@link tryUnpackConcat}
+ * answers it again. It is one value, told apart by identity, never packed.
+ *
+ * @type {Unpacked}
+ */
+const overflow = { length: maxLength + 1n, uint: 0n }
+
+/** The vector packed, or `null` for {@link overflow}. @type {(u: Unpacked) => Nullable<Vec>} */
+const packUnlessOverflow = u => u === overflow ? null : pack(u)
+
+/**
+ * Concatenation as a monoid over `Unpacked`, where {@link overflow} means "the
  * concatenation is longer than `maxLength`" and is an **absorbing** element:
- * combining it with anything is `null` again. The identity is the empty vector.
+ * combining it with anything is `overflow` again. The identity is the empty
+ * vector, and a vector weighs its bit count.
  *
  * This is a lawful monoid, so `monoid.fold` may re-associate it freely. Length
  * is additive and non-negative, so any partial combine is at most the total: a
  * partial can only overflow when the total does, and the top-level combine
- * always sees the full total. The result is therefore `null` **iff** the total
- * length exceeds `maxLength`, whatever the grouping.
+ * always sees the full total. The result is therefore `overflow` **iff** the
+ * total length exceeds `maxLength`, whatever the grouping.
  *
  * The cap is checked on the operands' lengths rather than on the concatenated
  * result because the result is what must not be built: `maxLength` is the
@@ -301,28 +314,24 @@ const u8ToUnpacked = b => {
  *
  * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
  * stops at the first merge that overflows instead of reading the rest of a list
- * whose answer is already `null`. `List<T>` includes `Thunk<T>`, so that is the
- * difference between answering and never returning on an unbounded lazy list —
- * and at `maxLength` = 128 KiB, overflow is an ordinary outcome for a stream,
- * not an exotic one. Since a single vector is never `null`, only a merge can
- * reach the absorbing element, so the stop lags the element that crossed the cap
- * by at most one doubling of the run size (measured: 65 536 elements read for a
- * cap crossed at 32 769, and 4 for a cap crossed at 3).
+ * whose answer is already decided. `List<T>` includes `Thunk<T>`, so that is
+ * the difference between answering and never returning on an unbounded lazy
+ * list — and at `maxLength` = 128 KiB, overflow is an ordinary outcome for a
+ * stream, not an exotic one. A single vector is never `overflow`, so only a
+ * merge can reach it, and the merge waits until the vectors pushed above the
+ * pair outweigh the run beneath them: the stop lags the element that crossed
+ * the cap by about that many bits of input.
  *
- * @type {(unpackConcat: _UnpackConcat) => Absorbing<Nullable<Unpacked>>}
+ * @type {(unpackConcat: _UnpackConcat) => Absorbing<Unpacked>}
  */
 const tryUnpackConcat = unpackConcat => ({
     monoid: {
         identity: unpackEmpty,
         operation: a => b =>
-            a === null || b === null || a.length + b.length > maxLength
-                ? null
-                : unpackConcat(a)(b),
-        // an element is never `null`; only a merge is, and merges are not
-        // weighed again, so the `null` arm is `match`'s to hold
-        weight: match((/** @type {Unpacked} */ u) => Number(u.length))(uniform),
+            a.length + b.length > maxLength ? overflow : unpackConcat(a)(b),
+        weight: u => Number(u.length),
     },
-    absorbing: null,
+    absorbing: overflow,
 })
 
 /**
@@ -341,7 +350,7 @@ const tryUnpackConcat = unpackConcat => ({
  * @param {_UnpackConcat} unpackConcat
  */
 const unpackListToVec = unpackConcat =>
-    compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
+    compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(packUnlessOverflow)
 
 /**
  * Concatenates a list of `I` values into one vector, mapping each element to
@@ -414,7 +423,7 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     const concat = lift2(a => b => pack(unpackConcat(a)(b)))
     const { operation } = tryUnpackConcat(unpackConcat).monoid
     /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
-    const tryConcat = lift2(a => b => nullableMap(pack)(operation(a)(b)))
+    const tryConcat = lift2(a => b => packUnlessOverflow(operation(a)(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
@@ -772,7 +781,7 @@ export const unpadMsb = v => {
  * @type {Fold<bigint, Vec>}
  */
 export const repeat =
-    mRepeat({ identity: empty, operation: lsb.concat, weight: uniform })
+    mRepeat({ identity: empty, operation: lsb.concat })
 
 export const isVec =
     /**
