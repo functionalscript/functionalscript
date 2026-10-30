@@ -20,12 +20,12 @@ Complete the steps in order.
 - [x] Define a reusable WebAssembly AST and implement an FJS parser from
       binary `.wasm` bytes to that AST.
 - [x] Implement an FJS writer from the AST to binary `.wasm` bytes.
-- [ ] Implement an FJS writer from the same AST to `.wat` text. Keep the
+- [x] Implement an FJS writer from the same AST to `.wat` text. Keep the
       parser and both writers separate and reusable, with no dependency
       on the demo publisher.
-- [ ] Support the module structure needed by the demo modules, including
+- [x] Support the module structure needed by the demo modules, including
       imported and defined functions and their name metadata.
-- [ ] Verify that binary parser/writer round trips preserve the represented
+- [x] Verify that binary parser/writer round trips preserve the represented
       module, and check WAT output using focused fixtures and the generated
       demo modules.
 
