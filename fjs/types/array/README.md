@@ -51,7 +51,8 @@ a list is quadratic; `occurrences` builds both answers once.
 
 **`repeat` uses the concatenation monoid.** It repeats `[v]` with
 [`monoid.repeat`](../../common/monoid/module.f.mjs), using `[]` as the identity
-and array concatenation as the operation. Doubling takes O(log n)
+and array concatenation as the operation; `repeat` squares and never folds, so
+the monoid's weight is never read. Doubling takes O(log n)
 concatenations and O(n) total element copying. Each call creates a fresh array;
 object elements keep the same reference. Finite nonpositive counts give `[]`,
 and positive fractional counts round up, preserving the list-based behavior.

@@ -138,6 +138,7 @@ export const rustName = {
     'instanceof Array': 'instanceof_array',
     'in "x"': 'in_x',
     'in "0"': 'in_0',
+    'in "length"': 'in_length',
     throw: 'throw',
     String: 'string_coercion',
     Number: 'number_cast',
