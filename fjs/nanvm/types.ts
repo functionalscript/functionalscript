@@ -288,8 +288,20 @@ export type GroupInstanceOf = {
     readonly cases: readonly Case<1>[]
 }
 
+/**
+ * The cases of `in` with one key — the EDAG's `['in', key, exp]`, one
+ * operand and a key that is no operand, so the group carries the key and
+ * its cases are `Case<1>`, as {@link GroupInstanceOf}'s are.
+ */
+export type GroupIn = {
+    readonly op: 'in'
+    /** The key, a string literal the parser admits: one naming no property a built-in prototype gives a value. */
+    readonly key: string
+    readonly cases: readonly Case<1>[]
+}
+
 /** A group whose `op` is an EDAG operation, as against a {@link MethodGroup}. */
-export type OperatorGroup = Group1 | Group2 | Group12 | Group3 | GroupInstanceOf
+export type OperatorGroup = Group1 | Group2 | Group12 | Group3 | GroupInstanceOf | GroupIn
 
 export type Group = OperatorGroup | MethodGroup
 
