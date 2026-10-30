@@ -35,7 +35,7 @@ import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, tryS
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.mjs'
 import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
-import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
