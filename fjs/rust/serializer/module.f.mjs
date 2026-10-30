@@ -507,6 +507,12 @@ const operation = (s, n, result) => {
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
         case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        // the naive spelling: the runtime's `in` body called with the key
+        // and the value, which a VM may substitute natively (DESIGN.md §13)
+        case 'in': {
+            if (s.runtime === null) { return error(['an in operator with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('in'), ').end())?, [', stringCall('string_any')(n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
+        }
         case ',': {
             const values = n[1]
             return values.length === 0 ? map1(pure(result))(primitiveExpr(undefined))
@@ -635,6 +641,7 @@ const operationTasks = (context, n, result) => {
         case '.': case '?.': { return [valueTask(context, n[1]), ...keyTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), n[0] === '.', true)] }
         case '?.()': { return [valueTask(context, n[1]), ...itemTasks(context, n[2]), stepTask(context, /** @type {Step<Value> | undefined} */ (n[3]), false, false)] }
         case 'instanceof': { return [valueTask(context, n[1])] }
+        case 'in': { return [valueTask(context, n[2])] }
         case ',': { return n[1].map((v, i) => valueTask(context, v, i === n[1].length - 1 && result)) }
         case '?:': { return [valueTask(context, n[1]), ...thunkTasks(context, n[2]), ...thunkTasks(context, n[3])] }
         default: { return n.length === 2 ? [valueTask(context, n[1])] : [valueTask(context, n[1]), valueTask(context, n[2])] }

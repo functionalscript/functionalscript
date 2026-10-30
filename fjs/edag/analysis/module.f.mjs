@@ -315,6 +315,12 @@ const handlers = {
         const [t, x] = walk(scope)(state, a)
         return [t, [tag, x, c]]
     },
+    // A key spelling and one operand: the key is metadata too, carried
+    // across as the constructor name is, never walked.
+    in: scope => (state, [tag, key, a]) => {
+        const [t, x] = walk(scope)(state, a)
+        return [t, [tag, key, x]]
+    },
     memberPresent: scope => (state, [tag, receiver, key]) => {
         const [t, base] = walk(scope)(state, receiver)
         const [u, name] = index(scope)(t, key)
@@ -417,6 +423,8 @@ export const operandsOf = node => {
         // the constructor name is metadata, not an operand — and a string,
         // which the default arm below would list as a literal operand
         case 'instanceof': { return [node[1]] }
+        // the key is a spelling, not an operand, and a string likewise
+        case 'in': { return [node[2]] }
         default: {
             const [, ...operands] = node
             return operands

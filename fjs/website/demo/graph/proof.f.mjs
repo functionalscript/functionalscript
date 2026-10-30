@@ -232,6 +232,41 @@ export const proof = /** @type {const} */ ({
         },
     },
     graphSvg: {
+        // A label breaks at `\n`: the node is as wide as its longest line,
+        // tall enough for all of them, and draws a `tspan` for each.
+        lines: () => {
+            /** @type {Graph} */
+            const g = { nodes: [{ id: 0, kind: 'a', label: 'ab\nabcdef', rank: 0 }], edges: [] }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('width="58" height="42"'), html)
+            assert(html.includes('<tspan x="39" y="23">ab</tspan><tspan x="39" y="39">abcdef</tspan>'), html)
+        },
+        // A label of several lines grows a node past its rows; a row
+        // naming its target names it by the target's first line; and a
+        // connection's description reads each label as one line.
+        linesBesideRows: () => {
+            /** @type {Graph} */
+            const g = {
+                trace: true,
+                nodes: [{ id: 0, kind: 'a', label: 'p\nq\nr', rank: 0 }, { id: 1, kind: 'a', label: 'x', rank: 1 }, { id: 2, kind: 'a', label: 'y1\ny2', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'k' }, { from: 0, to: 2, label: '' }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('width="50" height="58" rx="4" data-graph-node=""'), html)
+            assert(html.includes('data-graph-value-ref="" data-graph-port-edge="1">y1</text>'), html)
+            assert(html.includes('aria-label="p q r [] → y1 y2"'), html)
+        },
+        // Only a node's label breaks: a key and a value of several lines
+        // are drawn whole, on one line, and sized for all of it.
+        cellsOfLines: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'aa\nbbbbb' }, { from: 0, to: { inline: 'cc\ndddd' }, label: 'v' }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('width="153" height="40" rx="4" data-graph-node=""'), html)
+        },
         // Return segments join at the target, with one small arrowhead.
         back: () => {
             /** @type {Graph} */

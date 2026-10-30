@@ -2,14 +2,18 @@
 //! module into `gen.runtime.rs` beside this file, through the runtime
 //! printer (`fjs/compiler/rust/runtime`) and the ordinary backend, as any
 //! module is compiled. [`runtime`] answers the `runtime` export object —
-//! two functions, `static` and `dot`, over the module's tables — built
+//! three functions, `static` and `dot` over the module's tables, and `in`,
+//! the body of the `in` operator — built
 //! once by whoever runs compiled modules and handed to each as its
 //! parameter: a compiled module reads a static function from it,
 //! `static_read(&runtime, "Object.is")?`, which calls `static` with the id
-//! ([`unstable::static_read`](crate::vm::unstable::static_read)), and a
+//! ([`unstable::static_read`](crate::vm::unstable::static_read)), a
 //! call step asks its `dot` for the function a member's body answers for
 //! the receiver, after the receiver's own property and before the native
-//! table ([`Member::call`](crate::vm::lambda::Member)). Every static body
+//! table ([`Member::call`](crate::vm::lambda::Member)), and an `in` node
+//! calls its `in` with the key and the value, the naive spelling a
+//! native answer may one day substitute
+//! (`todo/in-native-substitution.md`). Every static body
 //! is a closure carrying the NativeFunction text of its id, and
 //! `Object.entries` is the built-in itself, so the table is complete; the
 //! identity is the value's, two reads of a static one closure. No VM holds a runtime, and

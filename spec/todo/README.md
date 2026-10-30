@@ -86,9 +86,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 7. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects/README.md#property-keys)).
-8. [ ] [the `in` operator](./2346-in-operator.md) — admitted with a
+8. [x] [the `in` operator](../operators/in/README.md) — with a
    string-literal key that names no prototype property, `"k" in o`; the
-   general operator stays out (its file says P3, not this list's P2).
+   general operator stays out ([the record](./2346-in-operator.md)).
 
 ### 2.3. Syntactic Sugar
 
@@ -125,8 +125,8 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    literal ([spread](../values/arrays/README.md#spread),
    [object spread](../values/objects/README.md#object-spread)).
 10. [ ] [array holes](./2480-array-holes.md) — the elision `[1, , 3]` is
-   refused by design, and valid code builds no sparse array; whether to
-   support one someday, which would change the VM, at P5.
+    refused by design, and valid code builds no sparse array; whether to
+    support one someday, which would change the VM, at P5.
 
 ## 3. Functions
 

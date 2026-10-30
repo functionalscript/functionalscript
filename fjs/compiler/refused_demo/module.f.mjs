@@ -1,7 +1,7 @@
 /**
  * The page of a JavaScript construct the language refuses by design: a spec
  * page whose status is "refused by design", such as
- * [`in`](../../../spec/operators/in/README.md). It is the negative of a
+ * [`in` with a computed key](../../../spec/operators/in/computed-key/README.md). It is the negative of a
  * spec page's demo ([`function-page`](../../nanvm/demos/function-page/module.f.mjs)):
  * where that one shows every output `fjs compile` makes of an example, this
  * one shows that `fjs compile` makes none, and what JavaScript makes of the

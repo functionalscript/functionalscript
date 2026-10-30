@@ -1,9 +1,9 @@
 ## The `in` Operator With a Literal Key
 
 **Priority:** P3
-**Status:** wip — the language designer decided for the operator in
-[the working session](https://claude.ai/code/session_01Q2nX9tTC5wXtzE7LHJXgRs);
-the approval record is the first task
+**Status:** done — kept as the record; cited by
+[`spec/operators/in`](../operators/in/README.md) for the alternatives
+rejected and the §12 approval, and by the code that answers the operator
 
 ### Problem
 
@@ -49,16 +49,22 @@ different grammar and stays refused, as before.
 **The key rule.** The literal may not be a name in `prototypeNames` of
 [`fjs/js/prototype`](../../fjs/js/prototype/module.f.js), the inventory a
 read's key is checked against, and the refusal is the read's,
-`prohibited property name`. One difference: a read exempts `length`, which
-an array, a string and a function own, and `in` does not, because
-`"length" in []` is `true` in JavaScript where the own enumerable entry is
-absent. Every other name whose answer would differ — `name`, `caller` and
-`arguments` on a function, `__proto__` and `constructor` on everything — is
-in the inventory already. An index-like string, `"0"`, is an ordinary key.
+`prohibited property name`, with the read's one exemption, `length`, which
+an array, a string and a function own: `"length" in []` is `true` in
+JavaScript, and the body answers it so, reading the `length` of an array
+and a function as the read does. (As first proposed, `in` refused `length`
+because the helper did not count it; the designer decided in the session
+that `.` and `in` read `length` where `entry` and `hasEntry`, which list
+what `Object.entries` lists, do not, so the key rule is the read's, and the
+operator and the helper are two implementations by design.) Every other
+name whose answer would differ — `name`, `caller` and `arguments` on a
+function, `__proto__` and `constructor` on everything — is in the
+inventory already. An index-like string, `"0"`, is an ordinary key.
 
 **Semantics.** For an object, an array or a function, `"k" in o` is
-`hasEntry(o, "k")`: `true` for an enumerable own entry, one holding
-`undefined` included, `false` otherwise. For `null`, `undefined` and every
+`hasEntry(o, "k")`, or `true` for the `length` an array and a function
+own: `true` for an enumerable own entry, one holding `undefined` included,
+`false` otherwise. For `null`, `undefined` and every
 primitive it throws, as JavaScript's `TypeError` does; the thrown value's
 text is free, since [failure is one outcome](../principles/README.md#failure-is-one-outcome).
 This is JavaScript's answer for every value the language can build: a
@@ -86,7 +92,7 @@ nothing the writer could print alone.
 ```js
 in: (key, self) => {
     if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
-    return hasEntry(self, key)
+    return hasEntry(self, key) || key === 'length' && (self instanceof Array || typeof self === 'function')
 },
 ```
 
@@ -125,39 +131,51 @@ shape instead. The node is that shape.
 
 ### Tasks
 
-- [ ] The [§12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-      approval record: the designer, `sergey-shandar`, proposed the
-      literal-key operator and decided for it in the session this record's
-      status links. §12 asks the approval of a designer other than the
-      proposer, and names one designer; whether the designer's own decision
-      stands as the record, or §12 names how a sole designer's proposal is
-      approved, is the owner's call, written here.
-- [ ] The runtime body `runtime.in` and its proof against the host's `in`:
+- [x] The [§12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+      approval record. **Approved** by the language designer,
+      `sergey-shandar`, in
+      [the working session](https://claude.ai/code/session_01Q2nX9tTC5wXtzE7LHJXgRs):
+      the designer proposed the literal-key operator there, decided for it
+      ("I like the operator. Let's do it."), and, asked whether a sole
+      designer's own decision stands as the §12 record where the section
+      names no second designer to ask, directed that the decision be
+      recorded as the approval. That is the owner's resolution of §12's
+      "another designer" for a proposal of the only designer named.
+- [x] The runtime body `runtime.in` and its proof against the host's `in`:
       every admitted key on an object, an array and a function, an entry
       holding `undefined`, and the throw on `null`, `undefined` and each
       primitive; `npm run gen` for the generated runtime.
-- [ ] The EDAG node `['in', key, exp]`: `fjs/edag` (`module.f.mjs`,
+- [x] The EDAG node `['in', key, exp]`: `fjs/edag` (`module.f.mjs`,
       `types.ts`, the README row), the AST's operand walks in `fjs/js/ast`,
       the FunctionalScript writer, the Rust writer printing the runtime's
-      body, and the interpreters' answer in `fjs/edag/value/semantics`,
-      each with its proof.
-- [ ] The parser: the grammar reads `in` at the relational level as it
+      body, and the interpreters' answer in `fjs/edag/operations`, a call
+      of the runtime's body, each with its proof.
+- [x] The parser: the grammar reads `in` at the relational level as it
       reads `instanceof`; the fold checks the left operand is a string
-      literal and applies the key rule, `length` included; the
+      literal and applies the key rule, the read's; the
       `refusedByDesign` entries of `operators.proof.f.mjs` for `a in b`
       move to the accepted forms, and `for (k in o)` stays pinned refused.
       `npm start compile` from the root.
-- [ ] `nanvm-lib`: `Any::in_` over `Unpacked`, the node's Rust spelling,
-      the operator's row in `nanvm/lib/README.md`.
-- [ ] The specification: [`in`](../operators/in/README.md) becomes the
-      operator's page, implemented, with a sample and the demo, the refused
-      page and its `alternative.f.js` gone; the `op.in` row of
-      [refused constructs](./refused-constructs.md) deleted; the roadmap entry
-      ticked; the sentence "presence has no other spelling" of
-      [reading an entry](../property-access/entries/README.md) and the
-      `in` mention of [property access](../property-access/README.md)
-      updated; the `in` row in [operators](../operators/README.md). This
-      step deletes this file.
+- [x] `nanvm-lib`: the corpus groups `in "x"` and `in "0"` in `fjs/nanvm`,
+      proving the naive spelling — the runtime's body called through the
+      runtime value — against the host on both sides, the operator's row
+      in `nanvm/lib/README.md`, and the runtime's module comment. A native
+      `Any::in_` is a substitution rule, not an implementation (DESIGN.md
+      §13), filed as `nanvm/lib/todo/in-native-substitution.md` and taken
+      when a measurement asks for it; one implementation for the operator
+      and the helper is no option, since `hasEntry` lists enumerable
+      entries alone, as `Object.entries` does, where `in` reads `length`.
+- [x] The specification: [`in`](../operators/in/README.md) is the
+      operator's page, implemented, with a sample and the demo; the
+      refusal that remains, a computed key, has its page beside it, and
+      the `op.in` row of [refused constructs](./refused-constructs.md)
+      registers that refusal; the roadmap entry is ticked; the presence
+      sentence of [reading an entry](../property-access/entries/README.md),
+      the `in` mention of [property access](../property-access/README.md)
+      and [operators](../operators/README.md) say what the operator is.
+      This file stays as the record, not deleted as first planned: the §12
+      approval is recorded here, as §12 asks, and the alternatives rejected
+      are cited from the page.
 
 Proposed order of the stack: the runtime body first, a pure addition the
 host proves; then the node with the interpreters and writers; then the

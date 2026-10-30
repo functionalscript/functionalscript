@@ -29,7 +29,7 @@ import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { compiled, _written, demo, outputs } from './demo.f.mjs'
-import { disagreement } from '../website/demo/highlight/module.f.mjs'
+import { disagreement } from '../js/marked/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { htmlToString } from '../media/html/module.f.mjs'
@@ -1495,6 +1495,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Logical not': 'ooooo',
                 'typeof': 'ooooo',
                 'instanceof': 'ooooo',
+                'in': 'ooooo',
                 'Number conversion': 'ooooo',
                 'Laziness': 'ooooo',
                 'Laziness: && || ??': 'xxooo',

@@ -60,5 +60,5 @@ behaviour, and a table of cases is one test.
 ### Related
 
 - [Refused constructs](../../../spec/todo/refused-constructs.md), the register.
-- [The `in` decision](../../../spec/todo/2346-in-operator.md), whose refusal
-  proof is the model for the rest.
+- [The `in` record](../../../spec/todo/2346-in-operator.md), whose refusal
+  proof, now of the computed key alone, is the model for the rest.

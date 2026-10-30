@@ -256,11 +256,42 @@ const margin = /** @type {const} */ (10)
 const charWidth = /** @type {const} */ (7)
 const entryLength = /** @type {const} */ (24)
 
-/** @type {(label: string) => number} */
-const widthOf = label => max(50, label.length * charWidth + 16)
+/** How far apart the lines of a node's label are drawn. */
+const lineHeight = /** @type {const} */ (16)
+
+/**
+ * A label's lines: a node's label breaks at each `\n`, as a flowchart's
+ * `<br/>` does, and every other text is one line.
+ *
+ * @type {(label: string) => readonly string[]}
+ */
+const linesOf = label => label.split('\n')
+
+/** A node's label's longest line, which its width fits. @type {(label: string) => string} */
+const longestLine = label => linesOf(label).reduce((longest, line) => line.length > longest.length ? line : longest)
 
 /** @type {(label: string) => number} */
-const cellWidthOf = label => max(24, label.length * charWidth + 12)
+const widthOf = label => max(50, longestLine(label).length * charWidth + 16)
+
+/**
+ * The width of a cell holding `text` on one line: a key, a value and a
+ * group's label are drawn whole, `\n` and all, and only a node's label
+ * breaks.
+ *
+ * @type {(text: string) => number}
+ */
+const cellWidthOf = text => max(24, text.length * charWidth + 12)
+
+/**
+ * The height a node's label of several lines needs, or `0` for one line,
+ * which fits whatever height the node has without it.
+ *
+ * @type {(label: string) => number}
+ */
+const linesHeightOf = label => {
+    const { length } = linesOf(label)
+    return length === 1 ? 0 : labelHeight + (length - 1) * lineHeight
+}
 
 /** @type {(edge: Edge) => string | null} */
 const inlineOf = ({ to }) => typeof to === 'number' ? null : to.inline
@@ -434,7 +465,7 @@ const portsOf = ({ label, groups }) => all => {
     const blank = groups === undefined && out.every(({ edge }) => inlineOf(edge) === null && edge.label === '')
     /** @type {(o: _Out) => string | null} */
     const refOf = ({ edge, target }) => blank || inlineOf(edge) !== null || target === '' ? null
-        : edge.label === '' || out.some(o => inlineOf(o.edge) !== null) ? target
+        : edge.label === '' || out.some(o => inlineOf(o.edge) !== null) ? linesOf(target)[0]
         : null
     /** @type {(o: _Out) => string | null} */
     const valueOf = o => inlineOf(o.edge) ?? refOf(o)
@@ -448,9 +479,9 @@ const portsOf = ({ label, groups }) => all => {
         maxOf(out.flatMap(o => valueOf(o) === null ? [cellWidthOf(o.edge.label)] : [])))
     const title = blank ? widthOf(label)
         : groups !== undefined ? maxOf(groups.map(([group]) => cellWidthOf(group)))
-        : label === '' ? 0 : cellWidthOf(label)
+        : label === '' ? 0 : cellWidthOf(longestLine(label))
     const width = blank ? title : max(groups === undefined ? widthOf(label) : 0, title + rows)
-    const height = out.length === 0 ? labelHeight : out.length * portHeight
+    const height = max(out.length === 0 ? labelHeight : out.length * portHeight, groups === undefined ? linesHeightOf(label) : 0)
     /** @type {Record<Corner, number>} */
     const exitAt = { top: 0, middle: height / 2, bottom: height }
     return {
@@ -1072,6 +1103,20 @@ const titleTraceOf = p => attrs => p.title === 0 ? [] : [/** @type {Element} */ 
 }])]
 
 /**
+ * A node's label as the content of its text: the label itself for one line,
+ * or a `tspan` per line, stacked about the node's middle.
+ *
+ * @type {(p: _Positioned) => readonly (string | Element)[]}
+ */
+const labelLinesOf = p => {
+    const lines = linesOf(p.label)
+    const x = String(p.x + p.title / 2)
+    const middle = p.y + p.height / 2
+    return lines.length === 1 ? lines
+        : lines.map((line, i) => /** @type {Element} */ (['tspan', { x, y: String(middle + (i - (lines.length - 1) / 2) * lineHeight) }, line]))
+}
+
+/**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root, left to right.
  *
@@ -1151,7 +1196,7 @@ export const graphSvg = g => {
     /** @type {(index: number) => string} */
     const descriptionOf = index => {
         const { edge, to } = assertNotNullish(routes.find(route => route.index === index))
-        return `${nodeOf(edge.from).label} [${edge.label}] → ${nodeOf(to).label}${edge.back === true ? ' (recursive)' : ''}`
+        return `${linesOf(nodeOf(edge.from).label).join(' ')} [${edge.label}] → ${linesOf(nodeOf(to).label).join(' ')}${edge.back === true ? ' (recursive)' : ''}`
     }
     /** @type {readonly { readonly line: Element, readonly trace: readonly Element[], readonly back: boolean }[]} */
     const edgeEls = routes.map(({ edge, index, to, points }) => {
@@ -1304,7 +1349,7 @@ export const graphSvg = g => {
                 x: String(p.x + p.title / 2), y: String(p.y + p.height / 2),
                 'text-anchor': 'middle', 'data-graph-label': '',
                 ...nameAttrOf(p.id),
-            }, p.label])]),
+            }, ...labelLinesOf(p)])]),
         ...p.ports.flatMap(port => keyWidthOf(p)(port) === 0 ? [] : [/** @type {Element} */ (['text', {
             x: String(p.x + p.title + keyWidthOf(p)(port) / 2), y: String(p.y + port.y + portHeight / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',

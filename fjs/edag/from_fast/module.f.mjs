@@ -12,6 +12,7 @@
  * @import { Binding, Context, ExitOwner, Link, Node, Ordered, OrderScope, Scope, Summaries, Summary, Visit, _Control } from './private.ts'
  * @import { Task } from '../../js/ast/task/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
@@ -82,8 +83,11 @@ const bindingOf = (scope, binding) => {
 /** @type {(earlier: ReadonlyMap<BindingId, Binding>) => (later: ReadonlyMap<BindingId, Binding>) => ReadonlyMap<BindingId, Binding>} */
 const mergeIndex = earlier => later => new Map([...earlier, ...later])
 
+/** The index's runs under union, each weighing its size. @type {Monoid<ReadonlyMap<BindingId, Binding>>} */
+const indexUnion = { identity: new Map(), operation: mergeIndex, weight: m => m.size }
+
 /** Immutable map runs avoid whole-scope copies; lookup examines logarithmically many runs. @type {(run: ReadonlyMap<BindingId, Binding>) => (index: Scope['index']) => Scope['index']} */
-const appendIndex = step(mergeIndex)
+const appendIndex = step(indexUnion)
 
 /** @type {Scope} */
 const emptyScope = { index: null, entries: null, lazy: null }

@@ -67,12 +67,12 @@ const samples = [
 ]
 
 export const proof = {
-    // `static` and `dot` are the runtime's two functions; every key `member` holds
+    // `static`, `dot` and `in` are the runtime's three functions; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'dot,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'dot,in,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -274,6 +274,44 @@ export const proof = {
         assertEq(steps(body).join(), '')
         assertEq(JSON.stringify(body).includes('["()"'), true)
     },
+    // The operator's body, on the host: `"k" in o` for a key no prototype
+    // supplies is the host's own `in` — an enumerable own entry of an
+    // object, an array or a function, an own `undefined` included, and
+    // nothing else — on every such key and every sample that is no
+    // primitive, `length` among them, which an array and a function own
+    // without enumerating it and the body reads as the read does. Where a
+    // prototype would answer, which the parser refuses as a key, the body
+    // and the host part: `toString` of anything and `name` of a function
+    // are no entry here and found there.
+    in: () => {
+        const has = runtime.in
+        assertEq(has.length, 2)
+        /** @type {readonly string[]} */
+        const keys = ['x', '0', '1', '', 'in', 'if', 'hasOwnProperty_', '__proto', 'NaN', 'undefined', 'length']
+        /** @type {readonly unknown[]} */
+        const receivers = [
+            ...samples.filter(v => v !== null && typeof v === 'object' || typeof v === 'function'),
+            { x: 1 }, { x: undefined }, { '': 0, in: 0, if: 0, undefined: 0 }, { ['__proto__']: 1 }, [undefined], [, 1], { length: 0 },
+        ]
+        for (const self of receivers) {
+            for (const key of keys) { assertEq(has(key, self), key in /** @type {object} */ (self), [key, self]) }
+        }
+        assertEq(has('x', { x: undefined }), true)
+        assertEq(has('0', [undefined]), true)
+        assertEq(has('0', [, 1]), false)
+        assertEq(has('toString', {}), false)
+        assertEq(has('length', []), true)
+        assertEq(has('length', f), true)
+        assertEq(has('length', {}), false)
+        assertEq(has('name', f), false)
+        assertEq(has('__proto__', {}), false)
+        assertEq(has('__proto__', { ['__proto__']: 1 }), true)
+        // the body is the compiled EDAG's, no chain step in it, as `dot`'s
+        const compiled = /** @type {readonly unknown[]} */ (at(at(edag, 'runtime'), 'in'))
+        const [tag, length, , body] = compiled
+        assertEq(`${tag}/${length}`, '=>/2')
+        assertEq(steps(body).join(), '')
+    },
     // The core may not use what it defines, and the whole module is the
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
@@ -316,6 +354,15 @@ export const proof = {
         searchConversion: () => { member.startsWith('abc')?.({ toString: () => { throw 'A' } }, 0) },
         // a nullish receiver is the executor's throw, before `dot` is asked
         nullishReceiver: () => { runtime.dot(null, 'x') },
+        // `in` throws on `null`, `undefined` and every primitive, as the
+        // host's `TypeError` does — a string's index too, which `hasEntry`
+        // alone would answer `true`, and is why the body is not the helper.
+        inNull: () => { runtime.in('x', null) },
+        inUndefined: () => { runtime.in('x', undefined) },
+        inString: () => { runtime.in('0', 'abc') },
+        inNumber: () => { runtime.in('x', 1) },
+        inBoolean: () => { runtime.in('x', true) },
+        inBigint: () => { runtime.in('x', 1n) },
         // `Object.fromEntries` of an entry that is not an object throws, as
         // the host's `TypeError` does…
         fromEntriesEntry: () => { statics['Object.fromEntries']([['a', 1], 2]) },

@@ -267,7 +267,7 @@ For example, `codex/cloudflare-preview-comment` becomes
 `https://codex-cloudflare-preview-comment-functionalscript.functionalscript.workers.dev`.
 Different branch names can normalize to the same alias, so keep them distinct.
 The upload logs report the version and alias URLs. After a successful Actions
-preview upload, github-actions[bot] posts an Open preview link on the PR and
+preview upload, `github-actions[bot]` posts an Open preview link on the PR and
 updates that same comment on later pushes. It reads the actual alias URL from
 Wrangler output and uses the automatic Actions token with pull-request write
 permission; no additional secret, action, or setting is required. Forks and

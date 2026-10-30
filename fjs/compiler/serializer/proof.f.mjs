@@ -35,7 +35,7 @@ import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, tryS
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.mjs'
 import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
-import { disagreement } from '../../website/demo/highlight/module.f.mjs'
+import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -652,6 +652,7 @@ export const proof = {
         assertStructurallySame(keywordsOf(['[]', [['[]', [1]], ['[]', [1]]]]), ['export', 'default'])
         assertStructurallySame(keywordsOf(['=>', 0, [], ['typeof', ['rest']]]), ['export', 'default', 'typeof'])
         assertStructurallySame(keywordsOf(['=>', 0, [], ['instanceof', ['rest'], 'Array']]), ['export', 'default', 'instanceof'])
+        assertStructurallySame(keywordsOf(['=>', 0, [], ['in', 'x', ['rest']]]), ['export', 'default', 'in'])
         assertStructurallySame(keywordsOf(['throw', 1]), ['throw'])
     },
     // The names are identifiers: a parameter and its use, a property after `.`,
@@ -1480,6 +1481,20 @@ export const proof = {
         writes(['.', ['instanceof', ['[]', []], 'Array'], 'x'], 'export default ([] instanceof Array).x;')
         writes(['!', ['instanceof', 1, 'Array']], 'export default !(1 instanceof Array);')
         writes(['instanceof', ['=>', 0, [], 1], 'Array'], 'export default (()=>1) instanceof Array;')
+        // the entry check, read back as written: its key a string literal,
+        // spaces around the word, the right operand grouped as `<`'s right
+        // operand would be, and the node grouped where `<` is
+        writes(fn(['in', 'x', r0]), 'export default (...$0)=>"x" in $0[0];')
+        writes(['in', 'x', ['{}', []]], 'export default "x" in {};')
+        writes(['in', 'a b', ['!', 1]], 'export default "a b" in !1;')
+        writes(['in', 'x', ['<', 1, 2]], 'export default "x" in (1<2);')
+        writes(['in', 'x', ['in', 'y', 1]], 'export default "x" in ("y" in 1);')
+        writes(['<', ['in', 'x', 1], 2], 'export default "x" in 1<2;')
+        writes(['===', ['in', 'x', 1], true], 'export default "x" in 1===true;')
+        writes(['in', 'x', ['+', 1, 2]], 'export default "x" in 1+2;')
+        writes(['+', ['in', 'x', 1], 2], 'export default ("x" in 1)+2;')
+        writes(['!', ['in', 'x', 1]], 'export default !("x" in 1);')
+        writes(['in', 'x', ['=>', 0, [], 1]], 'export default "x" in (()=>1);')
         // `**` takes no prefix on its left bare, a negative number
         // included, as JavaScript does not; on its right either stands bare
         writes(['**', -2, 2], 'export default (-2)**2;')

@@ -35,9 +35,9 @@ import { map, next } from '../list/module.f.mjs'
 import { toArray } from '../list/alt/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
+import { foldAbsorbing, repeat as mRepeat, uniform } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.js'
-import { map as nullableMap, mapUnwrap } from '../nullable/module.f.js'
+import { map as nullableMap, mapUnwrap, match } from '../nullable/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 
 /**
@@ -317,7 +317,10 @@ const tryUnpackConcat = unpackConcat => ({
         operation: a => b =>
             a === null || b === null || a.length + b.length > maxLength
                 ? null
-                : unpackConcat(a)(b)
+                : unpackConcat(a)(b),
+        // an element is never `null`; only a merge is, and merges are not
+        // weighed again, so the `null` arm is `match`'s to hold
+        weight: match((/** @type {Unpacked} */ u) => Number(u.length))(uniform),
     },
     absorbing: null,
 })
@@ -769,7 +772,7 @@ export const unpadMsb = v => {
  * @type {Fold<bigint, Vec>}
  */
 export const repeat =
-    mRepeat({ identity: empty, operation: lsb.concat })
+    mRepeat({ identity: empty, operation: lsb.concat, weight: uniform })
 
 export const isVec =
     /**

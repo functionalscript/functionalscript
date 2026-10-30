@@ -39,7 +39,9 @@ export const assignmentOperators = /** @type {const} */ ({
  * needs. The `-` here is subtraction, sharing a token and nothing else
  * with the negation prefix, unary negation. `instanceof` is a relational
  * operator, one level with `<` and left-associative as it is, though its
- * node is a constructor check, not a binary one. `==` and `!=` are not
+ * node is a constructor check, not a binary one; so is `in`, whose node is
+ * an entry check carrying its key, the string literal on its left, as a
+ * spelling. `==` and `!=` are not
  * this language's, per `spec/operators/README.md`. `**` is in
  * no layer: it is right-associative and read inside the operand, so each
  * side places it, tightest of all, where it builds its own structure.
@@ -49,7 +51,7 @@ export const eagerLayers = /** @type {const} */ ([
     { mul: '*', div: '/', mod: '%' },
     { add: '+', sub: '-' },
     { left: '<<', right: '>>', unsigned: '>>>' },
-    { lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof' },
+    { lt: '<', le: '<=', gt: '>', ge: '>=', instanceof: 'instanceof', in: 'in' },
     { eq: '===', ne: '!==' },
     { and: '&' },
     { xor: '^' },

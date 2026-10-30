@@ -1044,6 +1044,8 @@ export const proof = {
             assertEq(needsRuntime(['memberPresent', ['[]', []], 'at']), true)
             assertEq(needsRuntime(['=>', 0, [], ['memberPresent', ['[]', []], 'at']]), true)
             assertEq(needsRuntime(['Object.is']), true)
+            // the entry check calls the runtime's `in` body
+            assertEq(needsRuntime(['in', 'x', ['{}', []]]), true)
             assertEq(needsRuntime(['[]', [1, ['Number.isNaN']]]), true)
             assertEq(needsRuntime(['=>', 0, [], ['Object.is']]), true)
             assertEq(needsRuntime(['.', ['{}', []], 'b', ['|()', []]]), true)

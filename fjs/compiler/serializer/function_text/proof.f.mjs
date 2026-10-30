@@ -96,6 +96,7 @@ export const proof = {
         const cases = [
             [['!', 1], '!1'], [['~', 1], '~1'], [['typeof', 1], 'typeof 1'],
             [['instanceof', ['[]', []], 'Array'], '[] instanceof Array'],
+            [['in', 'x', ['{}', []]], '"x" in {}'],
             [['+', 1], '+1'], [['-', 1], '-1'],
             [['+', 1, 2], '1+2'], [['-', 1, 2], '1-2'],
             [['String', 1], 'String(1)'], [['Number', '2'], 'Number("2")'],

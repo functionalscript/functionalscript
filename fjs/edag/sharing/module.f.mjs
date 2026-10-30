@@ -117,6 +117,8 @@ export const operandsOf = node => {
         : id === 'arg' || id === 'entry' || id === 'hasEntry' || isIntrinsic(node) ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
+        // and so is the key of an entry check
+        : id === 'in' ? [node[2]]
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
         : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
         : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]

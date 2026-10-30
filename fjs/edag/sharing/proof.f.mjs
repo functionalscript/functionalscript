@@ -34,6 +34,8 @@ export const proof = {
         assertStructurallySame(operandsOf(['charCodeAt']), [])
         // the constructor's name is no operand
         assertStructurallySame(operandsOf(['instanceof', c, 'Array']), [c])
+        // and neither is the key of an entry check
+        assertStructurallySame(operandsOf(['in', 'x', c]), [c])
         assertStructurallySame(operandsOf(['memberPresent', c, ['Number', c]]), [c, ['Number', c]])
         // a list is read as a list, whatever its first item spells
         assertStructurallySame(operandsOf([',', ['&&', c]]), ['&&', c])

@@ -38,6 +38,14 @@ import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
 import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
 
+/**
+ * The failure of an `in` node under an executor whose runtime has no
+ * `in` function, or no runtime at all: as {@link noStatic} for a static,
+ * the operator refused by name, never answered with a plausible value.
+ */
+/** @type {string} */
+export const noIn = 'no binding for the in operator'
+
 /** Propagate failures without running the continuation.
  * @template S
  * @template {Tail<S>} R
@@ -346,6 +354,15 @@ export const operation = evaluator => {
             case 'instanceof': {
                 const test = instanceOf[node[2]]
                 return then(operand(node[1], state), (value, next) => [next, ok(test(value))])
+            }
+            // the key is a spelling, read from the node, never evaluated;
+            // the answer is the runtime's body, `runtime.in(key, value)`,
+            // called as any function is, so its throw is the node's — and
+            // with no runtime or no body, the failure naming the operator
+            case 'in': {
+                const body = functionAt(runtime, ['in'])
+                return then(operand(node[2], state), (value, next) =>
+                    [next, body === undefined ? error(noIn) : call(ok(body), [() => ok(node[1]), () => ok(value)], invoke)])
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
             case '~': case 'Number': {
