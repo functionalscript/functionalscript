@@ -1,7 +1,7 @@
 ## size-aware-fold. Fold the concatenations by weight
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -26,16 +26,26 @@ balance by count:
 - `bit_vec`'s `unpackListToVec` folds with `foldAbsorbing`, by count, so one
   long vector among short ones is shifted at every carry.
 
+### Proposal
+
+The weight belongs to the monoid, not to the fold: it describes the
+operation, how much a merge costs or where its rounding goes, so each monoid
+states it once and every fold reads it. `Monoid<T>` gains a required
+`weight`, `fold`, `foldAbsorbing` and `step` take it from there, and the
+`foldBy` family goes. A shared `uniform` weight is the count-balanced case;
+anything under one weighs one, so a weight of zero means the same.
+
 ### Tasks
 
 - [x] Decide the weight's type (`number`) and the export's shape (`foldBy`,
       `foldAbsorbingBy`, `stepBy`, each `weight` first)
 - [x] Implement the weighted stack with its proof, including a long value among
       many short ones and strictly decreasing lengths
-- [ ] Rebuild `list/alt`'s `toArray` on `foldBy`, feeding it the list's arrays
+- [ ] Move `weight` onto `Monoid`, drop `foldBy`, `foldAbsorbingBy` and
+      `stepBy`, and give every monoid in the tree its weight
+- [ ] Fold `bit_vec`'s `unpackListToVec` by the vector's length
+- [ ] Rebuild `list/alt`'s `toArray` on `fold`, feeding it the list's arrays
       whole, and delete its private stack
-- [ ] Fold `bit_vec`'s `unpackListToVec` with `foldAbsorbingBy` the vector's
-      length
 
 ### Related
 
