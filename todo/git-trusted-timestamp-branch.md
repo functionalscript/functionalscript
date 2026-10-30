@@ -79,37 +79,29 @@ the map names and who vouches for it; that stays open in
 - Each commit's tree holds **one file**, `tts.json`, with three members:
   the message, the authority's URL, and the authority's response.
 - The **message** is what the timestamp is over. It names the commits the
-  timestamp covers by SHA-1 — one or several, the heads of as many
-  branches as a run is given — and with each everything it reaches; and
-  the parent `disot` commit, through which the parent's tree and its
-  `tts.json`, which the parent could not name itself. A SHA-1 is what a
-  reader has in hand and what every host indexes, so the message names a
-  commit the way the hosts do, and a reader goes from the message to the
-  commit without a table. The map later extends the same message with a
-  second name per object
-  ([git-sha256-map-branch](./git-sha256-map-branch.md)); nothing in the
-  message is redefined by it.
-- The message is **text**, held in `tts.json` as a string, and the bytes
-  of that text are what the imprint hashes. A JSON string decodes to one
-  sequence of bytes however it was spelled, where an object or an array
-  decodes to a structure that has no bytes until a normalization rule
-  gives it some — and that rule is a second place to be wrong, and a
-  second thing every reader must agree on. So the hash is over what the
-  decoder yields, and nothing is ever re-spelled. The text has the shape
-  of Git's own commit headers, `<key> SP <value> LF`:
+  timestamp covers by SHA-1, and with each everything it reaches: the
+  heads of as many branches as a run is given, and the parent `disot`
+  commit, through which the parent's tree and its `tts.json`, which the
+  parent could not name itself. A SHA-1 is what a reader has in hand and
+  what every host indexes, so the message names a commit the way the hosts
+  do, and a reader goes from the message to the commit without a table.
+- The message is a **JSON value**, held in `tts.json` as a value, and what
+  the imprint hashes is its **serialization under a documented rule for
+  its shape**. The rules are specific to each shape a message can have,
+  not a general canonical JSON, so each is short enough that every reader
+  gets it right. The shapes this issue defines:
+  - **one SHA-1**: a string of 40 lowercase hex digits;
+  - **several SHA-1s**: an array of such strings, distinct, in ascending
+    order, no whitespace.
 
-  ```text
-  commit <sha1>
-  commit <sha1>
-  parent <sha1>
-  ```
-
-  one `commit` line per commit the run was given, then `parent` for the
-  `disot` parent, absent on the first commit. The writer emits commits
-  distinct and in ascending order; a reader checks the imprint against the
-  bytes and the parse, not the order.
-- The **imprint** is a hash over the message's bytes in the algorithm the
-  authority requires. SHA-256 unless it asks otherwise; an authority that
+  A reader checks the message against the rule for its shape — lowercase,
+  distinct, sorted — serializes it by that rule, hashes, and compares with
+  the imprint; a message of no documented shape is refused. The map later
+  adds a shape, and its rule, the same way
+  ([git-sha256-map-branch](./git-sha256-map-branch.md)); nothing in these
+  is redefined by it.
+- The **imprint** is a hash over the serialized message in the algorithm
+  the authority requires. SHA-256 unless it asks otherwise; an authority that
   takes only SHA-1 is refused, since that would bind a name an attacker
   can collide. The response records which algorithm was used, in the
   token's `messageImprint`.
@@ -134,16 +126,15 @@ index or the working tree.
 
 1. **Read the branch head.** If `refs/heads/disot` exists, its commit is
    the parent. Otherwise the new commit has none.
-2. **Write the message.** A `commit` line per commit the revisions name,
-   distinct, in ascending order, then a `parent` line for the `disot`
-   parent when there is one; SHA-1s in lowercase hex, every line ended by
-   LF. A revision that names no commit, or that is `disot`, is refused.
+2. **Write the message.** The commits the revisions name and the `disot`
+   parent when there is one, in the shape their number calls for: one
+   SHA-1 as a string, several as the sorted array. A revision that names
+   no commit, or that is `disot`, is refused.
 3. **Timestamp it.** Request an RFC 3161 timestamp with the hash of the
-   message's bytes as imprint, from `--tsa`. On a granted response write
-   `tts.json`: `{"message":"…","tsa":"…","response":"…"}`, members in that
-   order, the message as the string whose bytes were hashed, the URL as
-   given, the response as DER in standard base64 with padding, no
-   whitespace outside the strings.
+   serialized message as imprint, from `--tsa`. On a granted response
+   write `tts.json`: `{"message":…,"tsa":"…","response":"…"}`, members in
+   that order, the message as the value, the URL as given, the response as
+   DER in standard base64 with padding, no whitespace outside the strings.
 4. **Commit** the blob and its tree, with the `disot` head as the one
    parent, and move `refs/heads/disot` to it. Nothing is fetched or pushed.
 
@@ -159,8 +150,8 @@ comes first, then the fix.
   can check it from the blob alone.
 - **The parent is not checked.** A damaged or substituted `tts.json` is
   built on, and the chain then renews a wrong link. Hash the parent's
-  message and require the imprint in its response; refuse a message that
-  does not parse.
+  message by its rule and require the imprint in its response; refuse a
+  message of no documented shape.
 - **Two local runs can race.** The second moves the ref over the first's
   commit. Move `refs/heads/disot` only if it still holds what step 1 read,
   a compare-and-swap
@@ -191,8 +182,8 @@ comes first, then the fix.
   authority's certificate does; a later token over the chain proves the
   earlier one existed before that, if the later bound comes first. That is
   the renewal RFC 3161 describes.
-- **The imprint is a hash of the message.** The token binds the message's
-  bytes with a hash whose collision resistance is intact; what the message
+- **The imprint is a hash of the message.** The token binds the serialized
+  message with a hash whose collision resistance is intact; what the message
   binds is whatever names it holds — SHA-1 here, SHA-256 beside it once
   the map lands — which is the
   [risk](#risk-what-a-timestamp-over-sha-1-names-proves) above.
@@ -202,9 +193,9 @@ comes first, then the fix.
 Reading the branch is a separate design: verifying it (responses against
 their authorities, substituted twins), trust between parties, suppression
 of the honest head, and a miss. A `tts.json` authenticates only the
-timestamp authority; the commit is unsigned and its author line is a claim. The map,
-and everything that is only a concern once there is one — the walk, pruning,
-closure, two names for one SHA-1 — is
+timestamp authority; the commit is unsigned and its author line is a
+claim. The map, and everything that is only a concern once there is one —
+the walk, pruning, closure, two names for one SHA-1 — is
 [git-sha256-map-branch](./git-sha256-map-branch.md).
 
 ### Tasks
