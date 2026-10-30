@@ -2,7 +2,7 @@
  * @import { Step } from './types.ts'
  */
 
-import { pushOk, walk, walkFold } from './module.f.mjs'
+import { pushOk, walk, walkFold } from './module.f.js'
 import { error, ok } from '../result/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 

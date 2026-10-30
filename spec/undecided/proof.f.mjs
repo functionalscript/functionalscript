@@ -15,7 +15,7 @@ import { run } from '../../fjs/effects/mock/module.f.mjs'
 import { htmlToString } from '../../fjs/media/html/module.f.mjs'
 import { error, ok } from '../../fjs/types/result/module.f.js'
 import { demo, init, openRows, registerPath, related, strays, undecidedDemo, verdict } from './demo.f.mjs'
-import { samples } from './samples.f.mjs'
+import { samples } from './samples.f.js'
 
 /**
  * Where and why `fjs compile` refuses each sample, after the file name: the

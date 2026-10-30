@@ -136,7 +136,7 @@ fast path.
       stream is `null`.
 - [x] Fixed and dynamic Huffman blocks with the 32 KiB window
       ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
-      [`bits`](../fjs/zlib/bits/module.f.mjs),
+      [`bits`](../fjs/zlib/bits/module.f.js),
       [`huffman`](../fjs/zlib/huffman/module.f.mjs) and
       [`window`](../fjs/zlib/window/module.f.mjs)): proven against Node's `zlib`
       streams and by hand, and checked on some 21,000 streams of every level,

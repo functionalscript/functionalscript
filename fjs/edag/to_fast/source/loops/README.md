@@ -109,7 +109,7 @@ throw/continue layouts retain their previous plans.
 
 ## Invocation lifetimes
 
-The [shared invocation recipe](../../../../js/ast/invocation/module.f.mjs)
+The [shared invocation recipe](../../../../js/ast/invocation/module.f.js)
 establishes all supplied arguments and spreads under the current invocation
 before any state write. Missing fixed arguments become `undefined`; unused
 extra arguments and failed expansions retain required evaluation. A complete

@@ -52,7 +52,8 @@ export const next = head => {
         if (head instanceof Array) {
             head = fromArrayLike(head)
         } else if (head !== null && 'head' in head) {
-            [head, tail] = [head.head, concat(head.tail)(tail)]
+            tail = concat(head.tail)(tail)
+            head = head.head
             continue
         }
 
@@ -62,7 +63,8 @@ export const next = head => {
 
         if (tail === null) { return null }
 
-        [head, tail] = [tail, null]
+        head = tail
+        tail = null
     }
 }
 

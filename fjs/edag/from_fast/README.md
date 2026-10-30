@@ -446,7 +446,7 @@ helpers preserve supported retained values through captures; other forms refuse.
 
 A rest root adds one internal state position after the fixed parameters, without
 changing public arity. Entry rest follows its own alias lineage. Each reached
-continue must use the shared [`invocation`](../../js/ast/invocation/module.f.mjs)
+continue must use the shared [`invocation`](../../js/ast/invocation/module.f.js)
 recipe: a final required private argument array, its fixed-prefix projections,
 and a fresh rest slice. Reconstruction removes that private array and restores
 the original call arguments, avoiding repeated wrapper growth. An arbitrary

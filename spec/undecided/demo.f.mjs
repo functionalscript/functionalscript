@@ -38,7 +38,7 @@ import { caption } from '../../fjs/website/demo/module.f.mjs'
 import { isTodoDir } from '../../fjs/website/module.f.mjs'
 import { readmeNodes, resolveHref } from '../../fjs/website/readme/module.f.mjs'
 import { codeMarker, registerRowMarker, resultMarker, undecidedMarker } from '../../fjs/website/style/module.f.js'
-import { samples } from './samples.f.mjs'
+import { samples } from './samples.f.js'
 
 /** The register, from the repository's root. */
 export const registerPath = 'spec/todo/refused-constructs.md'
@@ -231,7 +231,7 @@ export const update = state => event => event.kind === 'start'
 
 /**
  * The page over `samples`, one module by open row ID: the page's own are
- * [`samples.f.mjs`](./samples.f.mjs), and a proof writes others.
+ * [`samples.f.js`](./samples.f.js), and a proof writes others.
  *
  * @type {(samples: StringMap<string>) => Demo<State, DemoEvent, FetchText>}
  */

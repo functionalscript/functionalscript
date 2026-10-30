@@ -13,7 +13,7 @@
  * @import { Code, Codes } from './types.ts'
  */
 
-import { more, read } from '../bits/module.f.mjs'
+import { more, read } from '../bits/module.f.js'
 
 /**
  * The code a list of lengths names, or `null` where zlib refuses it: more

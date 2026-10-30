@@ -9,13 +9,23 @@
 /** @type {(value: Value, binding: BindingId) => boolean} */
 const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
 
+/**
+ * The fixed projections of the rest array: `[0]` to `[length - 1]` of
+ * the binding, in order.
+ *
+ * @type {(binding: BindingId, length: number) => readonly Value[]}
+ */
+const projections = (binding, length) => length === 0
+    ? []
+    : [...projections(binding, length - 1), /** @type {Value} */ (['.', ['ref', binding], length - 1])]
+
 /** @type {(length: number, args: readonly Item<Value>[], target: LoopTarget) => Block} */
 export const _restTransition = (length, args, target) => {
     const binding = /** @type {BindingId} */ ({ index: target.index })
     return {
         statements: [['define', binding, ['array', args], 'required']],
         exit: ['continue', target, [
-            ...Array.from({ length }, (_, index) => /** @type {Value} */ (['.', ['ref', binding], index])),
+            ...projections(binding, length),
             ['()', ['slice'], [['ref', binding], length]],
         ]],
     }
@@ -37,7 +47,7 @@ export const _restArguments = (block, length, target) => {
     const binding = last[1]
     if (!exit[2].slice(0, length).every((value, index) => value instanceof Array && value[0] === '.' && value.length === 3
         && names(value[1], binding) && value[2] === index)) { return null }
-    const rest = exit[2][length]
+    const rest = exit[2][Number(length)]
     return rest instanceof Array && rest[0] === '()' && rest[1] instanceof Array && rest[1][0] === 'slice'
         && rest[2].length === 2 && names(/** @type {Value} */ (rest[2][0]), binding) && rest[2][1] === length
         ? last[2][1] : null

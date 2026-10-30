@@ -11,7 +11,7 @@
  * @example
  *
  * ```js
- * import { walk } from './module.f.mjs'
+ * import { walk } from './module.f.js'
  * import { ok } from '../result/module.f.js'
  *
  * // The depth of a nested array: a frame per array, the deepest child kept.
@@ -46,15 +46,19 @@ export const walkFold = ({ enter, resume }) => init => root => {
     while (true) {
         if (step[0] === 'error') { return step }
         if (step[0] === 'push') {
-            stack = { top: step[1], rest: stack };
-            [acc, step] = enter(acc, step[2])
+            stack = { top: step[1], rest: stack }
+            const entered = enter(acc, step[2])
+            acc = entered[0]
+            step = entered[1]
         } else if (stack === null) {
             return ok([acc, step[1]])
         } else {
             /** @type {NonNullable<Stack<F>>} */
             const { top, rest } = stack
-            stack = rest;
-            [acc, step] = resume(acc, top, step[1])
+            stack = rest
+            const resumed = resume(acc, top, step[1])
+            acc = resumed[0]
+            step = resumed[1]
         }
     }
 }
