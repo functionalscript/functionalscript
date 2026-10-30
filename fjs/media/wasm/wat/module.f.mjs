@@ -71,20 +71,16 @@ const bytesLiteral = bytes => `"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 
  * @type {(group: string) => (map: NameMap) => ReadonlyMap<number, _Naming>}
  */
 const namings = group => map => {
-    /** @type {ReadonlySet<string>} */
-    let used = new Set()
-    /** @type {ReadonlyMap<number, _Naming>} */
-    let result = new Map()
-    for (const [index, name] of map) {
-        const unusable = name === '' || name.startsWith('#') || used.has(name)
-        used = name === '' || name.startsWith('#') ? used : new Set([...used, name])
+    /** Where each name is first given, by its place in `map`. */
+    const first = new Map(map.map(([, name], k) => /** @type {const} */ ([name, k])).reverse())
+    return new Map(map.map(([index, name], k) => {
+        const unusable = name === '' || name.startsWith('#') || first.get(name) !== k
         /** @type {_Naming} */
         const naming = unusable ? { name, prefix: `#${group}${index}` }
             : Array.from(name).every(isIdChar) ? { name, prefix: null, quoted: false }
             : { name, prefix: null, quoted: true }
-        result = new Map([...result, [index, naming]])
-    }
-    return result
+        return /** @type {const} */ ([index, naming])
+    }))
 }
 
 /** @type {(naming: _Naming) => string} */
@@ -154,19 +150,16 @@ const limits = ({ min, max }) => max === null ? `${min}` : `${min} ${max}`
  * @type {(group: string, names: ReadonlyMap<number, _Naming>, first: number, types: readonly ValType[]) => string}
  */
 const namedGroups = (group, names, first, types) => {
-    /** @type {readonly (readonly [_Naming | undefined, readonly ValType[]])[]} */
-    const runs = types.reduce(
-        (runs, type, k) => {
-            const naming = names.get(first + k)
-            const last = runs.at(-1)
-            return naming === undefined && last !== undefined && last[0] === undefined
-                ? [...runs.slice(0, -1), /** @type {const} */ ([undefined, [...last[1], type]])]
-                : [...runs, /** @type {const} */ ([naming, [type]])]
-        },
-        /** @type {readonly (readonly [_Naming | undefined, readonly ValType[]])[]} */ ([]))
-    return runs.map(([naming, run]) => naming === undefined
-        ? `(${group} ${run.join(' ')})`
-        : `(${group} ${identifier(naming)} ${run[0]})`).join(' ')
+    /** @type {(k: number) => boolean} */
+    const named = k => names.get(first + k) !== undefined
+    // A group starts at each named one and at each unnamed one after a named one.
+    const starts = types.flatMap((_, k) => k === 0 || named(k) || named(k - 1) ? [k] : [])
+    return starts.map((start, j) => {
+        const naming = names.get(first + start)
+        return naming === undefined
+            ? `(${group} ${types.slice(start, starts[j + 1] ?? types.length).join(' ')})`
+            : `(${group} ${identifier(naming)} ${types[start]})`
+    }).join(' ')
 }
 
 /** @type {(t: FuncType, params: string) => string} */

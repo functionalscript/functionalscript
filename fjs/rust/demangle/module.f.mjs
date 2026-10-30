@@ -22,10 +22,13 @@
  *
  * @module
  *
+ * @import { List } from '../../types/list/types.ts'
  * @import { _Read } from './private.ts'
  */
 
 import { fromU8List } from '../../text/utf8/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
+import { reverse } from '../../types/list/module.f.mjs'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
@@ -248,17 +251,19 @@ const demangler = s => {
      * @type {(i: number, sep: string, f: (j: number) => _Read<string>) => _Read<readonly [string, number]>}
      */
     const list = (i, sep, f) => {
-        /** @type {readonly string[]} */
-        let items = []
+        /** @type {List<string>} */
+        let items = null
+        let count = 0
         let j = i
         while (s[j] !== 'E') {
             if (j >= s.length) { return null }
             const r = f(j)
             if (r === null) { return null }
-            items = [...items, r[0]]
+            items = { first: r[0], tail: items }
+            count = count + 1
             j = r[1]
         }
-        return [[items.join(sep), items.length], j + 1]
+        return [[toArray(reverse(items)).join(sep), count], j + 1]
     }
 
     /**
