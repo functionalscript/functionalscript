@@ -159,7 +159,7 @@ without creating discarded reference anchors that move on a later graph conversi
 The array's identity stays private to the transition.
 Observed rest adds one internal loop input, independently of public arity.
 Entry rest and iteration rest have separate binding identities. Each rest
-transition uses the shared [`invocation`](../../js/ast/invocation/module.f.mjs)
+transition uses the shared [`invocation`](../../js/ast/invocation/module.f.js)
 recipe: establish the full argument vector, then read the fixed prefix and
 create its fresh rest slice before simultaneous updates. Repeated reads within
 one iteration share that slice; escaped captures retain the creating iteration's

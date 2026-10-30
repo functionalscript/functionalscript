@@ -1,5 +1,5 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { more, read } from './module.f.mjs'
+import { more, read } from './module.f.js'
 
 export const proof = {
     // The first bit is the lowest of the first byte.

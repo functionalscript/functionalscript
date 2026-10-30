@@ -37,7 +37,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
 import { _nullable as nullable, emptyTagMap, eofSymbol, isSymbol, matchRule, toData, validate } from '../data/module.f.mjs'
 import { min as minNumber } from '../../types/number/min/module.f.js'
-import { walkFold } from '../../types/stack_walk/module.f.mjs'
+import { walkFold } from '../../types/stack_walk/module.f.js'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number

@@ -1,7 +1,7 @@
 /** @import { Block, Value } from '../types.ts' */
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { _restArguments, _restTransition } from './module.f.mjs'
+import { _restArguments, _restTransition } from './module.f.js'
 
 const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
 

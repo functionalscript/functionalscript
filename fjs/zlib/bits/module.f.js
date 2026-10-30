@@ -30,6 +30,6 @@ export const read = (input, pos, n) => {
     const count = shift + n + 7 >> 3
     if (first + count > input.length) { return more }
     let word = 0
-    for (let i = 0; i < count; i += 1) { word |= input[first + i] << 8 * i }
+    for (let i = 0; i < count; i += 1) { word |= input[Number(first + i)] << 8 * i }
     return word >> shift & (1 << n) - 1
 }

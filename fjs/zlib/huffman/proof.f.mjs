@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { more } from '../bits/module.f.mjs'
+import { more } from '../bits/module.f.js'
 import { assign, bytes, field, written } from '../testlib.f.mjs'
 import { code, decode, dynamic, fixed, fixedDistances, fixedLiterals } from './module.f.mjs'
 

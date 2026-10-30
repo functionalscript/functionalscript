@@ -25,7 +25,7 @@ function boundaries remain ordinary functions. Inputs and results are opaque:
 the pass never guesses a private protocol from array contents or adds another
 helper/result wrapper. The existing scalar path remains first.
 
-Rest transitions use the exact shared [`js/ast/invocation`](../../../../js/ast/invocation/module.f.mjs)
+Rest transitions use the exact shared [`js/ast/invocation`](../../../../js/ast/invocation/module.f.js)
 recipe: a final required private argument array, fixed-prefix reads, and a
 fresh slice for the next rest value. All arguments and spreads finish before
 state updates. The matcher rejects borrowed rest arrays or other transition

@@ -17,7 +17,7 @@ import { toArray } from '../../../../types/list/alt/module.f.mjs'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.js'
-import { _restArguments } from '../../../../js/ast/invocation/module.f.mjs'
+import { _restArguments } from '../../../../js/ast/invocation/module.f.js'
 import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.mjs'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 

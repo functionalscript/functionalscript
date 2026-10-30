@@ -19,7 +19,7 @@ The demo fetches the register and keeps its open rows, so it lists what the
 register says on this build, with nothing here to keep in step. For each row it
 shows the register's construct and the record it names, if any, and compiles a
 small module that writes the construct, from
-[`samples.f.mjs`](./samples.f.mjs), named after the row's ID. It says so when
+[`samples.f.js`](./samples.f.js), named after the row's ID. It says so when
 the compiler accepts a sample, when an open row has no sample, or when a
 sample's row is no longer open, since each means the page and the register no
 longer agree.
