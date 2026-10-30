@@ -114,3 +114,17 @@ export type Run<T> = {
  * last value pushed.
  */
 export type Stack<T> = Run<T> | null
+
+/**
+ * The state of one push or of the fold at the end, between moves: the
+ * `value` being placed, the `stack` beneath it, and the runs `pending` above
+ * it, nearest first, that found their place and wait to be pushed back once
+ * the stack below has settled. In the order of the list being folded, the
+ * runs read stack bottom to top, then the value, then the pending runs
+ * nearest to farthest.
+ */
+export type Walk<T> = {
+    readonly stack: Stack<T>
+    readonly value: T
+    readonly pending: Stack<T>
+}

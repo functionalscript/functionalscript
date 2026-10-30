@@ -93,6 +93,11 @@ export const captionMarker = 'data-caption'
  */
 export const codeMarker = 'data-code'
 
+/** The attribute of a drawing in text, whose lines keep their columns, shared with its stylesheet rule.
+ * @type {string}
+ */
+export const drawingMarker = 'data-drawing'
+
 /** The attribute of a highlighted field's wrapper, shared with its stylesheet rules.
  * @type {string}
  */
@@ -482,6 +487,10 @@ input[type="text"] { box-sizing: border-box; width: 100% }
    around them without a heading's weight. The lead and notes stay regular.
    demo/README.md states the rule. */
 [${demoMarker}] label, [${captionMarker}] { font-weight: bold }
+/* A drawing in text — the merge tree of a fold — keeps its columns: a long
+   line scrolls sideways rather than wrapping, which would put a run under
+   the wrong values. */
+[${drawingMarker}] { overflow-x: auto; white-space: pre }
 /* The compact target field and its difficulty examples share one column;
    right-aligned attempt counts make the four targets easy to compare. */
 [data-pow-search-effort] { border-collapse: collapse; width: 100% }
