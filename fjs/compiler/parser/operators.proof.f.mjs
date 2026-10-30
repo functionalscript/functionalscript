@@ -9,24 +9,17 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
-import { stringifyModule, tokenizeString } from './proof.f.mjs'
+import { expectRefused, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 /**
- * The left operand of `in` is a string literal, and no other value — a
- * number, a name, an operator's result, `in`'s own — is refused at the
- * operator, the one token every spelling of the left side shares.
+ * The refusal of every left operand of `in` but a string literal — a
+ * number, a name, an operator's result, `in`'s own — at the operator, the
+ * one token every spelling of the left side shares: `op.in` of
+ * `spec/todo/refused-constructs.md`.
  *
- * @type {(source: string, message: string, column: number) => void}
+ * @type {string}
  */
-const refusedIn = (source, message, column) => {
-    const [tag, value] = parseFromTokens(tokenizeString(source))
-    assert(tag === 'error', tag)
-    assertEq(value.message, message)
-    assertEq(value.metadata?.column, column)
-}
-
-/** The refusal of every left operand of `in` but a string literal. @type {string} */
 const literal = 'the left operand of in must be a string literal'
 
 export const proof = {
@@ -186,26 +179,26 @@ export const proof = {
             refused('export default [] instanceof 1;', 19)
             refused('export default [] instanceof ((...a) => a);', 19)
             refused('export default 1 < [] instanceof (Array)[0];', 23)
-            refusedIn('export default 1 in [];', literal, 18)
-            refusedIn('export default 0 in [1];', literal, 18)
-            refusedIn('const o = {}; export default o in o;', literal, 32)
-            refusedIn('export default 1 < 2 in [];', literal, 22)
-            refusedIn('export default "a" in [] in {};', literal, 26)
-            refusedIn('export default [] in {};', literal, 19)
+            expectRefused('export default 1 in [];', literal, 18)
+            expectRefused('export default 0 in [1];', literal, 18)
+            expectRefused('const o = {}; export default o in o;', literal, 32)
+            expectRefused('export default 1 < 2 in [];', literal, 22)
+            expectRefused('export default "a" in [] in {};', literal, 26)
+            expectRefused('export default [] in {};', literal, 19)
             // a template is no string literal, without substitutions or in a group
-            refusedIn('export default `a` in {};', literal, 20)
-            refusedIn('export default (`a`) in {};', literal, 22)
-            refusedIn('export default `${1}` in {};', literal, 23)
+            expectRefused('export default `a` in {};', literal, 20)
+            expectRefused('export default (`a`) in {};', literal, 22)
+            expectRefused('export default `${1}` in {};', literal, 23)
             // a name a built-in prototype gives a value is refused as the
             // key of a read is, and `length` with it, which a read exempts:
             // `"length" in []` is `true` in JavaScript, the own entry absent
-            refusedIn('export default "toString" in {};', 'prohibited property name', 27)
-            refusedIn('export default "length" in [];', 'prohibited property name', 25)
-            refusedIn('export default "__proto__" in {};', 'prohibited property name', 28)
-            refusedIn('export default "name" in (() => 1);', 'prohibited property name', 23)
+            expectRefused('export default "toString" in {};', 'prohibited property name', 27)
+            expectRefused('export default "length" in [];', 'prohibited property name', 25)
+            expectRefused('export default "__proto__" in {};', 'prohibited property name', 28)
+            expectRefused('export default "name" in (() => 1);', 'prohibited property name', 23)
             // the right operand missing is the grammar's refusal, at the
             // token no rule takes
-            refusedIn('export default "a" in;', 'unexpected token', 22)
+            expectRefused('export default "a" in;', 'unexpected token', 22)
             // the left operand is resolved first, as every binary
             // operator's: with both sides wrong, the left's fault is the
             // one reported, the first in document order
