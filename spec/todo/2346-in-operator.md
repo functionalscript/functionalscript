@@ -1,9 +1,7 @@
 ## The `in` Operator With a Literal Key
 
 **Priority:** P3
-**Status:** wip — the language designer decided for the operator in
-[the working session](https://claude.ai/code/session_01Q2nX9tTC5wXtzE7LHJXgRs);
-the approval record is the first task
+**Status:** wip — approved by the language designer, below
 
 ### Problem
 
@@ -125,14 +123,17 @@ shape instead. The node is that shape.
 
 ### Tasks
 
-- [ ] The [§12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
-      approval record: the designer, `sergey-shandar`, proposed the
-      literal-key operator and decided for it in the session this record's
-      status links. §12 asks the approval of a designer other than the
-      proposer, and names one designer; whether the designer's own decision
-      stands as the record, or §12 names how a sole designer's proposal is
-      approved, is the owner's call, written here.
-- [ ] The runtime body `runtime.in` and its proof against the host's `in`:
+- [x] The [§12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+      approval record. **Approved** by the language designer,
+      `sergey-shandar`, in
+      [the working session](https://claude.ai/code/session_01Q2nX9tTC5wXtzE7LHJXgRs):
+      the designer proposed the literal-key operator there, decided for it
+      ("I like the operator. Let's do it."), and, asked whether a sole
+      designer's own decision stands as the §12 record where the section
+      names no second designer to ask, directed that the decision be
+      recorded as the approval. That is the owner's resolution of §12's
+      "another designer" for a proposal of the only designer named.
+- [x] The runtime body `runtime.in` and its proof against the host's `in`:
       every admitted key on an object, an array and a function, an entry
       holding `undefined`, and the throw on `null`, `undefined` and each
       primitive; `npm run gen` for the generated runtime.

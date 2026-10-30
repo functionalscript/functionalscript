@@ -6,9 +6,9 @@
  * The module's `runtime` export is printed by the ordinary backend as any
  * module is ([`../module.f.mjs`](../module.f.mjs)'s `itemTagged`), a scope
  * that evaluates, into `pub fn runtime<A: IStaticFunction>() ->
- * Result<Any<A>, Any<A>>`: the object of two functions, `static` and
- * `dot`, which whoever runs compiled modules builds once and hands each as
- * its parameter. Two things are this printer's own. Every static body —
+ * Result<Any<A>, Any<A>>`: the object of three functions, `static`,
+ * `dot` and `in`, which whoever runs compiled modules builds once and hands
+ * each as its parameter. Two things are this printer's own. Every static body —
  * the function the module's `statics` export holds at an id, `Object.is`
  * — carries the NativeFunction text of its id in place of its body's,
  * since a static function is the built-in, not its body, and `String(f)`
@@ -180,8 +180,8 @@ const valueLines = ({ builtIns, value }) => {
     }
     return mapOk((/** @type {{ readonly lines: readonly string[], readonly uses: Uses, readonly bound: string }} */ { lines, uses, bound }) => ({
         lines: [
-            tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static` and `dot`'),
-            tagged('comment')('/// functions over the tables they close over, as the ordinary backend prints any module — every'),
+            tagged('comment')('/// The runtime as a value: the `runtime` export of `fjs/js/runtime`, its `static`, `dot` and `in`'),
+            tagged('comment')('/// functions, the first two over the tables they close over, as the ordinary backend prints any module — every'),
             tagged('comment')('/// static body a closure carrying the NativeFunction text of its id, `Object.entries` the built-in'),
             tagged('comment')('/// itself. Built once by whoever runs compiled modules and handed to each as its parameter'),
             tagged('comment')('/// (`fjs/js/runtime/README.md`).'),
