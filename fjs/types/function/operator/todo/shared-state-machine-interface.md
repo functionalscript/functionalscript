@@ -1,7 +1,7 @@
 ## Unify streaming state-machine interfaces
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
