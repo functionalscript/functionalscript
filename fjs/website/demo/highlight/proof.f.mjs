@@ -1,4 +1,4 @@
-import { codeOutput, disagreement, highlight, render, spansOf, tsHighlight, tsSpansOf } from './module.f.mjs'
+import { codeOutput, highlight, render, tsHighlight } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -29,35 +29,6 @@ export const proof = {
         assert(h.includes('<span data-token="string">'), h)
         assert(!h.includes('comment'), h)
     },
-    // Which characters each span covers, not only that the pieces rejoin: a
-    // misplaced span still rejoins to the input, so the text alone cannot see it.
-    covered: () => {
-        /** @type {(text: string) => string} */
-        const covered = text => JSON.stringify(spansOf(text).map(({ start, length, kind }) =>
-            [kind, Array.from(text).slice(start, start + length).join('')]))
-        // a character beyond U+FFFF counts once before it, in a string and in a comment
-        assertEq(covered('"😀" 1n'), '[["string","\\"😀\\""],["number","1n"]]')
-        assertEq(covered('😀 = x'), '[]')
-        assertEq(covered('"😀" + abc'), '[["string","\\"😀\\""],["identifier","abc"]]')
-        assertEq(covered('"😀" 1'), '[["string","\\"😀\\""],["number","1"]]')
-        assertEq(covered('"😀" + 1'), '[["string","\\"😀\\""],["number","1"]]')
-        assertEq(covered('/* 😀 */ true'), '[["comment","/* 😀 */"],["literal","true"]]')
-        // every line terminator starts a line, and a CRLF starts one
-        assertEq(covered('// c\r1'), '[["comment","// c"],["number","1"]]')
-        assertEq(covered('"a\u2028b" + 1'), '[["string","\\"a\u2028b\\""],["number","1"]]')
-        assertEq(covered('"a\u2029b" + 1'), '[["string","\\"a\u2029b\\""],["number","1"]]')
-        assertEq(covered('1\r\n2\n3'), '[["number","1"],["number","2"],["number","3"]]')
-        // a word after `.` or `?.` is a property name, an identifier whatever it spells
-        assertEq(covered('a.true + a?.default + a . null + a./*c*/const'),
-            '[["identifier","a"],["identifier","true"],["identifier","a"],["identifier","default"],["identifier","a"],["identifier","null"],["identifier","a"],["comment","/*c*/"],["identifier","const"]]')
-        assertEq(covered('true.true'), '[["literal","true"],["identifier","true"]]')
-        // names: letters, digits, `_` and `$`
-        assertEq(covered('$0 + _a1 + Array'), '[["identifier","$0"],["identifier","_a1"],["identifier","Array"]]')
-        // the literal words are literals, `NaN` and `Infinity` among them
-        assertEq(covered('1 + NaN + Infinity + undefined'), '[["number","1"],["literal","NaN"],["literal","Infinity"],["literal","undefined"]]')
-        assertEq(covered('const a = 1  \r\n/* x\r y */  \n// z\n"😀" 1n'),
-            '[["keyword","const"],["identifier","a"],["number","1"],["comment","/* x\\r y */"],["comment","// z"],["string","\\"😀\\""],["number","1n"]]')
-    },
     textIsKept: () => {
         for (const source of ['const a = 1  \n/* x\n y */  \n// z\n\n"é😀" 1n\n', '"😀" 1', '"😀" + 1', '// c\r1', '"a\u2028b" + 1', '1\r\n2']) {
             assertEq(text(highlight(source)), source)
@@ -74,8 +45,6 @@ export const proof = {
         assert(h.includes('<span data-token="number">1</span>'), h)
     },
     empty: () => assertEq(highlight('').length, 0),
-    spans: () => assertEq(JSON.stringify(spansOf('a /* x */ 1')),
-        '[{"start":0,"length":1,"kind":"identifier"},{"start":2,"length":7,"kind":"comment"},{"start":10,"length":1,"kind":"number"}]'),
     render: () => {
         assertEq(render([]).length, 0)
         assertEq(JSON.stringify(render([['a', 'keyword'], [' b'], ['']])),
@@ -102,32 +71,11 @@ export const proof = {
         assertEq(html('-0 -Infinity'),
             '<!DOCTYPE html><pre>-<span data-token="number">0</span> -<span data-token="literal">Infinity</span></pre>')
     },
-    disagreement: () => {
-        assertEq(disagreement([['const', 'keyword'], [' '], ['a', 'identifier'], [' = '], ['-1', 'number'], [';']]), null)
-        // a name the producer left plain, and a word it marked as another kind
-        assertEq(disagreement([['const', 'keyword'], [' a']]), 'marked [{"start":0,"length":5,"kind":"keyword"}], the tokenizer finds [{"start":0,"length":5,"kind":"keyword"},{"start":6,"length":1,"kind":"identifier"}], in const a')
-        assertEq(disagreement([['x', 'keyword']]), 'marked [{"start":0,"length":1,"kind":"keyword"}], the tokenizer finds [{"start":0,"length":1,"kind":"identifier"}], in x')
-    },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
-    // TypeScript's own words are keywords where an operand follows them on
-    // their line, and names everywhere else.
+    // TypeScript's own words are keywords; the text is kept.
     typeScript: () => {
-        /** @type {(text: string) => string} */
-        const keywords = text => JSON.stringify(tsSpansOf(text).flatMap(({ start, length, kind }) =>
-            kind === 'keyword' ? [Array.from(text).slice(start, start + length).join('')] : []))
-        // an operand follows: a name, a keyword, a string, `{`, and `[` after `readonly`
-        assertEq(keywords('export type A = readonly B[]'), '["export","type","readonly"]')
-        assertEq(keywords('x as const; declare module "m"; import type { A }'), '["as","const","declare","module","import","type"]')
-        assertEq(keywords('type A = readonly [unique symbol]'), '["type","readonly","unique"]')
-        // a variable: an operator or the line's end follows, or it is a
-        // property; the `as` casting one is a keyword still
-        assertEq(keywords('const type = out; f(type, readonly)'), '["const"]')
-        assertEq(keywords('type\nA; type /* c */ in x; out of xs; type as T; type [0]'), '["in","as"]')
-        assertEq(keywords('x.type A'), '[]')
-        // a primitive type name is a name, as no neighbour says it is a type
-        assertEq(keywords('let a: string'), '["let"]')
-        // JavaScript reads them all as names
-        assertEq(JSON.stringify(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
+        const h = htmlToString(['pre', ...tsHighlight('type A = 1\n')])
+        assert(h.includes('<span data-token="keyword">type</span>'), h)
         assertEq(text(tsHighlight('type A = 1\n')), 'type A = 1\n')
     },
 }

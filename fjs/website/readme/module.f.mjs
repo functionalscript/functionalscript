@@ -27,7 +27,8 @@
  *
  * **A code fence in a language the site can read is coloured.** Its text
  * goes through the tokenizer the demos colour a typed example with
- * ([`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
+ * ([`js/marked`](../../js/marked/module.f.mjs), drawn by
+ * [`demo/highlight`](../demo/highlight/module.f.mjs)), and a TypeScript
  * fence through the same tokenizer with TypeScript's own keywords, so the
  * colours are the demos' and the text is the fence's, character for
  * character. A fence in any other language, or one the tokenizer refuses,

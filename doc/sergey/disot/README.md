@@ -103,7 +103,7 @@ The name can evolve, but **the name history is immutable**:
 
 ```mermaid
 flowchart TB
-    N2["name revision r2\n/did:example:alice/parser"] --> N1["name revision r1\n/did:example:alice/parser"]
+    N2["name revision r2<br/>/did:example:alice/parser"] --> N1["name revision r1<br/>/did:example:alice/parser"]
     N2 --> D2["sha256:bcd2..."]
     N1 --> D1["sha256:abcd..."]
 ```

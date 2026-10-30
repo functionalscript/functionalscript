@@ -37,7 +37,7 @@ const perform = files => effect => {
     return result[1]
 }
 
-const refused = 'const o = {};\nexport default "a" in o;\n'
+const refused = 'const o = {};\nexport default o in o;\n'
 
 const accepted = 'export default false;\n'
 
@@ -57,7 +57,7 @@ export const proof = {
     report: () => {
         const r = report(refused)
         assert(r[0] === 'error')
-        assertEq(reportText(refused)(r[1]), 'sample.mjs:2:20 - error: unexpected token\n2 | export default "a" in o;\n  |                    ^')
+        assertEq(reportText(refused)(r[1]), 'sample.mjs:2:18 - error: the left operand of in must be a string literal\n2 | export default o in o;\n  |                  ^')
         assertEq(report('export default 1;')[0], 'ok')
         assertEq(compileAs('alternative.f.js')(accepted)[0], 'ok')
     },
@@ -65,9 +65,9 @@ export const proof = {
         const r = report(refused)
         assert(r[0] === 'error')
         assertEq(suggestedText(suggestion)(refused)(r[1]), [
-            'sample.mjs:2:20 - error: no in',
-            '2 | export default "a" in o;',
-            '  |                    ^^ here',
+            'sample.mjs:2:18 - error: no in',
+            '2 | export default o in o;',
+            '  |                  ^^ here',
             '  = help: use h:',
             '          h(o, "a")',
             '  = note: see in',
@@ -100,13 +100,13 @@ export const proof = {
         assert(loading.includes('<pre>true</pre>'), loading)
         const page = shown(loaded(refused, accepted))
         assert(page.includes('<div data-refused=""><strong>Not allowed in FunctionalScript</strong>'), page)
-        assert(page.includes('sample.mjs:2:20 - error: unexpected token'), page)
-        assert(page.includes('sample.mjs:2:20 - error: no in'), page)
+        assert(page.includes('sample.mjs:2:18 - error: the left operand of in must be a string literal'), page)
+        assert(page.includes('sample.mjs:2:18 - error: no in'), page)
         assert(page.includes('What fjs compile alternative.f.js output.js writes:'), page)
         assert(page.includes('<pre>false</pre>'), page)
         // An alternative the compiler refuses shows the line it prints, not a plausible output.
         const wrong = shown(loaded(refused, refused))
-        assert(wrong.includes('alternative.f.js:2:20 - error: unexpected token'), wrong)
+        assert(wrong.includes('alternative.f.js:2:18 - error: the left operand of in must be a string literal'), wrong)
         const outdated = shown(loaded('export default 1;', accepted))
         assert(outdated.includes('This page is out of date:'), outdated)
         assert(!outdated.includes('data-refused'), outdated)

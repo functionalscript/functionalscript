@@ -6,10 +6,10 @@
  * **What it draws is what [`media/mermaid`](../../media/mermaid/module.f.js)
  * reads,** less what the renderer cannot draw as a flowchart means it; any
  * other fence is refused, and the README shows it as its source. The
- * renderer draws a node's arrows as rows, a row naming its arrow's label or,
- * for an arrow with none, the node it leads to, so a node whose arrows are
- * labelled only in part would repeat its targets' names in its rows: it is
- * refused.
+ * renderer draws a node's labelled arrows as rows, each naming its label,
+ * and a row for an arrow with none beside them names the node it leads to.
+ * A row is one line, so an arrow label of several lines is refused; a
+ * node's label may have several, and the renderer stacks them.
  *
  * **The picture keeps the content, not the layout.** Every diagram reads
  * left to right, whatever direction it names; `<-->` is an arrow each way;
@@ -59,11 +59,8 @@ export const flowchartGraph = ({ nodes, edges }) => {
     const arrows = edges.flatMap(({ from, to, label, both }) => both
         ? [{ from, to, label }, { from: to, to: from, label }]
         : [{ from, to, label }])
-    const partly = nodes.find((_, n) => {
-        const labels = arrows.filter(e => e.from === n).map(e => e.label === '')
-        return labels.includes(true) && labels.includes(false)
-    })
-    if (partly !== undefined) { return error(`a node whose arrows are labelled only in part: ${partly.id}`) }
+    const broken = arrows.find(({ label }) => label.includes('\n'))
+    if (broken !== undefined) { return error(`an arrow label of several lines, which a row does not draw: ${nodes[broken.from].id}`) }
     const back = cycleEdges(nodes.length, arrows)
     const marked = arrows.map((e, i) => back.includes(i) ? { ...e, back: true } : e)
     return ok({

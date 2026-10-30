@@ -10,7 +10,7 @@ More importantly, a Git repository is portable history.
 
 ```mermaid
 flowchart LR
-    L["Laptop\nGit repo"] <--> U["USB drive"]
+    L["Laptop<br/>Git repo"] <--> U["USB drive"]
     L <--> H["Git host"]
     L <--> P["Another computer"]
     U <--> P
@@ -24,7 +24,7 @@ The history does not depend on the transport.
 
 ```mermaid
 flowchart LR
-    A["Alice\nrepo"] -->|copy| USB["USB / disk"] -->|carry| B["Bob\nrepo"]
+    A["Alice<br/>repo"] -->|copy| USB["USB / disk"] -->|carry| B["Bob<br/>repo"]
     B -->|new commits| USB2["USB / disk"] --> A
 ```
 
