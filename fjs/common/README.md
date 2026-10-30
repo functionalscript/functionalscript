@@ -16,8 +16,10 @@ const concat = { identity: '', operation: a => b => a + b }
 |---|---|
 | `repeat(monoid)(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps; `n` is a non-negative `bigint` |
 | `fold(monoid)(list)` | combines a list as a balanced tree, keeping order |
+| `foldBy(weight)(monoid)(list)` | `fold` balanced by the weight of each value, so a long value among short ones is copied once |
 | `foldAbsorbing({ monoid, absorbing })(list)` | `fold` that stops at the absorbing element |
-| `step` and `runs` | the balanced fold's stack, for a structure that keeps it |
+| `foldAbsorbingBy(weight)({ monoid, absorbing })(list)` | `foldBy` that stops at the absorbing element |
+| `step`, `stepBy` and `runs` | the balanced fold's stack, for a structure that keeps it |
 
 ```js
 repeat(add)(10n)(3)          // 30

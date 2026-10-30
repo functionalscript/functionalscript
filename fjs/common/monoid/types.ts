@@ -76,8 +76,17 @@ export type Absorbing<T> = {
 }
 
 /**
- * A run of `size` already-combined elements. Runs live on a {@link Stack}
- * whose top is the most recent — and smallest — run, so `rest` holds
+ * How heavy a value is, for the balanced fold: `foldBy` takes the cost of
+ * the monoid's `operation` to grow with the weight of its operands — an
+ * array's length, a vector's bit count — and merges the light runs first.
+ * `fold` weighs every value one.
+ */
+export type Weight<T> = (value: T) => number
+
+/**
+ * A run of already-combined elements, of their total `size` — the sum of
+ * their weights, their count under `fold`. Runs live on a {@link Stack}
+ * whose top is the most recent — and lightest — run, so `rest` holds
  * everything to the left of `value`.
  */
 export type Run<T> = {
@@ -87,8 +96,11 @@ export type Run<T> = {
 }
 
 /**
- * A stack of runs, `null` when empty: the state of a balanced fold, laid out
- * as the binary representation of the number of elements pushed — the run
- * sizes are its set bits, so `n` elements are at most `log2(n) + 1` runs.
+ * A stack of runs, `null` when empty: the state of a balanced fold. Every run
+ * outweighs the two above it together, and the second outweighs the top, so
+ * sizes shrink at least as fast as Fibonacci numbers from the bottom and a
+ * stack of total weight `w` holds about `1.44·log2(w)` runs. Under weight one
+ * it is the binary representation of the number of elements pushed — the run
+ * sizes are its set bits — so `n` elements are at most `log2(n) + 1` runs.
  */
 export type Stack<T> = Run<T> | null
