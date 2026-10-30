@@ -7,10 +7,9 @@
 
 [git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md) timestamps
 a SHA-1 history as the hosts hold it, and states the risk that accepts: the
-timestamp binds the head commit's bytes by SHA-256, and everything the
-commit reaches only by the SHA-1 ids inside those bytes — names an attacker
-who can collide SHA-1 can make two of
-([git-sha1-collisions](./git-sha1-collisions.md)). This issue closes that
+timestamp is over a message that names the head commit, and through it
+everything it reaches, by SHA-1 — names an attacker who can collide SHA-1
+can make two of ([git-sha1-collisions](./git-sha1-collisions.md)). This issue closes that
 risk: a second name for every object the history reaches, a SHA-256 over
 the content, timestamped beside the SHA-1 names so that the proof names
 *which* content and not one of a colliding pair.
@@ -19,9 +18,9 @@ Git can name objects by SHA-256, and in practice every host, clone and old
 repository is SHA-1. So the content stays where it is, and DISOT adds the
 second name beside it: a **mapping table** from SHA-1 object id to SHA-256
 name, kept on the same `disot` branch, each delta in a commit beside a
-trusted timestamp over the delta's own SHA-256. The branch, its record and
-its renewing chain are the timestamp issue's; this issue replaces the
-subject with the delta and adds the walk that fills it.
+trusted timestamp over the message that carries the delta. The branch, its
+message, its record and its renewing chain are the timestamp issue's; this
+issue extends the message with the delta and adds the walk that fills it.
 
 ### Design
 
@@ -33,48 +32,44 @@ subject with the delta and adds the walk that fills it.
   converts it, so a commit's pair is a Merkle root over everything it
   reaches and one timestamped line proves a whole history. Which SHA-256
   to use is formally [git-sha1-collisions](./git-sha1-collisions.md)'s
-  decision; this is the assumption. It is not the name the timestamp
-  issue's subject gives — that is the SHA-256 of the bytes as stored, which
-  rests on SHA-1 one level down — so the two tables are kept apart by file
-  name, and a subject's pairs feed no cache here.
+  decision; this is the assumption.
 - The walk is **post-order** and **prunes** at any object already paired,
   which is safe because post-order recording keeps the table closed under
   reachability. A pruned pair records that the commit reaches the object
   *as observed earlier*. So a run costs the new content.
-- Each commit's tree holds the **delta**, `sha1-sha256-map.json`, the pairs
-  new since the parent, in the subject's place; and the record, `tts.json`,
-  unchanged: the delta's SHA-256 blob name beside the RFC 3161 token whose
-  imprint is that name. The tree entry gives the delta's SHA-1, the record
-  its SHA-256, so the commit pairs its own delta without the delta naming
-  itself. The next delta records the parent commit, its tree and its
-  record, which the parent could not name.
+- The **delta**, the pairs new since the parent, is a second member of the
+  message, `map`, after `heads`: `{"heads":[…],"map":{"<sha1>":"<sha256>",…}}`.
+  The record is unchanged: the message's SHA-256 blob name beside the
+  RFC 3161 token whose imprint is that name. The record pairs the message;
+  the commit, its tree and the record itself no delta holds yet, so the
+  next delta records them.
 - A run over a covered repository still commits: its delta holds the
-  parent's three objects and its token renews the chain.
-- A branch grown before this issue holds commits with a subject and no
-  delta. They stay as they are: their timestamps hold, and the first run
+  parent's objects and its token renews the chain.
+- A branch grown before this issue holds messages with `heads` and no
+  `map`. They stay as they are: their timestamps hold, and the first run
   with the map walks the whole history, since nothing before it is paired.
   From that commit on, every head carries both names.
 
 ### `fjs tts` with the map
 
-The timestamp issue's skeleton, with a walk where it named the heads and
-the delta in the subject's place. The same rules hold: a milestone to
-build on, `--tsa <url>`, committed objects in, objects and one ref out,
-never the index or the working tree.
+The timestamp issue's skeleton, with a walk after it names the heads and
+the delta added to the message. The same rules hold: a milestone to build
+on, `--tsa <url>`, committed objects in, objects and one ref out, never the
+index or the working tree.
 
 1. **Read the cache.** If `refs/heads/disot` exists, scan its commits and
-   take the union of their deltas in memory, plus one pair per commit for
-   its delta: the tree entry's SHA-1, the record's SHA-256. A commit with a
-   subject and no delta contributes nothing. Otherwise the cache is empty
-   and the new commit has no parent.
-2. **Walk** from `HEAD`, and from the `disot` head, whose commit, tree and
-   record no delta holds yet, recording what the cache lacks. Commits,
-   trees and blobs only; anything else met is refused.
-3. **Write the delta**, `sha1-sha256-map.json`: one JSON object, SHA-1 keys
-   in lowercase hex in ascending order, SHA-256 values in lowercase hex, no
-   whitespace.
-4. **Timestamp it**, with the delta's SHA-256 blob name as imprint, and
-   write the record as the timestamp issue does.
+   take the union of their `map` members in memory, plus one pair per
+   commit for its message: the tree entry's SHA-1, the record's SHA-256. A
+   message without a `map` contributes nothing. Otherwise the cache is
+   empty and the new commit has no parent.
+2. **Walk** from the heads the message names — `HEAD`, and the `disot`
+   head, whose commit, tree and record no delta holds yet — recording what
+   the cache lacks. Commits, trees and blobs only; anything else met is
+   refused.
+3. **Write the message**, `heads` as the timestamp issue writes it, then
+   `map`: SHA-1 keys in lowercase hex in ascending order, SHA-256 values in
+   lowercase hex, no whitespace.
+4. **Timestamp it** and write the record as the timestamp issue does.
 5. **Commit** the two blobs and their tree, with the `disot` head as the
    one parent, and move `refs/heads/disot` to it. Nothing is fetched or
    pushed.
@@ -86,9 +81,9 @@ own additions, which hold here unchanged. The concern comes first, then
 the fix.
 
 - **The cache is not checked.** A damaged or substituted delta feeds the
-  cache, and pruning then stops the walk at wrong pairs. Hash each delta as
-  a blob and require the record's SHA-256; refuse two names for one SHA-1;
-  refuse a delta spelled any way but the canonical one.
+  cache, and pruning then stops the walk at wrong pairs. Hash each message
+  as a blob and require the record's SHA-256; refuse two names for one
+  SHA-1; refuse a message spelled any way but the canonical one.
 - **A SHA-256 repository.** Its content already has the name, and the
   reverse conversion is not this command's. Refuse; this is the answer the
   timestamp issue left open.
@@ -127,14 +122,15 @@ one computed per attestation — is
 - [ ] The walk over [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
       [`fjs/git/walk`](../fjs/git/walk/module.f.mjs), with a proof that a
       second run over an unchanged repository records only the renewal.
-- [ ] `fjs tts`: the walk, and the delta in the subject's place.
+- [ ] `fjs tts`: the walk, and the delta in the message.
 
 Then the additions, one each.
 
 ### Related
 
 - [git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md) — the
-  branch, the record, the chain, and the risk this issue closes.
+  branch, the message, the record, the chain, and the risk this issue
+  closes.
 - [git-sha1-collisions](./git-sha1-collisions.md) — the policy this
   answers, and which SHA-256 a pair names.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)

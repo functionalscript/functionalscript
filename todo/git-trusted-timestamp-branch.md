@@ -26,13 +26,13 @@ own from the day it lands.
 
 ### Risk: what a timestamp over SHA-1 names proves
 
-The imprint a timestamp binds is a SHA-256 digest over the timestamped
-bytes, never a SHA-1 ([what a timestamp proves](#what-a-timestamp-proves)).
-So the timestamped commit itself — its tree id, its parent ids, its author
-and committer lines, its message — is bound by a hash whose collision
-resistance is intact. What is SHA-1 is the ids *inside* those bytes: the
-tree and the parents, and through them everything the commit reaches. The
-risk is that one of those ids names two objects.
+The imprint a timestamp binds is a SHA-256 digest over the message the
+branch records, and the message names the commits it covers by SHA-1
+([what a timestamp proves](#what-a-timestamp-proves)). So until the map
+lands, everything the timestamp vouches for — the head commit, and
+through its tree and parents everything it reaches — is named by a hash
+whose collision resistance is broken. The risk is that one of those names
+names two objects.
 
 Against the attacks known today it does not:
 
@@ -49,11 +49,9 @@ Against the attacks known today it does not:
 What is left is an attack not known today — a practical second preimage, or
 a collision shape `sha1dc` does not see — found after the timestamp was
 made. Such an attack would let an attacker make a twin of an object the
-timestamped commit reaches, and the timestamp alone could not tell the two
-apart. Three things bound that:
+message names or reaches, and the timestamp alone could not tell the two
+apart. Two things bound that:
 
-- The timestamped commit's own bytes stay bound by SHA-256; only an object
-  it *reaches* can be twinned, never the commit itself.
 - The map closes the exposure from the day it lands: from its first commit
   the same history carries SHA-256 names under a timestamp of its own, and
   a verifier that has both checks both. The exposure is the window between
@@ -77,21 +75,22 @@ the map names and who vouches for it; that stays open in
   header — each descending from the previous one, so the chain keeps adding
   timestamps for as long as the repository lives. The branch holds only
   what was observed and records no decisions.
-- Each commit's tree holds **two files**: the subject and the record.
-- The **subject**, `heads.json`, is a set of pairs `(sha1, sha256)`, one per
-  object: the object's SHA-1 id, and the SHA-256 over the same bytes the
-  SHA-1 is computed over, `<type> SP <size> NUL` envelope included. It names
-  the `HEAD` commit, and the parent `disot` commit, its tree and its record,
-  which the parent could not name itself. It is the first of the two tables
-  [git-sha1-collisions](./git-sha1-collisions.md) distinguishes — a name for
-  the bytes as stored, resting on SHA-1 one level down — and that is the
-  point: it binds the commit, and the map binds what the commit reaches.
-- The **record**, `tts.json`, holds the subject's SHA-256 blob name beside
-  the RFC 3161 token whose imprint is that name. The tree entry gives the
-  subject's SHA-1, the record its SHA-256, so the commit pairs its own
-  subject without the subject naming itself.
-- A run over an unchanged repository still commits: its subject holds the
-  parent's three objects and its token renews the chain.
+- Each commit's tree holds **two files**: the message and the record.
+- The **message**, `message.json`, is what the timestamp is over. It names
+  the commits the timestamp covers by SHA-1, each with everything it
+  reaches: the `HEAD` commit, and the parent `disot` commit, through which
+  the parent's tree and record, which the parent could not name itself.
+  A SHA-1 is what a reader has in hand and what every host indexes, so the
+  message names a commit the way the hosts do, and a reader goes from the
+  message to the commit without a table. The map later extends the same
+  message with a second name per object
+  ([git-sha256-map-branch](./git-sha256-map-branch.md)); nothing in the
+  message is redefined by it.
+- The **record**, `tts.json`, holds the message's SHA-256 blob name beside
+  the RFC 3161 token whose imprint is that name. The token is over the
+  message, never over an object: the message is what names the objects.
+- A run over an unchanged repository still commits: its message names the
+  parent and its token renews the chain.
 
 ### Skeleton: `fjs tts`
 
@@ -105,13 +104,12 @@ index or the working tree.
 1. **Read the branch head.** If `refs/heads/disot` exists, its commit, its
    tree and its record are the parent objects. Otherwise there are none and
    the new commit has no parent.
-2. **Name the heads.** The `HEAD` commit and the parent objects, each with
-   the SHA-256 of its bytes. An unborn `HEAD`, or one that is `disot`, is
-   refused.
-3. **Write the subject**, `heads.json`: one JSON object, SHA-1 keys in
-   lowercase hex in ascending order, SHA-256 values in lowercase hex, no
-   whitespace.
-4. **Timestamp it.** Request an RFC 3161 timestamp with the subject's
+2. **Name the heads.** The `HEAD` commit and, when there is one, the parent
+   `disot` commit. An unborn `HEAD`, or one that is `disot`, is refused.
+3. **Write the message**, `message.json`: one JSON object with one member,
+   `heads`, an array of the SHA-1s in lowercase hex in ascending order, no
+   whitespace: `{"heads":["…","…"]}`.
+4. **Timestamp it.** Request an RFC 3161 timestamp with the message's
    SHA-256 blob name as imprint; on a granted response write the record,
    `tts.json`: `{"sha256":"…","tts":"…"}`, members in that order, the token
    as DER in standard base64 with padding, no whitespace, no escapes.
@@ -129,8 +127,8 @@ comes first, then the fix.
   request with `certReq` so the token carries the certificate and a clone
   can check it from the blobs alone.
 - **The parent is not checked.** A damaged or substituted record is built
-  on, and the chain then renews a wrong link. Hash the parent's subject as
-  a blob and require the record's SHA-256; refuse a subject or record
+  on, and the chain then renews a wrong link. Hash the parent's message as
+  a blob and require the record's SHA-256; refuse a message or record
   spelled any way but the canonical one.
 - **Two local runs can race.** The second moves the ref over the first's
   commit. Move `refs/heads/disot` only if it still holds what step 1 read,
@@ -162,9 +160,10 @@ comes first, then the fix.
   authority's certificate does; a later token over the chain proves the
   earlier one existed before that, if the later bound comes first. That is
   the renewal RFC 3161 describes.
-- **The imprint is a SHA-256 name.** Hashing anything by SHA-1 would bind a
-  name an attacker can collide. What the SHA-256 is over — the commit's
-  bytes here, and what the commit reaches once the map lands — is the
+- **The imprint is a SHA-256 name of the message.** The token binds the
+  message's bytes with a hash whose collision resistance is intact; what
+  the message binds is whatever names it holds — SHA-1 here, SHA-256
+  beside it once the map lands — which is the
   [risk](#risk-what-a-timestamp-over-sha-1-names-proves) above.
 
 ### Out of scope
@@ -181,15 +180,11 @@ closure, two names for one SHA-1 — is
 
 Skeleton:
 
-- [ ] The subject and record writers and readers.
+- [ ] The message and record writers and readers, with a proof that a
+      second run over an unchanged repository records only the renewal.
 - [ ] The timestamp request, reusing the RFC 3161 handling
       [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
       defines.
-- [ ] The SHA-256 of an object's bytes, over
-      [`fjs/git/store`](../fjs/git/store/module.f.mjs) and
-      [`fjs/crypto/sha2`](../fjs/crypto/sha2/module.f.mjs), with a proof
-      that a second run over an unchanged repository records only the
-      renewal.
 - [ ] A loose-object writer: nothing in [`fjs/git`](../fjs/git/README.md)
       writes an object yet, and the effects have `inflate` and no
       `deflate`. Then the branch tip.
