@@ -21,6 +21,7 @@ const concat = { identity: '', operation: a => b => a + b, weight: s => s.length
 | `fold(monoid)(list)` | combines a list as a balanced tree, balanced by the monoid's weight, keeping order |
 | `foldAbsorbing({ monoid, absorbing })(list)` | `fold` that stops at the absorbing element |
 | `step`, `collect` and `runs` | the balanced fold's stack: push a value, fold the stack, read its runs |
+| `move(monoid)(folding)(walk)` | one move of the fold, the rule itself; `step` and `collect` loop over it, and the module's demo draws every move as a merge tree |
 
 ```js
 repeat(add)(10n)(3)          // 30

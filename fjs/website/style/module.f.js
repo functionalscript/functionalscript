@@ -93,6 +93,11 @@ export const captionMarker = 'data-caption'
  */
 export const codeMarker = 'data-code'
 
+/** The attribute of a drawing in text, whose lines keep their columns, shared with its stylesheet rule.
+ * @type {string}
+ */
+export const drawingMarker = 'data-drawing'
+
 /** The attribute of a highlighted field's wrapper, shared with its stylesheet rules.
  * @type {string}
  */
@@ -877,6 +882,11 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    the page. */
 [${codeMarker}], [${resultMarker}] { border: 1px solid var(--border); border-radius: 6px; overflow-wrap: anywhere; padding: .5rem .75rem; white-space: pre-wrap }
 [${codeMarker}] { background: color-mix(in srgb, var(--border) 30%, var(--bg)) }
+/* A drawing in text — the merge tree of a fold — keeps its columns: a long
+   line scrolls sideways rather than wrapping, which would put a run under
+   the wrong values. It is an output box too, so it follows the box's rule
+   above, which it has to override at the same specificity. */
+[${drawingMarker}] { overflow-wrap: normal; overflow-x: auto; white-space: pre }
 /* Static reference controls appear only once their browser adapter is bound. */
 :is([data-cli], [data-readme]):not([data-copy-ready]) [data-copy] { display: none }
 [data-cli] section { border-top: 1px solid var(--border); margin-top: 2rem; padding-top: 1rem; scroll-margin-top: 1rem }

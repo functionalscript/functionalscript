@@ -82,14 +82,17 @@ export type Absorbing<T> = {
 }
 
 /**
- * How heavy a value is, for the balanced fold: `fold` takes the cost of the
- * monoid's `operation` to grow with the weight of its operands — an array's
- * length, a vector's bit count, a number's magnitude — and merges the light
- * runs first. The weight is read from the value itself, a merged run's from
- * the merged value, so it has to grow under the operation as the cost does:
- * a length adds, a magnitude adds at most. A weight of zero for every value
- * makes the fold sequential, which is the cheapest fold there is for an
- * operation whose cost does not grow with its operands.
+ * How heavy a value is, for the balanced fold: `fold` merges the light runs
+ * first, so the weight is whatever the operation should meet small first —
+ * an array's length or a vector's bit count where the operation copies its
+ * operands, a number's magnitude where it rounds. The weight is read from
+ * the value itself, a merged run's from the merged value, and the fold
+ * assumes nothing about how it behaves under the operation: a length adds,
+ * a magnitude adds at most, and `|a + b|` is below both `|a|` and `|b|`
+ * when the signs differ; the fold reads the result's weight and applies its
+ * rule again. A weight of zero for every value makes the fold sequential,
+ * which is the cheapest fold there is for an operation whose cost does not
+ * grow with its operands.
  */
 export type Weight<T> = (value: T) => number
 
@@ -113,3 +116,27 @@ export type Run<T> = {
  * last value pushed.
  */
 export type Stack<T> = Run<T> | null
+
+/**
+ * The state of one push or of the fold at the end, between moves: the
+ * `value` being placed, the `stack` beneath it, and the runs `pending` above
+ * it, nearest first, that found their place and wait to be pushed back once
+ * the stack below has settled. In the order of the list being folded, the
+ * runs read stack bottom to top, then the value, then the pending runs
+ * nearest to farthest.
+ */
+export type Walk<T> = {
+    readonly stack: Stack<T>
+    readonly value: T
+    readonly pending: Stack<T>
+}
+
+/**
+ * The state of the module's demo (`./demo.f.mjs`): which sequence is drawn,
+ * and the seed of the shuffle. Private to the demo, and here rather than in
+ * `private.ts` because the demo's shipped declaration reaches it.
+ */
+export type _DemoState = {
+    readonly sequence: string
+    readonly seed: number
+}

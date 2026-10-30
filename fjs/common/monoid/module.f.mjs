@@ -9,13 +9,20 @@
  * `fold` lets a value sit on its stack only where the run two below it is
  * heavier, merging the two runs beneath it first otherwise. The weight is
  * the value's own, so a merged run weighs what its value weighs and nothing
- * is counted. Where the operation's cost grows with its operands, as
- * concatenation does, this is what keeps one long value among many short
- * ones from being copied at every merge: it is never merged on the push that
- * brings it, it waits until the values above it outweigh the run beneath,
- * and it is copied once. A weight of zero for every value makes the fold
- * sequential, which is the cheapest fold for an operation whose cost does
- * not depend on its operands.
+ * is counted; the fold assumes nothing about that weight, it reads the
+ * merged value's and applies the rule again, so a weight may fall under the
+ * operation — `|a + b|` is below both `|a|` and `|b|` when the signs differ
+ * — and the stack stays well formed either way. Where the operation's cost
+ * grows with its operands, as concatenation does, this is what keeps one
+ * long value among many short ones from being copied at every merge: it is
+ * never merged on the push that brings it, it waits until the values above
+ * it outweigh the run beneath, and it is copied once. Where the operation
+ * rounds, as `+` on `number` does, a magnitude as the weight meets the small
+ * terms first without reordering them, which is what an operation that is
+ * not commutative needs, since its terms cannot be sorted; a commutative one
+ * may still do better by sorting its terms first. A weight of zero
+ * for every value makes the fold sequential, which is the cheapest fold for
+ * an operation whose cost does not depend on its operands.
  *
  * The fold's state, a {@link Stack} of runs, is exported too — `step`,
  * `collect` and `runs` — for a structure that keeps the stack itself rather
@@ -23,13 +30,15 @@
  * does, or that folds it only once it knows the answer is wanted, as
  * [`fjs/types/bit_vec`](../../types/bit_vec/module.f.mjs) does under its
  * length cap. `step` is the only way in: every stack it builds from `null`
- * keeps the {@link Stack} invariant.
+ * keeps the {@link Stack} invariant. So is the fold's single move,
+ * {@link move} on a {@link Walk}: `step` and `collect` are loops over it, and
+ * the module's demo draws every move it makes.
  *
  * @module
  *
  * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
  * @import { Accumulator, List } from  '../../types/list/types.ts'
- * @import { Absorbing, Monoid, Run, Stack, Weight } from './types.ts'
+ * @import { Absorbing, Monoid, Run, Stack, Walk, Weight } from './types.ts'
  */
 
 import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
@@ -84,38 +93,72 @@ export const repeat = ({ identity, operation }) => n => a => {
 }
 
 /**
- * Pushes a value onto the stack, merging as the stack's invariant demands,
- * and answers `null` instead as soon as a merge produces a value `absorbed`
- * accepts — the exit {@link foldAbsorbing} takes; {@link step} never takes
- * it.
+ * One move of a {@link Walk}, the fold's whole rule:
  *
- * The value may sit on the stack as it is where the stack is empty, holds one
- * run, or its second run outweighs the value. Otherwise the two runs beneath
- * the value merge, earlier on the left, and the merged run takes the value's
- * place against the rest of the stack while the value waits in `buffer`;
- * every run that found its place is pushed back in order once the stack
- * below has settled. The value itself is never merged on the push that
- * brings it, so a heavy value costs nothing on arrival, and runs of one
- * weight carry like a binary counter. Every run on the stack outweighs the
- * run two above it; the stack is logarithmic in the total weight for runs
- * of a kind and grows only where lengths strictly decrease, which
- * {@link collect} folds pairwise at the end for the same cost as any other.
+ * - **Merge.** The value may sit on the stack only where the stack is empty,
+ *   holds one run, or its second run outweighs the value. Otherwise the two
+ *   runs beneath it merge, earlier on the left, the merged run takes the
+ *   value's place against the rest of the stack, and the value waits above it
+ *   as pending.
+ * - **Settle.** A value that may sit, with runs pending, sits, and the
+ *   nearest pending run is the value.
+ * - **Fold.** When `folding`, a value that may sit with nothing pending merges
+ *   into the run beneath it instead, lightest first.
+ * - **Done.** Otherwise the walk is over, and `move` answers the walk it was
+ *   given: a push is complete, with its value sitting on the stack, or the
+ *   fold has merged everything into the value.
+ *
+ * The rule is the local-minimum rule of the Garsia–Wachs and Hu–Tucker
+ * algorithms for the optimal alphabetic tree, run online: two adjacent runs
+ * merge as soon as their pair is known to weigh no more than either pair
+ * beside it. The invariant, every run outweighs the run two above it,
+ * settles the pair beneath, and the arriving value settles the pair above,
+ * which is why a value is never merged on the push that brings it. The
+ * offline algorithms then move the merged node beside the first heavier one
+ * and rebuild the tree in order from the levels; here the merge tree is the
+ * result, so the merged run stays in place and the runs beneath it merge
+ * instead: a greedy, order-preserving approximation of the optimum.
+ *
+ * A heavy value costs nothing on arrival, and runs of one weight carry like
+ * a binary counter. Every run on the stack outweighs the run two above it; the stack
+ * is logarithmic in the total weight for runs of a kind and grows only where
+ * lengths strictly decrease, which the fold at the end merges pairwise for
+ * the same cost as any other, in `O(w·log(w))` where a plain fold from the
+ * top would cost `O(w·√w)`. Earlier runs stay on the left throughout.
+ *
+ * @type {<T>(monoid: Monoid<T>) => (folding: boolean) => (walk: Walk<T>) => Walk<T>}
+ */
+export const move = ({ operation, weight }) => folding => walk => {
+    const { stack, value, pending } = walk
+    if (stack !== null && stack.rest !== null && weight(stack.rest.value) <= weight(value)) {
+        return { stack: stack.rest.rest, value: operation(stack.rest.value)(stack.value), pending: { value, rest: pending } }
+    }
+    if (pending !== null) {
+        return { stack: { value, rest: stack }, value: pending.value, pending: pending.rest }
+    }
+    if (folding && stack !== null) {
+        return { stack: stack.rest, value: operation(stack.value)(value), pending: null }
+    }
+    return walk
+}
+
+/**
+ * Pushes a value onto the stack, {@link move} by move, and answers `null`
+ * instead as soon as a merge produces a value `absorbed` accepts — the exit
+ * {@link foldAbsorbing} takes; {@link step} never takes it.
  *
  * @type {<T>(monoid: Monoid<T>) => (absorbed: (value: T) => boolean) => (value: T) => (stack: Stack<T>) => Stack<T>}
  */
-const pushUnless = ({ operation, weight }) => absorbed => value => stack => {
-    /** @typedef {typeof value} T */
-    /** @type {Stack<T>} */
-    let buffer = null
-    while (true) {
-        if (stack === null || stack.rest === null || weight(stack.rest.value) > weight(value)) {
-            stack = { value, rest: stack }
-            if (buffer === null) { return stack }
-            [value, buffer] = [buffer.value, buffer.rest]
-        } else {
-            const merged = operation(stack.rest.value)(stack.value)
-            if (absorbed(merged)) { return null }
-            [buffer, value, stack] = [{ value, rest: buffer }, merged, stack.rest.rest]
+const pushUnless = monoid => {
+    const next = move(monoid)(false)
+    return absorbed => value => stack => {
+        /** @type {Walk<typeof value>} */
+        let walk = { stack, value, pending: null }
+        while (true) {
+            const moved = next(walk)
+            if (moved === walk) { return { value: walk.value, rest: walk.stack } }
+            if (absorbed(moved.value)) { return null }
+            walk = moved
         }
     }
 }
@@ -145,37 +188,26 @@ export const runs = stack =>
  * Folds the stack's runs into one value, the second half of {@link fold}:
  * `identity` for the empty stack, and a lone run merged with `identity`,
  * which passes a lone element through the operation once, as a fold seeded
- * at the identity does; two runs or more merge each other and need no seed. It is {@link pushUnless}'s walk with the
- * value already taken off the top: where the value would come to rest on
- * the stack and nothing waits in the buffer, it merges into the run beneath
- * it instead, lightest first, so a well-formed stack folds with each run
- * copied once; where a run below turns out lighter than what has
- * accumulated, the two runs beneath merge pairwise and come back in order,
- * which is what folds a stack of strictly decreasing lengths in
- * `O(w·log(w))` where a plain fold from the top would cost `O(w·√w)`.
- * Earlier runs stay on the left throughout.
+ * at the identity does; two runs or more merge each other and need no seed.
+ * It is the folding {@link move}, taken from the top run down until the
+ * stack is empty: into the run beneath where the stack is well formed, so
+ * each run is copied once, and pairwise where a run below turns out lighter
+ * than what has accumulated.
  *
  * @type {<T>(monoid: Monoid<T>) => (stack: Stack<T>) => T}
  */
-export const collect = ({ identity, operation, weight }) => stack => {
-    /** @typedef {typeof identity} T */
-    if (stack === null) { return identity }
-    if (stack.rest === null) { return operation(identity)(stack.value) }
-    let value = stack.value
-    stack = stack.rest
-    /** @type {Stack<T>} */
-    let buffer = null
-    while (true) {
-        if (stack === null || stack.rest === null || weight(stack.rest.value) > weight(value)) {
-            if (buffer !== null) {
-                [stack, value, buffer] = [{ value, rest: stack }, buffer.value, buffer.rest]
-            } else if (stack === null) {
-                return value
-            } else {
-                [value, stack] = [operation(stack.value)(value), stack.rest]
-            }
-        } else {
-            [buffer, value, stack] = [{ value, rest: buffer }, operation(stack.rest.value)(stack.value), stack.rest.rest]
+export const collect = monoid => {
+    const { identity, operation } = monoid
+    const next = move(monoid)(true)
+    return stack => {
+        if (stack === null) { return identity }
+        if (stack.rest === null) { return operation(identity)(stack.value) }
+        /** @type {Walk<typeof identity>} */
+        let walk = { stack: stack.rest, value: stack.value, pending: null }
+        while (true) {
+            const moved = next(walk)
+            if (moved === walk) { return walk.value }
+            walk = moved
         }
     }
 }
@@ -212,12 +244,17 @@ export const collect = ({ identity, operation, weight }) => stack => {
  * operand on the left, so `fold` stays correct for non-commutative monoids
  * (e.g. string concatenation as `a => b => a + b`).
  *
- * Re-grouping does move the rounding of an inexact operation. IEEE-754
- * addition is not truly associative, so `number.sum`, weighed by magnitude,
- * adds the small terms among themselves before they meet a large one and
- * returns a (marginally more accurate) different value than a left fold for
- * some inputs. That is a consequence of the uniform treatment, not a goal:
- * a `Monoid` promises associativity, and every monoid folds the same way.
+ * Re-grouping does move the rounding of an inexact operation, and the
+ * weight steers where. IEEE-754 addition is not truly associative, so
+ * `number.sum`, weighed by magnitude, adds the small terms among themselves
+ * before they meet a large one and returns a different, marginally more
+ * accurate, value than a left fold for some inputs. The fold reads the
+ * magnitude of each sum as it is made and assumes nothing about it —
+ * `|a + b|` may be below both `|a|` and `|b|` — so this is how an operation
+ * meets its small terms first without sorting them, the only way where the
+ * operation is not commutative; where it is, sorting the terms by magnitude
+ * first may still do better. A `Monoid` promises associativity, and every
+ * monoid folds the same way.
  *
  * @template T The type of the elements in the monoid.
  * @param {Monoid<T>} monoid The monoid structure: identity, binary operation and weight.

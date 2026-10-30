@@ -1,13 +1,20 @@
 /**
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Absorbing, Monoid, Weight } from './types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { Absorbing, Monoid, Stack, Walk, Weight } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing, runs, step } from './module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { repeat, fold, foldAbsorbing, move, runs, step } from './module.f.mjs'
+import { demo, n, sequence, trace } from './demo.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { concat, countdown, map, repeat as repeatItem } from '../../types/list/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
+import { decodeQuery, encodeQuery, restoreInputs } from '../../website/demo/sharing/module.f.mjs'
+import { stylesheet } from '../../website/style/module.f.js'
 
 const { abs } = Math
 
@@ -197,6 +204,25 @@ export const proof = {
             assertEq(down.copies, 5_117_693)
             assertEq(fold(cost)(map((/** @type {number} */ n) => chunk(1024 - n))(countdown(1024))).copies, 5_117_693)
         },
+        // The fold assumes nothing about a merged value's weight: it reads the
+        // result's and applies the rule again. Weighed by magnitude, `2` and
+        // `-2` merge to `0`, lighter than either, and a run of weight zero
+        // lets every term above it merge in turn, so the stack never holds
+        // more than two runs and the terms add in order, small ones first.
+        cancelling: () => {
+            /** @type {Monoid<{ readonly sum: number, readonly text: string }>} */
+            const signed = {
+                identity: { sum: 0, text: '' },
+                operation: a => b => ({ sum: a.sum + b.sum, text: `(${a.text}${b.text})` }),
+                weight: term => abs(term.sum),
+            }
+            const terms = [2, -2, 2, -2, 2].map((sum, i) => ({ sum, text: String.fromCharCode(0x61 + i) }))
+            const folded = fold(signed)(terms)
+            assertEq(folded.sum, 2)
+            assertEq(folded.text, '((((ab)c)d)e)')
+            const stack = terms.reduce((s, term) => step(signed)(term)(s), /** @type {Stack<{ readonly sum: number, readonly text: string }>} */ (null))
+            assertStructurallySame(toArray(runs(stack)).map(run => run.sum), [2, 0])
+        },
     },
     foldAbsorbing: {
         plain: () => {
@@ -278,5 +304,143 @@ export const proof = {
         // a heavy run stays at the bottom while lighter ones arrive
         const heavy = s('c')(s('b')(s('aaaa')(null)))
         assertStructurallySame(toArray(runs(heavy)), ['c', 'b', 'aaaa'])
+    },
+    // The fold one move at a time: a push's moves on a walk, then the fold's
+    // on the walk the push left, each ending on the walk it was given.
+    move: () => {
+        /** @type {Monoid<string>} */
+        const concat = { identity: '', operation: a => b => a + b, weight: length }
+        const push = move(concat)(false)
+        const collect = move(concat)(true)
+        // `c` arrives on `b` over `a`, and `a` does not outweigh `c`: the two
+        // runs beneath merge, and `c` waits
+        /** @type {Walk<string>} */
+        const arrived = { stack: { value: 'b', rest: { value: 'a', rest: null } }, value: 'c', pending: null }
+        const merged = push(arrived)
+        assertStructurallySame(merged, { stack: null, value: 'ab', pending: { value: 'c', rest: null } })
+        // the merged run sits, and the pending `c` is the value again
+        const settled = push(merged)
+        assertStructurallySame(settled, { stack: { value: 'ab', rest: null }, value: 'c', pending: null })
+        // `c` may sit and nothing is pending: the push is over
+        assert(push(settled) === settled)
+        // folding, the same walk merges `c` into the run beneath it, and is
+        // over once the stack is empty
+        const folded = collect(settled)
+        assertStructurallySame(folded, { stack: null, value: 'abc', pending: null })
+        assert(collect(folded) === folded)
+        // a heavy run beneath lets a value sit on a push, which is where the
+        // push and the fold part: the fold merges it in
+        /** @type {Walk<string>} */
+        const light = { stack: { value: 'b', rest: { value: 'aaaa', rest: null } }, value: 'c', pending: null }
+        assert(push(light) === light)
+        assertStructurallySame(collect(light), { stack: { value: 'aaaa', rest: null }, value: 'bc', pending: null })
+    },
+    demo: {
+        // The drawing of the example the notation was designed on: the merge
+        // beneath an arriving value, the pushes, the fold at the end, pairwise
+        // where the run below is lighter, and the sum last.
+        trace: () => {
+            assertEq(trace([1, 2, 3, 3, 5, 1, 4, 2, 9, 0]), [
+                '1 |',
+                '1 2 |',
+                '1_2 3',
+                ' 3  3 |',
+                ' 3__3 3',
+                '  6   3 |',
+                '  6   3 5 |',
+                '  6   3 5 1 |',
+                '  6   3 5 1 4 |',
+                '  6   3 5 1_4 2',
+                '  6   3_5  5  2',
+                '  6    8   5  2 |',
+                '  6    8   5__2 9',
+                '  6____8    7   9',
+                '    14      7   9 |',
+                '    14      7   9 0 |',
+                '    14      7   9_0 .',
+                '    14      7____9 .',
+                '    14________16 .',
+                '         30',
+            ].join('\n'))
+            assertEq(trace([]), '')
+            assertEq(trace([7]), '7 |\n7')
+        },
+        // Every sequence is `1` to `n` in some order; the shuffle's order is a
+        // function of the seed, so a shared link draws the same tree.
+        sequences: () => {
+            assertEq(n, 30)
+            /** @type {readonly number[]} */
+            const up = Array.from({ length: n }, (_, i) => i + 1)
+            assertStructurallySame(sequence('increasing', 0), up)
+            assertStructurallySame(sequence('decreasing', 0), up.toReversed())
+            const shuffled = sequence('random', 0)
+            assertStructurallySame(shuffled, [11, 25, 18, 19, 16, 20, 23, 27, 13, 9, 21, 17, 3, 5, 1, 24, 26, 29, 22, 28, 7, 12, 6, 14, 10, 2, 4, 8, 30, 15])
+            assertStructurallySame(shuffled.toSorted((a, b) => a - b), up)
+            const again = sequence('random', 1)
+            assertStructurallySame(again.toSorted((a, b) => a - b), up)
+            assert(again.some((value, i) => value !== shuffled[i]))
+            // the signed sequence is `1` to `n / 2` and their negations, shuffled
+            const signed = sequence('signed', 0)
+            assertStructurallySame(signed, [11, -14, -9, -8, 13, -13, 9, 3, -3, 5, -1, 1, 7, -2, -5, 12, -7, 6, -11, 14, -4, 10, -15, -10, -12, 2, 4, -6, 8, 15])
+            assertStructurallySame(signed.toSorted((a, b) => a - b), [...up.slice(0, n / 2).map(v => -v).toReversed(), ...up.slice(0, n / 2)])
+            assert(sequence('signed', 1).some((value, i) => value !== signed[i]))
+            // the last line is the sum, whatever the order: `465` for `1` to
+            // `n`, `0` where every value has its negation
+            for (const [kind, total] of [['increasing', '465'], ['decreasing', '465'], ['random', '465'], ['signed', '0']]) {
+                assertEq(trace(sequence(kind, 0)).split('\n').at(-1)?.trim(), total)
+            }
+        },
+        // The select picks the sequence, the button advances the seed, and
+        // nothing else changes the state.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: typeof demo.init) => typeof demo.init} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertStructurallySame(step({ kind: 'input', name: 'sequence', value: 'decreasing' })(demo.init), { sequence: 'decreasing', seed: 0 })
+            assertStructurallySame(step({ kind: 'click', name: 'shuffle' })(demo.init), { sequence: 'random', seed: 1 })
+            for (const event of /** @type {readonly DemoEvent[]} */ ([{ kind: 'start' }, { kind: 'input', name: 'other', value: 'decreasing' }, { kind: 'click', name: 'other' }])) {
+                assert(step(event)(demo.init) === demo.init)
+            }
+        },
+        view: () => {
+            const initial = htmlToString(demo.view(demo.init))
+            assert(initial.includes('<option value="random" selected="">shuffled</option>'))
+            assert(initial.includes('<button type="button" name="shuffle">Shuffle</button>'))
+            assert(initial.includes('<pre data-code="">11 25 18 19 16 20 23 27 13 9 21 17 3 5 1 24 26 29 22 28 7 12 6 14 10 2 4 8 30 15</pre>'))
+            assert(initial.includes(`<pre data-code="" data-drawing="">11 |\n11 25 |\n11_25 18\n`))
+            assert(initial.endsWith('465</pre></div>'))
+            const counting = htmlToString(demo.view({ sequence: 'increasing', seed: 0 }))
+            assert(counting.includes('<option value="increasing" selected="">1, 2, …, 30</option>'))
+            assert(counting.includes('name="shuffle" disabled=""'))
+            assert(counting.includes('<pre data-code="" data-drawing=""> 1 |\n 1  2 |\n 1__2  3\n  3    3 |\n'))
+            // with signs, a value weighs its magnitude: `13` arrives over `-8`
+            // and `-9`, which does not outweigh it, so `-9` and `-8` merge to
+            // `-17`, which then outweighs `11` beneath, and `11` and `-14`
+            // merge to `-3`, lighter than either
+            const signed = htmlToString(demo.view({ sequence: 'signed', seed: 0 }))
+            assert(signed.includes('<option value="signed" selected="">±1, …, ±15, shuffled</option>'))
+            assert(signed.includes('<button type="button" name="shuffle">Shuffle</button>'))
+            assert(signed.includes('<pre data-code="" data-drawing=""> 11 |\n 11 -14 |\n 11 -14  -9 |\n 11 -14  -9  -8 |\n 11 -14  -9__-8  13\n 11_-14   -17    13\n   -3_____-17    13\n      -20        13 |\n'))
+            assert(signed.endsWith('0</pre></div>'))
+            // the drawing is an output box, whose rule wraps a long line; the
+            // drawing's rule comes after it in the stylesheet, so it wins the
+            // cascade at the same specificity and the rows keep their columns
+            const box = stylesheet.indexOf('[data-code], [data-result] {')
+            const drawing = stylesheet.indexOf('[data-drawing] {')
+            assert(box >= 0 && drawing > box)
+            assert(stylesheet.slice(drawing).startsWith('[data-drawing] { overflow-wrap: normal; overflow-x: auto; white-space: pre }'))
+        },
+        // The inputs a link carries are the sequence and the seed; a kind the
+        // select does not offer is refused.
+        sharing: () => {
+            const sharing = assertNotNullish(demo.sharing)
+            assertEq(unwrap(encodeQuery(sharing, sharing.read(demo.init))), '#demo')
+            const link = unwrap(encodeQuery(sharing, sharing.read({ sequence: 'decreasing', seed: 3 })))
+            assertEq(link, '?seed=3&sequence=decreasing#demo')
+            const restored = sharing.restore(unwrap(restoreInputs(sharing, unwrap(decodeQuery(link.slice(0, -5))))))
+            assertStructurallySame(restored, { sequence: 'decreasing', seed: 3 })
+            assertEq(restoreInputs(sharing, unwrap(decodeQuery('?sequence=sorted')))[0], 'error')
+        },
     },
 }
