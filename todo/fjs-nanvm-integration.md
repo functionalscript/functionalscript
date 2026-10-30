@@ -144,6 +144,74 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `d6b55c6`, the head of
+[#3443](https://github.com/functionalscript/functionalscript/pull/3443), the
+specification step of the `in` operator, which stands on
+[#3440](https://github.com/functionalscript/functionalscript/pull/3440),
+[#3442](https://github.com/functionalscript/functionalscript/pull/3442) and
+[#3447](https://github.com/functionalscript/functionalscript/pull/3447): the
+compiler measured admits `"k" in o`, which `main` refuses until the stack
+lands, and one row below moves because of it. A leaf is as defined in the
+`5dcd94b` audit below. This time the leaves were found by reading the
+`import` and `export … from` declarations of every authored non-proof
+`.f.mjs` under `fjs/` and `spec/` — implementation modules, demos, samples
+and test libraries alike, generated files skipped — and keeping each whose
+every runtime import is an `.f.js`; a JSDoc `@import` does not count. Each
+leaf was then compiled as written, and a refused one again in a copy, with
+the smallest value-preserving respelling that moves past the refusal, until
+the copy was accepted or the next refusal was one no respelling removes.
+Nothing is converted in this step, which records; the conversions are tasks
+below.
+
+| Pass | Leaves checked | Accepted as written | Accepted respelled |
+| --- | ---: | --- | --- |
+| 1 | 6 | `spec/undecided/samples` | `zlib/bits`, `js/ast/invocation`, `types/stack_walk` |
+| 2 | 1 | None: `zlib/huffman`, the leaf `zlib/bits` exposes, is refused | None measured |
+
+Four of the six can be `.f.js` now, one as written and three with a
+respelling [CONVERTING.md](../doc/CONVERTING.md) names or a loop in place of
+a global; the other two stay behind
+[forward references](../spec/todo/3140-forward-references.md) and `Map`, as
+before. The authored `.f.js` population under `fjs/` is 62, from 51 at
+`1ce90e7`, `types/function/compare` among the new ones since
+[#3418](https://github.com/functionalscript/functionalscript/pull/3418)
+admitted the terminal unconditional loop its `bsearch` ends in; `npm start
+compile` checks 148, 86 of them under `spec/`.
+
+Locations are `line:column`; paths are relative to the repository root.
+
+| Leaf file | Location | First refused construct | Measured behind it |
+| --- | ---: | --- | --- |
+| `spec/undecided/samples.f.mjs` | — | Accepted as written: one `const` of strings, the open rows' samples, which the [undecided page](../spec/undecided/README.md) compiles one by one. It is under `spec/`, which the earlier audits did not walk, and it is a module the rule in [AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs) says is misnamed: rename it, and the three references to its name, the page's `README.md`, `demo.f.mjs` and `proof.f.mjs`. Its demo imports other `.f.mjs`, so the rename exposes no leaf | Nothing |
+| `fjs/zlib/bits/module.f.mjs` | 33:56 | `input[first + i]` in `read`, a key computed at run time (`computed key is not Number(...)`): the `for` the `1ce90e7` row stopped at is admitted, classic `for` lowering to `while`, and so are the two variables it steps and the `\|=` behind it ([compound assignments](../spec/bindings/variables/README.md#compound-assignments)) | Accepted with that one read spelled `input[Number(first + i)]` ([CONVERTING.md rule 1](../doc/CONVERTING.md#1-computed-keys)). Its one importer, `zlib/huffman`, imports no other `.f.mjs`, so the rename makes it a leaf, and it is refused at 28:19: `Array` in `Array.from({ length: 16 }, …)` in `code`, a global name (`reserved word`; [built-ins](../spec/todo/2360-built-in.md), [global names](../spec/todo/2365-global-names.md)) |
+| `fjs/js/ast/invocation/module.f.mjs` | 18:16 | `Array` in `Array.from({ length }, (_, index) => …)` in `_restTransition`, a global name (`reserved word`), building the `length` projections of the rest array; the module is new since `1ce90e7`, from [#3326](https://github.com/functionalscript/functionalscript/pull/3326) | Accepted with the projections built by a `while` loop in a helper of the module, in place of `Array.from`, and with `exit[2][length]` in `_restArguments` read as `exit[2][Number(length)]`, the one refusal behind the first; `instanceof Array`, `.at(-1)`, `.slice` and `.every` are admitted. Its importers, `edag/from_fast/loop/root` and `edag/to_fast/tail`, import other `.f.mjs`, so the rename exposes no leaf |
+| `fjs/types/stack_walk/module.f.mjs` | 50:13 | `[acc, step] = enter(acc, step[2])` in `walkFold`, a destructuring assignment, which [variables](../spec/bindings/variables/README.md) leaves to a separate extension and the [register](../spec/todo/refused-constructs.md) has no row for; the `return` guards inside `while (true)` the `1ce90e7` row stopped at are admitted, the loop being a [terminal unconditional one](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop) since #3418 | Accepted with each of its two destructuring assignments, the other at 57:13, respelled through a `const` holding the pair: `const entered = enter(acc, step[2]); acc = entered[0]; step = entered[1]`. Its four importers import other `.f.mjs`, so the rename exposes no leaf |
+| `fjs/types/list/module.f.mjs` | 55:13 | `[head, tail] = [head.head, concat(head.tail)(tail)]` in `next`, a destructuring assignment; `'head' in head` on the line before it, a blocker of the `1ce90e7` row, is admitted by the `in` operator this is measured with | Not accepted: past its two destructuring assignments, the other at 65:9, the next refusal is `flat` read in `flatStep` before its declaration (`const not found`, [forward references](../spec/todo/3140-forward-references.md)), the shape every `…Step` helper here shares with the export after it, which no respelling removes. Eight modules import no `.f.mjs` but this one — `common/monoid`, `text/code_point`, `types/btree` and its `remove` and `set`, `types/list/alt` and `iterable`, `types/sorted_list` — so it is the leaf whose conversion opens the most |
+| `fjs/types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word: the `1ce90e7` row, unchanged; `Map` is not a language type, and its one importer, `edag/analysis`, keys the map by EDAG nodes, so rule 9 does not apply | Nothing |
+
+To recheck the table without writing output, run this from the repository
+root inside `./dev.sh node --input-type=module`:
+
+```js
+import { resolve as absolute } from 'node:path';
+import { resolve } from './fjs/compiler/edag/module.f.mjs';
+import { runNodeEffect } from './fjs/effects/node/module.mjs';
+
+const leaves = ['fjs/js/ast/invocation/module.f.mjs', 'fjs/types/list/module.f.mjs', 'fjs/types/map/module.f.mjs',
+  'fjs/types/stack_walk/module.f.mjs', 'fjs/zlib/bits/module.f.mjs', 'spec/undecided/samples.f.mjs'];
+for (const leaf of leaves) {
+  const result = await runNodeEffect(resolve(absolute(leaf)));
+  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
+}
+```
+
+After a compiler feature lands, rediscover the leaves, compile every
+candidate, rename accepted modules and update their references, then
+rediscover and repeat until a pass accepts none. Update this table with the
+remaining refusals.
+
+#### Leaf migration fixed point at `1ce90e7` (historical)
+
 Measured on `1ce90e7`, the head of `main` after
 [#3150](https://github.com/functionalscript/functionalscript/pull/3150). A
 leaf is as defined in the `5dcd94b` audit below, and the leaves were
@@ -1755,6 +1823,15 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
       key as `a[Number(i)]`, a string key as `entry(a, k)` — `nanvm/methods`
       and `types/list` in #2826. An object-literal key, `{ [k]: v }`, has no
       such spelling and stays: `website/demo/code`.
+- [ ] Rename `spec/undecided/samples.f.mjs` to `samples.f.js`, the leaf the
+      compiler accepts as written, with the three references to its name.
+- [ ] Convert `zlib/bits`: read `input[first + i]` as `input[Number(first + i)]`
+      and rename; then `zlib/huffman`, the leaf it exposes, once its
+      `Array.from` is written out or admitted.
+- [ ] Convert `js/ast/invocation`: build the rest projections with a loop in
+      place of `Array.from`, read the rest index as `Number(length)`, rename.
+- [ ] Convert `types/stack_walk`: respell its two destructuring assignments
+      through a `const` of the pair, and rename.
 - [ ] Continue `.f.mjs` -> `.f.js` incrementally as compiler support grows.
 
 ### Related
