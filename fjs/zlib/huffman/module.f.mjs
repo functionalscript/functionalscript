@@ -14,6 +14,7 @@
  */
 
 import { more, read } from '../bits/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /**
  * The code a list of lengths names, or `null` where zlib refuses it: more
@@ -25,7 +26,7 @@ import { more, read } from '../bits/module.f.js'
  * @type {(lengths: readonly number[], complete: boolean) => Nullable<Code>}
  */
 export const code = (lengths, complete) => {
-    const count = Array.from({ length: 16 }, (_, length) => lengths.filter(x => x === length).length)
+    const count = generate(16, length => lengths.filter(x => x === length).length)
     // the codes of each length left after those of the shorter ones, doubled:
     // negative where a length has more than it has room for
     const left = count.slice(1).reduce((room, n) => room < 0 ? room : room * 2 - n, 1)
@@ -35,7 +36,7 @@ export const code = (lengths, complete) => {
     return {
         count,
         // the symbols by length, and by value within a length
-        symbol: Array.from({ length: 15 }, (_, i) => lengths.flatMap((x, s) => x === i + 1 ? [s] : [])).flat(),
+        symbol: generate(15, i => lengths.flatMap((x, s) => x === i + 1 ? [s] : [])).flat(),
         incomplete: left > 0,
     }
 }

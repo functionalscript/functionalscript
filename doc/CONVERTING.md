@@ -521,3 +521,43 @@ is written for, and after a comma's discarded operand, which it follows into
 the value after it — not after `const _ = assert(…)`, which binds a name nothing
 reads, nor through `[assert(…), value][1]`, which builds an array to read one
 item of.
+
+## 11. `Array.from` used to generate by index
+
+`Array.from({ length: n }, (_, i) => f(i))` constructs a dense array by
+index; it does not need an iterable. Import `generate` from
+[`fjs/types/array/generate`](../fjs/types/array/generate/module.f.js):
+
+```js
+const squares = n => Array.from({ length: n }, (_, i) => i * i)   // refused
+```
+
+```js
+import { generate } from '../types/array/generate/module.f.js'
+
+const squares = n => generate(n, i => i * i)   // accepted
+```
+
+The rewrite preserves behavior when `n` is an integer from `0` through
+`0xffff_ffff`, the JavaScript array-length range, and the callback only
+needs the index. Both create a dense array, including entries whose value
+is `undefined`, and call the callback once per index in ascending order.
+Zero, including negative zero, creates a fresh empty array without calling
+the callback. Callback failures propagate.
+
+`generate(n, f)` passes just the index to `f`; `Array.from` passes an item
+value and then its index. Keep that adaptation explicit when converting
+a named callback. This rule applies to the `{ length: n }` generator form;
+an iterable, other array-like properties, or a `thisArg` needs its own
+conversion.
+
+`generate` rejects lengths outside its integer range rather than coercing
+or rounding them: `Array.from({ length: 2.5 }, ...)` makes two elements,
+and `Array.from({ length: -1 }, ...)` makes none. The existing
+`repeat(n)(value)` helper rounds positive fractions up, so it is not a
+direct replacement for arbitrary `Array.from` lengths either.
+
+The implementation repeats a singleton placeholder array with
+[`monoid.repeat`](../fjs/common/monoid/repeat/module.f.js), then maps the
+indices. It and [`array/repeat`](../fjs/types/array/repeat/module.f.js)
+have compiler-compatible runtime dependencies, independent of list folding.

@@ -36,61 +36,15 @@
  *
  * @module
  *
- * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
  * @import { Accumulator, List } from  '../../types/list/types.ts'
  * @import { Absorbing, Monoid, Run, Stack, Walk, Weight } from './types.ts'
  */
 
 import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
+import { repeat as monoidRepeat } from './repeat/module.f.js'
 
-/**
- * Repeats a monoid operation `n` times on the given element `a`.
- * This function efficiently performs the operation using exponentiation by squaring.
- *
- * `repeat` squares and never folds, so it reads no weight: an identity and an
- * operation are all it asks for.
- *
- * @template T The type of the elements in the monoid.
- * @param {Pick<Monoid<T>, 'identity' | 'operation'>} monoid The identity and the binary operation.
- * @returns {Fold<bigint, T>} A function that takes an element `a` and a repetition count `n`,
- * and returns the result of applying the operation `n` times.
- *
- * See also {@link https://en.wikipedia.org/wiki/Exponentiation_by_squaring}.
- *
- * @example
- *
- * ```ts
- * const add: Monoid<number> = {
- *     identity: 0,
- *     operation: a => b => a + b,
- * };
- *
- * const resultAdd = repeat(add)(10n)(2) // 20
- *
- * const concat: Monoid<string> = {
- *     identity: '',
- *     operation: a => b => a + b,
- * };
- *
- * const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
- * ```
- */
-export const repeat = ({ identity, operation }) => n => a => {
-    let ai = a
-    let ni = n
-    let result = identity
-    while (true) {
-        if ((ni & 1n) !== 0n) {
-            result = operation(result)(ai)
-        }
-        ni >>= 1n
-        if (ni === 0n) {
-            return result
-        }
-        ai = operation(ai)(ai)
-    }
-}
+export const repeat = monoidRepeat
 
 /**
  * One move of a {@link Walk}, the fold's whole rule:
