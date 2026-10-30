@@ -51,7 +51,7 @@ export const join = compose(joinOp)(reduce)
  *
  * @type {(input: List<string>) => string}
  */
-export const concat = fold({ identity: '', operation: _stringAddition })
+export const concat = fold({ identity: '', operation: _stringAddition, weight: s => s.length })
 
 /** @type {(n: string) => (v: number) => string} */
 export const repeat = v => compose(listRepeat(v))(concat)

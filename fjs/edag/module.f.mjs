@@ -845,8 +845,8 @@ export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorI
  * holding `undefined` included, and a throw for `null`, `undefined` and
  * every primitive, the `TypeError` JavaScript's `in` throws. The key is a
  * *spelling*, not an operand: a string literal the compiler admitted, one
- * that names no property a built-in prototype gives a value, so that the
- * own-entry answer is JavaScript's; it is never evaluated, as
+ * that names no property a built-in prototype gives a value, `length`
+ * aside, so that the own-property answer is JavaScript's; it is never evaluated, as
  * `instanceof`'s constructor name is not, and a reader walking operands
  * generically needs an arm for it, since a string is otherwise a literal
  * operand. The answer is the runtime's body, `runtime.in(key, x)`, which

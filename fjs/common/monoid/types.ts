@@ -45,10 +45,17 @@ import type { Reduce } from '../../types/function/operator/types.ts'
  * - `(a, b) => a.concat(b)` for arrays or strings
  *
  * Learn more: {@link https://en.wikipedia.org/wiki/Binary_operation}
+ *
+ * @property weight
+ *
+ * How heavy a value is, for the balanced fold ({@link Weight}): `uniform`
+ * where every value costs the same, a length where the operation copies
+ * its operands.
  */
 export type Monoid<T> = {
     readonly identity: T
     readonly operation: Reduce<T>
+    readonly weight: Weight<T>
 }
 
 /**
@@ -76,17 +83,17 @@ export type Absorbing<T> = {
 }
 
 /**
- * How heavy a value is, for the balanced fold: `foldBy` takes the cost of
- * the monoid's `operation` to grow with the weight of its operands — an
- * array's length, a vector's bit count — and merges the light runs first.
- * `fold` weighs every value one, and no value weighs less than one, whatever
- * the function answers: an empty value counts as one, so that it carries.
+ * How heavy a value is, for the balanced fold: `fold` takes the cost of the
+ * monoid's `operation` to grow with the weight of its operands — an array's
+ * length, a vector's bit count — and merges the light runs first. `uniform`
+ * weighs every value one, and no value weighs less than one, whatever the
+ * function answers: an empty value counts as one, so that it carries.
  */
 export type Weight<T> = (value: T) => number
 
 /**
  * A run of already-combined elements, of their total `size` — the sum of
- * their weights, their count under `fold`. Runs live on a {@link Stack}
+ * their weights, their count under `uniform`. Runs live on a {@link Stack}
  * whose top is the most recent — and lightest — run, so `rest` holds
  * everything to the left of `value`.
  */
@@ -100,7 +107,7 @@ export type Run<T> = {
  * A stack of runs, `null` when empty: the state of a balanced fold. Every run
  * outweighs the two above it together, and the second outweighs the top, so
  * sizes shrink at least as fast as Fibonacci numbers from the bottom and a
- * stack of total weight `w` holds about `1.44·log2(w)` runs. Under weight one
+ * stack of total weight `w` holds about `1.44·log2(w)` runs. Under `uniform`
  * it is the binary representation of the number of elements pushed — the run
  * sizes are its set bits — so `n` elements are at most `log2(n) + 1` runs.
  */

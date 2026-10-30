@@ -7,7 +7,7 @@
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
-import { repeat as monoidRepeat } from '../../common/monoid/module.f.mjs'
+import { repeat as monoidRepeat, uniform } from '../../common/monoid/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
 
 /**
@@ -130,6 +130,8 @@ const concat = a => b => [...a, ...b]
  * Repeats a singleton array under concatenation, using monoid doubling rather
  * than materializing a lazy list. Finite nonpositive counts give an empty
  * array; positive fractional counts round up, as the list countdown did.
+ * `repeat` squares and never folds, so the monoid's weight is never read and
+ * `uniform` stands in for one.
  */
 export const repeat =
     /**
@@ -147,6 +149,7 @@ export const repeat =
             v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
                 identity: /** @type {readonly T[]} */ ([]),
                 operation: concat,
+                weight: uniform,
             })(count)([v]))
         )
     }
