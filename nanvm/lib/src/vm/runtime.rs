@@ -11,9 +11,9 @@
 //! call step asks its `dot` for the function a member's body answers for
 //! the receiver, after the receiver's own property and before the native
 //! table ([`Member::call`](crate::vm::lambda::Member)), and an `in` node
-//! calls its `in` with the key and the value, the naive spelling a
-//! native answer may one day substitute
-//! (`todo/in-native-substitution.md`). Every static body
+//! calls its `in` with the key and the value — until `hasEntry` answers
+//! as `in` does and the node is a `has_entry` call
+//! (`spec/todo/has-entry-as-in.md`). Every static body
 //! is a closure carrying the NativeFunction text of its id, and
 //! `Object.entries` is the built-in itself, so the table is complete; the
 //! identity is the value's, two reads of a static one closure. No VM holds a runtime, and
