@@ -1,6 +1,7 @@
 /**
  * The weighted fold, drawn as a merge tree: pick a sequence of `N` numbers,
- * counting up, counting down, shuffled, or shuffled with signs, and watch
+ * counting up, counting down, shuffled, shuffled with signs, or a heavy
+ * value before or after ones, and watch
  * `fold` add them one move at a time.
  *
  * **The monoid is addition, and a value weighs its magnitude.** A merged run
@@ -103,7 +104,8 @@ const shuffled = kind => kind === 'random' || kind === 'signed'
 /**
  * The sequence a kind names: `1` to `n` counting up for `increasing`, down
  * for `decreasing` and shuffled with `seed` for `random`; `1` to `n / 2` and
- * their negations shuffled for `signed`.
+ * their negations shuffled for `signed`; `n + 1` before or after `n - 1`
+ * ones for `heavy-first` and `heavy-last`.
  *
  * @type {(kind: string, seed: number) => readonly number[]}
  */
@@ -111,6 +113,8 @@ export const sequence = (kind, seed) =>
     kind === 'decreasing' ? counting.toReversed()
     : kind === 'random' ? shuffle(seed)(counting)
     : kind === 'signed' ? shuffle(seed)(cancelling)
+    : kind === 'heavy-first' ? indices.map(i => i === 0 ? n + 1 : 1)
+    : kind === 'heavy-last' ? indices.map(i => i === n - 1 ? n + 1 : 1)
     : counting
 
 /**
@@ -185,6 +189,8 @@ export const trace = input => {
 const sequences = [
     ['increasing', `1, 2, …, ${n}`],
     ['decreasing', `${n}, ${n - 1}, …, 1`],
+    ['heavy-first', `${n + 1}, 1, …, 1 (|....)`],
+    ['heavy-last', `1, …, 1, ${n + 1} (....|)`],
     ['random', 'shuffled'],
     ['signed', `±1, …, ±${n / 2}, shuffled`],
 ]
