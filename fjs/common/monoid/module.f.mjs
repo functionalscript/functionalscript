@@ -118,7 +118,10 @@ const { max } = Math
  */
 export const stepBy = weight => operation => {
     const settleOperation = settle(operation)
-    return value => stack => settleOperation({ size: max(1, weight(value)), value, rest: stack })
+    return value => {
+        const size = max(1, weight(value))
+        return stack => settleOperation({ size, value, rest: stack })
+    }
 }
 
 /** Every value weighs one. @type {<T>(value: T) => number} */
