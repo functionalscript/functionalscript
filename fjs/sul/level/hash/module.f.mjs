@@ -10,7 +10,7 @@
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
+import { patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
 import { compress } from '../../id/module.f.mjs'
 import { asBase } from '../../../types/nominal/module.f.js'
 
@@ -41,15 +41,16 @@ export const encode =
             const m = compress(a, b)
             return [m, add(a, b, m, isSymbol, s)]
         }
-        const { push, end } = patriciaTrie(create(false))
+        const trie = patriciaTrie(create(false))
         const rootCreate = create(true)
         return (symbol, state) => {
-            const [, stack] = state
+            const [storage, stack] = state
+            const { update, end } = trie(storage)
             const last = stack.at(-1)
             if (last === undefined || last[0] > asBase(symbol)) {
-                return [undefined, push([asBase(symbol), symbol], state)]
+                return [undefined, update(state, [asBase(symbol), symbol])[2]]
             }
-            const [root1, storage1] = end(state)
+            const [root1, storage1] = end(state)[2]
             const [root2, storage2] = rootCreate(assertNotNullish(root1), symbol, storage1)
             return [root2, [storage2, []]]
         }
@@ -60,4 +61,4 @@ export const encode =
  *
  * @type {<S>(storage: S) => EncodeState<S>}
  */
-export const emptyEncodeState = emptyState
+export const emptyEncodeState = storage => [storage, []]

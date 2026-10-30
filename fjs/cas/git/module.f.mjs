@@ -50,6 +50,7 @@
  * @import { Effect, IoChannel, Operation } from '../../effects/types.ts'
  * @import { EffectList } from '../../effects/list/types.ts'
  * @import { Sha2, State as Sha2State } from '../../crypto/sha2/types.ts'
+ * @import { StateFold } from '../../types/function/operator/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
@@ -67,9 +68,9 @@
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
-    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultMapStep, resultStep, step, walkStep,
+    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, resultStep, step, walkStep,
 } from '../../effects/module.f.mjs'
-import { fromList } from '../../effects/list/module.f.mjs'
+import { fromList, run as runStream } from '../../effects/list/module.f.mjs'
 import { isNotFound, mkdir, namesNothing, now, readUtf8File, rename, rm, stat, writeExclusive } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'
@@ -87,13 +88,14 @@ import { compare, tryRead as readTree, validate, write as writeTree } from '../.
 import { join, parent, under } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { isWholeBytes, maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, map, sameItems } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { toOption } from '../../types/nullable/module.f.js'
+import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { error } from '../../types/result/module.f.js'
 import { stored } from '../../zlib/stored/module.f.mjs'
-import { prefix, random256, toPath, unshard } from '../module.f.mjs'
+import { prefix, random256, toPath, unshard, wholeByteMachine } from '../module.f.mjs'
 
 /**
  * The ref a branch is read at: `refs/heads/<branch>`, the local branch
@@ -711,9 +713,6 @@ const placed = (read, write, oidBytes) => {
     return (tree, path, blob) => go(tree, path, blob, null)
 }
 
-/** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, which `fileCas.write` and `contentKey` refuse it with. */
-const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
-
 /**
  * A payload gathered: its chunks, held, and its CAS key, the hash `fileCas`
  * folds over the same chunks — one pass over the stream for both. A stream
@@ -727,13 +726,14 @@ const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
  * @returns {Effect<O, { readonly key: Vec, readonly chunks: readonly Vec[] }, IoChannel>}
  */
 const gathered = (sha2, payload) => {
-    /** @type {(state: Sha2State, chunks: readonly Vec[]) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, { readonly key: Vec, readonly chunks: readonly Vec[] }, IoChannel>} */
-    const loop = (state, chunks) => s =>
-        step(s, node => {
-            if (node === undefined) { return pureOk({ key: sha2.end(state), chunks }) }
-            return isWholeBytes(node.first) ? loop(sha2.append(node.first)(state), [...chunks, node.first])(node.tail) : partialByte
-        })
-    return loop(sha2.init, [])(payload)
+    /** @type {StateFold<Vec, { readonly state: Sha2State, readonly chunks: readonly Vec[] }, { readonly key: Vec, readonly chunks: readonly Vec[] }>} */
+    const fold = {
+        init: { state: sha2.init[2], chunks: [] },
+        update: ({ state, chunks }, chunk) => ({ state: sha2.update(state, chunk)[2], chunks: [...chunks, chunk] }),
+        end: ({ state, chunks }) => ({ key: sha2.end(state)[2], chunks }),
+    }
+    const collected = runStream(wholeByteMachine(fromStateFold(fold)))(payload)
+    return step(collected, pure)
 }
 
 /**

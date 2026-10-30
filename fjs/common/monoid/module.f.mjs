@@ -4,6 +4,11 @@
  * exponentiation by squaring, and `fold`, which applies it across every element
  * of a list as a balanced binary tree.
  *
+ * `accumulator(monoid)` exposes that fold through the shared
+ * `init` / `update(state, input)` / `end(state)` machine protocol;
+ * `absorbingAccumulator` also completes early at an absorbing value.
+ * `fold` and `foldAbsorbing` run these machines with the common list driver.
+ *
  * The tree is balanced by **weight**. A monoid says how heavy each value is
  * — an array's length, a vector's bit count, a number's magnitude — and
  * `fold` lets a value sit on its stack only where the run two below it is
@@ -36,13 +41,13 @@
  *
  * @module
  *
- * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
- * @import { Accumulator, List } from  '../../types/list/types.ts'
+ * @import { Fold, Reduce, Transducer } from '../../types/function/operator/types.ts'
+ * @import { List } from  '../../types/list/types.ts'
  * @import { Absorbing, Monoid, Run, Stack, Walk, Weight } from './types.ts'
  */
 
-import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
-import { compose } from '../../types/function/module.f.js'
+import { run } from '../../types/list/module.f.mjs'
+import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 
 /**
  * Repeats a monoid operation `n` times on the given element `a`.
@@ -281,32 +286,45 @@ export const collect = monoid => {
  * fold(concat)(['a', 'b', 'c']) // 'abc' — order preserved
  * ```
  */
-export const fold = monoid =>
-    compose(listFold(step(monoid))(null))(collect(monoid))
+export const fold = monoid => run(accumulator(monoid))
 
 /**
- * The run stack as a short-circuiting {@link Accumulator}: `update` returns
- * `null` — `tryFold`'s stop signal — for an element that is the absorbing
- * one, and as soon as a merge produces it ({@link pushUnless}).
+ * A balanced fold as the common machine lifecycle. `update` places one value
+ * on the run stack; `end` combines the remaining runs into the monoid value.
  *
- * `end` wraps the folded value in a one-element tuple because `tryFold` reports
- * both "stopped" and "finished with this result" through the same
- * `Nullable<R>`: a monoid whose `T` includes `null` would otherwise be unable to
- * tell a completed fold that produced `null` from an abandoned walk. The tuple
- * costs one allocation per fold, not per element.
- *
- * @type {<T>(absorbing: Absorbing<T>) => Accumulator<T, Stack<T>, readonly[T]>}
+ * @type {<T>(monoid: Monoid<T>) => Transducer<T, Stack<T>, never, T>}
  */
-const absorbingAccumulator = ({ monoid, absorbing }) => {
+export const accumulator = monoid => {
+    const push = step(monoid)
+    const finish = collect(monoid)
+    return {
+        init: nextStep(null),
+        update: (stack, value) => nextStep(push(value)(stack)),
+        end: stack => doneStep(finish(stack)),
+    }
+}
+
+/**
+ * The run stack with early completion when a value or a merge reaches the
+ * absorbing element. A `done` tag carries the absorbing value directly, so a
+ * completed fold whose result is `null` remains an ordinary successful result.
+ *
+ * @type {<T>(absorbing: Absorbing<T>) => Transducer<T, Stack<T>, never, T>}
+ */
+export const absorbingAccumulator = ({ monoid, absorbing }) => {
     /** @typedef {typeof absorbing} T */
     /** @type {(value: T) => boolean} */
     const absorbed = value => value === absorbing
     const push = pushUnless(monoid)(absorbed)
     const c = collect(monoid)
     return {
-        init: null,
-        update: (value, stack) => absorbed(value) ? null : push(value)(stack),
-        end: stack => [c(stack)],
+        init: nextStep(null),
+        update: (stack, value) => {
+            if (absorbed(value)) { return doneStep(absorbing) }
+            const following = push(value)(stack)
+            return following === null ? doneStep(absorbing) : nextStep(following)
+        },
+        end: stack => doneStep(c(stack)),
     }
 }
 
@@ -352,12 +370,4 @@ const absorbingAccumulator = ({ monoid, absorbing }) => {
  * foldAbsorbing(multiply)([2, 0, 4]) // 0 — `4` is never read
  * ```
  */
-export const foldAbsorbing = absorbing => {
-    const f = tryFold(absorbingAccumulator(absorbing))
-    return list => {
-        const result = f(list)
-        if (result === null) { return absorbing.absorbing }
-        const [value] = result
-        return value
-    }
-}
+export const foldAbsorbing = absorbing => run(absorbingAccumulator(absorbing))

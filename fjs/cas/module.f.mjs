@@ -5,6 +5,8 @@
  *
  * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { Step, Transducer } from '../types/function/operator/types.ts'
+ * @import { Result } from '../types/result/types.ts'
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { IoChannel, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
@@ -22,6 +24,7 @@ import {
     history,
     historyStep,
     mapStep as ioMapStep,
+    pure,
     pureError,
     pureOk,
     resultMapStep,
@@ -47,6 +50,8 @@ import {
 import { toOption } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { splitAt } from '../types/string/module.f.mjs'
+import { run as runStream } from '../effects/list/module.f.mjs'
+import { doneStep } from '../types/function/operator/module.f.js'
 
 const split2 = splitAt(2)
 
@@ -120,23 +125,33 @@ export const collectRead = stream => {
 
 
 /** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, since `write` fails the same chunk through it. */
-const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
+const partialByte = error(ioError({ message: 'invalid buffer size' }))
+
+/** A machine step whose final summary has passed byte admission.
+ * @type {<S, O, A>(progress: Step<S, O, A>) => Step<S, O, Result<A, IoChannel>>}
+ */
+const admittedStep = progress => {
+    const [tag, output, value] = progress
+    return tag === 'done' ? doneStep(ok(value), output) : progress
+}
 
 /**
- * `sha2` folded over the rest of a stream from `state`: the fold
- * {@link contentKey} runs, one link per chunk. A chunk that is not whole
- * bytes is refused as `write` refuses it, rather than hashed into a key no
- * store can hold content under.
+ * Admits whole-byte inputs inside the machine's update. Hash drivers and Git's
+ * gathered payload share this check without recursively rebuilding the source:
+ * the common driver retains its stack-safe walk over long spans of pure cells.
+ * A partial byte completes with `write`'s refusal before the source tail is read.
+ * A domain result is wrapped in `ok`; source failures stay in the source's own
+ * effect channel. Emission and early completion are preserved.
  *
- * @template {Operation} O
- * @param {Sha2} sha2
- * @param {Sha2State} state
- * @param {EffectList<O, Vec, IoChannel>} s
- * @returns {Effect<O, Vec, IoChannel>}
+ * @type {<S, O, A>(machine: Transducer<Vec, S, O, A>) => Transducer<Vec, S, O, Result<A, IoChannel>>}
  */
-const digested = (sha2, state, s) => ioStep(s, node => {
-    if (node === undefined) { return pureOk(sha2.end(state)) }
-    return isWholeBytes(node.first) ? digested(sha2, sha2.append(node.first)(state), node.tail) : partialByte
+export const wholeByteMachine = machine => ({
+    init: admittedStep(machine.init),
+    update: (state, chunk) => isWholeBytes(chunk) ? admittedStep(machine.update(state, chunk)) : doneStep(partialByte),
+    end: state => {
+        const [, output, value] = machine.end(state)
+        return doneStep(ok(value), output)
+    },
 })
 
 /**
@@ -163,7 +178,10 @@ const digested = (sha2, state, s) => ioStep(s, node => {
  * @param {Sha2} sha2
  * @returns {<O extends Operation>(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
  */
-export const contentKey = sha2 => payload => digested(sha2, sha2.init, payload)
+export const contentKey = sha2 => {
+    const digest = runStream(wholeByteMachine(sha2))
+    return payload => ioStep(digest(payload), pure)
+}
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'
@@ -263,7 +281,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     // results and checks the end state").
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
-        const hash = sha2.end(state)
+        const hash = sha2.end(state)[2]
         const { dir, name } = shard(hash)
         const dstDir = join(path, dir)
         const dst = join(dstDir, name)
@@ -305,7 +323,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     // rather than propagated with the partial file left behind.
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                        const newState = sha2.append(chunk)(state)
+                        const newState = sha2.update(state, chunk)[2]
                         const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
@@ -324,7 +342,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                 })
         const started = ioStep(mkdir(stageDir, { recursive: true }), () => freshPath)
         const created = historyStep(history(started), path0 => createExclusive(path0))
-        return ioStep(created, ([, path0]) => loop(sha2.init, 0, path0)(payload))
+        return ioStep(created, ([, path0]) => loop(sha2.init[2], 0, path0)(payload))
     })
 }
 

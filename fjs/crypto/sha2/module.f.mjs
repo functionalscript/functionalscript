@@ -21,7 +21,8 @@ import {
     chunkList,
     uint,
 } from '../../types/bit_vec/module.f.mjs'
-import { fold } from '../../types/list/module.f.mjs'
+import { fold, run } from '../../types/list/module.f.mjs'
+import { fromStateFold } from '../../types/function/operator/module.f.js'
 
 const { concat, front, removeFront } = msb
 
@@ -55,7 +56,7 @@ const appendChunk = (chunkLength, compress) => chunk => state =>
  * state rather than folding blocks into a hash value, and a hash built
  * that way is no caller of this.
  *
- * `append` never joins the remainder it holds to the new `Vec`, which may
+ * `update` never joins the remainder it holds to the new `Vec`, which may
  * be as long as a `Vec` may be: with no remainder it chunks the new data
  * as it is; with one, and the data too short to fill the block, it joins
  * the two, which is short; otherwise it completes the block as one
@@ -73,7 +74,7 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
     const lastChunkLength = chunkLength - 1n - lengthLength
 
     return {
-        append: v => state => {
+        update: (state, v) => {
             const { remainder } = state
             const rLen = length(remainder)
             if (rLen === 0n) { return foldChunks(state)(chunks(v)) }
@@ -104,7 +105,7 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
  * [`fjs/crypto/sha1`](../sha1/module.f.mjs).
  *
  * It takes the `FramingInit` rather than a built `Framing` so that the
- * block length it advertises is the one its `append` and `end` were
+ * block length it advertises is the one its `update` and `end` were
  * built for: there is no value in which the two exist separately.
  *
  * `hashLength` must be positive and at most `init.digestLength`, since
@@ -117,15 +118,13 @@ export const framing = ({ chunkLength, lengthLength, digestLength, compress, dig
 export const framed = (init, hash, hashLength) => {
     const { chunkLength, digestLength } = init
     assert(0n < hashLength && hashLength <= digestLength, 'hashLength out of range')
-    const { append, end } = framing(init)
+    const { update, end } = framing(init)
     return {
+        ...fromStateFold({ init: { hash, len: 0n, remainder: empty }, update, end: end(hashLength) }),
         hashLength,
         blockLength: chunkLength,
         hashBytes: divUp8(hashLength),
         blockBytes: divUp8(chunkLength),
-        init: { hash, len: 0n, remainder: empty },
-        append,
-        end: end(hashLength),
     }
 }
 
@@ -325,9 +324,9 @@ const framingInit = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
  */
 const base = init => {
     const { chunkLength, compress, digest } = init
-    const { append, end } = framing(init)
+    const { update, end } = framing(init)
     // A block is sixteen words.
-    return { bitLength: chunkLength >> 4n, chunkLength, compress, fromV8: digest, append, end }
+    return { bitLength: chunkLength >> 4n, chunkLength, compress, fromV8: digest, update, end }
 }
 
 /**
@@ -338,10 +337,7 @@ const base = init => {
  *
  * @type {<S, R>(hash: Hash<S, R>) => (list: List<Vec>) => R}
  */
-export const computeSync = ({ append, init, end }) => {
-    const f = fold(append)(init)
-    return list => end(f(list))
-}
+export const computeSync = hash => run(hash)
 
 /** The framing of the 32-bit SHA-2 variants, SHA-224 and SHA-256. */
 const init32 = framingInit({

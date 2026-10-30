@@ -46,3 +46,9 @@ on an unbounded list.
 `floorCodePointBoundary(s)(i)` is the place to cut a string at a code-unit
 index without splitting a surrogate pair. It throws on an index that is not a
 non-negative integer.
+
+`utf16Decoder` exposes the shared `init` / `update(state, word)` / `end(state)`
+protocol. Its state is a pending high surrogate or `null`, and updates emit
+code points as they are decoded. `end` flushes an unpaired high surrogate as
+one error unit and completes with a `null` summary. `toCodePointList` drives
+this machine lazily through the shared list transducer driver.

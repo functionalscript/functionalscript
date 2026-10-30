@@ -24,7 +24,7 @@ Collision detection is a second export of the same module: `sha1dc` computes
 the same hash while checking each block's message expansion against the known
 disturbance vectors, and answers whether the input shows the structure of a
 known attack. It is a second state object of the same shape, a
-`Hash<S, Result<Vec, Attack>>` whose `end` answers the id as a 20-byte `Vec` or
+`Hash<S, Result<Vec, Attack>>` whose terminal result holds the id as a 20-byte `Vec` or
 the refusal naming the block that showed the attack, so `computeSync` folds it
 too and answers that `Result`. `sha1` stays exported as a `Hash<S, Vec>`, the
 hash and nothing more, since the plain function is what a verifier that has

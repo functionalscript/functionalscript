@@ -13,15 +13,35 @@ import {
     codeUnitToString,
     floorCodePointBoundary,
     isWellFormed,
+    utf16Decoder,
 } from './module.f.mjs'
 import { stringifySorted as stringify } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { next } from '../../types/list/module.f.mjs'
 
 // /** @type {(a: readonly Unknown[]) => string} */
 // const stringify = stringifySorted
 
 export const proof = {
+    lifecycle: () => {
+        const initial = utf16Decoder.init
+        assert(initial[0] === 'next')
+        assertEq(stringify(utf16Decoder.end(initial[2])), '["done",[],null]')
+        const saved = utf16Decoder.update(initial[2], 0xd83d)
+        assert(saved[0] === 'next')
+        assertEq(stringify(saved[1]), '[]')
+        const resumed = utf16Decoder.update(saved[2], 0xde00)
+        assert(resumed[0] === 'next')
+        assertEq(stringify(resumed[1]), '[128512]')
+        assertEq(resumed[2], null)
+        assertEq(stringify(utf16Decoder.end(saved[2])), '["done",[-2147428291],null]')
+        assertEq(stringify(utf16Decoder.update(saved[2], 0xde00)), stringify(resumed))
+    },
+    lazyOutput: () => {
+        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
+    },
     toCodePointList: [
         () => {
             const result = stringify(toArray(toCodePointList([-1, 0x1_0000])))

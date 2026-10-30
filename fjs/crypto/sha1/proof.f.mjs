@@ -1,4 +1,7 @@
-/** @import { DemoEvent } from '../../website/demo/types.ts' */
+/**
+ * @import { DemoEvent } from '../../website/demo/types.ts'
+ * @import { Step } from '../../types/function/operator/types.ts'
+ */
 
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
@@ -11,6 +14,9 @@ import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
+
+/** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */
+const stateOf = ([tag, , value]) => (assert(tag === 'next'), value)
 
 const compute = computeSync(sha1)
 
@@ -102,25 +108,25 @@ export const proof = {
         fits: () => assertEq(as(55n), 0xc1c8_bbdc_2279_6e28_c0e1_5163_d208_99b6_5621_d65an),
         fills: () => assertEq(as(64n), 0x0098_ba82_4b5c_1642_7bd7_a112_2a5a_442a_25ec_644dn),
     },
-    // The state carried between appends: a message in pieces hashes as the
+    // The state carried between updates: a message in pieces hashes as the
     // message whole, whatever the pieces' lengths.
     pieces: () => {
         const whole = of('The quick brown fox jumps over the lazy dog')
         const parts = /** @type {readonly string[]} */ (['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog'])
         assertEq(uint(compute(map(utf8)(parts))), whole)
-        const state = sha1.append(utf8('The quick brown fox'))(sha1.init)
-        assertEq(uint(sha1.end(sha1.append(utf8(' jumps over the lazy dog'))(state))), whole)
+        const state = stateOf(sha1.update(stateOf(sha1.init), utf8('The quick brown fox')))
+        assertEq(uint(sha1.end(stateOf(sha1.update(state, utf8(' jumps over the lazy dog'))))[2]), whole)
         // A remainder completed from the front of the next piece, the rest
         // of the piece chunked on its own: one byte, then a hundred.
-        const one = sha1.append(a)(sha1.init)
-        assertEq(uint(sha1.end(sha1.append(repeat(100n)(a))(one))), as(101n))
+        const one = stateOf(sha1.update(stateOf(sha1.init), a))
+        assertEq(uint(sha1.end(stateOf(sha1.update(one, repeat(100n)(a))))[2]), as(101n))
     },
     // A remainder held, then a `Vec` as long as a `Vec` may be: the two are
     // never joined into one, which would be over the ceiling.
     remainderThenFull: () => {
         const full = repeat(maxLengthBytes)(a)
-        const state = sha1.append(a)(sha1.init)
-        assertEq(uint(sha1.end(sha1.append(full)(state))), uint(compute([a, full])))
+        const state = stateOf(sha1.update(stateOf(sha1.init), a))
+        assertEq(uint(sha1.end(stateOf(sha1.update(state, full)))[2]), uint(compute([a, full])))
         assertEq(uint(compute([a, full])), uint(compute([full, a])))
     },
     // The checked-in Git objects, with the ids Git computed, are the proof

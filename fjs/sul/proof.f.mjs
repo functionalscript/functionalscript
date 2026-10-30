@@ -7,11 +7,13 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress, level3Id } from './id/module.f.mjs'
-import { encode, emptyEncodeState } from './module.f.mjs'
+import { encode } from './module.f.mjs'
 import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
+import { nextStep } from '../types/function/operator/module.f.js'
+import { run as runMachine } from '../types/list/module.f.mjs'
 
 /** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {
@@ -19,10 +21,10 @@ const run = bits => {
     const log = []
     /** @type {Add<null>} */
     const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
-    const enc = encode(add)
-    let s = emptyEncodeState(null)
-    for (const b of bits) { s = enc.push(b, s) }
-    return [enc.end(s), log]
+    const enc = encode(add)(null)
+    let s = enc.init[2]
+    for (const b of bits) { s = enc.update(s, b)[2] }
+    return [enc.end(s)[2], log]
 }
 
 /** @type {(bits: readonly bigint[]) => Id} */
@@ -31,31 +33,45 @@ const id = bits => run(bits)[0]
 /** @type {(text: string) => readonly bigint[]} */
 const bitsOf = text => [...text].flatMap(c => [...c.charCodeAt(0).toString(2).padStart(8, '0')].map(b => BigInt(b)))
 
-const heightEncoder = encode(() => null)
+const heightEncoder = encode(() => null)(null)
 
 /**
- * `text`'s bits pushed with `pushWithHeight`, then ended with
+ * `text`'s bits pushed with `updateWithHeight`, then ended with
  * `endWithHeights`: each input bit's height, each padding bit's, the root,
  * and what `end` answers for the same state.
  *
  * @type {(text: string) => readonly [readonly number[], readonly number[], Id, Id]}
  */
 const heightsOf = text => {
-    const { pushWithHeight, endWithHeights, end } = heightEncoder
+    const { init, updateWithHeight, endWithHeights, end } = heightEncoder
     /** @type {readonly [readonly number[], EncodeState<null>]} */
-    const start = [[], emptyEncodeState(null)]
+    const start = [[], init[2]]
     const [heights, state] = bitsOf(text).reduce(([hs, s], bit) => {
-        const [h, next] = pushWithHeight(bit, s)
+        const [h, next] = updateWithHeight(s, bit)
         return /** @type {const} */ ([[...hs, h], next])
     }, start)
     const [padding, root] = endWithHeights(state)
-    return [heights, padding, root, end(state)]
+    return [heights, padding, root, end(state)[2]]
 }
 
 /** @type {(n: number) => readonly bigint[]} */
 const zeros = n => new Array(n).fill(0n)
 
 export const proof = {
+    lifecycle: () => {
+        const bits = bitsOf('Hello')
+        const whole = runMachine(heightEncoder)(bits)
+        assertEq(heightEncoder.init[0], 'next')
+        assertEq(heightEncoder.init[1].length, 0)
+        assertEq(heightEncoder.end(heightEncoder.init[2])[0], 'done')
+        assertEq(heightEncoder.end(heightEncoder.init[2])[1].length, 0)
+        assertEq(runMachine(heightEncoder)([]), id([]))
+        for (let split = 0; split <= bits.length; split++) {
+            const checkpoint = bits.slice(0, split).reduce((state, bit) => heightEncoder.update(state, bit)[2], heightEncoder.init[2])
+            const resumed = { ...heightEncoder, init: nextStep(checkpoint) }
+            assertEq(runMachine(resumed)(bits.slice(split)), whole)
+        }
+    },
     deterministic: () => {
         assertEq(id(zeros(16)), id(zeros(16)))
     },
@@ -94,11 +110,11 @@ export const proof = {
     // Padding can run to thousands of bits — 20,000 zeros take more than
     // 20,000 — and `end` pads in a loop, so the stack does not grow with it.
     longPadding: () => {
-        const { push, end, endWithHeights } = encode(() => null)
-        const state = zeros(20_000).reduce((s, b) => push(b, s), emptyEncodeState(null))
+        const { init, update, end, endWithHeights } = encode(() => null)(null)
+        const state = zeros(20_000).reduce((s, b) => update(s, b)[2], init[2])
         const [heights, root] = endWithHeights(state)
         assert(heights.length > 20_000)
-        assertEq(root, end(state))
+        assertEq(root, end(state)[2])
     },
 
     /**

@@ -51,7 +51,7 @@ export type _Utf8Detect = {
 
 /**
  * The product state: running bit length × magic eliminator × UTF-8 validator.
- * The factors never read each other; they meet only in `finish`.
+ * The factors never read each other; they meet only in the detector's `end`.
  */
 export type DetectState = {
     readonly length: bigint
