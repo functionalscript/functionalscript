@@ -225,6 +225,16 @@ export const proof = {
         assertEq(f([]), '')
         assertEq(f(['ab', 'c', 'd']), 'abcd')
         assertEq(f(['abcd', 'e', 'f']), null)
+        // `'abcd'` and `'ef'` already exceed the cap, but only their merge
+        // says so, and empty values after them weigh nothing. Each counts
+        // as one all the same: the second empty carries into `'ef'`, that
+        // run into `'abcd'`, and the walk stops before the third is read.
+        /** @type {List<string | null>} */
+        const unread = () => {
+            assert(false)
+            return { first: '', tail: unread }
+        }
+        assertEq(f({ first: 'abcd', tail: { first: 'ef', tail: { first: '', tail: { first: '', tail: unread } } } }), null)
     },
     // The run stack carries like a binary counter: the run sizes are the set
     // bits of the number of elements pushed, and each merge keeps the earlier
@@ -252,5 +262,7 @@ export const proof = {
         assertStructurallySame(toArray(runs(three)), ['bc', 'aaaa'])
         assertEq(three.size, 2)
         assertEq(three.rest === null ? 0 : three.rest.size, 4)
+        // nothing weighs less than one
+        assertEq(s('')(null).size, 1)
     },
 }

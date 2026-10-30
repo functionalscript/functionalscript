@@ -79,7 +79,8 @@ export type Absorbing<T> = {
  * How heavy a value is, for the balanced fold: `foldBy` takes the cost of
  * the monoid's `operation` to grow with the weight of its operands — an
  * array's length, a vector's bit count — and merges the light runs first.
- * `fold` weighs every value one.
+ * `fold` weighs every value one, and no value weighs less than one, whatever
+ * the function answers: an empty value counts as one, so that it carries.
  */
 export type Weight<T> = (value: T) => number
 

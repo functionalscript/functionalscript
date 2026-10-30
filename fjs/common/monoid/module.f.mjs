@@ -100,16 +100,26 @@ const settle = operation => top => {
     return settle(operation)({ size: rest.size + top.size, value: operation(rest.value)(top.value), rest: below })
 }
 
+const { max } = Math
+
 /**
  * Pushes a value onto the stack as a run of its own weight, merging as the
  * invariant demands ({@link settle}). The result is always a run, never the
  * empty stack — which is what lets {@link absorbingAccumulator} read `null`
  * as a stop signal rather than a state.
  *
+ * A value weighs at least one, whatever `weight` answers: a run of weight
+ * zero would never outweigh the top beneath it and so never merge into it,
+ * and a list that goes on with empty values after the answer is decided
+ * would keep {@link foldAbsorbingBy} walking. Counting each as one keeps
+ * every value carrying eventually.
+ *
  * @type {<T>(weight: Weight<T>) => (operation: Reduce<T>) => (value: T) => (stack: Stack<T>) => Run<T>}
  */
-export const stepBy = weight => operation => value => stack =>
-    settle(operation)({ size: weight(value), value, rest: stack })
+export const stepBy = weight => operation => {
+    const settleOperation = settle(operation)
+    return value => stack => settleOperation({ size: max(1, weight(value)), value, rest: stack })
+}
 
 /** Every value weighs one. @type {<T>(value: T) => number} */
 const one = () => 1
