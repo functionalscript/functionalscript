@@ -269,7 +269,7 @@ const valueTask = (source, destination, owner, permitted) => call(() => {
             ? { statement: ['block', [destination], result.block], value: ref(destination), normal: result.normal, callee: result.callee }
             : plain(source, result.callee)))
     }
-    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === '+' && source.length === 2
+    if (isUnary(source) || eagerBinary(source) || source[0] === 'instanceof' || source[0] === 'in' || source[0] === '+' && source.length === 2
         || source[0] === ',' && source[1].length !== 0
         || source[0] === 'object'
         || source[0] === '()' || source[0] === 'array') {

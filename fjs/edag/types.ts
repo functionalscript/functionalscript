@@ -27,6 +27,7 @@ import type {
     exps,
     frame,
     instanceOf,
+    inOp,
     memberPresent,
     items,
     numberCast,
@@ -71,6 +72,7 @@ export type Exp =
     | Op1
     | Op0
     | InstanceOf
+    | In
     | MemberPresent
     | Function
     | Arg
@@ -307,11 +309,16 @@ export type ConstructorId = 'Array'
 
 export type InstanceOf = readonly['instanceof', Exp, ConstructorId]
 
+// Entry check — a key *spelling*, which is no operand, and one operand:
+// `Over` keeps the key as the string it is. See `inOp` in `module.f.mjs`.
+
+export type In = readonly['in', string, Exp]
+
 /** Internal member-call presence query; the key uses existing index conversion. */
 export type MemberPresent = readonly ['memberPresent', Exp, Index]
 
 /** The operator ids at every arity: the tag of an operator node. */
-export type OpId = Op1Id | Op2Id | Op12Id | Op3Id | InstanceOf[0]
+export type OpId = Op1Id | Op2Id | Op12Id | Op3Id | InstanceOf[0] | In[0]
 
 // Operation nodes by tag
 
@@ -348,6 +355,8 @@ type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
 type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
 type _InstanceofIsInstanceOf = Assert<Equal<TagMap['instanceof'], InstanceOf>>
 type _InstanceofIsOpId = Assert<Equal<Extract<OpId, 'instanceof'>, 'instanceof'>>
+type _InIsIn = Assert<Equal<TagMap['in'], In>>
+type _InIsOpId = Assert<Equal<Extract<OpId, 'in'>, 'in'>>
 type _MemberPresentTag = Assert<Equal<TagMap['memberPresent'], MemberPresent>>
 type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
 type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
@@ -433,6 +442,9 @@ type _OverFrame = Assert<Equal<Over<Frame, 0>, readonly ['frame', number]>>
 type _OverInstanceOf = Assert<Equal<Over<InstanceOf, 0>, readonly ['instanceof', 0, 'Array']>>
 type _ConstructorId = Assert<Check<ConstructorId, typeof constructorId>>
 type _InstanceOf = Assert<Check<InstanceOf, typeof instanceOf>>
+// The key survives translation as the spelling it is, not an operand.
+type _OverIn = Assert<Equal<Over<In, 0>, readonly ['in', string, 0]>>
+type _In = Assert<Check<In, typeof inOp>>
 type _MemberPresent = Assert<Check<MemberPresent, typeof memberPresent>>
 type _OverMemberPresent = Assert<Equal<Over<MemberPresent, 0, 1>, readonly ['memberPresent', 0, 1]>>
 type _Primitive = Assert<Check<Primitive, typeof primitive>>

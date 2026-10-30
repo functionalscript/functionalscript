@@ -5,14 +5,14 @@
  * @module
  */
 
-import type { BindingId, FunctionTarget, LoopTarget, _Unary, _Binary, _InstanceOf, _MemberPresent, _Array, _Object, _Access, _ContinuedAccess, _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf } from '../types.ts'
+import type { BindingId, FunctionTarget, LoopTarget, _Unary, _Binary, _InstanceOf, _In, _MemberPresent, _Array, _Object, _Access, _ContinuedAccess, _GuardedCall, _ContinuedGuardedCall, _Call, _Conditional, _Comma, _Leaf } from '../types.ts'
 import type { Primitive } from '../../../media/datajs/types.ts'
 
 /** A reference to a memo demands its initializer once in the owning invocation. */
 export type Value =
     | Primitive
     | readonly ['ref' | 'demand', BindingId]
-    | _Unary<Value> | _Binary<Value> | _InstanceOf<Value> | _MemberPresent<Value> | _Array<Value> | _Object<Value>
+    | _Unary<Value> | _Binary<Value> | _InstanceOf<Value> | _In<Value> | _MemberPresent<Value> | _Array<Value> | _Object<Value>
     | _Access<Value> | _ContinuedAccess<Value> | _GuardedCall<Value> | _ContinuedGuardedCall<Value>
     | _Call<Value> | _Conditional<Value> | _Comma<Value> | _Leaf
     | readonly ['function', Function]

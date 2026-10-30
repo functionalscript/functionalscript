@@ -31,7 +31,7 @@ export const proof = /** @type {const} */ ({
         ])) {
             assertEq(demandsInOrder(exp, [first, second]), true)
         }
-        for (const exp of /** @type {readonly Exp[]} */ ([['!', first], ['typeof', first], ['instanceof', first, 'Array']])) {
+        for (const exp of /** @type {readonly Exp[]} */ ([['!', first], ['typeof', first], ['instanceof', first, 'Array'], ['in', 'x', first]])) {
             assertEq(demandsInOrder(exp, [first]), true)
         }
         assertEq(demandsInOrder(['[]', [second, first]], [first, second]), false)

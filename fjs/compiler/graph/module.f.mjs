@@ -274,6 +274,9 @@ export const operatorShape = ({ array, object }) => other => {
         // an instance check: its one operand, and the constructor as part
         // of the label, a name the node carries rather than a child
         if (tag === 'instanceof') { return { kind: 'op', label: `instanceof ${exp[2]}`, children: [['operand', exp[1]]] } }
+        // an entry check: its key as part of the label, a spelling the
+        // node carries rather than a child, and its one operand
+        if (tag === 'in') { return { kind: 'op', label: `${JSON.stringify(exp[1])} in`, children: [['operand', exp[2]]] } }
         if (typeof tag === 'string' && op12.has(tag)) {
             return exp.length === 2
                 ? { kind: 'op', label: tag, children: [['operand', exp[1]]] }
