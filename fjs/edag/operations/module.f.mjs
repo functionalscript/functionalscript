@@ -43,6 +43,7 @@ import { isIntrinsic, isStatic, noStatic } from '../module.f.mjs'
  * `in` function, or no runtime at all: as {@link noStatic} for a static,
  * the operator refused by name, never answered with a plausible value.
  */
+/** @type {string} */
 export const noIn = 'no binding for the in operator'
 
 /** Propagate failures without running the continuation.
