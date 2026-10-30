@@ -797,7 +797,7 @@ afterwards is a later rename and no part of this decision.
 - `^` - bitwiseXor
   - `^=` - bitwiseXorAssignment
 - `_` - idBegin
-- '`' - templateBegin
+- `` ` `` - templateBegin
 - `a..z` - idBegin
   - `async` ?
   - `await` ?
