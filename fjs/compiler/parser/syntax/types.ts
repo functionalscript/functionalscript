@@ -56,6 +56,10 @@ import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  */
 export type Node =
     | readonly ['primitive', Primitive]
+    // a template without substitutions: its cooked text, a constant the
+    // fold reads as a primitive's value, kept apart from a string literal
+    // because `in`'s key is a string literal and no template
+    | readonly ['template', string]
     | readonly ['ref', ModuleTokenWithMetadata]
     | readonly ['.', Node, Key]
     | readonly ['()', Node, readonly Item[]]
