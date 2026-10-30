@@ -45,8 +45,8 @@ Complete the steps in order.
 ### Proposal
 
 Measured on the module the pinned Rust (1.99.1) builds today: 1,007,871
-bytes, 1,079 functions, no imports, the `name`, `producers` and
-`target_features` custom sections, and 130 instruction kinds, all from the
+bytes, 1,085 functions, no imports, the `name`, `producers` and
+`target_features` custom sections, and 120 instruction kinds, all from the
 WebAssembly 2.0 core set without SIMD (sign extension, saturating
 truncation and bulk memory among them). Every Rust function name is in v0
 mangling (`_R…`); none is legacy (`_ZN…`).
