@@ -181,8 +181,10 @@ const combine = ({ identity, operation }) => stack => {
  *
  * @type {<T>(weight: Weight<T>) => (monoid: Monoid<T>) => (list: List<T>) => T}
  */
-export const foldBy = weight => monoid =>
-    compose(listFold(foldStepBy(weight)(monoid.operation))(null))(combine(monoid))
+export const foldBy = weight => {
+    const stepWeight = foldStepBy(weight)
+    return monoid => compose(listFold(stepWeight(monoid.operation))(null))(combine(monoid))
+}
 
 /**
  * Reduces a `List<T>` with the monoid's associative `operation`, seeded at its
@@ -258,17 +260,20 @@ export const fold = foldBy(one)
  *
  * @type {<T>(weight: Weight<T>) => (monoid: Monoid<T>) => (absorbing: T) => Accumulator<T, Stack<T>, readonly[T]>}
  */
-const absorbingAccumulator = weight => monoid => {
-    const p = stepBy(weight)(monoid.operation)
-    const c = combine(monoid)
-    return absorbing => ({
-        init: null,
-        update: (value, stack) => {
-            const next = p(value)(stack)
-            return next.value === absorbing ? null : next
-        },
-        end: stack => [c(stack)],
-    })
+const absorbingAccumulator = weight => {
+    const stepWeight = stepBy(weight)
+    return monoid => {
+        const p = stepWeight(monoid.operation)
+        const c = combine(monoid)
+        return absorbing => ({
+            init: null,
+            update: (value, stack) => {
+                const next = p(value)(stack)
+                return next.value === absorbing ? null : next
+            },
+            end: stack => [c(stack)],
+        })
+    }
 }
 
 /**
@@ -295,13 +300,16 @@ const absorbingAccumulator = weight => monoid => {
  *
  * @type {<T>(weight: Weight<T>) => (absorbing: Absorbing<T>) => (list: List<T>) => T}
  */
-export const foldAbsorbingBy = weight => ({ monoid, absorbing }) => {
-    const f = tryFold(absorbingAccumulator(weight)(monoid)(absorbing))
-    return list => {
-        const result = f(list)
-        if (result === null) { return absorbing }
-        const [value] = result
-        return value
+export const foldAbsorbingBy = weight => {
+    const accumulator = absorbingAccumulator(weight)
+    return ({ monoid, absorbing }) => {
+        const f = tryFold(accumulator(monoid)(absorbing))
+        return list => {
+            const result = f(list)
+            if (result === null) { return absorbing }
+            const [value] = result
+            return value
+        }
     }
 }
 
