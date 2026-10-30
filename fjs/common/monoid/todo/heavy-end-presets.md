@@ -1,5 +1,6 @@
 # Heavy-end demo presets
 
+**Priority:** P3
 **Status:** wip
 
 Add two sequences of thirty numbers to the monoid demo: 31 followed by 29 ones, and 29 ones followed by 31. Keep both deterministic and shareable, with Shuffle disabled.
