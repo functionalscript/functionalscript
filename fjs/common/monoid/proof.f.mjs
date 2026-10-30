@@ -101,10 +101,8 @@ const unread = () => {
 
 export const proof = {
     numberAdd: () => {
-        const add = {
-             identity: 0,
-             operation: (/** @type {number} */ a) => (/** @type {number} */ b) => a + b,
-        };
+        /** @type {Pick<Monoid<number>, 'identity' | 'operation'>} */
+        const add = { identity: 0, operation: a => b => a + b }
         const resultAdd = repeat(add)(10n)(2) // 20
         assertEq(resultAdd, 20)
 
@@ -112,11 +110,8 @@ export const proof = {
         assertEq(id, 0)
     },
     stringConcat: () => {
-        const concat = {
-             identity: '',
-             operation: (/** @type {string} */ a) => (/** @type {string} */ b) => a + b,
-        };
-
+        /** @type {Pick<Monoid<string>, 'identity' | 'operation'>} */
+        const concat = { identity: '', operation: a => b => a + b }
         const resultConcat = repeat(concat)(3n)('ha') // 'hahaha'
         assertEq(resultConcat, 'hahaha')
     },
