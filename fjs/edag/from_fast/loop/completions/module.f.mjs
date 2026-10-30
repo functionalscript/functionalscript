@@ -13,7 +13,7 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.js'
-import { toArray } from '../../../../types/list/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.mjs'
 
 /** @type {_Flow} */
 const noFlow = { returns: false, breaks: [], continues: [] }

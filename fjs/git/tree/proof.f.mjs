@@ -7,7 +7,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { decode, encode } from '../../basen/base16/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { u8ArrayMsb, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { hole, latin1, modesTree, rootTree, sha256Tree } from '../testlib.f.mjs'
 import { isSubtree, mode, tryRead, validate, write } from './module.f.mjs'
 

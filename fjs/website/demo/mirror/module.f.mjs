@@ -35,7 +35,8 @@
  * @import { Scan } from '../../../types/function/operator/types.ts'
  */
 
-import { scan, toArray } from '../../../types/list/module.f.mjs'
+import { scan } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {

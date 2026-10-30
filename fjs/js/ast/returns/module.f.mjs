@@ -13,7 +13,7 @@
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
 import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 
 /** @type {() => BindingId} */

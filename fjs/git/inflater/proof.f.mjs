@@ -1,7 +1,7 @@
 import { assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { bytesOf, feed, feedWithin, finish, inflateAll, inflateWithin, malformed, sizeOf, start } from './module.f.mjs'
 

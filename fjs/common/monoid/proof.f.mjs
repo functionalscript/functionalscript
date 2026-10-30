@@ -6,7 +6,7 @@
 
 import { repeat, fold, foldAbsorbing, runs, step } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /** @type {Absorbing<number>} */
 const multiply = {

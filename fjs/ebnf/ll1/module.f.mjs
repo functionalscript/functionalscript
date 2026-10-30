@@ -29,7 +29,8 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { concat, toArray } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'

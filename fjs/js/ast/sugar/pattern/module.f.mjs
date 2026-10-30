@@ -16,7 +16,8 @@
  */
 
 import { error, ok } from '../../../../types/result/module.f.js'
-import { reverse, toArray } from '../../../../types/list/module.f.mjs'
+import { reverse } from '../../../../types/list/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.mjs'
 import { at, empty, setReplace } from '../../../../types/ordered_map/module.f.mjs'
 import { hasEntry } from '../../../../types/object/entry/module.f.js'
 

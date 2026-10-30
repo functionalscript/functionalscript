@@ -35,7 +35,8 @@
  */
 
 import { error, ok } from '../../types/result/module.f.js'
-import { map, toArray } from '../../types/list/module.f.mjs'
+import { map } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { isWellFormed, stringToList } from '../../text/utf16/module.f.mjs'
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { bigint } from '../../types/bigint/from_number/module.f.js'

@@ -53,7 +53,7 @@ import { graphSvg } from '../../demo/graph/module.f.mjs'
 import { button, option, selectField, refusal } from '../../demo/module.f.mjs'
 import { errorMessage, pureOk, resultStep } from '../../../effects/module.f.mjs'
 import { contains, empty as emptySet, set as setAdd } from '../../../types/string_set/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 
 /** The levels, by depth. */
 export const depths = [2, 3, 4]

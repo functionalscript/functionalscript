@@ -6,7 +6,7 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.mjs'
 import { tryParse } from '../parser/module.f.mjs'

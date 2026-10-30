@@ -22,7 +22,8 @@
 
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
 import { bytesIn, length, u8ListMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { flat, map, reverse, toArray } from '../../types/list/module.f.mjs'
+import { flat, map, reverse } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { append, end, init } from '../../zlib/inflate/module.f.mjs'
 

@@ -37,7 +37,7 @@ export const concat = head => tail =>
     tail === null ? head : ({ head, tail })
 
 /** @type {<T>(list: List<T>) => NotLazy<T>} */
-const trampoline = list => {
+export const trampoline = list => {
     while (typeof list === 'function') { list = list() }
     return list
 }
@@ -51,7 +51,7 @@ export const next = head => {
 
         if (head instanceof Array) {
             head = fromArrayLike(head)
-        } else if (head !== null && hasEntry(head, 'head')) {
+        } else if (head !== null && 'head' in head) {
             [head, tail] = [head.head, concat(head.tail)(tail)]
             continue
         }
@@ -64,27 +64,6 @@ export const next = head => {
 
         [head, tail] = [tail, null]
     }
-}
-
-/** @type {<T>(list: List<T>) => Iterable<T>} */
-export const iterable = list => ({
-    *[Symbol.iterator]() {
-        let i = list
-        while (true) {
-            const r = next(i)
-            if (r === null) { return }
-            yield r.first
-            i = r.tail
-        }
-    }
-})
-
-const { from } = Array
-
-/** @type {<T>(list: List<T>) => readonly T[]} */
-export const toArray = list => {
-    const u = trampoline(list)
-    return u instanceof Array ? u : from(iterable(u))
 }
 
 /** @type {<I, O>(f: (n: NonEmpty<I>) => List<O>) => (input: List<I>) => Thunk<O>} */

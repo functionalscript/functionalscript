@@ -58,7 +58,8 @@
  * @import { StringMap } from '../../../types/object/types.ts'
  */
 
-import { stateScan, toArray } from '../../../types/list/module.f.mjs'
+import { stateScan } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'

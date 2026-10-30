@@ -10,7 +10,8 @@
  * @import { CodePoint } from '../code_point/types.ts'
  */
 
-import { flatMap, toArray } from '../../types/list/module.f.mjs'
+import { flatMap } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import {
     bmpMax,
     decoder,

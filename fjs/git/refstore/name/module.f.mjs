@@ -31,7 +31,7 @@ import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { fromVec, stringToU8List } from '../../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../../types/list/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { isWholeName } from '../../refname/module.f.mjs'
 
 /**

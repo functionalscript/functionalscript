@@ -19,7 +19,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { length, maxLengthBytes, msb, vec } from '../bit_vec/module.f.mjs'
 import { compose } from '../function/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
-import { iterable } from '../list/module.f.mjs'
+import { iterable } from '../list/iterable/module.f.mjs'
 
 // Both conversions go through the bigint's hexadecimal spelling, two digits
 // a byte, rather than through a list of bytes: one `BigInt` or one

@@ -28,7 +28,7 @@
 
 import { codeMarker } from '../../website/style/module.f.js'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.mjs'
 import { caption } from '../../website/demo/module.f.mjs'
 import { stageDemo } from '../stage_demo/module.f.mjs'
 import { tokenize } from './module.f.mjs'
