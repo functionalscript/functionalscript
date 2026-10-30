@@ -82,5 +82,8 @@ export const proof = {
         dataFlag: () => refused(mod(sec(11, [1, 3])), 'unsupported data segment flag 3 at byte 11'),
         bodyEnd: () => refused(mod(oneFunction, [10, 3, 1, 1, 0]), 'unexpected end at byte 23'),
         bodySize: () => refused(mod(oneFunction, sec(10, [1, 3, 0, 0x0b, 0x0b])), 'function body size mismatch at byte 25'),
+        // 50,001 locals, one more than browsers allow.
+        locals: () => refused(mod(oneFunction, sec(10, [1, 6, 1, 0xd1, 0x86, 0x03, 0x7f, 0x0b])), 'more than 50000 locals at byte 22'),
+        localType: () => refused(mod(oneFunction, sec(10, [1, 3, 1, 1, 0x7b])), 'unsupported value type 0x7b at byte 24'),
     },
 }

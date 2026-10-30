@@ -11,7 +11,9 @@
  * **It reads the format, not the semantics.** A module that decodes is
  * answered whether or not it would validate: an index out of range, a type
  * mismatch or an `else` outside an `if` is the validator's to refuse, and
- * this is no validator.
+ * this is no validator. The one limit it enforces is a function's 50,000
+ * locals, the JS API's, since a few bytes can declare billions and no
+ * consumer could expand them.
  *
  * The name section is parsed into its subsections, and every other custom
  * section kept as its bytes, each with the known section it follows.
@@ -340,10 +342,24 @@ const sized = (what, p) => size => (b, i) => {
     return r[1][1] === end ? r : fail(end, `${what} size mismatch`)
 }
 
+/**
+ * The most locals a function may declare: the WebAssembly JS API's limit,
+ * which browsers enforce. A few bytes can declare billions, which no consumer
+ * could expand.
+ */
+const maxLocals = 50_000
+
+/** @type {_Read<_Code['locals']>} */
+const locals = (b, i) => {
+    const r = vec(then(u32, count => map(valType, type => /** @type {const} */ ([count, type]))))(b, i)
+    if (r[0] === 'error') { return r }
+    return r[1][0].reduce((n, [count]) => n + count, 0) > maxLocals
+        ? fail(i, `more than ${maxLocals} locals`)
+        : r
+}
+
 /** @type {_Read<_Code>} */
-const code = then(u32, sized('function body', then(
-    vec(then(u32, count => map(valType, type => /** @type {const} */ ([count, type])))),
-    locals => map(expr, body => ({ locals, body })))))
+const code = then(u32, sized('function body', then(locals, locals => map(expr, body => ({ locals, body })))))
 
 // names
 
