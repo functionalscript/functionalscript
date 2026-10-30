@@ -71,9 +71,9 @@ an object literal may hold one, `{ toString: 1 }`
 ([property keys](../values/objects/README.md#property-keys)). `length` is the exception, since an
 array, a string and a function own it. The rules are
 [property-accessor](../todo/2330-property-accessor.md)'s. The same names
-are refused as the key of `"k" in o`, the presence check, `length` among
-them there, since an array's `length` is found without being an entry
-([`in`](../operators/in/README.md)).
+are refused as the key of `"k" in o`, the presence check, with the same
+exemption: `length` is a key there as it is here, `"length" in []` being
+`true` as in JavaScript ([`in`](../operators/in/README.md)).
 
 A method call has a rule of its own. `a.push(1)`, `a.valueOf()` and the
 other member functions
