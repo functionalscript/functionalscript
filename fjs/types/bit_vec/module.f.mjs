@@ -23,19 +23,19 @@
  *
  * @import { Reduce as BigintReduce } from '../bigint/types.ts'
  * @import { Fold } from '../function/operator/types.ts'
- * @import { List, Thunk } from '../list/types.ts'
- * @import { Absorbing } from '../../common/monoid/types.ts'
+ * @import { Accumulator, List, Thunk } from '../list/types.ts'
+ * @import { Monoid, Stack } from '../../common/monoid/types.ts'
  * @import { Nullable } from '../nullable/types.ts'
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
 import { bitLength, divUp, mask, maxLength as bigintMaxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.js'
-import { map, next } from '../list/module.f.mjs'
+import { map, next, tryFold } from '../list/module.f.mjs'
 import { toArray } from '../list/alt/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
+import { collect, repeat as mRepeat, step } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.js'
 import { mapUnwrap } from '../nullable/module.f.js'
 import { assert } from '../../asserts/module.f.js'
@@ -283,74 +283,58 @@ const u8ToUnpacked = b => {
 }
 
 /**
- * Stands for every concatenation longer than `maxLength`: a vector that is
- * itself longer, so a merge with it is longer still and {@link tryUnpackConcat}
- * answers it again. It is one value, told apart by identity, never packed.
+ * Concatenation as a monoid over `Unpacked`: the identity is the empty vector,
+ * and a vector weighs its bit count, so the fold merges short vectors first
+ * and copies a long one once.
  *
- * @type {Unpacked}
+ * @type {(unpackConcat: _UnpackConcat) => Monoid<Unpacked>}
  */
-const overflow = { length: maxLength + 1n, uint: 0n }
-
-/** The vector packed, or `null` for {@link overflow}. @type {(u: Unpacked) => Nullable<Vec>} */
-const packUnlessOverflow = u => u === overflow ? null : pack(u)
-
-/**
- * Concatenation as a monoid over `Unpacked`, where {@link overflow} means "the
- * concatenation is longer than `maxLength`" and is an **absorbing** element:
- * combining it with anything is `overflow` again. The identity is the empty
- * vector, and a vector weighs its bit count.
- *
- * This is a lawful monoid, so `monoid.fold` may re-associate it freely. Length
- * is additive and non-negative, so any partial combine is at most the total: a
- * partial can only overflow when the total does, and the top-level combine
- * always sees the full total. The result is therefore `overflow` **iff** the
- * total length exceeds `maxLength`, whatever the grouping.
- *
- * The cap is checked on the operands' lengths rather than on the concatenated
- * result because the result is what must not be built: `maxLength` is the
- * smallest `bigint` size supported across FunctionalScript's runtimes. The two
- * lengths are exact and additive — this is the length, not an estimate of it
- * (`doc/DESIGN.md` §6).
- *
- * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
- * stops at the first merge that overflows instead of reading the rest of a list
- * whose answer is already decided. `List<T>` includes `Thunk<T>`, so that is
- * the difference between answering and never returning on an unbounded lazy
- * list — and at `maxLength` = 128 KiB, overflow is an ordinary outcome for a
- * stream, not an exotic one. A single vector is never `overflow`, so only a
- * merge can reach it, and the merge waits until the vectors pushed above the
- * pair outweigh the run beneath them: the stop lags the element that crossed
- * the cap by about that many bits of input.
- *
- * @type {(unpackConcat: _UnpackConcat) => Absorbing<Unpacked>}
- */
-const tryUnpackConcat = unpackConcat => ({
-    monoid: {
-        identity: unpackEmpty,
-        operation: a => b =>
-            a.length + b.length > maxLength ? overflow : unpackConcat(a)(b),
-        weight: u => Number(u.length),
-    },
-    absorbing: overflow,
+const concatenation = unpackConcat => ({
+    identity: unpackEmpty,
+    operation: unpackConcat,
+    weight: u => Number(u.length),
 })
 
 /**
  * Concatenates a list of unpacked vectors, or `null` if the result would be
  * longer than `maxLength`.
  *
- * `monoid.foldAbsorbing` reduces as a balanced binary tree, so each merge joins
- * two runs of comparable size — O(n log n) total `bigint` shifting work instead
- * of the O(n²) a left fold would spend growing one accumulator against small
- * operands — and stops reading at the first overflow.
+ * The cap is on the total length, checked as each vector arrives and before
+ * any is merged. Lengths are exact and additive, so the total is the length
+ * of the result whatever the grouping, and the walk stops at the vector that
+ * takes it past `maxLength`: the result is what must not be built, since
+ * `maxLength` is the smallest `bigint` size supported across
+ * FunctionalScript's runtimes, and the rest of the list must not be read
+ * either — `List<T>` includes `Thunk<T>`, and at `maxLength` = 128 KiB,
+ * overflow is an ordinary outcome for a stream. A stop that waited for a
+ * merge to see the overflow would read on past vectors too short to force
+ * one, forever when they are empty.
+ *
+ * Under the cap the vectors are folded as a balanced tree, `monoid.step` and
+ * `monoid.collect` on a stack kept beside the total: each merge joins two runs
+ * of comparable size — O(n log n) total `bigint` shifting work instead of the
+ * O(n²) a left fold would spend growing one accumulator against small
+ * operands — and a long vector is merged once.
  *
  * This is the bit-vector analogue of a builder that accumulates appended pieces
  * and materializes the combined result on demand, such as `StringBuilder`
  * (Java, C#) or `strings.Builder` (Go).
  *
- * @param {_UnpackConcat} unpackConcat
+ * @type {(unpackConcat: _UnpackConcat) => (list: List<Unpacked>) => Nullable<Vec>}
  */
-const unpackListToVec = unpackConcat =>
-    compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(packUnlessOverflow)
+const unpackListToVec = unpackConcat => {
+    const monoid = concatenation(unpackConcat)
+    const push = step(monoid)
+    const whole = collect(monoid)
+    /** @type {Accumulator<Unpacked, { readonly stack: Stack<Unpacked>, readonly length: bigint }, Vec>} */
+    const capped = {
+        init: { stack: null, length: 0n },
+        update: (u, { stack, length }) =>
+            length + u.length > maxLength ? null : { stack: push(u)(stack), length: length + u.length },
+        end: ({ stack }) => pack(whole(stack)),
+    }
+    return tryFold(capped)
+}
 
 /**
  * Concatenates a list of `I` values into one vector, mapping each element to
@@ -421,9 +405,8 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     }
     /** @type {Reduce} */
     const concat = lift2(a => b => pack(unpackConcat(a)(b)))
-    const { operation } = tryUnpackConcat(unpackConcat).monoid
     /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
-    const tryConcat = lift2(a => b => packUnlessOverflow(operation(a)(b)))
+    const tryConcat = lift2(a => b => a.length + b.length > maxLength ? null : pack(unpackConcat(a)(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,

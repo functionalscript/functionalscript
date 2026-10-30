@@ -20,8 +20,8 @@ const concat = { identity: '', operation: a => b => a + b, weight: s => s.length
 | `repeat({ identity, operation })(n)(a)` | applies the operation `n` times, by squaring, in `log2(n)` steps; `n` is a non-negative `bigint`; reads no weight |
 | `fold(monoid)(list)` | combines a list as a balanced tree, balanced by the monoid's weight, keeping order |
 | `foldAbsorbing({ monoid, absorbing })(list)` | `fold` that stops at the absorbing element |
-| `step` and `runs` | the balanced fold's stack, for a structure that keeps it |
-| `move(monoid)(folding)(walk)` | one move of the fold, the rule itself; `step` and the fold at the end loop over it, and the module's demo draws every move as a merge tree |
+| `step`, `collect` and `runs` | the balanced fold's stack: push a value, fold the stack, read its runs |
+| `move(monoid)(folding)(walk)` | one move of the fold, the rule itself; `step` and `collect` loop over it, and the module's demo draws every move as a merge tree |
 
 ```js
 repeat(add)(10n)(3)          // 30
@@ -40,5 +40,7 @@ The balanced fold matters for operations whose cost grows with their operands,
 such as joining strings or bit vectors: combining equal-sized halves keeps the
 total cost near `n log n` instead of the `n²` a left fold can cost.
 `foldAbsorbing` is the one to use on an unbounded lazy list, where `fold` would
-never finish. [`fjs/types/set`](../types/set/module.f.mjs) keeps the run stack
-itself through `step`.
+never finish and a merge decides the answer. [`fjs/types/set`](../types/set/module.f.mjs)
+keeps the run stack itself through `step`; [`fjs/types/bit_vec`](../types/bit_vec/module.f.mjs)
+pushes with `step` while a total it keeps beside the stack is under its cap, and
+folds the stack with `collect` at the end.

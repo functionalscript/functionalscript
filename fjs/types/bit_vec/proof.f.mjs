@@ -496,29 +496,49 @@ export const proof = {
         const list = [vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(list), null)
         assertEq(msb.tryListToVec(list), null)
-        // Overflow is an absorbing element, so it survives every later
-        // combination: here the failed pair ends up on the left of the last
-        // one, and on the right in the two-element case above.
+        // The cap is on the total, so where the long vector stands among the
+        // short ones does not matter.
         /** @type {List<Vec>} */
-        const longer = [vec(maxLength)(1n), vec(1n)(1n), vec(1n)(1n)]
+        const longer = [vec(1n)(1n), vec(maxLength)(1n), vec(1n)(1n)]
         assertEq(lsb.tryListToVec(longer), null)
         assertEq(msb.tryListToVec(longer), null)
     },
     tryListToVecUnbounded: () => {
         // `List` includes `Thunk`, so an unbounded lazy list is a legal input —
         // and at 128 KiB, `maxLength` is an ordinary amount for a stream to
-        // exceed. Overflow being absorbing is what lets the fold answer instead
-        // of reading forever: each element here is half of `maxLength`, so the
-        // total crosses the cap at the third and the merge that sees it happens
-        // at the fourth. The rest of the list asserts it is never read.
+        // exceed. The cap is checked on the total as each vector arrives, so
+        // the walk stops at the vector that crosses it: each element here is
+        // half of `maxLength`, the third crosses, and the rest of the list
+        // asserts it is never read.
         const half = vec(maxLength / 2n)(1n)
         /** @type {(n: number) => List<Vec>} */
         const from = n => () => {
-            assert(n <= 8)
+            assert(n <= 3)
             return { first: half, tail: from(n + 1) }
         }
         assertEq(lsb.tryListToVec(from(1)), null)
         assertEq(msb.tryListToVec(from(1)), null)
+    },
+    // Empty vectors weigh nothing, so they never make the fold merge the runs
+    // beneath them; the cap does not wait for a merge. Two full vectors and
+    // then empties without end: the second full vector crosses the cap and
+    // the walk stops there, never reading an empty one. Within the cap, the
+    // empties concatenate to nothing, before, between and after.
+    tryListToVecEmptyTail: () => {
+        const full = vec(maxLength)(1n)
+        /** @type {List<Vec>} */
+        const empties = () => {
+            assert(false)
+            return { first: empty, tail: empties }
+        }
+        /** @type {List<Vec>} */
+        const list = { first: full, tail: { first: full, tail: empties } }
+        assertEq(lsb.tryListToVec(list), null)
+        assertEq(msb.tryListToVec(list), null)
+        const half = vec(maxLength / 2n)(1n)
+        assertEq(lsb.tryListToVec([empty, half, empty, half, empty]), lsb.concat(half)(half))
+        assertEq(msb.tryListToVec([empty, half, empty, half, empty]), msb.concat(half)(half))
+        assertEq(lsb.tryListToVec([half, empty, empty, half, vec(1n)(1n)]), null)
     },
     listToVecOverflow: {
         // Same oversized input, but through the throwing `listToVec` wrapper.
