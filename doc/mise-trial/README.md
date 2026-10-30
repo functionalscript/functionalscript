@@ -60,6 +60,22 @@ The upstream checksum manifest is verified during optional runtime installation.
 Wasmer has no native Windows ARM64 release; the baseline intentionally excludes
 it there. CI exercises the WASM engines and SpiderMonkey on Linux ARM64.
 
+## Claude Code cloud environment
+
+A [Claude Code cloud environment](https://code.claude.com/docs/en/claude-code-on-the-web)
+for this repository installs mise in its setup script, which runs once per new
+session from the directory above the checkout:
+
+```sh
+cd functionalscript && sh .claude/setup.sh
+```
+
+[`.claude/setup.sh`](../../.claude/setup.sh) installs the Linux x64 host
+prerequisites and mise, then runs `mise install --locked` and `npm ci`. The
+session hook in `.claude/hooks/session-start.sh` repeats the last two steps,
+which are no-ops once the setup script has run, and exports the selected tools
+to the session's shell.
+
 ## Regeneration and updates
 
 `./dev.sh npm run gen` writes all generated source and workflows using Node.

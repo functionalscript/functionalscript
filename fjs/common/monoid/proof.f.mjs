@@ -1,12 +1,48 @@
 /**
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Absorbing, Monoid, Stack } from './types.ts'
+ * @import { Absorbing, Monoid, Stack, Weight } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing, runs, step } from './module.f.mjs'
+import { repeat, fold, foldBy, foldAbsorbing, foldAbsorbingBy, runs, step, stepBy } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, countdown, map, repeat as repeatItem } from '../../types/list/module.f.mjs'
+
+/**
+ * `operation` brackets each combination so the *grouping* a fold chose is
+ * visible in the result. It is deliberately **not** associative — a lawful
+ * monoid could not observe the grouping at all, which is exactly why
+ * re-associating is allowed. The identity still behaves as one (both
+ * branches return the other operand unchanged), so the fold's contract is
+ * respected.
+ *
+ * @type {Monoid<string>}
+ */
+const bracket = {
+    identity: '',
+    operation: a => b => a === '' ? b : b === '' ? a : `(${a}${b})`,
+}
+
+/** @type {Weight<string>} */
+const length = s => s.length
+
+/**
+ * What concatenating arrays would copy: a value is an array's length and the
+ * items every merge so far has written.
+ *
+ * @type {Monoid<{ readonly length: number, readonly copies: number }>}
+ */
+const cost = {
+    identity: { length: 0, copies: 0 },
+    operation: a => b => ({ length: a.length + b.length, copies: a.copies + b.copies + a.length + b.length }),
+}
+
+/** @type {(length: number) => { readonly length: number, readonly copies: number }} */
+const chunk = length => ({ length, copies: 0 })
+
+/** @type {Weight<{ readonly length: number, readonly copies: number }>} */
+const byLength = c => c.length
 
 /** @type {Absorbing<number>} */
 const multiply = {
@@ -69,17 +105,6 @@ export const proof = {
             assertEq(fold(concat)([]), '')
         },
         balanced: () => {
-            // `operation` brackets each combination so the *grouping* `fold`
-            // chose is visible in the result. It is deliberately **not**
-            // associative — a lawful monoid could not observe the grouping at
-            // all, which is exactly why re-associating is allowed. The identity
-            // still behaves as one (both branches return the other operand
-            // unchanged), so `fold`'s contract is respected.
-            /** @type {Monoid<string>} */
-            const bracket = {
-                identity: '',
-                operation: a => b => a === '' ? b : b === '' ? a : `(${a}${b})`,
-            }
             const f = fold(bracket)
             assertEq(f(['a']), 'a')
             assertEq(f(['a', 'b']), '(ab)')
@@ -90,6 +115,51 @@ export const proof = {
             // give `(((ab)c)d)`.
             assertEq(f(['a', 'b', 'c', 'd']), '((ab)(cd))')
             assertEq(f(['a', 'b', 'c', 'd', 'e']), '(((ab)(cd))e)')
+            // the runs left on the stack combine lightest first, so the
+            // heaviest, `((ab)(cd))`, is copied once: `(ef)` and `g` join
+            // before it does.
+            assertEq(f(['a', 'b', 'c', 'd', 'e', 'f', 'g']), '(((ab)(cd))((ef)g))')
+        },
+    },
+    foldBy: {
+        // Weighed by length, a long value waits at the bottom of the stack
+        // until the runs above it together outweigh it.
+        grouping: () => {
+            const f = foldBy(length)(bracket)
+            assertEq(f([]), '')
+            assertEq(f(['aaaa', 'b', 'c']), '(aaaa(bc))')
+            assertEq(fold(bracket)(['aaaa', 'b', 'c']), '((aaaab)c)')
+            // `bb` outweighs `c`, but `aaa` does not outweigh the two together:
+            // they merge, and the result then outweighs `aaa` too.
+            assertEq(f(['aaa', 'bb', 'c']), '(aaa(bbc))')
+            // equal weights carry like the binary counter `fold` is
+            assertEq(f(['aa', 'bb', 'c']), '((aabb)c)')
+            assertEq(f(['a', 'b', 'c', 'd', 'e']), fold(bracket)(['a', 'b', 'c', 'd', 'e']))
+        },
+        // One array of 1024 items followed by 1024 arrays of one: `fold`
+        // merges the long array at every carry that reaches its run, ten
+        // times; `foldBy` its length merges it once, when the short ones
+        // together outweigh it. Both then pass the result through the
+        // identity once, which is the `2048` in each count.
+        longAmongShort: () => {
+            const list = concat([chunk(1024)])(repeatItem(chunk(1))(1024))
+            const weighed = foldBy(byLength)(cost)(list)
+            assertEq(weighed.length, 2048)
+            assertEq(weighed.copies, 14_336)
+            const counted = fold(cost)(list)
+            assertEq(counted.length, 2048)
+            assertEq(counted.copies, 22_519)
+        },
+        // Arrays of strictly decreasing length never merge under the plain
+        // "merge while the top is no heavier" rule, which would copy about
+        // 180 million items here; the invariant keeps the stack logarithmic
+        // and stays within a few per cent of the count-balanced fold.
+        decreasing: () => {
+            const list = map((/** @type {number} */ n) => chunk(n + 1))(countdown(1024))
+            const weighed = foldBy(byLength)(cost)(list)
+            assertEq(weighed.length, 524_800)
+            assertEq(weighed.copies, 5_835_821)
+            assertEq(fold(cost)(list).copies, 5_772_800)
         },
     },
     foldAbsorbing: {
@@ -140,6 +210,32 @@ export const proof = {
                 0)
         },
     },
+    foldAbsorbingBy: () => {
+        // concatenation capped at five characters, `null` once over the cap
+        /** @type {Absorbing<string | null>} */
+        const capped = {
+            monoid: {
+                identity: '',
+                operation: a => b =>
+                    a === null || b === null || a.length + b.length > 5 ? null : a + b,
+            },
+            absorbing: null,
+        }
+        const f = foldAbsorbingBy((/** @type {string | null} */ s) => s === null ? 0 : s.length)(capped)
+        assertEq(f([]), '')
+        assertEq(f(['ab', 'c', 'd']), 'abcd')
+        assertEq(f(['abcd', 'e', 'f']), null)
+        // `'abcd'` and `'ef'` already exceed the cap, but only their merge
+        // says so, and empty values after them weigh nothing. Each counts
+        // as one all the same: the second empty carries into `'ef'`, that
+        // run into `'abcd'`, and the walk stops before the third is read.
+        /** @type {List<string | null>} */
+        const unread = () => {
+            assert(false)
+            return { first: '', tail: unread }
+        }
+        assertEq(f({ first: 'abcd', tail: { first: 'ef', tail: { first: '', tail: { first: '', tail: unread } } } }), null)
+    },
     // The run stack carries like a binary counter: the run sizes are the set
     // bits of the number of elements pushed, and each merge keeps the earlier
     // run on the left.
@@ -155,5 +251,18 @@ export const proof = {
         const four = s('d')(three)
         assertEq(four.size, 4)
         assertStructurallySame(toArray(runs(four)), ['abcd'])
+    },
+    // Weighed, a run's size is the weight of what it holds, and a heavy run
+    // stays below the light ones.
+    stackBy: () => {
+        /** @type {(a: string) => (b: string) => string} */
+        const concat = a => b => a + b
+        const s = stepBy(length)(concat)
+        const three = s('c')(s('b')(s('aaaa')(null)))
+        assertStructurallySame(toArray(runs(three)), ['bc', 'aaaa'])
+        assertEq(three.size, 2)
+        assertEq(three.rest === null ? 0 : three.rest.size, 4)
+        // nothing weighs less than one
+        assertEq(s('')(null).size, 1)
     },
 }

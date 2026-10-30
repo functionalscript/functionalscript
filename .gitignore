@@ -141,6 +141,7 @@ index.html
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+!.claude/setup.sh
 
 
 # Website WebAssembly build artifacts
