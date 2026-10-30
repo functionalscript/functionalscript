@@ -376,6 +376,21 @@ export const proof = {
         parenthesesInATarget: () => assertStructurallySame(blocks('[a](https://e.x/b_(c))\n'), [['paragraph', [['link', [['text', 'a']], 'https://e.x/b_(c)']]]]),
         heading: () => assertStructurallySame(blocks('# A\n\n### *b*\n'),
             [['heading', 1, [['text', 'A']]], ['heading', 3, [['em', [['text', 'b']]]]]]),
+        // A quote's lines, each without its `>` and one space, are blocks
+        // of their own: a `>` alone is a blank line between two of them.
+        quote: () => assertStructurallySame(blocks('> a\n> b\n>\n> - c\n>   d\n>\n> ```js\n> x\n> ```\n'), [['quote', [
+            ['paragraph', [['text', 'a b']]],
+            ['list', false, [[['paragraph', [['text', 'c d']]]]]],
+            ['code', 'js', 'x\n'],
+        ]]]),
+        quoteWithoutASpace: () => assertStructurallySame(blocks('>a\n'), [['quote', [['paragraph', [['text', 'a']]]]]]),
+        emptyQuote: () => assertStructurallySame(blocks('>\n'), [['quote', []]]),
+        nestedQuote: () => assertStructurallySame(blocks('>> a\n> > b\n'), [['quote', [['quote', [['paragraph', [['text', 'a b']]]]]]]]),
+        // A quote ends a paragraph, and a blank line ends a quote.
+        quoteAfterAParagraph: () => assertStructurallySame(blocks('a\n> b\n\n> c\n'),
+            [['paragraph', [['text', 'a']]], ['quote', [['paragraph', [['text', 'b']]]]], ['quote', [['paragraph', [['text', 'c']]]]]]),
+        quoteInAnItem: () => assertStructurallySame(blocks('- a\n\n  > b\n'),
+            [['list', true, [[['paragraph', [['text', 'a']]], ['quote', [['paragraph', [['text', 'b']]]]]]]]]),
         // A numbered list starts at its first number; its items are a list's.
         olist: () => assertStructurallySame(blocks('3. a\n4. b\n   - c\n'),
             [['olist', 3, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]], ['list', false, [[['paragraph', [['text', 'c']]]]]]]]]]),
@@ -481,7 +496,8 @@ export const proof = {
             tableDelimiterWithoutAPipe: () => assertEq(refusal('|a|\n-\n'), 'line 1: a table'),
             emptyItem: () => assertEq(refusal('- \n'), 'line 1: a list item whose text does not follow its marker'),
             itemIndentedPastItsMarker: () => assertEq(refusal('-  a\n'), 'line 1: a list item whose text does not follow its marker'),
-            nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n'), 'line 4: a block quote'),
+            // A refusal inside a quote in an item names the line in the file.
+            nestedRefusal: () => assertEq(refusal('- a\n\n  - b\n    > c\n    >\n    > _d_\n'), 'line 6: an underscore that GitHub may read as emphasis at 0'),
             email: () => assertEq(refusal('mail a.b+c@x-y.example.org\n'), 'line 1: an email address, which GitHub reads as a link, at 10'),
             linkTargetEntity: () => assertEq(refusal('[x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in a link target'),
             imageSourceEntity: () => assertEq(refusal('![x](https://e.test/?a=1&amp;b=2)\n'), 'line 1: an entity in an image source'),
@@ -517,7 +533,13 @@ export const proof = {
             indentedCode: () => assertEq(refusal('    a\n'), 'line 1: an indented code block'),
             // A tab reaches the fourth column, so the line is code on GitHub.
             tabIndent: () => assertEq(refusal('\ta\n'), 'line 1: a tab in an indent'),
-            quote: () => assertEq(refusal('> a\n'), 'line 1: a block quote'),
+            // GitHub continues a quote's paragraph on the line after it.
+            lazyQuote: () => assertEq(refusal('> a\nb\n'), 'line 2: a line right after a block quote, which GitHub may read as part of it'),
+            indentedQuote: () => assertEq(refusal(' > a\n'), 'line 1: an indented block quote'),
+            headingInAQuote: () => assertEq(refusal('> a\n>\n> # b\n'), 'line 3: a heading inside a block quote'),
+            quoteTab: () => assertEq(refusal('> a\n>\tb\n'), 'line 2: a tab after a block quote marker'),
+            // GitHub draws an alert as a box, not a quote.
+            alert: () => assertEq(refusal('> [!NOTE]\n> a\n')?.startsWith('line 1: entry: unexpected symbol'), true),
             table: () => assertEq(refusal('| a |\n'), 'line 1: a table'),
             tableUnderAHeader: () => assertEq(refusal('a | b\n--- | ---\n'), 'line 2: a table'),
             html: () => assertEq(refusal('<div>\n'), 'line 1: raw HTML'),

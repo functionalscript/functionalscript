@@ -669,7 +669,7 @@ const isClosingFence = line => {
  * What GitHub reads a line as when it starts a block this reader has no
  * room for, or `null` for a line it reads as these do.
  *
- * **Each is refused, not read as prose.** A block quote, a table row, raw
+ * **Each is refused, not read as prose.** An indented block quote, a table row, raw
  * HTML, a numbered list, another bullet, an indented code block, a
  * fence, heading or list item indented by up to three spaces, a
  * thematic break and a heading's underline are each a structure on GitHub,
@@ -683,7 +683,7 @@ const foreignBlock = line => {
     // A tab stops at the next fourth column, so where its block starts
     // depends on columns this reader does not count.
     if (line.slice(0, line.length - line.trimStart().length).includes('\t')) { return 'a tab in an indent' }
-    if (trimmed.startsWith('>')) { return 'a block quote' }
+    if (trimmed.startsWith('>')) { return 'an indented block quote' }
     if (trimmed.startsWith('|')) { return 'a table' }
     // A table's delimiter row: its header row need not open with a pipe, so
     // the row under it is where a table is told from a paragraph.
@@ -817,12 +817,13 @@ const taskMarker = text =>
  * A run of lines as its blocks, each with the indexes of its first and last
  * line, or the first line GitHub reads as something these blocks cannot
  * hold. `base` is the source line the run starts after, so that a refusal
- * inside a list item names the line in the file; `inItem` says the run is
- * a list item's, where a heading is refused.
+ * inside a list item or a block quote names the line in the file;
+ * `container` names what holds the run, `a list item` or `a block quote`,
+ * where a heading is refused, or is `null` for the README's own blocks.
  *
- * @type {(base: number, inItem: boolean) => (lines: readonly string[]) => Result<readonly (readonly [Block, number, number])[], string>}
+ * @type {(base: number, container: string | null) => (lines: readonly string[]) => Result<readonly (readonly [Block, number, number])[], string>}
  */
-const readBlocks = (base, inItem) => lines => {
+const readBlocks = (base, container) => lines => {
     /** @type {readonly (readonly [Block, number, number])[]} */
     let out = []
     let i = 0
@@ -845,15 +846,38 @@ const readBlocks = (base, inItem) => lines => {
         }
         const level = headingLevel(line)
         if (level !== 0) {
-            // A heading inside an item has no anchor GitHub would give it
-            // the same way, so it is not read as one.
-            if (inItem) { return refuseAt(i, 'a heading inside a list item') }
+            // A heading inside an item or a quote has no anchor GitHub
+            // would give it the same way, so it is not read as one.
+            if (container !== null) { return refuseAt(i, `a heading inside ${container}`) }
             const content = line.slice(level + 1).trim()
             if (content === '' || content.endsWith('#')) { return refuseAt(i, 'a heading that is empty or closed by `#`') }
             const spans = inlineAt(at, content)
             if (spans[0] === 'error') { return spans }
             out = [...out, [['heading', level, spans[1]], i, i]]
             i++
+            continue
+        }
+        if (line.startsWith('>')) {
+            // Each line drops its `>` and the one space after it, as
+            // GitHub's quote reads it; the rest are the quote's own lines.
+            let end = i
+            /** @type {readonly string[]} */
+            let body = []
+            while (end < lines.length && lines[end].startsWith('>')) {
+                const rest = lines[end].slice(1)
+                // A tab after the marker counts columns this reader does not.
+                if (rest.startsWith('\t')) { return refuseAt(end, 'a tab after a block quote marker') }
+                body = [...body, rest.startsWith(' ') ? rest.slice(1) : rest]
+                end++
+            }
+            // GitHub continues a quote's paragraph on a line with no `>`.
+            if (end < lines.length && lines[end].trim() !== '') {
+                return refuseAt(end, 'a line right after a block quote, which GitHub may read as part of it')
+            }
+            const read = readBlocks(base + i, 'a block quote')(body)
+            if (read[0] === 'error') { return read }
+            out = [...out, [['quote', read[1].map(p => p[0])], i, end - 1]]
+            i = end
             continue
         }
         const marker = listMarker(line)
@@ -906,7 +930,7 @@ const readBlocks = (base, inItem) => lines => {
                     body = [...body, l.slice(width)]
                     j++
                 }
-                const read = readBlocks(base + start, true)(body)
+                const read = readBlocks(base + start, 'a list item')(body)
                 if (read[0] === 'error') { return read }
                 const placed = read[1]
                 // The checkbox sits in the item's first paragraph on GitHub;
@@ -964,7 +988,9 @@ const readBlocks = (base, inItem) => lines => {
         if (foreign !== null) { return refuseAt(i, foreign) }
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
-            && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')) {
+            && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
+            // A quote ends a paragraph, as GitHub reads it.
+            && !lines[end].startsWith('>')) {
             const continued = foreignBlock(lines[end].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
             end++
@@ -987,17 +1013,19 @@ const readBlocks = (base, inItem) => lines => {
  * The blocks are the ones a README is written in: an ATX heading, a
  * paragraph, a code fence opened by three backticks, a list of `- ` items,
  * each holding blocks of its own indented by two spaces and opening with a
- * GitHub task checkbox or not, and a table whose rows open with a pipe.
+ * GitHub task checkbox or not, a table whose rows open with a pipe, and a
+ * block quote, its lines opening with `>`, holding blocks of its own.
  *
  * **What GitHub reads differently is refused, not approximated.** A line
  * after a list item with no blank before it and no indentation continues
  * GitHub's item lazily; a heading closed by `#`s loses them there. Each
  * would be a different page here, so each is the refusal that keeps the
- * README a link to GitHub instead.
+ * README a link to GitHub instead. So is a line right after a quote with no
+ * `>` and no blank before it, which GitHub may read as the quote's.
  *
  * @type {(text: string) => Result<Blocks, string>}
  */
 export const tryParseBlocks = text => {
-    const read = readBlocks(0, false)(text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line))
+    const read = readBlocks(0, null)(text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line))
     return read[0] === 'error' ? read : ok(read[1].map(p => p[0]))
 }

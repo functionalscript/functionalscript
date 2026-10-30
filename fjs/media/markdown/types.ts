@@ -104,9 +104,11 @@ export type Align = 'left' | 'center' | 'right' | null
  * a checkbox before its first paragraph, which always follows the `task`.
  * **A table is GitHub's**: a header row, a delimiter row giving each
  * column's alignment, and body rows, every row's cells being inline spans.
+ * **A block quote holds blocks**, as a list item does: the lines of the
+ * quote, each without its `>`, read as a README's own, but for a heading.
  *
- * What a README may hold and these cannot express — a block quote, raw
- * HTML — is refused by the reader rather than written as something else, so
+ * What a README may hold and these cannot express — raw HTML, a GitHub
+ * alert — is refused by the reader rather than written as something else, so
  * the README stays a link to GitHub.
  */
 export type Block =
@@ -117,6 +119,7 @@ export type Block =
     | readonly ['olist', number, boolean, readonly Blocks[]]
     | readonly ['table', readonly Align[], readonly Entry[], readonly (readonly Entry[])[]]
     | readonly ['task', boolean]
+    | readonly ['quote', Blocks]
 
 /** A README as its blocks, in order. */
 export type Blocks = readonly Block[]
