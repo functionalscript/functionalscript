@@ -387,7 +387,7 @@ const chunkOf = node => {
 const toTemplate = ([tag, branch]) => {
     if (tag === 'plain') {
         const start = tokenAt(branch)
-        return symbol({ id: 'value', node: ['primitive', chunkOf(branch)], first: start, target: invalid(start) })
+        return symbol({ id: 'value', node: ['template', chunkOf(branch)], first: start, target: invalid(start) })
     }
     const [head, firstValue, rounds, tail] = unmapped(branch)
     /** @type {Node} */
