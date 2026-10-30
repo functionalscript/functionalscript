@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences, findMap } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, concat, repeat, dedup, assoc, occurrences, findMap } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -122,6 +122,12 @@ export const proof = {
         const ab = includes(/** @type {const} */ (['a', 'b']))
         assert(ab('b'))
         assert(!ab('c'))
+    },
+    concat: () => {
+        /** @type {readonly number[]} */
+        const none = empty
+        assertStructurallySame(concat([1, 2])([3]), [1, 2, 3])
+        assertStructurallySame(concat(none)([3]), [3])
     },
     repeat: [
         () => assertStructurallySame(repeat(0)('x'), []),

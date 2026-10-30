@@ -30,6 +30,7 @@ splitLast([1, 2])     // [[1], 2]
 |`splitFirst(a)`, `splitLast(a)`  |the first or last item and the rest; `null` for an empty array          |
 |`isArray(v)`                     |whether `v` is an array                                                 |
 |`isFixedArray(n)(a)`             |whether `a` has length `n`, narrowing its type to `FixedArray<n, T>`    |
+|`concat(a)(b)`                   |`a` followed by `b`, in a new array                                     |
 |`repeat(n)(v)`                   |`n` copies of `v`, typed as `FixedArray<n, T>`                          |
 |`includes(a)(v)`                 |whether `a` holds `v`, narrowing `v` to `a`'s item type                 |
 |`dedup(a)`                       |the items without repeats, each at its first position                   |
