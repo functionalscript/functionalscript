@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/js/runtime/module.f.js`: the pins that keep the
- * tables inside the admitted set and the `runtime` export the two
- * functions over them — every key `member` holds is a name `allowedCalls`
+ * tables inside the admitted set and the `runtime` export the three
+ * functions an executor asks — every key `member` holds is a name `allowedCalls`
  * admits, and every entry a member body; the keys of `statics` are
  * exactly the ids `fjs/js/static` admits, and every entry a body — or, at
  * a path every executor binds natively, the built-in itself. A
@@ -17,10 +17,10 @@ import type { StaticId } from '../../edag/types.ts'
 import type { AllowedCall } from '../prototype/types.ts'
 import type { member, runtime, statics } from './module.f.js'
 
-/** The runtime: `static`, a static function by its id, and `dot`, the callee of a member call. */
+/** The runtime: `static`, a static function by its id, `dot`, the callee of a member call, and `in`, the operator's body. */
 export type Runtime = typeof runtime
 
-type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'static'>>
+type _Sections = Assert<Equal<keyof Runtime, 'dot' | 'in' | 'static'>>
 
 /** The static read: the function at an id, or `undefined`. */
 export type Static = Runtime['static']
@@ -31,6 +31,11 @@ type _Static = Assert<Equal<Static, (id: string) => unknown>>
 export type Dot = Runtime['dot']
 
 type _Dot = Assert<Equal<Dot, (self: unknown, key: string) => unknown>>
+
+/** The operator's body: `"key" in self`, the key first as the operator writes it, a boolean or a throw. */
+export type In = Runtime['in']
+
+type _In = Assert<Equal<In, (key: string, self: unknown) => boolean>>
 
 /** The member table: a member name, then its body. */
 export type Member = typeof member

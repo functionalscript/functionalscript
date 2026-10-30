@@ -63,8 +63,8 @@ const field = (value, key) => {
 /**
  * The function value at a path of keys into an object, or `undefined`
  * where a key is missing, a step is no object, or the end is no function:
- * how an executor reads its runtime's two functions, `['dot']` and
- * `['static']`.
+ * how an executor reads its runtime's functions, `['dot']`, `['static']`
+ * and `['in']`.
  *
  * @type {(object: EdagValue | undefined, path: readonly string[]) => ValueFunction | undefined}
  */

@@ -1,7 +1,7 @@
 /**
  * The built-in functions, defined once: two tables, and the `runtime`
- * export, two functions over them that an executor asks — the one place
- * each resolution is written
+ * export, three functions an executor asks — two over the tables, and the
+ * body of the `in` operator — the one place each resolution is written
  * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
  *
  * `member` holds, by name, the member functions whose body is written,
@@ -32,7 +32,10 @@
  * table lacks. Every executor asks `dot` before its natives, which answer
  * the names without a body
  * ([`../todo/runtime-members.md`](../todo/runtime-members.md)), and
- * `static` for every static read; neither reads a table itself. The two
+ * `static` for every static read; neither reads a table itself.
+ * `runtime.in` is the body of the operator `"k" in o`, which an executor
+ * answers by calling it, or substitutes natively
+ * ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The two
  * tables are exported for the type pins of [`./types.ts`](./types.ts),
  * which keep every key an admitted name, for the proof, and for the Rust
  * printer, which gives each static body the NativeFunction text of its id.
@@ -237,7 +240,7 @@ export const statics = {
     'Number.isFinite': isFinite_,
 }
 
-/** The runtime: the two functions an executor asks, `static` and `dot`. */
+/** The runtime: the three functions an executor asks, `static`, `dot` and `in`. */
 export const runtime = {
     /**
      * The static function `id` names, `Object.is`: the entry of
@@ -275,5 +278,29 @@ export const runtime = {
         if (hasEntry(self, key)) { return entry(self, key) }
         const body = /** @type {undefined | ((self: unknown) => unknown)} */ (entry(member, key))
         return body === undefined ? undefined : body(self)
+    },
+    /**
+     * The operator `"k" in o`, in its operand order: whether `self`, an
+     * object, an array or a function, owns an enumerable entry under
+     * `key`, one holding `undefined` included — `hasEntry`'s answer — and
+     * a throw for `null`, `undefined` and every primitive, the `TypeError`
+     * JavaScript's `in` throws, the receiver check `fromEntries` makes.
+     * The answer is JavaScript's for the keys the parser admits, a string
+     * literal that names no property a built-in prototype gives a value
+     * ([`../prototype`](../prototype/module.f.js), `length` included):
+     * such a key is found nowhere but as an own enumerable entry. For a
+     * prototype name it would answer `false` where JavaScript finds the
+     * name on the chain, which no check here can tell from a program's
+     * own key, so the parser refuses those keys and this body is never
+     * asked ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)).
+     * The core rule of DESIGN.md §13 holds as in `dot`: the helper and
+     * `typeof`, no member call, since an executor runs this to answer the
+     * operator's node.
+     *
+     * @type {(key: string, self: unknown) => boolean}
+     */
+    in: (key, self) => {
+        if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
+        return hasEntry(self, key)
     },
 }

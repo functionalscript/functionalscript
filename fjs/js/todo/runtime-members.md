@@ -24,7 +24,8 @@ same dispatch is written twice more, in the represented interpreter's
 The runtime module defines one function per member name, taking any
 receiver, and the function dispatches on its receiver itself; the table is
 the module's `member` export, which `dot` reads, and the runtime value is
-its two functions, `static` and `dot`:
+its functions, `static` and `dot` — and `in`, the operator's body, which
+is no member's and which this issue does not concern:
 
 ```js
 export const member = {
