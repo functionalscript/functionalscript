@@ -37,6 +37,13 @@ export const proof = /** @type {const} */ ({
         nodes: [{ id: 'a', label: 'x\ny\nz\nw' }, { id: 'b', label: 'b' }],
         edges: [{ from: 0, to: 1, label: 'p\nq', both: false }],
     })),
+    // An entity is the character it names, in a node's label and an
+    // arrow's alike: Mermaid's own spelling of what it would read as markup.
+    entities: () => assertStructurallySame(tryFlowchart('flowchart LR\na["runtime::#lt;A#gt;() #amp; #quot;x#quot;"] -->|p #lt; q| b\n'), ok({
+        direction: 'LR',
+        nodes: [{ id: 'a', label: 'runtime::<A>() & "x"' }, { id: 'b', label: 'b' }],
+        edges: [{ from: 0, to: 1, label: 'p < q', both: false }],
+    })),
     header: () => assertStructurallySame(tryFlowchart('flowchart LR\n'), ok({ direction: 'LR', nodes: [], edges: [] })),
     quotedNodePunctuation: () => assertStructurallySame(tryFlowchart('flowchart LR\na["f(x)[y]{z}"]\n'),
         ok({ direction: 'LR', nodes: [{ id: 'a', label: 'f(x)[y]{z}' }], edges: [] })),
@@ -66,6 +73,13 @@ export const proof = /** @type {const} */ ({
         unclosedLabel: () => assertEq(refusal('flowchart LR\na["x\n'), 'line 2: a label not closed by "]'),
         emptyLabel: () => assertEq(refusal('flowchart LR\na[""]\n'), 'line 2: an empty label'),
         markup: () => assertEq(refusal('flowchart LR\na["x<b>y"]\n'), 'line 2: a label holding <, which Mermaid does not show as written'),
+        // A name this does not know, a decimal code, an unclosed entity and
+        // a bare `#` are refused at their `#`.
+        otherEntities: () => {
+            for (const label of ['#hearts;', '#35;', 'x#lt', 'x #1']) {
+                assertEq(refusal(`flowchart LR\na["${label}"]\n`), 'line 2: a label holding #, which Mermaid does not show as written')
+            }
+        },
         // Only a whole break is one: an unclosed tag, another name, and a
         // blank after the slash are tags Mermaid does not break at.
         nearBreaks: () => {

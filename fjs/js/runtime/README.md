@@ -148,7 +148,7 @@ flowchart LR
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]
     harness["harness<br/>interpret(pureOk(runtime)), compiled live"]
     interpreter["EDAG interpreter<br/>amnesia and memo"]
-    naive["nanvm-lib<br/>runtime::<A>(), the value a compiled module takes"]
+    naive["nanvm-lib<br/>runtime::#lt;A#gt;(), the value a compiled module takes"]
     step["a call step<br/>own property, body, native, TypeError"]
     src -->|import| host --> proof
     src --> compiler
