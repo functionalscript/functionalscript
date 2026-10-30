@@ -21,10 +21,12 @@
  * arrow — is refused, with the line it is on. So is a flowchart of more
  * than {@link maxEdges} arrows, which Mermaid refuses to draw.
  *
- * **A label is plain text.** Mermaid reads `<br/>`, `#quot;`, `&amp;`, a
- * backtick's Markdown and a quote's delimiting inside a label, so a label
- * holding `<`, `>`, `&`, `#`, `\`, a backtick or `"` is refused rather than
- * drawn as its spelling. A
+ * **A label is plain text, and may break.** A line break, `<br>`, `<br/>` or
+ * `<br />` in any case, is read as `\n`, where Mermaid breaks the line.
+ * Mermaid reads `#quot;`, `&amp;`, any other tag, a backtick's Markdown and
+ * a quote's delimiting inside a label too, so a label holding `<`, `>`, `&`,
+ * `#`, `\`, a backtick or `"` once its breaks are read is refused rather
+ * than drawn as its spelling. A
  * node labelled twice is refused unless both labels agree. Mermaid's statement
  * keywords `end`, `classDef`, `class`, `style` and `subgraph` are no names.
  * Unquoted edge labels also refuse `(`, `)`, `[`, `]`, `{` and `}`, which
@@ -75,14 +77,46 @@ const skipSpaces = (line, at) => {
 }
 
 /**
- * A label from `at` to its closing `close`, and the index after it.
+ * Where a line break that starts at `at` ends, or `-1` where none starts
+ * there: `<br`, in any case, then blanks, an optional `/` and `>`, as
+ * Mermaid's own `<br\s*\/?>` reads it.
+ *
+ * @type {(text: string, at: number) => number}
+ */
+const breakEnd = (text, at) => {
+    if (text.slice(at, at + 3).toLowerCase() !== '<br') { return -1 }
+    const slash = skipSpaces(text, at + 3)
+    const close = text[Number(slash)] === '/' ? slash + 1 : slash
+    return text[Number(close)] === '>' ? close + 1 : -1
+}
+
+/**
+ * A label's text with each of Mermaid's line breaks as `\n`: the one tag a
+ * label may hold, so a label breaks where GitHub breaks it.
+ *
+ * @type {(text: string) => string}
+ */
+const withBreaks = text => {
+    let out = ''
+    let i = 0
+    while (i < text.length) {
+        const end = breakEnd(text, i)
+        out = out + (end === -1 ? text[Number(i)] : '\n')
+        i = end === -1 ? i + 1 : end
+    }
+    return out
+}
+
+/**
+ * A label from `at` to its closing `close`, and the index after it, its
+ * line breaks read.
  *
  * @type {(line: string, at: number, close: string) => Result<readonly [string, number], string>}
  */
 const labelAt = (line, at, close) => {
     const end = line.indexOf(close, at)
     if (end === -1) { return error(`a label not closed by ${close}`) }
-    const label = line.slice(at, end)
+    const label = withBreaks(line.slice(at, end))
     if (label === '') { return error('an empty label') }
     const c = [...label].find(c => markup.includes(c))
     if (c !== undefined) { return error(`a label holding ${c}, which Mermaid does not show as written`) }

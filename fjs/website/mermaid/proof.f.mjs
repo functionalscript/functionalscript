@@ -37,8 +37,11 @@ export const proof = /** @type {const} */ ({
         const edges = Array.from({ length: maxEdges }, (_, i) => arrow(i, i + 1 === maxEdges ? 0 : i + 1))
         assertEq(shape({ direction: 'LR', nodes: nodes(maxEdges), edges }).endsWith(`${maxEdges - 1}>0!`), true)
     },
-    partlyLabelled: () => assertEq(shape({ direction: 'LR', nodes: nodes(3), edges: [arrow(0, 1, 'x'), arrow(0, 2)] }),
-        'a node whose arrows are labelled only in part: n0'),
+    // An arrow with no label beside labelled ones is a row naming its
+    // target; an arrow label of several lines is no row the renderer draws.
+    partlyLabelled: () => assertEq(shape({ direction: 'LR', nodes: nodes(3), edges: [arrow(0, 1, 'x'), arrow(0, 2)] }), '0>1 0>2'),
+    brokenArrowLabel: () => assertEq(shape({ direction: 'LR', nodes: nodes(2), edges: [arrow(0, 1, 'x\ny')] }),
+        'an arrow label of several lines, which a row does not draw: n0'),
     svg: {
         drawn: () => {
             const d = flowchartSvg('flowchart LR\n    a["A"] -->|x| b["B"]\n')
@@ -46,7 +49,7 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(d[0] === 'ok' ? d[1].slice(0, 2) : null, ['div', { 'data-graph': '' }])
         },
         notAFlowchart: () => assertStructurallySame(flowchartSvg('pie\n'), error('a diagram other than a flowchart with a direction')),
-        notDrawable: () => assertStructurallySame(flowchartSvg('flowchart LR\na -->|x| b\na --> c\n'),
-            error('a node whose arrows are labelled only in part: a')),
+        notDrawable: () => assertStructurallySame(flowchartSvg('flowchart LR\na -->|x<br/>y| b\n'),
+            error('an arrow label of several lines, which a row does not draw: a')),
     },
 })

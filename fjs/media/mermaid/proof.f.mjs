@@ -30,6 +30,13 @@ export const proof = /** @type {const} */ ({
             { from: 1, to: 0, label: '', both: false },
         ],
     })),
+    // A line break, in each of its spellings, is `\n`, in a node's label
+    // and an arrow's alike.
+    breaks: () => assertStructurallySame(tryFlowchart('flowchart LR\na["x<br>y<BR/>z<br />w"] -->|p<bR\t/>q| b\n'), ok({
+        direction: 'LR',
+        nodes: [{ id: 'a', label: 'x\ny\nz\nw' }, { id: 'b', label: 'b' }],
+        edges: [{ from: 0, to: 1, label: 'p\nq', both: false }],
+    })),
     header: () => assertStructurallySame(tryFlowchart('flowchart LR\n'), ok({ direction: 'LR', nodes: [], edges: [] })),
     quotedNodePunctuation: () => assertStructurallySame(tryFlowchart('flowchart LR\na["f(x)[y]{z}"]\n'),
         ok({ direction: 'LR', nodes: [{ id: 'a', label: 'f(x)[y]{z}' }], edges: [] })),
@@ -58,7 +65,14 @@ export const proof = /** @type {const} */ ({
         },
         unclosedLabel: () => assertEq(refusal('flowchart LR\na["x\n'), 'line 2: a label not closed by "]'),
         emptyLabel: () => assertEq(refusal('flowchart LR\na[""]\n'), 'line 2: an empty label'),
-        markup: () => assertEq(refusal('flowchart LR\na["x<br/>y"]\n'), 'line 2: a label holding <, which Mermaid does not show as written'),
+        markup: () => assertEq(refusal('flowchart LR\na["x<b>y"]\n'), 'line 2: a label holding <, which Mermaid does not show as written'),
+        // Only a whole break is one: an unclosed tag, another name, and a
+        // blank after the slash are tags Mermaid does not break at.
+        nearBreaks: () => {
+            for (const label of ['x<br', 'x<brx>', 'x<br/ >']) {
+                assertEq(refusal(`flowchart LR\na["${label}"]\n`), 'line 2: a label holding <, which Mermaid does not show as written')
+            }
+        },
         unclosedEdgeLabel: () => assertEq(refusal('flowchart LR\na -->|x b\n'), 'line 2: a label not closed by |'),
         // Mermaid reads a quote as the label's delimiter, not its text.
         quotedEdgeLabel: () => assertEq(refusal('flowchart LR\na -->|"copy"| b\n'), 'line 2: a label holding ", which Mermaid does not show as written'),
