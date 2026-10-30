@@ -19,8 +19,9 @@ the built-in is admitted. An id every executor binds natively,
 value and the table is complete. `runtime.static` answers the entry of
 `statics` for an id, or `undefined`; `runtime.dot` answers the callee of a
 member call, below; `runtime.in` is the body of `"k" in o`, the
-enumerable own entry of an object, an array or a function and a throw on
-a primitive, which an executor answers the operator's node by, or
+enumerable own entry of an object, an array or a function, or the
+`length` an array and a function own, and a throw on a primitive, which
+an executor answers the operator's node by, or
 substitutes natively — the key rule that keeps its answer JavaScript's
 is the parser's ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The tables are exported too, for the type pins, the
 proof and the Rust printer; no executor reads them. The proof checks every
