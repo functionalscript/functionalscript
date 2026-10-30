@@ -1,7 +1,7 @@
 ## size-aware-fold. Balance `fold` by the size of its values, not their count
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
