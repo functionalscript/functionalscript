@@ -105,7 +105,7 @@ case "$(rustc --version)" in
 *) echo "nanvm/demos/wasm/ is built with Rust ${rust}, not $(rustc --version): run ./dev.sh sh ./nanvm/demos/gen.build.sh" >&2; exit 1 ;;
 esac
 cargo build -p nanvm-demos --release --target wasm32-unknown-unknown
-cargo run -p nanvm-demos-publish --release -- target/wasm32-unknown-unknown/release/nanvm_demos.wasm nanvm/demos/wasm/nanvm_demos.wasm nanvm/demos/wasm a b
+node ./fjs/module.mjs run ./fjs/nanvm/demos/publish/module.f.mjs target/wasm32-unknown-unknown/release/nanvm_demos.wasm nanvm/demos/wasm/nanvm_demos.wasm nanvm/demos/wasm a b
 `)
     },
     // A sample the compiler refuses stops the sequence before `mod.rs` is

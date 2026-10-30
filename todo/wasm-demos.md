@@ -84,15 +84,18 @@ built:
   [`effects/browser`](../fjs/effects/browser/types.ts)'s `fetchText` and
   `instantiate`.
 - **The build script** builds `nanvm-demos` for `wasm32-unknown-unknown`,
-  and `nanvm-demos-publish` copies the module to `nanvm/demos/wasm/`,
-  served after the website build, and prints
-  each sample's WAT beside it with the `wasmprinter` crate, which Sasha
-  approved. The WAT holds only the functions Rust compiled from the sample's
-  module, picked by their names in the module's name section, read with
-  `wasmparser` and demangled with `rustc-demangle`, which Sasha also
-  approved. NaNVM and `std` are most of the module, the same for every
-  sample, and left out. The WAT names every function as Rust does, since
-  the name section is demangled before it is printed.
+  and [`fjs/nanvm/demos/publish`](../fjs/nanvm/demos/publish/module.f.mjs)
+  copies the module to `nanvm/demos/wasm/`, served after the website build,
+  and writes each sample's WAT beside it with
+  [`fjs/media/wasm`](../fjs/media/wasm/README.md)'s parser and WAT writer,
+  which lay it out as the `wasmprinter` crate did. The WAT holds only the
+  functions Rust compiled from the sample's module, picked by their names in
+  the module's name section, demangled with
+  [`fjs/rust/demangle`](../fjs/rust/demangle/module.f.mjs). NaNVM and `std`
+  are most of the module, the same for every sample, and left out. The WAT
+  names every function as Rust does, since the name section is demangled
+  before it is printed. A Rust publisher with `wasmparser`, `wasmprinter`
+  and `rustc-demangle` did this first.
 - **A second page, [`fjs/nanvm/demos/sort`](../fjs/nanvm/demos/sort/)**,
   sorts 100,000 pseudo-random integers with a quicksort written in the
   sample, and writes what it sorted. The page shows the WebAssembly running
