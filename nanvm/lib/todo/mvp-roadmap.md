@@ -356,7 +356,7 @@ counts them, a refusal met in an import under the import's construct:
 | 9 | a computed member, `a[i]` | [computed-property-key](../../../fjs/compiler/todo/computed-property-key.md), [2330](../../../spec/todo/2330-property-accessor.md) |
 | 6 | a later `const` | [3140](../../../spec/todo/3140-forward-references.md), or reordering |
 | 5 | `export { … }`, with and without `from` | [export-lists](../../../spec/todo/export-lists.md), or `export const` |
-| 3 | `in` | a rewrite: [2346](../../../spec/todo/2346-in-operator.md) proposes keeping it out |
+| 3 | `in` | in the language with a string-literal key ([`in`](../../../spec/operators/in/README.md)); a computed key is `hasEntry` |
 | 3 | an escape the tokenizer refuses, `'\0'` | [2460](../../../spec/todo/2460-js-string-literals.md) |
 | 4 | one each: a name a prototype owns, a numeric key, a rest element, an `if` body without braces | |
 

@@ -1,7 +1,9 @@
 ## The `in` Operator With a Literal Key
 
 **Priority:** P3
-**Status:** wip — approved by the language designer, below
+**Status:** done — kept as the record; cited by
+[`spec/operators/in`](../operators/in/README.md) for the alternatives
+rejected and the §12 approval, and by the code that answers the operator
 
 ### Problem
 
@@ -163,15 +165,17 @@ shape instead. The node is that shape.
       when a measurement asks for it; one implementation for the operator
       and the helper is no option, since `hasEntry` lists enumerable
       entries alone, as `Object.entries` does, where `in` reads `length`.
-- [ ] The specification: [`in`](../operators/in/README.md) becomes the
-      operator's page, implemented, with a sample and the demo, the refused
-      page and its `alternative.f.js` gone; the `op.in` row of
-      [refused constructs](./refused-constructs.md) deleted; the roadmap entry
-      ticked; the sentence "presence has no other spelling" of
-      [reading an entry](../property-access/entries/README.md) and the
-      `in` mention of [property access](../property-access/README.md)
-      updated; the `in` row in [operators](../operators/README.md). This
-      step deletes this file.
+- [x] The specification: [`in`](../operators/in/README.md) is the
+      operator's page, implemented, with a sample and the demo; the
+      refusal that remains, a computed key, has its page beside it, and
+      the `op.in` row of [refused constructs](./refused-constructs.md)
+      registers that refusal; the roadmap entry is ticked; the presence
+      sentence of [reading an entry](../property-access/entries/README.md),
+      the `in` mention of [property access](../property-access/README.md)
+      and [operators](../operators/README.md) say what the operator is.
+      This file stays as the record, not deleted as first planned: the §12
+      approval is recorded here, as §12 asks, and the alternatives rejected
+      are cited from the page.
 
 Proposed order of the stack: the runtime body first, a pure addition the
 host proves; then the node with the interpreters and writers; then the
