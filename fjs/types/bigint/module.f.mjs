@@ -32,15 +32,15 @@ import { fold } from '../../common/monoid/module.f.mjs'
  */
 export const addition = additionOp
 
+/** How heavy a `bigint` is for a fold: the bits it takes, which is what its addition and multiplication cost. @type {(v: bigint) => number} */
+const bits = v => Number(bitLength(v))
+
 /**
  * Calculates the sum of a list of `bigint` values.
  *
  * @param {List<bigint>} input - A list of bigint values.
  * @returns {bigint} The sum of all values in the list.
  */
-/** How heavy a `bigint` is for a fold: the bits it takes, which is what its addition and multiplication cost. @type {(v: bigint) => number} */
-const bits = v => Number(bitLength(v))
-
 export const sum = fold({ identity: 0n, operation: addition, weight: bits })
 
 /**
