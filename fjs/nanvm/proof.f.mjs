@@ -84,6 +84,7 @@ const js = {
     'instanceof Array': a => a instanceof Array,
     'in "x"': a => 'x' in a,
     'in "0"': a => '0' in a,
+    'in "length"': a => 'length' in a,
     throw: a => { throw a },
     String: a => String(a),
     Number: a => Number(a),

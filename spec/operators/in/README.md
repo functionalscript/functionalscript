@@ -9,13 +9,17 @@ export default "x" in { x: 1 };
 `"k" in o` is `true` when `o` owns an enumerable entry under the key `k` —
 a member of an object, an element of an array, one holding `undefined`
 included, so that `"x" in { x: undefined }` is `true` and `"x" in {}` is
-`false` — and `false` otherwise: of a function, which owns no entry, and of
-an object or an array without one. It throws for `null`, `undefined` and
-every primitive, the `TypeError` JavaScript's `in` throws, so `"0" in "abc"`
-fails as it does there. The question is `hasEntry`'s
-([reading an entry](../../property-access/entries/README.md)): `"k" in o` is
-the constant-key spelling of presence, as `o.k` is the constant-key read,
-and `hasEntry(o, k)` the computed one, as `entry(o, k)` is.
+`false` — or when `k` is `length` and `o` an array or a function, which
+own it without enumerating it; and `false` otherwise: of a function, which
+owns no entry, and of an object or an array without one. It throws for
+`null`, `undefined` and every primitive, the `TypeError` JavaScript's `in`
+throws, so `"0" in "abc"` fails as it does there. The question is
+`hasEntry`'s for an entry ([reading an entry](../../property-access/entries/README.md)):
+`"k" in o` is the constant-key spelling of presence, as `o.k` is the
+constant-key read, and `hasEntry(o, k)` the computed one, as `entry(o, k)`
+is — but the operators read `length` and the helpers do not, since a
+helper lists what `Object.entries` lists, the enumerable entries, so the
+operator has a body of its own beside the helper's.
 
 **The key is a string literal**, bare or in parentheses, since a group
 vanishes, and nothing else: a number, a name, an operator's result or an
@@ -27,9 +31,9 @@ name a property a built-in prototype gives a value — `toString`, `push`,
 `__proto__` and the rest [`fjs/js/prototype`](../../../fjs/js/prototype/module.f.js)
 lists — refused as the key of a read is
 ([a prototype's name](../../property-access/prototype-names/README.md),
-`prohibited property name`), and `length` with them, which a read allows:
-`"length" in []` is `true` in JavaScript, found on the array without being
-enumerated, where the own entry is absent. Any other string is a key: an
+`prohibited property name`), with the read's one exemption: `length`,
+which an array and a function own without enumerating it, is a key, and
+`"length" in []` is `true` as in JavaScript. Any other string is a key: an
 index-like `"0"`, a keyword's word `"if"`, the empty string.
 
 **Why this and not JavaScript's `in`.** JavaScript's asks whether a property

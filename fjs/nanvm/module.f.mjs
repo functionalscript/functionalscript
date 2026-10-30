@@ -1220,6 +1220,26 @@ const inKeyCases = [
 ]
 
 /**
+ * `"length" in o`: the `length` an array and a function own without
+ * enumerating it, which the operator reads as the read does where
+ * `hasEntry` does not — the other case that makes the body more than the
+ * helper — an object's own `length` entry, and nothing of an object
+ * without one.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const inLengthCases = [
+    { name: 'emptyArray', args: [[]], expected: true },
+    { name: 'array', args: [[1, 2]], expected: true },
+    { name: 'function', args: [functionValue], expected: true },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'object', args: [{ a: 1 }], expected: false },
+    { name: 'arrayLikeObject', args: [{ length: 0 }], expected: true },
+    { name: 'string', args: ['abc'], expected: throws },
+    { name: 'undefined', args: [undefined], expected: throws },
+]
+
+/**
  * `"0" in o`, an index-like key: an array's element and an object's entry
  * under the string, and a throw on a string, whose code unit `hasEntry`
  * alone would answer — the case that makes the body more than the helper.
@@ -1620,6 +1640,7 @@ export const data = {
         { op: 'instanceof', name: 'Array', cases: instanceofArrayCases },
         { op: 'in', key: 'x', cases: inKeyCases },
         { op: 'in', key: '0', cases: inIndexCases },
+        { op: 'in', key: 'length', cases: inLengthCases },
         { op: 'throw', cases: throwCases },
         { op: 'String', cases: stringCoercionCases },
         {

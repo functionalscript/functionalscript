@@ -157,6 +157,8 @@ export const proof = {
             // word and an index-like one included
             expect('export default "if" in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"if\",[\"{}\",[]]]]]]")
             expect('export default "a b" in {};', "[\"{}\",[[\":\",\"default\",[\"in\",\"a b\",[\"{}\",[]]]]]]")
+            // and `length`, which a read allows too: an array and a function own it
+            expect('export default "length" in [];', "[\"{}\",[[\":\",\"default\",[\"in\",\"length\",[\"[]\",[]]]]]]")
             // and `in` a key or a property name, as every keyword is
             expect('export default { in: 1 }.in;', "[\"{}\",[[\":\",\"default\",[\".\",[\"{}\",[[\":\",\"in\",1]]],\"in\"]]]]")
             /**
@@ -190,10 +192,8 @@ export const proof = {
             expectRefused('export default (`a`) in {};', literal, 22)
             expectRefused('export default `${1}` in {};', literal, 23)
             // a name a built-in prototype gives a value is refused as the
-            // key of a read is, and `length` with it, which a read exempts:
-            // `"length" in []` is `true` in JavaScript, the own entry absent
+            // key of a read is, with the read's one exemption, `length`
             expectRefused('export default "toString" in {};', 'prohibited property name', 27)
-            expectRefused('export default "length" in [];', 'prohibited property name', 25)
             expectRefused('export default "__proto__" in {};', 'prohibited property name', 28)
             expectRefused('export default "name" in (() => 1);', 'prohibited property name', 23)
             // the right operand missing is the grammar's refusal, at the

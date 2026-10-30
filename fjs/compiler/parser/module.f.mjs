@@ -1183,14 +1183,14 @@ const enter = (stack, scope, node) => {
         // the key first, as every operator's left operand is checked first:
         // a string literal — not a template, even one without substitutions,
         // which the syntax keeps apart — and no name a built-in prototype gives a value,
-        // `length` included — `"length" in []` is `true` in JavaScript where
-        // the own entry is absent, which a read of `length` is not — both
-        // refused at the operator, the one token every spelling of the
-        // left side shares; then the right operand is entered
+        // the read's rule, `length` allowed as a read allows it, since an
+        // array and a function own it and the operator's body reads it as
+        // the read does — both refused at the operator, the one token every
+        // spelling of the left side shares; then the right operand is entered
         case 'in': {
             const [, left, right, at] = node
             if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
-            if (prohibitedNames.has(left[1]) || left[1] === 'length') { return [stack, scope, error(prohibitedKey(at))] }
+            if (prohibitedNames.has(left[1])) { return [stack, scope, error(prohibitedKey(at))] }
             return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
         }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }

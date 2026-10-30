@@ -42,9 +42,13 @@ default, as `a[k] ?? d` is, the default taken for an entry holding
 Presence with a constant key is the operator `"k" in a`
 ([`in`](../../operators/in/README.md)), the same question for a key written
 in the source, as `a.k` is the read; `hasEntry` is its computed-key
-spelling, and `Object.hasOwn` and `a.hasOwnProperty(b)` are not in the
-language, each asking a different question — a non-enumerable own
-property, or the prototype chain.
+spelling, with one difference the pair keeps on purpose: `a.length` and
+`"length" in a` read the `length` an array and a function own without
+enumerating it, where the helpers list what `Object.entries` lists, the
+enumerable entries, and answer `undefined` and `false` for it.
+`Object.hasOwn` and `a.hasOwnProperty(b)` are not in the language, each
+asking a different question — a non-enumerable own property, or the
+prototype chain.
 
 The helpers are exactly what they spell. The compiler recognizes each
 function whole — its two parameters, the `const` the descriptor binds and
