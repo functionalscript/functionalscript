@@ -282,13 +282,16 @@ export const runtime = {
     /**
      * The operator `"k" in o`, in its operand order: whether `self`, an
      * object, an array or a function, owns an enumerable entry under
-     * `key`, one holding `undefined` included — `hasEntry`'s answer — and
-     * a throw for `null`, `undefined` and every primitive, the `TypeError`
-     * JavaScript's `in` throws, the receiver check `fromEntries` makes.
-     * The answer is JavaScript's for the keys the parser admits, a string
-     * literal that names no property a built-in prototype gives a value
-     * ([`../prototype`](../prototype/module.f.js), `length` included):
-     * such a key is found nowhere but as an own enumerable entry. For a
+     * `key`, one holding `undefined` included — `hasEntry`'s answer — or
+     * the `length` an array and a function own without enumerating it,
+     * which the operator reads as the read does and the helper, listing
+     * what `Object.entries` lists, does not; and a throw for `null`,
+     * `undefined` and every primitive, the `TypeError` JavaScript's `in`
+     * throws, the receiver check `fromEntries` makes. The answer is
+     * JavaScript's for the keys the parser admits, a string literal that
+     * names no property a built-in prototype gives a value
+     * ([`../prototype`](../prototype/module.f.js), `length` aside): such
+     * a key is found nowhere but as an own property. For a
      * prototype name it would answer `false` where JavaScript finds the
      * name on the chain, which no check here can tell from a program's
      * own key, so the parser refuses those keys and this body is never
@@ -301,6 +304,6 @@ export const runtime = {
      */
     in: (key, self) => {
         if (self === null || typeof self !== 'object' && typeof self !== 'function') { throw 'in: not an object' }
-        return hasEntry(self, key)
+        return hasEntry(self, key) || key === 'length' && (self instanceof Array || typeof self === 'function')
     },
 }
