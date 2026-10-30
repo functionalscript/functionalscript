@@ -55,6 +55,11 @@ export const proof = {
         ["_RIC0Kec080_E", "_RIC0Kec080_E"],
         ["_RIC0Kee080_E", "_RIC0Kee080_E"],
         ["_RIC0Keeda080_E", "_RIC0Keeda080_E"],
+        // UTF-8 that is overlong, above U+10FFFF or truncated, and a 4-byte character.
+        ["_RIC0KRec080_E", "_RIC0KRec080_E"],
+        ["_RIC0KRef4908080_E", "_RIC0KRef4908080_E"],
+        ["_RIC0KRee282_E", "_RIC0KRee282_E"],
+        ["_RIC0KRef09f9880_E", "::<\"😀\">"],
         ["_RIC0Kef8_E", "_RIC0Kef8_E"],
         ["_RIC0Ke80_E", "_RIC0Ke80_E"],
         ["_RIC0Kec3_E", "_RIC0Kec3_E"],

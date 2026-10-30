@@ -24,6 +24,8 @@
  * @import { _Read } from './private.ts'
  */
 
+import { fromU8List } from '../../text/utf8/module.f.mjs'
+
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
 
@@ -121,24 +123,7 @@ const escapeChar = quote => c => {
  */
 const utf8Nibbles = nibbles => {
     if (nibbles.length % 2 !== 0) { return null }
-    const bytes = Array.from({ length: nibbles.length / 2 }, (_, k) => parseInt(nibbles.slice(2 * k, 2 * k + 2), 16))
-    /** @type {readonly string[]} */
-    let chars = []
-    let k = 0
-    while (k < bytes.length) {
-        const b = bytes[k]
-        const size = b < 0x80 ? 1 : b < 0xc0 ? 0 : b < 0xe0 ? 2 : b < 0xf0 ? 3 : b < 0xf8 ? 4 : 0
-        if (size === 0 || k + size > bytes.length) { return null }
-        const rest = bytes.slice(k + 1, k + size)
-        if (rest.some(x => (x & 0xc0) !== 0x80)) { return null }
-        const lead = size === 1 ? b : b & (0xff >> (size + 1))
-        const v = rest.reduce((v, x) => (v << 6) | (x & 0x3f), lead)
-        const least = [0, 0, 0x80, 0x800, 0x1_0000][size]
-        if (v < least || v > 0x10_ffff || (v >= 0xd800 && v <= 0xdfff)) { return null }
-        chars = [...chars, String.fromCodePoint(v)]
-        k = k + size
-    }
-    return chars.join('')
+    return fromU8List(Array.from({ length: nibbles.length / 2 }, (_, k) => parseInt(nibbles.slice(2 * k, 2 * k + 2), 16)))
 }
 
 /**
