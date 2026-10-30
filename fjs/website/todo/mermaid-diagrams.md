@@ -69,10 +69,12 @@ sideways: its picture changes direction, not its content.
       with no label beside labelled ones is a row naming its target, as the
       renderer draws one; an arrow label of several lines is refused, as a
       row is one line.
-- [ ] Mermaid's entity codes, `#lt;` and the like, in a label: then
-      `fjs/js/runtime`'s flowchart can spell `runtime::<A>()` as Mermaid
-      shows it, `#lt;A#gt;`. As written, Mermaid reads `<A>` as a tag and
-      GitHub drops it, and the reader refuses the label.
+- [x] Mermaid's entity codes in a label: the reader reads `#lt;`, `#gt;`,
+      `#amp;` and `#quot;` as the characters they name, and refuses any
+      other `#`, a decimal code such as `#35;` among them.
+      `fjs/js/runtime`'s flowchart spells `runtime::<A>()` as
+      `runtime::#lt;A#gt;()`, which GitHub shows as written and the site
+      draws; as `<A>`, Mermaid read a tag and GitHub dropped it.
 - [x] Draw a README's flowchart fence as its diagram in
       [`readme`](../readme/module.f.mjs), and keep any other fence as source.
 - [ ] Sequence diagrams: a layout of their own, if a second README wants one.
