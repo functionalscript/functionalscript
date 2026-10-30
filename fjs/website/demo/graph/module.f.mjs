@@ -267,14 +267,20 @@ const lineHeight = /** @type {const} */ (16)
  */
 const linesOf = label => label.split('\n')
 
-/** The length of a label's longest line. @type {(label: string) => number} */
-const widest = label => maxOf(linesOf(label).map(line => line.length))
+/** A node's label's longest line, which its width fits. @type {(label: string) => string} */
+const longestLine = label => linesOf(label).reduce((longest, line) => line.length > longest.length ? line : longest)
 
 /** @type {(label: string) => number} */
-const widthOf = label => max(50, widest(label) * charWidth + 16)
+const widthOf = label => max(50, longestLine(label).length * charWidth + 16)
 
-/** @type {(label: string) => number} */
-const cellWidthOf = label => max(24, widest(label) * charWidth + 12)
+/**
+ * The width of a cell holding `text` on one line: a key, a value and a
+ * group's label are drawn whole, `\n` and all, and only a node's label
+ * breaks.
+ *
+ * @type {(text: string) => number}
+ */
+const cellWidthOf = text => max(24, text.length * charWidth + 12)
 
 /**
  * The height a node's label of several lines needs, or `0` for one line,
@@ -473,7 +479,7 @@ const portsOf = ({ label, groups }) => all => {
         maxOf(out.flatMap(o => valueOf(o) === null ? [cellWidthOf(o.edge.label)] : [])))
     const title = blank ? widthOf(label)
         : groups !== undefined ? maxOf(groups.map(([group]) => cellWidthOf(group)))
-        : label === '' ? 0 : cellWidthOf(label)
+        : label === '' ? 0 : cellWidthOf(longestLine(label))
     const width = blank ? title : max(groups === undefined ? widthOf(label) : 0, title + rows)
     const height = max(out.length === 0 ? labelHeight : out.length * portHeight, groups === undefined ? linesHeightOf(label) : 0)
     /** @type {Record<Corner, number>} */

@@ -256,6 +256,17 @@ export const proof = /** @type {const} */ ({
             assert(html.includes('data-graph-value-ref="" data-graph-port-edge="1">y1</text>'), html)
             assert(html.includes('aria-label="p q r [] → y1 y2"'), html)
         },
+        // Only a node's label breaks: a key and a value of several lines
+        // are drawn whole, on one line, and sized for all of it.
+        cellsOfLines: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [{ id: 0, kind: 'a', label: 'f', rank: 0 }, { id: 1, kind: 'a', label: 'g', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: 'aa\nbbbbb' }, { from: 0, to: { inline: 'cc\ndddd' }, label: 'v' }],
+            }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('width="153" height="40" rx="4" data-graph-node=""'), html)
+        },
         // Return segments join at the target, with one small arrowhead.
         back: () => {
             /** @type {Graph} */
