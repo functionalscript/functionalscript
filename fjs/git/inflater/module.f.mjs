@@ -27,8 +27,10 @@ import { toArray } from '../../types/list/alt/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { inflate } from '../../zlib/inflate/module.f.mjs'
 
+const { init: [, , initialState], update: updateInflate, end: endInflate } = inflate
+
 /** A stream not yet read. @type {Progress} */
-export const start = { state: inflate.init[2], made: null, size: 0 }
+export const start = { state: initialState, made: null, size: 0 }
 
 /**
  * The stream after a chunk of it, or `null` where the chunk makes it malformed.
@@ -36,7 +38,7 @@ export const start = { state: inflate.init[2], made: null, size: 0 }
  * @type {(chunk: Vec) => (progress: Progress) => Nullable<Progress>}
  */
 export const feed = chunk => ({ state, made, size }) => {
-    const [kind, output, next] = inflate.update(state, chunk)
+    const [kind, output, next] = updateInflate(state, chunk)
     return kind === 'done'
         ? null
         : {
@@ -101,7 +103,7 @@ const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
  * @type {(progress: Progress) => Result<List<Vec>, Refusal>}
  */
 export const finish = ({ state, made }) => {
-    const [, , after] = inflate.end(state)
+    const [, , after] = endInflate(state)
     if (after === null) { return error(truncated) }
     return after === 0
         ? ok(reverse(made))

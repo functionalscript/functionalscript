@@ -21,7 +21,8 @@ const read = (...pieces) => {
         state = next
         output = [...output, ...emitted.flatMap(u8ArrayMsb)]
     }
-    return { output, rest: inflate.end(state)[2] }
+    const [, , rest] = inflate.end(state)
+    return { output, rest }
 }
 
 /** Seventy thousand bytes that differ from their neighbours. */
@@ -112,8 +113,8 @@ export const proof = {
     // the output of each block is a chunk of its own.
     twoBlocks: () => {
         const stream = stored([data.slice(0, 65_531), data.slice(65_531)])
-        const result = inflate.update(initial, u8ListToVecMsb(stream))
-        assertEq(result[1].map(u8ArrayMsb).map(a => a.length).join(), '65531,4469')
+        const [, output] = inflate.update(initial, u8ListToVecMsb(stream))
+        assertEq(output.map(u8ArrayMsb).map(a => a.length).join(), '65531,4469')
         assertStructurallySame(read(stream), { output: data, rest: 0 })
     },
     // Blocks of no bytes, between the others and last.
@@ -164,7 +165,8 @@ export const proof = {
         assertEq(sizes.reduce((a, b) => a + b, 0), 300_000)
         assertEq(Math.max(...sizes) <= 0x4000 + 258, true)
         assertEq(sizes.length >= 300_000 / (0x4000 + 258), true)
-        assertEq(inflate.end(state)[2] !== null, true)
+        const [, , rest] = inflate.end(state)
+        assertEq(rest !== null, true)
         assertEq(output.flatMap(u8ArrayMsb).every(byte => byte === 0), true)
     },
     // A stream in pieces is the stream whole, wherever the pieces meet: in the

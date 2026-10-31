@@ -115,18 +115,21 @@ export const proof = {
         const parts = /** @type {readonly string[]} */ (['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog'])
         assertEq(uint(compute(map(utf8)(parts))), whole)
         const state = stateOf(sha1.update(stateOf(sha1.init), utf8('The quick brown fox')))
-        assertEq(uint(sha1.end(stateOf(sha1.update(state, utf8(' jumps over the lazy dog'))))[2]), whole)
+        const [, , digest] = sha1.end(stateOf(sha1.update(state, utf8(' jumps over the lazy dog'))))
+        assertEq(uint(digest), whole)
         // A remainder completed from the front of the next piece, the rest
         // of the piece chunked on its own: one byte, then a hundred.
         const one = stateOf(sha1.update(stateOf(sha1.init), a))
-        assertEq(uint(sha1.end(stateOf(sha1.update(one, repeat(100n)(a))))[2]), as(101n))
+        const [, , oneDigest] = sha1.end(stateOf(sha1.update(one, repeat(100n)(a))))
+        assertEq(uint(oneDigest), as(101n))
     },
     // A remainder held, then a `Vec` as long as a `Vec` may be: the two are
     // never joined into one, which would be over the ceiling.
     remainderThenFull: () => {
         const full = repeat(maxLengthBytes)(a)
         const state = stateOf(sha1.update(stateOf(sha1.init), a))
-        assertEq(uint(sha1.end(stateOf(sha1.update(state, full)))[2]), uint(compute([a, full])))
+        const [, , digest] = sha1.end(stateOf(sha1.update(state, full)))
+        assertEq(uint(digest), uint(compute([a, full])))
         assertEq(uint(compute([a, full])), uint(compute([full, a])))
     },
     // The checked-in Git objects, with the ids Git computed, are the proof
