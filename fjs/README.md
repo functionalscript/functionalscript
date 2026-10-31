@@ -30,6 +30,7 @@ for commands, aliases and copyable examples.
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
 | `compile`| Compile a FunctionalScript module to JavaScript or JSON; with no arguments, check every `.f.js` | [compiler](compiler/README.md) |
+| `deps`   | Check syntax AST formation for every `.f.js` and `.f.mjs` source | [deps](deps/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -37,7 +38,7 @@ for commands, aliases and copyable examples.
 | `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
 | `help`   | Print available commands | |
 
-Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
+Some commands also accept a short alias (`fjs t` for `fjs test`, and so on).
 `fjs help` prints them; this documentation uses the full names throughout.
 
 ## `fjs compile` — compiling a module

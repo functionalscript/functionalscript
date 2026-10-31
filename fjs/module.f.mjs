@@ -10,6 +10,7 @@
 import { compile } from './compiler/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { main as coverageMain } from './emergent_testing/cov/module.f.mjs'
+import { main as depsMain } from './deps/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { commands as ciCacheCommands } from './ci/cache/module.f.mjs'
@@ -38,6 +39,15 @@ export const commands = [
         note: 'Run from the directory whose modules you want to check. Each module directory runs separately and requires 100% line, branch and function coverage.',
         docs: 'fjs/emergent_testing/README.md',
         handler: coverageMain,
+    },
+    {
+        names: ['deps'],
+        description: 'Check syntax AST formation for every FunctionalScript source',
+        usage: 'fjs deps',
+        examples: ['fjs deps', 'npm start deps'],
+        note: 'Run from the directory whose .f.js and .f.mjs files you want to check. Source files are parsed without executing them, resolving imports or lowering to FAST/EDAG.',
+        docs: 'fjs/deps/README.md',
+        handler: depsMain,
     },
     {
         names: ['compile', 'c'],

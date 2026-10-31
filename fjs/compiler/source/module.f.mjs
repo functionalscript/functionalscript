@@ -64,7 +64,7 @@ const readError = path => e =>
  *
  * @type {(path: string) => Effect<ReadWhole, string, ParseError>}
  */
-const readSource = path => step(
+export const readSource = path => step(
     readError(path)(readWholeBytes(path)),
     bytes => {
         const text = fromU8List(bytes)
