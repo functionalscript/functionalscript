@@ -91,7 +91,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Migrate emitting zlib inflation and adapt its direct Git consumer.
 - [x] Migrate the Git inflater lifecycle and packstore callers.
 - [x] Migrate Unicode decoding with streaming emission and EOF flush.
-- [ ] Migrate MIME detection and preserve whole-input length counting.
+- [x] Migrate MIME detection and preserve whole-input length counting.
 - [ ] Migrate Patricia construction and its SUL hash-level caller.
 - [ ] Migrate full SUL encoding and finish the common API documentation.
 
