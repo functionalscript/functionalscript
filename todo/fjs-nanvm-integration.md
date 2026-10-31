@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `24d4fca38`, the leaf conversion updates in
+Measured on `4fbc559b1`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -173,6 +173,9 @@ updated. The exposed `crypto/secp` reads its own `sub` callback with `entry`
 and `assertNotNullish`, preserving the public field API. Its whole module now
 compiles and is renamed to `.f.js`, with its references updated. This exposes
 no further leaves.
+`types/sorted_list` moves `merge` below its reducer and tail helpers, removing
+its forward references. Its next refused construct is the computed numeric key
+`array[mid]` in `find`.
 
 The compiler-compatible population is 175 authored `.f.js` files;
 431 authored non-proof `.f.mjs` files remain.
@@ -190,7 +193,7 @@ remaining leaves are refused as written.
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
 | `types/number` | `for...of` | 4 |
-| `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
+| `types/sorted_list` | Computed numeric key `array[mid]` in `find` | 1 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
 | `zlib/window` | `for...of` | 0 |
 
