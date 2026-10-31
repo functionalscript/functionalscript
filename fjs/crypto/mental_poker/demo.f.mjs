@@ -22,6 +22,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Utf8 } from '../../text/types.ts'
  * @import { Point } from '../secp/types.ts'
  * @import { DemoState, Deck, Key, Pocket } from './types.ts'
  */
@@ -29,7 +30,9 @@
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
-import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
+import { tryUtf8, utf8 } from '../../text/module.f.mjs'
+import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
+import { computeSync, sha512 } from '../sha2/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.js'
 import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.mjs'
 import { secp256k1 } from '../secp/module.f.mjs'
@@ -41,8 +44,8 @@ export const players = /** @type {const} */ (['Alice', 'Bob', 'Carol'])
 
 export const views = /** @type {const} */ (['Table', ...players])
 
-/** The inputs a player types: a change to one starts the game over. */
-const fields = /** @type {const} */ (['alice', 'aliceSeed', 'bob', 'bobSeed', 'carol', 'carolSeed'])
+/** Each player's passphrase: a change to one starts the game over. */
+const fields = /** @type {const} */ (['alice', 'bob', 'carol'])
 
 const deckSize = 52
 
@@ -54,25 +57,36 @@ const pocketCards = 2
  */
 export const cardName = i => `${'23456789TJQKA'[i % 13]}${'♣♦♥♠'[(i - i % 13) / 13]}`
 
-/** @type {(text: string) => bigint | null} */
-const hex = text => hexDigitsValue(codePoints(text))
+const sha512Sync = computeSync(sha512)
 
-/** Each player's key and shuffle seed, or the first input that is refused.
+/** The curve's order: a lock secret is in `1..n-1`. */
+const n = secp256k1.nf.p
+
+/**
+ * A 512-bit number from a passphrase: SHA-512 of a label and then the
+ * passphrase. Each label gives an unrelated number from the same
+ * passphrase, so one passphrase serves as both a player's lock and their
+ * shuffle. 512 bits are well above the 226 that the 52! orders of a deck
+ * need, so the shuffle reaches every order.
+ * @type {(label: string) => (passphrase: Utf8) => bigint}
+ */
+const derive = label => passphrase => uint(sha512Sync([utf8(label), passphrase]))
+
+/** Each player's key and shuffle seed, both derived from their passphrase,
+ * or the first passphrase that is refused.
  * @type {(state: DemoState) => Result<readonly (readonly [Key, bigint])[], string>}
  */
 export const setup = state => {
-    const inputs = [[state.alice, state.aliceSeed], [state.bob, state.bobSeed], [state.carol, state.carolSeed]]
     /** @type {(i: number) => Result<readonly (readonly [Key, bigint])[], string>} */
     const parse = i => {
-        if (i === inputs.length) { return ok([]) }
-        const [secretText, seedText] = inputs[i]
-        const secret = hex(secretText)
-        const k = secret === null ? null : key(secret)
-        if (k === null) { return error(`${players[i]}'s secret must be a hexadecimal number from 1 to n − 1.`) }
-        const seed = hex(seedText)
-        if (seed === null) { return error(`${players[i]}'s shuffle seed must be a hexadecimal number.`) }
+        if (i === players.length) { return ok([]) }
+        const passphrase = tryUtf8(state[fields[i]])
+        if (passphrase === null) { return error(`${players[i]}'s passphrase is too long: more than ${maxLengthBytes} UTF-8 bytes.`) }
         const rest = parse(i + 1)
-        return rest[0] === 'error' ? rest : ok([[k, seed], ...rest[1]])
+        return rest[0] === 'error' ? rest : ok([[
+            assertNotNullish(key(1n + derive('lock:')(passphrase) % (n - 1n))),
+            derive('shuffle:')(passphrase),
+        ], ...rest[1]])
     }
     return parse(0)
 }
@@ -254,9 +268,7 @@ const game = (state, seeds) => {
 /** @type {Demo<DemoState, DemoEvent>} */
 const definition = {
     init: {
-        alice: 'a11ce', aliceSeed: '5eed1',
-        bob: 'b0b', bobSeed: '5eed2',
-        carol: 'ca801', carolSeed: '5eed3',
+        alice: 'alice', bob: 'bob', carol: 'carol',
         view: 'Table',
         decks: [],
         pockets: null,
@@ -268,15 +280,9 @@ const definition = {
         const s = setup(state)
         return ['div',
             ['p', 'Mental poker deals cards with no dealer: each player locks every card with a secret number and shuffles the deck, in turn, so no one knows where any card is. A pocket card is handed to its owner once the other players remove their locks; the owner removes the last one alone. Table cards are opened by everyone, street by street. Each card shows its locks: a section per player, in their colour while their lock is on.'],
-            ...players.flatMap((name, p) => {
-                const field = /** @type {const} */ (['alice', 'bob', 'carol'])[p]
-                return [
-                    inputField({ name: field, label: `${name}'s secret (hex)` }, state[field]),
-                    inputField({ name: `${field}Seed`, label: `${name}'s shuffle seed (hex)` }, state[`${field}Seed`]),
-                ]
-            }),
+            ...players.map((name, p) => inputField({ name: fields[p], label: `${name}'s passphrase` }, state[fields[p]])),
             ...(s[0] === 'error' ? [refusal(s[1])] : game(state, s[1].map(([, seed]) => seed))),
-            ['p', 'Players here are trusted to shuffle and unlock honestly; proofs that they did are future work.'],
+            ['p', 'Demo only: a short passphrase can be guessed, so a real game draws each secret at random. Players here are trusted to shuffle and unlock honestly; proofs that they did are future work.'],
         ]
     },
 }

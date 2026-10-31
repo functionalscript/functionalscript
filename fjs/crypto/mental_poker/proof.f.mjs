@@ -2,14 +2,18 @@
  * @import { DemoState } from './types.ts'
  */
 
-import { assert, assertEq, assertError, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
-import { secp256k1 } from '../secp/module.f.mjs'
+import { eq, secp256k1 } from '../secp/module.f.mjs'
+import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
 import { cardName, demo, setup, transition } from './demo.f.mjs'
 
 const { deck, key, open } = mentalPoker(secp256k1)
 const n = secp256k1.nf.p
+
+/** A passphrase one byte longer than a bit vector holds. */
+const tooLong = `${'é'.repeat(Number(maxLengthBytes) / 2)}a`
 
 /** @type {(state: DemoState, name: string) => DemoState} */
 const click = (state, name) => transition(state, { kind: 'click', name })
@@ -88,13 +92,16 @@ export const proof = {
         },
         setup: () => {
             const { init } = demo
-            assertEq(setup(init)[0], 'ok')
-            assertEq(assertError(setup({ ...init, alice: 'x' })), "Alice's secret must be a hexadecimal number from 1 to n − 1.")
-            assertEq(assertError(setup({ ...init, bob: '0' })), "Bob's secret must be a hexadecimal number from 1 to n − 1.")
-            assertEq(assertError(setup({ ...init, carolSeed: '' })), "Carol's shuffle seed must be a hexadecimal number.")
+            const [[alice, seed]] = assertOk(setup(init))
+            // Independent vectors from Python's hashlib: SHA-512 of
+            // `shuffle:alice`, and 1 + SHA-512 of `lock:alice` mod (n - 1).
+            assertEq(seed, 0x173_f3ba_9eaa_2404_daa4_e1b9_dfbf_0108_1054_37df_5899_d6d6_4604_30d7_0acf_a1da_3b6f_90e8_544f_abd5_77b6_08df_6146_4290_a3f2_0039_f41b_cd0a_ed65_866d_6862_abd0n)
+            const { g, mul } = secp256k1
+            assert(eq(alice.lock(g))(mul(0x75a9_4906_ea10_180b_bff3_f908_6611_be4f_b7e0_a9d7_f952_f877_ad57_2e84_5ae1_9159n)(g)))
+            assertEq(assertError(setup({ ...init, bob: tooLong })), `Bob's passphrase is too long: more than ${maxLengthBytes} UTF-8 bytes.`)
         },
         refused: () => {
-            const state = input(demo.init, 'alice', '')
+            const state = input(demo.init, 'alice', tooLong)
             assert(text(state).includes('Refused:'))
             assertEq(click(state, 'next'), state)
         },
@@ -181,7 +188,7 @@ export const proof = {
             // Every card dealt is a different card.
             assertEq(new Set([...pockets.map(({ card }) => card), ...river.board]).size, 11)
             // A typed change starts the game over; so does the button.
-            assertStructurallySame(input(river, 'bobSeed', '1').decks, [])
+            assertStructurallySame(input(river, 'bob', 'robert').decks, [])
             const reset = click(showdown, 'reset')
             assertEq(reset.pockets, null)
             assert(!reset.showdown)
