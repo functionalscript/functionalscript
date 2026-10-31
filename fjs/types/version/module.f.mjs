@@ -33,7 +33,7 @@
  * @import { Nullable } from '../nullable/types.ts'
  */
 
-import { cmp as numberCmp } from '../number/module.f.mjs'
+import { cmp as numberCmp } from '../number/module.f.js'
 import { decimalValue, digit0, one } from '../../text/ascii/module.f.js'
 import { max } from '../number/max/module.f.js'
 
@@ -94,8 +94,8 @@ const parse = version => {
 export const cmp = a => b => {
     const [p, q] = [parse(a), parse(b)]
     const n = max(p.length, q.length)
-    for (let i = 0; i < n; i++) {
-        const s = numberCmp(p[i] ?? 0)(q[i] ?? 0)
+    for (let i = 0; i < n; i += 1) {
+        const s = numberCmp(p[Number(i)] ?? 0)(q[Number(i)] ?? 0)
         if (s !== 0) { return s }
     }
     return 0

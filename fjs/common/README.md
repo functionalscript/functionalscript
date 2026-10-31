@@ -1,7 +1,7 @@
 # Common
 
 Algebraic structures shared across the library. Today that is one module,
-[`monoid`](./monoid/module.f.mjs).
+[`monoid`](./monoid/module.f.js).
 
 ## Monoid
 

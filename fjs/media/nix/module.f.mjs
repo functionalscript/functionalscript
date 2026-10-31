@@ -18,7 +18,7 @@
  * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _IndentedString } from './types.ts'
  */
 
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
 import { findMap, includes, occurrences } from '../../types/array/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
@@ -29,8 +29,8 @@ import {
     isLatinLetter,
     lowLine,
 } from '../../text/ascii/module.f.js'
-import { flat, flatMap, intersperse, map, mergeAdjacent } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { flat, flatMap, intersperse, map, mergeAdjacent } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 const reservedWords = /** @type {const} */ ([
     'assert',

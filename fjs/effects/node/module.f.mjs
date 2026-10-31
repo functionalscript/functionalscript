@@ -29,7 +29,7 @@ import { tryUtf8, utf8 } from '../../text/module.f.mjs'
 import { isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
-import { concat } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
@@ -47,7 +47,7 @@ import {
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
-import { parent } from '../../path/module.f.mjs'
+import { parent } from '../../path/module.f.js'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in

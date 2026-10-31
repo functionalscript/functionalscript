@@ -14,8 +14,8 @@
  * @import { Task } from '../task/types.ts'
  */
 
-import { concat, next } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { concat, next } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, freeBindings } from '../control/module.f.mjs'
 import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'

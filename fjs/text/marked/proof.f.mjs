@@ -1,6 +1,6 @@
 import { chunkRun, chunkStrings, fromTagged, keyword, literal, tagged, textOfResult, untagged, withNames, chunkText, chunksMarked, chunksText, fromSpans, toText } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 
 /** @type {(text: string) => (spans: readonly import('./types.ts').Span[]) => unknown} */

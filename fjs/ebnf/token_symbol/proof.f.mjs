@@ -1,7 +1,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parser } from '../ll1/module.f.mjs'
 import { encoding, start } from './module.f.js'
-import { maxCodePoint } from '../../text/code_point/module.f.mjs'
+import { maxCodePoint } from '../../text/code_point/module.f.js'
 
 const names = /** @type {const} */ (['>>', '>>>=', 'instanceof'])
 

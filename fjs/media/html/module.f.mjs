@@ -11,8 +11,8 @@
  * @import { Element, Node } from './types.ts'
  */
 
-import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.mjs'
-import { concat, concat as stringConcat } from '../../types/string/module.f.mjs'
+import { map, flatMap, flat, concat as listConcat } from '../../types/list/module.f.js'
+import { concat, concat as stringConcat } from '../../types/string/module.f.js'
 import { definedEntries, isObject } from '../../types/object/module.f.mjs'
 import { compose } from '../../types/function/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.mjs'

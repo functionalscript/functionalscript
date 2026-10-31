@@ -5,7 +5,7 @@
 
 ### Problem
 
-`nodeSet` in [`../set/module.f.mjs`](../set/module.f.mjs) switches on a
+`nodeSet` in [`../set/module.f.js`](../set/module.f.js) switches on a
 tuple's `length` in two of its arms, and TypeScript 7 does not narrow that
 length to a literal union there: an exhaustive `switch` on a co-narrowed
 tuple's `.length` leaves the fallthrough reachable, where TypeScript 6 did not.

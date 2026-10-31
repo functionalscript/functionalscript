@@ -1,7 +1,7 @@
-import { modSqrt, prime_field, sqrt } from './module.f.mjs'
+import { modSqrt, prime_field, sqrt } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     throw: {
         reciprocalZero: () => prime_field(7n).reciprocal(0n),
         sqrtBadPrime: () => sqrt(prime_field(5n)),
@@ -90,9 +90,9 @@ export const proof = {
                 test(f.middle);
                 test(f.max);
             },
-            reduce: () => {
-                assertEq(f.reduce(13n), 13n)
-                assertEq(f.reduce(-1n), p - 1n)
+            mod: () => {
+                assertEq(f.mod(13n), 13n)
+                assertEq(f.mod(-1n), p - 1n)
             },
             quadRes: () => {
                 assert(f.quadRes(0n), 0n)
@@ -107,6 +107,7 @@ export const proof = {
                 const root = modSqrt(f)
                 assertEq(root(4n), 2n)
                 assertEq(f.pow2(root(2n)), 2n)
+                assertEq(f.pow2(root(3n)), f.neg(3n))
             },
             div: () => {
                 assertEq(f.div(6n)(2n), 3n)
@@ -128,4 +129,4 @@ export const proof = {
             },
         }
     }
-}
+})

@@ -9,8 +9,8 @@
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
 
-import { concat, next, reverse } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, next, reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.
@@ -64,8 +64,8 @@ export const analyzeBindings = root => {
         let isMutable = false
         /** @type {List<FunctionTarget>} */
         let captures = null
-        while (cursor < grouped.length && grouped[cursor].position === position) {
-            const reference = grouped[cursor]
+        while (cursor < grouped.length && grouped[Number(cursor)].position === position) {
+            const reference = grouped[Number(cursor)]
             isMutable = isMutable || reference.write
             if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
             cursor += 1

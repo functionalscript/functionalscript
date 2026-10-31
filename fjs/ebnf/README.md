@@ -85,7 +85,7 @@ every level.
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing
   list of boundaries, half-open, canonical by construction
-  ([`fjs/types/range_set`](../types/range_set/module.f.mjs)) — and the row a
+  ([`fjs/types/range_set`](../types/range_set/module.f.js)) — and the row a
   terminal lowers to. `range`, `set`, `union` and `remove` return one.
 - **`['repeat', min, max, r]`** carries its bounds, so the optional, star,
   plus and exact count are values of `min`/`max` rather than separate forms.

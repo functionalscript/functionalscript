@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`toPosix`](../module.f.mjs) turns every `\` into `/`, and every entry point
+[`toPosix`](../module.f.js) turns every `\` into `/`, and every entry point
 that reads a root runs it first: `root`, `parse`, `normalize`, `escapes` and
 `concat`. `under` reaches the same reading by another route — it never reads a
 root, and instead names both separators itself, so that the path it builds
@@ -54,14 +54,14 @@ itself, whether by calling `toPosix` as the five do or by naming the
 separators as `under` does. POSIX passes `/` alone and a backslash stays a
 filename byte; Windows passes both and nothing changes from today.
 Their calls are gathered into one place, the private `parts` in
-[`fjs/path`](../module.f.mjs), which is where such an argument would go.
+[`fjs/path`](../module.f.js), which is where such an argument would go.
 
 Until then the module's reading is Windows-shaped, and a caller that must
 hold a POSIX name containing a backslash cannot use these functions on it.
 
 ### Related
 
-- [`fjs/path`](../module.f.mjs) — `parts`, the single decode this would
+- [`fjs/path`](../module.f.js) — `parts`, the single decode this would
   parameterise; `toPosix`; and the bare-drive limitation
   recorded on `concat` and `under`.
 - [`fjs/git/repo`](../../git/repo/module.f.mjs) — reads a leading `\` in a
