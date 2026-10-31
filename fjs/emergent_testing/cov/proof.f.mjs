@@ -3,6 +3,7 @@
  * @import { Child, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
  */
 
@@ -41,7 +42,7 @@ const tree = /** @type {const} */ ({
  *
  * @param {readonly IoResult<ExitStatus>[]} outcomes
  * @param {Partial<NodeProgramOptions>} [options]
- * @param {Readonly<Record<string, readonly (readonly [string, boolean])[]>>} [directories]
+ * @param {StringMap<readonly (readonly [string, boolean])[]>} [directories]
  * @param {boolean} [spawnFails]
  * @param {boolean} [writeFails]
  * @param {string | null} [reporter]
