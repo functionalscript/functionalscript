@@ -165,6 +165,10 @@ when a required metric is unavailable.
 - [ ] Fix the exposed gaps in modules' own proofs or implementations.
 - [ ] Wire `npm run cov` and CI to the runner, retaining the full native FJS
       test pass without coverage; update contributor and runner documentation.
+- [ ] Add `fjs cov deno`, with per-module isolation and explicit
+      coverage-metric enforcement.
+- [ ] Add `fjs cov bun`, with per-module isolation and explicit
+      coverage-metric enforcement.
 
 ### Related
 
