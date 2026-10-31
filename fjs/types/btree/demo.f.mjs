@@ -31,9 +31,9 @@
  * @import { Preset, Row, Structure } from '../../website/demo/versions/types.ts'
  */
 
-import { set } from './set/module.f.mjs'
-import { remove } from './remove/module.f.mjs'
-import { cmp, sum } from '../number/module.f.mjs'
+import { set } from './set/module.f.js'
+import { remove } from './remove/module.f.js'
+import { cmp, sum } from '../number/module.f.js'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { hasEntry } from '../object/entry/module.f.js'
 

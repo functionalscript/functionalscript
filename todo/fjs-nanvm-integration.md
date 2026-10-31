@@ -144,6 +144,71 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `b3d28bed4`, the leaf conversion updates in
+[#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
+on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
+The thirteen whole-module conversions are `path`, `js/ast/sugar/pattern`,
+`website/demo/mirror`, `types/prime_field`, `crypto/vdf`, `crypto/secp`,
+`types/sorted_list`, `types/sorted_set`, `types/number`, `types/function/length`,
+`types/range_map`, `types/range_set` and `zlib/window`. Each is renamed to
+`.f.js`, with its runtime, proof, type and documentation references updated.
+
+The conversions use `Number(...)` for numeric computed keys, compiled numeric
+helpers for `Math.min`, `Math.abs` and `Math.ceil`, and `generate` for
+index-generated arrays.
+Pattern's policy callback is renamed from `name` to `bindingName`; the public
+`PrimeField.reduce` property becomes `mod`, including its callers and docs.
+Secp reads its own `sub` callback through `entry` and `assertNotNullish`, keeping
+the public subtraction API. Sorted-list helpers precede their consumers.
+Number's fixed mask table and window's byte insertion use array `.reduce`.
+Graph, bigint and version use admitted loop updates; bigint's returning guard
+no longer has a redundant `else`. The numeric `abs` helper preserves `NaN`,
+infinities and positive zero from either zero.
+
+Further rewrites wrap numeric computed keys in completions, AST, WAT,
+version, graph and window, and read WAT and graph's own record fields through
+`entry` and `assertNotNullish`. WAT uses the compiled `abs` and `min` helpers.
+WAT and graph's safe index generators use `generate`; WAT's string arrays use
+code-point string spread, covered by an astral Unicode name proof.
+All `BigInt(...)` conversions remain unchanged pending language support.
+Two graph `Array.from` calls remain: `maxRank + 1` and
+`to.rank - from.rank - 1` can be fractional or negative under the public
+numeric rank contract. Direct `generate` would change their length coercion.
+Window now uses the compiled numeric `ceil` helper, preserving signed zeros,
+`NaN` and infinities. Its whole module compiles; its conversion exposes no
+additional leaves.
+
+The compiler-compatible population is 184 authored `.f.js` files;
+424 authored non-proof `.f.mjs` files remain.
+Runtime import and re-export declarations were rediscovered from JavaScript
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
+remaining leaves are refused as written.
+
+| Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
+| --- | --- | ---: |
+| `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
+| `js/ast` | `for...of` | 2 |
+| `media/wasm/wat` | `new Map` | 0 |
+| `text/utf16` | `String.fromCharCode` | 3 |
+| `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
+| `types/bigint` | `for...of` in `combination` | 3 |
+| `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
+| `types/map` | `new Map` with EDAG-node keys | 0 |
+| `types/set` | `new Set()` in the union monoid | 0 |
+| `types/version` | Global `BigInt` in `maxPart` | 0 |
+| `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
+
+The preceding twelve-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/374ad5cb5dfdc5548b9d663c8de175107fd10ecc/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update the current table
+with the remaining refusals; keep historical measurements pinned to their
+recorded revisions.
+
+#### Leaf migration fixed point at `d4b096a3a` (historical)
+
 Measured on `d4b096a3a`, the conversion step of
 [#3463](https://github.com/functionalscript/functionalscript/pull/3463),
 stacked on [#3462](https://github.com/functionalscript/functionalscript/pull/3462).
@@ -277,11 +342,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the leaves, compile every
-candidate, rename accepted modules and update their references, then
-rediscover and repeat until a pass accepts none. Update this table with the
-remaining refusals.
-
 #### Leaf migration fixed point at `1ce90e7` (historical)
 
 Measured on `1ce90e7`, the head of `main` after
@@ -353,11 +413,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `7cee7a5` (historical)
 
 Measured on `7cee7a5`, the head of
@@ -414,11 +469,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `7baae35` (historical)
 
@@ -481,11 +531,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `e9df9df` (historical)
 
@@ -554,11 +599,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `2e0462e` (historical)
 
 Measured on `2e0462e`, the head of
@@ -624,11 +664,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `2a5b9c7` (historical)
 
@@ -696,11 +731,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `265b4a7` (historical)
 
@@ -776,11 +806,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `122820b` (historical)
 
 Measured on `122820b`, the head of `main` after
@@ -843,11 +868,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `999164a` (historical)
 
@@ -917,11 +937,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `3e1d1a09` (historical)
 
@@ -1011,11 +1026,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `0c9ddf8` (historical)
 
@@ -1108,11 +1118,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `e40fa58` (historical)
 
 Measured at `e40fa58`, the head of `main` after
@@ -1199,11 +1204,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `8d86959` (historical)
 
 Measured at `8d86959`, the head of `main` after
@@ -1274,11 +1274,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point on #2858 (historical)
 
 Measured on [#2858](https://github.com/functionalscript/functionalscript/pull/2858),
@@ -1348,11 +1343,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `6e392d4f2` (historical)
 
@@ -1444,11 +1434,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `5dcd94b` (historical)
 

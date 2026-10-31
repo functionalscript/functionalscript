@@ -34,7 +34,7 @@ import {
 import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
-import { concat } from '../types/list/module.f.mjs'
+import { concat } from '../types/list/module.f.js'
 import { isIdentifier, isInteger } from '../js/identifier/module.f.mjs'
 import { stringLiteral } from '../js/string_escape/module.f.mjs'
 

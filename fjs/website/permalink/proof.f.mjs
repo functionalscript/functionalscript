@@ -1,6 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 import { linkedHeading, permalink, reservedIds } from './module.f.js'
 
 export const proof = /** @type {const} */ ({

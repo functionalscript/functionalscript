@@ -48,7 +48,7 @@ one:
   switches on a code point against the ASCII constants of `fjs/text/ascii`,
   which are `number`, not literal types. No such switch can ever be exhaustive
   to TypeScript, so the last clause became a `default`.
-- `fjs/types/btree/set/module.f.mjs` — `switch (x.length)` over a tuple union,
+- `fjs/types/btree/set/module.f.js` — `switch (x.length)` over a tuple union,
   where TSGO does not narrow the length to a literal union
   ([typescript-go#4613](https://github.com/microsoft/typescript-go/issues/4613)).
   Fixed the way the same function already worked around that regression: bind

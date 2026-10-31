@@ -3,13 +3,13 @@
  * @import { SortedSet } from '../sorted_set/types.ts'
  */
 
-import { get, merge, fromRange, rangeMap, mapValue, values } from './module.f.mjs'
+import { get, merge, fromRange, rangeMap, mapValue, values } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { union } from '../sorted_set/module.f.mjs'
-import { equal } from '../list/module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
+import { union } from '../sorted_set/module.f.js'
+import { equal } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
 import { strictEqual } from '../function/operator/module.f.js'
-import { cmp } from '../string/module.f.mjs'
+import { cmp } from '../string/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 /** @type {Properties<SortedSet<string>>} */

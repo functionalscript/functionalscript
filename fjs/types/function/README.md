@@ -45,7 +45,7 @@ first:
 
 ```js
 import { addition } from './operator/module.f.js'
-import { fold } from '../list/module.f.mjs'
+import { fold } from '../list/module.f.js'
 
 fold(addition)(0)([1, 2, 3]) // 6
 ```

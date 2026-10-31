@@ -1,6 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { u8ListToVecMsb, uint, vec } from '../../types/bit_vec/module.f.mjs'
-import { run } from '../../types/list/module.f.mjs'
+import { run } from '../../types/list/module.f.js'
 import { codePoints } from '../../text/ascii/module.f.js'
 import { adler32, appendBytes } from './module.f.mjs'
 

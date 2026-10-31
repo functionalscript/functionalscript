@@ -37,7 +37,7 @@ type State<S, T>     = readonly[S, readonly Candidate<T>[]]  // [storage, right-
 ## API
 
 ```typescript
-import { run } from '../list/module.f.mjs'
+import { run } from '../list/module.f.js'
 
 const machine = patriciaTrie(create)(storage)
 const [root, finalStorage] = run(machine)(leaves)

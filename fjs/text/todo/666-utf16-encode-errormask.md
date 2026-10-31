@@ -5,12 +5,12 @@
 
 ### Problem
 
-`fjs/text/code_point/module.f.mjs` defines a *shared* contract for the UTF-8 and
+`fjs/text/code_point/module.f.js` defines a *shared* contract for the UTF-8 and
 UTF-16 codecs: an invalid code point is **tagged** with `errorMask` so it round-
 trips losslessly rather than being silently dropped or mangled.
 
 ```ts
-// fjs/text/code_point/module.f.mjs, errorMask
+// fjs/text/code_point/module.f.js, errorMask
 export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 ```
 
@@ -63,7 +63,7 @@ resolution is to document *that* divergence in `code_point` instead).
 
 ### Related
 
-- `fjs/text/code_point/module.f.mjs` — shared `errorMask` contract
+- `fjs/text/code_point/module.f.js` — shared `errorMask` contract
 - `fjs/text/utf8/module.f.mjs`, `codePointToUtf8` — the encoder that preserves
   the tag (precedent)
 - i666-utf8-continuation-helpers — sibling utf8 cleanup
@@ -71,4 +71,4 @@ resolution is to document *that* divergence in `code_point` instead).
   point is one more invalid input this contract has to cover, in both encoders
 - [i168](../code_point/README.md#the-streaming-decoder-skeleton) — the
   streaming decoder factory both codecs already share; shipped as `decoder` in
-  `fjs/text/code_point/module.f.mjs`
+  `fjs/text/code_point/module.f.js`

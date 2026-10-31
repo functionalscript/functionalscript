@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { fromArrayLike } from '../../types/list/module.f.mjs'
+import { fromArrayLike } from '../../types/list/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
 import { mapping } from '../ll1/module.f.mjs'

@@ -9,7 +9,7 @@ import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../object/entry/module.f.js'
 import { nextStep } from '../function/operator/module.f.js'
-import { run } from '../list/module.f.mjs'
+import { run } from '../list/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b

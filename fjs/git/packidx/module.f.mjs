@@ -58,7 +58,7 @@
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { bsearch, cmp } from '../../types/function/compare/module.f.js'
-import { take } from '../../types/list/module.f.mjs'
+import { take } from '../../types/list/module.f.js'
 import { startsWith, u32be, u64be } from '../bytes/module.f.js'
 import { digestOf, ofWidth, oidAt } from '../oid/module.f.mjs'
 

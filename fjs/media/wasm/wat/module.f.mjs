@@ -27,8 +27,13 @@
  * @import { _Context, _Names, _Naming } from './private.ts'
  */
 
-import { reverse } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { reverse } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
+import { abs } from '../../../types/number/abs/module.f.js'
+import { min } from '../../../types/number/min/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 // strings
 
@@ -48,7 +53,7 @@ const isIdChar = c =>
  *
  * @type {(text: string) => string}
  */
-const strContents = text => Array.from(text, c => {
+const strContents = text => [...text].map(c => {
     const v = /** @type {number} */ (c.codePointAt(0))
     return v >= 0x20 && v < 0x7f && c !== '"' && c !== '\\' ? c : `\\u{${v.toString(16)}}`
 }).join('')
@@ -77,7 +82,7 @@ const namings = group => map => {
         const unusable = name === '' || name.startsWith('#') || first.get(name) !== k
         /** @type {_Naming} */
         const naming = unusable ? { name, prefix: `#${group}${index}` }
-            : Array.from(name).every(isIdChar) ? { name, prefix: null, quoted: false }
+            : [...name].every(isIdChar) ? { name, prefix: null, quoted: false }
             : { name, prefix: null, quoted: true }
         return /** @type {const} */ ([index, naming])
     }))
@@ -157,8 +162,8 @@ const namedGroups = (group, names, first, types) => {
     return starts.map((start, j) => {
         const naming = names.get(first + start)
         return naming === undefined
-            ? `(${group} ${types.slice(start, starts[j + 1] ?? types.length).join(' ')})`
-            : `(${group} ${identifier(naming)} ${types[start]})`
+            ? `(${group} ${types.slice(start, starts[Number(j + 1)] ?? types.length).join(' ')})`
+            : `(${group} ${identifier(naming)} ${types[Number(start)]})`
     }).join(' ')
 }
 
@@ -199,8 +204,8 @@ const display = (x, same) => {
     if (x === Infinity) { return 'inf' }
     if (x === -Infinity) { return '-inf' }
     if (x === 0) { return Object.is(x, -0) ? '-0' : '0' }
-    const precision = Array.from({ length: 17 }, (_, k) => k + 1).find(p => same(Number(x.toPrecision(p))))
-    const [mantissa, exponent] = Math.abs(x).toExponential(/** @type {number} */ (precision) - 1).split('e')
+    const precision = generate(17, k => k + 1).find(p => same(Number(x.toPrecision(p))))
+    const [mantissa, exponent] = abs(x).toExponential(/** @type {number} */ (precision) - 1).split('e')
     return positional(x, mantissa.split('.').join(''), Number(exponent))
 }
 
@@ -267,13 +272,13 @@ const float = (width, bits) => {
 
 /** The `(type N)` of a function type, with its parameters and results. @type {(c: _Context, index: number, params: string) => string} */
 const typeUse = (c, index, params) => {
-    const type = c.module.types[index]
+    const type = c.module.types[Number(index)]
     return `(type ${reference(c.names.type, index)})${type === undefined ? '' : signature(type, params)}`
 }
 
 /** @type {(c: _Context, index: number) => string} */
 const plainTypeUse = (c, index) => {
-    const type = c.module.types[index]
+    const type = c.module.types[Number(index)]
     return typeUse(c, index, type === undefined ? '' : namedGroups('param', none, 0, type.params))
 }
 
@@ -321,8 +326,8 @@ const heapType = t => t === 'funcref' ? 'func' : 'extern'
  */
 const operands = (c, x) => {
     const { names } = c
-    /** @type {(space: keyof _Names, index: number) => string} */
-    const ref = (space, index) => ` ${reference(/** @type {ReadonlyMap<number, _Naming>} */ (names[space]), index)}`
+    /** @type {(space: Exclude<keyof _Names, 'module' | 'local'>, index: number) => string} */
+    const ref = (space, index) => ` ${reference(assertNotNullish(entry(names, space)), index)}`
     /** @type {(index: number) => string} */
     const memory = index => index === 0 ? '' : ref('memory', index)
     switch (x[0]) {
@@ -402,7 +407,7 @@ const lines = (c, nesting, body) => {
  *
  * @type {(nesting: number) => string}
  */
-const indentation = nesting => '  '.repeat(Math.min(nesting, 50))
+const indentation = nesting => '  '.repeat(min(nesting, 50))
 
 /**
  * A constant expression on one line, its instructions space-separated.
@@ -463,7 +468,7 @@ const imports = c => {
     return m.imports.map(({ module, name, desc }, k) => {
         const d = desc[0] === 'func' ? (() => {
             const i = index('func', k)
-            const params = c.module.types[desc[1]]?.params ?? []
+            const params = c.module.types[Number(desc[1])]?.params ?? []
             return `func ${declaration(names.func, i)} ${typeUse(c, desc[1], namedGroups('param', names.local.get(i) ?? none, 0, params))}`
         })()
             : desc[0] === 'table' ? `table ${declaration(names.table, index('table', k))} ${tableType(desc[1])}`
@@ -481,13 +486,13 @@ const imports = c => {
  */
 const func = (c, k) => {
     const { module: m, names } = c
-    const { type, locals, body } = m.functions[k]
+    const { type, locals, body } = m.functions[Number(k)]
     const index = imported(m, 'func') + k
     const localNames = names.local.get(index) ?? none
-    const params = m.types[type]?.params ?? []
+    const params = m.types[Number(type)]?.params ?? []
     const header = `  (func ${declaration(names.func, index)} ${typeUse(c, type, namedGroups('param', localNames, 0, params))}`
     /** @type {readonly ValType[]} */
-    const flat = locals.flatMap(([count, t]) => Array.from({ length: count }, () => t))
+    const flat = locals.flatMap(([count, t]) => generate(count, () => t))
     const inner = [
         ...(flat.length === 0 ? [] : [`    ${namedGroups('local', localNames, params.length, flat)}`]),
         ...lines({ ...c, locals: localNames }, 2, body),
@@ -557,7 +562,7 @@ export const wat = m => {
         ...section('global', m.globals.map(({ type, init }, k) =>
             `(global ${declaration(names.global, globalsBase + k)} ${globalType(type)} ${constExpr(c, init)})`)),
         ...section('export', m.exports.map(({ name, kind, index }) =>
-            `(export ${str(name)} (${kind} ${reference(names[kind], index)}))`)),
+            `(export ${str(name)} (${kind} ${reference(assertNotNullish(entry(names, kind)), index)}))`)),
         ...section('start', m.start === null ? [] : [`(start ${reference(names.func, m.start)})`]),
         ...section('elem', m.elements.map((e, k) => element(c, e, k))),
         ...customs('datacount'),

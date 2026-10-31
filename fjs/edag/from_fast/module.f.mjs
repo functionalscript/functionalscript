@@ -17,7 +17,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { iterable } from '../../types/list/iterable/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.mjs'
@@ -28,8 +28,8 @@ import { completeBlockTransfers, completeTransfers } from './loop/completions/mo
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.js'
-import { step } from '../../common/monoid/module.f.mjs'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { step } from '../../common/monoid/module.f.js'
+import { maxLength } from '../../types/function/length/module.f.js'
 import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */
