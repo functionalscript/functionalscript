@@ -68,7 +68,7 @@ export const proof = {
         assertEq(runMachine(heightEncoder)([]), id([]))
         for (let split = 0; split <= bits.length; split++) {
             const checkpoint = bits.slice(0, split).reduce((state, bit) => heightEncoder.update(state, bit)[2], heightEncoder.init[2])
-            const resumed = { ...heightEncoder, init: nextStep(checkpoint) }
+            const resumed = /** @type {const} */ ({ ...heightEncoder, init: nextStep(checkpoint) })
             assertEq(runMachine(resumed)(bits.slice(split)), whole)
         }
     },
