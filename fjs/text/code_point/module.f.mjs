@@ -105,12 +105,15 @@ const surrogateMax = /** @type {const} */ 0xdfff
 /**
  * The last code point of the Basic Multilingual Plane. Exported because the
  * UTF-8 encoder needs the boundary itself — its 3-byte form covers the BMP up
- * to here — where the predicates below only answer membership. `maxCodePoint`
- * stays private: `isSupplementaryPlane` already expresses the one range a
- * caller has wanted it for.
+ * to here — where the predicates below only answer membership.
  */
 export const bmpMax = /** @type {const} */ 0xffff
-const maxCodePoint = /** @type {const} */ 0x10_ffff
+/**
+ * The last code point of Unicode. Exported for the consumers that need the
+ * bound itself rather than a membership answer: a grammar's top character,
+ * a decoder that stops growing a value once it is past it.
+ */
+export const maxCodePoint = /** @type {const} */ 0x10_ffff
 
 /**
  * Checks whether the 16-bit word (U16) is a high surrogate.

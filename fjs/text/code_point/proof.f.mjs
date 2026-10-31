@@ -14,6 +14,7 @@ import {
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
+    maxCodePoint,
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
@@ -108,6 +109,13 @@ export const proof = {
         () => assertEq(isSupplementaryPlane(bmpMax), false),
         () => assertEq(isSupplementaryPlane(bmpMax + 1), true),
         () => assertEq(isBmpCodePoint(bmpMax + 1), false),
+    ],
+    maxCodePoint: [
+        // The last valid code point; the one after it is outside Unicode.
+        () => assertEq(isValidCodePoint(maxCodePoint), true),
+        () => assertEq(isSupplementaryPlane(maxCodePoint), true),
+        () => assertEq(isValidCodePoint(maxCodePoint + 1), false),
+        () => assertEq(isSupplementaryPlane(maxCodePoint + 1), false),
     ],
     isSupplementaryPlane: [
         () => assertEq(isSupplementaryPlane(0x1_0000), true),
