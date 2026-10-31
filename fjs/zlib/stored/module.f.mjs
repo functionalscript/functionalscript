@@ -21,9 +21,9 @@
  */
 
 import { byteLength, u8ArrayMsb, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
-import { flat } from '../../types/list/module.f.mjs'
+import { flat, run } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { append, end, init } from '../adler32/module.f.mjs'
+import { adler32 } from '../adler32/module.f.mjs'
 
 /** The most bytes a stored block holds: `LEN` is sixteen bits. */
 const blockBytes = /** @type {const} */ (0xffff)
@@ -62,6 +62,6 @@ export const stored = bytes => {
     const body = blocks.length === 0
         ? [blockHeader(true, 0)]
         : blocks.flatMap((block, i) => [blockHeader(i === last, Number(byteLength(block))), u8ListMsb(block)])
-    const checksum = u8ArrayMsb(end(blocks.reduce((state, block) => append(block)(state), init)))
+    const checksum = u8ArrayMsb(run(adler32)(blocks))
     return flat([header, ...body, checksum])
 }
