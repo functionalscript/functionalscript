@@ -29,8 +29,8 @@ import {
     step as ioStep,
 } from '../effects/module.f.mjs'
 import {
-    access,
     createExclusive,
+    exists,
     ioError,
     isNotFound,
     mkdir,
@@ -365,16 +365,12 @@ export const fileCas = sha2 => path => {
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an
             // empty store, mirroring how `read` fails a stream on a missing shard.
             // A `.cas` that exists but cannot be read (permissions, corruption) is a
-            // genuine storage error and is surfaced, not masked as "no hashes".
-            //
-            // `resultStep` because both branches genuinely matter: the absent
-            // store is a success answering `ok([])`, and every other failure is
-            // the caller's to see. It used to `throw` here, which is what the
-            // paragraph above always meant by "surfaced" but could not say
-            // while the return type had no error channel to say it in.
-            resultStep(access(storePrefix), a =>
-                a[0] === 'error'
-                    ? isNotFound(a[1]) ? pureOk([]) : pureError(a[1])
+            // genuine storage error and is surfaced, not masked as "no hashes":
+            // `exists` answers `false` for a path that names nothing and fails
+            // with every other failure.
+            ioStep(exists(storePrefix), found =>
+                !found
+                    ? pureOk([])
                     : ioMapStep(
                         readdir(storePrefix, { recursive: true }),
                         r => r.flatMap(({ name, parentPath, isFile }) =>
