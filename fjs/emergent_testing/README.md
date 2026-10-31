@@ -125,6 +125,31 @@ For a subtree, set `INIT_CWD` to that directory while invoking an entry from
 the repository root. Consumers can import either selective entry from their
 own native test entry in the same way as the combined example below.
 
+### Testing and covering one module
+
+`one.mjs` registers only the working directory's immediate authored FJS
+proofs, including split sibling proofs and inline `proof` exports. It does
+not discover subdirectories, and it uses the actual working directory even
+when `INIT_CWD` names another directory:
+
+```sh
+cd fjs/types/list
+node --test ../../emergent_testing/one.mjs
+```
+
+For coverage, run `fjs cov node` or `npm start cov node` from the directory
+whose modules you want to check. The runner discovers `module.f.mjs`,
+`module.f.js` and `demo.f.mjs` beneath that directory, then runs each module
+directory's own proofs in a separate Node process. Each measured file must
+reach 100% line, branch and function coverage. Missing proofs or coverage
+fail the check.
+
+The runner prints each working directory and complete command before
+launching it, continues after failures, and exits nonzero if any module
+failed. It accepts no flags. The repository-wide `npm run cov` gate retains
+its combined suite until the remaining per-module proof gaps and CI rollout
+in [per-module coverage](./todo/per-module-coverage.md) are complete.
+
 ### External runners (Node, Bun, Deno)
 
 External runners need an entry file that, when loaded, discovers every proof

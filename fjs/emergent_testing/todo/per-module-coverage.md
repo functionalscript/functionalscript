@@ -155,10 +155,12 @@ when a required metric is unavailable.
 
 ### Tasks
 
-- [ ] Add shallow proof discovery and `one.mjs`, reusing native registration.
-- [ ] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, command logging, module results and quiet/verbose modes.
-- [ ] Add regression proofs for the isolation, discovery, coverage and
+- [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
+- [x] Add `fjs cov node` with isolated sequential runs, strict coverage
+      validation, command logging and module results.
+- [ ] Add quiet/verbose modes and per-file output for passing targets; the
+      first implementation uses command logging and native quiet summaries.
+- [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [ ] Fix the exposed gaps in modules' own proofs or implementations.
 - [ ] Wire `npm run cov` and CI to the runner, retaining the full native FJS

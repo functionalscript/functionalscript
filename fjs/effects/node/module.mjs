@@ -955,8 +955,8 @@ export const runNodeEffect = asyncRunAll({
     // with no `'exit'` after it, so a handle minted before `'spawn'` could only
     // hang its caller. `io` turns that `'error'`, and a host that refuses to
     // spawn at all, into the operation's `IoError`.
-    spawn: (command, args, { stdio }) => io(() => new Promise((resolve, reject) => {
-        const child = spawn(command, args, { stdio })
+    spawn: (command, args, options) => io(() => new Promise((resolve, reject) => {
+        const child = spawn(command, args, options)
         child.once('spawn', () => resolve(/** @type {Child} */ (asNominal(child))))
         child.once('error', reject)
     })),

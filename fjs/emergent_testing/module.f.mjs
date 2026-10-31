@@ -24,14 +24,14 @@
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, ioError, test } from '../effects/node/module.f.mjs'
 import { catch_, sandbox } from '../effects/common/module.f.mjs'
 import {
     attemptStep, catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,
     unreadableThrownValue, walkStep,
 } from '../effects/module.f.mjs'
-import { isAuthored, loadModuleMap } from '../dev/module.f.mjs'
+import { isAuthored, loadDirectoryModuleMap, loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.js'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
@@ -201,7 +201,10 @@ const returnedTests = ([path, { throws }], value) =>
  * This is the correct model for Node `--test`, Bun, and Deno, where tests must
  * be declared upfront and the framework drives execution.
  *
- * @type {(ctx: TestContext, k: string, v: unknown) => Effect<Test | All | Await, void, NotImplemented>}
+ * Answers the number of initial proof leaves registered. Returned proof trees
+ * are registered later, when the native framework executes those leaves.
+ *
+ * @type {(ctx: TestContext, k: string, v: unknown) => Effect<Test | All | Await, number, NotImplemented>}
  */
 export const registerModule = (ctx, k, v) => {
     /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void, NotImplemented>} */
@@ -235,8 +238,8 @@ export const registerModule = (ctx, k, v) => {
         return test(ctx, name, throws, body)
     }
     const tests = collectTests([], false, v)
-    if (tests.length === 0) { return pureOk(undefined) }
-    return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
+    if (tests.length === 0) { return pureOk(0) }
+    return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => tests.length)
 }
 
 /**
@@ -533,12 +536,14 @@ export const testAll = (reporter, select) => options =>
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  *
- * @type {(ctx: TestContext) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext) => (moduleMap: ModuleMap) => Effect<Test | All | Await, number, NotImplemented>}
  */
 const registerModuleMap = ctx => moduleMap => {
     const modules = proofEntries(moduleMap)
-    if (modules.length === 0) { return pureOk(undefined) }
-    return mapStep(allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))), () => undefined)
+    if (modules.length === 0) { return pureOk(0) }
+    return mapStep(
+        allOk(...modules.map(([k, v]) => registerModule(ctx, k, v))),
+        counts => counts.reduce((sum, count) => sum + count, 0))
 }
 
 /** @type {(k: string | null) => string} */
@@ -791,3 +796,20 @@ export const register = (o, select) => {
     // shape `exitStep` is for.
     return exitStep(registered)
 }
+
+/**
+ * Registers only the actual working directory's authored proofs. An empty
+ * suite is a failure, even when native test discovery would accept the entry
+ * itself as a successful file with no registered proof leaves.
+ *
+ * @type {NodeProgram}
+ */
+export const registerOne = options => exitStep(step(
+    loadDirectoryModuleMap(),
+    moduleMap => step(registerModuleMap(options.testContext)(moduleMap), count => {
+        /** @type {Effect<never, void, IoChannel>} */
+        const checked = count === 0
+            ? pureError(ioError({ message: 'No runnable proofs in the working directory' }))
+            : pureOk(undefined)
+        return checked
+    })))

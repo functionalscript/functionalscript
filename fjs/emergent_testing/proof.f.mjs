@@ -15,7 +15,7 @@ import { assert, assertEq, todo } from '../asserts/module.f.js'
 import {
     testAll, runEntries, zeroState, fmtPath, fmtImport, ghEscape,
     registerModule, parseTestSet,
-    addResult, defaultReporter, defaultTest, formatDuration, main, register, testResult, zeroTotals,
+    addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
@@ -23,7 +23,7 @@ import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
-import { pureError, pureOk, step } from '../effects/module.f.mjs'
+import { pureError, pureOk, step, unreadableThrownValue } from '../effects/module.f.mjs'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -717,8 +717,9 @@ export const registerNamesAndExpectations = () => {
         throw: { a: () => { throw 'expected' } },
     })
 
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
+    const [names, count] = runner([])(registerModule(registerNoopCtx, './a.f.ts', proof))
     assertEq(names.length, 2)
+    assertEq(unwrap(count), 2)
     assertEq(names[0], 'import("./a.f.ts").proof.ok()')
     assertEq(names[1], 'import("./a.f.ts").proof.throw.a()')
 }
@@ -785,8 +786,9 @@ export const registerThrowsWithoutThrowing = () => {
 // returns without invoking the mock's `test` op at all.
 export const registerEmptyProof = () => {
     const runner = makeRegisterRunner((_runner, _ctx, name, _xf, _fn) => s => [[...s, name], ok(undefined)])
-    const [names] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}))
+    const [names, count] = runner([])(registerModule(registerNoopCtx, './a.f.ts', {}))
     assertEq(names.length, 0)
+    assertEq(unwrap(count), 0)
 }
 
 // register (the NodeProgram entry point) against an empty virtual root: no
@@ -811,9 +813,10 @@ export const registerEmptyModuleMap = () => {
  *     load: (path: string) => IoResult<Module>,
  *     invoke: boolean,
  *     select?: (path: string) => boolean,
+ *     single?: boolean,
  * ) => readonly (readonly [TestContext, string, boolean])[]}
  */
-const runRegister = (testContext, files, load, invoke, select) => {
+const runRegister = (testContext, files, load, invoke, select, single = false) => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {(readonly [TestContext, string, boolean])[]} */
     let calls = []
@@ -839,10 +842,46 @@ const runRegister = (testContext, files, load, invoke, select) => {
             return [s, ok(undefined)]
         },
     }))
-    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
+    const opts = {
         ...defaultNodeProgramOptions, env: {}, testContext,
-    }, select)))
+    }
+    runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (
+        single ? registerOne(opts) : register(opts, select)))
     return calls
+}
+
+/** Single-directory registration includes every authored sibling proof. */
+export const registerOneSiblings = () => {
+    const files = ['module.f.js', 'proof.f.mjs', 'split.proof.f.mjs', 'demo.f.mjs',
+        'proof.mjs', 'old.f.ts', 'ordinary.mjs']
+    const calls = runRegister(registerNoopCtx, files, path => {
+        assert(isAuthored(path), path)
+        return loadsOk()
+    }, false, undefined, true)
+    assertEq(calls.map(([, name]) => name).join(','), [
+        'import("./demo.f.mjs").proof.ok()',
+        'import("./module.f.js").proof.ok()',
+        'import("./proof.f.mjs").proof.ok()',
+        'import("./split.proof.f.mjs").proof.ok()',
+    ].join(','))
+}
+
+/** Missing and inert proof values cannot pass as a zero-test native suite. */
+export const registerOneRejectsEmpty = () => {
+    const [, emptyCode] = virtualAt({})(registerOne(options('elsewhere')))
+    assertEq(exitCode(emptyCode), 1)
+    for (const value of [undefined, {}, { data: 7 }, { takesArgument: (/** @type {number} */ x) => x }]) {
+        const [state, code] = virtualAt({ 'module.f.mjs': () => ({ proof: value }) })(registerOne(options('elsewhere')))
+        assertEq(exitCode(code), 1)
+        assert(state.stderr.includes('No runnable proofs'), state.stderr)
+    }
+}
+
+/** A failed import remains a failing registered proof, not an absent module. */
+export const registerOneLoadFailure = () => {
+    const calls = runRegister(registerNoopCtx, ['module.f.mjs'], loadFails, false, undefined, true)
+    assertEq(calls.length, 1)
+    assertEq(calls[0][1], 'import("./module.f.mjs").proof()')
 }
 
 /**
@@ -1121,7 +1160,24 @@ const returnedTreeReadFailure = () => {
     assertEq(state.aborted, null)
 }
 
+/** Failure to read or dispatch a thrown value has one stable description. */
+const textUnreadable = () => {
+    for (const refused of [false, true]) {
+        const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch, undefined>>[0]} */ ({
+            catch: _read => state => [state, refused
+                ? error(['notImplemented', 'catch'])
+                : ok(error('unreadable value'))],
+        }))
+        const [, result] = runner(undefined)(text(undefined))
+        assertEq(unwrap(result), unreadableThrownValue)
+    }
+}
+
 export const proof = {
+    textUnreadable,
+    registerOneSiblings,
+    registerOneRejectsEmpty,
+    registerOneLoadFailure,
     returnedTreeReadFailure,
     mainSelectsAuthoredOnly,
     registerSelectsProofClass,
