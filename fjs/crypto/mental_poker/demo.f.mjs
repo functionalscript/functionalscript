@@ -39,7 +39,7 @@ const { deck, key, open } = mentalPoker(secp256k1)
 
 export const players = /** @type {const} */ (['Alice', 'Bob', 'Carol'])
 
-export const views = /** @type {const} */ (['Table', ...players, 'Showdown'])
+export const views = /** @type {const} */ (['Table', ...players])
 
 /** The inputs a player types: a change to one starts the game over. */
 const fields = /** @type {const} */ (['alice', 'aliceSeed', 'bob', 'bobSeed', 'carol', 'carolSeed'])
@@ -113,19 +113,19 @@ const dealStreet = (keys, plain, shuffled, board) => {
 }
 
 /** What the next click does, by the steps already taken; `null` once the
- * river is out.
+ * hand is shown down.
  * @type {(state: DemoState) => string | null}
  */
-const nextLabel = ({ decks, pockets, board }) =>
+const nextLabel = ({ decks, pockets, board, showdown }) =>
     decks.length === 0 ? 'Encode the deck'
         : decks.length <= players.length ? `${players[decks.length - 1]} locks and shuffles`
             : pockets === null ? 'Deal pocket cards'
-                : nextStreet(board)?.[0] ?? null
+                : nextStreet(board)?.[0] ?? (showdown ? null : 'Showdown')
 
 /** The state with no deck: where a change of input starts the game over.
  * @type {(state: DemoState) => DemoState}
  */
-const restart = state => ({ ...state, decks: [], pockets: null, board: [] })
+const restart = state => ({ ...state, decks: [], pockets: null, board: [], showdown: false })
 
 /** @type {(state: DemoState, event: DemoEvent) => DemoState} */
 export const transition = (state, event) => {
@@ -146,9 +146,9 @@ export const transition = (state, event) => {
         return { ...state, decks: [...decks, lockAndShuffle(k)(seed)(last)] }
     }
     const keys = s[1].map(([k]) => k)
-    return pockets === null
-        ? { ...state, pockets: dealPockets(keys, decks[0], last) }
-        : { ...state, board: dealStreet(keys, decks[0], last, board) }
+    return pockets === null ? { ...state, pockets: dealPockets(keys, decks[0], last) }
+        : nextStreet(board) === undefined ? { ...state, showdown: true }
+            : { ...state, board: dealStreet(keys, decks[0], last, board) }
 }
 
 /** A locked card by the first hex digits of its `x`.
@@ -187,7 +187,7 @@ const cardWithLocks = (face, locks) => [' ', ['code', face], ' ', lockBox(locks)
  * The deck after each stage, top {@link shownCards} cards, as `view` sees
  * it: every card with the locks on it, and its face where the point of view
  * knows it — the plain deck to everyone, a turn's output to the player who
- * shuffled it, every stage at the showdown. `stages` counts the plain deck,
+ * shuffled it. `stages` counts the plain deck,
  * so it is at least 1.
  * @type {(view: string, seeds: readonly bigint[], stages: number) => readonly Element[]}
  */
@@ -197,7 +197,7 @@ const deckRows = (view, seeds, stages) => {
         (list, seed) => [...list, permutation(seed).map(k => list[list.length - 1][k])],
         [Array.from({ length: deckSize }, (_, i) => i)])
     return orders.flatMap((order, i) => {
-        const known = i === 0 || view === 'Showdown' || view === players[i - 1]
+        const known = i === 0 || view === players[i - 1]
         return [
             caption(i === 0 ? `Plain deck, top ${shownCards} of ${deckSize}:` : `After ${players[i - 1]} locked and shuffled:`),
             ['p', ...order.slice(0, shownCards).flatMap(card => cardWithLocks(known ? cardName(card) : '🂠', (1 << i) - 1))],
@@ -207,14 +207,15 @@ const deckRows = (view, seeds, stages) => {
 
 /** The cards dealt so far as `view` sees them, the rest face down. Each
  * pocket card is shown as its owner receives it, still under the owner's
- * lock: that is all anyone else ever sees of it.
- * @type {(view: string, pockets: readonly Pocket[], board: readonly number[]) => readonly Element[]}
+ * lock: that is all anyone else sees of it until the showdown, where every
+ * owner removes their last lock in public.
+ * @type {(view: string, pockets: readonly Pocket[], board: readonly number[], showdown: boolean) => readonly Element[]}
  */
-const table = (view, pockets, board) => [
+const table = (view, pockets, board, showdown) => [
     caption('Pocket cards, as handed to their owners, and opened:'),
     ...players.map((name, p) => {
         const own = pockets.slice(p * pocketCards, (p + 1) * pocketCards)
-        const visible = view === name || view === 'Showdown'
+        const visible = view === name || showdown
         return /** @type {Element} */ (['p', `${name}: `,
             ['code', own.map(({ handed }) => lockedName(handed)).join(' ')], ' →',
             ...own.flatMap(({ card }) => cardWithLocks(visible ? cardName(card) : '🂠', visible ? 0 : 1 << p))])
@@ -230,13 +231,13 @@ const table = (view, pockets, board) => [
 const game = (state, seeds) => {
     const label = nextLabel(state)
     return [
-        ['p', button('next', label ?? 'Hand dealt', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
+        ['p', button('next', label ?? 'Hand over', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
         ...(state.decks.length === 0 ? [] : [
             radios('view', 'Point of view', views.map(v => ({ value: v, label: v })), state.view),
             ...deckRows(state.view, seeds, state.decks.length),
         ]),
         ...(state.pockets === null ? [] : [
-            ...table(state.view, state.pockets, state.board),
+            ...table(state.view, state.pockets, state.board, state.showdown),
         ]),
     ]
 }
@@ -251,6 +252,7 @@ const definition = {
         decks: [],
         pockets: null,
         board: [],
+        showdown: false,
     },
     update: state => event => pureOk(transition(state, event)),
     view: state => {

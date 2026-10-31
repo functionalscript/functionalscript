@@ -147,11 +147,9 @@ export const proof = {
             assert(alice.includes(dealt(names[0])))
             assert(!alice.includes(dealt(names[2])))
             assert(alice.includes(dealt('🂠')))
-            // The showdown follows the deck through every turn: the top of the
-            // last one is the first pocket card.
-            const showdown = text(input(pocketed, 'view', 'Showdown'))
-            assert(names.every(name => showdown.includes(shown(name, 'no locks'))))
-            assert(showdown.includes(shown(names[0], 'locked by Alice, Bob, Carol')))
+            // No point of view sees past another player's shuffle.
+            assert(!alice.includes(shown(names[0], 'locked by Alice, Bob, Carol')))
+            assert(!alice.includes('Showdown'))
             // The streets open three cards, then one, then one.
             const flop = click(pocketed, 'next')
             assertEq(flop.board.length, 3)
@@ -162,14 +160,23 @@ export const proof = {
             assert(text(turn).includes('"River"'))
             const river = click(turn, 'next')
             assertEq(river.board.length, 5)
-            assert(text(river).includes('Hand dealt'))
-            assertEq(click(river, 'next'), river)
+            assert(text(river).includes('"Showdown"'))
+            assert(!text(river).includes(dealt(names[2])))
+            // At the showdown every owner removes their last lock in public.
+            const showdown = click(river, 'next')
+            assert(showdown.showdown)
+            const shownDown = text(showdown)
+            assert(names.every(name => shownDown.includes(shown(name, 'no locks'))))
+            assert(!shownDown.includes(dealt('🂠')))
+            assert(shownDown.includes('Hand over'))
+            assertEq(click(showdown, 'next'), showdown)
             // Every card dealt is a different card.
             assertEq(new Set([...pockets.map(({ card }) => card), ...river.board]).size, 11)
             // A typed change starts the game over; so does the button.
             assertStructurallySame(input(river, 'bobSeed', '1').decks, [])
-            const reset = click(river, 'reset')
+            const reset = click(showdown, 'reset')
             assertEq(reset.pockets, null)
+            assert(!reset.showdown)
             assertStructurallySame(reset.board, [])
         },
     },
