@@ -25,6 +25,8 @@ import { flat, run } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { adler32 } from '../adler32/module.f.mjs'
 
+const checksumOf = run(adler32)
+
 /** The most bytes a stored block holds: `LEN` is sixteen bits. */
 const blockBytes = /** @type {const} */ (0xffff)
 
@@ -62,6 +64,6 @@ export const stored = bytes => {
     const body = blocks.length === 0
         ? [blockHeader(true, 0)]
         : blocks.flatMap((block, i) => [blockHeader(i === last, Number(byteLength(block))), u8ListMsb(block)])
-    const checksum = u8ArrayMsb(run(adler32)(blocks))
+    const checksum = u8ArrayMsb(checksumOf(blocks))
     return flat([header, ...body, checksum])
 }
