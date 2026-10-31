@@ -32,7 +32,6 @@ import {
     createExclusive,
     exists,
     ioError,
-    isNotFound,
     mkdir,
     now,
     randomInt,
