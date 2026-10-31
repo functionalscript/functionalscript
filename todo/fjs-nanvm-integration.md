@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `cb99a4561`, the leaf conversion updates in
+Measured on `24d4fca38`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -169,17 +169,19 @@ with `b -= 1n`. Its next refused construct is `for...of` in `combination`.
 `types/prime_field` renames the public `reduce` property to `mod`, updating
 its type, proofs, VDF caller and secp educational demo. The field module and
 its VDF dependent now compile and are renamed to `.f.js`, with their references
-updated. This exposes `crypto/secp`, whose first refusal is destructuring `sub`.
+updated. The exposed `crypto/secp` reads its own `sub` callback with `entry`
+and `assertNotNullish`, preserving the public field API. Its whole module now
+compiles and is renamed to `.f.js`, with its references updated. This exposes
+no further leaves.
 
-The compiler-compatible population is 174 authored `.f.js` files;
-432 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 175 authored `.f.js` files;
+431 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All twelve
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
 | --- | --- | ---: |
-| `crypto/secp` | Destructuring the `sub` property (`prohibited property name`) | 0 |
 | `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
 | `js/ast` | `for...of` | 2 |
 | `media/wasm/wat` | `new Map` | 0 |
@@ -193,7 +195,7 @@ remaining leaves are refused as written.
 | `zlib/window` | `for...of` | 0 |
 
 The previous twelve-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/91296d8c3370bc4b6bb955d8650e7799d7dd7e12/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/51fe13b3a6b1b22b1ddf61e9f5505aabf0839f64/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
