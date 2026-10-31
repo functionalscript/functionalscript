@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `dcf67ba66`, the leaf conversion updates in
+Measured on `c6c407e85`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -178,6 +178,10 @@ its forward references, and wraps both numeric indices in `find` with
 `Number(...)`. The whole module and its unchanged `types/sorted_set` dependent
 now compile and are renamed to `.f.js`, with their references updated. This
 exposes no further leaves.
+`types/number.countOnes` reduces its fixed mask table, and `zlib/window.pushAll`
+reduces the byte array with `push`. Both preserve their left-to-right state
+updates. Their next refused constructs are the `Math.abs` binding and
+`Math.min`, respectively.
 
 The compiler-compatible population is 177 authored `.f.js` files;
 429 authored non-proof `.f.mjs` files remain.
@@ -194,9 +198,9 @@ remaining leaves are refused as written.
 | `types/bigint` | `for...of` in `combination` | 1 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
-| `types/number` | `for...of` | 6 |
+| `types/number` | Destructuring `Math.abs` (`Math` is not found) | 6 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
-| `zlib/window` | `for...of` | 0 |
+| `zlib/window` | `Math.min` (`Math` is not found) | 0 |
 
 The previous eleven-leaf measurement is retained in the
 [earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/f658ab5ecaf5ade56dd638e7b66a096ca3c74839/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
