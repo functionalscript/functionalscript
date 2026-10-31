@@ -144,52 +144,36 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `705911fc9`, the leaf conversion updates in
+Measured on `9666744c4`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
-`path` wraps its computed numeric keys with `Number(...)`, in
-`endsInSeparator` and `isProperPrefix`, preserving their numeric values.
-The whole module now compiles and is renamed to `.f.js`, with its references
-updated.
-`website/demo/mirror` now uses the compiled binary `min` helper in place of
-both `Math.min` calls and replaces both `Array.from` calls with `generate`.
-Its computed numeric keys in `commonPrefix`, `commonSuffix` and `nodeOf` are
-wrapped with `Number(...)`. The whole module now compiles and is renamed to
-`.f.js`, with its runtime import, proof import and README link updated.
-`js/ast/sugar/pattern` renames its policy callback from `name` to `bindingName`,
-including the policy type, parser adapter and proof policy, and replaces its
-`Array.from` ID construction with `generate(count, index => ({ index }))`.
-The whole module now compiles and is renamed to `.f.js`, with its references
-updated. These three conversions expose no additional leaves.
-`website/demo/graph` replaces its numeric loop update `round++` with
-`round += 1`; its next refused construct is `new Map(bands)` in `bandsOf`.
-`types/bigint.log2` moves the fallback return after its returning guard,
-removing the redundant `else`, and `partialFactorial` replaces prefix `--b`
-with `b -= 1n`. Its next refused construct is `for...of` in `combination`.
-`types/prime_field` renames the public `reduce` property to `mod`, updating
-its type, proofs, VDF caller and secp educational demo. The field module and
-its VDF dependent now compile and are renamed to `.f.js`, with their references
-updated. The exposed `crypto/secp` reads its own `sub` callback with `entry`
-and `assertNotNullish`, preserving the public field API. Its whole module now
-compiles and is renamed to `.f.js`, with its references updated. This exposes
-no further leaves.
-`types/sorted_list` moves `merge` below its reducer and tail helpers, removing
-its forward references, and wraps both numeric indices in `find` with
-`Number(...)`. The whole module and its unchanged `types/sorted_set` dependent
-now compile and are renamed to `.f.js`, with their references updated. This
-exposes no further leaves.
-`types/number` reduces its fixed mask table in `countOnes` and uses the compiled
-numeric `abs` helper for `sum`'s fold weights. The whole module now compiles and
-is renamed to `.f.js`, updating its references and exposing six new leaves.
-`zlib/window.pushAll` reduces the byte array with `push`, and `last` uses the
-compiled binary `min` helper. Its index-generated arrays in `last` and `copy`
-use `generate`; its next refusal is `newest[inTail - 1 - i]` in `last`.
-`types/function/length`, `types/range_map` and `types/range_set` wrap their
-computed numeric keys with `Number(...)`. All three whole modules now compile
-and are renamed to `.f.js`, with their references updated. They expose no
-additional leaves.
-`types/version.cmp` replaces its discarded numeric `i++` with `i += 1`.
-Its next refusal is the global `BigInt` call in the `maxPart` initializer.
+The twelve whole-module conversions are `path`, `js/ast/sugar/pattern`,
+`website/demo/mirror`, `types/prime_field`, `crypto/vdf`, `crypto/secp`,
+`types/sorted_list`, `types/sorted_set`, `types/number`, `types/function/length`,
+`types/range_map` and `types/range_set`. Each is renamed to `.f.js`, with its
+runtime, proof, type and documentation references updated.
+
+The conversions use `Number(...)` for numeric computed keys, compiled numeric
+helpers for `Math.min` and `Math.abs`, and `generate` for index-generated arrays.
+Pattern's policy callback is renamed from `name` to `bindingName`; the public
+`PrimeField.reduce` property becomes `mod`, including its callers and docs.
+Secp reads its own `sub` callback through `entry` and `assertNotNullish`, keeping
+the public subtraction API. Sorted-list helpers precede their consumers.
+Number's fixed mask table and window's byte insertion use array `.reduce`.
+Graph, bigint and version use admitted loop updates; bigint's returning guard
+no longer has a redundant `else`. The numeric `abs` helper preserves `NaN`,
+infinities and positive zero from either zero.
+
+The remaining-leaf pass wraps numeric computed keys in completions, AST, WAT,
+version, graph and window, and reads WAT and graph's own record fields through
+`entry` and `assertNotNullish`. WAT uses the compiled `abs` and `min` helpers.
+WAT and graph's safe index generators use `generate`; WAT's string arrays use
+code-point string spread, covered by an astral Unicode name proof.
+All `BigInt(...)` conversions remain unchanged pending language support.
+Two graph `Array.from` calls remain: `maxRank + 1` and
+`to.rank - from.rank - 1` can be fractional or negative under the public
+numeric rank contract. Direct `generate` would change their length coercion.
+Window now passes its numeric computed keys and first stops at `Math.ceil`.
 
 The compiler-compatible population is 182 authored `.f.js` files;
 425 authored non-proof `.f.mjs` files remain.
@@ -210,10 +194,10 @@ remaining leaves are refused as written.
 | `types/set` | `new Set()` in the union monoid | 0 |
 | `types/version` | Global `BigInt` in `maxPart` | 0 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
-| `zlib/window` | Computed numeric key `newest[inTail - 1 - i]` in `last` | 0 |
+| `zlib/window` | `Math.ceil` in `last` | 0 |
 
-The previous fifteen-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/d58198ff71a1542608430f8fe65be9e54c71fecf/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The preceding twelve-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/bed7d132b9b33a2b8736e218a2863e31f292ae44/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
