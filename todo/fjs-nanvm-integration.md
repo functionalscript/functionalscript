@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `c6c407e85`, the leaf conversion updates in
+Measured on `3d917a647`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -178,15 +178,16 @@ its forward references, and wraps both numeric indices in `find` with
 `Number(...)`. The whole module and its unchanged `types/sorted_set` dependent
 now compile and are renamed to `.f.js`, with their references updated. This
 exposes no further leaves.
-`types/number.countOnes` reduces its fixed mask table, and `zlib/window.pushAll`
-reduces the byte array with `push`. Both preserve their left-to-right state
-updates. Their next refused constructs are the `Math.abs` binding and
-`Math.min`, respectively.
+`types/number` reduces its fixed mask table in `countOnes` and uses the compiled
+numeric `abs` helper for `sum`'s fold weights. The whole module now compiles and
+is renamed to `.f.js`, updating its references and exposing six new leaves.
+`zlib/window.pushAll` reduces the byte array with `push`, and `last` uses the
+compiled binary `min` helper. Its next refusal is `Array.from`.
 
-The compiler-compatible population is 177 authored `.f.js` files;
-429 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 179 authored `.f.js` files;
+428 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All ten
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fifteen
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
@@ -194,16 +195,21 @@ remaining leaves are refused as written.
 | `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
 | `js/ast` | `for...of` | 2 |
 | `media/wasm/wat` | `new Map` | 0 |
+| `text/utf16` | `String.fromCharCode` | 3 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
-| `types/bigint` | `for...of` in `combination` | 1 |
+| `types/bigint` | `for...of` in `combination` | 3 |
+| `types/function/length` | Computed numeric key `factories[length]` | 0 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
-| `types/number` | Destructuring `Math.abs` (`Math` is not found) | 6 |
+| `types/range_map` | Computed numeric key `rm[mid]` in `get` | 0 |
+| `types/range_set` | Computed numeric key `dense[i - 1]` in `isRangeSet` | 0 |
+| `types/set` | `new Set()` in the union monoid | 0 |
+| `types/version` | Postfix `i++` in `cmp` | 0 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
-| `zlib/window` | `Math.min` (`Math` is not found) | 0 |
+| `zlib/window` | `Array.from` in `last` | 0 |
 
-The previous eleven-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/f658ab5ecaf5ade56dd638e7b66a096ca3c74839/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The previous ten-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/91e6d90c3155b44f9d9ba45fc762c057e22d18ed/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
