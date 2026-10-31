@@ -215,7 +215,7 @@ export const max = mask(maxLength)
 export const partialFactorial = a => b => {
     let result = b
     while (true) {
-        --b
+        b -= 1n
         if (b <= a) { return result }
         result *= b
     }
