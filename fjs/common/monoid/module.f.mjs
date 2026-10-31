@@ -288,6 +288,8 @@ export const collect = monoid => {
  */
 export const fold = monoid => run(accumulator(monoid))
 
+const initialStep = nextStep(null)
+
 /**
  * A balanced fold as the common machine lifecycle. `update` places one value
  * on the run stack; `end` combines the remaining runs into the monoid value.
@@ -298,7 +300,7 @@ export const accumulator = monoid => {
     const push = step(monoid)
     const finish = collect(monoid)
     return {
-        init: nextStep(null),
+        init: initialStep,
         update: (stack, value) => nextStep(push(value)(stack)),
         end: stack => doneStep(finish(stack)),
     }
@@ -317,12 +319,13 @@ export const absorbingAccumulator = ({ monoid, absorbing }) => {
     const absorbed = value => value === absorbing
     const push = pushUnless(monoid)(absorbed)
     const c = collect(monoid)
+    const absorbingStep = doneStep(absorbing)
     return {
-        init: nextStep(null),
+        init: initialStep,
         update: (stack, value) => {
-            if (absorbed(value)) { return doneStep(absorbing) }
+            if (absorbed(value)) { return absorbingStep }
             const following = push(value)(stack)
-            return following === null ? doneStep(absorbing) : nextStep(following)
+            return following === null ? absorbingStep : nextStep(following)
         },
         end: stack => doneStep(c(stack)),
     }

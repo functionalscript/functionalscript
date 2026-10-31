@@ -93,6 +93,8 @@ export const feedWithin = limit => chunk => progress => {
 /** The refusal of a stream that is malformed: `Z_DATA_ERROR`, as zlib calls it. @type {Refusal} */
 export const malformed = { code: 'Z_DATA_ERROR', message: 'invalid zlib stream' }
 
+const malformedStep = doneStep(error(malformed))
+
 /** The refusal of a stream that ends before it closes: `Z_BUF_ERROR`, as zlib calls it. @type {Refusal} */
 const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
 
@@ -124,7 +126,7 @@ export const inflater = /** @type {const} */ ({
     /** @type {(progress: Progress, chunk: Vec) => Step<Progress, never, Result<List<Vec>, Refusal>>} */
     update: (progress, chunk) => {
         const next = feed(chunk)(progress)
-        return next === null ? doneStep(error(malformed)) : nextStep(next)
+        return next === null ? malformedStep : nextStep(next)
     },
     end: (/** @type {Progress} */ progress) => doneStep(finish(progress)),
 })
