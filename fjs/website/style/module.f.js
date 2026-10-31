@@ -1035,6 +1035,15 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-demo-click]:focus-visible { outline: 3px solid currentColor; outline-offset: 3px }
 [data-demo-click][aria-disabled="true"], [data-demo-drag][aria-disabled="true"] { pointer-events: none; cursor: default }
 @media (max-width: 760px) { [data-secp-layout] { grid-template-columns: minmax(0, 1fr) } }
+/* Mental poker draws each player's lock in the player's own colour, in both
+   themes: Alice red, Bob green, Carol blue, so a box reads RGB. A removed
+   lock is the page's background. */
+[data-mp-lock-box] { vertical-align: middle }
+[data-mp-lock] { stroke: currentColor; stroke-width: .75 }
+[data-mp-lock="off"] { fill: var(--bg) }
+[data-mp-lock="0"] { fill: #d1495b }
+[data-mp-lock="1"] { fill: #3a9d23 }
+[data-mp-lock="2"] { fill: #2e86ab }
 
 [${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
 [${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }
