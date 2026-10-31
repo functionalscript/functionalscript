@@ -144,6 +144,35 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured on `b777ddb02`, the rename step of
+[#3494](https://github.com/functionalscript/functionalscript/pull/3494).
+The list refactor from `sergey/temp1` makes its recursive step helpers local
+to their owning functions, removing the module-level forward references.
+The compiler accepts the complete module and four dependents without further
+implementation changes: `types/list`, `text/code_point`, `types/btree`,
+`types/btree/remove` and `types/btree/set` are now `.f.js`, with their runtime,
+type, proof and documentation references updated.
+
+Runtime import and re-export declarations were rediscovered from JavaScript
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. The
+population is 163 authored `.f.js` files and 443 authored non-proof `.f.mjs`
+files. Every remaining leaf was compiled as written; all six are refused.
+
+| Leaf file | First refused construct | Additional leaves its conversion exposes |
+| --- | --- | ---: |
+| `fjs/common/monoid/module.f.mjs` | The later `accumulator` referenced by `fold` (`const not found`) | 4 |
+| `fjs/types/array/module.f.mjs` | `new Map` in `occurrences`, whose keys are strings ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 6 |
+| `fjs/types/list/alt/module.f.mjs` | Destructuring assignment in `push` (`unexpected token`) | 6 |
+| `fjs/types/list/iterable/module.f.mjs` | The generator method `*[Symbol.iterator]` (`unexpected token`) | 0 |
+| `fjs/types/map/module.f.mjs` | `new Map` in `mapSet`; its EDAG-node keys do not meet conversion rule 9 | 0 |
+| `fjs/types/sorted_list/module.f.mjs` | The later `cmpReduce` referenced by `merge` (`const not found`) | 0 |
+
+No further leaf compiles unchanged at this revision. The renamed modules keep
+their `proof.f.mjs` files; the btree set/remove proofs also exercise the cases
+needed for their own isolated 100% proof coverage.
+
+#### Leaf migration fixed point at `d4b096a3a` (historical)
+
 Measured on `d4b096a3a`, the conversion step of
 [#3463](https://github.com/functionalscript/functionalscript/pull/3463),
 stacked on [#3462](https://github.com/functionalscript/functionalscript/pull/3462).
