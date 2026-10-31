@@ -550,3 +550,23 @@ These instance methods mutate an array:
 - [ ] ! `sort`
 - [ ] ! `splice`
 - [ ] ! `unshift`
+
+### String.fromCharCode proposal and approval
+
+**Problem.** The shared runtime cannot construct arbitrary UTF-16 strings
+without a native operation or a large code-unit lookup table.
+
+**Proposal.** Admit `String.fromCharCode` as a native static value in every
+executor. Preserve JavaScript's variadic ToUint16 conversion, empty call,
+lone surrogates, function identity, native text and `length` of 1. Detached
+calls, including `const { fromCharCode } = String`, read no `this`.
+Other String statics remain prohibited.
+
+**Benefits.** JavaScript compatibility and a small string-construction
+primitive for shared runtime bodies, without a 65,536-entry table.
+
+**Drawbacks.** Every executor must bind another native static.
+
+**Approval.** The task owner explicitly requested native implementation and
+FJS admission in this session, including detached calls and matching length,
+before implementation.
