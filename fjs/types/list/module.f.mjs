@@ -77,20 +77,25 @@ const apply = f => input => () => {
     return n === null ? null : f(n)
 }
 
-/** @type {<T>({ first, tail }: NonEmpty<List<T>>) => List<T>} */
-const flatStep =
-    ({ first, tail }) =>
-    concat(first)(flat(tail))
-
 /** @type {<T>(list: List<List<T>>) => Thunk<T>} */
-export const flat = apply(flatStep)
-
-/** @type {<I, O>(f: (value: I) => O) => (x: NonEmpty<I>) => List<O>} */
-const mapStep = f => ({ first, tail }) =>
-    ({ first: f(first), tail: map(f)(tail) })
+export const flat = list => {
+    /** @typedef {typeof list extends List<List<infer T>> ? T : never} T */
+    /** @type {({ first, tail }: NonEmpty<List<T>>) => List<T>} */
+    const flatStep = ({ first, tail }) =>
+        concat(first)(flat(tail))
+    return apply(flatStep)(list)
+}
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
-export const map = f => apply(mapStep(f))
+export const map = f => {
+    /** @typedef {typeof f extends (value: infer I) => infer O ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(x: NonEmpty<I>) => List<O>} */
+    const mapStep = ({ first, tail }) =>
+        ({ first: f(first), tail: map(f)(tail) })
+    return apply(mapStep)
+}
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
 export const flatMap = f => compose(map(f))(flat)
@@ -123,14 +128,16 @@ const mergeFrom = join => first => tail => () => {
  */
 export const mergeAdjacent = join => apply(({ first, tail }) => mergeFrom(join)(first)(tail))
 
-/** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const filterStep = f => ({ first, tail }) => {
-    const newTail = filter(f)(tail)
-    return f(first) ? { first, tail: newTail } : newTail
-}
-
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const filter = f => apply(filterStep(f))
+export const filter = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(n: NonEmpty<T>) => List<T>} */
+    const filterStep = ({ first, tail }) => {
+        const newTail = filter(f)(tail)
+        return f(first) ? { first, tail: newTail } : newTail
+    }
+    return apply(filterStep)
+}
 
 /** @type {<I, O>(f: (value: I) => O | null) => (n: NonEmpty<I>) => List<O>} */
 const filterMapStep = f => n => {
