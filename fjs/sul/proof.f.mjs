@@ -73,7 +73,7 @@ export const proof = {
         assertEq(endTag, 'done')
         assertEq(endOutput.length, 0)
         assertEq(runHeightEncoder([]), id([]))
-        for (let split = 0; split <= bits.length; split++) {
+        for (let split = 0; split <= bits.length; split += 1) {
             const checkpoint = bits.slice(0, split).reduce((state, bit) => {
                 const [, , next] = update(state, bit)
                 return next

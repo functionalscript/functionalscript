@@ -69,7 +69,7 @@ export const proof = /** @type {const} */ ({
             const logical = fromFast(assertOk(toFast(original)))
             assertStructurallySame(assertOk(identityAnalysis(fromFast(assertOk(toFast(logical))))), assertOk(identityAnalysis(logical)), source)
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
                 current = graph(canonical)
@@ -95,7 +95,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -135,7 +135,7 @@ export const proof = /** @type {const} */ ({
             const logical = fromFast(assertOk(toFast(original)))
             assertStructurallySame(assertOk(identityAnalysis(fromFast(assertOk(toFast(logical))))), assertOk(identityAnalysis(logical)), source)
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
                 current = graph(canonical)
@@ -160,7 +160,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -662,7 +662,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -700,7 +700,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -724,7 +724,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -762,7 +762,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -799,7 +799,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -824,7 +824,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -843,7 +843,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(['()', current, [3, 0]]), [[[0, 6]], [[0, 6]]])
                 assertEq(evaluate(['.', current, 'length']), 0)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
@@ -873,7 +873,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -901,7 +901,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(first)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
                     current = graph(canonical)
@@ -917,7 +917,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), [1, true, 0, 7])
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -942,7 +942,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -966,7 +966,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(output)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(evaluate(current), expected, source)
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -993,7 +993,7 @@ export const proof = /** @type {const} */ ({
                     const normalized = graph(output)
                     const canonical = assertOk(tryStringify(normalized))
                     let current = normalized
-                    for (let generation = 0; generation < 7; ++generation) {
+                    for (let generation = 0; generation < 7; generation += 1) {
                         assertStructurallySame(evaluate(current), expected, source)
                         assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                         assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1020,7 +1020,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1050,7 +1050,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(output)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(evaluate(current), expected, source)
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1076,7 +1076,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1108,7 +1108,7 @@ export const proof = /** @type {const} */ ({
                         const normalized = graph(output)
                         const canonical = assertOk(tryStringify(normalized))
                         let current = normalized
-                        for (let generation = 0; generation < 7; ++generation) {
+                        for (let generation = 0; generation < 7; generation += 1) {
                             assertStructurallySame(evaluate(current), result, source)
                             assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                             assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1134,7 +1134,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(output)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(evaluate(current), expected)
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                     assertEq(assertOk(tryStringify(current)), canonical)
@@ -1153,7 +1153,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertEq(evaluate(current), expected)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1179,7 +1179,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1208,7 +1208,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(output)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(evaluate(current), expected, source)
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1231,7 +1231,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(output)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(evaluate(current), expected, source)
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1256,7 +1256,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(output)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1289,7 +1289,7 @@ export const proof = /** @type {const} */ ({
                     const normalized = graph(first)
                     const canonical = assertOk(tryStringify(normalized))
                     let current = normalized
-                    for (let generation = 0; generation < 7; ++generation) {
+                    for (let generation = 0; generation < 7; generation += 1) {
                         assertStructurallySame(evaluate(current), expected, source)
                         assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                         assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1317,7 +1317,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1355,7 +1355,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1379,7 +1379,7 @@ export const proof = /** @type {const} */ ({
                 const normalized = graph(first)
                 const canonical = assertOk(tryStringify(normalized))
                 let current = normalized
-                for (let generation = 0; generation < 7; ++generation) {
+                for (let generation = 0; generation < 7; generation += 1) {
                     assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                     assertEq(assertOk(tryStringify(current)), canonical, source)
                     current = graph(canonical)
@@ -1403,7 +1403,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1427,7 +1427,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1442,7 +1442,7 @@ export const proof = /** @type {const} */ ({
         const normalized = graph(first)
         const canonical = assertOk(tryStringify(normalized))
         let current = normalized
-        for (let generation = 0; generation < 7; ++generation) {
+        for (let generation = 0; generation < 7; generation += 1) {
             assertStructurallySame(evaluate(['()', current, [3, 0]]), [0, 3])
             assertEq(evaluate(['.', current, 'length']), 0)
             assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
@@ -1469,7 +1469,7 @@ export const proof = /** @type {const} */ ({
             const parsed = graph(output)
             const stable = assertOk(tryStringify(parsed))
             let current = parsed
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(parsed)), source)
                 assertEq(assertOk(tryStringify(current)), stable, source)
@@ -1493,7 +1493,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(failure(current), expected, source)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)), source)
                 assertEq(assertOk(tryStringify(current)), canonical, source)
@@ -1516,7 +1516,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertEq(evaluate(['()', ['()', current, [argument]], [3, 0]]), 3)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1541,7 +1541,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 failure(current)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1669,7 +1669,7 @@ export const proof = /** @type {const} */ ({
             const expected = assertOk(identityAnalysis(normalized))
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 const written = assertOk(tryStringify(current))
                 assertEq(written, canonical)
                 assert(written.includes('while('), written)
@@ -1700,7 +1700,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertStructurallySame(evaluate(current), expected)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1726,7 +1726,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 failure(current)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1754,7 +1754,7 @@ export const proof = /** @type {const} */ ({
             const normalized = graph(first)
             const canonical = assertOk(tryStringify(normalized))
             let current = normalized
-            for (let generation = 0; generation < 7; ++generation) {
+            for (let generation = 0; generation < 7; generation += 1) {
                 assertEq(failure(current), expected)
                 assertStructurallySame(assertOk(identityAnalysis(current)), assertOk(identityAnalysis(normalized)))
                 assertEq(assertOk(tryStringify(current)), canonical)
@@ -1794,7 +1794,7 @@ export const proof = /** @type {const} */ ({
     deepValuesRetainIdentity: () => {
         /** @type {Value} */
         let value = 1
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['~', value] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = ['~', value] }
         const source = yielded(value)
         assertEq(assertOk(_sourceLoops(source)), source)
     },

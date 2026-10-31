@@ -39,7 +39,7 @@ export const proof = {
         assert(eq(negative(toy.g).result)([0n, 21n]))
         assertEq(negative(null).result, null)
         assertEq(addition(null, null).result, null)
-        for (let k = 0n; k <= 29n; ++k) {
+        for (let k = 0n; k <= 29n; k += 1n) {
             const frames = sequence(k)
             assertEq(frames.length, Number(k) + 1)
             frames.forEach((p, i) => assert(eq(p)(toy.mul(BigInt(i))(toy.g))))

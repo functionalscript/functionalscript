@@ -100,7 +100,7 @@ export const proof = {
         let calls = 0
         /** @type {(k: string, v: number) => Result<number, ValidationError>} */
         const counting = (k, v) => {
-            calls++
+            calls += 1
             return item(k, v)
         }
         const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], counting, [], collect)

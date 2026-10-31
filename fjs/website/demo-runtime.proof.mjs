@@ -626,7 +626,7 @@ export const proof = {
         await settle()
         links.navigate(sharedHash({ left: 'X', right: 'Y' }))
         links.navigate(sharedHash({ left: 'X', right: 'Y' }).replace('#demo', '#documentation'))
-        for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i++) { await new Promise(resolve => setTimeout(resolve, 10)) }
+        for (let i = 0; i < 50 && !d.root.innerHTML.includes('A|B|2'); i += 1) { await new Promise(resolve => setTimeout(resolve, 10)) }
         assert(d.root.innerHTML.includes('A|B|2'), d.root.innerHTML)
         assert(!d.rendered.some((/** @type {string} */ html) => html.includes('X|Y|')))
     },
@@ -639,7 +639,7 @@ export const proof = {
         // Document capture runs before the target's runtime input handler.
         d.root.setAttribute('data-demo-input-edited', '1')
         d.named('left').enterText('reader')
-        for (let i = 0; i < 5; i++) { await Promise.resolve() }
+        for (let i = 0; i < 5; i += 1) { await Promise.resolve() }
         assertEq(d.named('left').value, 'reader')
         d.input('left', 'reader')
         await settle()

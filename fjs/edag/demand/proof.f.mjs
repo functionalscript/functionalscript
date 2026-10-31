@@ -150,13 +150,13 @@ export const proof = /** @type {const} */ ({
     deepSharedCompletedParents: () => {
         /** @type {Exp} */
         let parent = first
-        for (let depth = 0; depth < 20_000; ++depth) { parent = ['[]', [parent, parent]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { parent = ['[]', [parent, parent]] }
         assertEq(demandsInOrder(0, [first], [parent]), true)
     },
     deepContainers: () => {
         /** @type {Exp} */
         let exp = first
-        for (let depth = 0; depth < 20_000; ++depth) { exp = ['[]', [exp]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { exp = ['[]', [exp]] }
         assertEq(demandsInOrder(exp, [first]), true)
     },
     shortestRequiredPrefixes: () => {
@@ -183,7 +183,7 @@ export const proof = /** @type {const} */ ({
         for (const [exp, required, expected] of cases) {
             assertEq(requiredPrefixLength(exp, required), expected)
             assertEq(demandsInOrder(exp, required.slice(expected), required.slice(0, expected)), true)
-            for (let at = 0; at < expected; ++at) {
+            for (let at = 0; at < expected; at += 1) {
                 assertEq(demandsInOrder(exp, required.slice(at), required.slice(0, at)), false)
             }
         }

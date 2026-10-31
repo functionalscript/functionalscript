@@ -31,7 +31,7 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
     const pushed = []
     let settled = () => {}
     const details = { tagName: 'DETAILS', open: false, parentElement: null }
-    const target = { parentElement: details, scrollIntoView: () => { scrolls++ } }
+    const target = { parentElement: details, scrollIntoView: () => { scrolls += 1 } }
     /** @type {any} */
     const document = { getElementById: (/** @type {string} */ id) => id === 'demo' ? target : null }
     /** @type {any} */
@@ -82,13 +82,13 @@ const fixture = (sharing = textSharing('source', 'first', [['First', 'first', 'f
         root, demo, view, controls, document, button, sectionButton, status, feedback, copied, pending, pushed, details, windowEvents,
         get hidden() { return button.hidden }, get restores() { return restores }, get state() { return state }, get scrolls() { return scrolls },
         start: (edited = false) => startDemoSharing(root, demo, controller, edited),
-        flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores++; item.after() } } },
+        flush: () => { for (const item of pending.splice(0)) { if (item.current() === 'apply') { state = item.next; restores += 1; item.after() } } },
         navigate: (/** @type {string} */ next) => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; windowEvents.get('popstate')?.forEach(f => f()); windowEvents.get('hashchange')?.forEach(f => f()) },
         input: () => { revision += 1 },
         edit: (/** @type {any} */ value) => { revision += 1; state = value; settled() },
         busy: (/** @type {boolean} */ value) => { busy = value },
         stateTo: (/** @type {any} */ value) => { state = value },
-        click: async (section = false) => { (section ? sectionEvents : buttonEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i++) { await Promise.resolve() } },
+        click: async (section = false) => { (section ? sectionEvents : buttonEvents).get('click')?.({ preventDefault() {}, stopPropagation() {} }); for (let i = 0; i < 5; i += 1) { await Promise.resolve() } },
     }
 }
 export const proof = {

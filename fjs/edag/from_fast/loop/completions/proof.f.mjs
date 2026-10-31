@@ -385,10 +385,10 @@ export const proof = {
     deepRegions: () => {
         /** @type {Block} */
         let region = body(['return', target, 7])
-        for (let depth = 0; depth < 20_000; ++depth) { region = body(['yield', []], [['block', [], region]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { region = body(['yield', []], [['block', [], region]]) }
         const wrapped = firstLoop(completeTransfers(containing(loopOf(region)), null))
         let result = wrapped.body
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const statement = result.statements[0]
             assert(statement[0] === 'block')
             result = statement[2]

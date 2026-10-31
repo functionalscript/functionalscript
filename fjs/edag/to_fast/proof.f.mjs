@@ -105,7 +105,7 @@ export const proof = {
         }
         let restored = fromFast(assertOk(toFast(graph)))
         const stable = flat(restored)
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < 4; i += 1) {
             restored = fromFast(assertOk(toFast(restored)))
             assertStructurallySame(flat(restored), stable)
         }

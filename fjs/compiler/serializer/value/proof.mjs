@@ -716,7 +716,7 @@ export const proof = {
                         assert(previousPair !== lastSnapshot[0])
                         for (const [read, snapshot] of /** @type {const} */ ([[heldFirst, firstSnapshot], [heldLast, lastSnapshot]])) {
                             const captured = read()
-                            for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], snapshot[index]) }
+                            for (let index = 0; index < captured.length; index += 1) { assertEq(captured[index], snapshot[index]) }
                         }
                         if (mixed) {
                             invoke(100_000, tokenA, tokenB, 'return')
@@ -979,7 +979,7 @@ export const proof = {
                     assert(previousPair !== firstSnapshot[0])
                     for (const [read, snapshot] of /** @type {const} */ ([[heldFirst, firstSnapshot], [heldLast, lastSnapshot]])) {
                         const captured = read()
-                        for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], snapshot[index]) }
+                        for (let index = 0; index < captured.length; index += 1) { assertEq(captured[index], snapshot[index]) }
                     }
                     /** @type {readonly string[]} */
                     const names = ['prefix', ...branched ? ['choice'] : [], 'argument0', 'argument1', 'argument2', ...hasRest ? [] : ['ignored'], 'spread']
@@ -1192,7 +1192,7 @@ export const proof = {
                         assert(first[0] !== second[0])
                         assert(first[2] !== second[2])
                         const captured = saved.read()
-                        for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], saved.snapshot[index]) }
+                        for (let index = 0; index < captured.length; index += 1) { assertEq(captured[index], saved.snapshot[index]) }
                         assertEq(first[3]()[0], first[0])
                         assertEq(first[3]()[1], first[2])
                         for (const failureAt of ['prefix', 'condition', ...mixed ? ['choice'] : [], 'argument', 'spread', 'base']) {
@@ -1373,7 +1373,7 @@ export const proof = {
                         assert(first[0] !== second[0])
                         assert(first[1] !== second[1])
                         const captured = saved.read()
-                        for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], saved.snapshot[index]) }
+                        for (let index = 0; index < captured.length; index += 1) { assertEq(captured[index], saved.snapshot[index]) }
                         assertEq(first[2]()[0], first[0])
                         assertEq(first[2]()[1], first[1])
                         if (hasRest) { assert(first[0][3] !== second[0][3]) }
@@ -1565,7 +1565,7 @@ export const proof = {
                             assertEq(first[2]()[0], retained[0])
                             for (const item of [branch, condition]) {
                                 const captured = item.read()
-                                for (let index = 0; index < captured.length; ++index) { assertEq(captured[index], item.values[index]) }
+                                for (let index = 0; index < captured.length; index += 1) { assertEq(captured[index], item.values[index]) }
                             }
                             if (hasRest) { assert(first[0][3] !== second[0][3]) }
                         }

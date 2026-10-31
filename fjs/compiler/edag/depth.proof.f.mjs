@@ -83,9 +83,9 @@ export const proof = {
         // conversions use the same iterative lowering as prefixes
         /** @type {FastValue} */
         let converted = 1
-        for (let i = 0; i < 5_000; i++) { converted = ['String', converted] }
+        for (let i = 0; i < 5_000; i += 1) { converted = ['String', converted] }
         let node = lowered(converted)
-        for (let i = 0; i < 5_000; i++) {
+        for (let i = 0; i < 5_000; i += 1) {
             assert(node instanceof Array && node[0] === 'String', node)
             node = node[1]
         }
@@ -95,11 +95,11 @@ export const proof = {
         // here rather than parsed, `lowered`'s own comment has why
         /** @type {FastValue} */
         let and = 1
-        for (let i = 0; i < 20_000; i++) { and = logicalValue('&&', and, 1) }
+        for (let i = 0; i < 20_000; i += 1) { and = logicalValue('&&', and, 1) }
         expectAndChain(20_000)(lowered(and))
         /** @type {FastValue} */
         let otherwise = 3
-        for (let i = 0; i < 20_000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        for (let i = 0; i < 20_000; i += 1) { otherwise = ['?:', 1, 2, otherwise] }
         expectElseChain(20_000)(lowered(otherwise))
     },
 }

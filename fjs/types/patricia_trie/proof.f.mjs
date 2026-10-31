@@ -30,14 +30,14 @@ const leaves = ([, candidates]) => candidates.map(([leaf]) => leaf)
 const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
     /** @type {State<readonly [bigint, bigint, bigint][], bigint>} */
     let state = init[2]
-    for (let i = 0; i < inputs.length; i++) {
+    for (let i = 0; i < inputs.length; i += 1) {
         const x = inputs[i]
         const prevCount = state[0].length
         state = update(state, [x, x])[2]
 
         const actual = leaves(state)
         assertEq(actual.length, expectedLeaves[i].length)
-        for (let j = 0; j < actual.length; j++) {
+        for (let j = 0; j < actual.length; j += 1) {
             assertEq(actual[j], expectedLeaves[i][j])
         }
 
@@ -252,7 +252,7 @@ export const proof = {
         assertEq(init[1].length, 0)
         assertEq(end(init[2])[0], 'done')
         assertEq(end(init[2])[1].length, 0)
-        for (let split = 0; split <= input.length; split++) {
+        for (let split = 0; split <= input.length; split += 1) {
             const checkpoint = input.slice(0, split).reduce((state, candidate) => update(state, candidate)[2], init[2])
             const resumed = { ...trie, init: nextStep(checkpoint) }
             assertStructurallySame(run(resumed)(input.slice(split)), whole)

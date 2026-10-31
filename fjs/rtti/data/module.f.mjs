@@ -175,7 +175,7 @@ const cmpBigint = (a, b) => cmpValue(a)(b)
 const cmpList = cmpItem => (a, b) => {
     const d = a.length - b.length
     if (d !== 0) { return d }
-    for (let i = 0; i < a.length; ++i) {
+    for (let i = 0; i < a.length; i += 1) {
         const c = cmpItem(a[i], b[i])
         if (c !== 0) { return c }
     }
@@ -923,7 +923,7 @@ const ensureName = (state, t) => {
     let i = 0
     while (used.some(n => n === name)) {
         name = t.name + i
-        ++i
+        i += 1
     }
     return [{ ...state, names: [...state.names, [t, name]] }, name]
 }

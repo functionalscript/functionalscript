@@ -89,10 +89,10 @@ const identifiers = rules => {
         }
         let id = `T${i}`
         while (kept.some(k => k === id)) {
-            ++i
+            i += 1
             id = `T${i}`
         }
-        ++i
+        i += 1
         result = [...result, [name, id]]
     }
     return result

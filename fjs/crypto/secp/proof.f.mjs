@@ -33,7 +33,7 @@ const poker = param => () => {
     //
     /** @type {readonly Point[]} */
     let d = []
-    for (let i = 0n; i < 52n; ++i) {
+    for (let i = 0n; i < 52n; i += 1n) {
         let nonce = 0n // can be a random number in a range [`0`, `p >> 6n`).
         let x = 0n
         /** @type {bigint | null} */
@@ -44,7 +44,7 @@ const poker = param => () => {
             if (yi !== null) {
                 break
             }
-            ++nonce
+            nonce += 1n
         }
         d = [...d, [x, yi]]
     }
@@ -59,7 +59,7 @@ const poker = param => () => {
         assert(p !== null, 'null')
         const x = p[0] & 0x3Fn
         assertEq(x, m, [p[0], x, m])
-        ++m
+        m += 1n
     }
 }
 

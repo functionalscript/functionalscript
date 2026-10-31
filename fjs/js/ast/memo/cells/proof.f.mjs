@@ -72,7 +72,7 @@ export const proof = /** @type {const} */ ({
         ])) { assertEq(_hasReturn(value, functionTarget), true) }
         /** @type {Value} */
         let deep = ['block', returned]
-        for (let depth = 0; depth < 20_000; ++depth) { deep = ['array', [deep]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { deep = ['array', [deep]] }
         assertEq(_hasReturn(deep, functionTarget), true)
     },
     noCrossing: () => {
@@ -135,7 +135,7 @@ export const proof = /** @type {const} */ ({
     deepDeferredSelection: () => {
         /** @type {Value} */
         let initializer = ['block', body([['loop', reading(a)]], ['yield', [['ref', result]]])]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const local = /** @type {const} */ ({ index: depth })
             initializer = ['block', body([['define', local, initializer, 'lazy']], ['yield', [['ref', local]]])]
         }
@@ -505,7 +505,7 @@ export const proof = /** @type {const} */ ({
         for (const depth of [2, 3]) {
             const targets = Array.from({ length: depth }, () => /** @type {const} */ ({ kind: 'loop', index: 0 }))
             let sourceLoop = reading(b, targets[depth - 1])
-            for (let index = depth - 2; index >= 0; --index) {
+            for (let index = depth - 2; index >= 0; index -= 1) {
                 sourceLoop = loopOf(body([['loop', sourceLoop]], ['break', targets[index], [0]]), targets[index])
             }
             const plan = planned(containing(sourceLoop, [
@@ -522,7 +522,7 @@ export const proof = /** @type {const} */ ({
             assertEq(plan.loops.size, depth)
             const selected = [...plan.loops]
             let loop = loopsOf(plan.block)[0]
-            for (let index = 0; index < depth; ++index) {
+            for (let index = 0; index < depth; index += 1) {
                 assertEq(loop, selected[index])
                 assertEq(loop.target, targets[index])
                 if (index + 1 !== depth) { loop = loopsOf(loop.body)[0] }
@@ -908,7 +908,7 @@ export const proof = /** @type {const} */ ({
         const loop = reading(a)
         /** @type {Block} */
         let nested = body([['loop', loop]])
-        for (let depth = 0; depth < 20_000; ++depth) { nested = body([['block', [], nested]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { nested = body([['block', [], nested]]) }
         const plan = planned(body([['define', a, ['array', []], 'lazy'], ['block', [], nested]]))
         assertEq(plan.cells.length, 1)
         assertEq(plan.loops.size, 1)
@@ -1149,7 +1149,7 @@ export const proof = /** @type {const} */ ({
             const outer = planned(containing(reading(a)))
             /** @type {Value} */
             let value = ['block', body([['define', b, ['array', [['ref', a]]], 'lazy']], ['yield', [['ref', b]]])]
-            for (let depth = 0; depth < 20_000; ++depth) { value = ['!', value] }
+            for (let depth = 0; depth < 20_000; depth += 1) { value = ['!', value] }
             assertEq(recipeCells(value, outer, new Map([[a, 0]])).localCount, 1)
         },
     },

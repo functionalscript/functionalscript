@@ -185,12 +185,12 @@ export const proof = /** @type {const} */ ({
         /** @type {Block} */
         let source = { statements: [], exit: ['yield', [['()', ['ref', self], [['ref', parameter]]]]] }
         const count = /** @type {const} */ (20_000)
-        for (let depth = 0; depth < count; ++depth) {
+        for (let depth = 0; depth < count; depth += 1) {
             source = { statements: [], exit: ['yield', [['if', true, source, { statements: [], exit: ['yield', [depth]] }]]] }
         }
         let converted = _tailCalls(source, [parameter], self, target)
         assert(converted !== null)
-        for (let depth = 0; depth < count; ++depth) {
+        for (let depth = 0; depth < count; depth += 1) {
             assert(converted.statements[0][0] === 'if')
             converted = converted.statements[0][3]
         }

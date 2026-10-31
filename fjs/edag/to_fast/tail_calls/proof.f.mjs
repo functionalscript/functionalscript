@@ -30,7 +30,7 @@ export const _tailFunction = graph => {
 const stable = graph => {
     let current = fromFast(assertOk(toFast(graph)))
     const first = flat(current)
-    for (let generation = 0; generation < 7; ++generation) {
+    for (let generation = 0; generation < 7; generation += 1) {
         current = fromFast(assertOk(toFast(current)))
         assertStructurallySame(flat(current), first)
     }

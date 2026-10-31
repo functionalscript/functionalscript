@@ -94,13 +94,13 @@ export const proof = /** @type {const} */ ({
     forwardingTailDepthUsesTheTaskWorklist: () => {
         /** @type {Block} */
         let block = yielded([7])
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const output = id()
             block = yielded([ref(output)], [['block', [output], block]])
         }
         const output = id()
         let current = _forwardReturns(body(['return', owner, ref(output)], [['block', [output], block]]), owner)
-        for (let depth = 0; depth < 20_001; ++depth) {
+        for (let depth = 0; depth < 20_001; depth += 1) {
             assertStructurallySame(current.exit, ['yield', []])
             const statement = current.statements[0]
             assert(statement[0] === 'block')
@@ -495,7 +495,7 @@ export const proof = /** @type {const} */ ({
                 assertEq(regionBody.statements.length, length + 1)
                 assert(regionBody.exit[0] === 'yield')
                 assertEq(regionBody.exit[1].length, length)
-                for (let index = 0; index < length; ++index) {
+                for (let index = 0; index < length; index += 1) {
                     const established = regionBody.statements[index + 1]
                     assert(established[0] === 'define' || established[0] === 'block')
                     const read = regionBody.exit[1][index]
@@ -1140,7 +1140,7 @@ export const proof = /** @type {const} */ ({
         const receiver = id()
         /** @type {import('../types.ts').Step<Value>} */
         let step = ['|.', ['Number', ['block', returned(7)]]]
-        for (let depth = 0; depth < 20_000; ++depth) { step = ['|.', 'x', step] }
+        for (let depth = 0; depth < 20_000; depth += 1) { step = ['|.', 'x', step] }
         const source = returned(['?.', ref(receiver), 'x', step])
         const mapped = liftReturns(source, owner)
         assert(mapped !== source)
@@ -1150,7 +1150,7 @@ export const proof = /** @type {const} */ ({
         const receiver = id()
         /** @type {Value} */
         let callee = ['.', ref(receiver), 'at']
-        for (let depth = 0; depth < 20_000; ++depth) { callee = ['block', yielded([callee])] }
+        for (let depth = 0; depth < 20_000; depth += 1) { callee = ['block', yielded([callee])] }
         const ordinary = returned(['()', callee, [1]])
         assertEq(liftReturns(ordinary, owner), ordinary)
         const result = liftReturns(returned(['()', callee, [['block', returned(7)]]]), owner)
@@ -1242,10 +1242,10 @@ export const proof = /** @type {const} */ ({
     deepValueChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['block', yielded([value])] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = ['block', yielded([value])] }
         const result = liftReturns(returned(value), owner)
         let current = result
-        for (let depth = 0; depth < 20_001; ++depth) {
+        for (let depth = 0; depth < 20_001; depth += 1) {
             assertEq(current.statements.length, 1)
             const region = current.statements[0]
             assert(region[0] === 'block')
@@ -1256,10 +1256,10 @@ export const proof = /** @type {const} */ ({
     deepEagerChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = depth % 2 === 0 ? ['!', value] : ['instanceof', value, 'Array'] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = depth % 2 === 0 ? ['!', value] : ['instanceof', value, 'Array'] }
         const result = liftReturns(returned(value), owner)
         let current = result
-        for (let depth = 0; depth < 20_001; ++depth) {
+        for (let depth = 0; depth < 20_001; depth += 1) {
             assertEq(current.statements.length, 1)
             current = blockOf(current.statements[0])
         }
@@ -1268,10 +1268,10 @@ export const proof = /** @type {const} */ ({
     deepSequenceChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = depth % 2 === 0 ? ['array', [1, value]] : [',', [1, value]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = depth % 2 === 0 ? ['array', [1, value]] : [',', [1, value]] }
         const result = liftReturns(returned(value), owner)
         let current = result
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const region = blockOf(current.statements[0])
             assertEq(region.statements.length, 2)
             assertEq(region.statements[0][0], 'define')
@@ -1282,10 +1282,10 @@ export const proof = /** @type {const} */ ({
     deepObjectChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['object', [[':', 'key', value]]] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = ['object', [[':', 'key', value]]] }
         const result = liftReturns(returned(value), owner)
         let current = result
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const region = blockOf(current.statements[0])
             assertEq(region.statements.length, 2)
             const key = region.statements[0]
@@ -1298,20 +1298,20 @@ export const proof = /** @type {const} */ ({
     deepCaptureChain: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const captured = id()
             const target = /** @type {const} */ ({ kind: 'function', index: 0 })
             value = ['function', { target, parameters: [], rest: null, self: null,
                 captures: [{ binding: captured, value }], body: body(['return', target, ref(captured)]) }]
         }
         let current = liftReturns(returned(value), owner)
-        for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
+        for (let depth = 0; depth < 20_001; depth += 1) { current = blockOf(current.statements[0]) }
         assertStructurallySame(current.exit, ['return', owner, 7])
     },
     deepTransferPayload: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) { value = ['block', yielded([value])] }
+        for (let depth = 0; depth < 20_000; depth += 1) { value = ['block', yielded([value])] }
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const source = body(['return', owner, 9], [['loop', {
             target, parameters: [], initial: [], results: [id()], body: body(['break', target, [value]]),
@@ -1320,13 +1320,13 @@ export const proof = /** @type {const} */ ({
         const statement = result.statements[0]
         assert(statement[0] === 'loop')
         let current = statement[1].body
-        for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
+        for (let depth = 0; depth < 20_001; depth += 1) { current = blockOf(current.statements[0]) }
         assertStructurallySame(current.exit, ['return', owner, 7])
     },
     deepLoopEntries: () => {
         /** @type {Value} */
         let value = ['block', returned(7)]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
             const parameter = id(), result = id()
             value = ['block', yielded([ref(result)], [['loop', {
@@ -1335,7 +1335,7 @@ export const proof = /** @type {const} */ ({
             }]])]
         }
         let current = liftReturns(returned(value), owner)
-        for (let depth = 0; depth < 20_001; ++depth) { current = blockOf(current.statements[0]) }
+        for (let depth = 0; depth < 20_001; depth += 1) { current = blockOf(current.statements[0]) }
         assertStructurallySame(current.exit, ['return', owner, 7])
     },
     throw: {

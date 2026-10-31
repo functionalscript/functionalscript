@@ -285,7 +285,7 @@ export const proof = {
         shortCircuits: () => {
             /** @type {LockMap} */
             let lock = { leaf: h1 }
-            for (let i = 0; i < 100_000; i++) { lock = { scope: lock } }
+            for (let i = 0; i < 100_000; i += 1) { lock = { scope: lock } }
             const r = checkReferences({ ...validRevisionOf({}), parents: ['not a hash!'], lock })
             assert(r[0] === 'error', ['expected error', r])
             assertEq(r[1], 'parent is not a valid hash: not a hash!')

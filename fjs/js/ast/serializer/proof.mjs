@@ -180,11 +180,11 @@ export const proof = {
         assertEq(repeated[0], repeated[1])
         /** @type {PreparedFunction} */
         let nested = { ...fn, parameters: [], rest: null, captures: [], body: { statements: [], exit: ['return', target, 7] } }
-        for (let depth = 0; depth < 27; ++depth) {
+        for (let depth = 0; depth < 27; depth += 1) {
             nested = { ...fn, parameters: [], rest: null, captures: [{ binding: id(depth + 10), value: 0 }], body: { statements: [], exit: ['return', target, ['function', nested]] } }
         }
         let result = compile(nested)
-        for (let depth = 0; depth < 27; ++depth) { result = result() }
+        for (let depth = 0; depth < 27; depth += 1) { result = result() }
         assertEq(result(), 7)
     },
     physicalInstructions: () => {

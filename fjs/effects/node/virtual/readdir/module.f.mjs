@@ -61,7 +61,7 @@ export const _orderDirents = (entries, parentComponents) => entries.toSorted((a,
     const right = parentComponents(b)
     const depth = left.length - right.length
     if (depth !== 0) { return depth }
-    for (let i = 0; i < left.length; i++) {
+    for (let i = 0; i < left.length; i += 1) {
         const difference = _compareNames(left[i], right[i])
         if (difference !== 0) { return difference }
     }

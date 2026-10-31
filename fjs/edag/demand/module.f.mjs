@@ -83,7 +83,7 @@ const establish = (available, values) => {
 const demandsFrom = (exp, required, index, available, selected) => {
     /** @type {_Work | null} */
     let pending = { first: [exp], tail: null }
-    while (index < required.length && known(required[index])(available)) { ++index }
+    while (index < required.length && known(required[index])(available)) { index += 1 }
     if (index === required.length) { return true }
     while (pending !== null) {
         const current = /** @type {_Work} */ (pending)
@@ -93,7 +93,7 @@ const demandsFrom = (exp, required, index, available, selected) => {
         const node = first[0]
         if (Object.is(node, required[index])) {
             available = establish(available, [node])
-            while (index < required.length && known(required[index])(available)) { ++index }
+            while (index < required.length && known(required[index])(available)) { index += 1 }
             if (index === required.length) { return true }
         } else if (!known(node)(available) && node instanceof Array) {
             pending = prepend(prefix(node, selected), pending)
@@ -137,7 +137,7 @@ export const requiredPrefixLength = (exp, required, established = [], selected =
     let available = establish(establish(empty, [...established, ...selected.map(([test]) => test)]), required.slice(0, index))
     while (!demandsFrom(exp, required, index, available, selected)) {
         available = establish(available, [required[index]])
-        ++index
+        index += 1
     }
     return index
 }
