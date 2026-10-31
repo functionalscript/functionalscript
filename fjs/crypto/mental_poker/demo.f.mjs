@@ -132,7 +132,7 @@ export const transition = (state, event) => {
     if (event.kind === 'start') { return state }
     if (event.kind === 'input') {
         const { name, value } = event
-        if (name === 'view' || name === 'cube') { return { ...state, [name]: value } }
+        if (name === 'view') { return { ...state, view: value } }
         return fields.some(f => f === name) ? restart({ ...state, [name]: value }) : state
     }
     if (event.name === 'reset') { return restart(state) }
@@ -223,75 +223,6 @@ const table = (view, pockets, board) => [
         ...Array.from({ length: streetsBefore(streets.length) - board.length }, () => cardWithLocks('🂠', 0b111)).flat()],
 ]
 
-/** Each node of the lock cube: its locks as a bit set, and where it is drawn. */
-const cubeNodes = /** @type {const} */ ([
-    [0b111, 130, 20],
-    [0b011, 45, 100], [0b101, 130, 100], [0b110, 215, 100],
-    [0b001, 45, 180], [0b010, 130, 180], [0b100, 215, 180],
-    [0b000, 130, 260],
-])
-
-/**
- * One card's walk down the lock cube: every set of locks a card can hold is
- * a node, and an edge removes one player's lock. A shuffled card starts at
- * the top, under every lock. A pocket card is walked down by the other
- * players to its owner's lock alone, and the owner takes the last step in
- * private, dashed; a table card is walked to the bottom by everyone. Locks
- * commute, so every path down reaches the same card.
- * @type {(view: string, owner: number | null, card: number | null) => Element}
- */
-const lockCube = (view, owner, card) => {
-    const w = 54
-    const h = 18
-    const all = [0, 1, 2]
-    /** @type {(locks: number) => readonly number[]} */
-    const held = locks => all.filter(p => (locks & 1 << p) !== 0)
-    /** @type {(locks: number) => readonly [number, number]} */
-    const at = locks => {
-        const [, x, y] = assertNotNullish(cubeNodes.find(([l]) => l === locks))
-        return [x, y]
-    }
-    const order = owner === null ? all : [...all.filter(p => p !== owner), owner]
-    const path = order.reduce((locks, p) => [...locks, locks[locks.length - 1] & ~(1 << p)], [0b111])
-    const visible = card !== null && (owner === null || view === 'Showdown' || view === players[owner])
-    /** @type {(from: number, p: number, step: { readonly 'data-mp-step'?: string }) => Element} */
-    const edge = (from, p, step) => {
-        const [x0, y0] = at(from)
-        const [x1, y1] = at(from & ~(1 << p))
-        return ['path', { d: `M${x0} ${y0 + h / 2}L${x1} ${y1 - h / 2}`, 'data-mp-edge': String(p), ...step }]
-    }
-    return ['svg', { viewBox: '0 0 260 280', role: 'img', 'aria-label': `Locks removed by ${order.map(p => players[p]).join(', then ')}` },
-        ...cubeNodes.flatMap(([from]) => held(from).map(p => edge(from, p, {}))),
-        ...order.map((p, i) => edge(path[i], p, { 'data-mp-step': owner === p ? 'private' : 'public' })),
-        ...cubeNodes.flatMap(/** @returns {readonly Element[]} */ ([locks, x, y]) => {
-            const on = held(locks)
-            const onPath = path.some(l => l === locks)
-            return [
-                ...on.map(/** @returns {Element} */ (p, k) =>
-                    ['rect', { x: String(x - w / 2 + k * w / on.length), y: String(y - h / 2), width: String(w / on.length), height: String(h), 'data-mp-lock': String(p), ...(onPath ? {} : { 'data-mp-faint': '' }) }]),
-                ['rect', { x: String(x - w / 2), y: String(y - h / 2), width: String(w), height: String(h), 'data-mp-node': onPath ? 'path' : '' }],
-                ['text', { x: String(x), y: String(y + 4), 'text-anchor': 'middle', 'data-mp-label': locks === 0 ? 'face' : 'locks' },
-                    locks === 0 ? (visible ? cardName(card) : '🂠') : on.map(p => players[p][0]).join('')],
-            ]
-        }),
-    ]
-}
-
-/** The lock cube for one card of each player and one of the table.
- * @type {(view: string, pockets: readonly Pocket[], board: readonly number[]) => Element}
- */
-const cubes = (view, pockets, board) => ['div', { 'data-mp-cube': '' },
-    ...players.map(/** @returns {Element} */ (name, p) =>
-        ['figure', lockCube(view, p, pockets[p * pocketCards].card), ['figcaption', `${name}'s pocket card`]]),
-    ['figure', lockCube(view, null, board[0] ?? null), ['figcaption', 'A table card']],
-]
-
-/** A checkbox: on while its value is not empty.
- * @type {(name: string, label: string, value: string) => Element}
- */
-const checkbox = (name, label, value) => ['p', ['label', { for: name },
-    ['input', { type: 'checkbox', id: name, name, ...(value === '' ? {} : { checked: '' }) }], ` ${label}`]]
-
 /** The steps taken so far and the button for the next one.
  * @type {(state: DemoState, seeds: readonly bigint[]) => readonly Element[]}
  */
@@ -305,8 +236,6 @@ const game = (state, seeds) => {
         ...deckRows(state.view, seeds, state.decks.length),
         ...(state.pockets === null ? [] : [
             ...table(state.view, state.pockets, state.board),
-            checkbox('cube', 'Show the lock cube', state.cube),
-            ...(state.cube === '' ? [] : [cubes(state.view, state.pockets, state.board)]),
         ]),
     ]
 }
@@ -318,7 +247,6 @@ const definition = {
         bob: 'b0b', bobSeed: '5eed2',
         carol: 'ca801', carolSeed: '5eed3',
         view: 'Table',
-        cube: '',
         decks: [],
         pockets: null,
         board: [],
@@ -341,4 +269,4 @@ const definition = {
     },
 }
 
-export const demo = withInputs(definition, [...fields, 'view', 'cube'], { view: [...views], cube: ['', 'on'] })
+export const demo = withInputs(definition, [...fields, 'view'], { view: [...views] })

@@ -1036,30 +1036,14 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-demo-click][aria-disabled="true"], [data-demo-drag][aria-disabled="true"] { pointer-events: none; cursor: default }
 @media (max-width: 760px) { [data-secp-layout] { grid-template-columns: minmax(0, 1fr) } }
 /* Mental poker draws each player's lock in the player's own colour, in both
-   themes: Alice red, Bob blue, Carol green. A removed lock is the page's
-   background. The lock cube faints every node and edge off the card's path,
-   and dashes the step its owner takes in private. */
+   themes: Alice red, Bob green, Carol blue, so a box reads RGB. A removed
+   lock is the page's background. */
 [data-mp-lock-box] { vertical-align: middle }
 [data-mp-lock] { stroke: currentColor; stroke-width: .75 }
 [data-mp-lock="off"] { fill: var(--bg) }
 [data-mp-lock="0"] { fill: #d1495b }
-[data-mp-lock="1"] { fill: #2e86ab }
-[data-mp-lock="2"] { fill: #3a9d23 }
-[data-mp-cube] { display: flex; flex-wrap: wrap; gap: 1rem }
-[data-mp-cube] figure { margin: 0; width: 13rem; text-align: center }
-[data-mp-cube] svg { display: block; width: 100%; height: auto }
-[data-mp-cube] [data-mp-lock] { stroke: none }
-[data-mp-cube] [data-mp-faint] { fill-opacity: .3 }
-[data-mp-node] { fill: none; stroke: currentColor; stroke-width: .5 }
-[data-mp-node="path"] { stroke-width: 2 }
-[data-mp-edge] { fill: none; stroke-width: 1; stroke-opacity: .35 }
-[data-mp-edge="0"] { stroke: #d1495b }
-[data-mp-edge="1"] { stroke: #2e86ab }
-[data-mp-edge="2"] { stroke: #3a9d23 }
-[data-mp-step] { stroke-width: 3; stroke-opacity: 1 }
-[data-mp-step="private"] { stroke-dasharray: 5 3 }
-[data-mp-label] { font-size: 11px; fill: currentColor }
-[data-mp-label="locks"] { fill: #fff }
+[data-mp-lock="1"] { fill: #3a9d23 }
+[data-mp-lock="2"] { fill: #2e86ab }
 
 [${signSchemeMarker}] { border: 1px solid var(--border); border-radius: 12px; margin: 1rem 0 2rem; padding: 1rem; font-size: .875rem }
 [${signSchemeMarker}] svg { display: block; width: 2.5rem; height: 2.5rem; flex: none; margin: .5rem auto }

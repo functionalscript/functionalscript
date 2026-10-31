@@ -42,8 +42,7 @@ export type MentalPoker = {
 
 /**
  * The demo's state: each player's secret and shuffle seed as typed, in
- * hexadecimal, the point of view the table is drawn from, whether the lock
- * cube is shown (`''` when not), and the decks so
+ * hexadecimal, the point of view the table is drawn from, and the decks so
  * far — the plain deck, then the deck after each player's turn — then the
  * pocket cards, two for each player in turn, once dealt, and the table's
  * cards opened so far.
@@ -56,7 +55,6 @@ export type DemoState = {
     readonly carol: string
     readonly carolSeed: string
     readonly view: string
-    readonly cube: string
     readonly decks: readonly Deck[]
     readonly pockets: Nullable<readonly Pocket[]>
     readonly board: readonly number[]
