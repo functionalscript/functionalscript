@@ -82,12 +82,13 @@ const seam = h => {
  */
 const heldThenFull = (held, full) => h => {
     const compute = computeSync(h)
-    assertEq(uint(h.end(stateOf(h.update(stateOf(h.update(stateOf(h.init), held)), full)))[2]), uint(compute([held, full])))
+    const [, , digest] = h.end(stateOf(h.update(stateOf(h.update(stateOf(h.init), held)), full)))
+    assertEq(uint(digest), uint(compute([held, full])))
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
 const checkEmpty = ({ init, end, hashLength }) => x => {
-    const result = end(stateOf(init))[2]
+    const [, , result] = end(stateOf(init))
     assertEq(result, vec(hashLength)(x), [result, x])
 }
 
@@ -113,7 +114,10 @@ export const proof = {
     },
     genericResult: () => {
         /** @type {Hash<State, { readonly digest: Vec }>} */
-        const hash = { ...sha256, end: state => doneStep({ digest: sha256.end(state)[2] }) }
+        const hash = { ...sha256, end: state => {
+            const [, , digest] = sha256.end(state)
+            return doneStep({ digest })
+        } }
         const result = computeSync(hash)([utf8('abc')])
         assertEq(uint(result.digest), uint(computeSync(sha256)([utf8('abc')])))
     },
@@ -254,7 +258,7 @@ export const proof = {
             assertEq(uint(s), 0x68_656C_6C6F_2077_6F72_6C64n, s)
             let state = stateOf(sha256.init)
             state = stateOf(sha256.update(state, s))
-            const h = sha256.end(state)[2]
+            const [, , h] = sha256.end(state)
             assertEq(uint(h), 0xb94d_27b9_934d_3e08_a52e_52d7_da7d_abfa_c484_efe3_7a53_80ee_9088_f7ac_e2ef_cde9n, h)
         }
     ],
@@ -265,14 +269,15 @@ export const proof = {
                 const r = times(8n)
                 let state = stateOf(sha256.init)
                 state = stateOf(sha256.update(state, r))
-                const h = uint(sha256.end(state)[2])
+                const [, , digest] = sha256.end(state)
+                const h = uint(digest)
                 assertEq(h >> 224n, 0x8a83_665fn, h)
             },
             16: () => {
                 const r = times(16n)
                 let state = stateOf(sha256.init)
                 state = stateOf(sha256.update(state, r))
-                const h = sha256.end(state)[2]
+                const [, , h] = sha256.end(state)
                 assertEq(uint(h), 0x3138_bb9b_c78d_f27c_473e_cfd1_410f_7bd4_5eba_c1f5_9cf3_ff9c_fe4d_b77a_ab7a_edd3n, h)
             }
         }
@@ -313,7 +318,7 @@ export const proof = {
         const big = repeat(100_000n)(vec(8n)(0xffn))
         let state = stateOf(sha256.init)
         state = stateOf(sha256.update(state, big))
-        const h = sha256.end(state)[2]
+        const [, , h] = sha256.end(state)
         const x = 0xbe87_f6db_e42c_df68_2276_fbec_ab36_36fb_fcaa_008c_f454_d635_dd77_872b_50d9_40aan
         assertEq(uint(h), x, h)
     },

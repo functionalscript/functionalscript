@@ -130,16 +130,26 @@ export const encode =
         }
 
         /** @type {Encode<S>['update']} */
-        const update = (state, bit) => nextStep(updateWithHeight(state, bit)[1])
+        const update = (state, bit) => {
+            const [, next] = updateWithHeight(state, bit)
+            return nextStep(next)
+        }
 
         /** @type {Encode<S>['end']} */
-        const end = state => doneStep(pad(state, discardHeight, null)[1])
+        const end = state => {
+            const [, root] = pad(state, discardHeight, null)
+            return doneStep(root)
+        }
 
-        return storage => ({
-            init: nextStep(/** @type {EncodeState<S>} */ ([emptyPipelineState, storage, []])),
-            update,
-            end,
-            updateWithHeight,
-            endWithHeights,
-        })
+        return storage => {
+            /** @type {EncodeState<S>} */
+            const initial = [emptyPipelineState, storage, []]
+            return {
+                init: nextStep(initial),
+                update,
+                end,
+                updateWithHeight,
+                endWithHeights,
+            }
+        }
     }

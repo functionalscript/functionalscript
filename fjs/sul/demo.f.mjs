@@ -65,7 +65,7 @@ import { error, ok } from '../types/result/module.f.js'
 /** The most input bits the demo draws: 128 bytes. */
 export const maxBits = 0x400
 
-const { init, updateWithHeight, endWithHeights } = encode(() => null)(null)
+const { init: [, , initialState], updateWithHeight, endWithHeights } = encode(() => null)(null)
 
 /**
  * What the encoder says about `bits`, a string of `0` and `1`: the padding
@@ -75,7 +75,7 @@ const { init, updateWithHeight, endWithHeights } = encode(() => null)(null)
  */
 export const stripes = bits => {
     /** @type {readonly [readonly number[], EncodeState<null>]} */
-    const start = [[], init[2]]
+    const start = [[], initialState]
     const [heights, state] = [...bits].reduce(([hs, s], b) => {
         const [h, next] = updateWithHeight(s, BigInt(b))
         return /** @type {const} */ ([[...hs, h], next])

@@ -134,7 +134,7 @@ const lifecycle = /** @type {const} */ ({
             end: state => String(state),
         })
         assertStructurallySame(machine.init, ['next', [], 0])
-        const state = machine.update(machine.init[2], 3)[2]
+        const [, , state] = machine.update(machine.init[2], 3)
         assertStructurallySame(machine.end(state), ['done', [], '3'])
     },
     scan: () => {
