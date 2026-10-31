@@ -186,9 +186,12 @@ const cardWithLocks = (face, locks) => [' ', ['code', face], ' ', lockBox(locks)
 /**
  * The deck after each stage, top {@link shownCards} cards, as `view` sees
  * it: every card with the locks on it, and its face where the point of view
- * knows it — the plain deck to everyone, a turn's output to the player who
- * shuffled it. `stages` counts the plain deck,
- * so it is at least 1.
+ * knows it. Everyone knows the plain deck. A player knows the order their
+ * turn made only if they knew the order they were handed: Alice, who
+ * shuffles the plain deck, knows hers; Bob is handed Alice's deck face down
+ * under her lock, so he knows how he moved the cards, but not which card is
+ * where, and so does Carol. `stages` counts the plain deck, so it is at
+ * least 1.
  * @type {(view: string, seeds: readonly bigint[], stages: number) => readonly Element[]}
  */
 const deckRows = (view, seeds, stages) => {
@@ -196,13 +199,12 @@ const deckRows = (view, seeds, stages) => {
     const orders = seeds.slice(0, stages - 1).reduce(
         (list, seed) => [...list, permutation(seed).map(k => list[list.length - 1][k])],
         [Array.from({ length: deckSize }, (_, i) => i)])
-    return orders.flatMap((order, i) => {
-        const known = i === 0 || view === players[i - 1]
-        return [
-            caption(i === 0 ? `Plain deck, top ${shownCards} of ${deckSize}:` : `After ${players[i - 1]} locked and shuffled:`),
-            ['p', ...order.slice(0, shownCards).flatMap(card => cardWithLocks(known ? cardName(card) : '🂠', (1 << i) - 1))],
-        ]
-    })
+    /** @type {(i: number) => boolean} */
+    const known = i => i === 0 || view === players[i - 1] && known(i - 1)
+    return orders.flatMap((order, i) => [
+        caption(i === 0 ? `Plain deck, top ${shownCards} of ${deckSize}:` : `After ${players[i - 1]} locked and shuffled:`),
+        ['p', ...order.slice(0, shownCards).flatMap(card => cardWithLocks(known(i) ? cardName(card) : '🂠', (1 << i) - 1))],
+    ])
 }
 
 /** The cards dealt so far as `view` sees them, the rest face down. Each

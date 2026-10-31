@@ -127,7 +127,12 @@ export const proof = {
             // Only Alice knows the order her turn made.
             assert(text(afterAlice).includes(shown('🂠', 'locked by Alice')))
             assert(!text(input(afterAlice, 'view', 'Alice')).includes(shown('🂠', 'locked by Alice')))
-            const shuffled = click(click(afterAlice, 'next'), 'next')
+            // Bob is handed Alice's deck face down: he knows how he moved the
+            // cards, not which card is where.
+            const afterBob = click(afterAlice, 'next')
+            assertEq(text(input(afterBob, 'view', 'Bob')).split(shown('🂠', 'locked by Alice, Bob')).length - 1, 8)
+            assert(text(input(afterBob, 'view', 'Alice')).includes(shown('🂠', 'locked by Alice, Bob')))
+            const shuffled = click(afterBob, 'next')
             assertEq(shuffled.decks.length, 4)
             assert(text(shuffled).includes(shown('🂠', 'locked by Alice, Bob, Carol')))
             assert(text(shuffled).includes('Deal pocket cards'))
