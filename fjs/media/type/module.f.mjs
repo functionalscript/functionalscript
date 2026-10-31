@@ -257,6 +257,8 @@ const end = s => {
  */
 export const detector = fromStateFold({ init: initial, update, end })
 
+const detectChunks = run(detector)
+
 /**
  * Classifies a whole `Vec` with the same state machine as {@link detectStream}.
  * The single-buffer counterpart for callers that already hold the bytes (the
@@ -266,7 +268,7 @@ export const detector = fromStateFold({ init: initial, update, end })
  *
  * @type {(bytes: Vec) => DetectMeta}
  */
-export const detectVec = bytes => run(detector)([bytes])
+export const detectVec = bytes => detectChunks([bytes])
 
 /**
  * Runs {@link detector} over a CAS read stream and finalizes it at EOF,
@@ -274,11 +276,9 @@ export const detectVec = bytes => run(detector)([bytes])
  * fails carries its failure out as this one's, through `step` rather than
  * through a case in the loop.
  *
- * @template {Operation} O
- * @param {EffectList<O, Vec, IoChannel>} stream
- * @returns {Effect<O, DetectMeta, IoChannel>}
+ * @type {<O extends Operation>(stream: EffectList<O, Vec, IoChannel>) => Effect<O, DetectMeta, IoChannel>}
  */
-export const detectStream = stream => runStream(detector)(stream)
+export const detectStream = runStream(detector)
 
 // ── Extension table ───────────────────────────────────────────────────────────────
 //

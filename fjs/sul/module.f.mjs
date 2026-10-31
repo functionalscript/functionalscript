@@ -31,13 +31,29 @@ const withLevel = ([l1, l2, l3], i, state) =>
 /** @type {(tail: List<number>, first: number) => List<number>} */
 const prepend = (tail, first) => ({ first, tail })
 
+/**
+ * Feeds `symbol` to literal level `i` and on up while each level
+ * closes a word: how many closed one, and L3's output if L3 did.
+ *
+ * @type {(symbol: bigint, ps: PipelineState, i: number) => readonly [number, bigint | undefined, PipelineState]}
+ */
+const literalFrom = (symbol, ps, i) => {
+    if (i === levels.length) { return [i, symbol, ps] }
+    const [out, next] = levels[i].encode(symbol, ps[i])
+    const nextPs = withLevel(ps, i, next)
+    return out === undefined ? [i, undefined, nextPs] : literalFrom(out, nextPs, i + 1)
+}
+
+/** @type {() => null} */
+const discardHeight = () => null
+
 export const encode =
     /**
      * @template S
      * @param {Add<S>} add
      * @returns {(storage: S) => Encode<S>}
      */
-    add => storage => {
+    add => {
         const step = hashEncode(add)
 
         /** @typedef {readonly [number, Id | undefined, S, readonly InternalState<Id>[]]} _CascadeResult */
@@ -64,19 +80,6 @@ export const encode =
             if (out === undefined) { return [0, undefined, newStorage, newStacks] }
             const [height, finalId, s, st] = cascadeFrom(out, newStorage, newStacks, index + 1)
             return [height + 1, finalId, s, st]
-        }
-
-        /**
-         * Feeds `symbol` to literal level `i` and on up while each level
-         * closes a word: how many closed one, and L3's output if L3 did.
-         *
-         * @type {(symbol: bigint, ps: PipelineState, i: number) => readonly [number, bigint | undefined, PipelineState]}
-         */
-        const literalFrom = (symbol, ps, i) => {
-            if (i === levels.length) { return [i, symbol, ps] }
-            const [out, next] = levels[i].encode(symbol, ps[i])
-            const nextPs = withLevel(ps, i, next)
-            return out === undefined ? [i, undefined, nextPs] : literalFrom(out, nextPs, i + 1)
         }
 
         /**
@@ -126,11 +129,17 @@ export const encode =
             return [toArray(reversed).toReversed(), root]
         }
 
-        return {
+        /** @type {Encode<S>['update']} */
+        const update = (state, bit) => nextStep(updateWithHeight(state, bit)[1])
+
+        /** @type {Encode<S>['end']} */
+        const end = state => doneStep(pad(state, discardHeight, null)[1])
+
+        return storage => ({
             init: nextStep(/** @type {EncodeState<S>} */ ([emptyPipelineState, storage, []])),
-            update: (state, bit) => nextStep(updateWithHeight(state, bit)[1]),
-            end: state => doneStep(pad(state, () => null, null)[1]),
+            update,
+            end,
             updateWithHeight,
             endWithHeights,
-        }
+        })
     }
