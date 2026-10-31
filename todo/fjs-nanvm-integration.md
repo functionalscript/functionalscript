@@ -144,43 +144,61 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `c095a8859`, the weighted materialization step of
-[#3495](https://github.com/functionalscript/functionalscript/pull/3495), stacked
-on [#3494](https://github.com/functionalscript/functionalscript/pull/3494).
-`list/alt.toArray` now feeds whole array chunks and singleton cons chunks to
-`monoid.fold`, weighted by array length. Its private stack is gone; a fresh
-identity per materialization preserves lone-array identity and empty-result
-freshness. Moving `fold` below `accumulator` removes the shared monoid's final
-forward reference without changing its algorithm.
+Measured on `4fbc559b1`, the leaf conversion updates in
+[#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
+on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
+`path` wraps its computed numeric keys with `Number(...)`, in
+`endsInSeparator` and `isProperPrefix`, preserving their numeric values.
+The whole module now compiles and is renamed to `.f.js`, with its references
+updated.
+`website/demo/mirror` now uses the compiled binary `min` helper in place of
+both `Math.min` calls and replaces both `Array.from` calls with `generate`.
+Its computed numeric keys in `commonPrefix`, `commonSuffix` and `nodeOf` are
+wrapped with `Number(...)`. The whole module now compiles and is renamed to
+`.f.js`, with its runtime import, proof import and README link updated.
+`js/ast/sugar/pattern` renames its policy callback from `name` to `bindingName`,
+including the policy type, parser adapter and proof policy, and replaces its
+`Array.from` ID construction with `generate(count, index => ({ index }))`.
+The whole module now compiles and is renamed to `.f.js`, with its references
+updated. These three conversions expose no additional leaves.
+`website/demo/graph` replaces its numeric loop update `round++` with
+`round += 1`; its next refused construct is `new Map(bands)` in `bandsOf`.
+`types/bigint.log2` moves the fallback return after its returning guard,
+removing the redundant `else`, and `partialFactorial` replaces prefix `--b`
+with `b -= 1n`. Its next refused construct is `for...of` in `combination`.
+`types/prime_field` renames the public `reduce` property to `mod`, updating
+its type, proofs, VDF caller and secp educational demo. The field module and
+its VDF dependent now compile and are renamed to `.f.js`, with their references
+updated. The exposed `crypto/secp` reads its own `sub` callback with `entry`
+and `assertNotNullish`, preserving the public field API. Its whole module now
+compiles and is renamed to `.f.js`, with its references updated. This exposes
+no further leaves.
+`types/sorted_list` moves `merge` below its reducer and tail helpers, removing
+its forward references. Its next refused construct is the computed numeric key
+`array[mid]` in `find`.
 
-`common/monoid` and `types/list/alt` are now `.f.js`. Four dependents also
-compile unchanged and are renamed: `types/string`, `types/ordered_map`,
-`types/string_set` and `types/btree/testlib`. The compiler-compatible population
-is 169 authored `.f.js` files; 437 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 175 authored `.f.js` files;
+431 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fifteen
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
 | --- | --- | ---: |
 | `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
 | `js/ast` | `for...of` | 2 |
-| `js/ast/sugar/pattern` | `policy.name(...)` (`prohibited member function`) | 0 |
 | `media/wasm/wat` | `new Map` | 0 |
-| `path` | Computed key `dir[dir.length - 1]` | 0 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
-| `types/bigint` | `else` after a returning `if` | 1 |
+| `types/bigint` | `for...of` in `combination` | 1 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
 | `types/number` | `for...of` | 4 |
-| `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
-| `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
-| `website/demo/graph` | Postfix `round++` in the loop update | 1 |
-| `website/demo/mirror` | `Math.min` | 0 |
+| `types/sorted_list` | Computed numeric key `array[mid]` in `find` | 1 |
+| `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
 | `zlib/window` | `for...of` | 0 |
 
-The previous six-leaf measurement is retained in the
-[#3494 audit](https://github.com/functionalscript/functionalscript/blob/1e9e7b55f2172f26b3546fd9a87dd639d3948bed/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The previous twelve-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/51fe13b3a6b1b22b1ddf61e9f5505aabf0839f64/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,

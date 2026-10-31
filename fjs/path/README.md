@@ -14,7 +14,7 @@ with `/`; the string helpers `join`, `under` and `relativize` only splice
 text, so a `\` already in their input stays.
 
 ```js
-import { normalize, parse, root, escapes } from './module.f.mjs'
+import { normalize, parse, root, escapes } from './module.f.js'
 
 normalize('/a/./b/../c')  // '/a/c'
 normalize('/../x')        // '/x': nothing above the root

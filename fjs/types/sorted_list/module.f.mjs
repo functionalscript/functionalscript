@@ -45,14 +45,6 @@ export const genericMerge =
         return f
     }
 
-export const merge =
-    /**
-     * @template T
-     * @param {Cmp<T>} cmp
-     * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
-     */
-    cmp => genericMerge({ reduceOp: cmpReduce(cmp), tailReduce: keepTail })(null)
-
 /**
  * The stateless reducer `merge` and `intersect` share: compare the two heads
  * and emit whichever value `select` picks for the comparison's sign.
@@ -90,6 +82,14 @@ const keepTail = () => identity
 const dropTail = () => () => null
 
 const intersectReduce = cmpReduceBy((sign, a) => sign === 0 ? a : null)
+
+export const merge =
+    /**
+     * @template T
+     * @param {Cmp<T>} cmp
+     * @returns {(a: SortedList<T>) => (b: SortedList<T>) => SortedList<T>}
+     */
+    cmp => genericMerge({ reduceOp: cmpReduce(cmp), tailReduce: keepTail })(null)
 
 export const intersect =
     /**

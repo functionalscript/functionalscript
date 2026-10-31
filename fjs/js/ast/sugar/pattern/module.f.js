@@ -16,6 +16,7 @@
  */
 
 import { error, ok } from '../../../../types/result/module.f.js'
+import { generate } from '../../../../types/array/generate/module.f.js'
 import { reverse } from '../../../../types/list/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { at, empty, setReplace } from '../../../../types/ordered_map/module.f.js'
@@ -73,7 +74,7 @@ export const planPattern = policy => (target, namespace) => {
         switch (current[0]) {
             case 'invalid': { return error(policy.refused('invalid', current[1])) }
             case 'name': {
-                const found = policy.name(current[1])
+                const found = policy.bindingName(current[1])
                 if (found[0] === 'error') { return found }
                 const word = found[1]
                 if (at(word)(seen) !== null) { return error(policy.refused('duplicate', current[1])) }
@@ -100,5 +101,5 @@ export const planPattern = policy => (target, namespace) => {
             }
         }
     }
-    return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)), ids: Array.from({ length: count }, (_, index) => ({ index })), metadata: target[1].metadata })
+    return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)), ids: generate(count, index => ({ index })), metadata: target[1].metadata })
 }

@@ -35,19 +35,21 @@
  * @import { Scan } from '../../../types/function/operator/types.ts'
  */
 
+import { generate } from '../../../types/array/generate/module.f.js'
 import { scan } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { min } from '../../../types/number/min/module.f.js'
 
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {
-    const max = Math.min(a.length, b.length)
-    const first = Array.from({ length: max }).findIndex((_, i) => a[i] !== b[i])
+    const max = min(a.length, b.length)
+    const first = generate(max, () => undefined).findIndex((_, i) => a[Number(i)] !== b[Number(i)])
     return first === -1 ? max : first
 }
 
 /** @type {(a: string, b: string, max: number) => number} */
 const commonSuffix = (a, b, max) => {
-    const first = Array.from({ length: max }).findIndex((_, i) => a[a.length - 1 - i] !== b[b.length - 1 - i])
+    const first = generate(max, () => undefined).findIndex((_, i) => a[Number(a.length - 1 - i)] !== b[Number(b.length - 1 - i)])
     return first === -1 ? max : first
 }
 
@@ -67,7 +69,7 @@ const startsFrom = at => length => [at, startsFrom(at + length)]
  */
 const nodeOf = (lengths, at, removed) => {
     const found = toArray(scan(startsFrom(0))(lengths))
-        .map((start, index) => ({ index, start, end: start + lengths[index] }))
+        .map((start, index) => ({ index, start, end: start + lengths[Number(index)] }))
         .find(({ start, end }) => start <= at && at + removed <= end)
     return found === undefined ? null : { index: found.index, start: found.start }
 }
@@ -81,7 +83,7 @@ const nodeOf = (lengths, at, removed) => {
 export const editOf = ({ was, now, caret, lengths }) => {
     const afterCaret = now.length - caret
     const caretIsAfterTheEdit = caret >= 0 && afterCaret >= 0 && was.endsWith(now.slice(caret))
-    const suffix = caretIsAfterTheEdit ? afterCaret : commonSuffix(was, now, Math.min(was.length, now.length))
+    const suffix = caretIsAfterTheEdit ? afterCaret : commonSuffix(was, now, min(was.length, now.length))
     const at = commonPrefix(was.slice(0, was.length - suffix), now.slice(0, now.length - suffix))
     const removed = was.length - at - suffix
     const node = nodeOf(lengths, at, removed)
