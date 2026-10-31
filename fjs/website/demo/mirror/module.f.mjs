@@ -37,10 +37,11 @@
 
 import { scan } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { min } from '../../../types/number/min/module.f.js'
 
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {
-    const max = Math.min(a.length, b.length)
+    const max = min(a.length, b.length)
     const first = Array.from({ length: max }).findIndex((_, i) => a[i] !== b[i])
     return first === -1 ? max : first
 }
@@ -81,7 +82,7 @@ const nodeOf = (lengths, at, removed) => {
 export const editOf = ({ was, now, caret, lengths }) => {
     const afterCaret = now.length - caret
     const caretIsAfterTheEdit = caret >= 0 && afterCaret >= 0 && was.endsWith(now.slice(caret))
-    const suffix = caretIsAfterTheEdit ? afterCaret : commonSuffix(was, now, Math.min(was.length, now.length))
+    const suffix = caretIsAfterTheEdit ? afterCaret : commonSuffix(was, now, min(was.length, now.length))
     const at = commonPrefix(was.slice(0, was.length - suffix), now.slice(0, now.length - suffix))
     const removed = was.length - at - suffix
     const node = nodeOf(lengths, at, removed)
