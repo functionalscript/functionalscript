@@ -1,5 +1,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.mjs'
 import { linkedHeading, permalink, reservedIds } from './module.f.js'
 
 export const proof = /** @type {const} */ ({
@@ -8,8 +9,8 @@ export const proof = /** @type {const} */ ({
         const html = htmlToString(permalink('ast', 'AST'))
         assert(html.includes('<a href="#ast" aria-label="Link to AST"><svg '))
         assert(html.includes('hidden="" data-copy-fragment="ast" aria-label="Copy link to AST" title="Copy link"><svg '))
-        assertEq(html.split('<svg ').length - 1, 2)
-        assertEq(html.split('aria-hidden="true"').length - 1, 2)
+        assertEq(occurrences('<svg ')(html), 2)
+        assertEq(occurrences('aria-hidden="true"')(html), 2)
         assert(html.includes('<span data-copy-status="" aria-live="polite"></span>'))
         assert(!html.includes('>Copy link<'))
     },
@@ -17,7 +18,7 @@ export const proof = /** @type {const} */ ({
         const html = htmlToString(permalink('demo', 'Demo', true))
         assert(html.includes('data-copy-demo-section="demo"'))
         assert(html.includes('data-copy-demo=""'))
-        assertEq(html.split('<svg ').length - 1, 3)
+        assertEq(occurrences('<svg ')(html), 3)
         assert(html.includes('<span data-input-link-label="">Copy with inputs</span>'))
         assert(!html.includes('data-input-link-dot'))
         assert(html.includes('aria-label="Copy section link" title="Copy section link"'))
