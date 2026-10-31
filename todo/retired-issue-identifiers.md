@@ -24,8 +24,8 @@ Every cited identifier below has a file:
 |`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
 |`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md` ×1|
 
-**Nine bare citations across six files.** The column
-counts *bare* occurrences only. Six rows have left the table since it was
+**Bare citations remain in every file the table lists.** The
+column counts *bare* occurrences only, and its rows are the total. Six rows have left the table since it was
 filed, resolved when the issues citing them moved:
 `i180-sorted-set-intersect-symmetry` (the citation was dropped from
 `fjs/types/sorted_list/todo/cmp-reduce-factory.md`), `i662` (written in the
