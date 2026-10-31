@@ -10,6 +10,7 @@ import { pureError, pureOk } from './effects/module.f.mjs'
 import { nodeProgramOptions, virtualAt } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
 import { vec8 } from './types/bit_vec/module.f.mjs'
+import { utf8 } from './text/module.f.mjs'
 
 const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>
     virtualAt(root)(main(nodeProgramOptions(args)))
@@ -51,6 +52,14 @@ export const proof = {
         const [state, code] = run({})(['compile', 'input.f.js'])
         assertEq(exitCode(code), 1)
         assert(state.stderr.includes('Requires 2 arguments'), state.stderr)
+    },
+    deps: () => {
+        const [state, code] = run({ 'module.f.mjs': [utf8('export default missing;')] })(['deps'])
+        assertEq(exitCode(code), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 1 parsed, 0 failed, 1 total\n')
+        const [usage, invalid] = run({})(['deps', 'file.f.js'])
+        assertEq(exitCode(invalid), 1)
+        assertEq(usage.stderr, 'Usage: fjs deps\n')
     },
     runModule: () => {
         /** @type {Dir} */

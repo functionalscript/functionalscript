@@ -4,7 +4,7 @@
  * @import { _Load } from './types.ts'
  */
 
-import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, jsonValue, parse } from './module.f.mjs'
+import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJson, _parseModule, _program, _rootSource, _walk, jsonValue, parse, readSource } from './module.f.mjs'
 import { pureError, pureOk } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
@@ -12,12 +12,22 @@ import { partialRun } from '../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
 const source = { id: 'main.f.js', path: 'main.f.js', json: false }
 const imported = { specifier: './dep.f.js', json: false, name: 'default' }
 
 export const proof = {
+    sourceText: () => {
+        // Whole-source reads retain a UTF-8 sequence crossing chunk boundaries.
+        const [, result] = virtualAt({
+            'source.f.mjs': [
+                toVec(new Uint8Array([0xf0, 0x9f])),
+                toVec(new Uint8Array([0x98, 0x80])),
+            ],
+        })(readSource('source.f.mjs'))
+        assertStructurallySame(result, ['ok', '😀'])
+    },
     module: () => {
         const text = 'export default 7;'
         const run = virtualAt({ 'main.f.js': [utf8(text)] })
@@ -86,6 +96,39 @@ export const proof = {
         assertEq(run(_importSources(source)([{ ...imported, specifier: './bad%ZZ' }]))[1][0], 'error')
         assertEq(run(_importSources(source)([{ ...imported, specifier: '../dep.f.js' }]))[1][0], 'ok')
         assertEq(run(_importSources(source)([{ ...imported, specifier: '/dep.f.js' }]))[1][0], 'ok')
+    },
+    walk: () => {
+        /** @type {_Load<readonly unknown[], readonly unknown[], never>} */
+        const load = {
+            json: value => ['json', value],
+            select: (module, name) => name === 'missing' ? undefined : module,
+            module: ({ path }, imports) => ok([path, ...imports]),
+        }
+        const empty = /** @type {const} */ ({ complete: null, stack: null })
+        const run = virtualAt({ 'main.f.js': [utf8('export default 1;')] })
+        const [complete, module] = assertOk(run(_walk(load)(source)(empty))[1])
+        // Repeated imports reuse the module instance and the completed context.
+        const [same, reused] = assertOk(run(_walk(load)(source)(complete))[1])
+        assertEq(same, complete)
+        assertEq(reused, module)
+        // An import attribute is checked even when the module was already loaded.
+        assertStructurallySame(run(_walk(load)({ ...source, json: true })(complete))[1], ['error', {
+            message: 'only a JSON module is imported with { type: "json" }', metadata: null, path: 'main.f.js',
+        }])
+        const [, cyclic] = virtualAt({
+            'main.f.js': [utf8('import self from "./main.f.js"; export default self;')],
+        })(_walk(load)(source)(empty))
+        assertStructurallySame(cyclic, ['error', {
+            message: 'circular dependency', metadata: null, path: 'main.f.js',
+        }])
+        // A missing selection is reported before a later import is attempted.
+        const [, missing] = virtualAt({
+            'main.f.js': [utf8('import { missing } from "./dep.f.js"; import later from "./absent.f.js"; export default missing;')],
+            'dep.f.js': [utf8('export default 1;')],
+        })(_walk(load)(source)(empty))
+        assertStructurallySame(missing, ['error', {
+            message: 'module has no missing export', metadata: null, path: 'dep.f.js',
+        }])
     },
     attributes: () => {
         assertEq(_attributeError(source), null)

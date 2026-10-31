@@ -1,7 +1,7 @@
 ## Module dependency graph CLI command
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -12,8 +12,8 @@ support website visualization and later build-cache integration.
 ### Proposal
 
 Use the generic AST and dependency extraction to build a module dependency
-DAG for FJS and the supported subsets of JavaScript and TypeScript. Parsing a
-module must not require that it can be compiled into EDAG.
+DAG for FJS and the supported subsets of JavaScript and TypeScript. Forming a
+source AST must not require admission or lowering into FAST or EDAG.
 
 Write the graph as `.data.js`. Reject module dependency cycles, including
 cycles permitted by JavaScript and TypeScript, with a clear diagnostic.
@@ -39,15 +39,23 @@ module paths. Replace paths with hashes in both record keys and dependency
 arrays, keeping the same graph shape. The hash definition and migration are
 future work.
 
-The command name, arguments, input selection and output destination remain
-to be designed. Website rendering and build-cache integration are tracked
-separately in the epic.
+The initial command is `fjs deps`, with no arguments. It recursively checks
+source AST formation only for files named exactly `module.f.js` or
+`module.f.mjs` under the caller's directory, preparing coverage checks for
+those modules.
+It reports the files the current tokenizer and syntax parser cannot handle;
+extending the parser is a separate step.
+Arguments, dependency extraction and the graph output destination are later
+steps. Website rendering and build-cache integration are tracked separately
+in the epic.
 
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
+  - [x] Add `fjs deps` to report AST parsing failures for `module.f.js` and
+        `module.f.mjs` files using the current parser.
   - [ ] Ensure a generic AST can be formed for every `.f.mjs` file in the repository,
-        including files the current compiler cannot parse or compile into EDAG.
+        including files the current compiler cannot parse or lower into FAST or EDAG.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
