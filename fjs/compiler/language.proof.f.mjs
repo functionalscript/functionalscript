@@ -455,7 +455,7 @@ export const proof = {
             assertEq(moduleRefused('export default String(...[1]);'), 'input.f.js:1:16 - error: String takes one argument')
             assertEq(moduleRefused('const String = 1; export default 2;'), 'input.f.js:1:7 - error: reserved word')
             assertEq(moduleRefused('export default String;'), 'input.f.js:1:16 - error: reserved word')
-            assertEq(moduleRefused('export default String.fromCharCode(65);'), 'input.f.js:1:16 - error: reserved word')
+            assertEq(moduleRefused('export default String.fromCodePoint(65);'), 'input.f.js:1:16 - error: reserved word')
             assertEq(moduleRefused('export default [1][String(0)];'), 'input.f.js:1:20 - error: computed key is not Number(...)')
             // A property named String is an ordinary own property.
             assertEq(compileSource('export default { String: (x) => x + 1 }.String(2);')('output.json'), '3')

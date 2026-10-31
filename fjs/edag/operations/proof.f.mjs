@@ -53,6 +53,17 @@ const under = (runtime, node) => vm({ ...context, runtime })(node)
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = {
+    fromCharCode: () => {
+        eq(['String.fromCharCode'], ['String.fromCharCode'])
+        eq(['.', ['String.fromCharCode'], 'length'], 1)
+        eq(['String', ['String.fromCharCode']], 'function fromCharCode() { [native code] }')
+        eq(['===', ['String.fromCharCode'], ['String.fromCharCode']], true)
+        eq(['()', ['String.fromCharCode'], []], '')
+        eq(['()', ['String.fromCharCode'], [5, 6]], '\u0005\u0006')
+        eq(['()', ['String.fromCharCode'], [0xd800, 0xdc00, -1, 0x1_0041, 65.9, NaN, Infinity]], '\ud800\udc00\uffffAA\u0000\u0000')
+        eq(['()', ['String.fromCharCode'], [true, null, ['undefined'], '66', ['[]', [67]]]], '\u0001\u0000\u0000BC')
+        failure(['()', ['String.fromCharCode'], [65, 1n]])
+    },
     // `self` is the function being invoked, the same value every read, so
     // a body calls itself through it and compares it to itself as one;
     // outside a function there is none, and the evaluator throws

@@ -479,7 +479,10 @@ const operation = (s, n, result) => {
     const tag = n[0]
     if (isStatic([tag])) {
         if (s.runtime !== null) { return map1(fallible(result))(ok(cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`]))) }
-        if (tag !== 'Object.entries') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag === 'String.fromCharCode') {
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
     }
     if (tag === 'entry' || tag === 'hasEntry') {

@@ -101,7 +101,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
@@ -248,8 +248,8 @@ export const proof = {
         for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
     },
     staticIds: () => {
-        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
-        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
+        assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])
+        assertStructurallySame(staticIds.map(staticText), ['function is() { [native code] }', 'function entries() { [native code] }', 'function fromCharCode() { [native code] }', 'function fromEntries() { [native code] }', 'function isInteger() { [native code] }', 'function isSafeInteger() { [native code] }', 'function isNaN() { [native code] }', 'function isFinite() { [native code] }'])
         assertEq(noStatic('Object.is'), 'no binding for the static Object.is')
         for (const id of staticIds) { assert(isStatic([id]), id) }
         for (const node of [['Object'], ['Number.is'], ['Number.isinteger'], ['entry'], ['Object.is', 0], [], [['Object.is']], 'Object.is', undefined]) {

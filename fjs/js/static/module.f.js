@@ -38,12 +38,14 @@
  * Every admitted static path: `Object.is`, `Object.entries` and
  * `Object.fromEntries`
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)),
+ * `String.fromCharCode` for native UTF-16 construction,
  * and the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)).
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
     ['Object', 'entries'],
+    ['String', 'fromCharCode'],
     ['Object', 'fromEntries'],
     ['Number', 'isInteger'],
     ['Number', 'isSafeInteger'],
@@ -57,10 +59,13 @@ export const statics = /** @type {const} */ ([
  * body: `Object.entries`, since
  * enumerating keys is exactly what the language has no other way to do
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
+ * `String.fromCharCode` is native too: it constructs UTF-16 strings from
+ * code units without a large lookup table.
  * Every other path of {@link statics} has its body in the runtime.
  */
 export const natives = /** @type {const} */ ([
     ['Object', 'entries'],
+    ['String', 'fromCharCode'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

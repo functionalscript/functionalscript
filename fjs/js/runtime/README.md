@@ -51,7 +51,8 @@ Two kinds, and both are each VM's to bind natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
-  among the static functions, `Object.entries`, since enumerating keys is
+  among the static functions, `String.fromCharCode`, for constructing UTF-16
+  strings from code units, and `Object.entries`, since enumerating keys is
   what no body can do otherwise, which [`../static`](../static/module.f.js)
   lists as `natives`; `length` is a property each value owns and is on no
   list, and an array element is read by a runtime number index, which the
@@ -61,12 +62,11 @@ Two kinds, and both are each VM's to bind natively:
   `codePointAt`, whose own body is the one member call and which the
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
-- the names whose body **waits on a primitive the language has not
-  admitted** — `toLowerCase` and `toUpperCase` on a string from a code
-  unit, `String.fromCharCode`, over which the Unicode case tables are
+- the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
+  unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on
   `BigInt`, over which the exact decimal expansion of a double is written.
-  Both arrive with the static-function step.
+  The casing bodies can now use the admitted native static.
 
 Every other name is absent only until its body is written; the rest of
 the string and array names are the next batches.

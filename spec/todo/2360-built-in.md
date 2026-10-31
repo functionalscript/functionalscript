@@ -24,7 +24,7 @@ no later than this file admits any of it, a name at a time
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 ([numbers](../values/numbers/README.md)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
+conversions `Number(exp)` and `String(exp)`, their
 words reserved ([number conversion](../conversions/number/README.md),
 [string conversion](../conversions/string/README.md)), and `Array`, as the
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
@@ -317,8 +317,9 @@ the move in the same session, after the admission.
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
       ([string conversion](../conversions/string/README.md)). Namespace
-      members remain unrecognized; spreads, multiple arguments and guarded
-      calls are refused by design, the conversion being an operator
+      admits `String.fromCharCode` as a native static value; other members
+      remain unrecognized. For the conversion, spreads, multiple arguments
+      and guarded calls are refused by design, the conversion being an operator
       ([operators and functions](../principles/README.md#operators-and-functions))
 - [ ] `RegExp`
 
@@ -567,6 +568,6 @@ primitive for shared runtime bodies, without a 65,536-entry table.
 
 **Drawbacks.** Every executor must bind another native static.
 
-**Approval.** The task owner explicitly requested native implementation and
+**Approval.** Sergey Shandar (the task owner) explicitly requested native implementation and
 FJS admission in this session, including detached calls and matching length,
 before implementation.

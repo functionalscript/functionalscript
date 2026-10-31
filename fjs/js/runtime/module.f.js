@@ -233,6 +233,7 @@ export const member = {
 export const statics = {
     'Object.is': is,
     'Object.entries': Object.entries,
+    'String.fromCharCode': String.fromCharCode,
     'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,
     'Number.isSafeInteger': isSafeInteger,

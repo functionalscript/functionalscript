@@ -8,7 +8,7 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits seven static functions. `Object.is` is JavaScript's
+The language admits eight static functions. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -118,3 +118,10 @@ export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0
 
 - ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
+
+`String.fromCharCode(...codes)` is a native static that constructs a string
+from the arguments converted to UTF-16 code units. It preserves lone
+surrogates and wraps values modulo `0x1_0000`. An empty call returns `''`.
+It reads no `this`, so `const { fromCharCode } = String; fromCharCode(5, 6)`
+works, and `fromCharCode.length` is `1` despite accepting any number of
+arguments. Other `String` statics remain prohibited.

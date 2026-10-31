@@ -32,7 +32,7 @@ import { throwValue } from '../value/control/module.f.mjs'
 import { isNullish, truthy, instanceOf, unary as semanticUnary, binary as semanticBinary } from '../value/semantics/module.f.mjs'
 import { unary as numericUnary, binary as numericBinary } from '../value/numeric/module.f.mjs'
 import { binary as relational } from '../value/relational/module.f.mjs'
-import { toPrimitive, toString } from '../value/convert/module.f.mjs'
+import { toPrimitive, toString, toNumber } from '../value/convert/module.f.mjs'
 import { admits, callee, hasMethod, method } from '../value/method/module.f.mjs'
 import { staticBody } from '../value/property/module.f.mjs'
 import { ownEntries } from '../value/entries/module.f.mjs'
@@ -117,6 +117,15 @@ export const intrinsicCall = ([name], [receiver, ...args], invoke) => {
 export const staticCall = (runtime, fn, args, run, invoke) => {
     const [, values] = args
     if (fn[0] === 'Object.entries') { return ownEntries(values.length === 0 ? ['undefined'] : values[0]) }
+    if (fn[0] === 'String.fromCharCode') {
+        let text = ''
+        for (const value of values) {
+            const converted = toNumber(value, invoke)
+            if (converted[0] === 'error') { return converted }
+            text += String.fromCharCode(converted[1])
+        }
+        return ok(text)
+    }
     const body = staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
     if (body[1] === undefined) { return error(noStatic(fn[0])) }
@@ -307,8 +316,8 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'Object.is': case 'Object.entries': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
-                if (node[0] === 'Object.entries') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
+                if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]
             }
