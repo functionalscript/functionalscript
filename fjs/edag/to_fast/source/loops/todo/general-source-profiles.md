@@ -1,4 +1,4 @@
-## General source profiles for supplied invocation graphs
+## General source profiles for invocation graphs
 
 **Priority:** P2
 **Status:** open
