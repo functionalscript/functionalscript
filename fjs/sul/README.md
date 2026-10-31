@@ -22,28 +22,30 @@ The minimum word length is 2: one prefix symbol is required to provide a value t
 The top-level encoder accepts a stream of bits and produces a single [`Id`](id/README.md):
 
 ```ts
-import { encode, emptyEncodeState } from './module.f.mjs'
+import { encode } from './module.f.mjs'
+import { run } from '../types/list/module.f.mjs'
 import type { Add } from './level/hash/types.ts'
 
-const enc = encode(add)              // add: Add<S> — called on every merge
-let state = emptyEncodeState(storage)
-
-for (const bit of bits) {
-    state = enc.push(bit, state)     // bit is 0n or 1n
-}
-const root: Id = enc.end(state)      // flush and return the root Id
+const enc = encode(add)(storage)     // add: Add<S> — called on every merge
+const root: Id = run(enc)(bits)      // consume 0n/1n bits, pad, return the root
 ```
 
 | Export                      | Description                                                        |
 |-----------------------------|--------------------------------------------------------------------|
-| `encode(add)`               | Creates an encoder for a given storage backend                     |
-| `emptyEncodeState(storage)` | Initial state wrapping a storage value                             |
-| `Encode<S>`                 | Encoder with `push` and `end` methods, and `pushWithHeight` and `endWithHeights`, which also give each bit's height |
+| `encode(add)(storage)`      | Creates an encoder with the given initial storage                  |
+| `Encode<S>`                 | Shared `Transducer` lifecycle, plus `updateWithHeight` and `endWithHeights`, which also give each bit's height |
 | `EncodeState<S>`            | Opaque streaming state (three literal levels + dynamic hash stack) |
 
+`init` is a `next` step holding the initial state. `update(state, bit)` returns
+a new `next` step; `end(state)` pads with `1`, then `0`s, and returns a `done`
+step holding the root. No items are emitted before completion. The common
+driver handles these steps, and a caller can save a step's state and resume it.
+
 A bit's **height** is how many levels close a word on it, counting up from L1: 0 for none, 2 for L1 and L2, 5 for L1
-to H2. `pushWithHeight` returns it with the next state, and `endWithHeights` returns it for each padding bit with the
-root; they are `push` and `end` otherwise. The [demo](demo.f.mjs) draws its stripes from these heights.
+to H2. `updateWithHeight(state, bit)` returns it with the next state, and
+`endWithHeights(state)` returns it for each padding bit with the root. These
+additional observations share the lifecycle's encoding and padding operations.
+The [demo](demo.f.mjs) draws its stripes from these heights.
 
 The `Add<S>` callback is invoked once per `compress(left, right)` merge. `isSymbol` is `true` for the terminal merge
 that produces a hash-level output symbol and `false` for Patricia trie internal merges.

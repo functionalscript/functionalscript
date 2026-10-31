@@ -18,6 +18,7 @@ import { emptyPipelineState, levels } from './level/literal/module.f.mjs'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
 import { level3Id } from './id/module.f.mjs'
 import { toArray } from '../types/list/alt/module.f.mjs'
+import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 
 /**
  * `ps` with literal level `i`'s state replaced.
@@ -30,17 +31,13 @@ const withLevel = ([l1, l2, l3], i, state) =>
 /** @type {(tail: List<number>, first: number) => List<number>} */
 const prepend = (tail, first) => ({ first, tail })
 
-/** @type {<S>(storage: S) => EncodeState<S>} */
-export const emptyEncodeState = storage =>
-    [emptyPipelineState, storage, []]
-
 export const encode =
     /**
      * @template S
      * @param {Add<S>} add
-     * @returns {Encode<S>}
+     * @returns {(storage: S) => Encode<S>}
      */
-    add => {
+    add => storage => {
         const step = hashEncode(add)
 
         /** @typedef {readonly [number, Id | undefined, S, readonly InternalState<Id>[]]} _CascadeResult */
@@ -95,8 +92,8 @@ export const encode =
             return [literalHeight + hashHeight, finalId, [newPs, newStorage, newStacks]]
         }
 
-        /** @type {Encode<S>['pushWithHeight']} */
-        const pushWithHeight = (bit, state) => {
+        /** @type {Encode<S>['updateWithHeight']} */
+        const updateWithHeight = (state, bit) => {
             const [height, , next] = bitStep(bit, state)
             return [height, next]
         }
@@ -130,9 +127,10 @@ export const encode =
         }
 
         return {
-            push: (bit, state) => pushWithHeight(bit, state)[1],
-            end: state => pad(state, () => null, null)[1],
-            pushWithHeight,
+            init: nextStep(/** @type {EncodeState<S>} */ ([emptyPipelineState, storage, []])),
+            update: (state, bit) => nextStep(updateWithHeight(state, bit)[1]),
+            end: state => doneStep(pad(state, () => null, null)[1]),
+            updateWithHeight,
             endWithHeights,
         }
     }

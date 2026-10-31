@@ -58,14 +58,14 @@ to a non-emitting machine. `fromStateScan(init, op, end)` adapts an array-emitti
 `fromAccumulator` adapts its fallible convenience form, and `tryFold` runs that
 adapter through the same driver.
 
-Domain adoption is tracked in the [migration TODO](./todo/shared-state-machine-interface.md).
-The remaining stack migrates one machine family at a time, including its callers
-and proofs. Constructors bind configuration before exposing the lifecycle;
-hash metadata and domain operations such as height observation and bounded
-feeding can remain alongside it.
+Domain constructors bind their configuration before exposing the lifecycle:
+`accumulator(monoid)`, `patriciaTrie(create)(storage)`, and
+`encode(add)(storage)`. Hash size metadata and operations that add domain
+behavior, such as SUL height observation and bounded Git feeding, remain
+available alongside the common protocol.
 
 A settled internal state need not mean completion. MIME detection still counts
 all input after its verdict is known; zlib inflation still counts trailing bytes
-after the compressed stream closes. Their migrated machines must return `next` until EOF.
+after the compressed stream closes. Those machines return `next` until EOF.
 Bounded drivers must retain the caller's unconsumed chunk suffix when stopping
 inside an item; the protocol does not invent a remainder field.
