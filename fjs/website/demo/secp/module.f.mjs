@@ -17,7 +17,7 @@ import { isDigits } from '../../../text/ascii/module.f.js'
  * @type {Curve}
  */
 export const toy = curve({ p: 23n, c: [4n, 1n], g: [0n, 2n], n: 29n })
-const { pf: { reduce, reciprocal }, add, neg, mul, g, y2 } = toy
+const { pf: { mod, reciprocal }, add, neg, mul, g, y2 } = toy
 
 /** @type {readonly Point2D[]} */
 export const points = Array.from({ length: 23 }, (_, x) => BigInt(x)).flatMap(x =>
@@ -59,15 +59,15 @@ export const modularLine = (p, q) => {
     const [x1, y1] = p
     const [x2, y2] = q
     const same = x1 === x2 && y1 === y2
-    const denominator = reduce(same ? 2n * y1 : x2 - x1)
+    const denominator = mod(same ? 2n * y1 : x2 - x1)
     if (denominator === 0n) {
         return Array.from({ length: 23 }, (_, y) => /** @type {const} */ ([x1, BigInt(y)]))
     }
-    const numerator = reduce(same ? 3n * x1 * x1 + 1n : y2 - y1)
-    const m = reduce(numerator * reciprocal(denominator))
+    const numerator = mod(same ? 3n * x1 * x1 + 1n : y2 - y1)
+    const m = mod(numerator * reciprocal(denominator))
     return Array.from({ length: 23 }, (_, x) => {
         const bx = BigInt(x)
-        return /** @type {const} */ ([bx, reduce(y1 + m * (bx - x1))])
+        return /** @type {const} */ ([bx, mod(y1 + m * (bx - x1))])
     })
 }
 
@@ -85,10 +85,10 @@ export const addition = (p, q) => {
         return { result, lines: ['The denominator is 0 mod 23; its modular inverse is undefined.', 'P + (−P) = O. Doubling a point with y = 0 also gives O.'] }
     }
     const doubling = x1 === x2
-    const numerator = reduce(doubling ? 3n * x1 * x1 + 1n : y2 - y1)
-    const denominator = reduce(doubling ? 2n * y1 : x2 - x1)
+    const numerator = mod(doubling ? 3n * x1 * x1 + 1n : y2 - y1)
+    const denominator = mod(doubling ? 2n * y1 : x2 - x1)
     const inverse = reciprocal(denominator)
-    const m = reduce(numerator * inverse)
+    const m = mod(numerator * inverse)
     const [x3, y3] = result
     return { result, lines: [
         `${denominator}⁻¹ mod 23 = ${inverse}, because ${denominator} · ${inverse} mod 23 = 1.`,

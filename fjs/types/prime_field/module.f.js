@@ -56,7 +56,7 @@ export const prime_field = p => {
         return r < p ? r : r - p
     }
     /** @type {Unary} */
-    const reduce = x => {
+    const mod = x => {
         const r = x % p
         return r < 0n ? add(p)(r) : r
     }
@@ -67,7 +67,7 @@ export const prime_field = p => {
     const powHalf = pow(max >> 1n)
     /** @type {(x: bigint) => boolean} */
     const quadRes = x => {
-        const v = reduce(x)
+        const v = mod(x)
         return v === 0n || powHalf(v) === 1n
     }
     return {
@@ -84,7 +84,7 @@ export const prime_field = p => {
         pow,
         pow2,
         pow3: a => mul(a)(pow2(a)),
-        reduce,
+        mod,
         quadRes,
     }
 }
@@ -122,10 +122,10 @@ export const sqrt = ({ p, pow, pow2 }) => {
  * @returns {Unary}
  */
 export const modSqrt = field => {
-    const { neg, reduce } = field
+    const { neg, mod } = field
     const sqrt_p = sqrt(field)
     return x => {
-        const v = reduce(x)
+        const v = mod(x)
         const r = sqrt_p(v)
         // For a prime `p ≡ 3 (mod 4)`, `−1` is a non-residue, so exactly one of
         // `±v` is a quadratic residue: if `v` has no root, `neg(v)` must — hence

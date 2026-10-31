@@ -38,7 +38,7 @@
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
 import { resultMarker } from '../../website/style/module.f.js'
-import { p, sloth } from './module.f.mjs'
+import { p, sloth } from './module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
