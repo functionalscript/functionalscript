@@ -33,7 +33,7 @@ export const proof = {
         assertEq(stringifySorted(utf8Decoder.update(third[2], 0x80)), stringifySorted(last))
     },
     lazyOutput: () => {
-        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
         assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
     },
     toCodePoint: [
