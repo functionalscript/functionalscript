@@ -28,9 +28,10 @@ pub(super) mod compiled;
 #[cfg(test)]
 mod tests {
     use super::compiled::runtime;
+    use crate::vm::test::function::{returns, throws};
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, IVm, ToAny, ToArray, ToObject, error, unstable::static_read},
+        vm::{Any, BigInt, ToAny, ToArray, ToObject, error, unstable::static_read},
     };
 
     type A = Naive;
@@ -110,7 +111,7 @@ mod tests {
         };
         assert!(dispatch(1.0.to_any(), "startsWith").is_nullish());
         assert!(dispatch("abc".into(), "slice").is_nullish());
-        let f = A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any();
+        let f = returns(7.0.to_any());
         let own: Any<A> = [("startsWith".into(), f.clone())].to_object().to_any();
         assert_eq!(dispatch(own, "startsWith"), f);
         let on_abc = dispatch("abc".into(), "startsWith");
@@ -184,7 +185,7 @@ mod tests {
                     .to_any()))
                 .is_err()
         );
-        let boom = A::static_function(|_, _| Err("A".into()), 0, [].to_array(), None).to_any();
+        let boom = throws("A".into());
         let search: Any<A> = [("toString".into(), boom)].to_object().to_any();
         assert_eq!(
             abc.dot(key)

@@ -7,8 +7,9 @@
  * @import { FixedArray, Occurrences } from './types.ts'
  */
 
-import { repeat as monoidRepeat } from '../../common/monoid/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.js'
+import { repeat as arrayRepeat } from './repeat/module.f.js'
+import { generate as arrayGenerate } from './generate/module.f.js'
 
 /**
  * @type {(value: unknown) => value is readonly unknown[]}
@@ -123,33 +124,8 @@ export const includes =
     v =>
     a.includes(v)
 
-/** Array concatenation in operand order. @type {<T>(a: readonly T[]) => (b: readonly T[]) => readonly T[]} */
-const concat = a => b => [...a, ...b]
-
-/**
- * Repeats a singleton array under concatenation, using monoid doubling rather
- * than materializing a lazy list. Finite nonpositive counts give an empty
- * array; positive fractional counts round up, as the list countdown did.
- */
-export const repeat =
-    /**
-     * @template {number} N
-     * @param {N} n
-     */
-    n => {
-        const count = BigInt(n <= 0 ? 0 : Math.ceil(n))
-        return (
-            /**
-             * @template T
-             * @param {T} v
-             * @return {FixedArray<N, T>}
-             */
-            v => /** @type {FixedArray<N, T>} */ (monoidRepeat({
-                identity: /** @type {readonly T[]} */ ([]),
-                operation: concat,
-            })(count)([v]))
-        )
-    }
+export const repeat = arrayRepeat
+export const generate = arrayGenerate
 
 /**
  * The array without repeated items, each kept at its first position. Items are

@@ -1,7 +1,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { more } from '../bits/module.f.js'
 import { assign, bytes, field, written } from '../testlib.f.mjs'
-import { code, decode, dynamic, fixed, fixedDistances, fixedLiterals } from './module.f.mjs'
+import { code, decode, dynamic, fixed, fixedDistances, fixedLiterals } from './module.f.js'
 
 /** The extra bits of the repeats 16, 17 and 18. */
 const widths = { 16: 2, 17: 3, 18: 7 }

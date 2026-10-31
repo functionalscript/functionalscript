@@ -37,23 +37,21 @@ const detectChunks = (...chunks) => {
     return r[1]
 }
 
-const { init, update, end } = detector
-
 export const proof = {
     lifecycle: () => {
-        const [initialKind, , initialState] = init
-        assert(initialKind === 'next')
-        const [prefixKind, , prefixState] = update(initialState, bytes(0x25, 0x50, 0x44, 0x46, 0x2d))
-        assert(prefixKind === 'next')
+        const initial = detector.init
+        assert(initial[0] === 'next')
+        const prefix = detector.update(initial[2], bytes(0x25, 0x50, 0x44, 0x46, 0x2d))
+        assert(prefix[0] === 'next')
         // A signature settles the verdict, but the machine must count the tail.
-        const [resumedKind, , resumedState] = update(prefixState, bytes(0x41, 0x42))
-        assert(resumedKind === 'next')
-        const [terminalKind, output, { length: byteLength, mime_type: mime }] = end(resumedState)
-        assertEq(terminalKind, 'done')
-        assertEq(output.length, 0)
-        assertEq(byteLength, 7n)
-        assertEq(mime, 'application/pdf')
-        assertEq(end(prefixState)[2].length, 5n)
+        const resumed = detector.update(prefix[2], bytes(0x41, 0x42))
+        assert(resumed[0] === 'next')
+        const terminal = detector.end(resumed[2])
+        assertEq(terminal[0], 'done')
+        assertEq(terminal[1].length, 0)
+        assertEq(terminal[2].length, 7n)
+        assertEq(terminal[2].mime_type, 'application/pdf')
+        assertEq(detector.end(prefix[2])[2].length, 5n)
     },
     png: () =>
         assertEq(detect(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)), 'image/png'),

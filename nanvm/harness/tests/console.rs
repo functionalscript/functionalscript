@@ -13,7 +13,6 @@ use nanvm_lib::{
     naive::Naive,
     vm::{Array, Number, Object, ToArray},
 };
-use std::io::Cursor;
 
 /// An array of byte values.
 fn bytes(any: V) -> Vec<u8> {
@@ -37,11 +36,7 @@ fn the_native_host_answers_what_the_cases_expect() {
     assert!(!cases.is_empty());
     for case in cases {
         let object = Object::try_from(member(&exports, &case)).unwrap();
-        let mut host = Native::new(
-            Cursor::new(bytes(member(&object, "input"))),
-            Vec::new(),
-            Vec::new(),
-        );
+        let mut host = Native::buffered(&bytes(member(&object, "input")));
         perform_case(&case, &object, [].to_array(), &mut host);
         assert_eq!(
             json(host.stdout()),

@@ -14,7 +14,7 @@ import type { Equal } from '../../../types/ts/types.ts'
 import type { ModuleToken } from '../../tokenizer/types.ts'
 import type { BinaryTag } from '../../ast/types.ts'
 import type { literalWords } from '../../../js/keywords/module.f.js'
-import type { eagerLayers } from '../../ast/module.f.js'
+import type { eagerLayers, prefixLayer } from '../../ast/module.f.js'
 import type {
     _framingKeywords,
     _ordinaryTokenNames,
@@ -190,6 +190,16 @@ export type OptionalStep = {
 export type PowTail = Option<readonly [number, Unary]>
 
 /**
+ * One alternative per prefix operator of `prefixLayer` in `../../ast`,
+ * keyed as it names them: the operator, the {@link UnaryOperand} it applies
+ * to, and `Rest`, what the rule reads after it. A prefix's operand is never
+ * {@link Unary}, so no prefix chain carries {@link PowTail}.
+ */
+export type PrefixBranches<Rest extends readonly unknown[]> = {
+    readonly [K in keyof typeof prefixLayer]: readonly [number, UnaryOperand, ...Rest]
+}
+
+/**
  * What a prefix takes: a value less the function, JavaScript's
  * unary operand being a `UnaryExpression`, which an arrow function is not —
  * and a group, {@link ParenGroup}, which is one. Every alternative but the
@@ -197,11 +207,7 @@ export type PowTail = Option<readonly [number, Unary]>
  * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
-export type Unary = () => readonly ['const', {
-    readonly neg: readonly [number, UnaryOperand]
-    readonly bitnot: readonly [number, UnaryOperand]
-    readonly not: readonly [number, UnaryOperand]
-    readonly typeof: readonly [number, UnaryOperand]
+export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
@@ -218,11 +224,7 @@ export type Unary = () => readonly ['const', {
  * so recursing through this type rather than {@link Unary} keeps that
  * refusal at every depth a prefix chain reaches.
  */
-export type UnaryOperand = () => readonly ['const', {
-    readonly neg: readonly [number, UnaryOperand]
-    readonly bitnot: readonly [number, UnaryOperand]
-    readonly not: readonly [number, UnaryOperand]
-    readonly typeof: readonly [number, UnaryOperand]
+export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>]]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>]]
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
@@ -339,11 +341,7 @@ export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
  * a nested field would describe a different grammar — the flat-shape
  * exception to `fjs/AGENTS.md` §3.2, "Composition over intersection".
  */
-export type ValueBranches = {
-    readonly neg: readonly [number, UnaryOperand, ...Tail]
-    readonly bitnot: readonly [number, UnaryOperand, ...Tail]
-    readonly not: readonly [number, UnaryOperand, ...Tail]
-    readonly typeof: readonly [number, UnaryOperand, ...Tail]
+export type ValueBranches = PrefixBranches<Tail> & {
     readonly primitive: readonly [readonly [typeof primitive, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]

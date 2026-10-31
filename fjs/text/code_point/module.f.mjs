@@ -10,8 +10,8 @@
  *
  * @module
  *
- * @import { List, Thunk } from '../../types/list/types.ts'
- * @import { Transduced, Transducer } from '../../types/function/operator/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Transducer } from '../../types/function/operator/types.ts'
  * @import { CodePoint } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
@@ -29,12 +29,6 @@ import { assert } from '../../asserts/module.f.js'
  */
 export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
-/** @type {<Cp>(step: Transduced<Cp, null>) => readonly Cp[]} */
-const emitted = ([, output]) => output
-
-/** @type {<Cp>(steps: List<Transduced<Cp, null>>) => Thunk<readonly Cp[]>} */
-const emittedChunks = map(emitted)
-
 /**
  * Drives a streaming decoder through the shared transducer lifecycle.
  *
@@ -47,10 +41,8 @@ const emittedChunks = map(emitted)
  * @param {Transducer<Unit, S, Cp, null>} machine The codec's state machine.
  * @returns {(input: List<Unit>) => List<Cp>} A function converting a list of code units into a list of code points.
  */
-export const decoder = machine => {
-    const steps = transduce(machine)
-    return input => flat(emittedChunks(steps(input)))
-}
+export const decoder = machine => input =>
+    flat(map(step => step[1])(transduce(machine)(input)))
 
 /**
  * Builds the end-of-input step {@link decoder} needs, from the one function
@@ -103,12 +95,15 @@ const surrogateMax = /** @type {const} */ 0xdfff
 /**
  * The last code point of the Basic Multilingual Plane. Exported because the
  * UTF-8 encoder needs the boundary itself — its 3-byte form covers the BMP up
- * to here — where the predicates below only answer membership. `maxCodePoint`
- * stays private: `isSupplementaryPlane` already expresses the one range a
- * caller has wanted it for.
+ * to here — where the predicates below only answer membership.
  */
 export const bmpMax = /** @type {const} */ 0xffff
-const maxCodePoint = /** @type {const} */ 0x10_ffff
+/**
+ * The last code point of Unicode. Exported for the consumers that need the
+ * bound itself rather than a membership answer: a grammar's top character,
+ * a decoder that stops growing a value once it is past it.
+ */
+export const maxCodePoint = /** @type {const} */ 0x10_ffff
 
 /**
  * Checks whether the 16-bit word (U16) is a high surrogate.

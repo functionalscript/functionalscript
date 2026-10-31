@@ -3,7 +3,7 @@
  * @import { SupportedRecord, ObjectIdentifier } from './types.ts'
  */
 
-import { empty, isVec, length, msb, uint, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
+import { empty, isVec, length, msb, unpack, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { asBase } from '../types/nominal/module.f.js'
 
 import {
@@ -324,11 +324,7 @@ export const proof = {
         },
         () => {
             const e = encodeRaw([0x1F20n, vec(16n)(0x1234n)])
-            if (e !== listToVec([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)])) {
-                const l = length(e)
-                const u = uint(e)
-                throw `encode: ${l}: ${u.toString(16)}`
-            }
+            assertEq(e, listToVec([vec8(0x1Fn), vec8(0x20n), vec8(2n), vec(16n)(0x1234n)]))
             const [[tag, value], rest] = decodeRaw(e)
             assertEq(rest, empty)
             assertEq(tag, 0x1F20n)

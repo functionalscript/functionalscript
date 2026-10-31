@@ -45,7 +45,7 @@ import { matchRule } from '../data/module.f.mjs'
 import { at, definedValues } from '../../types/object/module.f.mjs'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.mjs'
-import { unicodeNotation } from '../../text/code_point/module.f.mjs'
+import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.mjs'
 
 /** @type {Diagram} */
 const skip = ['skip']
@@ -99,7 +99,7 @@ const named = { 9: '\\t', 10: '\\n', 13: '\\r', 32: 'space' }
  * @type {(c: number) => string}
  */
 const symbolText = c => {
-    assert(c <= 0x10_FFFF, ['not a code point', c])
+    assert(c <= maxCodePoint, ['not a code point', c])
     return at(String(c))(named)
         ?? (c < 0x20 || c > 0x7e ? unicodeNotation(c) : codePointToString(c))
 }

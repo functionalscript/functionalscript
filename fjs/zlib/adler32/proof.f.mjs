@@ -4,14 +4,12 @@ import { run } from '../../types/list/module.f.mjs'
 import { codePoints } from '../../text/ascii/module.f.js'
 import { adler32, appendBytes } from './module.f.mjs'
 
-const checksumOf = run(adler32)
-
 /**
  * The checksum of `bytes` given in `pieces`, as the number it spells.
  *
  * @type {(...pieces: readonly (readonly number[])[]) => bigint}
  */
-const adler = (...pieces) => uint(checksumOf(pieces.map(u8ListToVecMsb)))
+const adler = (...pieces) => uint(run(adler32)(pieces.map(u8ListToVecMsb)))
 
 // The expected values are the last four bytes of Node's `zlib.deflateSync` of
 // the same bytes, which is the Adler-32 zlib closes its stream with.
@@ -58,7 +56,7 @@ export const proof = {
         const [tag, output, state] = adler32.update(1, u8ListToVecMsb(codePoints('Wiki')))
         assert(tag === 'next')
         assertStructurallySame(output, [])
-        const resumed = /** @type {const} */ ({ ...adler32, init: ['next', [], state] })
+        const resumed = { ...adler32, init: /** @type {const} */ (['next', [], state]) }
         assertEq(uint(run(resumed)([u8ListToVecMsb(codePoints('pedia'))])), 0x11e6_0398n)
     },
     throw: {

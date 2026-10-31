@@ -7,6 +7,8 @@
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { startGitHubLogin } from './github-runtime.mjs'
+import { encode } from '../basen/base64url/module.f.mjs'
+import { toVec } from '../types/uint8array/module.f.mjs'
 
 const origin = /** @type {const} */ ('https://functionalscript.test')
 const callback = /** @type {const} */ (`${origin}/prs/`)
@@ -84,7 +86,6 @@ const dom = (href = callback, stored = null) => {
             },
         },
         crypto: globalThis.crypto,
-        btoa: globalThis.btoa,
         sessionStorage: {
             getItem: (/** @type {string} */ key) => storage.get(key) ?? null,
             setItem: (/** @type {string} */ key, /** @type {string} */ value) => {
@@ -153,10 +154,9 @@ const queue = (page, responses, callback = false) => {
 const returning = (query = 'code=github-code&state=pending-state', stored = JSON.stringify(pending)) =>
     dom(`${callback}?keep=1&${query}#section`, stored)
 
-/** PKCE's URL-safe base64 encoding, observed independently of the runtime. */
-/** @type {(bytes: ArrayBuffer) => string} */
-const base64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
-    .split('+').join('-').split('/').join('_').split('=').join('')
+/** PKCE's URL-safe base64 encoding, the codec the runtime spells it with. */
+/** @type {(bytes: ArrayBuffer) => string | null} */
+const base64url = bytes => encode(toVec(new Uint8Array(bytes)))
 
 /** @type {(page: any) => void} */
 const assertNoPersistedToken = page => {

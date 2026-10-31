@@ -16,6 +16,7 @@ import {
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
+    maxCodePoint,
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
@@ -43,10 +44,7 @@ const dispatch = restart(evenOrPending)
 
 export const proof = {
     decoder: () => {
-        const machine = fromStateScan(null, evenOrPending, state => {
-            const [output] = flush(state)
-            return output
-        })
+        const machine = fromStateScan(/** @type {number | null} */ (null), evenOrPending, state => flush(state)[0])
         assertStructurallySame(toArray(decoder(machine)([2, 3])), [2, -3])
         assertStructurallySame(toArray(decoder(machine)([])), [])
     },
@@ -118,6 +116,13 @@ export const proof = {
         () => assertEq(isSupplementaryPlane(bmpMax), false),
         () => assertEq(isSupplementaryPlane(bmpMax + 1), true),
         () => assertEq(isBmpCodePoint(bmpMax + 1), false),
+    ],
+    maxCodePoint: [
+        // The last valid code point; the one after it is outside Unicode.
+        () => assertEq(isValidCodePoint(maxCodePoint), true),
+        () => assertEq(isSupplementaryPlane(maxCodePoint), true),
+        () => assertEq(isValidCodePoint(maxCodePoint + 1), false),
+        () => assertEq(isSupplementaryPlane(maxCodePoint + 1), false),
     ],
     isSupplementaryPlane: [
         () => assertEq(isSupplementaryPlane(0x1_0000), true),

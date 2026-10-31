@@ -32,10 +32,9 @@ import {
     step as ioStep,
 } from '../effects/module.f.mjs'
 import {
-    access,
     createExclusive,
+    exists,
     ioError,
-    isNotFound,
     mkdir,
     now,
     randomInt,
@@ -125,7 +124,7 @@ export const collectRead = stream => {
 
 
 /** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, since `write` fails the same chunk through it. */
-const partialByte = doneStep(error(ioError({ message: 'invalid buffer size' })))
+const partialByte = error(ioError({ message: 'invalid buffer size' }))
 
 /** A machine step whose final summary has passed byte admission.
  * @type {<S, O, A>(progress: Step<S, O, A>) => Step<S, O, Result<A, IoChannel>>}
@@ -147,7 +146,7 @@ const admittedStep = progress => {
  */
 export const wholeByteMachine = machine => ({
     init: admittedStep(machine.init),
-    update: (state, chunk) => isWholeBytes(chunk) ? admittedStep(machine.update(state, chunk)) : partialByte,
+    update: (state, chunk) => isWholeBytes(chunk) ? admittedStep(machine.update(state, chunk)) : doneStep(partialByte),
     end: state => {
         const [, output, value] = machine.end(state)
         return doneStep(ok(value), output)
@@ -281,7 +280,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     // results and checks the end state").
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
-        const [, , hash] = sha2.end(state)
+        const hash = sha2.end(state)[2]
         const { dir, name } = shard(hash)
         const dstDir = join(path, dir)
         const dst = join(dstDir, name)
@@ -323,7 +322,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     // rather than propagated with the partial file left behind.
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                        const [, , newState] = sha2.update(state, chunk)
+                        const newState = sha2.update(state, chunk)[2]
                         const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
@@ -383,16 +382,12 @@ export const fileCas = sha2 => path => {
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an
             // empty store, mirroring how `read` fails a stream on a missing shard.
             // A `.cas` that exists but cannot be read (permissions, corruption) is a
-            // genuine storage error and is surfaced, not masked as "no hashes".
-            //
-            // `resultStep` because both branches genuinely matter: the absent
-            // store is a success answering `ok([])`, and every other failure is
-            // the caller's to see. It used to `throw` here, which is what the
-            // paragraph above always meant by "surfaced" but could not say
-            // while the return type had no error channel to say it in.
-            resultStep(access(storePrefix), a =>
-                a[0] === 'error'
-                    ? isNotFound(a[1]) ? pureOk([]) : pureError(a[1])
+            // genuine storage error and is surfaced, not masked as "no hashes":
+            // `exists` answers `false` for a path that names nothing and fails
+            // with every other failure.
+            ioStep(exists(storePrefix), found =>
+                !found
+                    ? pureOk([])
                     : ioMapStep(
                         readdir(storePrefix, { recursive: true }),
                         r => r.flatMap(({ name, parentPath, isFile }) =>

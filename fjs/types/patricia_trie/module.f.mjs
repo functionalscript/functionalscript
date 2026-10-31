@@ -14,14 +14,11 @@ import { doneStep, nextStep } from '../function/operator/module.f.js'
  * `storage` in its initial state. The machine consumes leaves through the shared
  * `init` / `update` / `end` lifecycle and returns its root and final storage.
  *
- * @template S
- * @template T
- * @param {Create<S, T>} create
- * @returns {(storage: S) => PatriciaTrie<S, T>}
+ * @type {<S, T>(create: Create<S, T>) => (storage: S) => PatriciaTrie<S, T>}
  */
-export const patriciaTrie = create => {
-    /** @type {PatriciaTrie<S, T>['update']} */
-    const update = ([storage, stack], c) => {
+export const patriciaTrie = create => storage => ({
+    init: nextStep(/** @type {const} */ ([storage, []])),
+    update: ([storage, stack], c) => {
         const [u] = c
         // Carry propagation: merge the top two candidates for as long as they
         // are more tightly coupled to each other than the right one is to the
@@ -43,12 +40,11 @@ export const patriciaTrie = create => {
             stack = [...rest, [rLeaf, h]]
         }
         return nextStep(/** @type {const} */ ([storage, [...stack, c]]))
-    }
+    },
     // Drain the right spine into a root: a right fold whose seed is the last
     // candidate's identity. `splitLast` supplies both halves at once, so the
     // empty stack is the `null` branch rather than a separate length guard.
-    /** @type {PatriciaTrie<S, T>['end']} */
-    const end = ([storage, stack]) => {
+    end: ([storage, stack]) => {
         const split = splitLast(stack)
         if (split === null) { return doneStep(/** @type {const} */ ([undefined, storage])) }
         const [rest, [, lastHash]] = split
@@ -56,9 +52,4 @@ export const patriciaTrie = create => {
             ([h, s], [, lHash]) => create(lHash, h, s),
             /** @type {readonly [typeof lastHash, typeof storage]} */([lastHash, storage])))
     }
-    return storage => ({
-        init: nextStep(/** @type {const} */ ([storage, []])),
-        update,
-        end,
-    })
-}
+})

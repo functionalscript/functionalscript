@@ -19,8 +19,6 @@ import { u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.mjs'
 import { run } from '../types/list/module.f.mjs'
 import { adler32 } from './adler32/module.f.mjs'
 
-const checksumOf = run(adler32)
-
 /** The words a text is made of. */
 const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'function', 'const', 'return', 'let', 'if', 'else', 'import', ' ', '\n', '(', ')', '{', '}', '=>']
 
@@ -74,7 +72,7 @@ export const hex = text => {
  *
  * @type {(data: readonly number[]) => readonly number[]}
  */
-export const closing = data => u8ArrayMsb(checksumOf(
+export const closing = data => u8ArrayMsb(run(adler32)(
     // a `Vec` holds 128 KiB, and the bytes may be more
     Array.from({ length: Math.ceil(data.length / 0xffff) }, (_, i) => u8ListToVecMsb(data.slice(i * 0xffff, (i + 1) * 0xffff)))))
 

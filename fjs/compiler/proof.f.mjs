@@ -27,6 +27,7 @@ import { fromVec, utf8ToString } from '../text/utf8/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
+import { codePoints } from '../text/ascii/module.f.js'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { compiled, _written, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../js/marked/module.f.mjs'
@@ -520,10 +521,8 @@ export const proof = {
         // rather than decoded: a lenient decoder gives a raw `FF` in a
         // string U+00FF where a JavaScript host reads U+FFFD — a different
         // successful value (DESIGN.md §10).
-        /** @type {(text: string) => readonly number[]} */
-        const ascii = text => Array.from(text, c => c.charCodeAt(0))
         /** @type {(before: string, bad: readonly number[], after: string) => Vec} */
-        const source = (before, bad, after) => toVec(new Uint8Array([...ascii(before), ...bad, ...ascii(after)]))
+        const source = (before, bad, after) => toVec(new Uint8Array([...codePoints(before), ...bad, ...codePoints(after)]))
         const sequences = [[0xff], [0xc2], [0xc0, 0xaf], [0xed, 0xa0, 0x80]]
         for (const bad of sequences) {
             /** @type {readonly (readonly [string, Vec, string])[]} */

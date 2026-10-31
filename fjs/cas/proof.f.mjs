@@ -477,8 +477,7 @@ export const proof = {
         const stream = fromList(Array.from({ length: 50_000 }, () => chunk))
         const result = runPure(contentKey(sha256)(stream))
         assert(result.length === 1)
-        const [answer] = result
-        assertEq(msb.cmp(unwrapResult(answer))(computeSync(sha256)([])), 0)
+        assertEq(msb.cmp(unwrapResult(result[0]))(computeSync(sha256)([])), 0)
     },
     wholeByteMachinePreservesLifecycle: () => {
         /** @type {Transducer<Vec, number, number, string>} */
@@ -501,10 +500,8 @@ export const proof = {
         const stream = nonEmpty(vec(5n)(0b10101n), unread)
         const result = runPure(contentKey(sha256)(stream))
         assert(result.length === 1)
-        const [answer] = result
-        const [tag, refusal] = answer
-        assert(tag === 'error')
-        assertIoMessage(refusal, 'invalid buffer size')
+        assert(result[0][0] === 'error')
+        assertIoMessage(result[0][1], 'invalid buffer size')
     },
     contentKeyRefusesPartialByte: () => {
         // A chunk that is not whole bytes: `write` refuses it through

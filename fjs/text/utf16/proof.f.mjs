@@ -23,28 +23,24 @@ import { next } from '../../types/list/module.f.mjs'
 // /** @type {(a: readonly Unknown[]) => string} */
 // const stringify = stringifySorted
 
-const { init, update, end } = utf16Decoder
-
 export const proof = {
     lifecycle: () => {
-        const [initialKind, , initialState] = init
-        assert(initialKind === 'next')
-        assertEq(stringify(end(initialState)), '["done",[],null]')
-        const [savedKind, savedOutput, savedState] = update(initialState, 0xd83d)
-        assert(savedKind === 'next')
-        assertEq(stringify(savedOutput), '[]')
-        const resumed = update(savedState, 0xde00)
-        const [resumedKind, resumedOutput, resumedState] = resumed
-        assert(resumedKind === 'next')
-        assertEq(stringify(resumedOutput), '[128512]')
-        assertEq(resumedState, null)
-        assertEq(stringify(end(savedState)), '["done",[-2147428291],null]')
-        assertEq(stringify(update(savedState, 0xde00)), stringify(resumed))
+        const initial = utf16Decoder.init
+        assert(initial[0] === 'next')
+        assertEq(stringify(utf16Decoder.end(initial[2])), '["done",[],null]')
+        const saved = utf16Decoder.update(initial[2], 0xd83d)
+        assert(saved[0] === 'next')
+        assertEq(stringify(saved[1]), '[]')
+        const resumed = utf16Decoder.update(saved[2], 0xde00)
+        assert(resumed[0] === 'next')
+        assertEq(stringify(resumed[1]), '[128512]')
+        assertEq(resumed[2], null)
+        assertEq(stringify(utf16Decoder.end(saved[2])), '["done",[-2147428291],null]')
+        assertEq(stringify(utf16Decoder.update(saved[2], 0xde00)), stringify(resumed))
     },
     lazyOutput: () => {
-        const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
-        const { first } = assertNotNullish(next(toCodePointList(input)))
-        assertEq(first, 0x41)
+        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
     },
     toCodePointList: [
         () => {
