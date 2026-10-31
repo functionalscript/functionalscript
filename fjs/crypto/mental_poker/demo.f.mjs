@@ -225,6 +225,12 @@ const table = (view, pockets, board, showdown) => [
         ...Array.from({ length: streetsBefore(streets.length) - board.length }, () => cardWithLocks('🂠', 0b111)).flat()],
 ]
 
+/** Whose lock each section of a box is: each player's own box, only
+ * their section filled.
+ * @type {Element}
+ */
+const legend = ['p', 'Locks:', ...players.flatMap((name, p) => [' ', lockBox(1 << p), ` ${name}`])]
+
 /** The steps taken so far and the button for the next one.
  * @type {(state: DemoState, seeds: readonly bigint[]) => readonly Element[]}
  */
@@ -234,6 +240,7 @@ const game = (state, seeds) => {
         ['p', button('next', label ?? 'Hand over', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
         ...(state.decks.length === 0 ? [] : [
             radios('view', 'Point of view', views.map(v => ({ value: v, label: v })), state.view),
+            legend,
             ...deckRows(state.view, seeds, state.decks.length),
         ]),
         ...(state.pockets === null ? [] : [

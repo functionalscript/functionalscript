@@ -116,6 +116,9 @@ export const proof = {
             assertEq(encoded.decks.length, 1)
             const plain = text(encoded)
             assert(!plain.includes('After Alice'))
+            // The legend names each player's section of a lock box.
+            assert(plain.includes('"Locks:"," ",["svg",{"viewBox":"0 0 36 14","width":"36","height":"14","role":"img","aria-label":"locked by Alice"'))
+            assert(plain.includes('" Carol"]'))
             assert(plain.includes(shown('2♣', 'no locks')))
             assert(plain.includes(shown('9♣', 'no locks')))
             assert(!plain.includes(shown('T♣', 'no locks')))
