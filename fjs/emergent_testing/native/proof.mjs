@@ -2,6 +2,8 @@
  * Native entry discovery and isolated coverage through real child processes.
  * FunctionalScript proofs cannot observe process exit statuses, filesystem
  * discovery boundaries or native coverage reports.
+ *
+ * @import { StringMap } from '../../types/object/types.ts'
  */
 
 import { strict as assert } from 'node:assert'
@@ -10,6 +12,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import { definedEntries } from '../../types/object/module.f.mjs'
 
 const runtime = process.versions.deno ? 'deno' : process.versions.bun ? 'bun' : 'node'
 const flags = runtime === 'node' ? ['--test'] : runtime === 'deno' ? ['test', '-A', '--config', fileURLToPath(new URL('../../../deno.json', import.meta.url))] : ['test']
@@ -28,9 +32,9 @@ const withFixture = run => {
     }
 }
 
-/** @type {(root: string, files: Readonly<Record<string, string>>) => void} */
+/** @type {(root: string, files: StringMap<string>) => void} */
 const writeFixture = (root, files) => {
-    for (const [path, text] of Object.entries(files)) {
+    for (const [path, text] of definedEntries(files)) {
         const target = join(root, path)
         mkdirSync(dirname(target), { recursive: true })
         writeFileSync(target, text)

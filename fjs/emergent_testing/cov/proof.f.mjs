@@ -49,8 +49,6 @@ const tree = /** @type {const} */ ({
  */
 const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false, reporter = reporterUrl) => {
     /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
-    /** @type {RunInstance<NodeOp, State>} */
-    let run
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
         resolveFileModule: (name, parent) => state => {
@@ -83,7 +81,8 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             writeFails ? error(['notImplemented', 'write']) : ok(undefined),
         ],
     }
-    run = partialRun(nodeCommands)(operations)
+    /** @type {RunInstance<NodeOp, State>} */
+    const run = partialRun(nodeCommands)(operations)
     return run({ commands: [], output: [] })(main({
         ...defaultNodeProgramOptions, args: ['node'], packageRoot: '/package root', ...options,
     }))
