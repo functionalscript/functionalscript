@@ -126,4 +126,4 @@ export const transduce = machine => emit => input => drive(machine, emit, input,
  * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => <P extends Operation, E>(input: EffectList<P, I, E>) => Effect<P, A, E>}
  */
 export const run = machine => input =>
-    drive(machine, () => pureOk(undefined), input, machine.init)
+    drive(machine, empty, input, machine.init)
