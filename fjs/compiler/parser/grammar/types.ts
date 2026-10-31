@@ -468,19 +468,19 @@ export type ParenGroupOperand = readonly [number, GroupOperand]
 export type End = Option<readonly [number]>
 
 /**
- * `{`, the {@link BlockContents} ending in a terminator or candidate while, and `}`.
+ * `{`, the {@link BlockContents} ending in a terminator or candidate terminal loop, and `}`.
  *
  * A statement is a `const`, {@link ConstStatement}, the module's own rule
  * — a body binds names the way a module does, and which scope a name lands
- * in is the fold's answer, not the grammar's — or a guard, `if`, `(`, the
- * condition, `)` and a block, this same rule.
+ * in is the fold's answer, not the grammar's. A conditional's arms use
+ * {@link LoopBlock}, so they may resume the enclosing body normally.
  */
 export type Block = readonly [number, BlockContents, number]
 
 /** Non-loop body statements before a terminal or candidate terminal loop. */
 export type SimpleStatement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly if: readonly [number, number, Value, number, Block]
+    readonly if: LoopIfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement
 }]
@@ -491,10 +491,10 @@ export type BlockContents = () => readonly ['const', readonly [
     { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>]; readonly for: readonly [ForStatement, Option<BlockContents>] },
 ]]
 
-/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a `let`, a loop, `while` over a {@link LoopBlock}, or what begins with a name, an assignment or a call statement, {@link BodyNameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a declaration, a conditional over normal lexical blocks, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly if: readonly [number, number, Value, number, Block]
+    readonly if: LoopIfStatement
     readonly let: LetStatement
     readonly while: WhileStatement
     readonly for: ForStatement
@@ -554,7 +554,7 @@ export type LoopSwitch = readonly [number, number, Value, number, number, Repeat
 /** Stacked labels share one braced case block; source admission checks its exits. */
 export type LoopCase = readonly [RepeatFrom<1, readonly [number, Value, number]>, LoopBlock]
 
-/** A loop's normal conditional, with an optional alternate block or conditional. */
+/** A function or loop's normal conditional, with an optional alternate block or conditional. */
 export type LoopIfStatement = readonly [number, number, Value, number, LoopBlock, Option<readonly [number, LoopElse]>]
 
 /** A braced alternate or another conditional, after `else`. */

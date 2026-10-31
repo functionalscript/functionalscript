@@ -151,6 +151,25 @@ export const proof = {
         assertStructurallySame(read('return 1;export default 0;'), ['error', 'return'])
         assertStructurallySame(read('export default ()=>{return 1;throw 2;};'), ['error', 'throw'])
     },
+    functionConditionalsResumeBeforeTheirTerminator: () => {
+        for (const source of [
+            'export default a=>{if(a){}return 0;};',
+            'export default a=>{if(a){}else{}return 0;};',
+            'export default a=>{let x=0;if(a){x=1;}else if(x){x=2;}else{x=3;}return x;};',
+            'export default a=>{if(a){const local=a;if(local){return 1;}const after=2;}return 3;};',
+            'export default a=>{if(a){return 1;}else{throw 2;}return 3;};',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'export default a=>{if(a){}};',
+            'export default a=>{if(a){}else{}};',
+            'export default a=>{if(a){return 1;}else{return 2;}};',
+            'export default a=>{if(a)return 1;return 2;};',
+            'export default a=>{if(a){}else return 1;return 2;};',
+            'export default a=>{if(a){};return 0;};',
+            'export default a=>{if(a){}else{}else{}return 0;};',
+            'if(true){}export default 0;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
     // The grammar is LL(1): each rule builds in its own proof, keeping the
     // external runner's per-test timeout independent of the rule count.
     // Discard each parser so the returned reader is not a nested proof.
@@ -477,13 +496,10 @@ export const proof = {
         assertStructurallySame(read('throw;'), ['error', ';'])
         assertStructurallySame(read('throw 1; export default 2;'), ['error', 'export'])
         assertStructurallySame(read('export default 2; throw 1;'), ['error', 'throw'])
-        // a guard, `if ( value ) block`, stands where a `const` may, any
-        // number of times before the terminator; its block is the block
-        // rule itself, so it ends in `return` or `throw` and may hold
-        // `const`s and guards of its own. No `;` follows its `}`: one there
-        // is the empty statement, refused as `;;` is. The bare consequent,
-        // `else`, a block that does not terminate, and a guard at module
-        // level are outside the grammar.
+        // Conditionals stand where a `const` may before the function's
+        // terminator. Their arms may finish normally, and retain nested
+        // conditionals and explicit exits. No `;` follows the closing `}`;
+        // a bare consequent and a conditional at module level are refused.
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2 };'), ['ok'])
         assertStructurallySame(read('export default (...a) => {if(a){return 1}return 2};'), ['ok'])
@@ -492,9 +508,9 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { if (a) { if (a) { return 1; } return 2; } return 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } if (a) { return 2; } throw 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; return 2; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', 'else'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; }; return 2; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if a { return 1; } return 2; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; };'), ['error', 'return'])

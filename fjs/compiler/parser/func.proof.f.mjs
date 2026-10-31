@@ -168,9 +168,8 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('export default (a) => { if (a) return 1; return 2; };', 'unexpected token', 1, 32)
-            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 46)
+            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 65)
             expect('export default (a) => { if (a) { return 1; }; return 2; };', 'unexpected token', 1, 45)
-            expect('export default (a) => { if (a) { const x = 1; } return 2; };', 'unexpected token', 1, 47)
             expect('export default (a) => { if (a) { return 1; } };', 'unexpected token', 1, 46)
             expect('if (1) { throw 1; } export default 2;', 'unexpected token', 1, 1)
             expect('export default (a) => { if (a) { return 1; } const a = 2; return a; };', 'duplicate id', 1, 52)

@@ -9,13 +9,13 @@
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { BindingEvent, BindingId, BindingScope, LoopTarget } from '../../js/ast/types.ts'
- * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
+ * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceExit, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, If, Import, Item, Key, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { Assignment, BindingTarget, Block, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, If, Import, Item, Key, LoopBlock, LoopSwitch, Module, Node, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _IfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -1086,8 +1086,8 @@ const enterFor = (stack, scope, loop, body, terminal = false) => {
 
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
- * value in document order. Source guards retain their lexical block and the
- * remaining statements as terminal branches rather than generated invocations.
+ * value in document order. Conditional arms retain their lexical scope and
+ * resume this frame once, without copying its following statements.
  *
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
@@ -1658,8 +1658,7 @@ const returned = (stack, scope, frame, value) => {
     if (hasEntry(frame, 'block')) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
-            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
-                { block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null })
+            return ifArm(stack, scope, { if: statement, body: frame, condition: value, then: null }, statement.block)
         }
         if (kind === 'assign') {
             const id = assertNotNullish(frame.assigned, 'an assignment with no target')
@@ -1670,15 +1669,28 @@ const returned = (stack, scope, frame, value) => {
         assert(kind !== 'while' && kind !== 'for' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
-    if (hasEntry(frame, 'loopGuard')) {
+    if (hasEntry(frame, 'if')) {
         const block = regionBlock(value)
-        if (frame.then === null && frame.otherwise !== null) {
-            return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
-                { block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null })
+        if (frame.then === null && frame.if.otherwise !== null) {
+            return ifArm(stack, scope, { ...frame, then: block }, frame.if.otherwise)
         }
-        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
+        // Existing terminating guards keep their terminal value region. Only
+        // their false path reaches the following statements, so no join is needed.
+        const terminal = 'statements' in frame.body && frame.if.otherwise === null ? terminalGuard(block) : null
+        if (terminal !== null && 'statements' in frame.body) {
+            const first = frame.body.index + 1
+            return bodyRound({ top: { guard: frame.body, condition: frame.condition, then: terminal }, rest: stack },
+                regionScope(scope, empty, { first: scope.names, tail: scope.enclosing }), {
+                    statements: frame.body.statements, first, index: first, plan: null, assigned: null, done: null,
+                })
+        }
+        /** @type {SourceStatement} */
+        const statement = ['if', frame.condition,
             frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
-        ]]))
+        ]
+        return 'block' in frame.body
+            ? loopRound(stack, scope, advanced(frame.body, [statement]))
+            : bodyRound(stack, scope, advanced(frame.body, [statement]))
     }
     if (hasEntry(frame, 'statements')) {
         const [kind, statement] = frame.statements[frame.index]
@@ -1687,7 +1699,7 @@ const returned = (stack, scope, frame, value) => {
             const id = assertNotNullish(frame.assigned, 'an assignment with no target')
             return bodyRound(stack, written(scope, statement, id), advanced(frame, [assignmentStatement(statement, id, value)]))
         }
-        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
+        if (kind === 'if') { return ifArm(stack, scope, { if: statement, body: frame, condition: value, then: null }, statement.block) }
         if (kind === 'switch') {
             return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value, index: 0, label: 0, labels: [], arms: null })
         }
@@ -1700,12 +1712,81 @@ const returned = (stack, scope, frame, value) => {
             : loopSwitchReturned(stack, scope, frame, value)
     }
     if (hasEntry(frame, 'guard')) {
-        const block = regionBlock(value)
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
-        return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['if', frame.condition, frame.then, block] })
+        return closed(stack, scope, { statements: toArray(frame.guard.done), exit: ['if', frame.condition, frame.then, regionBlock(value)] })
     }
     if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
     return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
+}
+
+/** Resolve one conditional arm without creating a function or a loop transfer owner.
+ * @type {(stack: _Stack, scope: _Scope, frame: _IfFrame, block: LoopBlock) => _State}
+ */
+const ifArm = (stack, scope, frame, block) => loopRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
+    block: block[1], target: 'block' in frame.body ? frame.body.target : null,
+    breakTarget: 'block' in frame.body ? frame.body.breakTarget : null,
+    index: 0, plan: null, assigned: null, done: null,
+})
+
+/** An absent alternate contributes no work or value. @type {(block: SourceBlock) => boolean} */
+const emptyArm = block => block.statements.length === 0 && block.exit[0] === 'yield' && block.exit[1] === undefined
+
+/** A terminal switch's cases keep their existing value-exit representation.
+ * @type {(source: SourceSwitch, otherwise: SourceBlock | null, results: ReadonlyMap<SourceBlock, SourceBlock | null>) => SourceExit | null}
+ */
+const guardSwitch = (source, otherwise, results) => {
+    if (otherwise === null) { return null }
+    const cases = source.cases.map(arm => {
+        const body = results.get(arm.body)
+        return body === null || body === undefined ? null : { labels: arm.labels, body }
+    })
+    return cases.some(arm => arm === null) ? null : ['switch', source.discriminant, cases.filter(arm => arm !== null), otherwise]
+}
+
+/**
+ * Preserve the existing terminal-guard value form without changing ordinary
+ * region returns into normal yields. Nested guards are visited off the host
+ * stack; loop transfers and normal conditional branches stay untouched.
+ * @type {(root: SourceBlock) => SourceBlock | null}
+ */
+const terminalGuard = root => {
+    /** @type {readonly { readonly block: SourceBlock; readonly close: boolean }[]} */
+    let pending = [{ block: root, close: false }]
+    /** @type {ReadonlyMap<SourceBlock, SourceBlock | null>} */
+    let results = new Map()
+    while (pending.length !== 0) {
+        const [task, ...rest] = pending
+        const { block } = task
+        if (!task.close) {
+            const children = block.statements.flatMap(statement => statement[0] === 'if' && emptyArm(statement[3])
+                ? [statement[2]] : statement[0] === 'switch'
+                    ? [...statement[1].cases.map(arm => arm.body), statement[1].otherwise] : [])
+            pending = [...children.map(block => ({ block, close: false })), { block, close: true }, ...rest]
+            continue
+        }
+        pending = rest
+        const last = block.statements[block.statements.length - 1]
+        /** @type {SourceExit | null} */
+        const exit = last === undefined ? null : last[0] === 'return' || last[0] === 'throw' ? last
+            : last[0] === 'switch' ? guardSwitch(last[1], results.get(last[1].otherwise) ?? null, results)
+                : last[0] === 'while' && last[1].condition === true && !hasTargetBreak(last[1].body, last[1].target)
+                    ? ['terminal-loop', last[1]] : null
+        if (exit === null) {
+            results = new Map([...results, [block, null]])
+            continue
+        }
+        /** @type {SourceBlock} */
+        let terminal = { statements: [], exit }
+        for (const statement of block.statements.slice(0, -1).toReversed()) {
+            const branch = statement[0] === 'if' && emptyArm(statement[3]) ? results.get(statement[2]) ?? null : null
+            const switched = statement[0] === 'switch' && emptyArm(statement[1].otherwise) ? guardSwitch(statement[1], terminal, results) : null
+            terminal = statement[0] === 'if' && branch !== null
+                ? { statements: [], exit: ['if', statement[1], branch, terminal] }
+                : switched !== null ? { statements: [], exit: switched }
+                    : { ...terminal, statements: [statement, ...terminal.statements] }
+        }
+        results = new Map([...results, [block, terminal]])
+    }
+    return results.get(root) ?? null
 }
 
 /**
@@ -1713,7 +1794,7 @@ const returned = (stack, scope, frame, value) => {
  * continuing the current block retains its duplicate and capture-shadow checks.
  * Regions preserve the owning source function target and add no invocation.
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame | _SwitchFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame, statements: Block[1], first: number, enclosing: List<_Env>) => _State}
  */
 const arm = (stack, scope, frame, statements, first, enclosing) =>
     bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, enclosing), { statements, first, index: first, plan: null, assigned: null, done: null })
@@ -1853,11 +1934,18 @@ const loopRound = (stack, scope, frame) => {
             return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
+        // Ordinary branches retain the function-block refusal of syntax after
+        // a direct exit. Loop bodies keep later syntax for their source checks.
+        if (frame.target === null && index !== 0 && ['return', 'throw'].includes(block[index - 1][0])) {
+            return [stack, scope, error(unexpectedToken(statement.start))]
+        }
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
         if (kind === 'break' || kind === 'continue') {
-            frame = advanced(frame, [[kind, kind === 'break' ? frame.breakTarget : frame.target]])
+            const target = kind === 'break' ? frame.breakTarget : frame.target
+            if (target === null) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            frame = advanced(frame, [[kind, target]])
             continue
         }
         if (kind === 'return' || kind === 'throw') {

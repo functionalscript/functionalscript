@@ -159,12 +159,14 @@ information — see [serialization](../design/serialization.md) and
 
 ### 3.2. Priority 2
 
-1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
-   before the body's own terminator; surface syntax over `?:`, no new EDAG
-   node ([functions](../functions/README.md)). The bare consequent, a
-   non-terminating branch with `else` ([3210](./3210-reachable-block-end.md),
-   with a body that runs off its end), and the module-level guard are
-   follow-ups.
+1. [x] `if` — braced branches may terminate or complete normally, with
+   braced `else` and `else if` before the body's own terminator
+   ([bodies and guards](../control-flow/guards/README.md)); existing FAST
+   branch results and EDAG conditionals join normal paths without a new
+   graph operation. Bare branches, module-level `if`, and a final `if` as
+   the function-body terminator remain follow-ups
+   ([3210](./3210-reachable-block-end.md)). A function that can run off its
+   end still needs a source rewrite.
 2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
    and parameter reassignment, module variables and write-based capture rules.
    Definite assignment remains a separate proposal.
