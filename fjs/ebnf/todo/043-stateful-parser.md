@@ -35,8 +35,8 @@ Transducer<Meta<I>, S, never, MatchResult<T>>
 ```
 
 One symbol is the smaller contract, and a string-at-a-time convenience is
-derivable from it, not the other way round. The shared machine migration will give hashes and the other domain consumers
-the same public lifecycle.
+derivable from it, not the other way round. The record itself is what
+`fjs/crypto/sha2` already exposes as `init`/`update`/`end`.
 
 **Reuse the existing operator independently of the flow graph.** The shared
 contract and its list/effectful drivers are implemented in
@@ -47,9 +47,9 @@ lets its driver stop without pulling more symbols.
 
 **This is the value-producing top layer.** Its emitted-item type is `never` and
 its final `MatchResult` is the terminal summary. [layered-parser](./layered-parser.md)'s
-lower stages emit as they go using the same protocol. The Unicode migration
-step will adapt [`text/code_point`](../../text/code_point/module.f.mjs) to an
-emitting `update` and EOF-flushing `end`. This task changes the parser itself.
+lower stages emit as they go using the same protocol; the Unicode decoders in
+[`text/code_point`](../../text/code_point/module.f.mjs) already expose an emitting
+`update` and EOF-flushing `end`. This task changes the parser, not those stages.
 
 **Metadata stays where the rewrite set puts it.** A mapping returns a
 `Meta<O>`, the value in the metadata ([`../ast`](../ast/README.md)), so a

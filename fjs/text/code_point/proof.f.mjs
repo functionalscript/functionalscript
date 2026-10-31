@@ -4,8 +4,10 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
+import { fromStateScan } from '../../types/function/operator/module.f.js'
 import {
     bmpMax,
+    decoder,
     eofFlush,
     errorMask,
     isBmpCodePoint,
@@ -41,6 +43,11 @@ const evenOrPending = unit => unit % 2 === 0 ? [[unit], null] : [[], unit]
 const dispatch = restart(evenOrPending)
 
 export const proof = {
+    decoder: () => {
+        const machine = fromStateScan(/** @type {number | null} */ (null), evenOrPending, state => flush(state)[0])
+        assertStructurallySame(toArray(decoder(machine)([2, 3])), [2, -3])
+        assertStructurallySame(toArray(decoder(machine)([])), [])
+    },
     eofFlush: [
         // no leftover state: nothing is flushed, the state stays empty
         () => {
