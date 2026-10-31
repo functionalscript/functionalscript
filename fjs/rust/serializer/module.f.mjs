@@ -100,6 +100,7 @@ export const op1Rust = {
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
     Number: a => `Any::number(${a})`,
+    BigInt: a => `Any::bigint(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
     // The `Result` every operation answers, its `Err` arm: the thrown value
     // is the operand, and the enclosing `?` or function carries it out.

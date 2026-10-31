@@ -88,6 +88,7 @@ const js = {
     throw: a => { throw a },
     String: a => String(a),
     Number: a => Number(a),
+    BigInt: a => BigInt(a),
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,

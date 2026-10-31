@@ -244,6 +244,9 @@ const analyzedFunction = e => {
 }
 
 export const proof = {
+    bigintConversion: () => {
+        assertEq(reads(['BigInt', '9007199254740993']), 'export default BigInt("9007199254740993");')
+    },
     literalUndefinedAnchorsNormalizeButResultsRemain: () => {
         assert(redundantAnchor([',', [['undefined'], 1]]))
         assert(redundantAnchor(['?:', true, 1, [',', [['undefined'], 2]]]))

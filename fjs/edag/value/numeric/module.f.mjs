@@ -1,7 +1,8 @@
 /**
  * Numeric operations on evaluated primitives. Unary plus applies
  * ToNumber and fails on bigint; negation and complement apply ToNumeric
- * and preserve bigint. Explicit Number converts either numeric type.
+ * and preserve bigint. Explicit Number converts either numeric type; BigInt converts primitives
+ * to exact integers and fails on invalid inputs.
  *
  * Binary addition concatenates if either primitive is a string. Otherwise
  * binary arithmetic applies ToNumeric to both operands: numbers and bigints
@@ -24,13 +25,14 @@
  */
 
 import { ok, error } from '../../../types/result/module.f.js'
-import { primitiveToString, primitiveToNumber, primitiveToNumeric } from '../coercion/module.f.mjs'
+import { primitiveToBigInt, primitiveToString, primitiveToNumber, primitiveToNumeric } from '../coercion/module.f.mjs'
 
-/** @type {Readonly<Record<'+' | '-' | '~' | 'Number', (value: Primitive) => Result<number | bigint, EdagValue>>>} */
+/** @type {Readonly<Record<'+' | '-' | '~' | 'Number' | 'BigInt', (value: Primitive) => Result<number | bigint, EdagValue>>>} */
 export const unary = {
     '+': primitiveToNumber,
     '-': value => ok(-primitiveToNumeric(value)),
     '~': value => ok(~primitiveToNumeric(value)),
+    BigInt: primitiveToBigInt,
     Number: value => ok(Number(primitiveToNumeric(value))),
 }
 

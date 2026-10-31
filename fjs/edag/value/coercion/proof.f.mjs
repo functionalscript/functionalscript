@@ -11,7 +11,7 @@ import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStruct
 import { ok, error } from '../../../types/result/module.f.js'
 import { object } from '../object/module.f.mjs'
 import { func } from '../function/module.f.mjs'
-import { objectToPrimitive, primitiveToString, primitiveToNumber, primitiveToNumeric } from './module.f.mjs'
+import { primitiveToBigInt, objectToPrimitive, primitiveToString, primitiveToNumber, primitiveToNumeric } from './module.f.mjs'
 
 /** An invocation that must never happen. @type {() => never} */
 const skipped = () => { assert(false, 'an unselected conversion method was invoked') }
@@ -29,6 +29,20 @@ const toString = assertOk(func(0, [], ['throw', 'toString remains code']))
 const methods = receiver([[':', 'valueOf', valueOf], [':', 'toString', toString]])
 
 export const proof = {
+    bigintConversion: () => {
+        /** @type {readonly (readonly [Primitive, bigint])[]} */
+        const cases = [
+            [0n, 0n], [-7n, -7n], [true, 1n], [false, 0n], [0, 0n], [-0, 0n],
+            [42, 42n], [-42, -42n], [2 ** 100, 2n ** 100n],
+            ['', 0n], [' \t\n', 0n], ['\ufeff12\u2029', 12n], ['+0012', 12n], ['-12', -12n],
+            ['0xFF', 255n], ['0O17', 15n], ['0B101', 5n], ['9007199254740993', 9_007_199_254_740_993n],
+        ]
+        for (const [value, expected] of cases) { assertEq(assertOk(primitiveToBigInt(value)), expected) }
+        for (const value of [null, undefinedValue, NaN, Infinity, -Infinity, 1.5, -1.5,
+            'x', '1.0', '1e3', '1n', '1_000', '+', '-', '0x', '-0x1', '+0b1', '0b2', '12 3', '\u008512']) {
+            assertStructurallySame(assertError(primitiveToBigInt(value)), ['undefined'])
+        }
+    },
     hintOrder: () => {
         const number = ok(7)
         const string = ok('text')

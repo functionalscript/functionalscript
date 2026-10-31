@@ -39,6 +39,28 @@ export const primitiveToNumber = value => typeof value === 'bigint'
     ? error(['undefined'])
     : ok(Number(untagUndefined(value)))
 
+/** Whether two numeric primitives have an ordering; invalid integer strings have neither.
+ * @type {(a: string | number | bigint, b: string | number | bigint) => boolean}
+ */
+const ordered = (a, b) => a >= b || a < b
+
+/**
+ * Explicit BigInt conversion of a primitive. The bigint/string relational
+ * comparison uses StringToBigInt internally: either ordering succeeds exactly
+ * when the string is valid, including whitespace and non-decimal prefixes.
+ * Validate before the host conversion so malformed input stays a Result.
+ * @type {(value: Primitive) => Result<bigint, EdagValue>}
+ */
+export const primitiveToBigInt = value => {
+    switch (typeof value) {
+        case 'bigint': { return ok(value) }
+        case 'boolean': { return ok(value ? 1n : 0n) }
+        case 'number': { return Number.isInteger(value) ? ok(BigInt(value)) : error(['undefined']) }
+        case 'string': { return ordered(value, 0n) ? ok(BigInt(value)) : error(['undefined']) }
+        default: { return error(['undefined']) }
+    }
+}
+
 /** ToNumeric preserves bigint and otherwise applies ToNumber. @type {(value: Primitive) => number | bigint} */
 export const primitiveToNumeric = value => typeof value === 'bigint'
     ? value

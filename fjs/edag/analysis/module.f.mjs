@@ -288,6 +288,7 @@ const handlers = {
     '~': o1,
     String: o1,
     Number: o1,
+    BigInt: o1,
     typeof: o1,
     throw: o1,
     '+': o12,

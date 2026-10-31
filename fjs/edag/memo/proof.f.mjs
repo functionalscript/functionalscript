@@ -223,7 +223,7 @@ export const proof = {
         for (const tag of /** @type {const} */ (['+', '-', '*', '/', '%', '**', '&', '|', '^', '<<', '>>', '>>>', '<', '<=', '>', '>=', '===', '!=='])) {
             agrees([tag, 6, 2])
         }
-        for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', '~', '+', '-'])) { agrees([tag, '2']) }
+        for (const tag of /** @type {const} */ (['!', 'typeof', 'String', 'Number', 'BigInt', '~', '+', '-'])) { agrees([tag, '2']) }
         agrees(['instanceof', ['[]', [1]], 'Array'])
         agrees(['instanceof', ['{}', []], 'Array'])
         agrees(['instanceof', conditional("&&", 1, null), 'Array'])

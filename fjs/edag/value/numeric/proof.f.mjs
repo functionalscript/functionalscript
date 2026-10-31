@@ -16,6 +16,10 @@ import { binary, unary } from './module.f.mjs'
 const undefinedValue = /** @type {const} */ (['undefined'])
 
 export const proof = {
+    bigintConversion: () => {
+        assertEq(assertOk(unary.BigInt('9007199254740993')), 9_007_199_254_740_993n)
+        assertStructurallySame(assertError(unary.BigInt(1.5)), ['undefined'])
+    },
     numberPrimitives: () => {
         /** @type {readonly (readonly [Primitive, number])[]} */
         const cases = [

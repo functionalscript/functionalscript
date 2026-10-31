@@ -1,7 +1,7 @@
 /**
  * The bigint of an integral number: `BigInt(n)` on a number, written with
- * the language's own operators, so a module can import it where the `BigInt`
- * global is not admitted ([`doc/CONVERTING.md`](../../../../doc/CONVERTING.md)).
+ * the language's arithmetic operators. Unlike the `BigInt` conversion
+ * operator, this numeric-only helper rejects inputs of other types.
  *
  * @module
  */

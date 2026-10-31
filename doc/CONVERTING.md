@@ -407,39 +407,41 @@ return as above.
 
 ## 8. `BigInt`
 
-The `BigInt` global is not admitted, and `BigInt(n)` is refused
-(`const not found`). On an integral number the replacement is `bigint`
-from
-[`fjs/types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js):
+`BigInt(exp)` is now a conversion operator, like `Number(exp)` and
+`String(exp)` ([BigInt conversion](../spec/conversions/bigint/README.md)).
+Keep the conversion in place:
 
 ```js
-const twoPow = exp => 1n << BigInt(exp)   // refused
+const twoPow = exp => 1n << BigInt(exp)
 ```
 
-```js
-import { bigint } from '../types/bigint/from_number/module.f.js'
+It accepts integral numbers, bigints, booleans, and valid integer strings,
+with JavaScript's primitive conversion for containers. It requires exactly
+one plain operand. `BigInt` itself is not a value: binding it, reading it
+bare, guarded calls, and static members are refused.
 
-const twoPow = exp => 1n << bigint(exp)   // accepted
+The existing numeric-only helper
+[`fjs/types/bigint/from_number`](../fjs/types/bigint/from_number/module.f.js)
+remains available for callers that deliberately reject non-number inputs.
+It is no longer needed to make a `BigInt(exp)` conversion compile.
+
+Source admission alone does not make an importing module compilable. The
+bodies of `fjs/types/bit_set/module.f.mjs` and
+`fjs/media/json/extended/module.f.mjs` now parse, but both remain `.f.mjs`
+because the compiler also links their imports. `bit_set` imports
+`types/bigint`, whose `combination` still uses an unadmitted `for...of` loop.
+The extended JSON codec imports the JSON parser, whose `tagged` helper still
+reads the dynamic string key `member[key]`, outside the numeric computed-key
+contract. Compile either module explicitly to observe its dependency's refusal:
+
+```sh
+npm start compile fjs/types/bit_set/module.f.mjs /tmp/bit-set.js
+npm start compile fjs/media/json/extended/module.f.mjs /tmp/extended-json.js
 ```
 
-`bigint(n)` is the bigint with the value of `n`, exact at every magnitude:
-the lowest bit of an integral double is `n % 2`, the bits above it are
-those of `(n - n % 2) / 2`, both exact, and a `let`/`while` loop over one
-variable ([loops](../spec/control-flow/loops/README.md)) reads them one per round, at
-most 1024 for the largest double. `-0` gives `0n`, as
-`BigInt(-0)` does. A fraction, `NaN` or an infinity has no bigint:
-`BigInt` throws a `RangeError` on it, and `bigint` throws too
-([failure is one outcome](../spec/principles/README.md#failure-is-one-outcome)), so
-the rewrite preserves the failure with the value. It is a function the
-compiler compiles, with no node of its own, as the strategy above says;
-the language may take `BigInt(n)` in as sugar for it later, beside
-`Number(n)` and `String(n)`.
-
-One spelling of the built-in is not a call on a number. `BigInt("12")` is
-`12n` and `BigInt(true)` is `1n`: the built-in converts its argument,
-where `bigint` takes a number and throws on anything else, so a call on a
-value of another type is checked, not rewritten — the module says what it
-converts, as it does for `min` and `max` on strings.
+Rename each module and update its importers when it compiles with its imports,
+as [the module-extension rule](../fjs/AGENTS.md#35-functionalscript-module-rules)
+requires; a `.f.js` module's runtime imports must themselves target `.f.js`.
 
 ## 9. A `Map` or a `Set` of strings
 

@@ -8,6 +8,10 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analyzeBindings, isSpread, mapOperator, operatorOperands } from './module.f.mjs'
 
 export const proof = {
+    bigintOperands: () => {
+        assertStructurallySame(operatorOperands(['BigInt', 7]), [7])
+        assertStructurallySame(mapOperator(value => value + 1)(['BigInt', 7]), ['BigInt', 8])
+    },
     spreadItems: () => {
         const spread = /** @type {typeof isSpread<Value>} */ (isSpread)
         const operand = /** @type {Value} */ (['array', [1]])

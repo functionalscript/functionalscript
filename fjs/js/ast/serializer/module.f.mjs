@@ -268,7 +268,7 @@ const operatorText = (context, operator) => {
         }
         case ',': { return `(${operator[1].map(value => expression(context, value)).join(',') || primitive(undefined)})` }
         case '?:': { return `${expression(context, operator[1], 3)}?${expression(context, operator[2])}:${expression(context, operator[3])}` }
-        case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
+        case 'BigInt': case 'Number': case 'String': { return `${operator[0]}(${expression(context, operator[1])})` }
         case 'typeof': { return `${keyword('typeof')} ${expression(context, operator[1], 14)}` }
         case '~': case '!': { return `${operator[0]}${expression(context, operator[1], 14)}` }
         case '+': case '-': {

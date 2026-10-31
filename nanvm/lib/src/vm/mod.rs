@@ -1,6 +1,7 @@
 mod any;
 mod array;
 mod bigint;
+mod bigint_coercion;
 mod boolean_coercion;
 mod container_fmt;
 mod dispatch;

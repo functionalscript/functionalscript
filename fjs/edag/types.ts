@@ -270,7 +270,7 @@ export type Frame = readonly ['frame', number]
 // Op1Ids
 
 export type Op1Id =
-    | 'String' | 'Number' | '!' | '~' | 'typeof' | 'throw'
+    | 'String' | 'Number' | 'BigInt' | '!' | '~' | 'typeof' | 'throw'
 
 export type Op1 = readonly[Op1Id, Exp]
 

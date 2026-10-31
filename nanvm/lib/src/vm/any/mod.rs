@@ -29,10 +29,11 @@ pub use instanceof_::Constructor;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, Number, String, ToAny, Unpacked, boolean_coercion::BooleanCoercion, dispatch::Dispatch,
-    member_access::non_nullish_receiver, nullish::Nullish, number_coercion::NumberCoercion,
-    numeric::Numeric, numeric_coercion, primitive_coercion::ToPrimitivePreferredType,
-    primitive_dispatch::ViaPrimitive, string_coercion::StringCoercion,
+    IVm, Number, String, ToAny, Unpacked, bigint_coercion::BigIntCoercion,
+    boolean_coercion::BooleanCoercion, dispatch::Dispatch, member_access::non_nullish_receiver,
+    nullish::Nullish, number_coercion::NumberCoercion, numeric::Numeric, numeric_coercion,
+    primitive_coercion::ToPrimitivePreferredType, primitive_dispatch::ViaPrimitive,
+    string_coercion::StringCoercion,
 };
 
 /// ```
@@ -100,6 +101,14 @@ impl<A: IVm> Any<A> {
             Numeric::BigInt(b) => b.to_number(),
         }
         .to_any())
+    }
+
+    /// `BigInt(value)`: ordinary primitive conversion with the number hint,
+    /// then an exact integer conversion. This is an operator, not a value.
+    /// <https://tc39.es/ecma262/#sec-bigint-constructor>
+    pub fn bigint(self) -> Result<Any<A>, Any<A>> {
+        self.dispatch(ViaPrimitive(BigIntCoercion))
+            .map(ToAny::to_any)
     }
 
     /// `**`. Not a `core::ops` trait — Rust has no operator for
