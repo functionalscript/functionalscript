@@ -158,29 +158,29 @@ npm start test           # this directory's proofs
 npm test                 # the same, after a whole-tree tsc
 ```
 
-Coverage scopes the same way, at the thresholds `npm run cov` sets, with the
-report kept to the directory's own modules. This one runs from the repository
-root, where `node --test` finds the suite's entry file; `cd` back first if the
-block above left you in the directory:
+Coverage also starts at the caller's directory:
 
 ```bash
-d=fjs/basen              # at the repository root
-INIT_CWD=$d node --test --experimental-test-coverage \
-  --test-coverage-include="$d/**/module.f.mjs" \
-  --test-coverage-include="$d/**/module.f.js" \
-  --test-coverage-include="$d/**/demo.f.mjs" \
-  --test-coverage-lines=100 \
-  --test-coverage-branches=100 \
-  --test-coverage-functions=100
+npm start cov node      # still in fjs/basen
 ```
 
-The includes matter: what the directory imports from elsewhere runs too, only
-partly covered by these proofs, and the thresholds would fail on it. A scoped
-run takes seconds where the full suite takes minutes, and it is what
-[AGENTS.md](./AGENTS.md) asks of a change under one directory; the full
-`npm run cov` is CI's. The block is POSIX shell; on bare Windows, `npm run cov`
-measures the whole tree, and the command this stands in for is proposed in
-[`fjs/emergent_testing/todo/per-module-coverage.md`](./fjs/emergent_testing/todo/per-module-coverage.md).
+The runner executes each module directory's own proofs in a fresh Node
+process and requires 100% line, branch and function coverage of its immediate
+`module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
+descendant modules cannot supply coverage to another directory's result.
+Each invocation prints its working directory and complete command; failures
+are reported while the remaining modules continue. There are no flags.
+
+To test only one directory without coverage or discovery below it, use the
+explicit native entry:
+
+```bash
+cd ../types/list        # from fjs/basen
+node --test ../../emergent_testing/one.mjs
+```
+
+The full `npm run cov` remains CI's combined-suite gate during the
+[per-module rollout](./fjs/emergent_testing/todo/per-module-coverage.md).
 
 Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
@@ -192,8 +192,8 @@ already includes imported demos without a filename filter; CI uses Node's
 Node's `spec` reporter with the passed tests and the fully covered files
 filtered out, so a green run prints its summary — the test counts and the
 `all files` coverage row — and a red one prints each failure and each file
-under a threshold. The block above uses Node's default reporter, which lists
-every test; add the same `--test-reporter` for the same output.
+under a threshold. The isolated coverage runner uses the same quiet native
+reporting behind its command log and module results.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

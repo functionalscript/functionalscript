@@ -5,9 +5,36 @@
 import { assert, assertEq, todo } from '../asserts/module.f.js'
 import { unwrap } from '../types/result/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
-import { allFiles, isThirdParty, shouldLoad } from './module.f.mjs'
+import { allFiles, isThirdParty, loadDirectoryModuleMap, shouldLoad } from './module.f.mjs'
 
 export const proof = {
+    loadDirectoryModuleMap: () => {
+        const excluded = () => { assert(false, 'excluded module imported') }
+        /** @type {Dir} */
+        const root = {
+            'z.proof.f.mjs': () => ({ proof: { last: () => undefined } }),
+            'module.f.js': () => ({ proof: { inline: () => undefined } }),
+            'proof.f.mjs': () => ({ proof: { sibling: () => undefined } }),
+            'broken.f.mjs': [],
+            '.hidden.f.mjs': excluded,
+            'proof.mjs': excluded,
+            'old.f.ts': excluded,
+            'ordinary.mjs': excluded,
+            'child': { 'proof.f.mjs': excluded },
+        }
+        const [, result] = virtualAt(root)(loadDirectoryModuleMap())
+        const map = unwrap(result)
+        assertEq(Object.keys(map).join(','), './broken.f.mjs,./module.f.js,./proof.f.mjs,./z.proof.f.mjs')
+        const broken = map['./broken.f.mjs']
+        assert(broken !== undefined && broken[0] === 'error')
+        const loaded = map['./module.f.js']
+        assert(loaded !== undefined && loaded[0] === 'ok')
+        assert(loaded[1].proof !== undefined)
+    },
+    loadDirectoryModuleMapEmpty: () => {
+        const [, result] = virtualAt({})(loadDirectoryModuleMap())
+        assertEq(Object.keys(unwrap(result)).length, 0)
+    },
     isThirdParty: () => {
         // Tooling, dependencies and Rust build output.
         assert(isThirdParty('.git'))

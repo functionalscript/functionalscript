@@ -1891,6 +1891,16 @@ export const proof = {
         },
     },
     spawn: {
+        workingDirectory: () => withTemporary('fjs-spawn-cwd-', async directory => {
+            await writeFile(join(directory, 'marker'), '')
+            const started = spawn('node', ['-e', 'process.exitCode = require("node:fs").existsSync("marker") ? 0 : 7'], {
+                stdio: 'inherit', cwd: directory,
+            })
+            const program = step(started, childWait)
+            await hostCheck(program, result => {
+                assertStructurallySame(unwrap(result), ['exited', 0])
+            })
+        }),
         exited: async () => {
             const program = step(
                 spawn('node', ['-e', 'process.exitCode = 3'], { stdio: 'inherit' }),
