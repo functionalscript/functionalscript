@@ -568,11 +568,17 @@ primitive for shared runtime bodies, without a 65,536-entry table.
 
 **Drawbacks.** Every executor must bind another native static.
 
-**Approval.** Sergey Shandar explicitly approved the design in
-[this PR comment](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548181784):
-“Design is approved!” He also requested native implementation and FJS admission,
-including detached calls and matching length, before implementation in
+**Owner approval.** Sergey Shandar requested native implementation and FJS
+admission, including detached calls and matching length, in
 [the working session](https://chatgpt.com/local/01a192f2-7904-77a6-a6a4-116d54ef3036).
-This records the task owner's approval; Sergey is also the PR author, so it
-is not an approval from a different language designer as requested in
-[the review](https://github.com/functionalscript/functionalscript/pull/3501#pullrequestreview-5724390025).
+He explicitly approved the design in
+[the first approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548181784)
+and reaffirmed it after the independent-approval review in
+[the latest approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548413108):
+“The design is approved!” He then instructed the implementation session to
+address the comments using that approval.
+
+This change proceeds under that explicit task-owner instruction. Sergey is
+also the PR author; these links record owner authorization, not an approval
+by a different designer. The review's request for independent approval is
+[recorded here](https://github.com/functionalscript/functionalscript/pull/3501#pullrequestreview-5724682234).
