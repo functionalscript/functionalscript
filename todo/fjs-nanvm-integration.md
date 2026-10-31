@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `e78956d3d`, the leaf conversion updates in
+Measured on `5d2b51fe4`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -153,17 +153,19 @@ The whole module now compiles and is renamed to `.f.js`, with its references
 updated.
 `website/demo/mirror` now uses the compiled binary `min` helper in place of
 both `Math.min` calls and replaces both `Array.from` calls with `generate`.
-Its next refused construct is the computed numeric key `a[i]`.
+Its computed numeric keys in `commonPrefix`, `commonSuffix` and `nodeOf` are
+wrapped with `Number(...)`. The whole module now compiles and is renamed to
+`.f.js`, with its runtime import, proof import and README link updated.
 `js/ast/sugar/pattern` renames its policy callback from `name` to `bindingName`,
 including the policy type, parser adapter and proof policy, and replaces its
 `Array.from` ID construction with `generate(count, index => ({ index }))`.
 The whole module now compiles and is renamed to `.f.js`, with its references
-updated. Neither conversion exposes additional leaves.
+updated. These conversions expose no additional leaves.
 
-The compiler-compatible population is 171 authored `.f.js` files;
-435 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 172 authored `.f.js` files;
+434 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All thirteen
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All twelve
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
@@ -179,11 +181,10 @@ remaining leaves are refused as written.
 | `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
 | `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
 | `website/demo/graph` | Postfix `round++` in the loop update | 1 |
-| `website/demo/mirror` | Computed numeric key `a[i]` in `commonPrefix` | 0 |
 | `zlib/window` | `for...of` | 0 |
 
-The previous fourteen-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/2b48a937d3d48dd91a805d68fbba38a898cff22a/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The previous thirteen-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/d1beeb4979fc300dc5fa99a9eccc898ff15350a3/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
