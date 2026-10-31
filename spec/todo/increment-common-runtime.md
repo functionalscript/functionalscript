@@ -108,7 +108,7 @@ analysis must also preserve statement and control-flow boundaries.
 - [ ] Specify the common-runtime helper and supported conversion domain,
       retaining refusal of any unsupported behavior.
 - [ ] Obtain and record formal, explicit approval from an authorized language
-      designer distinct from the proposer before implementation.
+      designer before implementation.
 - [ ] Implement the shared semantic body and runtime/backend integration,
       preserving source analysis and AST-to-FAST pass ownership.
 - [ ] Add JavaScript-oracle proofs for the pitfalls above, including Number

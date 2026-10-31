@@ -495,18 +495,20 @@ Follow the [issue format](../todo/README.md#issue-format), and explicitly explai
 the proposed feature's benefits and drawbacks, including its effects on
 JavaScript compatibility and language complexity.
 
-Before implementing it, obtain **formal, explicit approval from another language
-designer**, distinct from the proposer. Record the approving designer and a link
-to their approval in the TODO; silence or self-approval does not count.
+Before implementing it, obtain **formal, explicit approval from the language
+designer**. Record the approving designer and a link to their approval in the
+TODO; silence does not count. The language designer may approve their own
+proposal. An explicit request from the language designer to implement a feature
+counts as approval of that feature.
 
 The language designers authorized to grant this approval are named here.
-Currently, the language designer is **`sergey-shandar`**. Task ownership under
+The only active language designer is **`sergey-shandar`**. Task ownership under
 [SESSION.md](./SESSION.md) does not by itself grant this authority, and ordinary
 code review does not replace explicit language-design approval.
 
 This gate also applies to familiar JavaScript features. The general
 incremental-design guidance in [§3](#3-design-before-implementation) does not
-waive the TODO, benefit/drawback explanation, or independent approval.
+waive the TODO, benefit/drawback explanation, or explicit language-design approval.
 
 ## 13. One source of truth; optimize by substitution
 

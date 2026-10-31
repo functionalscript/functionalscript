@@ -68,7 +68,7 @@ Before proposing changes to FunctionalScript syntax or semantics, read
 [DESIGN.md §12](./doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
 Preserve harmless JavaScript conventions and justify restrictions. A new
 language feature must start with a `todo/` proposal explaining its benefits and
-drawbacks, and receive formal, explicit approval from another language designer
+drawbacks, and receive formal, explicit approval from the language designer
 before implementation.
 
 This file is a map: each section below holds the facts you must not violate and
