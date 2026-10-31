@@ -1,7 +1,7 @@
 ## Prove each module's coverage by its own proof
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
