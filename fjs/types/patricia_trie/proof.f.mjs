@@ -254,7 +254,7 @@ export const proof = {
         assertEq(end(init[2])[1].length, 0)
         for (let split = 0; split <= input.length; split++) {
             const checkpoint = input.slice(0, split).reduce((state, candidate) => update(state, candidate)[2], init[2])
-            const resumed = { ...trie, init: nextStep(checkpoint) }
+            const resumed = /** @type {const} */ ({ ...trie, init: nextStep(checkpoint) })
             assertStructurallySame(run(resumed)(input.slice(split)), whole)
         }
         assertStructurallySame(init[2], [[], []])
