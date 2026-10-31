@@ -24,8 +24,9 @@ export type Key = {
 export type MentalPoker = {
     /**
      * The plain deck of `size` cards, or `null` when `size` is outside
-     * `0..0x100`. Card `i` is the first curve point whose `x` is
-     * `i | nonce << 8`, so nobody knows a multiplier between two cards.
+     * `0..0x100` or the curve's field is too small to hold every card. Card
+     * `i` is the first curve point whose `x` is `i | nonce << 8`, below the
+     * field's size `p`, so nobody knows a multiplier between two cards.
      */
     readonly deck: (size: number) => Nullable<Deck>
     /**

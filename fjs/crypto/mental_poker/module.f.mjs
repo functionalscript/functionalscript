@@ -15,6 +15,7 @@
  * @import { Deck, Key, MentalPoker } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.js'
 import { eq } from '../secp/module.f.mjs'
 
 /** How many low bits of a card's `x` hold its index. */
@@ -24,7 +25,10 @@ export const cardBits = 8n
 export const maxDeckSize = 0x100
 
 /**
- * Mental poker over the curve `c`.
+ * Mental poker over the curve `c`. The curve's order `n` must be prime, as
+ * it is for every named curve: over a composite `n`, a secret with no
+ * inverse mod `n` makes `key` throw
+ * ([`todo/composite-order.md`](./todo/composite-order.md)).
  *
  * @example
  *
@@ -41,17 +45,28 @@ export const maxDeckSize = 0x100
  *
  * @type {(c: Curve) => MentalPoker}
  */
-export const mentalPoker = ({ y, mul, nf: { p: n, reciprocal } }) => {
-    /** @type {(i: bigint) => (nonce: bigint) => Point2D} */
+export const mentalPoker = ({ pf: { p }, y, mul, nf: { p: n, reciprocal } }) => {
+    /** Card `i` as a point, or `null` once its `x` would reach the field's
+     * size `p`: past it, `x` would name the same point as `x - p`, another
+     * card's.
+     * @type {(i: bigint) => (nonce: bigint) => Point2D | null}
+     */
     const encode = i => nonce => {
         const x = i | nonce << cardBits
+        if (x >= p) {
+            return null
+        }
         const yx = y(x)
         return yx === null ? encode(i)(nonce + 1n) : [x, yx]
     }
     return {
-        deck: size => Number.isInteger(size) && 0 <= size && size <= maxDeckSize
-            ? Array.from({ length: size }, (_, i) => encode(BigInt(i))(0n))
-            : null,
+        deck: size => {
+            if (!Number.isInteger(size) || size < 0 || maxDeckSize < size) {
+                return null
+            }
+            const cards = Array.from({ length: size }, (_, i) => encode(BigInt(i))(0n))
+            return cards.every(card => card !== null) ? cards : null
+        },
         key: secret => 0n < secret && secret < n
             ? { lock: mul(secret), unlock: mul(reciprocal(secret)) }
             : null,
@@ -68,9 +83,13 @@ export const mentalPoker = ({ y, mul, nf: { p: n, reciprocal } }) => {
  * the rest of the seed permutes the rest. Seeds below `length!` give every
  * permutation once; a larger seed gives the same one as `seed % length!`.
  *
+ * @throws If `seed` is negative: a caller's mistake, which would otherwise
+ * read before the list's start and return no permutation at all.
+ *
  * @type {(seed: bigint) => <T>(list: readonly T[]) => readonly T[]}
  */
 export const shuffle = seed => list => {
+    assert(0n <= seed, ['negative shuffle seed', seed])
     if (list.length === 0) {
         return list
     }

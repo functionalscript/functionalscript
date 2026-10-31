@@ -17,6 +17,12 @@
  * every key, so it can draw the table as any player sees it; in a real game
  * each player's secret never leaves their machine.
  *
+ * **The passphrases are part of the shareable link.** Like every demo
+ * input, they go into the address and into a copied link, so the link
+ * replays the same deal. That shares every key, which is what this page
+ * already shows: one page holds all three players. A real game draws each
+ * secret at random, on its player's machine, and shares none of them.
+ *
  * @module
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
@@ -282,7 +288,7 @@ const definition = {
             ['p', 'Mental poker deals cards with no dealer: each player locks every card with a secret number and shuffles the deck, in turn, so no one knows where any card is. A pocket card is handed to its owner once the other players remove their locks; the owner removes the last one alone. Table cards are opened by everyone, street by street. Each card shows its locks: a section per player, in their colour while their lock is on.'],
             ...players.map((name, p) => inputField({ name: fields[p], label: `${name}'s passphrase` }, state[fields[p]])),
             ...(s[0] === 'error' ? [refusal(s[1])] : game(state, s[1].map(([, seed]) => seed))),
-            ['p', 'Demo only: a short passphrase can be guessed, so a real game draws each secret at random. Players here are trusted to shuffle and unlock honestly; proofs that they did are future work.'],
+            ['p', 'Demo only: the passphrases are part of this page\'s link, and a short one can be guessed, so a real game draws each secret at random and shares none. Players here are trusted to shuffle and unlock honestly; proofs that they did are future work.'],
         ]
     },
 }

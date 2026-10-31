@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
-import { eq, secp256k1 } from '../secp/module.f.mjs'
+import { curve, eq, secp256k1 } from '../secp/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
 import { cardName, demo, setup, transition } from './demo.f.mjs'
@@ -46,6 +46,11 @@ export const proof = {
         assertEq(deck(-1), null)
         assertEq(deck(maxDeckSize + 1), null)
         assertEq(deck(1.5), null)
+        // A field too small for every card is refused: on this curve,
+        // `x = 23` would be `x = 0`, card 0's point, again.
+        const toy = mentalPoker(curve({ p: 23n, c: [4n, 1n], g: [0n, 2n], n: 29n }))
+        assertEq(assertNotNullish(toy.deck(1)).length, 1)
+        assertEq(toy.deck(24), null)
     },
     key: () => {
         assertEq(key(0n), null)
@@ -194,5 +199,9 @@ export const proof = {
             assert(!reset.showdown)
             assertStructurallySame(reset.board, [])
         },
+    },
+    throw: {
+        // A negative seed would read before the list's start.
+        negativeSeed: () => shuffle(-1n)([1, 2, 3]),
     },
 }
