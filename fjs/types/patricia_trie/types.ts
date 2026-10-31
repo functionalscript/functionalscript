@@ -4,6 +4,8 @@
  * @module
  */
 
+import type { NextStep, Transducer } from '../function/operator/types.ts'
+
 /**
  * Merges two child identities into a parent. Values first, storage last in both
  * params and return.
@@ -24,7 +26,7 @@ export type InternalState<T> = readonly Candidate<T>[]
 export type State<S, T> = readonly [S, InternalState<T>]
 
 /**
- * @property push
+ * @property update
  *
  * Add one leaf. Merges any tightly-coupled stack candidates before pushing.
  *
@@ -33,9 +35,9 @@ export type State<S, T> = readonly [S, InternalState<T>]
  * Drain the stack right-to-left, returning the root identity and final storage.
  * Returns `undefined` as the root if no leaves were pushed.
  */
-export type PatriciaTrie<S, T> = {
-    readonly push: (c: Candidate<T>, state: State<S, T>) => State<S, T>
-    readonly end: (state: State<S, T>) => readonly [T | undefined, S]
+export type PatriciaTrie<S, T> = Omit<Transducer<Candidate<T>, State<S, T>, never, readonly [T | undefined, S]>, 'init' | 'update'> & {
+    readonly init: NextStep<State<S, T>>
+    readonly update: (state: State<S, T>, candidate: Candidate<T>) => NextStep<State<S, T>>
 }
 
 /**
