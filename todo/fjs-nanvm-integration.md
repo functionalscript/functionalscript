@@ -144,13 +144,15 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `3142efa88`, the path conversion step of
+Measured on `722193bf9`, the path and mirror updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
 `endsInSeparator` and `isProperPrefix`, preserving their numeric values.
 The whole module now compiles and is renamed to `.f.js`, with its references
 updated. This conversion exposes no additional leaves.
+`website/demo/mirror` now uses the compiled binary `min` helper in place of
+both `Math.min` calls; its next refused construct is `Array.from`.
 
 The compiler-compatible population is 170 authored `.f.js` files;
 436 authored non-proof `.f.mjs` files remain.
@@ -172,7 +174,7 @@ remaining leaves are refused as written.
 | `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
 | `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
 | `website/demo/graph` | Postfix `round++` in the loop update | 1 |
-| `website/demo/mirror` | `Math.min` | 0 |
+| `website/demo/mirror` | `Array.from` in `commonPrefix` ([conversion rule 11](../doc/CONVERTING.md#11-arrayfrom-used-to-generate-by-index)) | 0 |
 | `zlib/window` | `for...of` | 0 |
 
 The previous fifteen-leaf measurement is retained in the
