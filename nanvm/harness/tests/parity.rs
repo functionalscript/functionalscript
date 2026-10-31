@@ -16,7 +16,7 @@ mod host {
         naive::Naive,
         vm::{Object, ToArray, unstable::string_any},
     };
-    use std::{fs, io::Cursor, path::PathBuf};
+    use std::{fs, path::PathBuf};
 
     /// A fresh directory under the system's, removed when dropped.
     struct Scratch(PathBuf);
@@ -48,7 +48,7 @@ mod host {
             let object = Object::try_from(member(&exports, &case)).unwrap();
             let directory = Scratch::new(&case);
             let root = string_any(&directory.0.to_string_lossy());
-            let mut host = Native::new(Cursor::new(Vec::new()), Vec::new(), Vec::new());
+            let mut host = Native::buffered(&[]);
             perform_case(&case, &object, [root].to_array(), &mut host);
         }
     }
