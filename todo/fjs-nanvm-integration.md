@@ -144,21 +144,18 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `c095a8859`, the weighted materialization step of
-[#3495](https://github.com/functionalscript/functionalscript/pull/3495), stacked
-on [#3494](https://github.com/functionalscript/functionalscript/pull/3494).
-`list/alt.toArray` now feeds whole array chunks and singleton cons chunks to
-`monoid.fold`, weighted by array length. Its private stack is gone; a fresh
-identity per materialization preserves lone-array identity and empty-result
-freshness. Moving `fold` below `accumulator` removes the shared monoid's final
-forward reference without changing its algorithm.
+Measured on `3142efa88`, the path conversion step of
+[#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
+on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
+`path` wraps its computed numeric keys with `Number(...)`, in
+`endsInSeparator` and `isProperPrefix`, preserving their numeric values.
+The whole module now compiles and is renamed to `.f.js`, with its references
+updated. This conversion exposes no additional leaves.
 
-`common/monoid` and `types/list/alt` are now `.f.js`. Four dependents also
-compile unchanged and are renamed: `types/string`, `types/ordered_map`,
-`types/string_set` and `types/btree/testlib`. The compiler-compatible population
-is 169 authored `.f.js` files; 437 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 170 authored `.f.js` files;
+436 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fifteen
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fourteen
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
@@ -167,7 +164,6 @@ remaining leaves are refused as written.
 | `js/ast` | `for...of` | 2 |
 | `js/ast/sugar/pattern` | `policy.name(...)` (`prohibited member function`) | 0 |
 | `media/wasm/wat` | `new Map` | 0 |
-| `path` | Computed key `dir[dir.length - 1]` | 0 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
 | `types/bigint` | `else` after a returning `if` | 1 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
@@ -179,8 +175,8 @@ remaining leaves are refused as written.
 | `website/demo/mirror` | `Math.min` | 0 |
 | `zlib/window` | `for...of` | 0 |
 
-The previous six-leaf measurement is retained in the
-[#3494 audit](https://github.com/functionalscript/functionalscript/blob/1e9e7b55f2172f26b3546fd9a87dd639d3948bed/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The previous fifteen-leaf measurement is retained in the
+[#3495 audit](https://github.com/functionalscript/functionalscript/blob/db3742f0f0dbf19276066a7969ab58b9e80d25f1/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
