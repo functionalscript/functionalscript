@@ -3,6 +3,8 @@ import { u8ArrayMsb, u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mj
 import { bytes, closing, field, hex, noise, stored, streams, text, written } from '../testlib.f.mjs'
 import { inflate } from './module.f.mjs'
 
+const [, , initial] = inflate.init
+
 /**
  * What a stream read in `pieces` gave: the output as bytes, and the bytes after
  * the stream, or `null` where a piece was refused. `rest` is `null` while the
@@ -11,7 +13,7 @@ import { inflate } from './module.f.mjs'
  * @type {(...pieces: readonly (readonly number[])[]) => { readonly output: readonly number[], readonly rest: number | null } | null}
  */
 const read = (...pieces) => {
-    let state = inflate.init[2]
+    let state = initial
     let output = /** @type {readonly number[]} */ ([])
     for (const piece of pieces) {
         const [kind, emitted, next] = inflate.update(state, u8ListToVecMsb(piece))
@@ -110,7 +112,7 @@ export const proof = {
     // the output of each block is a chunk of its own.
     twoBlocks: () => {
         const stream = stored([data.slice(0, 65_531), data.slice(65_531)])
-        const result = inflate.update(inflate.init[2], u8ListToVecMsb(stream))
+        const result = inflate.update(initial, u8ListToVecMsb(stream))
         assertEq(result[1].map(u8ArrayMsb).map(a => a.length).join(), '65531,4469')
         assertStructurallySame(read(stream), { output: data, rest: 0 })
     },
@@ -156,14 +158,14 @@ export const proof = {
     // Three hundred thousand bytes from a few hundred: the output is many
     // chunks, none more than a step makes, over a window that copies from itself.
     manyChunks: () => {
-        const result = inflate.update(inflate.init[2], u8ListToVecMsb(hex(streams.zeros)))
-        assert(result[0] === 'next', 'refused')
-        const sizes = result[1].map(v => u8ArrayMsb(v).length)
+        const [kind, output, state] = inflate.update(initial, u8ListToVecMsb(hex(streams.zeros)))
+        assert(kind === 'next', 'refused')
+        const sizes = output.map(v => u8ArrayMsb(v).length)
         assertEq(sizes.reduce((a, b) => a + b, 0), 300_000)
         assertEq(Math.max(...sizes) <= 0x4000 + 258, true)
         assertEq(sizes.length >= 300_000 / (0x4000 + 258), true)
-        assertEq(inflate.end(result[2])[2] !== null, true)
-        assertEq(result[1].flatMap(u8ArrayMsb).every(byte => byte === 0), true)
+        assertEq(inflate.end(state)[2] !== null, true)
+        assertEq(output.flatMap(u8ArrayMsb).every(byte => byte === 0), true)
     },
     // A stream in pieces is the stream whole, wherever the pieces meet: in the
     // header, a block's opening, a table description, a symbol and its extra
@@ -255,6 +257,6 @@ export const proof = {
     },
     throw: {
         // A `Vec` that is not whole bytes is no input.
-        notBytes: () => inflate.update(inflate.init[2], vec(7n)(0x55n)),
+        notBytes: () => inflate.update(initial, vec(7n)(0x55n)),
     },
 }
