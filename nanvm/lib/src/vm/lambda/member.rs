@@ -173,6 +173,7 @@ impl<A: IVm> Member<A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::{no_args, returns, rt, throws};
     use crate::{
         naive::Naive,
         vm::{Any, IVm, Nullish, ToAny, ToArray, ToObject, error},
@@ -180,17 +181,9 @@ mod tests {
 
     type A = Naive;
 
-    /// The runtime value a call step takes.
-    fn rt() -> Any<A> {
-        crate::vm::runtime::<A>().unwrap()
-    }
-
-    fn no_args() -> Result<Any<A>, Any<A>> {
-        Ok([].to_array().to_any())
-    }
     /// A function answering `7`, whatever it is called with.
     fn seven() -> Any<A> {
-        A::static_function(|_, _| Ok(7.0.to_any()), 0, [].to_array(), None).to_any()
+        returns(7.0.to_any())
     }
 
     /// A lookup provider that returns a captured value without calling it.
@@ -278,8 +271,7 @@ mod tests {
     #[test]
     fn runtime_presence_and_admission() {
         let one: Any<A> = [1.0.to_any()].to_array().to_any();
-        let failing =
-            A::static_function(|_, _| Err("callee".into()), 0, [].to_array(), None).to_any();
+        let failing = throws("callee".into());
         for value in [
             Nullish::Null.to_any(),
             0.0.to_any(),
