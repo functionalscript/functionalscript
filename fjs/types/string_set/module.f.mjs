@@ -24,12 +24,12 @@
  * @import { StringSet } from './types.ts'
  */
 
-import { empty as btEmpty, values as btValues } from '../btree/module.f.mjs'
+import { empty as btEmpty, values as btValues } from '../btree/module.f.js'
 import { contains as btreeContains } from '../btree/find/module.f.js'
-import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
-import { set as btreeSet } from '../btree/set/module.f.mjs'
+import { remove as btreeRemove } from '../btree/remove/module.f.js'
+import { set as btreeSet } from '../btree/set/module.f.js'
 import { cmp } from "../string/module.f.mjs"
-import { fold } from '../list/module.f.mjs'
+import { fold } from '../list/module.f.js'
 import { compose } from '../function/module.f.js'
 
 /** @type {(s: StringSet) => List<string>} */

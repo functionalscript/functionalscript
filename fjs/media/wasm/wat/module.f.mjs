@@ -27,7 +27,7 @@
  * @import { _Context, _Names, _Naming } from './private.ts'
  */
 
-import { reverse } from '../../../types/list/module.f.mjs'
+import { reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.mjs'
 
 // strings

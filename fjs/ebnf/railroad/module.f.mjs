@@ -45,7 +45,7 @@ import { matchRule } from '../data/module.f.mjs'
 import { at, definedValues } from '../../types/object/module.f.mjs'
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
 import { codePointToString } from '../../text/utf16/module.f.mjs'
-import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.mjs'
+import { maxCodePoint, unicodeNotation } from '../../text/code_point/module.f.js'
 
 /** @type {Diagram} */
 const skip = ['skip']

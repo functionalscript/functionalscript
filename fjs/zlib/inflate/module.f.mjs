@@ -27,7 +27,7 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
+import { reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { appendBytes as adler } from '../adler32/module.f.mjs'

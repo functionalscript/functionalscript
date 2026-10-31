@@ -9,7 +9,7 @@
  */
 
 import { cmp } from '../string/module.f.mjs'
-import { set as setSet } from './set/module.f.mjs'
+import { set as setSet } from './set/module.f.js'
 
 /**
  * Inserts `value` into a string B-tree ordered by `cmp`, the shape every

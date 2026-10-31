@@ -2,7 +2,7 @@
  * @import { TNode } from '../types/types.ts'
  */
 
-import { set as setSet } from './module.f.mjs'
+import { set as setSet } from './module.f.js'
 import { cmp } from '../../string/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
@@ -12,12 +12,28 @@ import { expectedSquares, set, squares } from '../testlib.f.mjs'
 const replace = node => value => g =>
     setSet(cmp(value))(g)(node)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     // One entry per `n`, each building its tree from scratch, so a reshaping
     // bug is reported at the first `n` it breaks rather than at every later
     // one.
     growth: expectedSquares.map(([n, expected]) => () => assertEq(stringifySorted(squares(n)), expected)),
     replace: [
+        () => {
+            const tree = /** @type {const} */ (['1'])
+            const replaced = replace(tree)('1')(value => {
+                assertEq(value, '1')
+                return '1-updated'
+            })
+            assertEq(stringifySorted(replaced), '["1-updated"]')
+        },
+        () => {
+            const tree = /** @type {const} */ (['1', '2'])
+            const replaced = replace(tree)('2')(value => {
+                assertEq(value, '2')
+                return '2-updated'
+            })
+            assertEq(stringifySorted(replaced), '["1","2-updated"]')
+        },
         // Replacing a key already stored as a branch separator (rather than in
         // a leaf) exercises the `x.length === 3` and `x.length === 5` arms of
         // the "replace" case, which plain sequential inserts never reach.
@@ -62,4 +78,4 @@ export const proof = {
             assertEq(stringifySorted(replaced), '["1-updated","2"]')
         },
     ],
-}
+})

@@ -19,7 +19,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { errorMask } from '../../text/code_point/module.f.mjs'
+import { errorMask } from '../../text/code_point/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { fixpoint } from '../../types/function/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'

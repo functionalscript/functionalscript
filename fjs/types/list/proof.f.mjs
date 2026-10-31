@@ -5,7 +5,7 @@
  * @import { Transducer } from '../function/operator/types.ts'
  */
 
-import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat, transduce, run, fromAccumulator } from './module.f.mjs'
+import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, someBy, none, includes, take, takeWhile, zip, first, filterMap, findMap, isEmpty, sameItems, intersperse, mergeAdjacent, tryFold, repeat, transduce, run, fromAccumulator } from './module.f.js'
 import { toArray } from './alt/module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { addition, reduceToScan, nextStep, doneStep } from '../function/operator/module.f.js'

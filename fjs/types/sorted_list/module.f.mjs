@@ -10,7 +10,7 @@
  */
 
 import { bsearch } from '../function/compare/module.f.js'
-import { next } from '../list/module.f.mjs'
+import { next } from '../list/module.f.js'
 import { identity } from '../function/module.f.js'
 
 /**

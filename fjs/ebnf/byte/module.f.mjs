@@ -27,7 +27,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { tryFold } from '../../types/list/module.f.mjs'
+import { tryFold } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { isByte } from '../../types/number/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'

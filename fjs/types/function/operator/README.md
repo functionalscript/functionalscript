@@ -27,7 +27,7 @@ through its own effect error channel.
 
 ## Drivers
 
-[`types/list`](../../list/module.f.mjs) supplies:
+[`types/list`](../../list/module.f.js) supplies:
 
 - `run(machine)(input)` — returns the final summary without retaining output.
 - `transduce(machine)(input)` — lazily yields nonempty `['next', output]`

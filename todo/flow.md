@@ -238,7 +238,7 @@ Planned engine work, each a separate change:
 - [Incremental machines](../fjs/types/function/operator/README.md) — the shared
   operator lifecycle used by folds, hashes, builders, and decoders, with pure
   list and effectful source drivers already available.
-- [fjs/types/list/module.f.mjs](../fjs/types/list/module.f.mjs) — the sequence
+- [fjs/types/list/module.f.js](../fjs/types/list/module.f.js) — the sequence
   type the naive engine binds to
 - [fjs/types/function/operator/module.f.js](../fjs/types/function/operator/module.f.js)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`

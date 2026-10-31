@@ -17,7 +17,7 @@ import {
     flatMap,
     empty,
     none,
-} from '../../types/list/module.f.mjs'
+} from '../../types/list/module.f.js'
 
 import { assert } from '../../asserts/module.f.js'
 import { isUintUpTo } from '../../types/number/module.f.mjs'
@@ -35,7 +35,7 @@ import {
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
-} from '../code_point/module.f.mjs'
+} from '../code_point/module.f.js'
 
 // The `number | null` state threaded through the decoder below is the UTF-16
 // decoding state: a pending high surrogate as an unsigned integer, or `null`

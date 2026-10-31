@@ -53,10 +53,10 @@
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/iterable/module.f.mjs'
-import { run } from '../../types/list/module.f.mjs'
+import { run } from '../../types/list/module.f.js'
 import { run as runStream } from '../../effects/list/module.f.mjs'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
-import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
+import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
 import { basename } from '../../path/module.f.mjs'

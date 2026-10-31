@@ -21,7 +21,7 @@ import {
     chunkList,
     uint,
 } from '../../types/bit_vec/module.f.mjs'
-import { fold, run } from '../../types/list/module.f.mjs'
+import { fold, run } from '../../types/list/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 
 const { concat, front, removeFront } = msb

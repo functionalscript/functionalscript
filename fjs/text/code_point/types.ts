@@ -9,7 +9,7 @@
  * scalar; the domain has three parts:
  *
  * - a scalar value — `0x0000`–`0x10_FFFF` minus the surrogates, which is what
- *   `isValidCodePoint` from `./module.f.mjs` accepts;
+ *   `isValidCodePoint` from `./module.f.js` accepts;
  * - an untagged value no scalar can be — a surrogate (`0xD800`–`0xDFFF`) or a
  *   value above `0x10_FFFF` (up to `0x13_FFFF`). The UTF-8 decoder assembles
  *   these from well-shaped sequences without checking them (`ED A0 80` gives

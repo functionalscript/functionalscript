@@ -1,7 +1,7 @@
 import { maxLengthBytes, vec } from '../bit_vec/module.f.mjs'
 import { toVec, fromVec, listToVec, decodeUtf8, encodeUtf8 } from './module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.js'
-import { equal, fromArrayLike } from '../list/module.f.mjs'
+import { equal, fromArrayLike } from '../list/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 
 /**

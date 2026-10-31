@@ -2,11 +2,11 @@
 
 `List<T>` is the sequence type of FunctionalScript: lazy, immutable, and
 accepted in five shapes so that a caller rarely has to convert anything before
-passing it in. [`module.f.mjs`](./module.f.mjs) holds the combinators, and
+passing it in. [`module.f.js`](./module.f.js) holds the combinators, and
 [`types.ts`](./types.ts) the shapes.
 
 ```js
-import { filter, map, take } from './module.f.mjs'
+import { filter, map, take } from './module.f.js'
 import { toArray } from './alt/module.f.mjs'
 
 /** The natural numbers, without end. */
@@ -60,7 +60,7 @@ A few of them in use:
 
 ```js
 import { addition } from '../function/operator/module.f.js'
-import { concat, fold, foldScan, reduce, zip } from './module.f.mjs'
+import { concat, fold, foldScan, reduce, zip } from './module.f.js'
 import { toArray } from './alt/module.f.mjs'
 
 toArray(concat([1, 2])([3]))            // [1, 2, 3]

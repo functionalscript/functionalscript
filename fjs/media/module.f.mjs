@@ -64,7 +64,7 @@ import { assert, assertNotNullish } from '../asserts/module.f.js'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { toData, unionFold } from '../rtti/data/module.f.mjs'
 import { definedEntries, definedValues, isObject } from '../types/object/module.f.mjs'
-import { findMap } from '../types/list/module.f.mjs'
+import { findMap } from '../types/list/module.f.js'
 import { error, ok, okThen } from '../types/result/module.f.js'
 
 /**

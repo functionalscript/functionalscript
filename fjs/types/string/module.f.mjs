@@ -21,7 +21,7 @@
  * @import { Reduce } from '../function/operator/types.ts'
  */
 
-import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.mjs'
+import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.js'
 import { compose } from '../function/module.f.js'
 import { cmp as uCmp } from '../function/compare/module.f.js'
 import { addition as additionOp, join as joinOp } from '../function/operator/module.f.js'

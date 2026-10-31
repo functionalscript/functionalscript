@@ -77,20 +77,25 @@ const apply = f => input => () => {
     return n === null ? null : f(n)
 }
 
-/** @type {<T>({ first, tail }: NonEmpty<List<T>>) => List<T>} */
-const flatStep =
-    ({ first, tail }) =>
-    concat(first)(flat(tail))
-
 /** @type {<T>(list: List<List<T>>) => Thunk<T>} */
-export const flat = apply(flatStep)
-
-/** @type {<I, O>(f: (value: I) => O) => (x: NonEmpty<I>) => List<O>} */
-const mapStep = f => ({ first, tail }) =>
-    ({ first: f(first), tail: map(f)(tail) })
+export const flat = list => {
+    /** @typedef {typeof list extends List<List<infer T>> ? T : never} T */
+    /** @type {({ first, tail }: NonEmpty<List<T>>) => List<T>} */
+    const step = ({ first, tail }) =>
+        concat(first)(flat(tail))
+    return apply(step)(list)
+}
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
-export const map = f => apply(mapStep(f))
+export const map = f => {
+    /** @typedef {typeof f extends (value: infer I) => infer O ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(x: NonEmpty<I>) => List<O>} */
+    const step = ({ first, tail }) =>
+        ({ first: f(first), tail: map(f)(tail) })
+    return apply(step)
+}
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
 export const flatMap = f => compose(map(f))(flat)
@@ -123,50 +128,61 @@ const mergeFrom = join => first => tail => () => {
  */
 export const mergeAdjacent = join => apply(({ first, tail }) => mergeFrom(join)(first)(tail))
 
-/** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const filterStep = f => ({ first, tail }) => {
-    const newTail = filter(f)(tail)
-    return f(first) ? { first, tail: newTail } : newTail
-}
-
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const filter = f => apply(filterStep(f))
-
-/** @type {<I, O>(f: (value: I) => O | null) => (n: NonEmpty<I>) => List<O>} */
-const filterMapStep = f => n => {
-    const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
-    return first === null ? tail : { first, tail }
+export const filter = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(n: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) => {
+        const newTail = filter(f)(tail)
+        return f(first) ? { first, tail: newTail } : newTail
+    }
+    return apply(step)
 }
 
 /** @type {<I, O>(f: (value: I) => O | null) => (input: List<I>) => Thunk<O>} */
-export const filterMap = f => apply(filterMapStep(f))
-
-/** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep
-    = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
-
-/** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const takeWhile
-    = f => apply(takeWhileStep(f))
-
-/** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ({ first, tail }) =>
-    0 < n ? { first: first, tail: take(n - 1)(tail) } : null
-
-/** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-export const take = n => apply(takeStep(n))
-
-/** @type {<T>(f: (value: T) => boolean) => (ne: NonEmpty<T>) => List<T>} */
-const dropWhileStep = f => ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
+export const filterMap = f => {
+    /** @typedef {typeof f extends (value: infer I) => infer O | null ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(n: NonEmpty<I>) => List<O>} */
+    const step = n => {
+        const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
+        return first === null ? tail : { first, tail }
+    }
+    return apply(step)
+}
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const dropWhile = f => apply(dropWhileStep(f))
-
-/** @type {(n: number) => <T>(ne: NonEmpty<T>) => List<T>} */
-const dropStep = n => ne => 0 < n ? drop(n - 1)(ne.tail) : ne
+export const takeWhile = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(n: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) =>
+        f(first) ? { first, tail: takeWhile(f)(tail) } : null
+    return apply(step)
+}
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-export const drop = n => apply(dropStep(n))
+export const take = n => {
+    /** @type {<T>(result: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) =>
+        0 < n ? { first: first, tail: take(n - 1)(tail) } : null
+    return apply(step)
+}
+
+/** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
+export const dropWhile = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(ne: NonEmpty<T>) => List<T>} */
+    const step = ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
+    return apply(step)
+}
+
+/** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
+export const drop = n => {
+    /** @type {<T>(ne: NonEmpty<T>) => List<T>} */
+    const step = ne => 0 < n ? drop(n - 1)(ne.tail) : ne
+    return apply(step)
+}
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D | T} */
 export const first = def => input => {
@@ -237,14 +253,18 @@ export const cycle = list => () => {
     return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
-/** @type {<I, O>(op: Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
-const scanStep = op => ne => {
-    const [first, newOp] = op(ne.first)
-    return { first, tail: scan(newOp)(ne.tail) }
-}
-
 /** @type {<I, O>(op: Scan<I, O>) => (input: List<I>) => Thunk<O>} */
-export const scan = op => apply(scanStep(op))
+export const scan = op => {
+    /** @typedef {typeof op extends Scan<infer I, infer O> ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(ne: NonEmpty<I>) => List<O>} */
+    const step = ne => {
+        const [first, newOp] = op(ne.first)
+        return { first, tail: scan(newOp)(ne.tail) }
+    }
+    return apply(step)
+}
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 export const stateScan = op => compose(stateScanToScan(op))(scan)
