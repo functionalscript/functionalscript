@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url'
 
 import { assertEq } from '../../asserts/module.f.js'
 import { withTemporary } from '../../effects/node/testlib.mjs'
-import * as console_ from '../../../nanvm/harness/fixtures/console.mjs'
+import { echo, noInput } from '../../../nanvm/harness/fixtures/console.mjs'
+
+/** @type {typeof import('../../../nanvm/harness/fixtures/console.mjs')} */
+const console_ = { echo, noInput }
 
 // A path for the platform, not the URL's `pathname`, which is `/C:/...` on Windows
 // and percent-encoded where a name has spaces.

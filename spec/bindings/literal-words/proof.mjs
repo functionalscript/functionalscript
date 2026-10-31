@@ -8,6 +8,6 @@
 
 import { hostProof } from '../../../fjs/compiler/refused_demo/host.mjs'
 import sample from './sample.mjs'
-import * as page from './demo.f.mjs'
+import { answer, sample as sampleText, suggestion } from './demo.f.mjs'
 
-export const proof = hostProof(import.meta.url, sample, page)
+export const proof = hostProof(import.meta.url, sample, { answer, sample: sampleText, suggestion })

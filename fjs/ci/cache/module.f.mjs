@@ -31,7 +31,7 @@ import { stringifySorted } from '../../media/json/module.f.mjs'
 import { join } from '../../path/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { maxLengthBytes, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
-import * as pins from '../config/module.f.js'
+import { actions, bun, deno, functionalscript, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime } from '../config/module.f.js'
 import { checks as jobChecks, platform as jobPlatform } from '../smart/module.f.mjs'
 import { jobs } from '../self/module.f.mjs'
 import { select } from './inputs/module.f.js'
@@ -39,6 +39,9 @@ import { main as publish } from './publish/module.f.mjs'
 
 const digest = computeSync(sha256)
 const chunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
+
+/** All version pins contribute to the cache contract. @type {typeof import('../config/module.f.js')} */
+const pins = { actions, bun, deno, functionalscript, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime }
 
 /** @type {(value: Unknown) => Vec} */
 const contentHash = value => digest(chunks(stringToU8List(stringifySorted(value))))
