@@ -26,7 +26,7 @@ use nanvm_lib::vm::{
 use std::{
     collections::HashMap,
     fs::File,
-    io::{self, ErrorKind, Read, Write},
+    io::{self, Cursor, ErrorKind, Read, Write},
 };
 
 /// `NodeOp`'s commands, printed from `nodeCommands` in
@@ -55,6 +55,14 @@ impl Native<io::Stdin, io::Stdout, io::Stderr> {
     /// The host over the real standard streams.
     pub fn stdio() -> Self {
         Self::new(io::stdin(), io::stdout(), io::stderr())
+    }
+}
+
+impl Native<Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
+    /// A host in memory: standard input reads `input`, and the output streams
+    /// collect what is written to them.
+    pub fn buffered(input: &[u8]) -> Self {
+        Self::new(Cursor::new(input.to_vec()), Vec::new(), Vec::new())
     }
 }
 
@@ -385,6 +393,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::codec::decode_result;
     #[cfg(not(target_family = "wasm"))]
     use crate::scratch::Scratch;
     use nanvm_lib::{
@@ -394,14 +403,9 @@ mod test {
             unstable::{bigint_any, bigint_any_words, string_key},
         },
     };
-    use std::io::Cursor;
 
     type V = Any<Naive>;
     type Host = Native<Cursor<Vec<u8>>, Vec<u8>, Vec<u8>>;
-
-    fn host(input: &[u8]) -> Host {
-        Native::new(Cursor::new(input.to_vec()), Vec::new(), Vec::new())
-    }
 
     fn array<const N: usize>(items: [V; N]) -> V {
         items.to_array().to_any()
@@ -409,12 +413,7 @@ mod test {
 
     /// The value of an `['ok', value]` answer.
     fn ok(result: Result<V, V>) -> V {
-        let [tag, value]: [V; 2] = Array::try_from(result.unwrap())
-            .unwrap()
-            .try_into()
-            .unwrap();
-        assert_eq!(tag, string_any("ok"));
-        value
+        decode_result(result.unwrap()).unwrap().unwrap()
     }
 
     /// `"hi"` as the language spells bytes: the bits with a stop bit in front,
@@ -431,7 +430,7 @@ mod test {
     /// answered `['ok', ...]`.
     #[test]
     fn console() {
-        let mut h = host(b"a");
+        let mut h = Native::buffered(b"a");
         assert_eq!(ok(write(&mut h, "stdout")), Nullish::Undefined.to_any());
         assert_eq!(ok(write(&mut h, "stderr")), Nullish::Undefined.to_any());
         assert_eq!(h.stdout().as_slice(), b"hi");
@@ -455,7 +454,7 @@ mod test {
     /// A trailing partial byte is zero-padded in its low bits, as `fromVec` does.
     #[test]
     fn partial_byte() {
-        let mut h = host(b"");
+        let mut h = Native::buffered(b"");
         // `vec(1n)(1n)`: the one bit `1`
         ok(h.perform(
             string_any("write"),
@@ -472,7 +471,7 @@ mod test {
     /// A vector of more than one word is read across its words, whole bytes or not.
     #[test]
     fn many_words() {
-        let mut h = host(b"");
+        let mut h = Native::buffered(b"");
         let mut put = |v: V| ok(h.perform(string_any("write"), array([string_any("stdout"), v])));
         // nine bytes `01 02 .. 09`: the first bit is `0`, so the value is negative
         put(bigint_any_words(true, &[0x0203_0405_0607_0809, 0x81]));
@@ -492,14 +491,14 @@ mod test {
         let stored = encode_bytes::<Naive>(vec![
             0x78, 0x01, 0x01, 0x03, 0x00, 0xfc, 0xff, 0x61, 0x62, 0x63, 0x02, 0x4d, 0x01, 0x27,
         ]);
-        let answer = host(b"").perform(string_any("inflate"), array([stored]));
+        let answer = Native::buffered(b"").perform(string_any("inflate"), array([stored]));
         assert_eq!(decode_bytes(ok(answer)).unwrap(), b"abc");
         let bad = encode_bytes::<Naive>(vec![0x78, 0x9d]);
         assert_eq!(
-            host(b"").perform(string_any("inflate"), array([bad])).unwrap().to_json(),
+            Native::buffered(b"").perform(string_any("inflate"), array([bad])).unwrap().to_json(),
             Ok("[\"error\",[\"ioError\",{\"code\":\"Z_DATA_ERROR\",\"message\":\"incorrect header check\"}]]".into())
         );
-        let thrown = host(b"")
+        let thrown = Native::buffered(b"")
             .perform(string_any("inflate"), array([string_any("x")]))
             .unwrap_err();
         assert_eq!(decode_string(thrown).unwrap(), "not a bit vector");
@@ -509,7 +508,7 @@ mod test {
     /// `['error', ['notImplemented', command]]`.
     #[test]
     fn a_command_the_host_lacks() {
-        let result = host(b"").perform(string_any("fetch"), array([]));
+        let result = Native::buffered(b"").perform(string_any("fetch"), array([]));
         assert_eq!(
             result.unwrap().to_json(),
             Ok("[\"error\",[\"notImplemented\",\"fetch\"]]".into())
@@ -520,7 +519,7 @@ mod test {
     #[test]
     fn malformed_requests_throw() {
         let throws = |command: V, payload: V| {
-            let thrown = host(b"").perform(command, payload).unwrap_err();
+            let thrown = Native::buffered(b"").perform(command, payload).unwrap_err();
             decode_string(thrown).unwrap()
         };
         let w = || string_any("write");
@@ -614,7 +613,7 @@ mod test {
     }
 
     fn perform<const N: usize>(command: &str, payload: [V; N]) -> Result<V, V> {
-        host(b"").perform(string_any(command), array(payload))
+        Native::buffered(b"").perform(string_any(command), array(payload))
     }
 
     fn thrown<const N: usize>(command: &str, payload: [V; N]) -> String {
@@ -770,7 +769,7 @@ mod test {
         let undefined = || Nullish::Undefined.to_any();
         let number = |n: f64| Number::from(n).to_any();
         ok(perform("writeFile", [at("a"), hi()]));
-        let mut h = host(b"");
+        let mut h = Native::buffered(b"");
         let mut run = |command: &str, payload: Vec<V>| {
             h.perform(string_any(command), payload.to_array().to_any())
         };
