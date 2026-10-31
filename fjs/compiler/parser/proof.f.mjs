@@ -26,6 +26,7 @@ import { disagreement } from '../../js/marked/module.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { isObject } from '../../types/object/module.f.mjs'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -846,7 +847,7 @@ export const proof = {
         assert(tag === 'ok', tag)
         assertEq(stringifyModule(value), "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"b\",1],[\":\",\"1\",2],[\":\",\"b\",3]]]]]]")
         const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
-        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assert(isObject(object), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
     },
@@ -1009,7 +1010,7 @@ export const proof = {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
         const object = assertOk(toData(assertOk(read(ok(_evaluate(value)), 'default'))))
-        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assert(isObject(object), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)
         assertEq(Object.keys(/** @type {object} */ (object.c)).join(), 'y,x')
