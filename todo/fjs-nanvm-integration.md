@@ -144,17 +144,18 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `9666744c4`, the leaf conversion updates in
+Measured on `b3d28bed4`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
-The twelve whole-module conversions are `path`, `js/ast/sugar/pattern`,
+The thirteen whole-module conversions are `path`, `js/ast/sugar/pattern`,
 `website/demo/mirror`, `types/prime_field`, `crypto/vdf`, `crypto/secp`,
 `types/sorted_list`, `types/sorted_set`, `types/number`, `types/function/length`,
-`types/range_map` and `types/range_set`. Each is renamed to `.f.js`, with its
-runtime, proof, type and documentation references updated.
+`types/range_map`, `types/range_set` and `zlib/window`. Each is renamed to
+`.f.js`, with its runtime, proof, type and documentation references updated.
 
 The conversions use `Number(...)` for numeric computed keys, compiled numeric
-helpers for `Math.min` and `Math.abs`, and `generate` for index-generated arrays.
+helpers for `Math.min`, `Math.abs` and `Math.ceil`, and `generate` for
+index-generated arrays.
 Pattern's policy callback is renamed from `name` to `bindingName`; the public
 `PrimeField.reduce` property becomes `mod`, including its callers and docs.
 Secp reads its own `sub` callback through `entry` and `assertNotNullish`, keeping
@@ -164,8 +165,8 @@ Graph, bigint and version use admitted loop updates; bigint's returning guard
 no longer has a redundant `else`. The numeric `abs` helper preserves `NaN`,
 infinities and positive zero from either zero.
 
-The remaining-leaf pass wraps numeric computed keys in completions, AST, WAT,
-version, graph and window, and reads WAT and graph's own record fields through
+Further rewrites wrap numeric computed keys in completions, AST, WAT,
+version, graph and window, and read WAT and graph's own record fields through
 `entry` and `assertNotNullish`. WAT uses the compiled `abs` and `min` helpers.
 WAT and graph's safe index generators use `generate`; WAT's string arrays use
 code-point string spread, covered by an astral Unicode name proof.
@@ -173,12 +174,14 @@ All `BigInt(...)` conversions remain unchanged pending language support.
 Two graph `Array.from` calls remain: `maxRank + 1` and
 `to.rank - from.rank - 1` can be fractional or negative under the public
 numeric rank contract. Direct `generate` would change their length coercion.
-Window now passes its numeric computed keys and first stops at `Math.ceil`.
+Window now uses the compiled numeric `ceil` helper, preserving signed zeros,
+`NaN` and infinities. Its whole module compiles; its conversion exposes no
+additional leaves.
 
-The compiler-compatible population is 182 authored `.f.js` files;
-425 authored non-proof `.f.mjs` files remain.
+The compiler-compatible population is 184 authored `.f.js` files;
+424 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All twelve
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
@@ -194,10 +197,9 @@ remaining leaves are refused as written.
 | `types/set` | `new Set()` in the union monoid | 0 |
 | `types/version` | Global `BigInt` in `maxPart` | 0 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
-| `zlib/window` | `Math.ceil` in `last` | 0 |
 
 The preceding twelve-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/bed7d132b9b33a2b8736e218a2863e31f292ae44/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/374ad5cb5dfdc5548b9d663c8de175107fd10ecc/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,
