@@ -38,6 +38,8 @@ const id = bits => run(bits)[0]
 const bitsOf = text => [...text].flatMap(c => [...c.charCodeAt(0).toString(2).padStart(8, '0')].map(b => BigInt(b)))
 
 const heightEncoder = encode(() => null)(null)
+const { init: [initialTag, initialOutput, initialState], update, end, updateWithHeight, endWithHeights } = heightEncoder
+const runHeightEncoder = runMachine(heightEncoder)
 
 /**
  * `text`'s bits pushed with `updateWithHeight`, then ended with
@@ -47,7 +49,6 @@ const heightEncoder = encode(() => null)(null)
  * @type {(text: string) => readonly [readonly number[], readonly number[], Id, Id]}
  */
 const heightsOf = text => {
-    const { init: [, , initialState], updateWithHeight, endWithHeights, end } = heightEncoder
     /** @type {readonly [readonly number[], EncodeState<null>]} */
     const start = [[], initialState]
     const [heights, state] = bitsOf(text).reduce(([hs, s], bit) => {
@@ -65,14 +66,13 @@ const zeros = n => new Array(n).fill(0n)
 export const proof = {
     lifecycle: () => {
         const bits = bitsOf('Hello')
-        const whole = runMachine(heightEncoder)(bits)
-        const { init: [initialTag, initialOutput, initialState], update, end } = heightEncoder
+        const whole = runHeightEncoder(bits)
         assertEq(initialTag, 'next')
         assertEq(initialOutput.length, 0)
         const [endTag, endOutput] = end(initialState)
         assertEq(endTag, 'done')
         assertEq(endOutput.length, 0)
-        assertEq(runMachine(heightEncoder)([]), id([]))
+        assertEq(runHeightEncoder([]), id([]))
         for (let split = 0; split <= bits.length; split++) {
             const checkpoint = bits.slice(0, split).reduce((state, bit) => {
                 const [, , next] = update(state, bit)
