@@ -137,6 +137,13 @@ cd fjs/types/list
 node --test ../../emergent_testing/one.mjs
 ```
 
+The same entry also runs under Bun and Deno, from that directory:
+
+```sh
+bun test ../../emergent_testing/one.mjs
+deno test -A ../../emergent_testing/one.mjs
+```
+
 For coverage, run `fjs cov node` or `npm start cov node` from the directory
 whose modules you want to check. The runner discovers `module.f.mjs`,
 `module.f.js` and `demo.f.mjs` beneath that directory, then runs each module
