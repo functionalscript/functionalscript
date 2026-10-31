@@ -6,7 +6,7 @@
 
 import type { FixedArray } from '../../types/array/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
-import type { Fold } from '../../types/function/operator/types.ts'
+import type { NextStep, Transducer } from '../../types/function/operator/types.ts'
 
 /**
  * 8-word SHA-2 state vector.
@@ -51,12 +51,12 @@ export type FramingInit<H> = {
 }
 
 /**
- * The framing, built: `append` folds data into the state a block at a
+ * The framing, built: `update` folds data into the state a block at a
  * time, and `end` pads the last block and closes it with the length,
  * answering `hashLength` bits of the digest, the high ones.
  */
 export type Framing<H> = {
-    readonly append: Fold<Vec, Framed<H>>
+    readonly update: (state: Framed<H>, input: Vec) => Framed<H>
     readonly end: (hashLength: bigint) => (state: Framed<H>) => Vec
 }
 
@@ -65,7 +65,7 @@ export type Base = {
     readonly chunkLength: bigint
     readonly compress: (i: V8) => (u: bigint) => V8
     readonly fromV8: (a: V8) => bigint
-    readonly append: Fold<Vec, State>
+    readonly update: (state: State, input: Vec) => State
     readonly end: (hashLength: bigint) => (state: State) => Vec
 }
 
@@ -73,18 +73,18 @@ export type Base = {
  * SHA2. See https://en.wikipedia.org/wiki/SHA-2
  *
  * `hashLength` is a hash length, `blockLength` an internal block length,
- * `init` the initial state of the SHA-2 algorithm, `append` adds data to a
- * state and returns the new state, and `end` finalizes the hash of a state.
+ * `init` is the first transducer step, `update` adds data to a state and
+ * returns the next step, and `end` returns the terminal step with the digest.
  *
  * @example
  *
  * ```js
  * import { vec } from '../../types/bit_vec/module.f.mjs'
  * import { utf8 } from '../../text/module.f.mjs'
- * import { sha224 } from './module.f.mjs'
+ * import { computeSync, sha224 } from './module.f.mjs'
  *
  * const s = utf8('The quick brown fox jumps over the lazy dog.')
- * const h = sha224.end(sha224.append(s)(sha224.init))
+ * const h = computeSync(sha224)([s])
  * if (h !== vec(224n)(0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn)) { throw h }
  * ```
  */
@@ -106,6 +106,9 @@ export type Sha2 = Hash<State>
  * parameter has that default and not the other way round.
  */
 export type Hash<S, R = Vec> = {
+    /** Hashing consumes the whole message; only EOF produces its result. */
+    readonly init: NextStep<S, never>
+    readonly update: (state: S, input: Vec) => NextStep<S, never>
     readonly hashLength: bigint
     readonly blockLength: bigint
     /**
@@ -119,7 +122,4 @@ export type Hash<S, R = Vec> = {
      */
     readonly hashBytes: bigint
     readonly blockBytes: bigint
-    readonly init: S
-    readonly append: Fold<Vec, S>
-    readonly end: (state: S) => R
-}
+} & Transducer<Vec, S, never, R>

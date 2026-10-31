@@ -1,7 +1,8 @@
 /**
  * @import { DemoEvent } from '../../website/demo/types.ts'
- * @import { Hash, Sha2 } from './types.ts'
+ * @import { Hash, Sha2, State } from './types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Step } from '../../types/function/operator/types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -14,6 +15,10 @@ import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
+import { doneStep } from '../../types/function/operator/module.f.js'
+
+/** The state a live hash step holds. @type {<S, A>(step: Step<S, never, A>) => S} */
+const stateOf = ([tag, , value]) => (assert(tag === 'next'), value)
 
 /**
  * Every SHA-2 length is a whole number of bytes, so the rounded-up byte count
@@ -77,12 +82,12 @@ const seam = h => {
  */
 const heldThenFull = (held, full) => h => {
     const compute = computeSync(h)
-    assertEq(uint(h.end(h.append(full)(h.append(held)(h.init)))), uint(compute([held, full])))
+    assertEq(uint(h.end(stateOf(h.update(stateOf(h.update(stateOf(h.init), held)), full)))[2]), uint(compute([held, full])))
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
 const checkEmpty = ({ init, end, hashLength }) => x => {
-    const result = end(init)
+    const result = end(stateOf(init))[2]
     assertEq(result, vec(hashLength)(x), [result, x])
 }
 
@@ -90,18 +95,40 @@ const checkEmpty = ({ init, end, hashLength }) => x => {
 //
 // https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/Secure-Hashing
 export const proof = {
+    lifecycle: () => {
+        const [initial, emitted, state] = sha256.init
+        assertEq(initial, 'next')
+        assertEq(emitted.length, 0)
+        const held = sha256.update(state, utf8('ab'))
+        const [continued, output] = held
+        assertEq(continued, 'next')
+        assertEq(output.length, 0)
+        const resumed = computeSync({ ...sha256, init: held })
+        assertEq(uint(resumed([utf8('c')])), 0xba78_16bf_8f01_cfea_4141_40de_5dae_2223_b003_61a3_9617_7a9c_b410_ff61_f200_15adn)
+        assertEq(uint(resumed([utf8('d')])), uint(computeSync(sha256)([utf8('abd')])))
+        const [completed, flushed, digest] = sha256.end(held[2])
+        assertEq(completed, 'done')
+        assertEq(flushed.length, 0)
+        assertEq(uint(digest), uint(computeSync(sha256)([utf8('ab')])))
+    },
+    genericResult: () => {
+        /** @type {Hash<State, { readonly digest: Vec }>} */
+        const hash = { ...sha256, end: state => doneStep({ digest: sha256.end(state)[2] }) }
+        const result = computeSync(hash)([utf8('abc')])
+        assertEq(uint(result.digest), uint(computeSync(sha256)([utf8('abc')])))
+    },
     base: {
         b32: () => {
             const { fromV8, compress, chunkLength } = base32
             const e = 1n << (chunkLength - 1n)
             return {
                 s256: () => {
-                    const result = fromV8(compress(sha256.init.hash)(e))
+                    const result = fromV8(compress(stateOf(sha256.init).hash)(e))
                     const x = 0xe3b0_c442_98fc_1c14_9afb_f4c8_996f_b924_27ae_41e4_649b_934c_a495_991b_7852_b855n
                     assertEq(result, x, [result.toString(16), x.toString(16)])
                 },
                 s224: () => {
-                    const result = fromV8(compress(sha224.init.hash)(e)) >> 32n
+                    const result = fromV8(compress(stateOf(sha224.init).hash)(e)) >> 32n
                     const x = 0xd14a_028c_2a3a_2bc9_4761_02bb_2882_34c4_15a2_b01f_828e_a62a_c5b3_e42fn
                     assertEq(result, x, [result, x])
                 },
@@ -112,22 +139,22 @@ export const proof = {
             const e = 1n << (chunkLength - 1n)
             return {
                 s512: () => {
-                    const result = fromV8(compress(sha512.init.hash)(e))
+                    const result = fromV8(compress(stateOf(sha512.init).hash)(e))
                     const x = 0xcf83_e135_7eef_b8bd_f154_2850_d66d_8007_d620_e405_0b57_15dc_83f4_a921_d36c_e9ce_47d0_d13c_5d85_f2b0_ff83_18d2_877e_ec2f_63b9_31bd_4741_7a81_a538_327a_f927_da3en
                     assertEq(result, x, [result, x])
                 },
                 s384: () => {
-                    const result = fromV8(compress(sha384.init.hash)(e)) >> 128n
+                    const result = fromV8(compress(stateOf(sha384.init).hash)(e)) >> 128n
                     const x = 0x38b0_60a7_51ac_9638_4cd9_327e_b1b1_e36a_21fd_b711_14be_0743_4c0c_c7bf_63f6_e1da_274e_debf_e76f_65fb_d51a_d2f1_4898_b95bn
                     assertEq(result, x, [result, x])
                 },
                 s512x256: () => {
-                    const result = fromV8(base64.compress(sha512x256.init.hash)(e)) >> 256n
+                    const result = fromV8(base64.compress(stateOf(sha512x256.init).hash)(e)) >> 256n
                     const x = 0xc672_b8d1_ef56_ed28_ab87_c362_2c51_1406_9bdd_3ad7_b8f9_7374_98d0_c01e_cef0_967an
                     assertEq(result, x, [result, x])
                 },
                 s512x224: () => {
-                    const result = fromV8(compress(sha512x224.init.hash)(e)) >> 288n
+                    const result = fromV8(compress(stateOf(sha512x224.init).hash)(e)) >> 288n
                     const x = 0x6ed0_dd02_806f_a89e_25de_060c_19d3_ac86_cabb_87d6_a0dd_d05c_333b_84f4n
                     assertEq(result, x, [result, x])
                 },
@@ -148,7 +175,7 @@ export const proof = {
         // The same field with one owner behind it: `base32.fromV8` is
         // `fromWords(32n)` over eight words.
         v8: () => {
-            const { hash } = sha256.init
+            const { hash } = stateOf(sha256.init)
             assertEq(fromWords(32n)(hash), base32.fromV8(hash))
         },
         throw: {
@@ -167,7 +194,7 @@ export const proof = {
             compress,
             digest: fromV8,
         }
-        const { hash } = sha256.init
+        const { hash } = stateOf(sha256.init)
         const abc = [utf8('abc')]
         return {
             // `sha256` rebuilt from its parts is `sha256`.
@@ -225,9 +252,9 @@ export const proof = {
         () => {
             const s = utf8("hello world")
             assertEq(uint(s), 0x68_656C_6C6F_2077_6F72_6C64n, s)
-            let state = sha256.init
-            state = sha256.append(s)(state)
-            const h = sha256.end(state)
+            let state = stateOf(sha256.init)
+            state = stateOf(sha256.update(state, s))
+            const h = sha256.end(state)[2]
             assertEq(uint(h), 0xb94d_27b9_934d_3e08_a52e_52d7_da7d_abfa_c484_efe3_7a53_80ee_9088_f7ac_e2ef_cde9n, h)
         }
     ],
@@ -236,16 +263,16 @@ export const proof = {
         return {
             8: () => {
                 const r = times(8n)
-                let state = sha256.init
-                state = sha256.append(r)(state)
-                const h = uint(sha256.end(state))
+                let state = stateOf(sha256.init)
+                state = stateOf(sha256.update(state, r))
+                const h = uint(sha256.end(state)[2])
                 assertEq(h >> 224n, 0x8a83_665fn, h)
             },
             16: () => {
                 const r = times(16n)
-                let state = sha256.init
-                state = sha256.append(r)(state)
-                const h = sha256.end(state)
+                let state = stateOf(sha256.init)
+                state = stateOf(sha256.update(state, r))
+                const h = sha256.end(state)[2]
                 assertEq(uint(h), 0x3138_bb9b_c78d_f27c_473e_cfd1_410f_7bd4_5eba_c1f5_9cf3_ff9c_fe4d_b77a_ab7a_edd3n, h)
             }
         }
@@ -259,7 +286,7 @@ export const proof = {
             assertEq(uint(h), x, h)
         },
     },
-    // Regression guard (sha2-append-quadratic): `append` used to be
+    // Regression guard (sha2-append-quadratic): `update` used to be
     // quadratic in the input size, not linear — a single call on a
     // 100,000-byte `Vec` used to cost real seconds and scale worse than
     // O(n²); now near-linear (~40-60ms on Node, well under `bun test`'s 5s
@@ -282,11 +309,11 @@ export const proof = {
         seam(sha256)
         seam(sha512)
     },
-    appendLargeVecIsFast: () => {
+    updateLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))
-        let state = sha256.init
-        state = sha256.append(big)(state)
-        const h = sha256.end(state)
+        let state = stateOf(sha256.init)
+        state = stateOf(sha256.update(state, big))
+        const h = sha256.end(state)[2]
         const x = 0xbe87_f6db_e42c_df68_2276_fbec_ab36_36fb_fcaa_008c_f454_d635_dd77_872b_50d9_40aan
         assertEq(uint(h), x, h)
     },

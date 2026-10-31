@@ -730,10 +730,10 @@ const gathered = (sha2, payload) => {
     /** @type {(state: Sha2State, chunks: readonly Vec[]) => (s: EffectList<O, Vec, IoChannel>) => Effect<O, { readonly key: Vec, readonly chunks: readonly Vec[] }, IoChannel>} */
     const loop = (state, chunks) => s =>
         step(s, node => {
-            if (node === undefined) { return pureOk({ key: sha2.end(state), chunks }) }
-            return isWholeBytes(node.first) ? loop(sha2.append(node.first)(state), [...chunks, node.first])(node.tail) : partialByte
+            if (node === undefined) { return pureOk({ key: sha2.end(state)[2], chunks }) }
+            return isWholeBytes(node.first) ? loop(sha2.update(state, node.first)[2], [...chunks, node.first])(node.tail) : partialByte
         })
-    return loop(sha2.init, [])(payload)
+    return loop(sha2.init[2], [])(payload)
 }
 
 /**
