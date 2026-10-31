@@ -13,14 +13,14 @@ again in [`git/module.f.mjs`](../git/module.f.mjs):
 // cas: `partialByte`, `digested` behind `contentKey`
 const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
 const digested = (sha2, state, s) => ioStep(s, node => {
-    if (node === undefined) { return pureOk(sha2.end(state)) }
-    return isWholeBytes(node.first) ? digested(sha2, sha2.append(node.first)(state), node.tail) : partialByte
+    if (node === undefined) { return pureOk(sha2.end(state)[2]) }
+    return isWholeBytes(node.first) ? digested(sha2, sha2.update(state, node.first)[2], node.tail) : partialByte
 })
 // cas/git: `partialByte`, `gathered` behind `branchCas`
 const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
 const gathered = (sha2, payload) => { const loop = (state, chunks) => s => step(s, node => {
-    if (node === undefined) { return pureOk({ key: sha2.end(state), chunks }) }
-    return isWholeBytes(node.first) ? loop(sha2.append(node.first)(state), [...chunks, node.first])(node.tail) : partialByte }) … }
+    if (node === undefined) { return pureOk({ key: sha2.end(state)[2], chunks }) }
+    return isWholeBytes(node.first) ? loop(sha2.update(state, node.first)[2], [...chunks, node.first])(node.tail) : partialByte }) … }
 ```
 
 The doc comments point at each other — `gathered` is "the hash `fileCas`

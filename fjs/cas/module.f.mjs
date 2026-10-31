@@ -135,8 +135,8 @@ const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
  * @returns {Effect<O, Vec, IoChannel>}
  */
 const digested = (sha2, state, s) => ioStep(s, node => {
-    if (node === undefined) { return pureOk(sha2.end(state)) }
-    return isWholeBytes(node.first) ? digested(sha2, sha2.append(node.first)(state), node.tail) : partialByte
+    if (node === undefined) { return pureOk(sha2.end(state)[2]) }
+    return isWholeBytes(node.first) ? digested(sha2, sha2.update(state, node.first)[2], node.tail) : partialByte
 })
 
 /**
@@ -163,7 +163,7 @@ const digested = (sha2, state, s) => ioStep(s, node => {
  * @param {Sha2} sha2
  * @returns {<O extends Operation>(payload: EffectList<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>}
  */
-export const contentKey = sha2 => payload => digested(sha2, sha2.init, payload)
+export const contentKey = sha2 => payload => digested(sha2, sha2.init[2], payload)
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'
@@ -263,7 +263,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     // results and checks the end state").
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
-        const hash = sha2.end(state)
+        const hash = sha2.end(state)[2]
         const { dir, name } = shard(hash)
         const dstDir = join(path, dir)
         const dst = join(dstDir, name)
@@ -305,7 +305,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     // rather than propagated with the partial file left behind.
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                        const newState = sha2.append(chunk)(state)
+                        const newState = sha2.update(state, chunk)[2]
                         const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
@@ -324,7 +324,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                 })
         const started = ioStep(mkdir(stageDir, { recursive: true }), () => freshPath)
         const created = historyStep(history(started), path0 => createExclusive(path0))
-        return ioStep(created, ([, path0]) => loop(sha2.init, 0, path0)(payload))
+        return ioStep(created, ([, path0]) => loop(sha2.init[2], 0, path0)(payload))
     })
 }
 

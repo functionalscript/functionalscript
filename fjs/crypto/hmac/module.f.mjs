@@ -40,7 +40,7 @@ const iPad = vec8(0x36n)
 /**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * Any hash whose end answers a `Vec` will do, over a state of its own: the
+ * Any hash whose terminal result is a `Vec` will do, over a state of its own: the
  * construction reads the block length and folds the blocks, and nothing
  * else of the hash. So `hmac(sha1)` is HMAC-SHA1 and `hmac(sha256)` is
  * HMAC-SHA256, at no cost to either — which is the reason `Hash` is

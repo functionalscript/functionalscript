@@ -19,7 +19,7 @@ import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
-import { nonEmpty, empty } from '../effects/list/module.f.mjs'
+import { nonEmpty, empty, run as runStream } from '../effects/list/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { assertIoMessage } from '../effects/testlib.f.js'
 
@@ -292,19 +292,8 @@ export const proof = {
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
-        // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: EffectList<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, Vec, IoChannel>} */
-        const rehash = state =>
-            stream =>
-                ioStep(
-                    stream,
-                    (node) => {
-                        if (node === undefined) { return pureOk(sha256.end(state)) }
-                        const { first, tail } = node
-                        return rehash(sha256.append(first)(state))(tail)
-                    }
-                )
-        const [, readBack] = virtual(state1)(rehash(sha256.init)(c.read(hash)))
+        // The shared stream driver hashes the read chunks without one whole `Vec`.
+        const [, readBack] = virtual(state1)(runStream(sha256)(c.read(hash)))
         assert(readBack[0] === 'ok', ['expected read ok', readBack])
         assertEq(msb.cmp(readBack[1])(hash), 0, 'oversized read-back hash mismatch')
     },
