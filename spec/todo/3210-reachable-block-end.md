@@ -82,12 +82,72 @@ supplying the value before it. What follows the `if` is one shared
 continuation; it is not copied into both arms, which would double the code at
 every `if` in a sequence.
 
+A normally completing `if` branch does not return `undefined` from its
+function. It continues with the statements after the `if`; inserting a
+function return there would skip those statements. In particular, the
+fall-through paths in `fjs/cli`'s `dispatchCommands` and
+`fjs/compiler/edag`'s `_moduleExports` must still reach their following
+return or throw.
+
+Implement this in two stages. First let the generic syntax AST represent
+non-terminating branches, independently of FunctionalScript admission and
+FAST or EDAG compilation. This lets the module dependency check parse the
+source without requiring it to compile. Then admit and normalize the source
+form using the existing FAST branch results and shared EDAG continuation.
+
 **A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
 `default` is the function-body shape once more, rewritten the same way: the
 cases stay as they are and a terminator follows the `switch` — `return
 undefined`, the result an unmatched value reaches in JavaScript, or a `throw`
 where no other value can arrive. Turning the last `case` into the `default`
 would not do: it gives an unmatched value that case's result instead.
+
+### FAST and EDAG representation
+
+The current [FAST types](../../fjs/js/ast/types.ts) already distinguish a
+normal region exit, `['yield', values]`, from a function return,
+`['return', functionTarget, value]`. An `if` statement declares its result
+bindings; each normally completing arm yields their selected values. An arm
+that leaves a binding unchanged yields its incoming value. With no updated
+outer bindings, the normal exit is `['yield', []]`. Branch-local bindings do
+not escape, and a returning or throwing arm supplies no normal result.
+
+For this source:
+
+```js
+export default (c, x) => {
+    if (c) { x = 1; }
+    return x + 2;
+};
+```
+
+The normalized FAST function has parameters `c` and `x0`, and this body.
+Here `c`, `x0` and `x1` denote binding IDs, and `fn` is the owning function
+target:
+
+```js
+{
+    statements: [
+        ['if', [x1], ['ref', c],
+            { statements: [], exit: ['yield', [1]] },
+            { statements: [], exit: ['yield', [['ref', x0]]] }],
+    ],
+    exit: ['return', fn, ['+', ['ref', x1], 2]],
+}
+```
+
+The current FAST-to-EDAG converter already represents this hand-built FAST
+as the following graph; accepting the source spelling remains future work:
+
+```js
+['=>', 2, [], ['+', ['?:', ['arg', 0], 1, ['arg', 1]], 2]]
+```
+
+The selected value feeds one following addition. More generally, only normal
+paths enter the shared continuation; a function return or throw bypasses it.
+Keep condition evaluation and required branch work in their original order
+and conditional region. Reuse the existing control-flow lowering rather than
+introducing a new EDAG operation or a function invocation for the branch.
 
 ### Benefits and drawbacks of the `if` extension
 
@@ -109,11 +169,14 @@ of repeating that code in the arm.
 - [ ] Rewrite the function bodies with no terminator, `return undefined` or a
       `throw`, and a terminator after each `switch` with no `default`; no
       approval needed.
+- [ ] Parse non-terminating `if` branches into the generic syntax AST without
+      requiring FunctionalScript admission or FAST/EDAG compilation.
 - [ ] Settle the `if` form and record formal language-design approval, with a
       link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
-- [ ] An `if` block whose end is reachable, and `else`, over the branch result
-      of the [variable contract](../bindings/variables/README.md#normalization) and a shared continuation,
-      through every output; the guard page and
+- [ ] Admit and normalize an `if` block whose end is reachable, and `else`,
+      using existing FAST branch results and normal `yield` exits under the
+      [variable contract](../bindings/variables/README.md#normalization), with
+      a shared continuation through every output; the guard page and
       [refused constructs](./refused-constructs.md) updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
