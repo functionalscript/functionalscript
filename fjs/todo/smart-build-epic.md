@@ -26,7 +26,8 @@ later.
         Parse all `.f.js` and `.f.mjs` files, including those not yet ready
         to compile into EDAG, and all JavaScript files in the repository.
   - [ ] Extract module dependencies from the AST.
-  - [ ] Implement an `fjs` CLI command that outputs a dependency graph as `.data.js`.
+  - [ ] Implement the [dependency graph CLI command](./module-dependency-graph-command.md)
+        with `.data.js` output.
   - [ ] Draw the dependency graph on a website.
 - [ ] Integrate the dependency DAG with `build-cache`.
 
