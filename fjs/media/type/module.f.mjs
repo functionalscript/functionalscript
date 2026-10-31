@@ -59,7 +59,7 @@ import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
-import { basename } from '../../path/module.f.mjs'
+import { basename } from '../../path/module.f.js'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //

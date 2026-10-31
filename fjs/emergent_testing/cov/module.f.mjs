@@ -13,7 +13,7 @@
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
 import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
-import { basename, join, normalize, parent } from '../../path/module.f.mjs'
+import { basename, join, normalize, parent } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 

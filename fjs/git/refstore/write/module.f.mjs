@@ -47,7 +47,7 @@
 import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
-import { ancestors, parent, under } from '../../../path/module.f.mjs'
+import { ancestors, parent, under } from '../../../path/module.f.js'
 import { length, maxLengthBytes, u8ListToVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { solidus as slash } from '../../../text/ascii/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'

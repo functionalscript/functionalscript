@@ -47,7 +47,7 @@ import {
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
-import { parent } from '../../path/module.f.mjs'
+import { parent } from '../../path/module.f.js'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
