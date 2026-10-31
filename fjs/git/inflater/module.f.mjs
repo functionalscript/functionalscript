@@ -117,7 +117,7 @@ const finish = ({ state, made }) => {
  *
  * @satisfies {Transducer<Vec, Progress, never, Result<List<Vec>, Refusal>>}
  */
-export const inflater = {
+export const inflater = /** @type {const} */ ({
     init: nextStep(start),
     /** @type {(progress: Progress, chunk: Vec) => Step<Progress, never, Result<List<Vec>, Refusal>>} */
     update: (progress, chunk) => {
@@ -125,14 +125,14 @@ export const inflater = {
         return next === null ? doneStep(error(malformed)) : nextStep(next)
     },
     end: (/** @type {Progress} */ progress) => doneStep(finish(progress)),
-}
+})
 
 /**
  * The stream held whole as chunks, inflated: its output, or the reason not.
  *
  * @type {(chunks: readonly Vec[]) => Result<List<Vec>, Refusal>}
  */
-export const inflateAll = chunks => run(inflater)(chunks)
+export const inflateAll = run(inflater)
 
 /**
  * The stream held whole as chunks, inflated as long as its output is within
