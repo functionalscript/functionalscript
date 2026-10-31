@@ -1334,35 +1334,35 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"{}\",[]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",true],[\":\",\"b\",false],[\":\",\"c\",null],[\":\",\"d\",[\"undefined\"]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",[\"{}\",[[\":\",\"b\",[\"{}\",[[\":\",\"c\",[\"[]\",[\"d\"]]]]]]]]]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
@@ -1390,7 +1390,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",1]]]]]]")
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -1817,7 +1817,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             const errorString = stringifySorted(obj[1])
-            if (errorString !== '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}') { throw errorString }
+            assertEq(errorString, '{"message":"array hole","metadata":{"column":17,"line":1,"path":""}}')
         },
     ],
     validWhiteSpaces:[
@@ -1833,7 +1833,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
@@ -1847,7 +1847,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyModule(obj[1])
-            if (result !== "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]") { throw result }
+            assertEq(result, "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"a\",0],[\":\",\"b\",1]]]]]]")
         },
     ],
     comments: [

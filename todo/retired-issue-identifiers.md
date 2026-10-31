@@ -21,20 +21,21 @@ Every cited identifier below has a file:
 |`i149`|`issues/149-sandbox.md`|—|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1|
 |`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211-reporter-modes.md` ×1, `661-test-runner-behavior.md` ×1|
 |`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211-reporter-modes.md` ×2|
-|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
+|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
 |`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md` ×1|
-|`i65X-sandbox-async`|`issues/65X-sandbox-async.md`|done|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
-|`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
 
-At `0a5bc32`, **thirteen bare citations across eight files.** The column
-counts *bare* occurrences only. Four rows have left the table since it was
+**Nine bare citations across six files.** The column
+counts *bare* occurrences only. Six rows have left the table since it was
 filed, resolved when the issues citing them moved:
 `i180-sorted-set-intersect-symmetry` (the citation was dropped from
 `fjs/types/sorted_list/todo/cmp-reduce-factory.md`), `i662` (written in the
 retired form in `fjs/types/ts/todo/tuple-readonly.md`), `i665-mcp` (split
 into `fjs/protocol/mcp/todo/roadmap.md`, which its citers now link) and `i189`
 (its one citer, `fjs/asn.1/todo/65z-asn1-tag-codec-table.md`, was deleted
-when the codec table shipped).
+when the codec table shipped), and `i65X-sandbox-async` and
+`i65Y-proof-by-export` (their one citer,
+`fjs/emergent_testing/todo/65y-proof-asserteq-adoption.md`, was deleted when
+its last sites converted to `assertEq`).
 Regenerate the whole column rather than trusting it — an earlier revision of
 this issue built it from a scan that printed only the first two paths per
 identifier, and listed two of `i183`'s four sites.
@@ -84,10 +85,11 @@ not, and both outcomes occur:
   [`fjs/protocol/mcp/todo/roadmap.md`](../fjs/protocol/mcp/todo/roadmap.md);
   once its citers linked it, the row was done.
 - **It may not have.** `i65Y-proof-by-export` was open when it was deleted and no
-  file on disk carries its content. Either it was dropped deliberately and the
-  citation should go, or it was lost in the migration and should be restored
-  from history. That is a maintainer's call, not a mechanical edit — which is
-  the reason this is filed rather than fixed.
+  file on disk carries its content; its last citation has since gone with the
+  issue that made it. For an identifier like it, either it was dropped
+  deliberately and the citation should go, or it was lost in the migration and
+  should be restored from history. That is a maintainer's call, not a
+  mechanical edit — which is the reason this is filed rather than fixed.
 
 `Status when deleted` is left blank above where the retired file predates the
 `**Status:**` header convention.
@@ -123,8 +125,7 @@ identifier behind, since the next reader has no way to tell "unresolved" from
 ### Tasks
 
 - [ ] Resolve the identifiers above against their retired files — every bare
-      citation, not one per identifier; four of them are `i183`.
-- [ ] Decide `i65Y-proof-by-export`: restore it or drop its citation.
+      citation, not one per identifier; three of them are `i183`.
 - [ ] Sweep for slug-named deletions the same way, per the section above.
 - [ ] Re-run the check below; it should print nothing.
 
