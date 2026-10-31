@@ -43,13 +43,13 @@ import { min } from '../../../types/number/min/module.f.js'
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {
     const max = min(a.length, b.length)
-    const first = generate(max, () => undefined).findIndex((_, i) => a[i] !== b[i])
+    const first = generate(max, () => undefined).findIndex((_, i) => a[Number(i)] !== b[Number(i)])
     return first === -1 ? max : first
 }
 
 /** @type {(a: string, b: string, max: number) => number} */
 const commonSuffix = (a, b, max) => {
-    const first = generate(max, () => undefined).findIndex((_, i) => a[a.length - 1 - i] !== b[b.length - 1 - i])
+    const first = generate(max, () => undefined).findIndex((_, i) => a[Number(a.length - 1 - i)] !== b[Number(b.length - 1 - i)])
     return first === -1 ? max : first
 }
 
@@ -69,7 +69,7 @@ const startsFrom = at => length => [at, startsFrom(at + length)]
  */
 const nodeOf = (lengths, at, removed) => {
     const found = toArray(scan(startsFrom(0))(lengths))
-        .map((start, index) => ({ index, start, end: start + lengths[index] }))
+        .map((start, index) => ({ index, start, end: start + lengths[Number(index)] }))
         .find(({ start, end }) => start <= at && at + removed <= end)
     return found === undefined ? null : { index: found.index, start: found.start }
 }
