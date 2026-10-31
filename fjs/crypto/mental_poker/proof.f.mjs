@@ -203,5 +203,10 @@ export const proof = {
     throw: {
         // A negative seed would read before the list's start.
         negativeSeed: () => shuffle(-1n)([1, 2, 3]),
+        // y² = x³ + 1 over 7 has 12 points, 3 in the group of `(0, 1)`: a
+        // card outside it, locked and unlocked, opened as another card.
+        smallOrder: () => mentalPoker(curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 3n })),
+        // `2n` above `p + 1` but not above `p + 1 + 2√p`.
+        withinBound: () => mentalPoker(curve({ p: 7n, c: [1n, 0n], g: [0n, 1n], n: 5n })),
     },
 }

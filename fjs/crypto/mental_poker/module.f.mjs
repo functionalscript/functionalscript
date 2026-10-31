@@ -30,6 +30,13 @@ export const maxDeckSize = 0x100
  * inverse mod `n` makes `key` throw
  * ([`todo/composite-order.md`](./todo/composite-order.md)).
  *
+ * @throws If the curve may have points outside the group of order `n`: a
+ * card there is not restored by `unlock`, which multiplies by an inverse mod
+ * `n`, and would open as another card. Hasse's bound puts at most
+ * `p + 1 + 2√p` points on the curve, so when `2n` exceeds it every point is
+ * in that group; every named curve passes, and a curve that does not is
+ * refused rather than checked card by card.
+ *
  * @example
  *
  * ```js
@@ -46,6 +53,9 @@ export const maxDeckSize = 0x100
  * @type {(c: Curve) => MentalPoker}
  */
 export const mentalPoker = ({ pf: { p }, y, mul, nf: { p: n, reciprocal } }) => {
+    // `2n > p + 1 + 2√p`, in integers: `d = 2n - p - 1 > 0` and `d² > 4p`.
+    const d = 2n * n - p - 1n
+    assert(0n < d && 4n * p < d * d, ['curve points outside the group of order n', p, n])
     /** Card `i` as a point, or `null` once its `x` would reach the field's
      * size `p`: past it, `x` would name the same point as `x - p`, another
      * card's.
