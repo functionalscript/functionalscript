@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { examples } from '../examples/module.f.js'
 import { parsed, stageDemo } from './module.f.mjs'

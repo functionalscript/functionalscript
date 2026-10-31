@@ -28,7 +28,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { jsonDialect } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { entries, find, flat, map } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /**
  * Format tag: names the dialect of this BLOB. The media type it is served

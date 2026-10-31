@@ -28,7 +28,7 @@
  */
 
 import { map } from '../../types/list/module.f.js'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
 import { map as nullableMap } from '../../types/nullable/module.f.js'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.js'

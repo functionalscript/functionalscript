@@ -41,7 +41,7 @@ import { fill, macrotask, toDom } from '../../media/html/module.mjs'
 import { asyncRun, io } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { concat } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { specifierKind } from '../../path/import/module.f.mjs'
 

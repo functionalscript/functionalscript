@@ -17,7 +17,7 @@
 
 import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
 import { concat } from '../../../../types/list/module.f.js'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../../module.f.mjs'
 import { bind, call, done, run } from '../../task/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'

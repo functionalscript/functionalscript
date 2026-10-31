@@ -30,7 +30,7 @@
  */
 
 import { map, scan } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { charIs } from '../ascii/module.f.js'

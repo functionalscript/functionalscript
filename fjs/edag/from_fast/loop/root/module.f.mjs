@@ -13,7 +13,7 @@
  * @import { Task } from '../../../../js/ast/task/types.ts'
  */
 
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { maxLength } from '../../../../types/function/length/module.f.mjs'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.js'

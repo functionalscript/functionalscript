@@ -42,7 +42,7 @@ import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.mjs'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { priorities, statuses } from '../issue/module.f.js'
 
 /**

@@ -13,7 +13,7 @@ import {
 } from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
 import { codeUnitToString } from '../utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 import { decode, encodeScalar } from '../../basen/base16/module.f.mjs'
 

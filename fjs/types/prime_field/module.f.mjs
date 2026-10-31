@@ -10,7 +10,7 @@
  * @import { PrimeField } from './types.ts'
  */
 
-import { repeat } from '../../common/monoid/module.f.mjs'
+import { repeat } from '../../common/monoid/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
 
 /**

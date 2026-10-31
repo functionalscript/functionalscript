@@ -38,7 +38,7 @@
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { sameItems } from '../../types/list/module.f.js'
-import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { tryTreeAt } from '../commit/module.f.mjs'
 import { ofWidth } from '../oid/module.f.mjs'
 import { tryTargetAt } from '../tag/module.f.mjs'

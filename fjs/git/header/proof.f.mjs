@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'
 import { field, hasNulHeader, keyIs, optionalField, tryRead, tryReadAtLeast, valueAt, valuesOf, write } from './module.f.mjs'
 

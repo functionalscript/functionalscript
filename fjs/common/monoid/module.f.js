@@ -172,6 +172,24 @@ export const collect = monoid => {
     }
 }
 
+const initialStep = nextStep(null)
+
+/**
+ * A balanced fold as the common machine lifecycle. `update` places one value
+ * on the run stack; `end` combines the remaining runs into the monoid value.
+ *
+ * @type {<T>(monoid: Monoid<T>) => Transducer<T, Stack<T>, never, T>}
+ */
+export const accumulator = monoid => {
+    const push = step(monoid)
+    const finish = collect(monoid)
+    return {
+        init: initialStep,
+        update: (stack, value) => nextStep(push(value)(stack)),
+        end: stack => doneStep(finish(stack)),
+    }
+}
+
 /**
  * Reduces a `List<T>` with the monoid's associative `operation`, seeded at its
  * `identity`. An empty list folds to `identity`.
@@ -242,24 +260,6 @@ export const collect = monoid => {
  * ```
  */
 export const fold = monoid => run(accumulator(monoid))
-
-const initialStep = nextStep(null)
-
-/**
- * A balanced fold as the common machine lifecycle. `update` places one value
- * on the run stack; `end` combines the remaining runs into the monoid value.
- *
- * @type {<T>(monoid: Monoid<T>) => Transducer<T, Stack<T>, never, T>}
- */
-export const accumulator = monoid => {
-    const push = step(monoid)
-    const finish = collect(monoid)
-    return {
-        init: initialStep,
-        update: (stack, value) => nextStep(push(value)(stack)),
-        end: stack => doneStep(finish(stack)),
-    }
-}
 
 /**
  * The run stack with early completion when a value or a merge reaches the

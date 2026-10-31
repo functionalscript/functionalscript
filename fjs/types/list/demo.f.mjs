@@ -35,7 +35,7 @@ import { textDemo, caption, refusal } from '../../website/demo/module.f.mjs'
 import { addition } from '../function/operator/module.f.js'
 import { error, ok } from '../result/module.f.js'
 import { cycle, entries, filter, fold, foldScan, intersperse, map, reverse, take, zip } from './module.f.js'
-import { toArray } from './alt/module.f.mjs'
+import { toArray } from './alt/module.f.js'
 
 /**
  * The typed text as whole numbers, split at commas and spaces, or the first

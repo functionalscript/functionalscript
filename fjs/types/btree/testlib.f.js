@@ -8,7 +8,7 @@
  * @import { TNode } from './types/types.ts'
  */
 
-import { cmp } from '../string/module.f.mjs'
+import { cmp } from '../string/module.f.js'
 import { set as setSet } from './set/module.f.js'
 
 /**

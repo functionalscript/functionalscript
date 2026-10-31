@@ -25,9 +25,9 @@
  * @import { PersistentSet } from './types.ts'
  */
 
-import { runs, step } from '../../common/monoid/module.f.mjs'
+import { runs, step } from '../../common/monoid/module.f.js'
 import { flatMap, map, someBy } from '../list/module.f.js'
-import { toArray } from '../list/alt/module.f.mjs'
+import { toArray } from '../list/alt/module.f.js'
 import { sum } from '../number/module.f.mjs'
 
 /** The set with nothing in it. @type {PersistentSet<never>} */

@@ -5,7 +5,7 @@
 import { _crossesBox, _crossings, graphOf, ranked, graphSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { occurrences } from '../../../types/string/module.f.mjs'
+import { occurrences } from '../../../types/string/module.f.js'
 
 /**
  * Every drawn edge's `d`, in document order. Each piece of the SVG before

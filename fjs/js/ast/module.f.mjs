@@ -10,7 +10,7 @@
  */
 
 import { concat, next, reverse } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /**
  * Reassignment and nested references over the complete expanded source scope.

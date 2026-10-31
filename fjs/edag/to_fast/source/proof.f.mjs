@@ -14,7 +14,7 @@ import { fromAnalysis } from '../module.f.mjs'
 import { fromFast } from '../../from_fast/module.f.mjs'
 import { sourceReason } from './module.f.mjs'
 import { reverse } from '../../../types/list/module.f.js'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(value: Exp, module?: boolean) => string | null} */
 const reason = (value, module = false) => {
