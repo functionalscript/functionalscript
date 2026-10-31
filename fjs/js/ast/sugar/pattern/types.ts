@@ -14,7 +14,7 @@ export type PatternPlan = ExpansionPlan & {
 
 /** Syntax structure belongs here; source name/key legality remains with the parser. */
 export type Policy = {
-    readonly name: (token: ModuleTokenWithMetadata) => Result<string, ParseError>
+    readonly bindingName: (token: ModuleTokenWithMetadata) => Result<string, ParseError>
     readonly key: (token: ModuleTokenWithMetadata) => Result<string | number, ParseError>
     readonly namespaceMember: (namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<readonly [StaticId], ParseError>
     readonly refused: (reason: 'invalid' | 'rest' | 'computed' | 'duplicate', token: ModuleTokenWithMetadata) => ParseError

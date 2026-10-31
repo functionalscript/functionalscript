@@ -40,7 +40,7 @@ import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functions } from '../../../media/wasm/wat/module.f.mjs'
-import { parent } from '../../../path/module.f.mjs'
+import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.mjs'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'

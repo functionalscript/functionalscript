@@ -1,7 +1,7 @@
 ## Mental Poker
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 Notes:
 
@@ -12,6 +12,24 @@ See also
 - https://github.com/kripod/mental-poker/blob/master/specs/thesis.pdf
 - https://geometry.xyz/notebook/mental-poker-in-the-age-of-snarks-part-1
 - https://www.cs.purdue.edu/homes/ninghui/courses/Fall05/lectures/355_Fall05_lect25.pdf
+
+### Tasks
+
+- [x] Commutative card locks on a curve, a seeded shuffle, and a three-player
+  demo that shuffles and deals with honest players:
+  [`../mental_poker/`](../mental_poker/README.md).
+- [ ] Move the `poker` proof in `fjs/crypto/secp/proof.f.mjs`, which the
+  module now covers, or make it call `mentalPoker`.
+- [ ] Draw the secrets and shuffle seeds from a random source, not from
+  typed text: an effect at the host boundary.
+- [ ] Prove an unlock: a Chaum–Pedersen proof that a player removed the lock
+  of the secret behind their published `G^s` (the Schnorr exchange below is
+  its one-point form).
+- [ ] Prove a shuffle: a verifiable shuffle that a player's output deck is a
+  permutation of their input deck, locked by their key.
+- [ ] The `next(game)(state)(message)` protocol API below: messages between
+  players instead of a function that holds every key.
+- [ ] Drop: a player who leaves, by the VDF or the fold-deck designs below.
 
 ### API
 

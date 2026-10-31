@@ -15,7 +15,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.mjs'
+import { isDriveLetter, isDriveRoot, root, under } from '../../path/module.f.js'
 import { digitsValue, one as codePoint } from '../../text/ascii/module.f.js'
 import { codeUnitToString } from '../../text/utf16/module.f.mjs'
 import { untilNul } from '../bytes/module.f.js'
@@ -235,7 +235,7 @@ const isAbsolute = (od, entry) => entry.startsWith('/')
 
 /**
  * Whether a path begins with a drive's letter and colon — `C:` and not `/`,
- * and not `1:` or `::` either, which [`fjs/path`](../../path/module.f.mjs)
+ * and not `1:` or `::` either, which [`fjs/path`](../../path/module.f.js)
  * reads as no drive: this asks its {@link isDriveLetter}, so the two readers
  * of one entry cannot disagree about whether it is rooted.
  *

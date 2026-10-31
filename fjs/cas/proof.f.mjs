@@ -19,7 +19,7 @@ import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effe
 import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { join } from '../path/module.f.mjs'
+import { join } from '../path/module.f.js'
 import { nonEmpty, empty, fromList, run as runStream } from '../effects/list/module.f.mjs'
 import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'

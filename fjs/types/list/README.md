@@ -2,12 +2,12 @@
 
 `List<T>` is the sequence type of FunctionalScript: lazy, immutable, and
 accepted in five shapes so that a caller rarely has to convert anything before
-passing it in. [`module.f.mjs`](./module.f.mjs) holds the combinators, and
+passing it in. [`module.f.js`](./module.f.js) holds the combinators, and
 [`types.ts`](./types.ts) the shapes.
 
 ```js
-import { filter, map, take } from './module.f.mjs'
-import { toArray } from './alt/module.f.mjs'
+import { filter, map, take } from './module.f.js'
+import { toArray } from './alt/module.f.js'
 
 /** The natural numbers, without end. */
 const naturals = () => ({ first: 0, tail: map(x => x + 1)(naturals) })
@@ -49,7 +49,7 @@ Every function is curried, and its configuration comes first, so
 |machines    |`transduce`, `run`, `fromAccumulator`                                                                    |
 |building    |`empty`, `concat`, `fromArrayLike`, `countdown`, `repeat`, `cycle`                                          |
 
-Leaving the list is two modules of its own. [`alt`](./alt/module.f.mjs)'s
+Leaving the list is two modules of its own. [`alt`](./alt/module.f.js)'s
 `toArray` collects a list into an array with nothing but array spreads, which
 is what the FunctionalScript VM can run, so it is the one to import.
 [`iterable`](./iterable/module.f.mjs) turns a list into a host iterable, for a
@@ -60,8 +60,8 @@ A few of them in use:
 
 ```js
 import { addition } from '../function/operator/module.f.js'
-import { concat, fold, foldScan, reduce, zip } from './module.f.mjs'
-import { toArray } from './alt/module.f.mjs'
+import { concat, fold, foldScan, reduce, zip } from './module.f.js'
+import { toArray } from './alt/module.f.js'
 
 toArray(concat([1, 2])([3]))            // [1, 2, 3]
 fold(x => acc => acc + x)(0)([1, 2, 3]) // 6
@@ -95,16 +95,20 @@ the whole fold, and the result is then `null` too. It is the list form of the
   reading `map(expensive)(list)` twice calls `expensive` twice for each item.
   Call `toArray` once and pass the array on when a result is read more than
   once.
-- **`toArray` returns an array unchanged.** Passing an array through it costs
-  nothing, so a function can accept any `List` and call `toArray` without
-  checking first.
+- **`toArray` returns an array unchanged.** Passing an array through it does
+  not copy its elements, so a function can accept any `List` and call `toArray`
+  without checking first.
+  Other list shapes are read as whole array chunks and singleton cons chunks,
+  then combined by the [shared weighted fold](../../common/monoid/module.f.js)
+  with array length as the weight. Empty array chunks remain chunks, and a
+  sole existing array is returned unchanged even behind null-only concatenations.
 - **Infinite lists are fine** as long as something stops reading them:
   `take`, `takeWhile`, `find`, `first`, `some`. `length`, `reverse`, `fold`
   and `toArray` read to the end, so they never finish on an infinite list.
 
 ## Related
 
-- [`string`](../string/module.f.mjs) and [`number`](../number/module.f.mjs)
+- [`string`](../string/module.f.js) and [`number`](../number/module.f.js)
   are folds over lists of strings and numbers.
 - [`function/operator`](../function/operator/module.f.js) holds the binary
   operators (`addition`, `strictEqual`, `logicalNot`) the combinators are

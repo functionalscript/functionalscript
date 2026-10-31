@@ -13,7 +13,7 @@ import { write } from '../../../media/wasm/binary/write/module.f.mjs'
 import { emptyModule } from '../../../media/wasm/testlib.f.js'
 import { utf8 } from '../../../text/module.f.mjs'
 import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { demangleNames, main, publish, sampleWats, usage } from './module.f.mjs'
 
 /** `nanvm_demos::samples::hello::module` in v0 mangling. */

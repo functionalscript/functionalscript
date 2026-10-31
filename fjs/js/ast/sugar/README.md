@@ -9,7 +9,7 @@ and diagnostics; representing a construct here does not admit new source syntax.
 [`fjs/compiler/sugar`](../../../compiler/sugar/demo.f.mjs) shows this pass's
 input and output side by side, as graphs.
 
-[`pattern`](./pattern/module.f.mjs) plans checked patterns before the complete
+[`pattern`](./pattern/module.f.js) plans checked patterns before the complete
 binding analysis. Its structural walk chooses iterable copies, property reads,
 empty-pattern checks and hidden identities. The parser supplies name, key and
 namespace admission callbacks and retains tokens for its diagnostics. One

@@ -9,7 +9,7 @@
 
 import { members } from '../../../members/module.f.js'
 import { leafSerialize } from '../../../../media/datajs/serializer/module.f.mjs'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { chunksText, keyword, literal } from '../../../../text/marked/module.f.mjs'
 import { _name as name, _binding as binding } from '../../../../compiler/serializer/names/module.f.mjs'
 

@@ -72,7 +72,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { isIndex, maxLength } from '../../types/function/length/module.f.mjs'
+import { isIndex, maxLength } from '../../types/function/length/module.f.js'
 import { mapSet } from '../../types/map/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { isIntrinsic, isStatic, mapItems, mapSteps, stepOperands as edagStepOperands } from '../module.f.mjs'

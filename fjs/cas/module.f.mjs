@@ -14,7 +14,7 @@
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
-import { join, normalize } from '../path/module.f.mjs'
+import { join, normalize } from '../path/module.f.js'
 import { byteLength, empty, isWholeBytes, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
@@ -48,7 +48,7 @@ import {
 } from '../effects/node/module.f.mjs'
 import { toOption } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
-import { splitAt } from '../types/string/module.f.mjs'
+import { splitAt } from '../types/string/module.f.js'
 import { run as runStream } from '../effects/list/module.f.mjs'
 import { doneStep } from '../types/function/operator/module.f.js'
 

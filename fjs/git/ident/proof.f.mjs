@@ -5,7 +5,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { tryRead as readPayload } from '../header/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { maxTime, tryRead, write } from './module.f.mjs'

@@ -43,10 +43,10 @@
 
 import { fromCodePointList } from '../../../text/utf8/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/module.f.mjs'
+import { isValidCodePoint, unicodeNotation } from '../../../text/code_point/module.f.js'
 import { maxLengthBytes, tryU8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { textDemo, refusal } from '../module.f.mjs'
 
 /**

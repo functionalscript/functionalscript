@@ -40,7 +40,7 @@ import { patriciaTrie } from './module.f.mjs'
 import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
-import { run } from '../list/module.f.mjs'
+import { run } from '../list/module.f.js'
 
 /** A key's bits: the trie branches on them, most significant first. */
 const bits = 8

@@ -3,6 +3,7 @@
 The directory contains algorithms and utilities for various cryptographic methods.
 
 - [`hmac/`](./hmac/) — HMAC
+- [`mental_poker/`](./mental_poker/) — mental poker: a deck dealt with no dealer
 - [`pow/`](./pow/) — Bitcoin-style proof-of-work (nBits target)
 - [`secp/`](./secp/) — secp256k1
 - [`sha1/`](./sha1/) — SHA-1, for the object ids of today's Git repositories

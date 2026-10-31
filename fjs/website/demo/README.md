@@ -109,7 +109,7 @@ remain unchanged.
   into the colours and the caret, selection and undo stay the browser's. The
   runtime keeps the copy where the textarea is scrolled, and makes each
   keystroke's edit in the copy at once, in the one text node it falls in
-  ([`mirror`](./mirror/module.f.mjs)), so that the colours around it do not
+  ([`mirror`](./mirror/module.f.js)), so that the colours around it do not
   blink while the render that colours the edit is still to come. A text the
   tokenizer refuses stays plain.
 - **Every independent field or radio group has a unique `name`.** Radios

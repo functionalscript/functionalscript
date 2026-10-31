@@ -21,7 +21,7 @@ import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _entryText, _hasEntryText, _intrinsicText } from '../../compiler/serializer/function_text/module.f.mjs'
 import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
 import { pushAll, walk } from '../../types/stack_walk/module.f.js'
-import { toArray as listToArray } from '../../types/list/alt/module.f.mjs'
+import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 
 const kw = tagged('keyword')
 
