@@ -178,7 +178,7 @@ export const assoc = key => a => {
  * `null` when it gives none. `f` takes the item's index too, and it is not
  * called once an answer is found.
  *
- * [`fjs/types/list`](../list/module.f.mjs)'s `findMap` is the same over a lazy
+ * [`fjs/types/list`](../list/module.f.js)'s `findMap` is the same over a lazy
  * list. This one is a plain `reduce` on purpose: a recursive walk over arrays,
  * one call per level of nesting, spends every frame a level costs out of the
  * depth it can reach before the stack runs out, and a lazy list's `next` would

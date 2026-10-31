@@ -19,7 +19,7 @@
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
-import { concat, reverse } from '../../types/list/module.f.mjs'
+import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'

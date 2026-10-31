@@ -6,7 +6,7 @@
 import { get, merge, fromRange, rangeMap, mapValue, values } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { union } from '../sorted_set/module.f.mjs'
-import { equal } from '../list/module.f.mjs'
+import { equal } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.mjs'
 import { strictEqual } from '../function/operator/module.f.js'
 import { cmp } from '../string/module.f.mjs'

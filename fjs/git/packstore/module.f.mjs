@@ -120,7 +120,7 @@ import { leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, r
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
-import { concat } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.mjs'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'

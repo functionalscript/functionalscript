@@ -27,7 +27,7 @@ import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { jsonDialect } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { entries, find, flat, map } from '../../types/list/module.f.mjs'
+import { entries, find, flat, map } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /**

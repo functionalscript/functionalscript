@@ -46,7 +46,7 @@
  * @import { Absorbing, Monoid, Run, Stack, Walk, Weight } from './types.ts'
  */
 
-import { run } from '../../types/list/module.f.mjs'
+import { run } from '../../types/list/module.f.js'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { repeat as monoidRepeat } from './repeat/module.f.js'
 

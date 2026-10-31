@@ -32,7 +32,7 @@
 import { codeMarker } from '../../website/style/module.f.js'
 import { fromCodePointList } from './module.f.mjs'
 import { stringToCodePointList } from '../utf16/module.f.mjs'
-import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.mjs'
+import { errorMask, isValidCodePoint, unicodeNotation } from '../code_point/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { textDemo, caption } from '../../website/demo/module.f.mjs'

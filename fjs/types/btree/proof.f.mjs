@@ -8,9 +8,9 @@
  * @import { RunInstance } from '../../effects/mock/types.ts'
  */
 
-import { values } from './module.f.mjs'
+import { values } from './module.f.js'
 import { cmp, occurrences } from '../string/module.f.mjs'
-import { next } from '../list/module.f.mjs'
+import { next } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.mjs'
 import { value, find as findFind } from './find/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'

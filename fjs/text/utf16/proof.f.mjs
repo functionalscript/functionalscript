@@ -18,7 +18,7 @@ import {
 import { stringifySorted as stringify } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
-import { next } from '../../types/list/module.f.mjs'
+import { next } from '../../types/list/module.f.js'
 
 // /** @type {(a: readonly Unknown[]) => string} */
 // const stringify = stringifySorted

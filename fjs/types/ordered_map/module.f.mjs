@@ -10,11 +10,11 @@
  */
 
 import { findValue } from '../btree/find/module.f.js'
-import { set } from '../btree/set/module.f.mjs'
-import { remove as btreeRemove } from '../btree/remove/module.f.mjs'
-import { values } from '../btree/module.f.mjs'
+import { set } from '../btree/set/module.f.js'
+import { remove as btreeRemove } from '../btree/remove/module.f.js'
+import { values } from '../btree/module.f.js'
 import { cmp } from '../string/module.f.mjs'
-import { fold } from '../list/module.f.mjs'
+import { fold } from '../list/module.f.js'
 import { map as nullableMap } from '../nullable/module.f.js'
 
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */

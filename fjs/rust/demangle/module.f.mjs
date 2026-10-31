@@ -26,10 +26,10 @@
  * @import { _Read } from './private.ts'
  */
 
-import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
+import { isValidCodePoint } from '../../text/code_point/module.f.js'
 import { fromU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
+import { reverse } from '../../types/list/module.f.js'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500

@@ -21,7 +21,7 @@
  * @import { _Chunks } from './private.ts'
  */
 
-import { concat, trampoline } from '../module.f.mjs'
+import { concat, trampoline } from '../module.f.js'
 
 /** @type {<T>(chunks: _Chunks<T>, chunk: readonly T[]) => _Chunks<T>} */
 const push = (chunks, chunk) => {

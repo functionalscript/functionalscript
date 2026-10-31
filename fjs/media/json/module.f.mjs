@@ -23,7 +23,7 @@
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { next } from '../../types/list/module.f.mjs'
+import { next } from '../../types/list/module.f.js'
 import { parse as parseWith } from './parser/module.f.mjs'
 import { at, sort } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'

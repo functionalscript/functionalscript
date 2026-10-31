@@ -1,5 +1,5 @@
 import { join, concat, repeat, cmp, splitAt, occurrences } from './module.f.mjs'
-import { repeat as repeatList } from '../list/module.f.mjs'
+import { repeat as repeatList } from '../list/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

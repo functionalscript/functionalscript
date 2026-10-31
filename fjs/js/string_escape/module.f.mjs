@@ -27,11 +27,11 @@
  * @import { CodePoint } from '../../text/code_point/types.ts'
  */
 
-import { map } from '../../types/list/module.f.mjs'
+import { map } from '../../types/list/module.f.js'
 import { concat } from '../../types/string/module.f.mjs'
 import { map as nullableMap } from '../../types/nullable/module.f.js'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { errorMask } from '../../text/code_point/module.f.mjs'
+import { errorMask } from '../../text/code_point/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import {
     backspace,

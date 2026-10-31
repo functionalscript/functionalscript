@@ -89,7 +89,7 @@
  */
 
 import { assert } from '../asserts/module.f.js'
-import { concat, next } from '../types/list/module.f.mjs'
+import { concat, next } from '../types/list/module.f.js'
 import { error, mapOk, ok } from '../types/result/module.f.js'
 import { at } from '../types/object/module.f.mjs'
 

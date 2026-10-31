@@ -10,7 +10,7 @@
  * @import { CodePoint } from '../code_point/types.ts'
  */
 
-import { flatMap } from '../../types/list/module.f.mjs'
+import { flatMap } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { fromStateScan } from '../../types/function/operator/module.f.js'
 import {
@@ -21,7 +21,7 @@ import {
     isSupplementaryPlane,
     isValidCodePoint,
     restart,
-} from '../code_point/module.f.mjs'
+} from '../code_point/module.f.js'
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
 import { isByte } from '../../types/number/module.f.mjs'
