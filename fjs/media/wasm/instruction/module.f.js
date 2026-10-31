@@ -23,6 +23,10 @@
  * @import { Encoding, Instruction, Kind, Mnemonic } from '../types.ts'
  */
 
+import { generate } from '../../../types/array/generate/module.f.js'
+import { max } from '../../../types/number/max/module.f.js'
+import { entry } from '../../../types/object/entry/module.f.js'
+
 /**
  * The single-byte opcodes, as `[opcode, mnemonic, kind]`.
  */
@@ -246,9 +250,9 @@ export const prefix = 0xfc
  *
  * @type {(rows: readonly (readonly [number, Mnemonic, Kind])[]) => readonly ((readonly [number, Mnemonic, Kind]) | undefined)[]}
  */
-const byCode = rows => Array.from(
-    { length: Math.max(...rows.map(([code]) => code)) + 1 },
-    (_, code) => rows.find(row => row[0] === code))
+const byCode = rows => generate(
+    rows.map(([code]) => code).reduce(max, -Infinity) + 1,
+    code => rows.find(row => row[0] === code))
 
 /** {@link instructions}, indexed by opcode. */
 export const single = byCode(instructions)
@@ -275,4 +279,4 @@ const typedSelect = /** @type {Encoding} */ ([[0x1c], 'select'])
 export const encoding = instruction =>
     instruction[0] === 'select' && instruction.length === 2
         ? typedSelect
-        : byMnemonic[instruction[0]]
+        : /** @type {Encoding} */ (entry(byMnemonic, instruction[0]))

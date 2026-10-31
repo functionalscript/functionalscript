@@ -8,7 +8,7 @@ their first user, and none of them depends on it.
 | Module | What it does |
 | --- | --- |
 | [`types.ts`](./types.ts) | The AST |
-| [`instruction`](./instruction/module.f.mjs) | The opcode table every module below reads |
+| [`instruction`](./instruction/module.f.js) | The opcode table every module below reads |
 | [`binary/parse`](./binary/parse/module.f.mjs) | Bytes to the AST, or an error naming the byte |
 | [`binary/write`](./binary/write/module.f.mjs) | The AST to bytes |
 | [`wat`](./wat/module.f.mjs) | The AST to text, laid out as `wasmprinter` lays it out |
