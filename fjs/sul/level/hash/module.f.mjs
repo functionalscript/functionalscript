@@ -48,9 +48,10 @@ export const encode =
             const { update, end } = trie(storage)
             const last = stack.at(-1)
             if (last === undefined || last[0] > asBase(symbol)) {
-                return [undefined, update(state, [asBase(symbol), symbol])[2]]
+                const [, , next] = update(state, [asBase(symbol), symbol])
+                return [undefined, next]
             }
-            const [root1, storage1] = end(state)[2]
+            const [, , [root1, storage1]] = end(state)
             const [root2, storage2] = rootCreate(assertNotNullish(root1), symbol, storage1)
             return [root2, [storage2, []]]
         }

@@ -285,7 +285,7 @@ const transduceFrom = (machine, input, current) => () => {
  * whose flush output is kept on the terminal event. Empty chunks do not signal
  * EOF, and skipping updates that emit nothing uses a loop rather than recursion.
  *
- * Output alone is `flat(map(event => event[1])(transduce(machine)(input)))`.
+ * Output alone is `flat(map(([, output]) => output)(transduce(machine)(input)))`.
  * Reading that view and the summary separately reruns the pure source, like any
  * other lazy list; consumers needing both should read the events once.
  *

@@ -35,7 +35,8 @@ export const proof = {
     },
     lazyOutput: () => {
         const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
-        assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
+        const { first } = assertNotNullish(next(toCodePointList(input)))
+        assertEq(first, 0x41)
     },
     toCodePoint: [
         () => {
