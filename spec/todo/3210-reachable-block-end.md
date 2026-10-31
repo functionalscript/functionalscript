@@ -1,10 +1,8 @@
 ## A block whose end is reachable
 
 **Priority:** P2
-**Status:** open — a function body that runs off its end stays refused by
-design, and its modules take a source rewrite; an `if` block that runs off
-its end is a language change that needs formal language-design approval first
-([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
+**Status:** wip — implementing non-terminating `if` branches; a function body
+that runs off its end stays refused by design and takes a source rewrite
 
 ### Problem
 
