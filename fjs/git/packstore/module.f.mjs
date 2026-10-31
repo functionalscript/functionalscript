@@ -127,6 +127,8 @@ import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.mjs'
 
+const { init: [, , initialProgress], end: endInflate } = inflater
+
 /**
  * The bytes a read hands back, as a dense array to index into.
  *
@@ -503,7 +505,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
             : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
             : pureOk(next)
         const read = step(
-            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(inflater.init[2])),
+            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(initialProgress)),
             opened => foldStep(
                 pureOk(windowsOf(at + firstBytes, end)),
                 opened,
@@ -511,7 +513,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
                     readBytes(path, offset, Math.min(windowBytes, end - offset)),
                     v => checked(feedWithin(e.size)(v)(progress)))))
         return step(read, progress => {
-            const [, , done] = inflater.end(progress)
+            const [, , done] = endInflate(progress)
             return done[0] === 'error' ? refusal(done[1]) : advance(idx, path, at, chain, e, done[1])
         })
     })
