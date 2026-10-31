@@ -91,7 +91,7 @@ export const ranked = (nodes, edges) => {
     /** @type {readonly (readonly Edge[])[]} */
     const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id && e.back !== true))
     let current = nodes.map((n, i) => ({ ...n, rank: incomingOf[i].length === 0 ? 0 : -Infinity }))
-    for (let round = 0; round < nodes.length; round++) {
+    for (let round = 0; round < nodes.length; round += 1) {
         const prior = current
         current = prior.map((node, i) => {
             const best = incomingOf[i].reduce((m, e) => max(m, prior[e.from].rank + 1), node.rank)
