@@ -61,6 +61,6 @@ one place, which is why this waits.
 ### Approval
 
 A new language feature needs the formal, explicit approval of the language
-designer, distinct from the proposer, before it is implemented
+designer before it is implemented
 ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 Not yet requested.

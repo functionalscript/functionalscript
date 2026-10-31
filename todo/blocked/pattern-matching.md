@@ -39,7 +39,7 @@ compatibility and purity review rather than silently different semantics.
 - [ ] Review the final specification; propose a compatible subset with examples
       covering tagged values, nested patterns, bindings, evaluation order,
       equality, and unmatched inputs.
-- [ ] Obtain formal, explicit approval from another language designer before
+- [ ] Obtain formal, explicit approval from the language designer before
       implementation, recording the designer and approval link here as required
       by [the language-design policy](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
 - [ ] If approved, add the specification, parser/compiler support, and proofs
