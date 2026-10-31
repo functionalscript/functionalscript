@@ -277,8 +277,8 @@ const update = (state, v) => {
  *
  * @satisfies {Transducer<Vec, State, Vec, Nullable<number>>}
  */
-export const inflate = {
+export const inflate = /** @type {const} */ ({
     init: nextStep(initial),
     update,
     end: (/** @type {State} */ state) => doneStep(state.phase === 'done' ? state.after : null),
-}
+})
