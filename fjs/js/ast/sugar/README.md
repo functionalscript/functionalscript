@@ -1,7 +1,7 @@
 # Source normalization
 
 [`source.ts`](./source.ts) preserves resolved source declaration identities,
-parameter patterns and defaults, assignments, increment statements, guards, switches, conditional
+parameter patterns and defaults, assignments, guards, switches, conditional
 loop statements, targeted loop/function exits and loops with an optional
 resolved `for` step. These constructs contain no generated functions, capture
 frames or immutable assignment versions. The parser retains source legality
@@ -15,9 +15,6 @@ empty-pattern checks and hidden identities. The parser supplies name, key and
 namespace admission callbacks and retains tokens for its diagnostics. One
 complete `analyzeBindings` pass then classifies the original parameter and local
 identities, including writes and references in nested or unreachable regions.
-
-`++i` and `i++` share a resolved `increment` statement. This pass expands it
-to a write with the binary value `i + 1`; no update operation reaches FAST.
 
 `normalize(resolved, imports)` consumes that admitted record and its shared
 facts. It expands pattern reads and defaults, chooses invocation parameters and

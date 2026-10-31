@@ -767,14 +767,6 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             statements = [...statements, ...made.statements]
             continue
         }
-        if (statement[0] === 'increment') {
-            const id = statement[1]
-            assert(context.bindings.some(fact => fact.id === id && fact.isMutable), 'increment without complete source analysis')
-            const made = establish(inner, id, ['+', lookup(inner, id), 1], false)
-            inner = made.environment
-            statements = [...statements, ...made.statements]
-            continue
-        }
         if (statement[0] === 'write') {
             assert(context.bindings.some(fact => fact.id === statement[1] && fact.isMutable), 'write without complete source analysis')
             const value = normalizedState(inner, context)(statement[2])

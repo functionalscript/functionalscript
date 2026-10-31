@@ -35,8 +35,6 @@ import type {
  * and `&& || ??` with `?`, the lazy operators and the conditional's own
  * token, Stage B of the same; `:` the conditional shares with a member;
  * and `!`, the logical not, the third prefix, admitted after both stages.
- * `++` after an identifier on the same line becomes `postfixIncrement`,
- * distinguishing the postfix statement from a following prefix statement.
  * Compound-assignment punctuators keep their existing JavaScript token kinds;
  * source admission restricts their targets and statement positions.
  * `?.`, the optional step's, admitted with the optional chains. Trivia
@@ -47,7 +45,7 @@ import type {
 export type ModuleToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
   {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' | '(' | ')' | '=>' | '...' | '-'
-    | '+' | '++' | 'postfixIncrement' | '*' | '/' | '%' | '**'
+    | '+' | '*' | '/' | '%' | '**'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>'
     | '!' | '&&' | '||' | '??' | '?' | '?.'

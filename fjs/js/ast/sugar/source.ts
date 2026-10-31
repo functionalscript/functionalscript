@@ -80,8 +80,6 @@ export type SourceSwitch = {
 export type SourceStatement =
     | readonly ['initialize', ExpansionPlan, SourceValue]
     | readonly ['write', BindingId, SourceValue]
-    /** Prefix and postfix statement increments share literal addition semantics. */
-    | readonly ['increment', BindingId]
     /** The implicit target read precedes the operand; sugar chooses any conditional write. */
     | readonly ['compound-write', BindingId, BinaryTag, SourceValue]
     /** Both normal arms precede the next statement; an omitted else is empty. */

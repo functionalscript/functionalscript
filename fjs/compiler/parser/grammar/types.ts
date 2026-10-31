@@ -504,12 +504,9 @@ export type Statement = () => readonly ['const', {
 /** Plain and compound assignment spellings read as one token. */
 export type AssignmentOperator = { readonly [K in keyof typeof import('../../ast/module.f.js').assignmentOperators]: number }
 /** The named assignment or call shared by statements and `for` clauses. */
-export type NameExpression = {
-    readonly prefix: readonly [number, typeof assignable]
-    readonly name: readonly [typeof assignable, ArrowOrRest & { readonly increment: number; readonly assign: readonly [AssignmentOperator, Value] }]
-}
+export type NameExpression = readonly [typeof assignable, ArrowOrRest & { readonly assign: readonly [AssignmentOperator, Value] }]
 /** A body's named expression followed by its optional statement terminator. */
-export type BodyNameStatement = readonly [NameExpression, End]
+export type BodyNameStatement = readonly [...NameExpression, End]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {

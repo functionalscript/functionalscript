@@ -73,7 +73,7 @@ describes:
 | `op.in` | `k in o` | design ([`in`](../operators/in/README.md), whose key is a string literal; page: [`in` With a Computed Key Is Refused](../operators/in/computed-key/README.md)) |
 | `op.instanceof` | `[] instanceof Map` | design ([`instanceof`](../operators/instanceof/README.md); page: [`instanceof` Other Than `Array` Is Refused](../operators/instanceof/other-classes/README.md)) |
 | `op.comma` | `return a, b`, `throw a, b`, `if (a, b)`, `${a, b}`, `o[a, b]` — a comma JavaScript reads with no parentheses of its own | open ([comma](../operators/comma/README.md) admits it in parentheses, `return (a, b)`; no record plans the bare spellings) |
-| `op.update` | `++a`, `a--` | `++` statements implemented; expressions and `--` remain refused ([assignments](./3430-assignments.md)) |
+| `op.update` | `++a`, `a--` | refused; `++` deferred to the low-priority [common-runtime proposal](./increment-common-runtime.md); `--` remains [separate work](./3430-assignments.md#further-increments) |
 | `op.delete` | `delete a.b` | open |
 | `op.void` | `void 0` | open |
 | `op.new` | `new Map()` | planned ([mutability](../design/mutability.md), [object identity](../design/object-identity.md)) |

@@ -8,21 +8,6 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
-    incrementTokens: () => {
-        for (const [source, expected] of [
-            ['++i', '++ id eof'],
-            ['i++', 'id postfixIncrement eof'],
-            ['i /* comment */ ++', 'id postfixIncrement eof'],
-            ['i\n++j', 'id ++ id eof'],
-            ['i/*\n*/++j', 'id ++ id eof'],
-            ['from++', 'id postfixIncrement eof'],
-            ['as++', 'id postfixIncrement eof'],
-            ['1++', 'number ++ eof'],
-        ]) {
-            const tokens = toArray(tokenize(stringToList(source))('increments.f.js'))
-            assertEq(tokens.map(({ token }) => token.kind).join(' '), expected, source)
-        }
-    },
     compoundAssignmentTokens: () => {
         const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {

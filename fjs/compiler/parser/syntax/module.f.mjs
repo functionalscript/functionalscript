@@ -1285,7 +1285,7 @@ const forAt = node => {
     let declaration = null
     if (initializer !== undefined) {
         const [kind, branch] = unmapped(initializer)
-        if (kind === 'name') { declaration = namedExpressionOf(branch, true) }
+        if (kind === 'name') { declaration = namedExpressionOf(unmapped(branch), true) }
         else {
             const [first, target, , value] = unmapped(branch)
             declaration = [kind, { start: tokenAt(first), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
@@ -1295,7 +1295,7 @@ const forAt = node => {
     const update = unmapped(step)[0]
     return { start: tokenAt(first), initializer: declaration,
         condition: test === undefined ? ['primitive', true] : nodeAt(test),
-        step: update === undefined ? null : namedExpressionOf(update, true),
+        step: update === undefined ? null : namedExpressionOf(unmapped(update), true),
         block: loopBlockOf(unmapped(block)) }
 }
 
@@ -1369,26 +1369,14 @@ const toModuleStatement = ([kind, branch]) => {
  *
  * @type {(node: Children<BodyNameStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toBodyNameStatement = ([expression, end]) => {
-    return symbol({ id: 'named', statement: namedExpressionOf(expression, ended(end)) })
+const toBodyNameStatement = ([name, rest, end]) => {
+    return symbol({ id: 'named', statement: namedExpressionOf([name, rest], ended(end)) })
 }
 
-/** Shared clause and statement reader; header separators already terminate their clauses. @type {(node: Ast<NameExpression, ModuleTokenWithMetadata, Out>, semicolon: boolean) => NamedStatement} */
-const namedExpressionOf = (expression, semicolon) => {
-    const [form, branch] = unmapped(expression)
-    if (form === 'prefix') {
-        const [operator, name] = unmapped(branch)
-        const token = tokenAt(unmapped(name)[1])
-        return ['assign', { start: tokenAt(operator), semicolon, name: token, value: ['primitive', 1],
-            operator: { tag: '++', token: tokenAt(operator) } }]
-    }
-    const [name, rest] = unmapped(branch)
+/** Shared clause and statement reader; header separators already terminate their clauses. @type {(node: Children<NameExpression, ModuleTokenWithMetadata, Out>, semicolon: boolean) => NamedStatement} */
+const namedExpressionOf = ([name, rest], semicolon) => {
     const token = tokenAt(unmapped(name)[1])
     const [tag, assigned] = unmapped(rest)
-    if (tag === 'increment') {
-        return ['assign', { start: token, semicolon, name: token, value: ['primitive', 1],
-            operator: { tag: '++', token: tokenAt(assigned) } }]
-    }
     if (tag !== 'assign') {
         return ['const', discarded(token, /** @type {Ast<ArrowOrRest, ModuleTokenWithMetadata, Out>} */ (rest), semicolon)]
     }

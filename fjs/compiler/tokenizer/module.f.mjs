@@ -37,7 +37,7 @@
  * rather than an access and a call on a negative literal — recognized is
  * not accepted, and the same is true of every operator token
  * `fjs/js/tokenizer` already carries that this layer does not admit, `==`,
- * `--` among them. The four template chunk kinds keep their cooked
+ * `++` among them. The four template chunk kinds keep their cooked
  * text, but only when their exact `source` spelling uses the accepted
  * escape subset.
  * Deferred spellings remain located errors even when their cooked value
@@ -61,8 +61,7 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /**
  * Every `ModuleToken` kind, `eof` included: the kinds a `JsToken` keeps
- * on its way to the module's stream, plus the contextual `postfixIncrement`
- * marker. Pinned to `ModuleToken['kind']` in
+ * unchanged on its way to the module's stream. Pinned to `ModuleToken['kind']` in
  * `./types.ts`, so a kind added there and forgotten here breaks the build
  * rather than becoming an invalid-token error at run time. The parser's
  * alphabet is this list less `eof`.
@@ -72,7 +71,7 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 export const _moduleTokenKinds = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
-    '+', '++', 'postfixIncrement', '*', '/', '%', '**',
+    '+', '*', '/', '%', '**',
     '===', '!==', '>', '>=', '<', '<=',
     '&', '|', '^', '~', '<<', '>>', '>>>',
     '!', '&&', '||', '??', '?', '?.',
@@ -139,18 +138,12 @@ const toModuleToken = input =>
  * comment holding one — carried across any further trivia, and `false`
  * after any other token.
  *
- * An increment after an identifier on the same line is marked as postfix.
- * This distinguishes it from a following prefix statement in the LL(1) grammar.
- * @type {StateScan<JsTokenWithMetadata, { readonly newline: boolean; readonly identifier: boolean }, List<ModuleTokenWithMetadata>>}
+ * @type {StateScan<JsTokenWithMetadata, boolean, List<ModuleTokenWithMetadata>>}
  */
-const withNewline = ({ token, metadata }, state) => {
-    const trivia = isTrivia(token.kind)
-    const postfix = token.kind === '++' && state.identifier && !state.newline
-    return [
-        trivia ? null : [{ token: postfix ? { kind: 'postfixIncrement' } : toModuleToken(token), metadata, newline: state.newline }],
-        { newline: token.kind === 'nl' || (state.newline && trivia), identifier: trivia ? state.identifier : token.kind === 'id' || isKeyword(token.kind) },
-    ]
-}
+const withNewline = ({ token, metadata }, newline) => [
+    isTrivia(token.kind) ? null : [{ token: toModuleToken(token), metadata, newline }],
+    token.kind === 'nl' || (newline && isTrivia(token.kind)),
+]
 
 /** @type {(input: List<number>) => (path: string) => List<ModuleTokenWithMetadata>} */
-export const tokenize = input => path => flat(stateScan(withNewline)({ newline: false, identifier: false })(tokenizeJs(input)(path)))
+export const tokenize = input => path => flat(stateScan(withNewline)(false)(tokenizeJs(input)(path)))
