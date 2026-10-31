@@ -104,7 +104,7 @@ export const proof = {
             select: (module, name) => name === 'missing' ? undefined : module,
             module: ({ path }, imports) => ok([path, ...imports]),
         }
-        const empty = { complete: null, stack: null }
+        const empty = /** @type {const} */ ({ complete: null, stack: null })
         const run = virtualAt({ 'main.f.js': [utf8('export default 1;')] })
         const [complete, module] = assertOk(run(_walk(load)(source)(empty))[1])
         // Repeated imports reuse the module instance and the completed context.

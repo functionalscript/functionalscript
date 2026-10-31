@@ -42,7 +42,7 @@ const sources = /** @type {const} */ ({
     'types.ts': [utf8('not valid syntax')],
 })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     sourceDiscovery: () => {
         const [state, result] = execute(sources)
         assertEq(exitCode(result), 0, state.stderr)
@@ -103,4 +103,4 @@ export const proof = {
         const [, result] = run(emptyState)(main(defaultNodeProgramOptions))
         assertEq(exitCode(result), 1)
     },
-}
+})
