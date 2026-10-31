@@ -105,10 +105,10 @@ const treeFile = (width, record) => {
 export const committedFiles = width => commit => {
     const listed = execFile('git', ['ls-tree', '-r', '-z', '--full-tree', hexText(commit), '--'])
     return step(listed, ({ stdout }) => {
-        if (stdout !== '' && !stdout.endsWith('\0')) {
+        if (stdout !== '' && !stdout.endsWith('\u0000')) {
             return refuse('ERR_CI_TREE')('unterminated git ls-tree output')
         }
-        return foldStep(pureOk(stdout.split('\0').slice(0, -1)), /** @type {readonly File[]} */ ([]), record => files =>
+        return foldStep(pureOk(stdout.split('\u0000').slice(0, -1)), /** @type {readonly File[]} */ ([]), record => files =>
             mapStep(treeFile(width, record), file => [...files, file]))
     })
 }

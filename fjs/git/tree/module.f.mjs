@@ -41,7 +41,7 @@ const octalDigit = range('07')
 
 const modeDigits = repeatFrom1(octalDigit)
 
-const nameBytes = repeatFrom1(not(set('\0')))
+const nameBytes = repeatFrom1(not(set('\u0000')))
 
 /**
  * The number a list of digits spells, exactly, or `null` where it is not a
@@ -152,7 +152,7 @@ const isDotGit = name => name.length === dotGit.length && name.every((b, i) => l
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<readonly TreeEntry[]>}
  */
 export const tryRead = oidBytes => {
-    const parse = byteParser([repeatFrom0([modeDigits, ' ', nameBytes, '\0', times(oidBytes)(byte)]), eof])
+    const parse = byteParser([repeatFrom0([modeDigits, ' ', nameBytes, '\u0000', times(oidBytes)(byte)]), eof])
     return payload => {
         const r = parse(symbols(payload))
         if (r[0] === 'error') { return null }

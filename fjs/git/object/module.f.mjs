@@ -46,7 +46,7 @@ const size = repeatFrom1(range('09'))
  * match stops at the NUL and reports the index after it, which is where
  * the payload begins.
  */
-export const envelope = /** @type {const} */ ([word, ' ', size, '\0'])
+export const envelope = /** @type {const} */ ([word, ' ', size, '\u0000'])
 
 const parse = byteParser(envelope)
 
@@ -164,4 +164,4 @@ export const tryRead = input => {
  * @type {(type: ObjectType, payload: Bytes) => Bytes}
  */
 export const write = (type, payload) =>
-    concat(ascii(`${type} ${length(payload)}\0`))(payload)
+    concat(ascii(`${type} ${length(payload)}\u0000`))(payload)
