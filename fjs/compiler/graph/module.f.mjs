@@ -98,7 +98,7 @@ import { operatorOperands } from '../../js/ast/module.f.mjs'
 // by eye. The static functions are the one group a later row grows, so
 // they are the EDAG's own list.
 const leaves = new Set(['entry', 'hasEntry', ...intrinsicIds, ...staticIds])
-const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
+const op1 = new Set(['String', 'Number', 'BigInt', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',

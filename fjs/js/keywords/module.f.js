@@ -86,7 +86,7 @@ export const literalWords = /** @type {const} */ ([
  * parser asks {@link isReservedGlobal} beside {@link isKeyword} where a
  * name is bound or referenced.
  */
-export const reservedGlobals = /** @type {const} */ (['Array', 'Number', 'Object', 'String'])
+export const reservedGlobals = /** @type {const} */ (['Array', 'BigInt', 'Number', 'Object', 'String'])
 
 /** The four groups in declaration order, each name once. */
 const groups = [...reservedWords, ...strictModeReservedWords, ...restrictedNames, ...literalGlobals]

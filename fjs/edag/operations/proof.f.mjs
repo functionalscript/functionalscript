@@ -53,6 +53,18 @@ const under = (runtime, node) => vm({ ...context, runtime })(node)
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
 export const proof = {
+    bigintConversion: () => {
+        eq(['BigInt', '9007199254740993'], 9_007_199_254_740_993n)
+        eq(['BigInt', ['[]', [7]]], 7n)
+        eq(['BigInt', ['[]', []]], 0n)
+        eq(['BigInt', ['{}', [[':', 'valueOf', ['=>', 0, [], 9]]]]], 9n)
+        eq(['BigInt', ['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '12']]]]], 12n)
+        failure(['BigInt', 1.5])
+        failure(['BigInt', ['[]', [1, 2]]])
+        failure(['BigInt', ['{}', []]])
+        failure(['BigInt', throws], 'conversion')
+        failure(['BigInt', ['throw', 'operand']], 'operand')
+    },
     // `self` is the function being invoked, the same value every read, so
     // a body calls itself through it and compares it to itself as one;
     // outside a function there is none, and the evaluator throws

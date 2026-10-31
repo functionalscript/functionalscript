@@ -91,6 +91,22 @@ export const expectRefused = (source, message, column) => {
 export const _evaluate = (ast, args = []) => assertOk(memo(assertOk(analysis(unresolved(ast).edag)))({ args }))
 
 export const proof = {
+    bigintConversion: () => {
+        expectModule('export default BigInt(1);', '["{}",[[":","default",["BigInt",1]]]]')
+        expectModule('export default (BigInt)("12");', '["{}",[[":","default",["BigInt","12"]]]]')
+        const value = _evaluate(unwrap(parseFromTokens(tokenizeString('export default [BigInt("0x10"), BigInt(true), BigInt(-0), BigInt([7]), BigInt({ valueOf: () => 12 })];'))))
+        assertStructurallySame(assertOk(read(ok(value), 'default')), ['[]', [16n, 1n, 0n, 7n, 12n]])
+        for (const source of ['export default BigInt();', 'export default BigInt(1, 2);', 'export default BigInt(...[1]);']) {
+            expectRefused(source, 'BigInt takes one argument', 16)
+        }
+        for (const source of ['export default BigInt;', 'export default BigInt.asIntN(8, 1n);', 'export default BigInt?.(1);']) {
+            expectRefused(source, 'reserved word', 16)
+        }
+        expectRefused('const BigInt = 1; export default 0;', 'reserved word', 7)
+        expectRefused('export default (BigInt) => 1;', 'reserved word', 17)
+        expectRefused('export default [1][BigInt(0)];', 'computed key is not Number(...)', 20)
+        expectModule('export default { BigInt: 1 }.BigInt;', '["{}",[[":","default",[".",["{}",[[":","BigInt",1]]],"BigInt"]]]]')
+    },
     // A module may end in `throw` in place of its exports: the body's last
     // entry is the throw of the value, resolved against every name bound,
     // and no export object follows it — a named export before it is the

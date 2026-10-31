@@ -727,7 +727,7 @@ export const op0 = /** @type {const} */ ([op0Id])
 // Unary Operations
 
 /**
- * `String`/`Number` are casts, `!` is logical and `~` bitwise not, and
+ * `String`/`Number`/`BigInt` are conversion operators, `!` is logical and `~` bitwise not, and
  * `typeof` is the type tag of its operand — always a fresh string, never the
  * operand itself, so it is the one unary operation with no identity concern.
  * `typeof` is pure, so the EDAG admits it, as it admits unary `+` (see
@@ -744,7 +744,7 @@ export const op0 = /** @type {const} */ ([op0Id])
  * node's is: in an arm of `?:` it fails only where the arm is selected,
  * and an executor never establishes it where the program would not.
  */
-export const op1Id = or('String', 'Number', '!', '~', 'typeof', 'throw')
+export const op1Id = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
 
 export const op1 = /** @type {const} */ ([op1Id, exp])
 
