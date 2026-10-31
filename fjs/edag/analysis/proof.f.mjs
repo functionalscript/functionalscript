@@ -64,6 +64,9 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    bigintOperand: () => {
+        assertStructurallySame(nodesOf(['BigInt', ['+', 1, 2]]), [['+', 1, 2], ['BigInt', ['#', 0]]])
+    },
     itemOperand: () => {
         /** @type {Ref} */
         const ref = ['#', 0]

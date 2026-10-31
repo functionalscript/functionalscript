@@ -374,7 +374,7 @@ export const operation = evaluator => {
                     [next, body === undefined ? error(noIn) : call(ok(body), [() => ok(node[1]), () => ok(value)], invoke)])
             }
             case 'String': { return then(operand(node[1], state), (value, next) => [next, toString(value, invoke)]) }
-            case '~': case 'Number': {
+            case '~': case 'Number': case 'BigInt': {
                 const apply = numericUnary[node[0]]
                 return then(operand(node[1], state), (value, next) =>
                     [next, okThen(apply)(toPrimitive(value, 'number', invoke))])

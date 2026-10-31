@@ -169,6 +169,7 @@ export const mapOperator = map => operator => {
         case '~':
         case '!':
         case 'typeof':
+        case 'BigInt':
         case 'Number':
         case 'String': { return [operator[0], map(operator[1], 0)] }
         default: { return [operator[0], map(operator[1], 0), map(operator[2], 1)] }
@@ -231,6 +232,7 @@ export const operatorOperands = operator => {
         case '~':
         case '!':
         case 'typeof':
+        case 'BigInt':
         case 'Number':
         case 'String': { return [operator[1]] }
         default: { return [operator[1], operator[2]] }

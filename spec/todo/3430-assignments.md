@@ -165,6 +165,10 @@ statement-only positions.
 
 ### Further increments
 
-Prefix and postfix `++` and `--` remain at priority 3 in this issue's original
-operator breakdown; compound assignment was priority 2. Their proposal and
-approval are separate from the compound-assignment scope above.
+Prefix and postfix `++` are deferred to the low-priority
+[common-runtime increment proposal](./increment-common-runtime.md), which
+records why the `i = i + 1` implementation was withdrawn and the pitfalls a
+JavaScript-compatible implementation must address. `++` remains refused.
+
+Prefix and postfix `--` remain separate work. Approval of compound
+assignments above does not cover update operators.

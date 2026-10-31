@@ -104,7 +104,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
-const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof', 'throw'])
+const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([

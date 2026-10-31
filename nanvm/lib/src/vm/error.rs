@@ -144,6 +144,16 @@ pub(crate) fn fraction_radix<A: IVm>() -> Any<A> {
     range_error("a fraction's digits in a radix other than 10 are not supported")
 }
 
+/// `BigInt` of a non-integral or non-finite number.
+pub(crate) fn number_to_bigint<A: IVm>() -> Any<A> {
+    range_error("The number cannot be converted to a BigInt because it is not an integer")
+}
+
+/// `BigInt` of text outside StringIntegerLiteral.
+pub(crate) fn string_to_bigint<A: IVm>() -> Any<A> {
+    thrown("SyntaxError", "Cannot convert string to a BigInt")
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{naive::Naive, vm::Any};
