@@ -376,10 +376,66 @@ export const proof = {
                 assertEq(last[1].semicolon, true)
             },
     },
-    // A guard is a block statement tagged `if`: the token it begins with, its
-    // condition, and its block, read as a body's is, with the statements
-    // after the guard following it in the same list. It records no `;`: a
-    // block statement ends at its `}`.
+    functionConditionalsKeepLexicalArmsAndContinuation: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default a=>{\nlet x=0;\nif(a){const local=1;x=local;}else if(x){return 2;}else{}\nreturn x;\n};')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        assertStructurallySame(body[1].map(statement => statement[0]), ['let', 'if', 'return'])
+        const conditional = body[1][1]
+        assert(conditional[0] === 'if')
+        assertEq(conditional[1].start.metadata.line, 3)
+        assertEq(conditional[1].block[0], 'loop')
+        assertStructurallySame(conditional[1].block[1].map(statement => statement[0]), ['const', 'assign'])
+        const alternate = conditional[1].otherwise
+        assert(alternate !== null && alternate[1].length === 1)
+        const chained = alternate[1][0]
+        assert(chained[0] === 'if' && chained[1].condition[0] === 'ref')
+        const [returned] = chained[1].block[1]
+        assert(returned[0] === 'return')
+        assertStructurallySame(returned[1].value, ['primitive', 2])
+        assertEq(returned[1].start.metadata.line, 3)
+        assertStructurallySame(chained[1].otherwise, ['loop', []])
+        const last = body[1][2]
+        assert(last[0] === 'return' && last[1].value[0] === 'ref')
+        assertEq(last[1].start.metadata.line, 4)
+    },
+    functionConditionalsDistinguishMissingAndEmptyAlternates: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default a=>{if(a){}if(a){}else{}return 0;};')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        const [missing, empty, last] = body[1]
+        assert(missing[0] === 'if' && empty[0] === 'if' && last[0] === 'return')
+        assertStructurallySame(missing[1].block, ['loop', []])
+        assertEq(missing[1].otherwise, null)
+        assertStructurallySame(empty[1].otherwise, ['loop', []])
+    },
+    nestedFunctionConditionalsKeepReturnsAndFollowingDeclarations: () => {
+        const { exported } = unwrap(parseSyntax(tokenizeString('export default a=>{if(a){const local=a;if(local){return 1;}const after=2;}return 3;};')))
+        assert(exported !== null && exported.value[0] === '=>')
+        const body = exported.value[2]
+        assert(body[0] === 'block')
+        const [conditional, last] = body[1]
+        assert(conditional[0] === 'if' && last[0] === 'return')
+        assertStructurallySame(conditional[1].block[1].map(statement => statement[0]), ['const', 'if', 'const'])
+        const nested = conditional[1].block[1][1]
+        assert(nested[0] === 'if')
+        const [returned] = nested[1].block[1]
+        assert(returned[0] === 'return')
+        assertStructurallySame(returned[1].value, ['primitive', 1])
+        assertStructurallySame(last[1].value, ['primitive', 3])
+    },
+    functionConditionalsKeepTheirRequiredFunctionTerminator: () => {
+        for (const source of [
+            'export default a=>{if(a){}};',
+            'export default a=>{if(a){return 1;}else{return 2;}};',
+            'export default a=>{if(a)return 1;return 2;};',
+            'export default a=>{if(a){};return 0;};',
+        ]) { assertEq(parseSyntax(tokenizeString(source))[0], 'error', source) }
+    },
+    // A conditional is tagged `if` with its token and normal lexical arms.
+    // The surrounding body's continuation remains after it in the same list.
     guard: () => {
         const { exported } = unwrap(parseSyntax(tokenizeString('export default (a) => { if (a) { return 1; } return 2; };')))
         assert(exported !== null && exported.value[0] === '=>')
@@ -391,6 +447,8 @@ export const proof = {
         const condition = guard[1].condition
         assert(condition[0] === 'ref')
         assertEq(condition[1].metadata.column, 29)
+        assertEq(guard[1].block[0], 'loop')
+        assertEq(guard[1].otherwise, null)
         const [inner] = guard[1].block[1]
         assert(inner[0] === 'return')
         assertStructurallySame(inner[1].value, ['primitive', 1])

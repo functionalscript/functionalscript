@@ -225,6 +225,10 @@ operation of one operand that always fails, in place of the value returned.
 A guard, `if (c) { … }`, retains direct lexical regions until sugar writes
 a conditional value block. Its selected arm performs that arm's declarations
 and returns its result; a region creates no function or invocation boundary.
+A braced `if` may also complete normally, with an optional `else` or `else if`.
+Those arms yield updated immutable binding versions to one shared following
+continuation. The function still requires its own explicit terminator, and
+an arm that returns or throws bypasses that continuation.
 Switch normalization establishes its discriminant once and tests case labels
 against that binding. The final alternate is the default block or the source
 continuation ([spec: switch](../../spec/control-flow/switch/README.md)).

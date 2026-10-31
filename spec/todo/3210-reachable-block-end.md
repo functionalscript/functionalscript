@@ -1,22 +1,21 @@
 ## A block whose end is reachable
 
 **Priority:** P2
-**Status:** open — a function body that runs off its end stays refused by
-design, and its modules take a source rewrite; an `if` block that runs off
-its end is a language change that needs formal language-design approval first
-([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
+**Status:** open — braced non-terminating `if` branches are implemented;
+function-body rewrites and final-`if` admission remain
 
 ### Problem
 
-A FunctionalScript block ends in a terminating statement — a `return`, a
-`throw`, or a switch with a `default` — and nothing after it may run
-([bodies and guards](../control-flow/guards/README.md)). A loop's block is the
-one exception ([loops](../control-flow/loops/README.md)). JavaScript has no such
-rule: a function body that runs off its end returns `undefined`, and an `if`
-block that runs off its end goes on with the statement after the `if`.
-The guard's own page lists "a branch that does not terminate and with it
-`else`" as a follow-up, and [the roadmap](./README.md) repeats it, with no
-record to hold it. This is that record, together with the function body.
+A FunctionalScript function body ends in a terminating statement — a
+`return`, a `throw`, a terminating switch or a terminal unconditional loop —
+and cannot complete normally
+([bodies and guards](../control-flow/guards/README.md)). The original guard
+subset required an `if` branch to terminate too. JavaScript distinguishes
+the two: a function that runs off its end returns `undefined`, while an
+`if` branch that runs off its end continues after the `if`.
+
+This issue tracks normally completing conditional branches separately from
+the source rewrites that make a function's result explicit.
 
 At `442ea8f` a reachable block end is the first refusal of 26 modules, 11 of
 them among the modules the self-hosting loader depends on
@@ -89,11 +88,11 @@ fall-through paths in `fjs/cli`'s `dispatchCommands` and
 `fjs/compiler/edag`'s `_moduleExports` must still reach their following
 return or throw.
 
-Implement this in two stages. First let the generic syntax AST represent
-non-terminating branches, independently of FunctionalScript admission and
-FAST or EDAG compilation. This lets the module dependency check parse the
-source without requiring it to compile. Then admit and normalize the source
-form using the existing FAST branch results and shared EDAG continuation.
+The generic syntax AST represents non-terminating branches independently of
+FunctionalScript admission and FAST or EDAG compilation. The dependency
+check can form that tree without requiring the module to compile. Source
+admission and normalization then use the existing FAST branch results and
+shared EDAG continuation.
 
 **A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
 `default` is the function-body shape once more, rewritten the same way: the
@@ -101,6 +100,18 @@ cases stay as they are and a terminator follows the `switch` — `return
 undefined`, the result an unmatched value reaches in JavaScript, or a `throw`
 where no other value can arrive. Turning the last `case` into the `default`
 would not do: it gives an unmatched value that case's result instead.
+
+### Implementation scope and approval
+
+The user explicitly requested implementation in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+The scope is braced normally completing `if` and `else` branches, including
+`else if` chains, before the function body's own terminating statement.
+Bare branches, module-level `if`, and an `if` used as the function body's
+final terminator remain follow-ups. In particular, a final `if` whose arms
+both return still needs a following function-body terminator in this step.
+Function-body fall-through remains refused; this work does not add an
+implicit `return undefined`.
 
 ### FAST and EDAG representation
 
@@ -136,8 +147,8 @@ target:
 }
 ```
 
-The current FAST-to-EDAG converter already represents this hand-built FAST
-as the following graph; accepting the source spelling remains future work:
+The existing FAST-to-EDAG converter represents this body as the following
+graph, without a new IR operation:
 
 ```js
 ['=>', 2, [], ['+', ['?:', ['arg', 0], 1, ['arg', 1]], 2]]
@@ -160,25 +171,28 @@ Drawbacks: the branch-result lowering and a shared continuation, where the
 guard needed neither; and a reader of a guard can no longer assume that the
 code after it runs only when the condition is false.
 
-The alternative that needs no approval is a rewrite here too: a guard's block
-can end in the `return` or `throw` the code after it would reach, at the cost
-of repeating that code in the arm.
+The earlier source workaround made a guard's block end in the `return` or
+`throw` the code after it would reach, at the cost of repeating that code in
+the arm. Shared continuations avoid that duplication.
 
 ### Tasks
 
 - [ ] Rewrite the function bodies with no terminator, `return undefined` or a
       `throw`, and a terminator after each `switch` with no `default`; no
       approval needed.
-- [ ] Parse non-terminating `if` branches into the generic syntax AST without
+- [x] Parse non-terminating `if` branches into the generic syntax AST without
       requiring FunctionalScript admission or FAST/EDAG compilation.
-- [ ] Settle the `if` form and record formal language-design approval, with a
-      link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
-- [ ] Admit and normalize an `if` block whose end is reachable, and `else`,
+- [x] Record the user's explicit implementation approval and the initial
+      braced-branch scope in the working session linked above.
+- [x] Admit and normalize an `if` block whose end is reachable, and `else`,
       using existing FAST branch results and normal `yield` exits under the
       [variable contract](../bindings/variables/README.md#normalization), with
       a shared continuation through every output; the guard page and
       [refused constructs](./refused-constructs.md) updated.
-- [ ] Recount the modules this unblocks and rename those that then compile.
+- [ ] Admit an `if` as the function body's final terminating statement when
+      every path terminates, without admitting function-body fall-through.
+- [x] Check repository AST formation and newly admitted modules; rename any
+      that become compilable.
 
 ### Related
 

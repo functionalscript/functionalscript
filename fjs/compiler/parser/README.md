@@ -137,7 +137,7 @@ unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
-statement ::= const | 'if' '(' value ')' block | let
+statement ::= const | loopIfStatement | let
             | whileStatement | forStatement | bodyNameStatement
 terminator ::= 'return' value end | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
@@ -464,17 +464,24 @@ the grammar has matched the whole module, statement by statement, on the
 pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 
 The syntax reader retains function declarations, plain loop statements,
-terminal guards and switches as source constructs. Resolution preserves them
+conditionals and switches as source constructs. Resolution preserves them
 as checked source blocks and original binding references. `() => 7` and
 `() => { return 7; }` resolve to the same targeted return. A guard retains its
 condition and two lexical blocks: the written block and the remaining
-statements. A switch retains the discriminant, ordered labels, cases and final
+statements. A normally completing `if` instead retains its written arms as
+one conditional statement, followed by the original continuation once. Its
+arms share the source function's return owner but keep their lexical names
+local. Sugar joins the selected versions of updated outer bindings through
+FAST yields; a returning or throwing arm supplies no normal result.
+A switch retains the discriminant, ordered labels, cases and final
 fallback. A loop retains its condition, lexical body and ordered source binding
 events. Unlabeled `continue` resolves to that loop's target. A `break` resolves
 to the nearest loop or loop-body switch; nested regions preserve their distinct
 owners, including in either conditional arm. All later
-source statements still resolve, preserving name, write and capture checks even
-after an unconditional jump. The common sugar pass selects state from those
+source statements in loop regions still resolve, preserving name, write and
+capture checks even after an unconditional jump. Ordinary conditional arms
+retain the function-block refusal of syntax after a direct return or throw.
+The common sugar pass selects state from those
 events and the shared binding facts; the parser creates no helper function or
 recursive call.
 

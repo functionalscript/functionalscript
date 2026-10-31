@@ -42,7 +42,7 @@
   object is written in parentheses instead ([grouping](../../operators/grouping/README.md)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of statements — `const`s, call statements
-  ([call statements](../../functions/call-statements/README.md)), and guards, `if`
+  ([call statements](../../functions/call-statements/README.md)), and conditional statements, `if`
   (below) — and then one terminating statement, a `return` or a `throw` (below), or a
   switch with a `default` ([switch](../switch/README.md)), or a
   [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop), each
@@ -126,21 +126,32 @@
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails
   ([output](../../command-line/output.md)).
-- **`if (condition) block`** is a guard: a statement of a block body,
-  standing where a `const` may, any number of times before the body's
-  terminating statement. Its block is a block as above — any number of
-  statements and then a `return`, a `throw`, a switch with a `default`
-  ([switch](../switch/README.md)), or a
-  [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop) — so the branch never completes normally,
-  and the statements after the guard, up to and including the
-  body's own terminator, are what runs when the condition is falsy. The
-  condition is any expression, evaluated where the statement stands and
-  tested as `?:` tests its condition. This is the one form: the braces are
-  required, there is no `else`, and the statement stands in a function
-  body only — each a scoping decision of a step-by-step plan rather than a
-  guarantee, the bare consequent `if (c) return v;`, a branch that does
-  not terminate and with it `else`, and a guard at module level being
-  follow-ups, each additive on top of this one. No `;` follows the `}`, as
+- **`if (condition) { ... }`** is a conditional statement before the
+  function body's terminating statement. Its condition is evaluated once
+  where the statement stands and tested as `?:` tests its condition. The
+  selected branch may complete normally, return from the function, or throw.
+  Normal completion continues with the statements after the whole `if`;
+  a return or throw skips them. A missing `else` does nothing on the falsy
+  path. Braced `else` branches and `else if` chains follow the same rules.
+
+  Each branch has its own lexical scope. Its declarations do not escape,
+  while assignments to outer variables supply the values that subsequent
+  statements read. An unchanged branch supplies the incoming value
+  ([variable normalization](../../bindings/variables/README.md#normalization)).
+
+  ```js
+  export const adjust = (condition, value) => {
+      if (condition) { value = 1; }
+      return value + 2;
+  };
+  ```
+
+  The braces are required, and a function still needs its own terminating
+  statement after the `if`. A final `if` whose arms both return is not yet
+  a function-body terminator. Bare branches and module-level `if` remain
+  follow-ups ([reachable block ends](../../todo/3210-reachable-block-end.md)).
+  Finishing a branch does not implicitly return `undefined` from its function.
+  No `;` follows the `}`, as
   in JavaScript: one there is the empty statement the language refuses
   ([module structure](../../modules/README.md)), and the next statement may
   share the guard's line.
@@ -157,7 +168,9 @@
   };
   ```
 
-  The guard is syntactic sugar over the conditional and adds no node: a
+  An `if` without `else` whose branch terminates is a guard: its following
+  statements run only when the condition is falsy. Such a guard is syntactic
+  sugar over the conditional and adds no node: a
   body `s… if (c) B rest` denotes `c ? (() => B)() : (() => rest)()`, the
   guard's block and the statements after it each the body of a
   parameterless function called where it stands (above), and the compiler
@@ -189,6 +202,13 @@
   or a `throw` as the block opened at the operand (above), so the guarded
   body reads back as the same graph; the EDAG output carries the `?:`,
   and the Rust output prints it as it prints any conditional.
+
+  Normally completing branches use the existing FAST `if` statement and
+  normal `yield` exits to pass their selected binding values to one shared
+  continuation. Branch-local work stays conditional and preserves its
+  evaluation order. EDAG uses its existing conditional operation; no new
+  graph operation or function invocation represents a branch
+  ([FAST and EDAG example](../../todo/3210-reachable-block-end.md#fast-and-edag-representation)).
 
 ## Examples
 
