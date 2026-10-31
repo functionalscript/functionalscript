@@ -6,12 +6,13 @@
  * @import { MemOperationMap } from '../effects/mock/types.ts'
  * @import { Ok, Result } from '../types/result/types.ts'
  * @import { EffectList } from '../effects/list/types.ts'
+ * @import { Transducer } from '../types/function/operator/types.ts'
  */
 
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead, contentKey } from './module.f.mjs'
+import { fileCas, casAddFile, collectRead, contentKey, wholeByteMachine } from './module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { run } from '../effects/mock/module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
@@ -19,7 +20,8 @@ import { ioError, mkdir, writeFile, readFile, readdir, access } from '../effects
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
-import { nonEmpty, empty, run as runStream } from '../effects/list/module.f.mjs'
+import { nonEmpty, empty, fromList, run as runStream } from '../effects/list/module.f.mjs'
+import { doneStep, nextStep } from '../types/function/operator/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
 import { assertIoMessage } from '../effects/testlib.f.js'
 
@@ -467,6 +469,39 @@ export const proof = {
         const o = runPure(/** @satisfies {Effect<never, Vec, IoChannel>} */ (keyOf(empty())))
         assert(o.length === 1)
         assertEq(msb.cmp(unwrapResult(o[0]))(computeSync(sha256)([])), 0)
+    },
+    contentKeyLongPureSpan: () => {
+        // Byte admission must happen inside the machine update. Rebuilding the
+        // source recursively exhausted the stack before the driver saw this span.
+        const chunk = vec(0n)(0n)
+        const stream = fromList(Array.from({ length: 50_000 }, () => chunk))
+        const result = runPure(contentKey(sha256)(stream))
+        assert(result.length === 1)
+        assertEq(msb.cmp(unwrapResult(result[0]))(computeSync(sha256)([])), 0)
+    },
+    wholeByteMachinePreservesLifecycle: () => {
+        /** @type {Transducer<Vec, number, number, string>} */
+        const source = {
+            init: nextStep(0, [1]),
+            update: (state, chunk) => doneStep('input', [state + Number(length(chunk))]),
+            end: state => doneStep('eof', [state]),
+        }
+        const admitted = wholeByteMachine(source)
+        assertStructurallySame(admitted.init, ['next', [1], 0])
+        assertStructurallySame(admitted.update(2, vec8(0x11n)), ['done', [10], ['ok', 'input']])
+        assertStructurallySame(admitted.end(3), ['done', [3], ['ok', 'eof']])
+        /** @type {Transducer<Vec, number, number, string>} */
+        const complete = { ...source, init: doneStep('initial', [9]) }
+        assertStructurallySame(wholeByteMachine(complete).init, ['done', [9], ['ok', 'initial']])
+    },
+    contentKeyRefusalStopsBeforeTail: () => {
+        /** @type {EffectList<never, Vec, IoChannel>} */
+        const unread = () => { throw 'a refused chunk must leave the source tail unread' }
+        const stream = nonEmpty(vec(5n)(0b10101n), unread)
+        const result = runPure(contentKey(sha256)(stream))
+        assert(result.length === 1)
+        assert(result[0][0] === 'error')
+        assertIoMessage(result[0][1], 'invalid buffer size')
     },
     contentKeyRefusesPartialByte: () => {
         // A chunk that is not whole bytes: `write` refuses it through
