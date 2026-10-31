@@ -1,7 +1,7 @@
 ## size-aware-fold. Fold the concatenations by weight
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
