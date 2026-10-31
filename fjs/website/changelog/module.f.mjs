@@ -30,7 +30,7 @@
 import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 import { intersperse, mergeAdjacent } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { charIs, isDigit as isDigitCodePoint, lowerHexDigitValue } from '../../text/ascii/module.f.js'
 
 /** @type {(c: string) => boolean} */

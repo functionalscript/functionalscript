@@ -45,7 +45,7 @@
 
 import { error, ok } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/list/module.f.js'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'

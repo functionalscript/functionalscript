@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'

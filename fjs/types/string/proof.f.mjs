@@ -1,4 +1,4 @@
-import { join, concat, repeat, cmp, splitAt, occurrences } from './module.f.mjs'
+import { join, concat, repeat, cmp, splitAt, occurrences } from './module.f.js'
 import { repeat as repeatList } from '../list/module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 

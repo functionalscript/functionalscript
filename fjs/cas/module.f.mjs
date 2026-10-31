@@ -48,7 +48,7 @@ import {
 } from '../effects/node/module.f.mjs'
 import { toOption } from '../types/nullable/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
-import { splitAt } from '../types/string/module.f.mjs'
+import { splitAt } from '../types/string/module.f.js'
 import { run as runStream } from '../effects/list/module.f.mjs'
 import { doneStep } from '../types/function/operator/module.f.js'
 

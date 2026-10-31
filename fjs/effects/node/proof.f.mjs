@@ -20,7 +20,7 @@ import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 import { run as mockRun } from '../mock/module.f.mjs'
 

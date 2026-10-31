@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
-import { concat, occurrences } from '../../types/string/module.f.mjs'
+import { concat, occurrences } from '../../types/string/module.f.js'
 import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */

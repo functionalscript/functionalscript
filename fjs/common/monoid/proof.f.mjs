@@ -5,10 +5,10 @@
  * @import { Absorbing, Monoid, Stack, Walk, Weight } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing, move, runs, step, accumulator, absorbingAccumulator } from './module.f.mjs'
+import { repeat, fold, foldAbsorbing, move, runs, step, accumulator, absorbingAccumulator } from './module.f.js'
 import { demo, n, sequence, trace } from './demo.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { concat, countdown, map, repeat as repeatItem, run } from '../../types/list/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'

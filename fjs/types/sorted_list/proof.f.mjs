@@ -1,7 +1,7 @@
 import { find, merge } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { countdown, length } from '../list/module.f.js'
-import { toArray } from '../list/alt/module.f.mjs'
+import { toArray } from '../list/alt/module.f.js'
 import { flip } from '../function/module.f.js'
 import { cmp } from '../number/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.js'

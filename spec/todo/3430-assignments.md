@@ -9,7 +9,7 @@ postfix updates remain open
 
 The compiler admits variable assignment and binary operations, but refuses
 their compound spellings. `repeat` in
-[`fjs/common/monoid`](../../fjs/common/monoid/module.f.mjs) uses `ni >>= 1n`:
+[`fjs/common/monoid`](../../fjs/common/monoid/module.f.js) uses `ni >>= 1n`:
 the equivalent `ni = ni >> 1n` expresses the same immutable state transition.
 The refusal adds a source rewrite without protecting purity or binding safety.
 

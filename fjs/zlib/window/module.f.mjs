@@ -18,7 +18,7 @@
  */
 
 import { reverse, take } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 /** How many bytes a block holds. */
 const blockLength = 256

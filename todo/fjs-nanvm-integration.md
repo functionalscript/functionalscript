@@ -144,32 +144,43 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `b777ddb02`, the rename step of
-[#3494](https://github.com/functionalscript/functionalscript/pull/3494).
-The list refactor from `sergey/temp1` makes its recursive step helpers local
-to their owning functions, removing the module-level forward references.
-The compiler accepts the complete module and four dependents without further
-implementation changes: `types/list`, `text/code_point`, `types/btree`,
-`types/btree/remove` and `types/btree/set` are now `.f.js`, with their runtime,
-type, proof and documentation references updated.
+Measured on `c095a8859`, the weighted materialization step of
+[#3495](https://github.com/functionalscript/functionalscript/pull/3495), stacked
+on [#3494](https://github.com/functionalscript/functionalscript/pull/3494).
+`list/alt.toArray` now feeds whole array chunks and singleton cons chunks to
+`monoid.fold`, weighted by array length. Its private stack is gone; a fresh
+identity per materialization preserves lone-array identity and empty-result
+freshness. Moving `fold` below `accumulator` removes the shared monoid's final
+forward reference without changing its algorithm.
 
+`common/monoid` and `types/list/alt` are now `.f.js`. Four dependents also
+compile unchanged and are renamed: `types/string`, `types/ordered_map`,
+`types/string_set` and `types/btree/testlib`. The compiler-compatible population
+is 169 authored `.f.js` files; 437 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. The
-population is 163 authored `.f.js` files and 443 authored non-proof `.f.mjs`
-files. Every remaining leaf was compiled as written; all six are refused.
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fifteen
+remaining leaves are refused as written.
 
-| Leaf file | First refused construct | Additional leaves its conversion exposes |
+| Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
 | --- | --- | ---: |
-| `fjs/common/monoid/module.f.mjs` | The later `accumulator` referenced by `fold` (`const not found`) | 4 |
-| `fjs/types/array/module.f.mjs` | `new Map` in `occurrences`, whose keys are strings ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 6 |
-| `fjs/types/list/alt/module.f.mjs` | Destructuring assignment in `push` (`unexpected token`) | 6 |
-| `fjs/types/list/iterable/module.f.mjs` | The generator method `*[Symbol.iterator]` (`unexpected token`) | 0 |
-| `fjs/types/map/module.f.mjs` | `new Map` in `mapSet`; its EDAG-node keys do not meet conversion rule 9 | 0 |
-| `fjs/types/sorted_list/module.f.mjs` | The later `cmpReduce` referenced by `merge` (`const not found`) | 0 |
+| `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
+| `js/ast` | `for...of` | 2 |
+| `js/ast/sugar/pattern` | `policy.name(...)` (`prohibited member function`) | 0 |
+| `media/wasm/wat` | `new Map` | 0 |
+| `path` | Computed key `dir[dir.length - 1]` | 0 |
+| `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
+| `types/bigint` | `else` after a returning `if` | 1 |
+| `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
+| `types/map` | `new Map` with EDAG-node keys | 0 |
+| `types/number` | `for...of` | 4 |
+| `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
+| `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
+| `website/demo/graph` | Postfix `round++` in the loop update | 1 |
+| `website/demo/mirror` | `Math.min` | 0 |
+| `zlib/window` | `for...of` | 0 |
 
-No further leaf compiles unchanged at this revision. The renamed modules keep
-their `proof.f.mjs` files; the btree set/remove proofs also exercise the cases
-needed for their own isolated 100% proof coverage.
+The previous six-leaf measurement is retained in the
+[#3494 audit](https://github.com/functionalscript/functionalscript/blob/1e9e7b55f2172f26b3546fd9a87dd639d3948bed/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,

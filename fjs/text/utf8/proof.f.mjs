@@ -5,7 +5,7 @@
 import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
 import { next } from '../../types/list/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, codePoints } from './demo.f.mjs'
