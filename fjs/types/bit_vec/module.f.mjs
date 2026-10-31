@@ -296,6 +296,12 @@ const concatenation = unpackConcat => ({
     weight: u => Number(u.length),
 })
 
+/** The shared empty builder step, before any pieces have arrived. */
+const initialStep = nextStep(/** @type {const} */ ({ stack: null, length: 0n }))
+
+/** A builder completes with no vector when its length cap is exceeded. */
+const overflow = doneStep(null)
+
 /**
  * Concatenates a list of unpacked vectors, or `null` if the result would be
  * longer than `maxLength`.
@@ -330,9 +336,9 @@ const unpackListToVec = unpackConcat => {
     const whole = collect(monoid)
     /** @type {Transducer<Unpacked, { readonly stack: Stack<Unpacked>, readonly length: bigint }, never, Nullable<Vec>>} */
     const capped = {
-        init: nextStep({ stack: null, length: 0n }),
+        init: initialStep,
         update: ({ stack, length }, u) =>
-            length + u.length > maxLength ? doneStep(null) : nextStep({ stack: push(u)(stack), length: length + u.length }),
+            length + u.length > maxLength ? overflow : nextStep({ stack: push(u)(stack), length: length + u.length }),
         end: ({ stack }) => doneStep(pack(whole(stack))),
     }
     return run(capped)
