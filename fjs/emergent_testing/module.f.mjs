@@ -804,12 +804,15 @@ export const register = (o, select) => {
  *
  * @type {NodeProgram}
  */
-export const registerOne = options => exitStep(step(
-    loadDirectoryModuleMap(),
-    moduleMap => step(registerModuleMap(options.testContext)(moduleMap), count => {
+export const registerOne = options => {
+    const discovered = loadDirectoryModuleMap()
+    const registered = step(discovered, registerModuleMap(options.testContext))
+    const checked = step(registered, count => {
         /** @type {Effect<never, void, IoChannel>} */
-        const checked = count === 0
+        const result = count === 0
             ? pureError(ioError({ message: 'No runnable proofs in the working directory' }))
             : pureOk(undefined)
-        return checked
-    })))
+        return result
+    })
+    return exitStep(checked)
+}

@@ -9,13 +9,13 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const runtime = process.versions.deno ? 'deno' : process.versions.bun ? 'bun' : 'node'
 const flags = runtime === 'node' ? ['--test'] : runtime === 'deno' ? ['test', '-A', '--config', fileURLToPath(new URL('../../../deno.json', import.meta.url))] : ['test']
 const one = fileURLToPath(new URL('../one.mjs', import.meta.url))
 const cli = fileURLToPath(new URL('../../module.mjs', import.meta.url))
-const coverageReporter = fileURLToPath(new URL('../cov/reporter.mjs', import.meta.url))
+const coverageReporter = new URL('../cov/reporter.mjs', import.meta.url).href
 
 /** @type {(run: (root: string) => void) => void} */
 const withFixture = run => {
@@ -209,20 +209,36 @@ export const proof = /** @type {const} */ ({
                 'demo.f.mjs': 'export const demo = () => 2',
                 'proof.f.mjs': 'import { value } from "./module.f.mjs"; import { demo } from "./demo.f.mjs"; export const proof = { own: () => [value(), demo()] }',
             })
-            const missingFile = invoke(root, [
+            // Native reporter loading consumes a module specifier, so a path
+            // containing spaces and '#' must reach it as an encoded file URL.
+            const reporter = join(root, 'reporter space #.mjs')
+            writeFileSync(reporter, `export { default } from ${JSON.stringify(coverageReporter)}`)
+            const reporterOption = `--test-reporter=${pathToFileURL(reporter).href}`
+            /** @type {readonly string[]} */
+            const coverageFlags = [
                 '--test',
                 '--experimental-test-coverage',
-                '--test-coverage-include=module.f.mjs',
                 '--test-coverage-lines=100',
                 '--test-coverage-branches=100',
                 '--test-coverage-functions=100',
-                `--test-reporter=${coverageReporter}`,
+                reporterOption,
+            ]
+            const complete = invoke(root, [
+                ...coverageFlags,
+                '--test-coverage-include=module.f.mjs',
+                '--test-coverage-include=demo.f.mjs',
+                one,
+            ])
+            assert.equal(complete.status, 0, complete.output)
+            const missingFile = invoke(root, [
+                ...coverageFlags,
+                '--test-coverage-include=module.f.mjs',
                 one,
             ])
             assert.notEqual(missingFile.status, 0, missingFile.output)
             assert.ok(missingFile.output.includes('Missing coverage:'), missingFile.output)
             assert.ok(missingFile.output.includes('demo.f.mjs'), missingFile.output)
-            const missingReport = invoke(root, ['--test', `--test-reporter=${coverageReporter}`, one])
+            const missingReport = invoke(root, ['--test', reporterOption, one])
             assert.notEqual(missingReport.status, 0, missingReport.output)
             assert.ok(missingReport.output.includes('coverage report'), missingReport.output)
         })

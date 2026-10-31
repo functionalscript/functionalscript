@@ -161,14 +161,15 @@ const loadFile = f =>
  *
  * @type {(files: readonly string[], prefix: string) => Effect<Access | Import | All, ModuleMap, IoChannel>}
  */
-const loadFiles = (files, prefix) => mapStep(
-    allOk(...files.map(loadFile)),
-    entries => fromEntries(
+const loadFiles = (files, prefix) => {
+    const loaded = allOk(...files.map(loadFile))
+    return mapStep(loaded, entries => fromEntries(
         entries
             .flat()
             .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
             .toSorted(([a], [b]) => strCmp(a)(b))
     ))
+}
 
 /**
  * Loads authored FunctionalScript files immediately inside the actual working
@@ -177,10 +178,11 @@ const loadFiles = (files, prefix) => mapStep(
  *
  * @type {() => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
-export const loadDirectoryModuleMap = () => step(
-    walk('.', (path, { name, isDirectory }) =>
-        isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take'),
-    files => loadFiles(files, ''))
+export const loadDirectoryModuleMap = () => {
+    const discovered = walk('.', (path, { name, isDirectory }) =>
+        isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take')
+    return step(discovered, files => loadFiles(files, ''))
+}
 
 /**
  * Where discovery starts: `INIT_CWD`, the directory `npm run` was invoked

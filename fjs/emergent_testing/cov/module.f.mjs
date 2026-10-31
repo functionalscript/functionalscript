@@ -6,14 +6,15 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeOp, NodeProgram, Write, Subprocess } from '../../effects/node/types.ts'
+ * @import { NodeProgram, Write, Subprocess } from '../../effects/node/types.ts'
  * @import { _CoverageFile, _Module } from './types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
-import { foldStep, mapStep, pureError, pureOk, refuse, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, error, errorExit, errorMessage, log, spawn } from '../../effects/node/module.f.mjs'
+import { foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
+import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent } from '../../path/module.f.mjs'
+import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.mjs'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
@@ -27,15 +28,15 @@ export const _modules = files =>
         files: files.filter(file => parent(file) === directory).map(basename).toSorted((a, b) => cmp(a)(b)),
     }))
 
-/** Native includes are relative to the child cwd and match its direct files only. @type {(packageRoot: string, files: readonly string[]) => readonly string[]} */
-export const _nodeArgs = (packageRoot, files) => [
+/** Native includes are relative to the child cwd; the host supplies the reporter's file URL. @type {(packageRoot: string, files: readonly string[], reporter: string) => readonly string[]} */
+export const _nodeArgs = (packageRoot, files, reporter) => [
     '--test',
     '--experimental-test-coverage',
     ...files.map(file => `--test-coverage-include=${file}`),
     '--test-coverage-lines=100',
     '--test-coverage-branches=100',
     '--test-coverage-functions=100',
-    `--test-reporter=${normalize(join(packageRoot, 'fjs/emergent_testing/cov/reporter.mjs'))}`,
+    `--test-reporter=${reporter}`,
     normalize(join(packageRoot, 'fjs/emergent_testing/one.mjs')),
 ]
 
@@ -64,33 +65,44 @@ export const _coverageFailures = (expected, files) => [
         .map(file => `Unexpected coverage: ${file.path}`),
 ]
 
-/** Finish one child while allowing independent directories to continue after failure. @type {(packageRoot: string, module: _Module) => Effect<Subprocess | Write, boolean, IoChannel>} */
-const runModule = (packageRoot, { directory, files }) => {
-    const args = _nodeArgs(packageRoot, files)
-    const started = step(log(_commandLine(directory, args)), () =>
+/** Finish one child while allowing independent directories to continue after failure. @type {(command: { readonly directory: string, readonly args: readonly string[] }) => Effect<Subprocess | Write, boolean, IoChannel>} */
+const runModule = ({ directory, args }) => {
+    const announced = log(_commandLine(directory, args))
+    const started = step(announced, () =>
         spawn('node', args, { stdio: 'inherit', cwd: directory }))
-    return resultStep(step(started, childWait), result => {
-        const passed = result[0] === 'ok' && result[1][0] === 'exited' && result[1][1] === 0
-        const detail = result[0] === 'error' ? errorMessage(result[1]) : `${result[1][0]} ${result[1][1]}`
-        const reported = passed ? log(`PASS ${directory}`) : error(`FAIL ${directory}: ${detail}`)
-        return mapStep(reported, () => passed)
+    const ended = step(started, childWait)
+    const outcome = resultMapStep(ended, ([tag, value]) => {
+        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
+        const [status, code] = value
+        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
     })
+    const reported = historyStep(history(outcome), ({ passed, detail }) =>
+        passed ? log(`PASS ${directory}`) : error(`FAIL ${directory}: ${detail}`))
+    return mapStep(reported, ([, { passed }]) => passed)
 }
 
 /** Run the selected subtree under Node. No output or scheduling flags yet. @type {NodeProgram} */
 export const main = ({ args, env, packageRoot }) => {
     if (args.length !== 1 || args[0] !== 'node') { return errorExit('Usage: fjs cov node') }
-    const modules = mapStep(allFiles(sourceRoot(env), isCoverageTarget), _modules)
-    /** @type {Effect<NodeOp, number, IoChannel>} */
-    const checked = step(modules, modules => {
-        if (modules.length === 0) { return refuse('ERR_NO_COVERAGE_TARGETS')('No coverage targets found') }
-        const failed = foldStep(pureOk(modules), 0, module => failed =>
-            mapStep(runModule(packageRoot, module), passed => failed + (passed ? 0 : 1)))
-        return step(failed, failed => mapStep(
-            log(`Coverage: ${modules.length - failed} passed, ${failed} failed, ${modules.length} total`),
-            () => failed))
+    const discovered = allFiles(sourceRoot(env), isCoverageTarget)
+    const grouped = mapStep(discovered, _modules)
+    const modules = step(grouped, modules => modules.length === 0
+        ? refuse('ERR_NO_COVERAGE_TARGETS')('No coverage targets found')
+        : pureOk(modules))
+    const reporter = historyStep(history(modules), () =>
+        resolveFileModule(normalize(join(packageRoot, 'fjs/emergent_testing/cov/reporter.mjs')), null))
+    const commands = mapStep(reporter, ([{ id }, modules]) => modules.map(({ directory, files }) => ({
+        directory, args: _nodeArgs(packageRoot, files, id),
+    })))
+    const results = foldStep(commands, { failed: 0, total: 0 }, command => ({ failed, total }) => {
+        const checked = runModule(command)
+        return mapStep(checked, passed => ({ failed: failed + (passed ? 0 : 1), total: total + 1 }))
     })
-    return resultStep(checked, result => result[0] === 'error'
-        ? errorExit(errorMessage(result[1]))
-        : result[1] === 0 ? pureOk(0) : pureError(1))
+    const reported = historyStep(history(results), ({ failed, total }) =>
+        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total`))
+    return resultStep(reported, ([tag, value]) => {
+        if (tag === 'error') { return errorExit(errorMessage(value)) }
+        const [, { failed }] = value
+        return failed === 0 ? pureOk(0) : pureError(1)
+    })
 }

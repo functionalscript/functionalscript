@@ -842,6 +842,7 @@ const runRegister = (testContext, files, load, invoke, select, single = false) =
             return [s, ok(undefined)]
         },
     }))
+    /** @type {NodeProgramOptions} */
     const opts = {
         ...defaultNodeProgramOptions, env: {}, testContext,
     }
@@ -852,6 +853,7 @@ const runRegister = (testContext, files, load, invoke, select, single = false) =
 
 /** Single-directory registration includes every authored sibling proof. */
 export const registerOneSiblings = () => {
+    /** @type {readonly string[]} */
     const files = ['module.f.js', 'proof.f.mjs', 'split.proof.f.mjs', 'demo.f.mjs',
         'proof.mjs', 'old.f.ts', 'ordinary.mjs']
     const calls = runRegister(registerNoopCtx, files, path => {

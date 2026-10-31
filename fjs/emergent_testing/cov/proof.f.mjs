@@ -11,7 +11,7 @@ import { ioError } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
-import { normalize } from '../../path/module.f.mjs'
+import { join, normalize } from '../../path/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
@@ -25,6 +25,8 @@ const failed = ok(['exited', 1])
 const signaled = ok(['signaled', 'SIGTERM'])
 /** @type {IoResult<ExitStatus>} */
 const unavailable = error(ioError({ message: 'child unavailable' }))
+
+const reporterUrl = /** @type {const} */ ('file:///package%20root/fjs/emergent_testing/cov/reporter.mjs')
 
 /** A filesystem with ignored dependencies and differently named measured files. */
 const tree = /** @type {const} */ ({
@@ -42,13 +44,19 @@ const tree = /** @type {const} */ ({
  * @param {Readonly<Record<string, readonly (readonly [string, boolean])[]>>} [directories]
  * @param {boolean} [spawnFails]
  * @param {boolean} [writeFails]
+ * @param {string | null} [reporter]
  */
-const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false) => {
+const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false, reporter = reporterUrl) => {
     /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
     /** @type {RunInstance<NodeOp, State>} */
     let run
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
+        resolveFileModule: (name, parent) => state => {
+            assertEq(parent, null)
+            assertEq(name, normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs')))
+            return [state, reporter === null ? error(ioError({ message: 'reporter unavailable' })) : ok({ id: reporter, path: name })]
+        },
         readdir: path => state => {
             const entries = directories[normalize(path) === '' ? '.' : normalize(path)]
             return [state, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
@@ -87,7 +95,7 @@ const full = path => ({
     totalFunctionCount: 1, coveredFunctionCount: 1,
 })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     targets: () => {
         for (const path of ['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs']) assert(isCoverageTarget(path))
         for (const path of ['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js']) assert(!isCoverageTarget(path))
@@ -100,23 +108,30 @@ export const proof = {
         assertStructurallySame(_modules([]), [])
     },
     nativeCommand: () => {
-        const args = _nodeArgs('/package root', ['demo.f.mjs', 'module.f.js'])
+        const args = _nodeArgs('/package root', ['demo.f.mjs', 'module.f.js'], reporterUrl)
         assertStructurallySame(args, [
             '--test', '--experimental-test-coverage',
             '--test-coverage-include=demo.f.mjs', '--test-coverage-include=module.f.js',
             '--test-coverage-lines=100', '--test-coverage-branches=100', '--test-coverage-functions=100',
-            '--test-reporter=/package root/fjs/emergent_testing/cov/reporter.mjs',
+            '--test-reporter=file:///package%20root/fjs/emergent_testing/cov/reporter.mjs',
             '/package root/fjs/emergent_testing/one.mjs',
         ])
         assertEq(_commandLine("a'b $x", ['--test', "a'b"]),
             "cwd: 'a'\\''b $x'\ncommand: 'node' '--test' 'a'\\''b'")
     },
+    windowsReporter: () => {
+        const reporter = /** @type {const} */ ('file:///D:/a/package%20root/%23%25/fjs/emergent_testing/cov/reporter.mjs')
+        const [state, result] = execute([passed, passed], { packageRoot: 'D:/a/package root/#%' }, tree, false, false, reporter)
+        assertEq(exitCode(result), 0)
+        assert(state.commands.every(([, args]) => args.includes(`--test-reporter=${reporter}`)))
+        assertEq(state.commands[0]?.[1].at(-1), 'D:/a/package root/#%/fjs/emergent_testing/one.mjs')
+    },
     sequential: () => {
         const [state, result] = execute([passed, passed])
         assertEq(exitCode(result), 0)
         assertStructurallySame(state.commands, [
-            ['node', _nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs']), 'a'],
-            ['node', _nodeArgs('/package root', ['module.f.js']), 'z'],
+            ['node', _nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs'], reporterUrl), 'a'],
+            ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
         assert(output.indexOf('cwd:') < output.indexOf('PASS a'))
@@ -153,6 +168,9 @@ export const proof = {
         }
         const [, result] = execute([passed], {}, tree, false, true)
         assertEq(exitCode(result), 1)
+        const [state, unavailableReporter] = execute([], {}, tree, false, false, null)
+        assertEq(exitCode(unavailableReporter), 1)
+        assertEq(state.commands.length, 0)
     },
     coverage: () => {
         assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [full('/a/module.f.mjs')]), [])
@@ -174,4 +192,4 @@ export const proof = {
             assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [file]), ['Incomplete coverage: /a/module.f.mjs'])
         }
     },
-}
+})
