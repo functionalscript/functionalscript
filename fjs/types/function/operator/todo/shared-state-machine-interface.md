@@ -92,7 +92,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Migrate the Git inflater lifecycle and packstore callers.
 - [x] Migrate Unicode decoding with streaming emission and EOF flush.
 - [x] Migrate MIME detection and preserve whole-input length counting.
-- [ ] Migrate Patricia construction and its SUL hash-level caller.
+- [x] Migrate Patricia construction and its SUL hash-level caller.
 - [ ] Migrate full SUL encoding and finish the common API documentation.
 
 ### Related
