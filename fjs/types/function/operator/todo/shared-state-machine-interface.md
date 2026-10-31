@@ -85,7 +85,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Establish the shared protocol, construction adapters, and pure/effectful drivers.
 - [x] Migrate monoid accumulation, including absorbing folds and their callers.
 - [x] Migrate bounded bit-vector construction and preserve overflow stopping.
-- [ ] Migrate SHA-1/SHA-2 and every direct hash caller.
+- [x] Migrate SHA-1/SHA-2 and every direct hash caller.
 - [ ] Migrate CAS admission and digest consumers to the shared effectful driver.
 - [ ] Migrate Adler-32 and its checksum callers.
 - [ ] Migrate emitting zlib inflation and adapt its direct Git consumer.
