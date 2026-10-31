@@ -43,9 +43,9 @@
  * @import { Properties, RangeEntry, RangeMap, RangeMapArray, RangeMapOp, RangeMerge } from './types.ts'
  */
 
-import { genericMerge } from '../sorted_list/module.f.mjs'
+import { genericMerge } from '../sorted_list/module.f.js'
 import { next, map } from '../list/module.f.js'
-import { cmp } from '../number/module.f.mjs'
+import { cmp } from '../number/module.f.js'
 import { bsearch } from '../function/compare/module.f.js'
 
 const reduceOp =
@@ -96,8 +96,8 @@ export const get =
             const search = bsearch(length)
             /** @param {number} value */
             return value => {
-                const pos = search(mid => value <= rm[mid][1] ? -1 : 1)
-                return pos < length ? rm[pos][0] : def
+                const pos = search(mid => value <= rm[Number(mid)][1] ? -1 : 1)
+                return pos < length ? rm[Number(pos)][0] : def
             }
         }
 

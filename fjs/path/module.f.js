@@ -359,7 +359,7 @@ export const join = (...list) => list.join('/')
  * @type {(dir: string) => boolean}
  */
 const endsInSeparator = dir => {
-    const last = dir[dir.length - 1]
+    const last = dir[Number(dir.length - 1)]
     return last === '/' || last === '\\'
 }
 
@@ -439,4 +439,4 @@ export const relativize = (base, path) =>
  * @type {(prefix: readonly string[], path: readonly string[]) => boolean}
  */
 export const isProperPrefix = (prefix, path) =>
-    prefix.length < path.length && prefix.every((seg, i) => seg === path[i])
+    prefix.length < path.length && prefix.every((seg, i) => seg === path[Number(i)])

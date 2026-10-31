@@ -9,7 +9,7 @@ import { map } from '../../types/list/module.f.js'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../text/code_point/module.f.js'
 import { percentDecode } from '../../text/percent/module.f.mjs'
-import { concat as pathConcat, root, _foldRejoin } from '../module.f.mjs'
+import { concat as pathConcat, root, _foldRejoin } from '../module.f.js'
 
 /** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd

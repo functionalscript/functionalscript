@@ -20,7 +20,7 @@ import {
 } from '../../types/list/module.f.js'
 
 import { assert } from '../../asserts/module.f.js'
-import { isUintUpTo } from '../../types/number/module.f.mjs'
+import { isUintUpTo } from '../../types/number/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { fromStateScan } from '../../types/function/operator/module.f.js'

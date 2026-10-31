@@ -2,7 +2,7 @@
 
 import { reuse } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { curve, secp256r1 } from '../../secp/module.f.mjs'
+import { curve, secp256r1 } from '../../secp/module.f.js'
 import { verify, computeK, all } from '../module.f.mjs'
 import { sha256 } from '../../sha2/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

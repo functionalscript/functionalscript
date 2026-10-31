@@ -14,9 +14,9 @@ import { reduce } from '../list/module.f.js'
 import { addition } from '../function/operator/module.f.js'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.js'
 import { fold } from '../../common/monoid/module.f.js'
+import { abs } from './abs/module.f.js'
 
 const { is: sameValue } = Object
-const { abs } = Math
 
 /** @type {(input: List<number>) => number} */
 export const sum = fold({ identity: 0, operation: addition, weight: abs })
@@ -50,12 +50,10 @@ const mo = [
  *
  * @type {(n: number) => number}
  */
-export const countOnes = n => {
-    for (const [mask, offset] of mo) {
-        n = (n & mask) + ((n >> offset) & mask)
-    }
-    return n
-}
+export const countOnes = n => mo.reduce(
+    (value, [mask, offset]) => (value & mask) + ((value >> offset) & mask),
+    n,
+)
 
 /**
  * Whether `n` is an unsigned integer that fits `max`: an integer in `0..max`,

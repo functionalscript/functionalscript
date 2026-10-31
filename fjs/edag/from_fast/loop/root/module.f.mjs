@@ -14,7 +14,7 @@
  */
 
 import { toArray } from '../../../../types/list/alt/module.f.js'
-import { maxLength } from '../../../../types/function/length/module.f.mjs'
+import { maxLength } from '../../../../types/function/length/module.f.js'
 import { invocationAliases, namesBinding, readsEntryParameters } from '../module.f.mjs'
 import { bind, call, done, run } from '../../../../js/ast/task/module.f.js'
 import { _restArguments } from '../../../../js/ast/invocation/module.f.js'

@@ -14,7 +14,7 @@ import {
     isRangeSet,
     rangeSet,
     union,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /** @type {(a: string) => number} */
 const c = a => a.charCodeAt(0)

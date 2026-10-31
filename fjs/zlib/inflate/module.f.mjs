@@ -33,7 +33,7 @@ import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { appendBytes as adler } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.js'
 import { decode, dynamic, fixed } from '../huffman/module.f.js'
-import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.mjs'
+import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.js'
 
 /** A stream not yet read. */
 const initial = /** @type {State} */ ({

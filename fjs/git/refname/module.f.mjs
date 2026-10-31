@@ -48,7 +48,7 @@ import {
     commercialAt as at, fullStop as dot, leftCurlyBracket as brace, solidus as slash, space,
 } from '../../text/ascii/module.f.js'
 import { fold } from '../../types/list/module.f.js'
-import { isByte } from '../../types/number/module.f.mjs'
+import { isByte } from '../../types/number/module.f.js'
 
 const del = /** @type {const} */ (0x7F)
 

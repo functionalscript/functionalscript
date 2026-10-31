@@ -47,7 +47,7 @@
 import { pureOk } from '../../../effects/module.f.mjs'
 import { railroadBoxMarker, railroadLabelMarker } from '../../style/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
-import { sum } from '../../../types/number/module.f.mjs'
+import { sum } from '../../../types/number/module.f.js'
 import { toData } from '../../../ebnf/data/module.f.mjs'
 import { branch, toDiagrams } from '../../../ebnf/railroad/module.f.mjs'
 import { assertNotNullish } from '../../../asserts/module.f.js'

@@ -8,7 +8,7 @@
  * @example
  *
  * ```js
- * import { sloth } from './module.f.mjs'
+ * import { sloth } from './module.f.js'
  *
  * const steps = 4n
  * const x = 42n
@@ -23,7 +23,7 @@
  */
 
 import { iterate } from '../../types/function/module.f.js'
-import { modSqrt, prime_field } from '../../types/prime_field/module.f.mjs'
+import { modSqrt, prime_field } from '../../types/prime_field/module.f.js'
 
 /** Sloth VDF modulus (3072-bit safe prime, same as reference implementations). */
 export const p =
@@ -37,7 +37,7 @@ export const p =
 export const sloth_vdf = modulus => {
     /** @type {PrimeField} */
     const field = prime_field(modulus)
-    const { neg, pow2, reduce, quadRes } = field
+    const { neg, pow2, mod, quadRes } = field
     const root = modSqrt(field)
 
     /**
@@ -50,7 +50,7 @@ export const sloth_vdf = modulus => {
      * @type {(op: Unary) => (steps: bigint) => (value: bigint) => bigint}
      */
     const loop = op => steps => value =>
-        iterate(steps)(reduce(value))(op)
+        iterate(steps)(mod(value))(op)
 
     const squareLoop = loop(pow2)
     const modSqrtLoop = loop(root)
@@ -64,7 +64,7 @@ export const sloth_vdf = modulus => {
         if (steps < 0n) {
             return false
         }
-        const input = reduce(x)
+        const input = mod(x)
         const squared = squareLoop(steps)(y)
         const value = quadRes(squared) ? squared : neg(squared)
         return input === value || neg(input) === value

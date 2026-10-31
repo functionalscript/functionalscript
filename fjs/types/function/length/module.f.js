@@ -8,7 +8,7 @@
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { isUintUpTo } from '../../number/module.f.mjs'
+import { isUintUpTo } from '../../number/module.f.js'
 
 /**
  * Arrow factories by function length, written by hand: a function's `length`
@@ -45,5 +45,5 @@ export const isIndex = isUintUpTo(Infinity)
 /** @type {(length: number, body: Body) => Callable} */
 export const callable = (length, body) => {
     assert(isIndex(length) && length <= maxLength, ['invalid function length', length])
-    return factories[length](body)
+    return factories[Number(length)](body)
 }

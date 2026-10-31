@@ -201,7 +201,7 @@
 
 import { catchStep, foldStep, history, historyStep, mapStep, orElse, pureOk, refuse, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
-import { under } from '../../path/module.f.mjs'
+import { under } from '../../path/module.f.js'
 import { occurrences } from '../../types/array/module.f.mjs'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, sameItems } from '../../types/list/module.f.js'

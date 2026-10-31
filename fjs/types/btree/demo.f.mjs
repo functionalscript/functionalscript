@@ -33,7 +33,7 @@
 
 import { set } from './set/module.f.js'
 import { remove } from './remove/module.f.js'
-import { cmp, sum } from '../number/module.f.mjs'
+import { cmp, sum } from '../number/module.f.js'
 import { versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { hasEntry } from '../object/entry/module.f.js'
 

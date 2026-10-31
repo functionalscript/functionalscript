@@ -19,7 +19,7 @@ All values are `bigint` mod `p`. Invalid `steps < 0` yields `null` from `eval` a
 - `p` — Sloth modulus.
 - `sloth_vdf(modulus)` — builds `{ quadRes, modSqrt, eval, verify }` over a prime.
 - `sloth` — `sloth_vdf(p)`.
-- Uses `prime_field` (`reduce`, `quadRes` on the field; `modSqrt`, `pow2`, `neg` for Sloth).
+- Uses `prime_field` (`mod`, `quadRes` on the field; `modSqrt`, `pow2`, `neg` for Sloth).
 
 Hex string wrappers belong in caller code, not this module.
 

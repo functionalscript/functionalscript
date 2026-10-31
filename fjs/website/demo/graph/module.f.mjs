@@ -60,10 +60,11 @@
 
 import { stateScan } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
-import { hasEntry } from '../../../types/object/entry/module.f.js'
+import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
 
 /**
  * Every node's rank: the longest path from a source, so every edge points
@@ -90,14 +91,14 @@ import { hasEntry } from '../../../types/object/entry/module.f.js'
 export const ranked = (nodes, edges) => {
     /** @type {readonly (readonly Edge[])[]} */
     const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id && e.back !== true))
-    let current = nodes.map((n, i) => ({ ...n, rank: incomingOf[i].length === 0 ? 0 : -Infinity }))
-    for (let round = 0; round < nodes.length; round++) {
+    let current = nodes.map((n, i) => ({ ...n, rank: incomingOf[Number(i)].length === 0 ? 0 : -Infinity }))
+    for (let round = 0; round < nodes.length; round += 1) {
         const prior = current
         current = prior.map((node, i) => {
-            const best = incomingOf[i].reduce((m, e) => max(m, prior[e.from].rank + 1), node.rank)
+            const best = incomingOf[Number(i)].reduce((m, e) => max(m, prior[Number(e.from)].rank + 1), node.rank)
             return best === node.rank ? node : { ...node, rank: best }
         })
-        if (current.every((node, i) => node === prior[i])) { break }
+        if (current.every((node, i) => node === prior[Number(i)])) { break }
     }
     return current
 }
@@ -153,7 +154,7 @@ const ownerOf = (stack, owner) => {
     let s = stack
     while (s !== undefined) {
         const [frame, rest] = s
-        if (owner(frame.value, frame.children[frame.next - 1][0])) { return frame.id }
+        if (owner(frame.value, frame.children[Number(frame.next - 1)][0])) { return frame.id }
         s = rest
     }
     throw noOwner
@@ -215,7 +216,7 @@ export const graphOf =
                 walk = rest === undefined ? walk : withEdge(walk, { from: rest[0].id, to: top.id, label: top.label, kind: top.kind })
                 stack = rest
             } else {
-                const [label, child, kind] = top.children[top.next]
+                const [label, child, kind] = top.children[Number(top.next)]
                 /** @type {_Stack<V>} */
                 const advanced = [{ ...top, next: top.next + 1 }, rest]
                 const c = shape(child)
@@ -490,7 +491,7 @@ const portsOf = ({ label, groups }) => all => {
         title,
         keyWidth: keyColumn,
         ports: out.map((o, i) => ({ ...o, y: i * portHeight, ref: refOf(o) })),
-        exits: all.flatMap(o => o.edge.corner === undefined ? [] : [{ ...o, y: exitAt[o.edge.corner] }]),
+        exits: all.flatMap(o => o.edge.corner === undefined ? [] : [{ ...o, y: assertNotNullish(entry(exitAt, o.edge.corner)) }]),
     }
 }
 
@@ -548,7 +549,7 @@ const treeTopsOf = ranks => edges => rankOf => sizeOf => childrenOf => {
             const { height } = sizeOf(id)
             const children = childrenOf(id)
             if (children.length === 0) { return /** @type {const} */ ([id, { band: height + nodeGap, top: 0, shift: 0 }]) }
-            const last = children[children.length - 1]
+            const last = children[Number(children.length - 1)]
             const above = children.slice(0, -1).reduce((sum, child) => sum + at(child).band, 0)
             const y = (at(children[0]).top + above + at(last).top + sizeOf(last).height - height) / 2
             const shift = max(0, -y)
@@ -642,17 +643,17 @@ const fittedTops = (desired, offsets, slack) => {
         /** @type {(pools: readonly Pool[], top: number, index: number) => readonly Pool[]} */
         ((pools, top, index) => {
             let rest = pools
-            let pool = { sum: top - offsets[index], count: 1 }
+            let pool = { sum: top - offsets[Number(index)], count: 1 }
             while (rest.length !== 0) {
-                const last = rest[rest.length - 1]
+                const last = rest[Number(rest.length - 1)]
                 if (last.sum / last.count <= pool.sum / pool.count) { break }
                 pool = { sum: pool.sum + last.sum, count: pool.count + last.count }
                 rest = rest.slice(0, -1)
             }
             return [...rest, pool]
         }), [])
-    return pools.flatMap(({ sum, count }) => Array.from({ length: count }, () => max(margin, min(margin + slack, sum / count))))
-        .map((top, i) => top + offsets[i])
+    return pools.flatMap(({ sum, count }) => generate(count, () => max(margin, min(margin + slack, sum / count))))
+        .map((top, i) => top + offsets[Number(i)])
 }
 
 /** @type {(node: _Positioned) => readonly (readonly [number, number])[]} */
@@ -765,8 +766,8 @@ const layout = left => nodes => (edges, center) => {
         return group === -1 ? cycles.length : group
     }
     /** @type {(slot: _Slot) => number} */
-    const slotGroup = slot => groupOf(slot.node === undefined ? edges[/** @type {number} */ (slot.lane)].from : slot.node.id)
-    const groups = Array.from({ length: cycles.length + 1 }, (_, group) => {
+    const slotGroup = slot => groupOf(slot.node === undefined ? edges[Number(slot.lane)].from : slot.node.id)
+    const groups = generate(cycles.length + 1, group => {
         const height = maxOf(columns.map(column => max(0, column.filter(slot => slotGroup(slot) === group).reduce((sum, slot) =>
             sum + (slot.node === undefined ? laneSize : sizeOf(slot.node.id).height) + nodeGap, 0) - nodeGap)))
         const targets = [...new Set(backRanks.filter(e => groupOf(e.target) === group).map(e => e.target))]
@@ -801,22 +802,22 @@ const layout = left => nodes => (edges, center) => {
         const left = prior.left + gapOf(rank)
         const sized = column.map(slot => ({ slot, size: slot.node === undefined ? null : sizeOf(slot.node.id) }))
         const widest = sized.reduce((m, { size }) => max(m, size === null ? laneSize : size.width), 0)
-        const top = margin + (align ? (tallest - columnHeights[rank]) / 2 : 0)
+        const top = margin + (align ? (tallest - columnHeights[Number(rank)]) / 2 : 0)
         const offsets = toArray(stateScan(offsetOf)(0)(sized))
         const ordinaryTops = align ? fittedTops(sized.map(({ slot, size }, i) => {
             const incoming = size === null ? [prior.heights.get(/** @type {number} */ (slot.lane))]
                 : edges.flatMap(({ to, back }, index) => to === /** @type {Ranked} */ (slot.node).id && back !== true ? [prior.heights.get(index)] : [])
             const heights = incoming.filter(h => h !== undefined)
-            return heights.length === 0 ? top + offsets[i]
+            return heights.length === 0 ? top + offsets[Number(i)]
                 : heights.reduce((sum, y) => sum + y, 0) / heights.length - (size === null ? laneSize : size.height) / 2
-        }), offsets, tallest - columnHeights[rank]) : offsets.map(offset => top + offset)
+        }), offsets, tallest - columnHeights[Number(rank)]) : offsets.map(offset => top + offset)
         const tops = cycles.length === 0 ? ordinaryTops : sized.map(({ slot }) => {
             const group = slotGroup(slot)
             const before = sized.slice(0, column.indexOf(slot)).filter(s => slotGroup(s.slot) === group)
-            return groupTops[group] + before.reduce((sum, { size }) => sum + (size === null ? laneSize : size.height) + nodeGap, 0)
+            return groupTops[Number(group)] + before.reduce((sum, { size }) => sum + (size === null ? laneSize : size.height) + nodeGap, 0)
         })
         const place = placeSlot(left)(widest)
-        const slots = sized.map((sized, i) => place(sized, tops[i]))
+        const slots = sized.map((sized, i) => place(sized, tops[Number(i)]))
         const heights = align ? slots.flatMap(({ node, lane }) => node === undefined
             ? [/** @type {const} */ ([/** @type {_Lane} */ (lane).index, /** @type {_Lane} */ (lane).y])]
             : edgeHeightsOf(node)) : []
@@ -833,7 +834,7 @@ const layout = left => nodes => (edges, center) => {
         bends: new Map(),
         bottoms: new Map(backRanks.map(({ target }) => {
             const group = groupOf(target)
-            return [target, groupTops[group] + groups[group].height + laneSize * (groups[group].targets.indexOf(target) + 1)]
+            return [target, groupTops[Number(group)] + groups[Number(group)].height + laneSize * (groups[Number(group)].targets.indexOf(target) + 1)]
         })),
     }
 }
@@ -879,7 +880,7 @@ const routesOf = placed => {
         const middle = to.y + to.height / 2
         /** @type {(back: _BackLane) => readonly _Point[]} */
         const around = ({ out, into }) => {
-            const down = placed.ends[from.rank] + laneSize * (out + 1)
+            const down = placed.ends[Number(from.rank)] + laneSize * (out + 1)
             const up = to.x - laneSize * (into + 1) - backEntryPadding
             const below = assertNotNullish(placed.bottoms.get(target))
             const entry = middle
@@ -889,7 +890,7 @@ const routesOf = placed => {
         /** @type {readonly _Point[]} */
         const points = back !== undefined ? around(back) : [
             [right, y],
-            ...(right < placed.ends[from.rank] ? [/** @type {_Point} */ ([placed.ends[from.rank], y])] : []),
+            ...(right < placed.ends[Number(from.rank)] ? [/** @type {_Point} */ ([placed.ends[Number(from.rank)], y])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.left, lane.y], [lane.right, lane.y]])
@@ -898,7 +899,7 @@ const routesOf = placed => {
         ]
         const drawn = back !== undefined ? points : points.flatMap((point, i) => {
             const bend = placed.bends.get(`${port.index}:${i}`)
-            return bend === undefined ? [point] : [/** @type {_Point} */ ([bend, points[i - 1][1]]), /** @type {_Point} */ ([bend, point[1]]), point]
+            return bend === undefined ? [point] : [/** @type {_Point} */ ([bend, points[Number(i - 1)][1]]), /** @type {_Point} */ ([bend, point[1]]), point]
         })
         return [{ edge: port.edge, index: port.index, to: target, points: drawn }]
     }))
@@ -919,7 +920,7 @@ const routesOf = placed => {
 const forwardBendsOf = placed => {
     const routes = routesOf(placed)
     const steep = routes.filter(r => r.edge.back !== true).flatMap(route => route.points.slice(1).flatMap((b, i) => {
-        const a = route.points[i]
+        const a = route.points[Number(i)]
         return max(b[1] - a[1], a[1] - b[1]) > b[0] - a[0]
             ? [{ index: route.index, segment: i + 1, rank: placed.ends.indexOf(a[0]) + 1, start: a[0],
                 sourceY: a[1], targetY: b[1], direction: b[1] > a[1] ? 1 : -1 }] : []
@@ -931,13 +932,13 @@ const forwardBendsOf = placed => {
     const bends = new Map(steep.map((bend, i) => {
         const descents = new Set(routes.filter(r => r.edge.back === true && rankOf.get(r.edge.from) === bend.rank - 1).map(r => r.to)).size
         const slot = steep.slice(0, i).filter(b => b.rank === bend.rank).length
-        return [`${bend.index}:${bend.segment}`, bend.start + extra[bend.rank - 1] + laneSize * (descents + slot + 1)]
+        return [`${bend.index}:${bend.segment}`, bend.start + extra[Number(bend.rank - 1)] + laneSize * (descents + slot + 1)]
     }))
     return {
         ...placed, bends,
-        nodes: placed.nodes.map(n => ({ ...n, x: n.x + extra[n.rank] })),
-        lanes: placed.lanes.map(lane => ({ ...lane, left: lane.left + extra[lane.rank], right: lane.right + extra[lane.rank] })),
-        ends: placed.ends.map((end, rank) => end + extra[rank]),
+        nodes: placed.nodes.map(n => ({ ...n, x: n.x + extra[Number(n.rank)] })),
+        lanes: placed.lanes.map(lane => ({ ...lane, left: lane.left + extra[Number(lane.rank)], right: lane.right + extra[Number(lane.rank)] })),
+        ends: placed.ends.map((end, rank) => end + extra[Number(rank)]),
     }
 }
 
@@ -950,24 +951,24 @@ const forwardBendsOf = placed => {
  */
 const returnSegmentsOf = routes => {
     const pieces = routes.filter(r => r.edge.back === true).flatMap(route => route.points.slice(1).map((b, i) => {
-        const a = route.points[i]
+        const a = route.points[Number(i)]
         return { route, a, b, axis: a[0] === b[0] ? 1 : 0 }
     }))
     const split = pieces.flatMap(piece => {
         const { a, b, axis, route } = piece
         const other = 1 - axis
-        const lo = min(a[axis], b[axis])
-        const hi = max(a[axis], b[axis])
-        const collinear = pieces.filter(p => p.route.to === route.to && p.axis === axis && p.a[other] === a[other])
-        const cuts = [...new Set([lo, hi, ...collinear.flatMap(p => [p.a[axis], p.b[axis]]).filter(v => lo < v && v < hi)])].toSorted((x, y) => x - y)
+        const lo = min(a[Number(axis)], b[Number(axis)])
+        const hi = max(a[Number(axis)], b[Number(axis)])
+        const collinear = pieces.filter(p => p.route.to === route.to && p.axis === axis && p.a[Number(other)] === a[Number(other)])
+        const cuts = [...new Set([lo, hi, ...collinear.flatMap(p => [p.a[Number(axis)], p.b[Number(axis)]]).filter(v => lo < v && v < hi)])].toSorted((x, y) => x - y)
         return cuts.slice(1).map((end, i) => {
-            const start = cuts[i]
-            const members = [...new Set(collinear.filter(p => min(p.a[axis], p.b[axis]) <= start && end <= max(p.a[axis], p.b[axis])).map(p => p.route.index))]
+            const start = cuts[Number(i)]
+            const members = [...new Set(collinear.filter(p => min(p.a[Number(axis)], p.b[Number(axis)]) <= start && end <= max(p.a[Number(axis)], p.b[Number(axis)])).map(p => p.route.index))]
             const kinds = [...new Set(collinear.filter(p => members.includes(p.route.index)).map(p => p.route.edge.kind))]
             const point = /** @type {(v: number) => _Point} */ (v => axis === 0 ? [v, a[1]] : [a[0], v])
-            const points = a[axis] < b[axis] ? [point(start), point(end)] : [point(end), point(start)]
-            return { key: `${route.to}:${axis}:${a[other]}:${start}:${end}`, points, members,
-                arrow: pieces.some(p => members.includes(p.route.index) && p.b === p.route.points[p.route.points.length - 1]
+            const points = a[Number(axis)] < b[Number(axis)] ? [point(start), point(end)] : [point(end), point(start)]
+            return { key: `${route.to}:${axis}:${a[Number(other)]}:${start}:${end}`, points, members,
+                arrow: pieces.some(p => members.includes(p.route.index) && p.b === p.route.points[Number(p.route.points.length - 1)]
                     && p.b[0] === points[1][0] && p.b[1] === points[1][1]),
                 kind: kinds.length === 1 ? kinds[0] : undefined,
             }
@@ -1031,9 +1032,9 @@ export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
 const placedOf = ({ nodes, edges, entries = [], centerColumns = false }) => {
     const ids = new Set(nodes.map(n => n.id))
     const missing = entries.findIndex(({ to }) => !ids.has(to))
-    if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[missing].to}, which is not in the graph` }
+    if (missing !== -1) { throw `graph: entry ${missing} ends at node ${entries[Number(missing)].to}, which is not in the graph` }
     const repeated = entries.findIndex(({ to }, i) => entries.findIndex(e => e.to === to) !== i)
-    if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[repeated].to}, which another entry already does` }
+    if (repeated !== -1) { throw `graph: entry ${repeated} ends at node ${entries[Number(repeated)].to}, which another entry already does` }
     // A value drawn in parts must spell the value it sizes its cell by:
     // otherwise the cell would be measured for one text and show another.
     const misspelt = edges.findIndex(({ to }) => typeof to !== 'number' && to.parts !== undefined && to.parts.map(([text]) => text).join('') !== to.inline)
@@ -1043,7 +1044,7 @@ const placedOf = ({ nodes, edges, entries = [], centerColumns = false }) => {
     if (cornered !== -1) { throw `graph: edge ${cornered} leaves from a corner, so it must end at a node and have no label` }
     const fromCorners = new Set(edges.flatMap(({ from, corner }) => corner === undefined ? [] : [from]))
     const mixed = edges.findIndex(({ from, to, corner }) => corner === undefined && typeof to === 'number' && fromCorners.has(from))
-    if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[mixed].from}, whose other arrows leave from its corners` }
+    if (mixed !== -1) { throw `graph: edge ${mixed} leaves a row of node ${edges[Number(mixed)].from}, whose other arrows leave from its corners` }
     const misgrouped = nodes.find(({ id, groups }) => groups !== undefined && (
         groups.some(([, rows]) => rows < 1)
         || groups.reduce((n, [, rows]) => n + rows, 0) !== edges.filter(e => e.from === id && e.corner === undefined).length))
@@ -1062,7 +1063,7 @@ export const _crossings = g => {
     const placed = placedOf(g)
     return routesOf(placed).reduce((n, { points }) =>
         n + points.slice(1).reduce((m, b, i) =>
-            m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
+            m + placed.nodes.filter(box => _crossesBox(box)(points[Number(i)])(b)).length, 0), 0)
 }
 
 /** The corner radius of a node's box. */

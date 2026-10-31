@@ -29,7 +29,7 @@
 import { assert } from '../../asserts/module.f.js'
 import { tryFold } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { isByte } from '../../types/number/module.f.mjs'
+import { isByte } from '../../types/number/module.f.js'
 import { rangeEncode, remove, union } from '../module.f.mjs'
 import { codePoints, toData } from '../data/module.f.mjs'
 import { parser } from '../ll1/module.f.mjs'

@@ -19,6 +19,9 @@
 
 import { reverse, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { min } from '../../types/number/min/module.f.js'
+import { ceil } from '../../types/number/ceil/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** How many bytes a block holds. */
 const blockLength = 256
@@ -51,11 +54,7 @@ export const push = ({ blocks, tail, tailLength, length }, byte) => {
  *
  * @type {(window: Window, bytes: readonly number[]) => Window}
  */
-export const pushAll = (window, bytes) => {
-    let result = window
-    for (const byte of bytes) { result = push(result, byte) }
-    return result
-}
+export const pushAll = (window, bytes) => bytes.reduce(push, window)
 
 /**
  * The last `n` bytes, the oldest first, `n` at most what the window holds.
@@ -63,13 +62,13 @@ export const pushAll = (window, bytes) => {
  * @type {(window: Window, n: number) => readonly number[]}
  */
 export const last = ({ blocks, tail, tailLength }, n) => {
-    const inTail = Math.min(n, tailLength)
+    const inTail = min(n, tailLength)
     // the tail is newest first
     const newest = toArray(take(inTail)(tail))
-    const fromTail = Array.from({ length: inTail }, (_, i) => newest[inTail - 1 - i])
+    const fromTail = generate(inTail, i => newest[Number(inTail - 1 - i)])
     const rest = n - inTail
     return rest > 0
-        ? [...blocks.slice(-Math.ceil(rest / blockLength)).flat().slice(-rest), ...fromTail]
+        ? [...blocks.slice(-ceil(rest / blockLength)).flat().slice(-rest), ...fromTail]
         : fromTail
 }
 
@@ -82,7 +81,7 @@ export const last = ({ blocks, tail, tailLength }, n) => {
  */
 const fromBlocks = ({ blocks, tailLength }, distance) => {
     const at = blocks.length * blockLength - (distance - tailLength)
-    return blocks[at >> 8][at & blockLength - 1]
+    return blocks[Number(at >> 8)][Number(at & blockLength - 1)]
 }
 
 /**
@@ -96,7 +95,7 @@ export const copy = (window, distance, length) => {
     if (distance < blockLength) {
         // what is repeated is the last `distance` bytes, all there is to read
         const pattern = last(window, distance)
-        return pushAll(window, Array.from({ length }, (_, i) => pattern[i % distance]))
+        return pushAll(window, generate(length, i => pattern[Number(i % distance)]))
     }
     // a distance of a block or more is always behind the tail, whatever the
     // copy writes, so every byte is an index into the blocks

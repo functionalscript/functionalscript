@@ -11,8 +11,8 @@
 import { assert } from '../../asserts/module.f.js'
 import { bsearch } from '../function/compare/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
-import { cmp } from '../number/module.f.mjs'
-import { merge } from '../sorted_list/module.f.mjs'
+import { cmp } from '../number/module.f.js'
+import { merge } from '../sorted_list/module.f.js'
 
 /**
  * The empty set, the identity of `union`.
@@ -63,7 +63,7 @@ const isBoundary = v => inUniverse(v) && !Object.is(v, -0)
  */
 export const isRangeSet = s => {
     const dense = [...s]
-    return dense.every((v, i) => isBoundary(v) && (i === 0 || v > dense[i - 1]))
+    return dense.every((v, i) => isBoundary(v) && (i === 0 || v > dense[Number(i - 1)]))
 }
 
 /** @type {(s: readonly number[]) => RangeSet} */
@@ -120,7 +120,7 @@ export const contains = s => {
     const search = bsearch(s.length)
     return v => {
         assert(inUniverse(v), v)
-        return search(mid => v < s[mid] ? -1 : 1) % 2 === 1
+        return search(mid => v < s[Number(mid)] ? -1 : 1) % 2 === 1
     }
 }
 
@@ -165,7 +165,7 @@ const mergeMember = op => a => b => {
 const mergeWith = op => a => b => {
     const member = mergeMember(op)(a)(b)
     return toArray(mergeSorted(a)(b))
-        .filter((v, i, all) => member(v) !== (i !== 0 && member(all[i - 1])))
+        .filter((v, i, all) => member(v) !== (i !== 0 && member(all[Number(i - 1)])))
 }
 
 /** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */

@@ -64,8 +64,8 @@ export const analyzeBindings = root => {
         let isMutable = false
         /** @type {List<FunctionTarget>} */
         let captures = null
-        while (cursor < grouped.length && grouped[cursor].position === position) {
-            const reference = grouped[cursor]
+        while (cursor < grouped.length && grouped[Number(cursor)].position === position) {
+            const reference = grouped[Number(cursor)]
             isMutable = isMutable || reference.write
             if (reference.scope !== owner) { captures = { first: reference.scope, tail: captures } }
             cursor += 1

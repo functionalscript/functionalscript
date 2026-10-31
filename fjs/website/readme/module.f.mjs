@@ -43,7 +43,7 @@
  */
 
 import { charIs, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
-import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.mjs'
+import { basename, concat as pathConcat, escapes, normalize, parent } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'

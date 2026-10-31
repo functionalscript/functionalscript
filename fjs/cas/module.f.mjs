@@ -14,7 +14,7 @@
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
-import { join, normalize } from '../path/module.f.mjs'
+import { join, normalize } from '../path/module.f.js'
 import { byteLength, empty, isWholeBytes, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {

@@ -13,6 +13,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,
     abs,
+    sign,
     serialize,
     log2,
     bitLength,
@@ -206,7 +207,7 @@ const benchmarkSmall = f => () => {
     } while (c !== 0n)
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     example: () => {
         const total = sum([1n, 2n, 3n]) // 6n
         assertEq(total, 6n)
@@ -268,6 +269,11 @@ export const proof = {
             assertEq(result, 10n)
         }
     ],
+    sign: () => {
+        assertEq(sign(-10n), -1)
+        assertEq(sign(0n), 0)
+        assertEq(sign(10n), 1)
+    },
     serialize: [
         () => {
             const result = serialize(0n)
@@ -748,4 +754,4 @@ export const proof = {
             assert(!done.includes('data-copy='), done)
         },
     },
-}
+})

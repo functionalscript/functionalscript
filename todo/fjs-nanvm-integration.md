@@ -144,43 +144,62 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `c095a8859`, the weighted materialization step of
-[#3495](https://github.com/functionalscript/functionalscript/pull/3495), stacked
-on [#3494](https://github.com/functionalscript/functionalscript/pull/3494).
-`list/alt.toArray` now feeds whole array chunks and singleton cons chunks to
-`monoid.fold`, weighted by array length. Its private stack is gone; a fresh
-identity per materialization preserves lone-array identity and empty-result
-freshness. Moving `fold` below `accumulator` removes the shared monoid's final
-forward reference without changing its algorithm.
+Measured on `b3d28bed4`, the leaf conversion updates in
+[#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
+on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
+The thirteen whole-module conversions are `path`, `js/ast/sugar/pattern`,
+`website/demo/mirror`, `types/prime_field`, `crypto/vdf`, `crypto/secp`,
+`types/sorted_list`, `types/sorted_set`, `types/number`, `types/function/length`,
+`types/range_map`, `types/range_set` and `zlib/window`. Each is renamed to
+`.f.js`, with its runtime, proof, type and documentation references updated.
 
-`common/monoid` and `types/list/alt` are now `.f.js`. Four dependents also
-compile unchanged and are renamed: `types/string`, `types/ordered_map`,
-`types/string_set` and `types/btree/testlib`. The compiler-compatible population
-is 169 authored `.f.js` files; 437 authored non-proof `.f.mjs` files remain.
+The conversions use `Number(...)` for numeric computed keys, compiled numeric
+helpers for `Math.min`, `Math.abs` and `Math.ceil`, and `generate` for
+index-generated arrays.
+Pattern's policy callback is renamed from `name` to `bindingName`; the public
+`PrimeField.reduce` property becomes `mod`, including its callers and docs.
+Secp reads its own `sub` callback through `entry` and `assertNotNullish`, keeping
+the public subtraction API. Sorted-list helpers precede their consumers.
+Number's fixed mask table and window's byte insertion use array `.reduce`.
+Graph, bigint and version use admitted loop updates; bigint's returning guard
+no longer has a redundant `else`. The numeric `abs` helper preserves `NaN`,
+infinities and positive zero from either zero.
+
+Further rewrites wrap numeric computed keys in completions, AST, WAT,
+version, graph and window, and read WAT and graph's own record fields through
+`entry` and `assertNotNullish`. WAT uses the compiled `abs` and `min` helpers.
+WAT and graph's safe index generators use `generate`; WAT's string arrays use
+code-point string spread, covered by an astral Unicode name proof.
+All `BigInt(...)` conversions remain unchanged pending language support.
+Two graph `Array.from` calls remain: `maxRank + 1` and
+`to.rank - from.rank - 1` can be fractional or negative under the public
+numeric rank contract. Direct `generate` would change their length coercion.
+Window now uses the compiled numeric `ceil` helper, preserving signed zeros,
+`NaN` and infinities. Its whole module compiles; its conversion exposes no
+additional leaves.
+
+The compiler-compatible population is 184 authored `.f.js` files;
+424 authored non-proof `.f.mjs` files remain.
 Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All fifteen
+ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
 remaining leaves are refused as written.
 
 | Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
 | --- | --- | ---: |
 | `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
 | `js/ast` | `for...of` | 2 |
-| `js/ast/sugar/pattern` | `policy.name(...)` (`prohibited member function`) | 0 |
 | `media/wasm/wat` | `new Map` | 0 |
-| `path` | Computed key `dir[dir.length - 1]` | 0 |
+| `text/utf16` | `String.fromCharCode` | 3 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
-| `types/bigint` | `else` after a returning `if` | 1 |
+| `types/bigint` | `for...of` in `combination` | 3 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
-| `types/number` | `for...of` | 4 |
-| `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
-| `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
-| `website/demo/graph` | Postfix `round++` in the loop update | 1 |
-| `website/demo/mirror` | `Math.min` | 0 |
-| `zlib/window` | `for...of` | 0 |
+| `types/set` | `new Set()` in the union monoid | 0 |
+| `types/version` | Global `BigInt` in `maxPart` | 0 |
+| `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
 
-The previous six-leaf measurement is retained in the
-[#3494 audit](https://github.com/functionalscript/functionalscript/blob/1e9e7b55f2172f26b3546fd9a87dd639d3948bed/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
+The preceding twelve-leaf measurement is retained in the
+[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/374ad5cb5dfdc5548b9d663c8de175107fd10ecc/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 
 After a compiler feature lands, rediscover the runtime dependency leaves,
 compile every candidate, rename accepted modules and update their references,

@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
-import { planPattern } from './module.f.mjs'
+import { planPattern } from './module.f.js'
 
 /** @type {(value: string, column?: number) => ModuleTokenWithMetadata} */
 const token = (value, column = 1) => ({ token: { kind: 'id', value }, metadata: { path: 'pattern', line: 1, column }, newline: false })
@@ -18,7 +18,7 @@ const word = value => { assert(value.token.kind === 'id'); return value.token.va
 
 /** @type {Policy} */
 const policy = {
-    name: value => word(value) === 'badName' ? error({ message: 'name policy', metadata: value.metadata }) : ok(word(value)),
+    bindingName: value => word(value) === 'badName' ? error({ message: 'name policy', metadata: value.metadata }) : ok(word(value)),
     key: value => word(value) === 'badKey' ? error({ message: 'key policy', metadata: value.metadata }) : ok(word(value) === '7' ? 7 : word(value)),
     namespaceMember: (namespace, key) => word(namespace) === 'Object' && word(key) === 'is' ? ok(['Object.is']) : error({ message: 'namespace policy', metadata: namespace.metadata }),
     refused: (reason, value) => ({ message: reason, metadata: value.metadata }),
