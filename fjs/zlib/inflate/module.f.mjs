@@ -29,7 +29,7 @@ import { assert } from '../../asserts/module.f.js'
 import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'
+import { appendBytes as adler } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.js'
 import { decode, dynamic, fixed } from '../huffman/module.f.js'
 import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.mjs'
@@ -42,7 +42,7 @@ export const init = /** @type {State} */ ({
     bit: 0,
     last: false,
     left: 0,
-    adler: adlerInit,
+    adler: 1,
     window: emptyWindow,
     codes: null,
 })

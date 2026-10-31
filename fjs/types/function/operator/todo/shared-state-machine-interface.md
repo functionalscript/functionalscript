@@ -87,7 +87,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Migrate bounded bit-vector construction and preserve overflow stopping.
 - [x] Migrate SHA-1/SHA-2 and every direct hash caller.
 - [x] Migrate CAS admission and digest consumers to the shared effectful driver.
-- [ ] Migrate Adler-32 and its checksum callers.
+- [x] Migrate Adler-32 and its checksum callers.
 - [ ] Migrate emitting zlib inflation and adapt its direct Git consumer.
 - [ ] Migrate the Git inflater lifecycle and packstore callers.
 - [ ] Migrate Unicode decoding with streaming emission and EOF flush.

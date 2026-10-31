@@ -4,10 +4,11 @@
  * `a` is 1 plus the bytes, and `b` is the running sum of every `a`. The
  * checksum is `b` in the high sixteen bits and `a` in the low ones.
  *
- * In the shape of [`fjs/crypto/sha2`](../../crypto/sha2/module.f.mjs): `init`,
- * `append` over a `Vec` and `end` over a state, so a message in pieces is the
- * message whole wherever the pieces meet. The state is the checksum so far, a
- * number below 2^32, since a checksum of nothing is the state it starts from.
+ * {@link adler32} uses the common `init` / `update(state, input)` / `end`
+ * transducer lifecycle. It consumes `Vec` chunks, emits nothing during updates,
+ * and returns the checksum at completion. A message in pieces is the message
+ * whole wherever the pieces meet. State is the checksum so far, a number below
+ * 2^32, starting from the checksum of no bytes, `1`.
  *
  * It is the check the inflater makes after the last block
  * ([`todo/inflate.md`](../../../todo/inflate.md)), and a checksum, not a hash:
@@ -16,20 +17,18 @@
  * @module
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Fold } from '../../types/function/operator/types.ts'
+ * @import { Transducer } from '../../types/function/operator/types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
 import { isWholeBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
+import { fromStateFold } from '../../types/function/operator/module.f.js'
 
 /** The largest prime below 2^16. */
 const modulus = 65_521
 
 /** The weight of `b` in the checksum. */
 const shift = 0x1_0000
-
-/** The checksum of no bytes: `a` is 1 and `b` is 0. */
-export const init = 1
 
 /**
  * The checksum of the bytes so far, and then `bytes`. Both sums are added up
@@ -52,21 +51,18 @@ export const appendBytes = bytes => state => {
 }
 
 /**
- * The checksum of the bytes so far, and then those of `v`.
+ * The checksum machine: its state is the checksum of bytes read so far, and
+ * its terminal result is thirty-two bits, the most significant byte first.
  *
  * @throws On a `v` that is not whole bytes.
  *
- * @type {Fold<Vec, number>}
+ * @type {Transducer<Vec, number, never, Vec>}
  */
-export const append = v => {
-    assert(isWholeBytes(v), 'Adler-32 is over bytes')
-    return appendBytes(u8ArrayMsb(v))
-}
-
-/**
- * The checksum as it closes a zlib stream: thirty-two bits, the most
- * significant byte first.
- *
- * @type {(state: number) => Vec}
- */
-export const end = state => vec(32n)(BigInt(state))
+export const adler32 = fromStateFold({
+    init: 1,
+    update: (state, v) => {
+        assert(isWholeBytes(v), 'Adler-32 is over bytes')
+        return appendBytes(u8ArrayMsb(v))(state)
+    },
+    end: state => vec(32n)(BigInt(state)),
+})
