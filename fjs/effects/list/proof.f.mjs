@@ -38,7 +38,8 @@ const echo = {
 const settled = effect => {
     const observed = runPure(effect)
     assert(observed.length === 1)
-    return observed[0]
+    const [result] = observed
+    return result
 }
 
 /** @type {Transducer<number, number, never, number>} */
