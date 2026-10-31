@@ -9,6 +9,9 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
+import { assertNotNullish } from '../asserts/module.f.js'
+import { encode } from '../basen/base64url/module.f.mjs'
+import { toVec } from '../types/uint8array/module.f.mjs'
 import { configSchema, exchangeFailureMessage, exchangeFailureSchema, pendingSchema, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
 
 /** @type {string} */
@@ -18,6 +21,10 @@ const readPending = parse(pendingSchema)
 const readToken = parse(tokenSchema)
 const readUser = parse(userSchema)
 const readExchangeFailure = parse(exchangeFailureSchema)
+
+/** The randomness comes from Web Crypto; whole bytes always have a spelling. */
+/** @type {(bytes: Uint8Array) => string} */
+const base64url = bytes => assertNotNullish(encode(toVec(bytes)))
 
 /** @type {WeakMap<Element, Promise<{ readonly token: () => string | null, readonly clear: () => void }>>} */
 const started = new WeakMap()
@@ -129,11 +136,6 @@ export const startGitHubLogin = (root, host = {}) => {
             available = true
             login.disabled = false
             note.textContent = 'Log in to use your GitHub API rate limit.'
-
-            /** Base64url is a host encoding; the randomness comes from Web Crypto. */
-            /** @type {(bytes: Uint8Array) => string} */
-            const base64url = bytes => view.btoa(String.fromCharCode(...bytes))
-                .split('+').join('-').split('/').join('_').split('=').join('')
 
             login.addEventListener('click', async () => {
                 if (login.disabled) { return }

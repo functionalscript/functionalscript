@@ -21,10 +21,7 @@ export const proof = {
             throw: () => Object.getOwnPropertyDescriptor(undefined, 0),
         },
         bool: () => {
-            const v = at(true)('x')
-            if (v !== undefined) {
-                throw v
-            }
+            assertEq(at(true)('x'), undefined)
         },
         array: () => {
             const a = ['42']

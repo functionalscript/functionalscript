@@ -435,6 +435,19 @@ export const childWait = do_('childWait')
 /** @type {Func<Access>} */
 export const access = do_('access')
 
+/**
+ * Whether anything is at `path`: `access` read as an answer. A failure that
+ * {@link namesNothing} — `ENOENT`, `ENOTDIR`, `ELOOP` — is `false`; any other,
+ * a permission or an I/O error among them, is the failure it is, since the
+ * path may well be there and the host will not say.
+ *
+ * @type {(path: string) => Effect<Access, boolean, IoChannel>}
+ */
+export const exists = path => resultStep(access(path), r =>
+    r[0] === 'ok' ? pureOk(true)
+        : namesNothing(r[1]) ? pureOk(false)
+        : pureError(r[1]))
+
 // createExclusive
 
 /** @type {Func<CreateExclusive>} */

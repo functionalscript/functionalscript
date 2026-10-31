@@ -41,9 +41,18 @@ fixtures by hand:
 
 ### Tasks
 
-- [ ] `decode_result`, `Native::buffered`; tests over them.
+- [x] `decode_result`, `Native::buffered`; tests over them. `decode_result`
+      is `#[cfg(test)]` in the private `codec`, so the crate's own tests
+      unwrap with it; `Native::buffered` is public, and the harness's
+      `effects.rs`, `parity.rs` and `console.rs` build their hosts with it.
+- [ ] The harness's tuple unwraps (`common/mod.rs` `perform_case`,
+      `effects.rs`) over `decode_result`, once the harness can reach it —
+      a `test-support` feature, with the `Scratch` below.
 - [ ] One `Scratch`; delete the harness copy.
-- [ ] Replace the re-spelled encoders in the tests.
+- [x] `lib.rs`'s test `result` and `node` are `encode_tuple` and
+      `encode_object`.
+- [ ] `native.rs`'s test `object(members)`, which takes any number of
+      members where `encode_object` takes a fixed array of optional ones.
 
 ### Related
 

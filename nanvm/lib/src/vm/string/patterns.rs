@@ -250,6 +250,7 @@ impl<A: IVm> String<A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::returns;
     use crate::{
         naive::Naive,
         vm::{Any, Array, IVm, String, ToAny, ToArray, error},
@@ -272,7 +273,7 @@ mod tests {
     /// limit reads it, and it is refused.
     #[test]
     fn split_reads_a_function_separator_only_to_cut() {
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f = || returns(1.0.to_any());
         assert_eq!(pieces(s("a").split(f(), 0.0.to_any())), vec![]);
         assert_eq!(
             pieces(s("a").split([f()].to_array().to_any(), 0.0.to_any())),

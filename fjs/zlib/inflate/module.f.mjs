@@ -31,7 +31,7 @@ import { reverse } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.js'
-import { decode, dynamic, fixed } from '../huffman/module.f.mjs'
+import { decode, dynamic, fixed } from '../huffman/module.f.js'
 import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.mjs'
 
 /** A stream not yet read. */

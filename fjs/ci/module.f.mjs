@@ -8,11 +8,11 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { PackageConsumer, Setup } from './types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { Effect, IoChannel } from '../effects/types.ts'
  */
 
-import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, writeFiles } from '../effects/node/module.f.mjs'
+import { step } from '../effects/module.f.mjs'
+import { exists, exitStep, writeFiles } from '../effects/node/module.f.mjs'
 import { images, node } from './config/module.f.js'
 import {
     _workflowsDirectory,
@@ -213,23 +213,31 @@ export const ciWorkflow = setup => rust => {
     return gha
 }
 
+/**
+ * The CI and publishing workflows, written.
+ *
+ * @type {(workflow: GitHubAction) => Effect<NodeOp, void, IoChannel>}
+ */
+const writeWorkflows = workflow => writeFiles([
+    [ciPath, workflowText(workflow)],
+    [npmPublishPath, workflowText(npmPublishWorkflow)],
+])
+
 /** Write CI and publishing workflows through the shared generator.
  * @type {(workflow: GitHubAction) => Effect<NodeOp, 0, number>}
  */
-export const writeCi = workflow => exitStep(writeFiles([
-    [ciPath, workflowText(workflow)],
-    [npmPublishPath, workflowText(npmPublishWorkflow)],
-]))
+export const writeCi = workflow => exitStep(writeWorkflows(workflow))
 
 /**
  * Writes {@link ciWorkflow}, once `Cargo.toml` has said whether the project has
- * Rust.
+ * Rust. A `Cargo.toml` that is there but cannot be read about, a permission
+ * error among others, fails the command rather than leaving the Rust jobs out.
  *
  * @type {(setup: Setup) => Effect<NodeOp, 0, number>}
  */
-export const ci = setup => resultStep(
-    access('Cargo.toml'),
-    result => writeCi(ciWorkflow(setup)(result[0] === 'ok')))
+export const ci = setup => exitStep(step(
+    exists('Cargo.toml'),
+    hasRust => writeWorkflows(ciWorkflow(setup)(hasRust))))
 
 /**
  * The built-in `fjs ci`, the generator any project gets: no extra platform
