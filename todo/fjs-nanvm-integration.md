@@ -171,6 +171,12 @@ No further leaf compiles unchanged at this revision. The renamed modules keep
 their `proof.f.mjs` files; the btree set/remove proofs also exercise the cases
 needed for their own isolated 100% proof coverage.
 
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted modules and update their references,
+then rediscover and repeat until a pass accepts none. Update the current table
+with the remaining refusals; keep historical measurements pinned to their
+recorded revisions.
+
 #### Leaf migration fixed point at `d4b096a3a` (historical)
 
 Measured on `d4b096a3a`, the conversion step of
@@ -306,11 +312,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the leaves, compile every
-candidate, rename accepted modules and update their references, then
-rediscover and repeat until a pass accepts none. Update this table with the
-remaining refusals.
-
 #### Leaf migration fixed point at `1ce90e7` (historical)
 
 Measured on `1ce90e7`, the head of `main` after
@@ -382,11 +383,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `7cee7a5` (historical)
 
 Measured on `7cee7a5`, the head of
@@ -443,11 +439,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `7baae35` (historical)
 
@@ -510,11 +501,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `e9df9df` (historical)
 
@@ -583,11 +569,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `2e0462e` (historical)
 
 Measured on `2e0462e`, the head of
@@ -653,11 +634,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `2a5b9c7` (historical)
 
@@ -725,11 +701,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `265b4a7` (historical)
 
@@ -805,11 +776,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `122820b` (historical)
 
 Measured on `122820b`, the head of `main` after
@@ -872,11 +838,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `999164a` (historical)
 
@@ -946,11 +907,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `3e1d1a09` (historical)
 
@@ -1040,11 +996,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `0c9ddf8` (historical)
 
@@ -1137,11 +1088,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `e40fa58` (historical)
 
 Measured at `e40fa58`, the head of `main` after
@@ -1228,11 +1174,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point at `8d86959` (historical)
 
 Measured at `8d86959`, the head of `main` after
@@ -1303,11 +1244,6 @@ for (const leaf of leaves) {
 }
 ```
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
-
 #### Leaf migration fixed point on #2858 (historical)
 
 Measured on [#2858](https://github.com/functionalscript/functionalscript/pull/2858),
@@ -1377,11 +1313,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `6e392d4f2` (historical)
 
@@ -1473,11 +1404,6 @@ for (const leaf of leaves) {
   console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
 }
 ```
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update this table with
-the remaining refusals.
 
 #### Leaf migration fixed point at `5dcd94b` (historical)
 
