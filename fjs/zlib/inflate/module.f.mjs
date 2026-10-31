@@ -238,6 +238,8 @@ const step = state => {
     }
 }
 
+const malformedStep = doneStep(null)
+
 /**
  * Reads a chunk, emitting what it made, or completing with `null` where the
  * stream is malformed. Bytes after its internal closing phase are still counted
@@ -261,7 +263,7 @@ const update = (state, v) => {
     let made = null
     while (true) {
         const result = step(current)
-        if (result === null) { return doneStep(null) }
+        if (result === null) { return malformedStep }
         if (result === more) { return nextStep(current, toArray(reverse(made))) }
         current = result.state
         if (result.chunk !== null) { made = { first: result.chunk, tail: made } }
