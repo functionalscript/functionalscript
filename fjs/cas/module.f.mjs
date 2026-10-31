@@ -125,7 +125,7 @@ export const collectRead = stream => {
 
 
 /** What a chunk that is not whole bytes is refused as: `writeBytes`'s words, since `write` fails the same chunk through it. */
-const partialByte = error(ioError({ message: 'invalid buffer size' }))
+const partialByte = doneStep(error(ioError({ message: 'invalid buffer size' })))
 
 /** A machine step whose final summary has passed byte admission.
  * @type {<S, O, A>(progress: Step<S, O, A>) => Step<S, O, Result<A, IoChannel>>}
@@ -147,7 +147,7 @@ const admittedStep = progress => {
  */
 export const wholeByteMachine = machine => ({
     init: admittedStep(machine.init),
-    update: (state, chunk) => isWholeBytes(chunk) ? admittedStep(machine.update(state, chunk)) : doneStep(partialByte),
+    update: (state, chunk) => isWholeBytes(chunk) ? admittedStep(machine.update(state, chunk)) : partialByte,
     end: state => {
         const [, output, value] = machine.end(state)
         return doneStep(ok(value), output)
