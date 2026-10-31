@@ -32,14 +32,24 @@ twice; a change to argument ordering is made three times.
 
 ### Proposal
 
-In `member.rs`, one private `call_after(self, body: Option<Any<A>>, args)`
-holding the ladder; `call` computes the body and hands it over, `call_native`
-passes `None`. In `mod.rs`, `PropertyLambda::end_call` becomes
+In `member.rs`, one private ladder that takes the body lookup deferred, so
+the order stays what `call` documents — the own property is answered before
+the runtime is asked, and a runtime whose `dot` throws never reaches an
+object that shadows the name with its own function:
+
+```rust
+fn call_with(self, body: impl FnOnce(&Self) -> Result<Option<Any<A>>, Any<A>>, args: Any<A>) -> Result<Any<A>, Any<A>>
+```
+
+`call` passes `|m| m.body(runtime)`, `call_native` passes `|_| Ok(None)`;
+`body` is only called in the `None` arm of `own()`, as today. In `mod.rs`,
+`PropertyLambda::end_call` becomes
 `Region::from(self.0).call(runtime, args).end()` — a `Result`-sourced region
 is never `Skipped`, so `end` is exact — and `OptionPropertyLambda::end_call`
 keeps only its `Skipped` arm special.
 
 ### Tasks
 
-- [ ] `call_after`; `call` and `call_native` over it.
+- [ ] `call_with`; `call` and `call_native` over it, with a test for an own
+      function beside a throwing runtime `dot`.
 - [ ] The two `end_call`s over `Region::call`.
