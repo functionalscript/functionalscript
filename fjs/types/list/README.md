@@ -79,7 +79,7 @@ toArray(zip([1, 2, 3])(['a', 'b']))     // [[1, 'a'], [2, 'b']]: the shorter one
 chunks as `['next', output]`, then exactly one `['done', flush, summary]` event.
 Initial output precedes any source read, early completion leaves the source's
 suffix unread, and EOF runs the machine's finalizer. Output can be flattened as
-`flat(map(event => event[1])(transduce(machine)(input)))`; `run(machine)(input)`
+`flat(map(([, output]) => output)(transduce(machine)(input)))`; `run(machine)(input)`
 returns just the summary without holding the emitted chunks. The source remains
 lazy and is read again if these views are read separately.
 
