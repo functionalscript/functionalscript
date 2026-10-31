@@ -1269,9 +1269,12 @@ export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries
     definedEntries(assignmentOperators).map(([key, [operator]]) => [key, sym(operator)])))
 
 /** The assignment or call shared by ordinary statements and `for` clauses. @type {NameExpression} */
-export const nameExpression = [assignable, { assign: [assignmentOperator, value], ...arrowOrRest }]
+export const nameExpression = {
+    prefix: [sym('++'), assignable],
+    name: [assignable, { increment: sym('postfixIncrement'), assign: [assignmentOperator, value], ...arrowOrRest }],
+}
 
-export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
+export const bodyNameStatement = /** @type {const} */ ([nameExpression, end])
 
 /**
  * A statement of a loop's block: a declaration, a normal conditional, a

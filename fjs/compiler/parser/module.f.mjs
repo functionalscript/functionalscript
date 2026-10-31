@@ -615,6 +615,7 @@ const written = (scope, statement, id) => {
 /** Preserve the source operation until the shared sugar pass. @type {(statement: Assignment, id: BindingId, value: SourceValue) => SourceStatement} */
 const assignmentStatement = (statement, id, value) => statement.operator === null
     ? ['write', id, value]
+    : statement.operator.tag === '++' ? ['increment', id]
     : ['compound-write', id, statement.operator.tag, value]
 
 /**

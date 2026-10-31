@@ -3,7 +3,7 @@
 **Priority:** P4
 **Status:** wip — compound assignments implemented
 ([variables](../bindings/variables/README.md#compound-assignments)); prefix and
-postfix updates remain open
+postfix `++` statements implemented; decrement updates remain open
 
 ### Problem
 
@@ -109,9 +109,8 @@ may emit the expanded spelling; recovering a compound spelling is not required.
 This proposal admits neither property mutation (`object.key >>= value`)
 nor assignment expressions (`f(n >>= 1)`, chained assignment, or a compound
 assignment in an initializer). Those are already outside the ordinary
-assignment statement contract. Prefix and postfix `++` and `--` are update
-operators, with separate numeric conversion and result rules; they remain
-separate work and are not compound assignments.
+assignment statement contract. Increment statements are specified below;
+decrement updates remain separate work and are not compound assignments.
 
 **Benefits.** Preserve a familiar JavaScript spelling with no new run-time
 operation, remove migration obstacles such as the monoid helper's shift, and
@@ -165,6 +164,11 @@ statement-only positions.
 
 ### Further increments
 
-Prefix and postfix `++` and `--` remain at priority 3 in this issue's original
-operator breakdown; compound assignment was priority 2. Their proposal and
-approval are separate from the compound-assignment scope above.
+Prefix and postfix `++` statements are implemented as `i = i + 1` during
+AST-to-FAST sugar, as explicitly requested by the task owner in the working
+session. They retain mutable identifier targets and statement-only positions.
+Their benefit is a familiar counting-loop spelling without new runtime
+operations; the drawback is a deliberate difference from JavaScript numeric
+conversion (string concatenation and mixed BigInt/Number failure).
+
+Prefix and postfix `--` remain open.

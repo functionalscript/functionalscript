@@ -130,7 +130,7 @@ export const proof = {
             'for(let i=0;i<3 i+=1){}export default 0;',
             'for(let i=0;i<3;i+=1;){}export default 0;',
             'for(let i=0;i<3;i+=1)i+=1;export default 0;',
-            'for(let i=0;i<3;i++){}export default 0;',
+            'for(const i=0;i<3;i++){}export default 0;',
             'for(const i of [0]){}export default 0;',
             'for(const i in {}){}export default 0;',
             'for(let i;false;){}export default 0;',

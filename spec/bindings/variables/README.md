@@ -168,6 +168,18 @@ calls as well. A direct call that normalizes to an expression block can also
 write an enclosing binding. This does not permit a held closure over a mutable
 binding, or a write across an ordinary invocation boundary that is retained.
 
+## Increment statements
+
+`++i;` and `i++;` both mean `i = i + 1;`. They are statements,
+including in a classic `for` initializer or update clause, and cannot be used
+as values. The target must be a mutable identifier; ordinary assignment and
+capture restrictions apply. A line terminator cannot separate a postfix
+increment from its identifier.
+
+The AST retains an increment statement until AST-to-FAST sugar expands the
+read, addition and write. The addition uses the Number literal `1`: strings
+concatenate, and BigInt operands fail just as they do in `i = i + 1`.
+
 ## Expression block assignments
 
 An expression block runs in its surrounding execution region. An assignment

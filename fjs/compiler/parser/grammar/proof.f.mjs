@@ -88,6 +88,8 @@ export const proof = {
         for (const source of [
             'for(;;){}export default 0;',
             'for(let i=0;i<3;i+=1){}export default 0;',
+            'for(let i=0;i<3;i++){}export default 0;',
+            'for(let i=0;i<3;++i){}export default 0;',
             'for(const [i]=[0];false;){}export default 0;',
             'let i=0;for(i=1;i<3;i=i+1){}export default i;',
             'for(start();ready();advance()){}export default 0;',
@@ -100,7 +102,6 @@ export const proof = {
             'for(let i=0\ni<3;i+=1){}export default 0;',
             'for(let i=0;i<3\ni+=1){}export default 0;',
             'for(let i;i<3;i+=1){}export default 0;',
-            'for(let i=0;i<3;i++){}export default 0;',
             'for(const i of []){}export default 0;',
             'for(const i in {}){}export default 0;',
             'for(;;)break;export default 0;',
