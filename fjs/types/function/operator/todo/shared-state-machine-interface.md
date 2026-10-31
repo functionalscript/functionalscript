@@ -88,7 +88,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Migrate SHA-1/SHA-2 and every direct hash caller.
 - [x] Migrate CAS admission and digest consumers to the shared effectful driver.
 - [x] Migrate Adler-32 and its checksum callers.
-- [ ] Migrate emitting zlib inflation and adapt its direct Git consumer.
+- [x] Migrate emitting zlib inflation and adapt its direct Git consumer.
 - [ ] Migrate the Git inflater lifecycle and packstore callers.
 - [ ] Migrate Unicode decoding with streaming emission and EOF flush.
 - [ ] Migrate MIME detection and preserve whole-input length counting.

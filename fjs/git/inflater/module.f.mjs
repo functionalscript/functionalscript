@@ -25,10 +25,10 @@ import { bytesIn, length, u8ListMsb, u8ListToVecMsb, u8ArrayMsb } from '../../ty
 import { flat, map, reverse } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { append, end, init } from '../../zlib/inflate/module.f.mjs'
+import { inflate } from '../../zlib/inflate/module.f.mjs'
 
 /** A stream not yet read. @type {Progress} */
-export const start = { state: init, made: null, size: 0 }
+export const start = { state: inflate.init[2], made: null, size: 0 }
 
 /**
  * The stream after a chunk of it, or `null` where the chunk makes it malformed.
@@ -36,13 +36,13 @@ export const start = { state: init, made: null, size: 0 }
  * @type {(chunk: Vec) => (progress: Progress) => Nullable<Progress>}
  */
 export const feed = chunk => ({ state, made, size }) => {
-    const result = append(chunk)(state)
-    return result === null
+    const [kind, output, next] = inflate.update(state, chunk)
+    return kind === 'done'
         ? null
         : {
-            state: result.state,
-            made: result.output.reduce((so, v) => ({ first: v, tail: so }), made),
-            size: result.output.reduce((so, v) => so + Number(bytesIn(length(v))), size)
+            state: next,
+            made: output.reduce((so, v) => ({ first: v, tail: so }), made),
+            size: output.reduce((so, v) => so + Number(bytesIn(length(v))), size)
         }
 }
 
@@ -101,7 +101,7 @@ const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
  * @type {(progress: Progress) => Result<List<Vec>, Refusal>}
  */
 export const finish = ({ state, made }) => {
-    const after = end(state)
+    const [, , after] = inflate.end(state)
     if (after === null) { return error(truncated) }
     return after === 0
         ? ok(reverse(made))

@@ -91,20 +91,21 @@ the object reader parses `u8ListMsb(v)`, and `readBytes` hands back a `Vec` a
 window at a time. Rejected: a `List<number>` per byte, for its cost; one `Vec`,
 for its bound.
 
-**A decoder is a machine fed chunks, as a hash is.** `init`, `append` of an
-input chunk and `end`, in the shape of `sha2`, and not a function from a whole
-input to a whole output:
+**A decoder is a machine fed chunks, as a hash is.** It exposes the shared
+`init`, `update(state, chunk)`, and `end` protocol, with the decoder's output
+emitted incrementally and its final trailing-byte count in the terminal result:
 
 - a lazy list of output chunks cannot report a stream that goes bad *after* it
   has yielded some, and a `null` for the whole answer would force the whole
   output to be held before any of it is read, which is the heap this avoids.
-  `append` answers the output chunks it can now give and the next state, or
-  `null` for a stream that is malformed, so the refusal comes where the bad
-  byte is;
+  `update` emits the output chunks it can now give and the next state, or
+  completes early with `null` for a malformed stream, so the refusal comes
+  where the bad byte is;
 - the input is pushed a window at a time, as the host's `readBytes` gives it, so
   nothing asks for the whole compressed stream at once;
-- `end` answers what is left of the last chunk once the stream has closed, and
-  that is what removes the exact-window rule of
+- `end` completes with the number of bytes after the stream, or `null` for
+  truncation. The internal closing phase still counts all remaining input until
+  EOF. This removes the exact-window rule of
   [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs): the decoder knows
   where a stream ends, so a generous window is read to its end and the rest
   handed back, where `inflate` refuses the bytes after it.
@@ -132,8 +133,8 @@ fast path.
       closes a stream, in the shape of a hash, with its proof against the
       trailer of Node's `zlib.deflateSync`.
 - [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing
-      and the stored blocks, fed chunks (`init`, `append`, `end`); a malformed
-      stream is `null`.
+      and the stored blocks, fed chunks (`init`, `update`, `end`); a malformed
+      stream completes with `null`.
 - [x] Fixed and dynamic Huffman blocks with the 32 KiB window
       ([`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs), over
       [`bits`](../fjs/zlib/bits/module.f.js),
