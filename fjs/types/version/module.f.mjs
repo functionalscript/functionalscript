@@ -95,7 +95,7 @@ export const cmp = a => b => {
     const [p, q] = [parse(a), parse(b)]
     const n = max(p.length, q.length)
     for (let i = 0; i < n; i += 1) {
-        const s = numberCmp(p[i] ?? 0)(q[i] ?? 0)
+        const s = numberCmp(p[Number(i)] ?? 0)(q[Number(i)] ?? 0)
         if (s !== 0) { return s }
     }
     return 0

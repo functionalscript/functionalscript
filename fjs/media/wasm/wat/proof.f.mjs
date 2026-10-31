@@ -194,10 +194,13 @@ const edgesWat = [
     "",
 ].join('\n')
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     empty: () => assertEq(wat(emptyModule), '(module)\n'),
     everything: () => assertEq(wat(everything), everythingWat),
     edges: () => assertEq(wat(edges), edgesWat),
+    unicodeNames: () => assertEq(
+        wat({ ...emptyModule, customs: [{ after: null, content: ['name', [['module', 'a😀']]] }] }),
+        '(module $"a\\u{1f600}")\n'),
     // Each function as it stands in the module's text.
     functions: () => {
         const texts = functions(everything)
@@ -210,4 +213,4 @@ export const proof = {
     unbalanced: () => assertEq(
         functions({ ...emptyModule, types: [{ params: [], results: [] }], functions: [{ type: 0, locals: [], body: [['end'], ['else']] }] })[0],
         '  (func (;0;) (type 0)\n    end\n    else\n  )\n'),
-}
+})
