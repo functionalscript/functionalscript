@@ -27,6 +27,7 @@ later.
         to compile into EDAG, and all JavaScript files in the repository.
   - [ ] Extract module dependencies from the AST.
   - [ ] Draw the dependency graph on a website.
+- [ ] Integrate the dependency DAG with `build-cache`.
 
 ### Related
 
