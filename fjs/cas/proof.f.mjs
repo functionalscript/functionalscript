@@ -500,8 +500,9 @@ export const proof = {
         const stream = nonEmpty(vec(5n)(0b10101n), unread)
         const result = runPure(contentKey(sha256)(stream))
         assert(result.length === 1)
-        assert(result[0][0] === 'error')
-        assertIoMessage(result[0][1], 'invalid buffer size')
+        const [tag, refusal] = result[0]
+        assert(tag === 'error')
+        assertIoMessage(refusal, 'invalid buffer size')
     },
     contentKeyRefusesPartialByte: () => {
         // A chunk that is not whole bytes: `write` refuses it through

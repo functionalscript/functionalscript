@@ -15,22 +15,23 @@ import { runPure } from '../../effects/module.f.mjs'
 
 export const proof = {
     lifecycle: () => {
-        const initial = utf8Decoder.init
-        assert(initial[0] === 'next')
-        assertEq(stringifySorted(utf8Decoder.end(initial[2])), '["done",[],null]')
-        const first = utf8Decoder.update(initial[2], 0xf0)
-        assert(first[0] === 'next')
-        const second = utf8Decoder.update(first[2], 0x9f)
-        assert(second[0] === 'next')
-        const third = utf8Decoder.update(second[2], 0x98)
-        assert(third[0] === 'next')
-        const last = utf8Decoder.update(third[2], 0x80)
-        assert(last[0] === 'next')
-        assertEq(stringifySorted(last[1]), '[128512]')
-        assertEq(last[2], null)
+        const [initialKind, , initialState] = utf8Decoder.init
+        assert(initialKind === 'next')
+        assertEq(stringifySorted(utf8Decoder.end(initialState)), '["done",[],null]')
+        const [firstKind, , firstState] = utf8Decoder.update(initialState, 0xf0)
+        assert(firstKind === 'next')
+        const [secondKind, , secondState] = utf8Decoder.update(firstState, 0x9f)
+        assert(secondKind === 'next')
+        const [thirdKind, , thirdState] = utf8Decoder.update(secondState, 0x98)
+        assert(thirdKind === 'next')
+        const last = utf8Decoder.update(thirdState, 0x80)
+        const [lastKind, output, lastState] = last
+        assert(lastKind === 'next')
+        assertEq(stringifySorted(output), '[128512]')
+        assertEq(lastState, null)
         // The saved prefix remains usable, including its EOF error flush.
-        assertEq(stringifySorted(utf8Decoder.end(first[2])), '["done",[-2147483408],null]')
-        assertEq(stringifySorted(utf8Decoder.update(third[2], 0x80)), stringifySorted(last))
+        assertEq(stringifySorted(utf8Decoder.end(firstState)), '["done",[-2147483408],null]')
+        assertEq(stringifySorted(utf8Decoder.update(thirdState, 0x80)), stringifySorted(last))
     },
     lazyOutput: () => {
         const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })

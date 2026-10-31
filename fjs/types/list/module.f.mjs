@@ -262,8 +262,9 @@ export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 const transduceFrom = (machine, input, current) => () => {
     let remaining = input
     let step = current
-    while (step[0] === 'next') {
-        const [, output, state] = step
+    while (true) {
+        const [tag, output, state] = step
+        if (tag === 'done') { return [step] }
         if (output.length !== 0) {
             return {
                 first: ['next', output],
@@ -275,7 +276,6 @@ const transduceFrom = (machine, input, current) => () => {
         step = machine.update(state, node.first)
         remaining = node.tail
     }
-    return [step]
 }
 
 /**
@@ -304,9 +304,9 @@ const lastEvent = last(null)
 export const run = machine => {
     const events = transduce(machine)
     return input => {
-        const terminal = assertNotNullish(lastEvent(events(input)))
-        assert(terminal[0] === 'done')
-        return terminal[2]
+        const [tag, , summary] = assertNotNullish(lastEvent(events(input)))
+        assert(tag === 'done')
+        return summary
     }
 }
 
