@@ -44,7 +44,7 @@ import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } 
 import { digit, escape, hex, string as jsonString, uint } from '../json/module.f.mjs'
 
 /** Every symbol of the alphabet: a code point. */
-const any = range(`\0${unicodeMax}`)
+const any = range(`\u0000${unicodeMax}`)
 
 /** One whitespace symbol; a run of them is a run of tokens. */
 export const ws = set(' \t')

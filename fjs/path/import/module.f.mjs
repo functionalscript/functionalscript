@@ -26,7 +26,7 @@ const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
 const importSegment = segment => {
     const literal = codePointListToString(map(scalarValue)(stringToCodePointList(segment)))
     const decoded = percentDecode(literal)
-    return decoded === null || decoded.includes('/') || decoded.includes('\\') || decoded.includes('\0') || decoded.includes(':')
+    return decoded === null || decoded.includes('/') || decoded.includes('\\') || decoded.includes('\u0000') || decoded.includes(':')
         ? null
         : decoded
 }

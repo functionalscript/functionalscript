@@ -164,7 +164,7 @@ const refuseAuthor = refuse(authorCode)
  *
  * @type {(value: string) => boolean}
  */
-const noIdent = value => value.trim() === '' || ['<', '>', '\n', '\0'].some(c => value.includes(c))
+const noIdent = value => value.trim() === '' || ['<', '>', '\n', '\u0000'].some(c => value.includes(c))
 
 /**
  * An object read from the store, with a store that has no such object

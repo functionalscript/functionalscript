@@ -46,10 +46,10 @@ it follows is its own decision, which the deferral note below calls
 
 ### Deferred: the other spellings
 
-The extra escapes, raw control characters and line continuations stay deferred
-at the lowest priority. They are alternative spellings of values JSON already
-expresses, and unlike single quotes, no measured repository need stands behind
-them.
+The extra escapes, raw control characters and line continuations stay deferred.
+They are alternative spellings of values JSON already expresses. The NUL escape
+has a repository use case described below; the other spellings remain at the
+lowest priority until a concrete need appears.
 
 Design rule: we extend JSON only where JS has values JSON cannot express
 (`undefined`, `bigint`, functions), or where a spelling is common enough that
@@ -61,12 +61,29 @@ values closer to a canonical byte form for content addressing.
 Until implemented, they can be normalized into JSON spellings mechanically:
 literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
-**Note**: template literals are not part of this feature — they involve
-expression interpolation, not just lexical syntax. Untagged templates are
-implemented separately ([template literals](../values/template-literals/README.md));
-that specification owns the template deferral of extra escapes, raw controls
-and line continuations. Any future widening of the common escape set must be
-coordinated across quoted strings and templates.
+### NUL escape: repository use
+
+Implementation modules use NUL characters for Git object and record delimiters,
+path validation, symbolic compiler names and Rust character formatting. The
+`\0` spelling blocks source AST formation with the current FJS escape subset.
+These `module.f.mjs` sources now use the equivalent accepted `\u0000` spelling;
+accepting `\0` remains tracked here.
+
+The proposed scope is `\0` in quoted strings and untagged templates, denoting
+one NUL character only when no decimal digit follows, as in JavaScript modules.
+Spellings such as `\01` and `\08` must remain refused. The benefit is familiar
+JavaScript notation already used by repository code; the cost is another
+spelling of the same value and a following-digit check.
+
+Language-design approval and implementation are future work. Coordinate them
+with [lexical recognition](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md)
+and the template escape policy; this normalization does not widen admission.
+
+**Note**: template syntax and expression interpolation are implemented
+separately ([template literals](../values/template-literals/README.md)). That
+specification owns template restrictions on extra escapes, raw controls and line
+continuations. The proposed NUL escape admission, and any other widening of the
+common escape set, must be coordinated across quoted strings and templates.
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FJS in a
 single pass — implements any of these spellings, it must still distinguish JS
@@ -82,6 +99,10 @@ See
 
 ### Tasks
 
+- [x] Normalize actual `\0` escapes in `module.f.mjs` sources to `\u0000`,
+      preserving NUL values and literal backslash-zero output.
+- [ ] Obtain language-design approval and implement `\0` admission for quoted
+      strings and untagged templates, including its decimal-digit restriction.
 - [ ] Admit the other escapes, raw control characters or line continuations
-      only when a measured need appears, through the lexing issue's
-      `jsonEscapes` check in `fjs/compiler/tokenizer`'s fold.
+      only when a measured need appears, through the admission checks in
+      `fjs/compiler/tokenizer`'s fold.
