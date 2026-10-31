@@ -39,7 +39,7 @@ export const proof = {
         assertEq(stringify(utf16Decoder.update(saved[2], 0xde00)), stringify(resumed))
     },
     lazyOutput: () => {
-        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
         assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
     },
     toCodePointList: [
