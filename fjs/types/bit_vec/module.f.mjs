@@ -22,8 +22,8 @@
  * @module
  *
  * @import { Reduce as BigintReduce } from '../bigint/types.ts'
- * @import { Fold } from '../function/operator/types.ts'
- * @import { Accumulator, List, Thunk } from '../list/types.ts'
+ * @import { Fold, Transducer } from '../function/operator/types.ts'
+ * @import { List, Thunk } from '../list/types.ts'
  * @import { Monoid, Stack } from '../../common/monoid/types.ts'
  * @import { Nullable } from '../nullable/types.ts'
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
@@ -31,7 +31,8 @@
 
 import { bitLength, divUp, mask, maxLength as bigintMaxLength, roundUp8, xor } from '../bigint/module.f.mjs'
 import { compose, flip, identity } from '../function/module.f.js'
-import { map, next, tryFold } from '../list/module.f.mjs'
+import { map, next, run } from '../list/module.f.mjs'
+import { nextStep, doneStep } from '../function/operator/module.f.js'
 import { toArray } from '../list/alt/module.f.mjs'
 import { isByte } from '../number/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
@@ -318,7 +319,8 @@ const concatenation = unpackConcat => ({
  *
  * This is the bit-vector analogue of a builder that accumulates appended pieces
  * and materializes the combined result on demand, such as `StringBuilder`
- * (Java, C#) or `strings.Builder` (Go).
+ * (Java, C#) or `strings.Builder` (Go). It uses the common machine lifecycle:
+ * overflow completes early with `null`, and EOF finalizes the accumulated runs.
  *
  * @type {(unpackConcat: _UnpackConcat) => (list: List<Unpacked>) => Nullable<Vec>}
  */
@@ -326,14 +328,14 @@ const unpackListToVec = unpackConcat => {
     const monoid = concatenation(unpackConcat)
     const push = step(monoid)
     const whole = collect(monoid)
-    /** @type {Accumulator<Unpacked, { readonly stack: Stack<Unpacked>, readonly length: bigint }, Vec>} */
+    /** @type {Transducer<Unpacked, { readonly stack: Stack<Unpacked>, readonly length: bigint }, never, Nullable<Vec>>} */
     const capped = {
-        init: { stack: null, length: 0n },
-        update: (u, { stack, length }) =>
-            length + u.length > maxLength ? null : { stack: push(u)(stack), length: length + u.length },
-        end: ({ stack }) => pack(whole(stack)),
+        init: nextStep({ stack: null, length: 0n }),
+        update: ({ stack, length }, u) =>
+            length + u.length > maxLength ? doneStep(null) : nextStep({ stack: push(u)(stack), length: length + u.length }),
+        end: ({ stack }) => doneStep(pack(whole(stack))),
     }
-    return tryFold(capped)
+    return run(capped)
 }
 
 /**
