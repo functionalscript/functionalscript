@@ -185,7 +185,7 @@ exactly the path `cas_get` uses.
 - [ ] Land the payload-free, O(depth) `fjs/media/json` recognizer first (its own
       todo); this issue is blocked on it.
 - [ ] Add the `A_json` factor (recognizer + top-level `top` tag, §1) to
-      `DetectState`/`detectInit`; drive it from `push`, in the alphabet the
+      `DetectState`/`detector.init`; drive it from `detector.update`, in the alphabet the
       recognizer takes.
 - [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8 that
       is valid JSON **with an object/array top level** (§4 decision).
