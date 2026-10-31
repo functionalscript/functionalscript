@@ -9,7 +9,7 @@
  * @import { Curve, Init, Point } from './types.ts'
  */
 
-import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
+import { prime_field, sqrt } from '../../types/prime_field/module.f.js'
 import { repeat } from '../../common/monoid/module.f.js'
 
 /**
