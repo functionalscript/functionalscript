@@ -425,6 +425,24 @@ The existing numeric-only helper
 remains available for callers that deliberately reject non-number inputs.
 It is no longer needed to make a `BigInt(exp)` conversion compile.
 
+Source admission alone does not make an importing module compilable. The
+bodies of `fjs/types/bit_set/module.f.mjs` and
+`fjs/media/json/extended/module.f.mjs` now parse, but both remain `.f.mjs`
+because the compiler also links their imports. `bit_set` imports
+`types/bigint`, whose `combination` still uses an unadmitted `for...of` loop.
+The extended JSON codec imports the JSON parser, whose `tagged` helper still
+reads the dynamic string key `member[key]`, outside the numeric computed-key
+contract. Compile either module explicitly to observe its dependency's refusal:
+
+```sh
+npm start compile fjs/types/bit_set/module.f.mjs /tmp/bit-set.js
+npm start compile fjs/media/json/extended/module.f.mjs /tmp/extended-json.js
+```
+
+Rename each module and update its importers when it compiles with its imports,
+as [the module-extension rule](../fjs/AGENTS.md#35-functionalscript-module-rules)
+requires; a `.f.js` module's runtime imports must themselves target `.f.js`.
+
 ## 9. A `Map` or a `Set` of strings
 
 `Map` is not a language type, and `new Map(...)` is refused
