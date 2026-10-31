@@ -10,7 +10,7 @@
  */
 
 import { prime_field, sqrt } from '../../types/prime_field/module.f.mjs'
-import { repeat } from '../../common/monoid/module.f.mjs'
+import { repeat } from '../../common/monoid/module.f.js'
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.

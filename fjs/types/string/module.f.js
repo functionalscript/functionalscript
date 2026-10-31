@@ -6,7 +6,7 @@
  * @example
  *
  * ```js
- * import { join, concat, repeat, cmp, occurrences } from './module.f.mjs'
+ * import { join, concat, repeat, cmp, occurrences } from './module.f.js'
  *
  * const words = ['hello', 'world']
  * join(' ')(words) // 'hello world'
@@ -25,7 +25,7 @@ import { reduce as listReduce, repeat as listRepeat } from '../list/module.f.js'
 import { compose } from '../function/module.f.js'
 import { cmp as uCmp } from '../function/compare/module.f.js'
 import { addition as additionOp, join as joinOp } from '../function/operator/module.f.js'
-import { fold } from '../../common/monoid/module.f.mjs'
+import { fold } from '../../common/monoid/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 
 /** @type {Reduce<string>} */

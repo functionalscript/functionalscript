@@ -67,7 +67,7 @@ import { maxCodePoint } from '../../text/code_point/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.js'
 import { concat, empty, flat, fold, stateScan } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 // -- layer 1: the grammar, one token at a time ------------------------------
 

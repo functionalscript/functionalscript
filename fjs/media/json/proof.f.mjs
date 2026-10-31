@@ -12,7 +12,7 @@ import { toText } from '../../text/marked/module.f.mjs'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
 
 const { is } = Object
 

@@ -39,7 +39,7 @@ import { tryMarked as fjsMarked, tryModuleMarked } from './serializer/module.f.m
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { flat, map } from '../types/list/module.f.js'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.js'
-import { concat } from '../types/string/module.f.mjs'
+import { concat } from '../types/string/module.f.js'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
 import { errorMessage, foldStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'

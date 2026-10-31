@@ -3,7 +3,7 @@
  */
 
 import { at, definedEntries, definedValues, fromMap } from './module.f.mjs'
-import { empty, setReplace } from '../ordered_map/module.f.mjs'
+import { empty, setReplace } from '../ordered_map/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

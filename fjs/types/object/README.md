@@ -24,7 +24,7 @@ structurallySame({ a: [1] }, { a: [1] }) // true
 |`at(name)(object)`                     |the object's **own** property `name`, or `null` (also for a stored `undefined`)|
 |`fromEntries(list)`                    |an object from a [`List`](../list/README.md) of `[key, value]` entries         |
 |`sort(list)`                           |the entries in key order; for a repeated key, the last value wins              |
-|`fromMap(map)`                         |an object from an [`ordered_map`](../ordered_map/module.f.mjs)                 |
+|`fromMap(map)`                         |an object from an [`ordered_map`](../ordered_map/module.f.js)                 |
 |`isObject(value)`                      |whether `value` is a non-null object that is not an array                      |
 |`definedEntries(o)`, `definedValues(o)`|the entries or values whose value is not `undefined`                           |
 |`structurallySame(a, b)`               |deep equality over plain data                                                  |

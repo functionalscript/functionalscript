@@ -7,7 +7,7 @@ import { dfa, run, toRange } from './module.f.mjs'
 import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.mjs'
 import { toKey } from '../types/sorted_set/module.f.mjs'
 import { fold } from '../types/list/module.f.js'
-import { toArray } from '../types/list/alt/module.f.mjs'
+import { toArray } from '../types/list/alt/module.f.js'
 import { stringToList } from '../text/utf16/module.f.mjs'
 import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 

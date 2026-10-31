@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { htmlToString } from '../../../media/html/module.f.mjs'
-import { occurrences } from '../../../types/string/module.f.mjs'
+import { occurrences } from '../../../types/string/module.f.js'
 import { eventNameMarker, scopeIds, scopeMarker } from './module.f.mjs'
 
 export const proof = /** @type {const} */ ({

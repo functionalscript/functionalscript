@@ -13,7 +13,7 @@ import { findValue } from '../btree/find/module.f.js'
 import { set } from '../btree/set/module.f.js'
 import { remove as btreeRemove } from '../btree/remove/module.f.js'
 import { values } from '../btree/module.f.js'
-import { cmp } from '../string/module.f.mjs'
+import { cmp } from '../string/module.f.js'
 import { fold } from '../list/module.f.js'
 import { map as nullableMap } from '../nullable/module.f.js'
 

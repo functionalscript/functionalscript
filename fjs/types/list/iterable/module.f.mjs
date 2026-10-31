@@ -1,7 +1,7 @@
 /**
  * A list as a host iterable, and `toArray` through one. Both need the host's
  * iteration protocol, which the FunctionalScript VM does not have yet;
- * [`../alt`](../alt/module.f.mjs) is `toArray` without it.
+ * [`../alt`](../alt/module.f.js) is `toArray` without it.
  *
  * @module
  *

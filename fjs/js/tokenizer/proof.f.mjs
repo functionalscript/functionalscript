@@ -4,7 +4,7 @@
  */
 
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'

@@ -2,8 +2,8 @@
  * @import { OrderedMap } from './types.ts'
  */
 
-import { at, setReplace, setReduce, empty, entries, remove, fromEntries } from './module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
+import { at, setReplace, setReduce, empty, entries, remove, fromEntries } from './module.f.js'
+import { toArray } from '../list/alt/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

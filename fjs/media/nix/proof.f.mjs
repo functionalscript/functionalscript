@@ -4,7 +4,7 @@
 
 import { assertEq } from '../../asserts/module.f.js'
 import { countdown, fold } from '../../types/list/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { nix, nixToString } from './module.f.mjs'
 

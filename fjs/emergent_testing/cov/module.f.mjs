@@ -15,7 +15,7 @@ import { foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, res
 import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent } from '../../path/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
-import { cmp } from '../../types/string/module.f.mjs'
+import { cmp } from '../../types/string/module.f.js'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
 export const isCoverageTarget = path =>

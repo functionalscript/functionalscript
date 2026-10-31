@@ -23,7 +23,7 @@
 
 import { cmp } from '../function/compare/module.f.js'
 import { addition as additionOp } from '../function/operator/module.f.js'
-import { fold } from '../../common/monoid/module.f.mjs'
+import { fold } from '../../common/monoid/module.f.js'
 
 /**
  * Adds two `bigint` values.
