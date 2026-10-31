@@ -7,7 +7,7 @@
  *
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { NodeProgram, ReadWhole, Write } from '../effects/node/types.ts'
- * @import { Checked } from './private.ts'
+ * @import { _Checked } from './private.ts'
  */
 
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.mjs'
@@ -19,7 +19,7 @@ import { error as errorLine, errorExit, errorMessage, log } from '../effects/nod
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
 
-/** Read one source without resolving or evaluating any of its imports. @type {(path: string) => (count: Checked) => Effect<ReadWhole | Write, Checked, IoChannel>} */
+/** Read one source without resolving or evaluating any of its imports. @type {(path: string) => (count: _Checked) => Effect<ReadWhole | Write, _Checked, IoChannel>} */
 const checkOne = path => ({ checked, refused }) => {
     const parsed = step(readSource(path), text => pure(parseSyntax(tokenize(stringToList(text))(path))))
     return resultStep(parsed, ([tag, value]) => tag === 'ok'
