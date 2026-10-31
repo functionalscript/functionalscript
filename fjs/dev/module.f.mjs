@@ -14,7 +14,7 @@ import { cmp as strCmp } from '../types/string/module.f.js'
 import { fromEntries } from '../types/object/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { join, relativize, toPosix } from '../path/module.f.mjs'
+import { join, relativize, toPosix } from '../path/module.f.js'
 import { assert, assertEq } from '../asserts/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 

@@ -16,7 +16,7 @@
  */
 
 import { assert, todo } from '../../../asserts/module.f.js'
-import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
+import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.js'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { divUp8 } from '../../../types/bigint/module.f.mjs'
