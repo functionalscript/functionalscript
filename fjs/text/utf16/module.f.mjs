@@ -236,9 +236,12 @@ const utf16EofToCodePointOp = eofFlush(utf16StateToError)
  * @type {Transducer<U16, number | null, CodePoint, null>}
  */
 export const utf16Decoder = fromStateScan(
-    /** @type {number | null} */ (null),
+    null,
     utf16ByteToCodePointOp,
-    state => utf16EofToCodePointOp(state)[0],
+    state => {
+        const [output] = utf16EofToCodePointOp(state)
+        return output
+    },
 )
 
 /**

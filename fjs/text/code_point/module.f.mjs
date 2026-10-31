@@ -30,7 +30,7 @@ import { assert } from '../../asserts/module.f.js'
 export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /** @type {<Cp>(step: Transduced<Cp, null>) => readonly Cp[]} */
-const emitted = step => step[1]
+const emitted = ([, output]) => output
 
 /** @type {<Cp>(steps: List<Transduced<Cp, null>>) => Thunk<readonly Cp[]>} */
 const emittedChunks = map(emitted)

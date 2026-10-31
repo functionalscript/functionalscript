@@ -43,7 +43,10 @@ const dispatch = restart(evenOrPending)
 
 export const proof = {
     decoder: () => {
-        const machine = fromStateScan(/** @type {number | null} */ (null), evenOrPending, state => flush(state)[0])
+        const machine = fromStateScan(null, evenOrPending, state => {
+            const [output] = flush(state)
+            return output
+        })
         assertStructurallySame(toArray(decoder(machine)([2, 3])), [2, -3])
         assertStructurallySame(toArray(decoder(machine)([])), [])
     },

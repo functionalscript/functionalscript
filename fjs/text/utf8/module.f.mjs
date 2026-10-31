@@ -315,9 +315,12 @@ const utf8EofToCodePointOp = eofFlush(utf8StateToError)
  * @type {Transducer<U8, Utf8State, CodePoint, null>}
  */
 export const utf8Decoder = fromStateScan(
-    /** @type {Utf8State} */ (null),
+    null,
     utf8ByteToCodePointOp,
-    state => utf8EofToCodePointOp(state)[0],
+    state => {
+        const [output] = utf8EofToCodePointOp(state)
+        return output
+    },
 )
 
 /**
