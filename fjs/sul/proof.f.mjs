@@ -61,13 +61,15 @@ export const proof = {
     lifecycle: () => {
         const bits = bitsOf('Hello')
         const whole = runMachine(heightEncoder)(bits)
-        assertEq(heightEncoder.init[0], 'next')
-        assertEq(heightEncoder.init[1].length, 0)
-        assertEq(heightEncoder.end(heightEncoder.init[2])[0], 'done')
-        assertEq(heightEncoder.end(heightEncoder.init[2])[1].length, 0)
+        const { init: [initialTag, initialOutput, initialState], update, end } = heightEncoder
+        assertEq(initialTag, 'next')
+        assertEq(initialOutput.length, 0)
+        const [endTag, endOutput] = end(initialState)
+        assertEq(endTag, 'done')
+        assertEq(endOutput.length, 0)
         assertEq(runMachine(heightEncoder)([]), id([]))
         for (let split = 0; split <= bits.length; split++) {
-            const checkpoint = bits.slice(0, split).reduce((state, bit) => heightEncoder.update(state, bit)[2], heightEncoder.init[2])
+            const checkpoint = bits.slice(0, split).reduce((state, bit) => update(state, bit)[2], initialState)
             const resumed = /** @type {const} */ ({ ...heightEncoder, init: nextStep(checkpoint) })
             assertEq(runMachine(resumed)(bits.slice(split)), whole)
         }

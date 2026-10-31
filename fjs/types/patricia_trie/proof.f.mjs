@@ -248,16 +248,18 @@ export const proof = {
     lifecycle: () => {
         const input = [9n, 7n, 2n].map(x => /** @type {const} */ ([x, x]))
         const whole = run(trie)(input)
-        assertEq(init[0], 'next')
-        assertEq(init[1].length, 0)
-        assertEq(end(init[2])[0], 'done')
-        assertEq(end(init[2])[1].length, 0)
+        const [initialTag, initialOutput, initialState] = init
+        assertEq(initialTag, 'next')
+        assertEq(initialOutput.length, 0)
+        const [endTag, endOutput] = end(initialState)
+        assertEq(endTag, 'done')
+        assertEq(endOutput.length, 0)
         for (let split = 0; split <= input.length; split++) {
-            const checkpoint = input.slice(0, split).reduce((state, candidate) => update(state, candidate)[2], init[2])
+            const checkpoint = input.slice(0, split).reduce((state, candidate) => update(state, candidate)[2], initialState)
             const resumed = /** @type {const} */ ({ ...trie, init: nextStep(checkpoint) })
             assertStructurallySame(run(resumed)(input.slice(split)), whole)
         }
-        assertStructurallySame(init[2], [[], []])
+        assertStructurallySame(initialState, [[], []])
     },
     demo: demoProof,
 }

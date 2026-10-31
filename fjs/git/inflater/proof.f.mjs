@@ -6,6 +6,8 @@ import { run } from '../../types/list/module.f.mjs'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { bytesOf, feedWithin, inflater, inflateAll, inflateWithin, malformed, sizeOf } from './module.f.mjs'
 
+const [, , initial] = inflater.init
+
 /** @type {(bytes: readonly number[], size: number) => readonly import('../../types/bit_vec/types.ts').Vec[]} */
 const chunks = (bytes, size) => Array.from({ length: Math.ceil(bytes.length / size) }, (_, i) => u8ListToVecMsb(bytes.slice(i * size, (i + 1) * size)))
 
@@ -38,14 +40,14 @@ export const proof = {
     pieces: () => {
         const bytes = Array.from({ length: 5_000 }, (_, i) => i & 0xff)
         const chunk = u8ListToVecMsb(storedBytes(bytes).slice(0, 5_000 + 5 + 2))
-        const whole = feedWithin(1_000_000)(chunk)(inflater.init[2])
+        const whole = feedWithin(1_000_000)(chunk)(initial)
         assertEq(whole?.size, 5_000)
-        const stopped = feedWithin(100)(chunk)(inflater.init[2])
+        const stopped = feedWithin(100)(chunk)(initial)
         assertEq(stopped !== null && stopped.size > 100 && stopped.size < 5_000, true)
         // a chunk that makes the stream malformed is, wherever its piece falls
-        assertEq(feedWithin(1_000_000)(u8ListToVecMsb([0, 0]))(inflater.init[2]), null)
+        assertEq(feedWithin(1_000_000)(u8ListToVecMsb([0, 0]))(initial), null)
         // and one that is empty gives the stream as it was
-        assertStructurallySame(feedWithin(0)(u8ListToVecMsb([]))(inflater.init[2]), inflater.init[2])
+        assertStructurallySame(feedWithin(0)(u8ListToVecMsb([]))(initial), initial)
     },
     // The split into pieces bounds the read of `inflateWithin` too: the limit is asked
     // with the output of the first piece of a chunk, 1 KiB of input and so 1 017 bytes
@@ -84,7 +86,7 @@ export const proof = {
     malformed: () => {
         assertStructurallySame(read(chunks([0x78, 0x9d, ...stream.slice(2)], 4)), ['error', malformed.code, malformed.message])
         assertStructurallySame(read(chunks([0x78, 0x9d, ...stream.slice(2)], 1000)), ['error', 'Z_DATA_ERROR', 'invalid zlib stream'])
-        assertStructurallySame(inflater.update(inflater.init[2], u8ListToVecMsb([0x78, 0x9d])), ['done', [], ['error', malformed]])
+        assertStructurallySame(inflater.update(initial, u8ListToVecMsb([0x78, 0x9d])), ['done', [], ['error', malformed]])
     },
     // A malformed chunk completes before the lazy source is pulled again.
     stopsAtMalformed: () => {
@@ -99,7 +101,7 @@ export const proof = {
     // Bytes after the stream, as the host's `inflate` refused them.
     trailing: () => {
         assertStructurallySame(read(chunks([...stream, 7, 8, 9], 5)), ['error', inflateTrailingCode, inflateTrailingMessage(3)])
-        assertEq(inflater.end(inflater.init[2])[2][0], 'error')
+        assertEq(inflater.end(initial)[2][0], 'error')
     },
     // More trailing bytes than a `Vec` holds are still refused, not thrown at.
     trailingPastAVec: () => {
