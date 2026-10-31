@@ -18,7 +18,7 @@ import { checked, identityAnalysis, itemOperand, mergeable, ownOperandsOf, scope
 import { keepsRecursion, loopOf } from '../loop/module.f.mjs'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { mapOk, okThen } from '../../types/result/module.f.js'
-import { next } from '../../types/list/module.f.mjs'
+import { next } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { add, empty, has } from '../../types/set/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'

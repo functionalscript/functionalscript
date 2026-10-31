@@ -8,7 +8,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
 import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes, unpack, unpackedUint, isVec } from './module.f.mjs'
-import { repeat as listRepeat } from '../list/module.f.mjs'
+import { repeat as listRepeat } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */

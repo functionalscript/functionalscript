@@ -4,7 +4,7 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { empty, length, maxLengthBytes, vec, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { cycle, take } from '../../types/list/module.f.mjs'
+import { cycle, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
 import { digestOf, hexText, isOidOf, of, ofWidth, oidAt, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'

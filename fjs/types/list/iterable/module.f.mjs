@@ -8,7 +8,7 @@
  * @import { List } from '../types.ts'
  */
 
-import { next, trampoline } from '../module.f.mjs'
+import { next, trampoline } from '../module.f.js'
 
 /** @type {<T>(list: List<T>) => Iterable<T>} */
 export const iterable = list => ({

@@ -7,7 +7,7 @@
  * @import { TNode, Tree } from './types/types.ts'
  */
 
-import { flat } from '../list/module.f.mjs'
+import { flat } from '../list/module.f.js'
 import { map } from '../nullable/module.f.js'
 
 /** @type {<T>(node: TNode<T>) => Thunk<T>} */

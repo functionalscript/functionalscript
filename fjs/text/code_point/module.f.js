@@ -16,7 +16,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { flat, map, transduce } from '../../types/list/module.f.mjs'
+import { flat, map, transduce } from '../../types/list/module.f.js'
 import { contains } from '../../types/range/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 

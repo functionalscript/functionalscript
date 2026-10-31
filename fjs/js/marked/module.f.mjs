@@ -33,7 +33,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toText } from '../../text/marked/module.f.mjs'
-import { scan, stateScan } from '../../types/list/module.f.mjs'
+import { scan, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /**

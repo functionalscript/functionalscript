@@ -20,7 +20,7 @@ each already has a `proof.f.mjs` beside it:
   `transpile`'s public API".
 - [`fjs/types/bigfloat`](../types/bigfloat/module.f.mjs) —
   `normalizeMantissaZero`, a path "unreachable through decToBin".
-- [`fjs/types/btree/remove`](../types/btree/remove/module.f.mjs) — two
+- [`fjs/types/btree/remove`](../types/btree/remove/module.f.js) — two
   `…DefaultBranch` cases for `default` arms that "can't be hit through the
   public `remove` API".
 

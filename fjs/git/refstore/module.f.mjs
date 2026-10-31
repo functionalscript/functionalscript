@@ -204,7 +204,7 @@ import { isDirectory, isNotFound, leadsNowhere, notAFileMessage, readFile, readW
 import { under } from '../../path/module.f.mjs'
 import { occurrences } from '../../types/array/module.f.mjs'
 import { u8ListMsb, uint } from '../../types/bit_vec/module.f.mjs'
-import { concat, sameItems } from '../../types/list/module.f.mjs'
+import { concat, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'

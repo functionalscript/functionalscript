@@ -44,7 +44,7 @@
  */
 
 import { genericMerge } from '../sorted_list/module.f.mjs'
-import { next, map } from '../list/module.f.mjs'
+import { next, map } from '../list/module.f.js'
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.js'
 

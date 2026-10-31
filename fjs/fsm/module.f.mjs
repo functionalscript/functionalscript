@@ -11,7 +11,7 @@
  * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
 
-import { sameItems, fold, map, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
+import { sameItems, fold, map, foldScan, empty as emptyList } from '../types/list/module.f.js'
 import { toArray } from '../types/list/alt/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'

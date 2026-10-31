@@ -4,7 +4,7 @@
  */
 
 import { toArray } from './module.f.mjs'
-import { concat, countdown, map } from '../module.f.mjs'
+import { concat, countdown, map } from '../module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 

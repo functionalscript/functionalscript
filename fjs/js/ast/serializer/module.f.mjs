@@ -15,7 +15,7 @@
 import { operatorOperands } from '../module.f.mjs'
 import { isIdentifier } from '../../../js/identifier/module.f.mjs'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
-import { next, reverse } from '../../../types/list/module.f.mjs'
+import { next, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.mjs'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'

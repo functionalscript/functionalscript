@@ -9,7 +9,7 @@
  * @import { List, Result as ListResult } from '../../types/list/types.ts'
  */
 
-import { concat, next, reverse } from '../../types/list/module.f.mjs'
+import { concat, next, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 
 /**

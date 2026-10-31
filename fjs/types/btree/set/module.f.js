@@ -10,7 +10,7 @@
 
 import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.js'
-import { fold } from '../../list/module.f.mjs'
+import { fold } from '../../list/module.f.js'
 import { assert } from '../../../asserts/module.f.js'
 
 /** @type {<T>(b: Branch5<T> | Branch7<T>) => Branch1<T> | Branch3<T>} */

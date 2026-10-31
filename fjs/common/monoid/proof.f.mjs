@@ -9,7 +9,7 @@ import { repeat, fold, foldAbsorbing, move, runs, step, accumulator, absorbingAc
 import { demo, n, sequence, trace } from './demo.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { concat, countdown, map, repeat as repeatItem, run } from '../../types/list/module.f.mjs'
+import { concat, countdown, map, repeat as repeatItem, run } from '../../types/list/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
