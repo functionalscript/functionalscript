@@ -16,7 +16,7 @@
 import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.mjs'
 import { u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.mjs'
-import { run } from '../types/list/module.f.mjs'
+import { run } from '../types/list/module.f.js'
 import { adler32 } from './adler32/module.f.mjs'
 
 /** The words a text is made of. */

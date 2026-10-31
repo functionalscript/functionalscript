@@ -6,7 +6,7 @@
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { concat, occurrences } from '../../types/string/module.f.mjs'
+import { concat, occurrences } from '../../types/string/module.f.js'
 import { checkSummary, checksSchema, prsPage, pullsSchema, row, statusesSchema } from './module.f.mjs'
 
 /** The values are literal so the proof pins the provider's vocabulary. */

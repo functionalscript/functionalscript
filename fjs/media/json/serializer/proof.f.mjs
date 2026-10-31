@@ -3,7 +3,7 @@
  */
 
 import { arrayWrap, boolSerialize, codec, leafSerialize, nullSerialize, numberSerialize, objectWrap, stringSerialize } from './module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { sort } from '../../../types/object/module.f.mjs'
 import { chunksText } from '../../../text/marked/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.js'

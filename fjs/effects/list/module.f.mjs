@@ -13,7 +13,7 @@
  */
 
 import { pure, pureOk, runPure, step } from "../module.f.mjs"
-import { next } from "../../types/list/module.f.mjs"
+import { next } from "../../types/list/module.f.js"
 import { ok } from "../../types/result/module.f.js"
 import { doneStep, nextStep } from "../../types/function/operator/module.f.js"
 

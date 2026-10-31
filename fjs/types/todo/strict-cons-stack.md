@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`fjs/types/list`](../list/module.f.mjs) is lazy: a `tail` may be a thunk or
+[`fjs/types/list`](../list/module.f.js) is lazy: a `tail` may be a thunk or
 a `Concat`. A walker that keeps a work stack wants a strict cons — a `first`
 and a `tail` that is a cons or `null`, nothing to force — and since `types`
 offers none, each walker declares its own. At `c162c3a`:

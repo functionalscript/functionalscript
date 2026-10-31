@@ -229,7 +229,7 @@ is the way to refresh this file, not a partial edit.
 | `fjs/protocol/mcp/proof.f.mjs` | 81 | `Effect<MemOp, any>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/protocol/mcp/stdio/proof.f.mjs` | 26 | `{ readonly id?: Id }` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/sul/id/module.f.mjs` | 45 | `V8` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/text/code_point/module.f.mjs` | 49 | `List<List<Unit\|null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/text/code_point/module.f.js` | 49 | `List<List<Unit\|null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/btree/find/module.f.mjs` | 17 | `TNode<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/btree/find/module.f.mjs` | 29 | `PathItem<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/types/btree/find/module.f.mjs` | 33 | `First<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |

@@ -58,8 +58,8 @@ The `import type` form in `test.ts` is load-bearing, not stylistic; see
 `test.ts`:
 
 ```ts
-import { length } from 'functionalscript/fjs/types/list/module.f.mjs'
-import { toArray } from 'functionalscript/fjs/types/list/alt/module.f.mjs'
+import { length } from 'functionalscript/fjs/types/list/module.f.js'
+import { toArray } from 'functionalscript/fjs/types/list/alt/module.f.js'
 import type { List } from 'functionalscript/fjs/types/list/types.js'
 const l: List<number> = [1, 2, 3]
 console.log(length(l), toArray(l))

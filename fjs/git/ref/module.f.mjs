@@ -53,7 +53,7 @@
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { lf, space as traitSeparator } from '../../text/ascii/module.f.js'
-import { concat, sameItems } from '../../types/list/module.f.mjs'
+import { concat, sameItems } from '../../types/list/module.f.js'
 import { cmp, cString } from '../bytes/module.f.js'
 import { ofWidth, toHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'

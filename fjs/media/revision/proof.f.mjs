@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertError } from '../../asserts/module.f.js'
 import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single

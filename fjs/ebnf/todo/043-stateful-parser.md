@@ -48,7 +48,7 @@ lets its driver stop without pulling more symbols.
 **This is the value-producing top layer.** Its emitted-item type is `never` and
 its final `MatchResult` is the terminal summary. [layered-parser](./layered-parser.md)'s
 lower stages emit as they go using the same protocol; the Unicode decoders in
-[`text/code_point`](../../text/code_point/module.f.mjs) already expose an emitting
+[`text/code_point`](../../text/code_point/module.f.js) already expose an emitting
 `update` and EOF-flushing `end`. This task changes the parser, not those stages.
 
 **Metadata stays where the rewrite set puts it.** A mapping returns a
