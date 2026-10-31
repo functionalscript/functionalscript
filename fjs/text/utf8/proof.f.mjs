@@ -13,25 +13,27 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 
+const { init, update, end } = utf8Decoder
+
 export const proof = {
     lifecycle: () => {
-        const [initialKind, , initialState] = utf8Decoder.init
+        const [initialKind, , initialState] = init
         assert(initialKind === 'next')
-        assertEq(stringifySorted(utf8Decoder.end(initialState)), '["done",[],null]')
-        const [firstKind, , firstState] = utf8Decoder.update(initialState, 0xf0)
+        assertEq(stringifySorted(end(initialState)), '["done",[],null]')
+        const [firstKind, , firstState] = update(initialState, 0xf0)
         assert(firstKind === 'next')
-        const [secondKind, , secondState] = utf8Decoder.update(firstState, 0x9f)
+        const [secondKind, , secondState] = update(firstState, 0x9f)
         assert(secondKind === 'next')
-        const [thirdKind, , thirdState] = utf8Decoder.update(secondState, 0x98)
+        const [thirdKind, , thirdState] = update(secondState, 0x98)
         assert(thirdKind === 'next')
-        const last = utf8Decoder.update(thirdState, 0x80)
+        const last = update(thirdState, 0x80)
         const [lastKind, output, lastState] = last
         assert(lastKind === 'next')
         assertEq(stringifySorted(output), '[128512]')
         assertEq(lastState, null)
         // The saved prefix remains usable, including its EOF error flush.
-        assertEq(stringifySorted(utf8Decoder.end(firstState)), '["done",[-2147483408],null]')
-        assertEq(stringifySorted(utf8Decoder.update(thirdState, 0x80)), stringifySorted(last))
+        assertEq(stringifySorted(end(firstState)), '["done",[-2147483408],null]')
+        assertEq(stringifySorted(update(thirdState, 0x80)), stringifySorted(last))
     },
     lazyOutput: () => {
         const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
