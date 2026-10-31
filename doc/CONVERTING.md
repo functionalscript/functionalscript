@@ -304,6 +304,17 @@ smallest and largest finite magnitudes through `Object.is`.
 The input must already be a number: `Math.abs` converts other JavaScript
 values, while this helper has a numeric-only contract.
 
+### `Math.ceil`
+
+For a numeric argument, replace `Math.ceil(n)` with `ceil(n)` from
+[`fjs/types/number/ceil`](../fjs/types/number/ceil/module.f.js). The helper
+preserves `NaN`, infinities and signed zeros, including `ceil(-0.5)` returning
+`-0`. Its arithmetic works over the full number range; bitwise rounding
+shortcuts narrow values to 32 bits and do not preserve this contract.
+
+The input must already be a number: `Math.ceil` converts other JavaScript
+values, while this helper has a numeric-only contract.
+
 ## 6. `Object.is` and `Object.entries`
 
 `Object.is` is admitted

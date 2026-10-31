@@ -20,6 +20,7 @@
 import { reverse, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
+import { ceil } from '../../types/number/ceil/module.f.js'
 import { generate } from '../../types/array/generate/module.f.js'
 
 /** How many bytes a block holds. */
@@ -67,7 +68,7 @@ export const last = ({ blocks, tail, tailLength }, n) => {
     const fromTail = generate(inTail, i => newest[Number(inTail - 1 - i)])
     const rest = n - inTail
     return rest > 0
-        ? [...blocks.slice(-Math.ceil(rest / blockLength)).flat().slice(-rest), ...fromTail]
+        ? [...blocks.slice(-ceil(rest / blockLength)).flat().slice(-rest), ...fromTail]
         : fromTail
 }
 
