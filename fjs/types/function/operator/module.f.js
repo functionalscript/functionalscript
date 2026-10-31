@@ -31,8 +31,8 @@ export const fromStateFold = fold => ({
 export const fromStateScan = (init, op, end) => ({
     init: nextStep(init),
     update: (state, input) => {
-        const result = op(input, state)
-        return nextStep(result[1], result[0])
+        const [output, following] = op(input, state)
+        return nextStep(following, output)
     },
     end: state => doneStep(null, end(state)),
 })
