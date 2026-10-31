@@ -18,7 +18,7 @@ const word = value => { assert(value.token.kind === 'id'); return value.token.va
 
 /** @type {Policy} */
 const policy = {
-    name: value => word(value) === 'badName' ? error({ message: 'name policy', metadata: value.metadata }) : ok(word(value)),
+    bindingName: value => word(value) === 'badName' ? error({ message: 'name policy', metadata: value.metadata }) : ok(word(value)),
     key: value => word(value) === 'badKey' ? error({ message: 'key policy', metadata: value.metadata }) : ok(word(value) === '7' ? 7 : word(value)),
     namespaceMember: (namespace, key) => word(namespace) === 'Object' && word(key) === 'is' ? ok(['Object.is']) : error({ message: 'namespace policy', metadata: namespace.metadata }),
     refused: (reason, value) => ({ message: reason, metadata: value.metadata }),

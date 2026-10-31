@@ -525,7 +525,7 @@ const constPlan = check => (target, value, namespace) =>
  * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const planned = check => planPattern({
-    name: check,
+    bindingName: check,
     key: key => checkedKey(key, false),
     namespaceMember,
     refused: (reason, token) => patternRefusals[reason](token),
