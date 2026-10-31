@@ -1,7 +1,7 @@
 import { generate } from './module.f.js'
 import { assert, assertEq, assertStructurallySame, todo } from '../../../asserts/module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     empty: () => assertStructurallySame(generate(0, todo), []),
     negativeZero: () => assertStructurallySame(generate(-0, todo), []),
     singleton: () => assertStructurallySame(generate(1, i => i + 10), [10]),
@@ -33,4 +33,4 @@ export const proof = {
         oversized: () => generate(0x1_0000_0000, i => i),
         callback: () => generate(3, i => i === 1 ? todo() : i),
     },
-}
+})

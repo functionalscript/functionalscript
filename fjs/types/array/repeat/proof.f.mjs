@@ -1,12 +1,12 @@
 import { repeat } from './module.f.js'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     zero: () => assertStructurallySame(repeat(0)('x'), []),
     one: () => assertStructurallySame(repeat(1)('x'), ['x']),
     even: () => assertStructurallySame(repeat(4)('x'), ['x', 'x', 'x', 'x']),
     odd: () => {
-        const value = { x: 1 }
+        const value = /** @type {const} */ ({ x: 1 })
         const result = repeat(13)(value)
         assertEq(result.length, 13)
         assert(result.every(item => item === value))
@@ -35,4 +35,4 @@ export const proof = {
         nan: () => repeat(NaN),
         infinity: () => repeat(Infinity),
     },
-}
+})
