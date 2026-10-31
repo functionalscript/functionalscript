@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `f7811f52c`, the leaf conversion updates in
+Measured on `e74b05575`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -164,8 +164,8 @@ updated. These conversions expose no additional leaves.
 `website/demo/graph` replaces its numeric loop update `round++` with
 `round += 1`; its next refused construct is `new Map(bands)` in `bandsOf`.
 `types/bigint.log2` moves the fallback return after its returning guard,
-removing the redundant `else`. Its next refused construct is prefix `--b`
-in `partialFactorial`.
+removing the redundant `else`, and `partialFactorial` replaces prefix `--b`
+with `b -= 1n`. Its next refused construct is `for...of` in `combination`.
 
 The compiler-compatible population is 172 authored `.f.js` files;
 434 authored non-proof `.f.mjs` files remain.
@@ -179,7 +179,7 @@ remaining leaves are refused as written.
 | `js/ast` | `for...of` | 2 |
 | `media/wasm/wat` | `new Map` | 0 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
-| `types/bigint` | Prefix `--b` in `partialFactorial` | 1 |
+| `types/bigint` | `for...of` in `combination` | 1 |
 | `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
 | `types/map` | `new Map` with EDAG-node keys | 0 |
 | `types/number` | `for...of` | 4 |
