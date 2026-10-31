@@ -28,7 +28,7 @@
 import { runs, step } from '../../common/monoid/module.f.js'
 import { flatMap, map, someBy } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
-import { sum } from '../number/module.f.mjs'
+import { sum } from '../number/module.f.js'
 
 /** The set with nothing in it. @type {PersistentSet<never>} */
 export const empty = null

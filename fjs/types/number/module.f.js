@@ -14,9 +14,9 @@ import { reduce } from '../list/module.f.js'
 import { addition } from '../function/operator/module.f.js'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.js'
 import { fold } from '../../common/monoid/module.f.js'
+import { abs } from './abs/module.f.js'
 
 const { is: sameValue } = Object
-const { abs } = Math
 
 /** @type {(input: List<number>) => number} */
 export const sum = fold({ identity: 0, operation: addition, weight: abs })

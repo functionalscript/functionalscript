@@ -293,6 +293,17 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
 
+### `Math.abs`
+
+For a numeric argument, replace `Math.abs(n)` with `abs(n)` from
+[`fjs/types/number/abs`](../fjs/types/number/abs/module.f.js). The helper
+preserves `NaN` and infinities and maps both zeros to positive zero, matching
+the built-in. Its proof compares these cases, ordinary numbers and the
+smallest and largest finite magnitudes through `Object.is`.
+
+The input must already be a number: `Math.abs` converts other JavaScript
+values, while this helper has a numeric-only contract.
+
 ## 6. `Object.is` and `Object.entries`
 
 `Object.is` is admitted

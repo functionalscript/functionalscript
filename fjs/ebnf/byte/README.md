@@ -12,7 +12,7 @@ consumer, [`fjs/git`](../../git/README.md).
   as a dense array of bytes with anything else refused, a hole included; and
   `byteLength`, the same check as a count that walks a list once and never
   holds it. The alphabet's
-  membership is [`fjs/types/number`](../../types/number/module.f.mjs)'s
+  membership is [`fjs/types/number`](../../types/number/module.f.js)'s
   `isByte`, the one byte predicate `fjs/types/bit_vec` refuses with too;
 - `types.ts` — `Byte`, the metadata of a byte.
 

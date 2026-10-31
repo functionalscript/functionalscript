@@ -8,7 +8,7 @@
  */
 
 import { assert } from '../../../asserts/module.f.js'
-import { isUintUpTo } from '../../number/module.f.mjs'
+import { isUintUpTo } from '../../number/module.f.js'
 
 /**
  * Arrow factories by function length, written by hand: a function's `length`

@@ -19,6 +19,7 @@
 
 import { reverse, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
+import { min } from '../../types/number/min/module.f.js'
 
 /** How many bytes a block holds. */
 const blockLength = 256
@@ -59,7 +60,7 @@ export const pushAll = (window, bytes) => bytes.reduce(push, window)
  * @type {(window: Window, n: number) => readonly number[]}
  */
 export const last = ({ blocks, tail, tailLength }, n) => {
-    const inTail = Math.min(n, tailLength)
+    const inTail = min(n, tailLength)
     // the tail is newest first
     const newest = toArray(take(inTail)(tail))
     const fromTail = Array.from({ length: inTail }, (_, i) => newest[inTail - 1 - i])

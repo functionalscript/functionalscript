@@ -45,7 +45,7 @@
 
 import { genericMerge } from '../sorted_list/module.f.js'
 import { next, map } from '../list/module.f.js'
-import { cmp } from '../number/module.f.mjs'
+import { cmp } from '../number/module.f.js'
 import { bsearch } from '../function/compare/module.f.js'
 
 const reduceOp =

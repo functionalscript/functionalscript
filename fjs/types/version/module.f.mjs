@@ -33,7 +33,7 @@
  * @import { Nullable } from '../nullable/types.ts'
  */
 
-import { cmp as numberCmp } from '../number/module.f.mjs'
+import { cmp as numberCmp } from '../number/module.f.js'
 import { decimalValue, digit0, one } from '../../text/ascii/module.f.js'
 import { max } from '../number/max/module.f.js'
 

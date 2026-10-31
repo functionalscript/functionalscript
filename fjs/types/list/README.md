@@ -108,7 +108,7 @@ the whole fold, and the result is then `null` too. It is the list form of the
 
 ## Related
 
-- [`string`](../string/module.f.js) and [`number`](../number/module.f.mjs)
+- [`string`](../string/module.f.js) and [`number`](../number/module.f.js)
   are folds over lists of strings and numbers.
 - [`function/operator`](../function/operator/module.f.js) holds the binary
   operators (`addition`, `strictEqual`, `logicalNot`) the combinators are
