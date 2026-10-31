@@ -84,7 +84,9 @@ const drive = (machine, emit, input, current) => {
                 const silent = tag === 'done' ? doneStep(value) : nextStep(value)
                 return step(emitted, () => drive(machine, emit, rest, silent))
             }
-            if (observed[0][0] === 'error') { return pure(observed[0]) }
+            const [emission] = observed
+            const [emissionTag] = emission
+            if (emissionTag === 'error') { return pure(emission) }
         }
         if (tag === 'done') { return pureOk(value) }
         const pulled = runPure(remaining)
@@ -93,8 +95,9 @@ const drive = (machine, emit, input, current) => {
                 ? drive(machine, emit, empty(), machine.end(value))
                 : drive(machine, emit, node.tail, machine.update(value, node.first)))
         }
-        if (pulled[0][0] === 'error') { return pure(pulled[0]) }
-        const node = pulled[0][1]
+        const [result] = pulled
+        const [resultTag, node] = result
+        if (resultTag === 'error') { return pure(result) }
         if (node === undefined) {
             pending = machine.end(value)
         } else {

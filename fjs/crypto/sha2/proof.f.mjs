@@ -100,13 +100,13 @@ export const proof = {
         assertEq(initial, 'next')
         assertEq(emitted.length, 0)
         const held = sha256.update(state, utf8('ab'))
-        const [continued, output] = held
+        const [continued, output, heldState] = held
         assertEq(continued, 'next')
         assertEq(output.length, 0)
         const resumed = computeSync({ ...sha256, init: held })
         assertEq(uint(resumed([utf8('c')])), 0xba78_16bf_8f01_cfea_4141_40de_5dae_2223_b003_61a3_9617_7a9c_b410_ff61_f200_15adn)
         assertEq(uint(resumed([utf8('d')])), uint(computeSync(sha256)([utf8('abd')])))
-        const [completed, flushed, digest] = sha256.end(held[2])
+        const [completed, flushed, digest] = sha256.end(heldState)
         assertEq(completed, 'done')
         assertEq(flushed.length, 0)
         assertEq(uint(digest), uint(computeSync(sha256)([utf8('ab')])))
