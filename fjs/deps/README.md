@@ -4,11 +4,12 @@
 fjs deps
 ```
 
-The command recursively discovers every `.f.js` and `.f.mjs` source under the
-caller's directory and checks that each file can form a syntax AST. Under npm,
-the caller's original directory (`INIT_CWD`) selects the subtree. Discovery
-uses the same rules as the other source checks: hidden entries, `node_modules`
-and `target` are skipped.
+The command recursively discovers files named exactly `module.f.js` or
+`module.f.mjs` under the caller's directory and checks that each file can form
+a syntax AST. This initial selection prepares coverage checks for those modules.
+Under npm, the caller's original directory (`INIT_CWD`) selects the subtree.
+Discovery uses the same rules as the other source checks: hidden entries,
+`node_modules` and `target` are skipped.
 
 This initial command uses the current compiler tokenizer and syntax AST parser
 to report their unsupported source forms. Parser extensions are a later step.

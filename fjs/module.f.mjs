@@ -42,10 +42,10 @@ export const commands = [
     },
     {
         names: ['deps'],
-        description: 'Check syntax AST formation for every FunctionalScript source',
+        description: 'Check syntax AST formation for module.f.js and module.f.mjs files',
         usage: 'fjs deps',
         examples: ['fjs deps', 'npm start deps'],
-        note: 'Run from the directory whose .f.js and .f.mjs files you want to check. Source files are parsed without executing them, resolving imports or lowering to FAST/EDAG.',
+        note: 'Run from the directory whose module.f.js and module.f.mjs files you want to check. Only those exact filenames are selected recursively. Source files are parsed without executing them, resolving imports or lowering to FAST/EDAG.',
         docs: 'fjs/deps/README.md',
         handler: depsMain,
     },

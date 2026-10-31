@@ -19,13 +19,20 @@ import { main } from './module.f.mjs'
  */
 const execute = (root, options = {}) => virtualAt(root)(main({ ...defaultNodeProgramOptions, ...options }))
 
-/** Discovery selects source extensions rather than a fixed module basename. */
+/** Only implementation entry points are analyzed; other source names may be invalid. */
 const sources = /** @type {const} */ ({
     'module.f.js': [utf8('export default notDefined;')],
-    'proof.f.mjs': [utf8('throw "must not execute";')],
+    'proof.f.mjs': [utf8('not valid syntax')],
     nested: {
-        'demo.f.mjs': [utf8('import missing from "./absent.f.mjs"; export default missing;')],
-        'helper.f.js': [utf8('export default 4;')],
+        'module.f.mjs': [utf8('throw "must not execute";')],
+        deeper: {
+            'module.f.js': [utf8('import missing from "./absent.f.mjs"; export default missing;')],
+        },
+        'demo.f.mjs': [utf8('not valid syntax')],
+        'helper.f.js': [utf8('not valid syntax')],
+        'proof.f.js': [vec8(0xffn)],
+        'notmodule.f.js': [utf8('not valid syntax')],
+        'module.f.mjs.bak': [utf8('not valid syntax')],
     },
     '.hidden.f.mjs': [utf8('not valid syntax')],
     '.hidden': { 'module.f.mjs': [utf8('not valid syntax')] },
@@ -39,7 +46,7 @@ export const proof = {
     sourceDiscovery: () => {
         const [state, result] = execute(sources)
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
     invocationDirectory: () => {
@@ -49,14 +56,14 @@ export const proof = {
     },
     failuresContinue: () => {
         const [state, result] = execute({
-            'invalid.f.mjs': [utf8('export default ;')],
-            'malformed.f.js': [vec8(0xffn)],
-            'valid.f.js': [utf8('export default 3;')],
+            invalid: { 'module.f.mjs': [utf8('export default ;')] },
+            malformed: { 'module.f.js': [vec8(0xffn)] },
+            valid: { 'module.f.js': [utf8('export default 3;')] },
         })
         assertEq(exitCode(result), 1)
         assertEq(state.stdout, 'AST: 1 parsed, 2 failed, 3 total\n')
-        assert(state.stderr.includes('invalid.f.mjs:1:16 - error: unexpected token'), state.stderr)
-        assert(state.stderr.includes('malformed.f.js - error: not UTF-8 text'), state.stderr)
+        assert(state.stderr.includes('invalid/module.f.mjs:1:16 - error: unexpected token'), state.stderr)
+        assert(state.stderr.includes('malformed/module.f.js - error: not UTF-8 text'), state.stderr)
     },
     emptyTree: () => {
         const [state, result] = execute({})
