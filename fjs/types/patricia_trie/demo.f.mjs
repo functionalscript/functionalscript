@@ -32,14 +32,15 @@
  *
  * @module
  *
- * @import { _DemoNode, _DemoTrie, State } from './types.ts'
+ * @import { _DemoNode, _DemoTrie } from './types.ts'
  * @import { Keys, Preset, Row, Structure } from '../../website/demo/versions/types.ts'
  */
 
-import { emptyState, patriciaTrie } from './module.f.mjs'
+import { patriciaTrie } from './module.f.mjs'
 import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'
+import { run } from '../list/module.f.mjs'
 
 /** A key's bits: the trie branches on them, most significant first. */
 const bits = 8
@@ -62,7 +63,7 @@ const create = (a, b, storage) => {
     return [id, new Map([...storage, [id, branch]])]
 }
 
-const { push, end } = patriciaTrie(create)
+const trie = patriciaTrie(create)
 
 /**
  * The trie over `keys`, which must be sorted, built from scratch.
@@ -72,9 +73,7 @@ const { push, end } = patriciaTrie(create)
 const build = keys => {
     /** @type {ReadonlyMap<string, _DemoNode>} */
     const leaves = new Map(keys.map(k => [binary(k), /** @type {_DemoNode} */ (['leaf', k])]))
-    /** @type {State<ReadonlyMap<string, _DemoNode>, string>} */
-    const start = emptyState(leaves)
-    const [root, nodes] = end(keys.reduce((s, k) => push([BigInt(k), binary(k)], s), start))
+    const [root, nodes] = run(trie(leaves))(keys.map(k => /** @type {const} */ ([BigInt(k), binary(k)])))
     return { keys, root: root ?? null, nodes }
 }
 

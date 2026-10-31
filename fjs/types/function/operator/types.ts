@@ -10,12 +10,48 @@ export type Fold<I, O> = Binary<I, O, O>
 
 export type Reduce<T> = Fold<T, T>
 
+/** A continuing machine step: emitted items and the state for the next input. */
+export type NextStep<S, O = never> = readonly ['next', readonly O[], S]
+
+/** A completed machine: its final emitted items and its summary. */
+export type Terminal<O, A> = readonly ['done', readonly O[], A]
+
+/** A machine either continues with state or completes with a result. */
+export type Step<S, O, A> = NextStep<S, O> | Terminal<O, A>
+
 /**
- * A fold with explicit state and lifecycle operations.
+ * A pure incremental machine, independent of its input source and driver.
+ *
+ * A driver processes `init` before pulling input. Each continuing step supplies
+ * state for `update(state, input)`. At physical EOF the driver calls `end`,
+ * which always completes and may flush output. A `done` step stops input pulls
+ * immediately; it does not receive another update or a second call to `end`.
+ * Empty output chunks are ordinary steps, not EOF. State, output, and summary
+ * may each contain `null` without confusing completion with a data value.
+ *
+ * Value-producing folds use `O = never`; codecs emit as they go and can use
+ * `A = null`. A domain failure is a value of `A`, not a separate error channel.
+ * This lifecycle imposes no associativity or finite-state restriction.
+ */
+export type Transducer<I, S, O, A> = {
+    readonly init: Step<S, O, NoInfer<A>>
+    readonly update: (state: S, input: I) => Step<S, O, NoInfer<A>>
+    readonly end: (state: S) => Terminal<O, A>
+}
+
+/**
+ * A driver's output: nonempty emitted chunks, followed by exactly one terminal
+ * step. State is kept by the driver and is not retained in the output stream.
+ */
+export type Transduced<O, A> = readonly ['next', readonly O[]] | Terminal<O, A>
+
+/**
+ * The simple, non-emitting form of a machine, adapted by `fromStateFold`.
  *
  * Generic operator functors that expose their state use the `State` prefix;
  * compare {@link StateScan}. `init` creates the state, `update` consumes one
- * input, and `end` turns the final state into the result.
+ * input, and `end` turns the final state into the result. Source drivers consume
+ * the canonical {@link Transducer}; this form is a construction convenience.
  */
 export type StateFold<I, S, O> = {
     readonly init: S

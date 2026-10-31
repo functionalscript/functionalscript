@@ -81,9 +81,10 @@ impl<A: IVm> String<A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::returns;
     use crate::{
         naive::Naive,
-        vm::{Any, IVm, String, ToAny, ToArray, ToObject, error, unstable::bigint_any},
+        vm::{Any, String, ToAny, ToObject, error, unstable::bigint_any},
     };
 
     type A = Naive;
@@ -100,13 +101,13 @@ mod tests {
     /// searched for as what that method answers.
     #[test]
     fn converts_a_needle_through_the_shared_conversion() {
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f = || returns(1.0.to_any());
         let hay: String<A> = "function".into();
         assert_eq!(
             hay.index_of(f(), Any::undefined()),
             Err(error::function_text())
         );
-        let c = A::static_function(|_, _| Ok("c".into()), 0, [].to_array(), None).to_any();
+        let c = returns("c".into());
         let own: Any<A> = [("toString".into(), c)].to_object().to_any();
         assert_eq!(hay.index_of(own, Any::undefined()), Ok(Some(3)));
     }

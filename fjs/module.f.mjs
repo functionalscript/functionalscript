@@ -9,6 +9,7 @@
 
 import { compile } from './compiler/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
+import { main as coverageMain } from './emergent_testing/cov/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
 import { commands as ciCacheCommands } from './ci/cache/module.f.mjs'
@@ -28,6 +29,15 @@ export const commands = [
         note: 'Run from the directory whose proofs you want to test.',
         docs: 'fjs/emergent_testing/README.md',
         handler: testMain,
+    },
+    {
+        names: ['cov'],
+        description: 'Check each module\'s own proof coverage with Node',
+        usage: 'fjs cov node',
+        examples: ['fjs cov node', 'npm start cov node'],
+        note: 'Run from the directory whose modules you want to check. Each module directory runs separately and requires 100% line, branch and function coverage.',
+        docs: 'fjs/emergent_testing/README.md',
+        handler: coverageMain,
     },
     {
         names: ['compile', 'c'],

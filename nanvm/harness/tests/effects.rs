@@ -39,15 +39,11 @@ fn a_language_throw_ends_the_run() {
     assert!(run(export("thrown"), |_, payload| Ok(payload)).is_err());
 }
 
-fn host() -> Native<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>> {
-    Native::new(std::io::Cursor::new(Vec::new()), Vec::new(), Vec::new())
-}
-
 /// Two writes, the second reached through the first's continuation; the
 /// result holds the second's answer, `['ok', undefined]`.
 #[test]
 fn a_program_writes_to_the_console() {
-    let mut host = host();
+    let mut host = Native::buffered(&[]);
     let result = run(export("hello"), |command, payload| {
         host.perform(command, payload)
     })
@@ -64,7 +60,7 @@ fn a_program_writes_to_the_console() {
 /// `['error', ['notImplemented', command]]`, and the program carries on.
 #[test]
 fn a_command_the_host_lacks() {
-    let mut host = host();
+    let mut host = Native::buffered(&[]);
     let result = run(export("missing"), |command, payload| {
         host.perform(command, payload)
     })

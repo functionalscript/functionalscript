@@ -1,6 +1,7 @@
 /** @import { Exp } from '../../../edag/types.ts' */
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { fromTagged } from '../../../text/marked/module.f.mjs'
+import { occurrences } from '../../../types/string/module.f.mjs'
 import runtime from '../../../js/runtime/gen.edag.data.js'
 import { generateRuntime, generateRuntimeTagged } from './module.f.mjs'
 
@@ -77,9 +78,9 @@ export const proof = {
         /** @type {Exp} */
         const value = ['[]', [statics, body, body]]
         const rust = assertOk(generateRuntime(module(statics, value)))
-        assertEq(rust.split('string_any("once")').length, 2)
-        assertEq(rust.split('Some("function f() { [native code] }")').length, 2)
-        assertEq(rust.split('string_key("Object.f")').length, 2)
+        assertEq(occurrences('string_any("once")')(rust), 1)
+        assertEq(occurrences('Some("function f() { [native code] }")')(rust), 1)
+        assertEq(occurrences('string_key("Object.f")')(rust), 1)
         assert(!rust.includes('Some("()=>7")'))
     },
     initializationPrefixesRemainBeforeTheRuntimeValue: () => {
@@ -140,7 +141,7 @@ export const proof = {
         }
         assert(!rust.includes('function startsWith()') && !rust.includes('function codePointAt()') && !rust.includes('string_key("member")'))
         assert(!rust.includes('static_read') && !rust.includes('end_call(&') && !rust.includes('IVm'))
-        assertEq(rust.split('pub fn ').length, 2)
+        assertEq(occurrences('pub fn ')(rust), 1)
         // the tagged text resolves, every tag closed
         assertOk(fromTagged(assertOk(generateRuntimeTagged(/** @type {Exp} */ (/** @type {unknown} */ (runtime))))))
     },

@@ -17,6 +17,10 @@ import {
     foldToScan,
     reduceToScan,
     cascade,
+    nextStep,
+    doneStep,
+    fromStateFold,
+    fromStateScan,
 } from './module.f.js'
 
 const joinTest = () => {
@@ -116,4 +120,31 @@ const cascadeTest = {
     },
 }
 
-export const proof = { cascadeTest, joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }
+const lifecycle = /** @type {const} */ ({
+    steps: () => {
+        assertStructurallySame(nextStep(null), ['next', [], null])
+        assertStructurallySame(nextStep(2, [1]), ['next', [1], 2])
+        assertStructurallySame(doneStep(null), ['done', [], null])
+        assertStructurallySame(doneStep('ok', [2]), ['done', [2], 'ok'])
+    },
+    fold: () => {
+        const machine = fromStateFold({
+            init: 0,
+            update: (/** @type {number} */ state, /** @type {number} */ input) => state + input,
+            end: state => String(state),
+        })
+        assertStructurallySame(machine.init, ['next', [], 0])
+        const [, , state] = machine.update(machine.init[2], 3)
+        assertStructurallySame(machine.end(state), ['done', [], '3'])
+    },
+    scan: () => {
+        const machine = fromStateScan(0,
+            (/** @type {number} */ input, state) => /** @type {const} */ ([[state, input], state + input]),
+            state => [state])
+        assertStructurallySame(machine.init, ['next', [], 0])
+        assertStructurallySame(machine.update(0, 2), ['next', [0, 2], 2])
+        assertStructurallySame(machine.end(2), ['done', [2], null])
+    },
+})
+
+export const proof = { lifecycle, cascadeTest, joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }

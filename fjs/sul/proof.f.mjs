@@ -7,11 +7,13 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk } from '../asserts/module.f.js'
 import { compress, level3Id } from './id/module.f.mjs'
-import { encode, emptyEncodeState } from './module.f.mjs'
+import { encode } from './module.f.mjs'
 import { demo, examples, maxBits, rowWords, stripes, units } from './demo.f.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
+import { nextStep } from '../types/function/operator/module.f.js'
+import { run as runMachine } from '../types/list/module.f.mjs'
 
 /** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {
@@ -19,10 +21,14 @@ const run = bits => {
     const log = []
     /** @type {Add<null>} */
     const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
-    const enc = encode(add)
-    let s = emptyEncodeState(null)
-    for (const b of bits) { s = enc.push(b, s) }
-    return [enc.end(s), log]
+    const enc = encode(add)(null)
+    let [, , s] = enc.init
+    for (const b of bits) {
+        const [, , next] = enc.update(s, b)
+        s = next
+    }
+    const [, , root] = enc.end(s)
+    return [root, log]
 }
 
 /** @type {(bits: readonly bigint[]) => Id} */
@@ -31,31 +37,51 @@ const id = bits => run(bits)[0]
 /** @type {(text: string) => readonly bigint[]} */
 const bitsOf = text => [...text].flatMap(c => [...c.charCodeAt(0).toString(2).padStart(8, '0')].map(b => BigInt(b)))
 
-const heightEncoder = encode(() => null)
+const heightEncoder = encode(() => null)(null)
+const { init: [initialTag, initialOutput, initialState], update, end, updateWithHeight, endWithHeights } = heightEncoder
+const runHeightEncoder = runMachine(heightEncoder)
 
 /**
- * `text`'s bits pushed with `pushWithHeight`, then ended with
+ * `text`'s bits pushed with `updateWithHeight`, then ended with
  * `endWithHeights`: each input bit's height, each padding bit's, the root,
  * and what `end` answers for the same state.
  *
  * @type {(text: string) => readonly [readonly number[], readonly number[], Id, Id]}
  */
 const heightsOf = text => {
-    const { pushWithHeight, endWithHeights, end } = heightEncoder
     /** @type {readonly [readonly number[], EncodeState<null>]} */
-    const start = [[], emptyEncodeState(null)]
+    const start = [[], initialState]
     const [heights, state] = bitsOf(text).reduce(([hs, s], bit) => {
-        const [h, next] = pushWithHeight(bit, s)
+        const [h, next] = updateWithHeight(s, bit)
         return /** @type {const} */ ([[...hs, h], next])
     }, start)
     const [padding, root] = endWithHeights(state)
-    return [heights, padding, root, end(state)]
+    const [, , finalRoot] = end(state)
+    return [heights, padding, root, finalRoot]
 }
 
 /** @type {(n: number) => readonly bigint[]} */
 const zeros = n => new Array(n).fill(0n)
 
 export const proof = {
+    lifecycle: () => {
+        const bits = bitsOf('Hello')
+        const whole = runHeightEncoder(bits)
+        assertEq(initialTag, 'next')
+        assertEq(initialOutput.length, 0)
+        const [endTag, endOutput] = end(initialState)
+        assertEq(endTag, 'done')
+        assertEq(endOutput.length, 0)
+        assertEq(runHeightEncoder([]), id([]))
+        for (let split = 0; split <= bits.length; split++) {
+            const checkpoint = bits.slice(0, split).reduce((state, bit) => {
+                const [, , next] = update(state, bit)
+                return next
+            }, initialState)
+            const resumed = /** @type {const} */ ({ ...heightEncoder, init: nextStep(checkpoint) })
+            assertEq(runMachine(resumed)(bits.slice(split)), whole)
+        }
+    },
     deterministic: () => {
         assertEq(id(zeros(16)), id(zeros(16)))
     },
@@ -94,11 +120,15 @@ export const proof = {
     // Padding can run to thousands of bits — 20,000 zeros take more than
     // 20,000 — and `end` pads in a loop, so the stack does not grow with it.
     longPadding: () => {
-        const { push, end, endWithHeights } = encode(() => null)
-        const state = zeros(20_000).reduce((s, b) => push(b, s), emptyEncodeState(null))
+        const { init: [, , initialState], update, end, endWithHeights } = encode(() => null)(null)
+        const state = zeros(20_000).reduce((s, b) => {
+            const [, , next] = update(s, b)
+            return next
+        }, initialState)
         const [heights, root] = endWithHeights(state)
         assert(heights.length > 20_000)
-        assertEq(root, end(state))
+        const [, , finalRoot] = end(state)
+        assertEq(root, finalRoot)
     },
 
     /**

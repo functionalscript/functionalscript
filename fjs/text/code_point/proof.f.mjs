@@ -4,8 +4,10 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
+import { fromStateScan } from '../../types/function/operator/module.f.js'
 import {
     bmpMax,
+    decoder,
     eofFlush,
     errorMask,
     isBmpCodePoint,
@@ -14,6 +16,7 @@ import {
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
+    maxCodePoint,
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
@@ -40,6 +43,11 @@ const evenOrPending = unit => unit % 2 === 0 ? [[unit], null] : [[], unit]
 const dispatch = restart(evenOrPending)
 
 export const proof = {
+    decoder: () => {
+        const machine = fromStateScan(/** @type {number | null} */ (null), evenOrPending, state => flush(state)[0])
+        assertStructurallySame(toArray(decoder(machine)([2, 3])), [2, -3])
+        assertStructurallySame(toArray(decoder(machine)([])), [])
+    },
     eofFlush: [
         // no leftover state: nothing is flushed, the state stays empty
         () => {
@@ -108,6 +116,13 @@ export const proof = {
         () => assertEq(isSupplementaryPlane(bmpMax), false),
         () => assertEq(isSupplementaryPlane(bmpMax + 1), true),
         () => assertEq(isBmpCodePoint(bmpMax + 1), false),
+    ],
+    maxCodePoint: [
+        // The last valid code point; the one after it is outside Unicode.
+        () => assertEq(isValidCodePoint(maxCodePoint), true),
+        () => assertEq(isSupplementaryPlane(maxCodePoint), true),
+        () => assertEq(isValidCodePoint(maxCodePoint + 1), false),
+        () => assertEq(isSupplementaryPlane(maxCodePoint + 1), false),
     ],
     isSupplementaryPlane: [
         () => assertEq(isSupplementaryPlane(0x1_0000), true),

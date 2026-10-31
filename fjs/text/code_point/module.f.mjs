@@ -1,9 +1,9 @@
 /**
  * Shared Unicode code-point contract for the UTF-8 and UTF-16 decoders: the
  * error-tag mask used to flag invalid sequences, the streaming `decoder`
- * factory that wraps a per-unit step and an end-of-input step into a single
- * `List`-to-`List` conversion, the `eofFlush` factory that builds that
- * end-of-input step, the `restart` factory that shares a per-unit step's
+ * factory that drives a transducer into a lazy `List`-to-`List` conversion,
+ * the `eofFlush` factory that builds an end-of-input step, the `restart`
+ * factory that shares a per-unit step's
  * fresh-state dispatch with its error recovery, the code-point classification predicates (BMP /
  * surrogate / supplementary-plane / overall validity) that both codecs share,
  * and the surrogate-pair arithmetic that inverts them.
@@ -11,12 +11,12 @@
  * @module
  *
  * @import { List } from '../../types/list/types.ts'
- * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { Transducer } from '../../types/function/operator/types.ts'
  * @import { CodePoint } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
+import { flat, map, transduce } from '../../types/list/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 
@@ -30,29 +30,19 @@ import { assert } from '../../asserts/module.f.js'
 export const errorMask = 0b1000_0000_0000_0000_0000_0000_0000_0000
 
 /**
- * Builds a streaming decoder from the two direction-specific steps.
+ * Drives a streaming decoder through the shared transducer lifecycle.
  *
- * Decoding starts from the empty (`null`) state. The input is processed unit by
- * unit through `byteOp`, then a trailing end-of-input marker drives `eofOp` to
- * flush any leftover decoding state.
+ * Outputs are flattened as they arrive, including the chunk emitted by `end`.
+ * EOF is a lifecycle operation, so no sentinel is added to the input alphabet.
  *
  * @template Unit
  * @template S
  * @template Cp
- * @param {StateScan<Unit, S | null, List<Cp>>} byteOp - The per-unit decoding step.
- * @param {(state: S | null) => readonly [List<Cp>, S | null]} eofOp - The end-of-input step that flushes the remaining state.
+ * @param {Transducer<Unit, S, Cp, null>} machine The codec's state machine.
  * @returns {(input: List<Unit>) => List<Cp>} A function converting a list of code units into a list of code points.
  */
-export const decoder = (
-    byteOp,
-    eofOp,
-) => {
-    /** @type {StateScan<Unit | null, S | null, List<Cp>>} */
-    const op = (input, state) =>
-        input === null ? eofOp(state) : byteOp(input, state)
-    const run = stateScan(op)(null)
-    return input => flat(run(flat(/** @type {List<List<Unit|null>>} */([input, [null]]))))
-}
+export const decoder = machine => input =>
+    flat(map(step => step[1])(transduce(machine)(input)))
 
 /**
  * Builds the end-of-input step {@link decoder} needs, from the one function
@@ -66,10 +56,10 @@ export const decoder = (
  * @template S
  * @template Cp
  * @param {(state: S) => Cp} toError - Turns a non-empty leftover state into a single error unit.
- * @returns {(state: S | null) => readonly [List<Cp>, S | null]} The end-of-input step.
+ * @returns {(state: S | null) => readonly [readonly Cp[], null]} The end-of-input step.
  */
 export const eofFlush = toError => state =>
-    [state === null ? empty : [toError(state)], null]
+    [state === null ? [] : [toError(state)], null]
 
 /**
  * Builds a decoder's fresh-state dispatch with an emitted prefix, from the one
@@ -105,12 +95,15 @@ const surrogateMax = /** @type {const} */ 0xdfff
 /**
  * The last code point of the Basic Multilingual Plane. Exported because the
  * UTF-8 encoder needs the boundary itself — its 3-byte form covers the BMP up
- * to here — where the predicates below only answer membership. `maxCodePoint`
- * stays private: `isSupplementaryPlane` already expresses the one range a
- * caller has wanted it for.
+ * to here — where the predicates below only answer membership.
  */
 export const bmpMax = /** @type {const} */ 0xffff
-const maxCodePoint = /** @type {const} */ 0x10_ffff
+/**
+ * The last code point of Unicode. Exported for the consumers that need the
+ * bound itself rather than a membership answer: a grammar's top character,
+ * a decoder that stops growing a value once it is past it.
+ */
+export const maxCodePoint = /** @type {const} */ 0x10_ffff
 
 /**
  * Checks whether the 16-bit word (U16) is a high surrogate.

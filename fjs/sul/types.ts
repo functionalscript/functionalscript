@@ -5,6 +5,7 @@
  */
 
 import type { InternalState } from '../types/patricia_trie/types.ts'
+import type { NextStep, Transducer } from '../types/function/operator/types.ts'
 import type { PipelineState } from './level/literal/types.ts'
 import type { Id } from './id/types.ts'
 
@@ -20,12 +21,11 @@ export type EncodeState<S> = readonly [
  * A streaming encoder. A bit's **height** is how many levels close a word on
  * it, counting up from L1: 0 for none, 2 for L1 and L2, 5 for L1 to H2.
  */
-export type Encode<S> = {
-    readonly push: (bit: bigint, state: EncodeState<S>) => EncodeState<S>
-    /** Pads the bits with a `1`, then `0`s, until the root, and returns it. */
-    readonly end: (state: EncodeState<S>) => Id
-    /** `push`, also giving the bit's height. */
-    readonly pushWithHeight: (bit: bigint, state: EncodeState<S>) => readonly [height: number, state: EncodeState<S>]
+export type Encode<S> = Omit<Transducer<bigint, EncodeState<S>, never, Id>, 'init' | 'update'> & {
+    readonly init: NextStep<EncodeState<S>>
+    readonly update: (state: EncodeState<S>, bit: bigint) => NextStep<EncodeState<S>>
+    /** Consumes a bit, also giving its height. */
+    readonly updateWithHeight: (state: EncodeState<S>, bit: bigint) => readonly [height: number, state: EncodeState<S>]
     /** `end`, also giving the height of each padding bit it adds. */
     readonly endWithHeights: (state: EncodeState<S>) => readonly [heights: readonly number[], root: Id]
 }

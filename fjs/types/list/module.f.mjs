@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Nullable } from '../nullable/types.ts'
- * @import {Binary, Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
+ * @import {Binary, Scan, StateScan, Fold, Reduce, Equal, Step, Transduced, Transducer} from '../function/operator/types.ts'
  * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
@@ -17,7 +17,10 @@ import {
     stateScanToScan,
     foldToScan,
     reduceToScan,
+    nextStep,
+    doneStep,
 } from '../function/operator/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 
 export const fromArrayLike =
     /**
@@ -74,20 +77,25 @@ const apply = f => input => () => {
     return n === null ? null : f(n)
 }
 
-/** @type {<T>({ first, tail }: NonEmpty<List<T>>) => List<T>} */
-const flatStep =
-    ({ first, tail }) =>
-    concat(first)(flat(tail))
-
 /** @type {<T>(list: List<List<T>>) => Thunk<T>} */
-export const flat = apply(flatStep)
-
-/** @type {<I, O>(f: (value: I) => O) => (x: NonEmpty<I>) => List<O>} */
-const mapStep = f => ({ first, tail }) =>
-    ({ first: f(first), tail: map(f)(tail) })
+export const flat = list => {
+    /** @typedef {typeof list extends List<List<infer T>> ? T : never} T */
+    /** @type {({ first, tail }: NonEmpty<List<T>>) => List<T>} */
+    const step = ({ first, tail }) =>
+        concat(first)(flat(tail))
+    return apply(step)(list)
+}
 
 /** @type {<I, O>(f: (value: I) => O) => (input: List<I>) => Thunk<O>} */
-export const map = f => apply(mapStep(f))
+export const map = f => {
+    /** @typedef {typeof f extends (value: infer I) => infer O ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(x: NonEmpty<I>) => List<O>} */
+    const step = ({ first, tail }) =>
+        ({ first: f(first), tail: map(f)(tail) })
+    return apply(step)
+}
 
 /** @type {<I, O>(f: (value: I) => List<O>) => (input: List<I>) => Thunk<O>} */
 export const flatMap = f => compose(map(f))(flat)
@@ -120,50 +128,61 @@ const mergeFrom = join => first => tail => () => {
  */
 export const mergeAdjacent = join => apply(({ first, tail }) => mergeFrom(join)(first)(tail))
 
-/** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const filterStep = f => ({ first, tail }) => {
-    const newTail = filter(f)(tail)
-    return f(first) ? { first, tail: newTail } : newTail
-}
-
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const filter = f => apply(filterStep(f))
-
-/** @type {<I, O>(f: (value: I) => O | null) => (n: NonEmpty<I>) => List<O>} */
-const filterMapStep = f => n => {
-    const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
-    return first === null ? tail : { first, tail }
+export const filter = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(n: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) => {
+        const newTail = filter(f)(tail)
+        return f(first) ? { first, tail: newTail } : newTail
+    }
+    return apply(step)
 }
 
 /** @type {<I, O>(f: (value: I) => O | null) => (input: List<I>) => Thunk<O>} */
-export const filterMap = f => apply(filterMapStep(f))
-
-/** @type {<T>(f: (value: T) => boolean) => (n: NonEmpty<T>) => List<T>} */
-const takeWhileStep
-    = f => ({ first, tail }) => f(first) ? { first, tail: takeWhile(f)(tail) } : null
-
-/** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const takeWhile
-    = f => apply(takeWhileStep(f))
-
-/** @type {(n: number) => <T>(result: NonEmpty<T>) => List<T>} */
-const takeStep = n => ({ first, tail }) =>
-    0 < n ? { first: first, tail: take(n - 1)(tail) } : null
-
-/** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-export const take = n => apply(takeStep(n))
-
-/** @type {<T>(f: (value: T) => boolean) => (ne: NonEmpty<T>) => List<T>} */
-const dropWhileStep = f => ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
+export const filterMap = f => {
+    /** @typedef {typeof f extends (value: infer I) => infer O | null ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(n: NonEmpty<I>) => List<O>} */
+    const step = n => {
+        const [first, tail] = [f(n.first), filterMap(f)(n.tail)]
+        return first === null ? tail : { first, tail }
+    }
+    return apply(step)
+}
 
 /** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
-export const dropWhile = f => apply(dropWhileStep(f))
-
-/** @type {(n: number) => <T>(ne: NonEmpty<T>) => List<T>} */
-const dropStep = n => ne => 0 < n ? drop(n - 1)(ne.tail) : ne
+export const takeWhile = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(n: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) =>
+        f(first) ? { first, tail: takeWhile(f)(tail) } : null
+    return apply(step)
+}
 
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
-export const drop = n => apply(dropStep(n))
+export const take = n => {
+    /** @type {<T>(result: NonEmpty<T>) => List<T>} */
+    const step = ({ first, tail }) =>
+        0 < n ? { first: first, tail: take(n - 1)(tail) } : null
+    return apply(step)
+}
+
+/** @type {<T>(f: (value: T) => boolean) => (input: List<T>) => Thunk<T>} */
+export const dropWhile = f => {
+    /** @typedef {typeof f extends (value: infer T) => boolean ? T : never} T */
+    /** @type {(ne: NonEmpty<T>) => List<T>} */
+    const step = ne => f(ne.first) ? dropWhile(f)(ne.tail) : ne
+    return apply(step)
+}
+
+/** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
+export const drop = n => {
+    /** @type {<T>(ne: NonEmpty<T>) => List<T>} */
+    const step = ne => 0 < n ? drop(n - 1)(ne.tail) : ne
+    return apply(step)
+}
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D | T} */
 export const first = def => input => {
@@ -234,14 +253,18 @@ export const cycle = list => () => {
     return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
-/** @type {<I, O>(op: Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
-const scanStep = op => ne => {
-    const [first, newOp] = op(ne.first)
-    return { first, tail: scan(newOp)(ne.tail) }
-}
-
 /** @type {<I, O>(op: Scan<I, O>) => (input: List<I>) => Thunk<O>} */
-export const scan = op => apply(scanStep(op))
+export const scan = op => {
+    /** @typedef {typeof op extends Scan<infer I, infer O> ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(ne: NonEmpty<I>) => List<O>} */
+    const step = ne => {
+        const [first, newOp] = op(ne.first)
+        return { first, tail: scan(newOp)(ne.tail) }
+    }
+    return apply(step)
+}
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 export const stateScan = op => compose(stateScanToScan(op))(scan)
@@ -255,23 +278,84 @@ export const fold = op => init => compose(foldScan(op)(init))(last(init))
 /** @type {<T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D | T} */
 export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
-/** @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => (input: List<I>) => Thunk<R>} */
-const tryFoldStep = ({ init, update, end }) => input => () => {
-    const n = next(input)
-    if (n === null) { return [end(init)] }
-    const state = update(n.first, init)
-    return state === null ? null : tryFoldStep({ init: state, update, end })(n.tail)
+/** @type {<I, S, O, A>(machine: Transducer<I, S, O, A>, input: List<I>, current: Step<S, O, A>) => Thunk<Transduced<O, A>>} */
+const transduceFrom = (machine, input, current) => () => {
+    let remaining = input
+    let step = current
+    while (true) {
+        const [tag, output, state] = step
+        if (tag === 'done') { return [step] }
+        if (output.length !== 0) {
+            return {
+                first: ['next', output],
+                tail: transduceFrom(machine, remaining, nextStep(state)),
+            }
+        }
+        const node = next(remaining)
+        if (node === null) { return [machine.end(state)] }
+        step = machine.update(state, node.first)
+        remaining = node.tail
+    }
 }
 
 /**
- * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
- * moment `update` rejects an item; otherwise finalizes with `end`. This is the
- * list-level `try*` sibling of {@link fold} for accumulations that can fail
- * partway through (see the `try*`/`Nullable` convention in `doc/DESIGN.md` §6).
+ * Drives a machine lazily, yielding its nonempty output chunks followed by one
+ * terminal chunk and summary. Initial output is emitted before reading input;
+ * an initial or updated `done` never pulls the source again. EOF calls `end`,
+ * whose flush output is kept on the terminal event. Empty chunks do not signal
+ * EOF, and skipping updates that emit nothing uses a loop rather than recursion.
  *
- * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
+ * Output alone is `flat(map(([, output]) => output)(transduce(machine)(input)))`.
+ * Reading that view and the summary separately reruns the pure source, like any
+ * other lazy list; consumers needing both should read the events once.
+ *
+ * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => (input: List<I>) => Thunk<Transduced<O, A>>}
  */
-export const tryFold = accumulator => compose(tryFoldStep(accumulator))(first(null))
+export const transduce = machine => input => transduceFrom(machine, input, machine.init)
+
+const lastEvent = last(null)
+
+/**
+ * Runs a machine to its terminal summary without holding its emitted chunks.
+ * Use {@link transduce} when the outputs are wanted as they arrive.
+ *
+ * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => (input: List<I>) => A}
+ */
+export const run = machine => {
+    const events = transduce(machine)
+    return input => {
+        const [tag, , summary] = assertNotNullish(lastEvent(events(input)))
+        assert(tag === 'done')
+        return summary
+    }
+}
+
+const rejected = doneStep(null)
+
+/**
+ * The small `Accumulator` convenience form as a canonical machine. Rejection
+ * becomes early completion with a `null` summary; state and result values can
+ * themselves be `null` without being confused with the lifecycle tag.
+ *
+ * @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => Transducer<I, T, never, Nullable<R>>}
+ */
+export const fromAccumulator = ({ init, update, end }) => ({
+    init: nextStep(init),
+    update: (state, input) => {
+        const following = update(input, state)
+        return following === null ? rejected : nextStep(following)
+    },
+    end: state => doneStep(end(state)),
+})
+
+/**
+ * Folds with the `Accumulator` convenience form through the shared machine
+ * driver. Rejection stops reading immediately and answers `null`; EOF returns
+ * its final result (the list-level `try*`/`Nullable` convention).
+ *
+ * @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
+ */
+export const tryFold = accumulator => run(fromAccumulator(accumulator))
 
 /** @type {<T>(list: List<T>) => Thunk<number>} */
 const lengthList = list => () => {

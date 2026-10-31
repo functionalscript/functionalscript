@@ -4,10 +4,11 @@
 import { ci, main } from './module.f.mjs'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.js'
-import { exitCode } from '../effects/node/module.f.mjs'
-import { virtualAt } from '../effects/node/virtual/module.f.mjs'
+import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.mjs'
+import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
+import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
-import { unwrap } from '../types/result/module.f.js'
+import { error, unwrap } from '../types/result/module.f.js'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { install, test, parseGitHubAction, uses } from './common/module.f.mjs'
 import { images, jobTimeout, node, typescript } from './config/module.f.js'
@@ -111,5 +112,17 @@ export const proof = {
         assert(has(generate(true, () => [], true), 'node26', 'ci init'))
         const [, queued] = virtualAt({})(ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
         assertEq(exitCode(queued), 0)
+    },
+    // A `Cargo.toml` the host will not describe may well be there: the
+    // command fails rather than writing a workflow without the Rust jobs.
+    unreadableCargoToml: () => {
+        const denied = partialRun(nodeCommands)({
+            ...virtualOperationMap,
+            access: () => state => [state, error(ioError({ code: 'EACCES', message: 'permission denied' }))],
+        })
+        const [state, result] = denied(emptyState)(main())
+        assertEq(exitCode(result), 1)
+        assertEq(state.stderr, 'permission denied\n')
+        assertEq(Object.keys(state.root).length, 0)
     },
 }

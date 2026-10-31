@@ -13,7 +13,7 @@
  * `sha1dc`, a task in [`todo/sha1.md`](../todo/sha1.md).
  *
  * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.mjs): `init`,
- * `append` and `end` over a `State`, so `computeSync` there computes it.
+ * `update` and `end` over a `State`, so `computeSync` there computes it.
  * The framing is SHA-256's — 512-bit blocks, a `1` bit, zeros, and the
  * message length in 64 bits — and is `sha2`'s, shared through `framed`, over
  * the one thing that differs: the compression, five words through eighty

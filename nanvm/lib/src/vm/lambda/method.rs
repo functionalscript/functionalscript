@@ -329,17 +329,13 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 
 #[cfg(test)]
 mod tests {
+    use crate::vm::test::function::{no_args, returns, rt, throws};
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, Function, IVm, ToAny, ToArray, ToObject, error},
+        vm::{Any, BigInt, Function, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
-
-    /// The runtime value a call step takes.
-    fn rt() -> Any<A> {
-        crate::vm::runtime::<A>().unwrap()
-    }
 
     fn to_string_with(receiver: Any<A>, radix: Any<A>) -> Result<Any<A>, Any<A>> {
         receiver
@@ -376,9 +372,6 @@ mod tests {
         );
     }
 
-    fn no_args() -> Result<Any<A>, Any<A>> {
-        Ok([].to_array().to_any())
-    }
     fn to_string(receiver: Any<A>) -> Result<Any<A>, Any<A>> {
         receiver.dot("toString".into()).end_call(&rt(), no_args)
     }
@@ -397,8 +390,7 @@ mod tests {
             to_string([1.0.to_any(), "b".into()].to_array().to_any()),
             Ok("1,b".into())
         );
-        let f: Any<A> =
-            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f: Any<A> = returns(1.0.to_any());
         // refused: a function without text
         assert_eq!(to_string(f), Err(error::function_text()));
     }
@@ -411,7 +403,7 @@ mod tests {
         // With fewer than two elements a function separator is never read:
         // `[].join(f)` is `""` and `[1].join(f)` is `"1"`, as in JavaScript.
         // A separator's own `toString` is still called, for its throws.
-        let g = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let g = || returns(1.0.to_any());
         let joined = |a: Any<A>| {
             a.dot("join".into())
                 .end_call(&rt(), || Ok([g()].to_array().to_any()))
@@ -436,7 +428,7 @@ mod tests {
             .to_any();
         // An element's own `toString` is still called, for its throws.
         assert_eq!(join_with(own_inside), Ok("".into()));
-        let boom = A::static_function(|_, _| Err("boom".into()), 0, [].to_array(), None).to_any();
+        let boom = throws("boom".into());
         let throwing_inside: Any<A> = [[("toString".into(), boom)].to_object().to_any()]
             .to_array()
             .to_any();
@@ -449,7 +441,7 @@ mod tests {
                 .end_call(&rt(), || Ok([own].to_array().to_any())),
             Ok("".into())
         );
-        let f = || A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f = || returns(1.0.to_any());
         let join = |a: Any<A>, separator: Any<A>| {
             a.dot("join".into())
                 .end_call(&rt(), || Ok([separator].to_array().to_any()))
@@ -467,8 +459,7 @@ mod tests {
     /// `[0, 1].slice({ valueOf: () => 1 })` is `[1]`.
     #[test]
     fn slice_calls_an_own_value_of() {
-        let f: Any<A> =
-            A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any();
+        let f: Any<A> = returns(1.0.to_any());
         let start: Any<A> = [("valueOf".into(), f)].to_object().to_any();
         let a: Any<A> = [0.0.to_any(), 1.0.to_any()].to_array().to_any();
         let sliced = a
@@ -537,9 +528,7 @@ mod tests {
             "Number" => 0.0.to_any(),
             "Boolean" => true.to_any(),
             "BigInt" => BigInt::<A>::from(0i64).to_any(),
-            "Function" => {
-                A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
-            }
+            "Function" => returns(1.0.to_any()),
             _ => panic!("no receiver of type {type_}"),
         }
     }

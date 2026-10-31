@@ -5,11 +5,11 @@
  * @import { Absorbing, Monoid, Stack, Walk, Weight } from './types.ts'
  */
 
-import { repeat, fold, foldAbsorbing, move, runs, step } from './module.f.mjs'
+import { repeat, fold, foldAbsorbing, move, runs, step, accumulator, absorbingAccumulator } from './module.f.mjs'
 import { demo, n, sequence, trace } from './demo.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { concat, countdown, map, repeat as repeatItem } from '../../types/list/module.f.mjs'
+import { concat, countdown, map, repeat as repeatItem, run } from '../../types/list/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -100,6 +100,14 @@ const unread = () => {
 }
 
 export const proof = {
+    machine: () => {
+        const machine = accumulator(bracket)
+        const suspended = machine.update(null, 'a')
+        const [tag] = suspended
+        assertEq(tag, 'next')
+        assertEq(run({ ...machine, init: suspended })(['b', 'c']), fold(bracket)(['a', 'b', 'c']))
+        assertEq(run(absorbingAccumulator(multiply))([2, 0, 7]), 0)
+    },
     numberAdd: () => {
         /** @type {Pick<Monoid<number>, 'identity' | 'operation'>} */
         const add = { identity: 0, operation: a => b => a + b }
@@ -238,9 +246,8 @@ export const proof = {
             // `min` over non-negative numbers, where `null` is the identity
             // (+infinity) and `0` is the absorbing element. `T` therefore
             // includes `null` without `null` being the stop condition — and
-            // `tryFold` signals "stopped" and "finished" through one
-            // `Nullable`, so a completed fold whose value is `null` must not be
-            // read as an abandoned walk.
+            // The lifecycle tags keep an ordinary `null` result distinct from
+            // early completion, whose summary can also be a domain value.
             /** @type {Absorbing<Nullable<number>>} */
             const min = {
                 monoid: {

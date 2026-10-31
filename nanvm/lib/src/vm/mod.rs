@@ -56,6 +56,7 @@ pub(crate) use crate::vm::impls::ContainerWrapper;
 #[cfg(test)]
 mod test {
     pub(super) mod deep;
+    pub(super) mod function;
 
     use crate::vm::ToAny;
 
