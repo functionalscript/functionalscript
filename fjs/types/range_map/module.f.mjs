@@ -43,7 +43,7 @@
  * @import { Properties, RangeEntry, RangeMap, RangeMapArray, RangeMapOp, RangeMerge } from './types.ts'
  */
 
-import { genericMerge } from '../sorted_list/module.f.mjs'
+import { genericMerge } from '../sorted_list/module.f.js'
 import { next, map } from '../list/module.f.js'
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.js'

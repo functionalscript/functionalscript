@@ -110,6 +110,6 @@ export const find =
             /** @param {readonly T[]} array */
             array => {
                 const cmpValue = cmp(value)
-                const pos = bsearch(array.length)(mid => cmpValue(array[mid]))
-                return pos < array.length && cmpValue(array[pos]) === 0 ? value : null
+                const pos = bsearch(array.length)(mid => cmpValue(array[Number(mid)]))
+                return pos < array.length && cmpValue(array[Number(pos)]) === 0 ? value : null
             }

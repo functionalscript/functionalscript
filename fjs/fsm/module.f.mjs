@@ -14,7 +14,7 @@
 import { sameItems, fold, map, foldScan, empty as emptyList } from '../types/list/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
-import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
+import { has, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.js'
 import { merge, get as rangeMapGet, mapValue, values } from '../types/range_map/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.js'
 import { compose } from '../types/function/module.f.js'

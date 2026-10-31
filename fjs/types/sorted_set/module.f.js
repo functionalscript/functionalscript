@@ -11,7 +11,7 @@
  * @example
  *
  * ```js
- * import { union, intersect, has } from './module.f.mjs'
+ * import { union, intersect, has } from './module.f.js'
  *
  * const cmp = (a: number) => (b: number) => a < b ? -1 : a > b ? 1 : 0
  *
@@ -31,7 +31,7 @@
  */
 
 import { toArray } from "../list/alt/module.f.js"
-import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.mjs'
+import { merge, intersect as listIntersect, find } from '../sorted_list/module.f.js'
 
 export const union =
     /**

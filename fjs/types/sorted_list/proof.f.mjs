@@ -1,4 +1,4 @@
-import { find, intersect, merge } from './module.f.mjs'
+import { find, intersect, merge } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { countdown, length } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'

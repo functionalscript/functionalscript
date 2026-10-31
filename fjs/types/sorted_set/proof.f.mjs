@@ -1,4 +1,4 @@
-import { has, intersect, toKey, union } from './module.f.mjs'
+import { has, intersect, toKey, union } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { countdown, length } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
