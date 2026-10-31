@@ -43,9 +43,9 @@ export type MentalPoker = {
 /**
  * The demo's state: each player's secret and shuffle seed as typed, in
  * hexadecimal, the point of view the table is drawn from, and the decks so
- * far — the plain deck, then the deck after each player's turn — and, once
- * dealt, the index of each dealt card in deal order: two for each player,
- * then five on the table.
+ * far — the plain deck, then the deck after each player's turn — then the
+ * pocket cards, two for each player in turn, once dealt, and the table's
+ * cards opened so far.
  */
 export type DemoState = {
     readonly alice: string
@@ -56,5 +56,16 @@ export type DemoState = {
     readonly carolSeed: string
     readonly view: string
     readonly decks: readonly Deck[]
-    readonly dealt: Nullable<readonly number[]>
+    readonly pockets: Nullable<readonly Pocket[]>
+    readonly board: readonly number[]
+}
+
+/**
+ * A pocket card: `handed` is the card once the other players removed their
+ * locks, under its owner's lock alone, and `card` its index once the owner
+ * removed that one.
+ */
+export type Pocket = {
+    readonly handed: Point
+    readonly card: number
 }

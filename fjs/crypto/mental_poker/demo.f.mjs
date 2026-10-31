@@ -1,8 +1,13 @@
 /**
  * Three players shuffle and deal a 52-card deck on secp256k1 with no
  * dealer: Alice, Bob and Carol each lock every card with a secret and
- * shuffle, in turn, then each player's two hole cards and five table cards
- * are opened.
+ * shuffle, in turn. Then each player's two pocket cards are dealt, and the
+ * flop, the turn and the river are opened, each a step of its own.
+ *
+ * **The table is opened street by street.** The cryptography could open
+ * every card in one pass, since locks commute; the game cannot, because a
+ * table card opened before its betting round is information too early, and a
+ * hand everyone folds leaves the rest of the table unopened for good.
  *
  * **One step per click.** A turn locks 52 cards, a scalar multiplication
  * each, so the page takes the protocol one turn at a time; each step shows
@@ -18,7 +23,7 @@
  * @import { Element } from '../../media/html/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Point } from '../secp/types.ts'
- * @import { DemoState, Deck, Key } from './types.ts'
+ * @import { DemoState, Deck, Key, Pocket } from './types.ts'
  */
 
 import { withInputs } from '../../website/demo/sharing/module.f.mjs'
@@ -41,8 +46,8 @@ const fields = /** @type {const} */ (['alice', 'aliceSeed', 'bob', 'bobSeed', 'c
 
 const deckSize = 52
 
-/** Cards dealt to each player; the five after them go on the table. */
-const holeCards = 2
+/** Cards dealt to each player; the table's cards come after them. */
+const pocketCards = 2
 
 /** A card's name: its rank, then its suit. Clubs come first, deuce to ace.
  * @type {(i: number) => string}
@@ -72,23 +77,55 @@ export const setup = state => {
     return parse(0)
 }
 
-/** Open the shuffled deck's top cards: two for each player, then the table.
- * Every lock is removed; for a player's card the others remove theirs first
- * and hand it on, and its owner removes the last one alone.
- * @type {(keys: readonly Key[], plain: Deck, shuffled: Deck) => readonly number[]}
+/** The table's streets, in order: each opens its count of cards, after a
+ * betting round, from the deck below the pocket cards.
  */
-const deal = (keys, plain, shuffled) => {
-    const openAll = unlockAll(keys)
-    return shuffled.slice(0, players.length * holeCards + 5).map(card => assertNotNullish(open(plain)(openAll(card))))
+export const streets = /** @type {const} */ ([['Flop', 3], ['Turn', 1], ['River', 1]])
+
+/** How many table cards the streets before street `i` open.
+ * @type {(i: number) => number}
+ */
+const streetsBefore = i => streets.slice(0, i).reduce((sum, [, count]) => sum + count, 0)
+
+/** The street a table of `board` opens next; `undefined` once the river is out.
+ * @type {(board: readonly number[]) => (typeof streets)[number] | undefined}
+ */
+const nextStreet = board => streets.find((_, i) => streetsBefore(i) === board.length)
+
+/** Deal the pocket cards from the top of the shuffled deck, two per player.
+ * The other players remove their locks from each card and hand it on; the
+ * owner removes the last lock alone.
+ * @type {(keys: readonly Key[], plain: Deck, shuffled: Deck) => readonly Pocket[]}
+ */
+const dealPockets = (keys, plain, shuffled) => shuffled.slice(0, players.length * pocketCards).map((card, i) => {
+    const owner = (i - i % pocketCards) / pocketCards
+    const handed = unlockAll(keys.filter((_, p) => p !== owner))(card)
+    return { handed, card: assertNotNullish(open(plain)(keys[owner].unlock(handed))) }
+})
+
+/** Open the next street: every player removes their lock.
+ * @type {(keys: readonly Key[], plain: Deck, shuffled: Deck, board: readonly number[]) => readonly number[]}
+ */
+const dealStreet = (keys, plain, shuffled, board) => {
+    const first = players.length * pocketCards + board.length
+    const [, count] = assertNotNullish(nextStreet(board))
+    return [...board, ...shuffled.slice(first, first + count).map(card => assertNotNullish(open(plain)(unlockAll(keys)(card))))]
 }
 
-/** What the next click does, by the steps already taken.
- * @type {(state: DemoState) => string}
+/** What the next click does, by the steps already taken; `null` once the
+ * river is out.
+ * @type {(state: DemoState) => string | null}
  */
-const nextLabel = ({ decks, dealt }) =>
+const nextLabel = ({ decks, pockets, board }) =>
     decks.length === 0 ? 'Encode the deck'
         : decks.length <= players.length ? `${players[decks.length - 1]} locks and shuffles`
-            : dealt === null ? 'Deal' : 'Dealt'
+            : pockets === null ? 'Deal pocket cards'
+                : nextStreet(board)?.[0] ?? null
+
+/** The state with no deck: where a change of input starts the game over.
+ * @type {(state: DemoState) => DemoState}
+ */
+const restart = state => ({ ...state, decks: [], pockets: null, board: [] })
 
 /** @type {(state: DemoState, event: DemoEvent) => DemoState} */
 export const transition = (state, event) => {
@@ -96,19 +133,22 @@ export const transition = (state, event) => {
     if (event.kind === 'input') {
         const { name, value } = event
         if (name === 'view') { return { ...state, view: value } }
-        return fields.some(f => f === name) ? { ...state, [name]: value, decks: [], dealt: null } : state
+        return fields.some(f => f === name) ? restart({ ...state, [name]: value }) : state
     }
-    if (event.name === 'reset') { return { ...state, decks: [], dealt: null } }
+    if (event.name === 'reset') { return restart(state) }
     const s = setup(state)
-    if (event.name !== 'next' || s[0] === 'error' || state.dealt !== null) { return state }
-    const { decks } = state
+    if (event.name !== 'next' || s[0] === 'error' || nextLabel(state) === null) { return state }
+    const { decks, pockets, board } = state
     if (decks.length === 0) { return { ...state, decks: [assertNotNullish(deck(deckSize))] } }
     const last = decks[decks.length - 1]
     if (decks.length <= players.length) {
         const [k, seed] = s[1][decks.length - 1]
         return { ...state, decks: [...decks, lockAndShuffle(k)(seed)(last)] }
     }
-    return { ...state, dealt: deal(s[1].map(([k]) => k), decks[0], last) }
+    const keys = s[1].map(([k]) => k)
+    return pockets === null
+        ? { ...state, pockets: dealPockets(keys, decks[0], last) }
+        : { ...state, board: dealStreet(keys, decks[0], last, board) }
 }
 
 /** A locked card by the first hex digits of its `x`.
@@ -122,31 +162,38 @@ const deckRows = decks => decks.flatMap((d, i) => [
     ['pre', d.slice(0, 8).map(i === 0 ? (_, j) => cardName(j) : lockedName).join('  ')],
 ])
 
-/** The dealt cards a point of view shows, the rest face down.
- * @type {(view: string, dealt: readonly number[]) => readonly Element[]}
+/** The cards dealt so far as `view` sees them, the rest face down. Each
+ * pocket card is shown as its owner receives it, still under the owner's
+ * lock: that is all anyone else ever sees of it.
+ * @type {(view: string, pockets: readonly Pocket[], board: readonly number[]) => readonly Element[]}
  */
-const table = (view, dealt) => {
-    /** @type {(visible: boolean) => (i: number) => string} */
-    const show = visible => i => visible ? cardName(i) : '🂠'
-    const tableCards = dealt.slice(players.length * holeCards)
-    return [
-        ...players.map((name, p) => /** @type {Element} */ (['p', `${name}: `,
-            ['code', dealt.slice(p * holeCards, (p + 1) * holeCards).map(show(view === name || view === 'Showdown')).join(' ')]])),
-        ['p', 'Table: ', ['code', tableCards.map(show(true)).join(' ')]],
-    ]
-}
+const table = (view, pockets, board) => [
+    caption('Pocket cards, as handed to their owners, and opened:'),
+    ...players.map((name, p) => {
+        const own = pockets.slice(p * pocketCards, (p + 1) * pocketCards)
+        const visible = view === name || view === 'Showdown'
+        return /** @type {Element} */ (['p', `${name}: `,
+            ['code', own.map(({ handed }) => lockedName(handed)).join(' ')], ' → ',
+            ['code', own.map(({ card }) => visible ? cardName(card) : '🂠').join(' ')]])
+    }),
+    caption('Table:'),
+    ['p', ['code', [...board.map(cardName), ...Array.from({ length: streetsBefore(streets.length) - board.length }, () => '🂠')].join(' ')]],
+]
 
 /** The steps taken so far and the button for the next one.
  * @type {(state: DemoState) => readonly Element[]}
  */
-const game = state => [
-    ['p', button('next', nextLabel(state), state.dealt !== null), ' ', button('reset', 'Start over', state.decks.length === 0)],
-    ...deckRows(state.decks),
-    ...(state.dealt === null ? [] : [
-        selectField({ name: 'view', label: 'Point of view' }, views.map(v => option(v, v, v === state.view))),
-        ...table(state.view, state.dealt),
-    ]),
-]
+const game = state => {
+    const label = nextLabel(state)
+    return [
+        ['p', button('next', label ?? 'Hand dealt', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
+        ...deckRows(state.decks),
+        ...(state.pockets === null ? [] : [
+            selectField({ name: 'view', label: 'Point of view' }, views.map(v => option(v, v, v === state.view))),
+            ...table(state.view, state.pockets, state.board),
+        ]),
+    ]
+}
 
 /** @type {Demo<DemoState, DemoEvent>} */
 const definition = {
@@ -156,13 +203,14 @@ const definition = {
         carol: 'ca801', carolSeed: '5eed3',
         view: 'Table',
         decks: [],
-        dealt: null,
+        pockets: null,
+        board: [],
     },
     update: state => event => pureOk(transition(state, event)),
     view: state => {
         const s = setup(state)
         return ['div',
-            ['p', 'Mental poker deals cards with no dealer: each player locks every card with a secret number and shuffles the deck, in turn, so no one knows where any card is. A card is opened for its owner when the other players remove their locks; the owner removes the last one alone.'],
+            ['p', 'Mental poker deals cards with no dealer: each player locks every card with a secret number and shuffles the deck, in turn, so no one knows where any card is. A pocket card is handed to its owner once the other players remove their locks; the owner removes the last one alone. Table cards are opened by everyone, street by street.'],
             ...players.flatMap((name, p) => {
                 const field = /** @type {const} */ (['alice', 'bob', 'carol'])[p]
                 return [
