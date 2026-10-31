@@ -180,8 +180,8 @@ export const dropWhile = f => {
 /** @type {(n: number) => <T>(input: List<T>) => Thunk<T>} */
 export const drop = n => {
     /** @type {<T>(ne: NonEmpty<T>) => List<T>} */
-    const dropStep = ne => 0 < n ? drop(n - 1)(ne.tail) : ne
-    return apply(dropStep)
+    const step = ne => 0 < n ? drop(n - 1)(ne.tail) : ne
+    return apply(step)
 }
 
 /** @type {<D>(def: D) => <T>(input: List<T>) => D | T} */
@@ -253,14 +253,18 @@ export const cycle = list => () => {
     return i === null ? null : { first: i.first, tail: concat(i.tail)(cycle(list)) }
 }
 
-/** @type {<I, O>(op: Scan<I, O>) => (ne: NonEmpty<I>) => List<O>} */
-const scanStep = op => ne => {
-    const [first, newOp] = op(ne.first)
-    return { first, tail: scan(newOp)(ne.tail) }
-}
-
 /** @type {<I, O>(op: Scan<I, O>) => (input: List<I>) => Thunk<O>} */
-export const scan = op => apply(scanStep(op))
+export const scan = op => {
+    /** @typedef {typeof op extends Scan<infer I, infer O> ? readonly[I, O] : never} IO */
+    /** @typedef {IO[0]} I */
+    /** @typedef {IO[1]} O */
+    /** @type {(ne: NonEmpty<I>) => List<O>} */
+    const step = ne => {
+        const [first, newOp] = op(ne.first)
+        return { first, tail: scan(newOp)(ne.tail) }
+    }
+    return apply(step)
+}
 
 /** @type {<I, S, O>(op: StateScan<I, S, O>) => (init: S) => (input: List<I>) => Thunk<O>} */
 export const stateScan = op => compose(stateScanToScan(op))(scan)
