@@ -83,7 +83,7 @@ items, and terminal results are distinct, including when any contains `null`.
 The stack follows the [review request](https://github.com/functionalscript/functionalscript/pull/3460#pullrequestreview-5719913841): the common protocol and drivers first, then one machine family per pull request. Each step includes its own callers, proofs, scoped coverage, and documentation.
 
 - [x] Establish the shared protocol, construction adapters, and pure/effectful drivers.
-- [ ] Migrate monoid accumulation, including absorbing folds and their callers.
+- [x] Migrate monoid accumulation, including absorbing folds and their callers.
 - [ ] Migrate bounded bit-vector construction and preserve overflow stopping.
 - [ ] Migrate SHA-1/SHA-2 and every direct hash caller.
 - [ ] Migrate CAS admission and digest consumers to the shared effectful driver.
