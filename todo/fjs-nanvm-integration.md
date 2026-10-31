@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `722193bf9`, the path and mirror updates in
+Measured on `d162b1358`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -153,6 +153,9 @@ The whole module now compiles and is renamed to `.f.js`, with its references
 updated. This conversion exposes no additional leaves.
 `website/demo/mirror` now uses the compiled binary `min` helper in place of
 both `Math.min` calls; its next refused construct is `Array.from`.
+`js/ast/sugar/pattern` renames its policy callback from `name` to `bindingName`,
+including the policy type, parser adapter and proof policy. Its next refused
+construct is also `Array.from`.
 
 The compiler-compatible population is 170 authored `.f.js` files;
 436 authored non-proof `.f.mjs` files remain.
@@ -164,7 +167,7 @@ remaining leaves are refused as written.
 | --- | --- | ---: |
 | `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
 | `js/ast` | `for...of` | 2 |
-| `js/ast/sugar/pattern` | `policy.name(...)` (`prohibited member function`) | 0 |
+| `js/ast/sugar/pattern` | `Array.from` in `planPattern` ([conversion rule 11](../doc/CONVERTING.md#11-arrayfrom-used-to-generate-by-index)) | 0 |
 | `media/wasm/wat` | `new Map` | 0 |
 | `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
 | `types/bigint` | `else` after a returning `if` | 1 |
