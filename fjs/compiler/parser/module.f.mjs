@@ -19,14 +19,14 @@
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
-import { concat, reverse } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { sort } from '../../types/object/module.f.mjs'
-import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { at, empty, setReplace } from '../../types/ordered_map/module.f.js'
 import { assert, assertNotNullish, assertOk } from '../../asserts/module.f.js'
 import { analyzeBindings } from '../../js/ast/module.f.mjs'
-import { planPattern } from '../../js/ast/sugar/pattern/module.f.mjs'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { planPattern } from '../../js/ast/sugar/pattern/module.f.js'
+import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
@@ -525,7 +525,7 @@ const constPlan = check => (target, value, namespace) =>
  * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
 const planned = check => planPattern({
-    name: check,
+    bindingName: check,
     key: key => checkedKey(key, false),
     namespaceMember,
     refused: (reason, token) => patternRefusals[reason](token),

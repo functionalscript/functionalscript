@@ -1,4 +1,4 @@
-import { sum, min, max, cmp, countOnes, isByte, isUintUpTo } from './module.f.mjs'
+import { sum, min, max, cmp, countOnes, isByte, isUintUpTo } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 
 export const proof = {

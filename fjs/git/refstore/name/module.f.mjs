@@ -31,7 +31,7 @@ import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { fromVec, stringToU8List } from '../../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { isWholeName } from '../../refname/module.f.mjs'
 
 /**
@@ -53,7 +53,7 @@ export const nameBytes = s => toArray(stringToU8List(s))
  * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
  * encoding: two names give the same key exactly when they are the same bytes, so
  * a `Map` or a `Set` over it answers what
- * [`fjs/types/list`](../../../types/list/module.f.mjs)'s `sameItems` answers, in
+ * [`fjs/types/list`](../../../types/list/module.f.js)'s `sameItems` answers, in
  * one lookup rather than a pass per name.
  *
  * That matters at the size a repository reaches. Comparing every packed line

@@ -93,7 +93,7 @@ export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
  * => [output, state]` shape a "Mealy machine", finiteness aside.)
  *
  * A {@link Fold} is the output-less special case (state only); driving a
- * `StateScan` over a `List` is `stateScan` in `../../list/module.f.mjs`, and
+ * `StateScan` over a `List` is `stateScan` in `../../list/module.f.js`, and
  * {@link ./module.f.js | `stateScanToScan`} hides the state to recover a
  * {@link Scan}.
  */

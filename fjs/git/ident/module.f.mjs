@@ -31,7 +31,7 @@ import {
     plusSign, space as sp,
 } from '../../text/ascii/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { flat } from '../../types/list/module.f.mjs'
+import { flat } from '../../types/list/module.f.js'
 
 const digit = range('09')
 

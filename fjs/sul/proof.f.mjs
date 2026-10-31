@@ -13,7 +13,7 @@ import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { nextStep } from '../types/function/operator/module.f.js'
-import { run as runMachine } from '../types/list/module.f.mjs'
+import { run as runMachine } from '../types/list/module.f.js'
 
 /** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {

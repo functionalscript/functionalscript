@@ -35,7 +35,7 @@ import zlib from 'node:zlib'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
-import { normalize, toPosix } from '../../path/module.f.mjs'
+import { normalize, toPosix } from '../../path/module.f.js'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { asyncRunAll, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'

@@ -22,7 +22,7 @@
  */
 
 import { element } from '../../media/html/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
 import { footer, header, pageTitle, shell } from '../page/module.f.mjs'
 import { faviconLinks } from '../style/module.f.js'
 

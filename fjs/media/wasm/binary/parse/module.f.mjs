@@ -27,8 +27,8 @@
  */
 
 import { error, ok } from '../../../../types/result/module.f.js'
-import { reverse } from '../../../../types/list/module.f.mjs'
-import { toArray } from '../../../../types/list/alt/module.f.mjs'
+import { reverse } from '../../../../types/list/module.f.js'
+import { toArray } from '../../../../types/list/alt/module.f.js'
 import { fromU8List } from '../../../../text/utf8/module.f.mjs'
 import { afterPrefix, prefix, single } from '../../instruction/module.f.js'
 

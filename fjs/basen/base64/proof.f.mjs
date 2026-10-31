@@ -9,7 +9,7 @@ import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 
 /**
  * @param {string} s

@@ -8,10 +8,10 @@
  * @import { RunInstance } from '../../effects/mock/types.ts'
  */
 
-import { values } from './module.f.mjs'
-import { cmp, occurrences } from '../string/module.f.mjs'
-import { next } from '../list/module.f.mjs'
-import { toArray } from '../list/alt/module.f.mjs'
+import { values } from './module.f.js'
+import { cmp, occurrences } from '../string/module.f.js'
+import { next } from '../list/module.f.js'
+import { toArray } from '../list/alt/module.f.js'
 import { value, find as findFind } from './find/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { _census, _generate, _graphOf, _load, _move, _press, demo, presets } from './demo.f.mjs'
@@ -21,7 +21,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../result/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { set, squares } from './testlib.f.mjs'
+import { set, squares } from './testlib.f.js'
 import { max } from '../number/max/module.f.js'
 import { hasEntry } from '../object/entry/module.f.js'
 

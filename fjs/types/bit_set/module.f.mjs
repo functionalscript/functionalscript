@@ -14,7 +14,7 @@
 
 import { mask as bigintMask } from '../bigint/module.f.mjs'
 import { assert } from '../../asserts/module.f.js'
-import { isUintUpTo } from '../number/module.f.mjs'
+import { isUintUpTo } from '../number/module.f.js'
 
 /**
  * `n`, asserted to be a bit index a shift keeps: an integer from `0` to `max`,

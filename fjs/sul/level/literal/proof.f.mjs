@@ -4,8 +4,8 @@
 
 import { chunkList, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
-import { map, stateScan } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { map, stateScan } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import {
     emptyEncodeState,
     emptyPipelineState,

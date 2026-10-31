@@ -32,7 +32,7 @@ import {
     solidus as slash, space as sp,
 } from '../../text/ascii/module.f.js'
 import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
-import { flat } from '../../types/list/module.f.mjs'
+import { flat } from '../../types/list/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { cmp } from '../bytes/module.f.js'
 import { isOidOf } from '../oid/module.f.mjs'

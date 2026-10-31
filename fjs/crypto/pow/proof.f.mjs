@@ -8,7 +8,7 @@ import { bitcoinPow, genesisNBits, genesisTarget, pow, sha256Pow, targetFromNBit
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, parseNBits, parseNonce } from './demo.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
-import { concat as stringConcat } from '../../types/string/module.f.mjs'
+import { concat as stringConcat } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
