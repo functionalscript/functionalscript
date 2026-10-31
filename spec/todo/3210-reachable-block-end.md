@@ -57,7 +57,7 @@ in three shapes:
   the brace-less case, is [3230](./3230-switch.md)'s open follow-up; it is
   listed here for the count.
 
-### Proposal
+### Proposal and stages
 
 The three shapes take three different answers.
 
