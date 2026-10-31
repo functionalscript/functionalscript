@@ -103,7 +103,8 @@ export const proof = {
     machine: () => {
         const machine = accumulator(bracket)
         const suspended = machine.update(null, 'a')
-        assertEq(suspended[0], 'next')
+        const [tag] = suspended
+        assertEq(tag, 'next')
         assertEq(run({ ...machine, init: suspended })(['b', 'c']), fold(bracket)(['a', 'b', 'c']))
         assertEq(run(absorbingAccumulator(multiply))([2, 0, 7]), 0)
     },
