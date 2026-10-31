@@ -135,8 +135,13 @@ const partialByte = pureError(ioError({ message: 'invalid buffer size' }))
  * @returns {Effect<O, Vec, IoChannel>}
  */
 const digested = (sha2, state, s) => ioStep(s, node => {
-    if (node === undefined) { return pureOk(sha2.end(state)[2]) }
-    return isWholeBytes(node.first) ? digested(sha2, sha2.update(state, node.first)[2], node.tail) : partialByte
+    if (node === undefined) {
+        const [, , digest] = sha2.end(state)
+        return pureOk(digest)
+    }
+    if (!isWholeBytes(node.first)) { return partialByte }
+    const [, , following] = sha2.update(state, node.first)
+    return digested(sha2, following, node.tail)
 })
 
 /**
@@ -263,7 +268,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     // results and checks the end state").
     /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, Vec, IoChannel>} */
     const publish = (state, offset, curPath) => {
-        const hash = sha2.end(state)[2]
+        const [, , hash] = sha2.end(state)
         const { dir, name } = shard(hash)
         const dstDir = join(path, dir)
         const dst = join(dstDir, name)
@@ -305,7 +310,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     // rather than propagated with the partial file left behind.
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
-                        const newState = sha2.update(state, chunk)[2]
+                        const [, , newState] = sha2.update(state, chunk)
                         const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,

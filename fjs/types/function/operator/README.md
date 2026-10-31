@@ -33,7 +33,7 @@ through its own effect error channel.
 - `transduce(machine)(input)` — lazily yields nonempty `['next', output]`
   chunks followed by exactly one `['done', flush, summary]` event. State stays
   inside the driver. Output alone is
-  `flat(map(event => event[1])(transduce(machine)(input)))`; consume the events
+  `flat(map(([, output]) => output)(transduce(machine)(input)))`; consume the events
   once when both output and summary are needed.
 
 [`effects/list`](../../../effects/list/module.f.mjs) supplies:
