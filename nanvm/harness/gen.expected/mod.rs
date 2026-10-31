@@ -53,6 +53,9 @@ pub mod sharing;
 pub mod special_numbers;
 pub mod spread;
 pub mod string;
+pub mod string_from_char_code;
+pub mod string_from_char_code_coercion_throws;
+pub mod string_from_char_code_throws;
 pub mod string_methods;
 pub mod throw;
 pub mod throws;
@@ -117,6 +120,9 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "special_numbers", fixture: crate::fixtures::special_numbers::module::<Naive>, expected: special_numbers::module::<Naive>, json: special_numbers::JSON, throws: special_numbers::THROWS },
     crate::Case { name: "spread", fixture: crate::fixtures::spread::module::<Naive>, expected: spread::module::<Naive>, json: spread::JSON, throws: spread::THROWS },
     crate::Case { name: "string", fixture: crate::fixtures::string::module::<Naive>, expected: string::module::<Naive>, json: string::JSON, throws: string::THROWS },
+    crate::Case { name: "string_from_char_code", fixture: crate::fixtures::string_from_char_code::module::<Naive>, expected: string_from_char_code::module::<Naive>, json: string_from_char_code::JSON, throws: string_from_char_code::THROWS },
+    crate::Case { name: "string_from_char_code_coercion_throws", fixture: crate::fixtures::string_from_char_code_coercion_throws::module::<Naive>, expected: string_from_char_code_coercion_throws::module::<Naive>, json: string_from_char_code_coercion_throws::JSON, throws: string_from_char_code_coercion_throws::THROWS },
+    crate::Case { name: "string_from_char_code_throws", fixture: crate::fixtures::string_from_char_code_throws::module::<Naive>, expected: string_from_char_code_throws::module::<Naive>, json: string_from_char_code_throws::JSON, throws: string_from_char_code_throws::THROWS },
     crate::Case { name: "string_methods", fixture: crate::fixtures::string_methods::module::<Naive>, expected: string_methods::module::<Naive>, json: string_methods::JSON, throws: string_methods::THROWS },
     crate::Case { name: "throw", fixture: crate::fixtures::throw::module::<Naive>, expected: throw::module::<Naive>, json: throw::JSON, throws: throw::THROWS },
     crate::Case { name: "throws", fixture: crate::fixtures::throws::module::<Naive>, expected: throws::module::<Naive>, json: throws::JSON, throws: throws::THROWS },

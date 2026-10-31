@@ -160,6 +160,8 @@ export const proof = {
         // runtime holds at its path, failing by name with no runtime or
         // none at the path
         expectValue(['Object.entries'], 'length', 1)
+        expectValue(['String.fromCharCode'], 'length', 1)
+        missing(['String.fromCharCode'], 'name')
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
@@ -168,6 +170,7 @@ export const proof = {
         assertStructurallySame(assertOk(read(ok(['Object.is']), 'name', runtime, invoke)), ['undefined'])
         missing(['Object.is'], 'name')
         assertEq(assertError(read(ok(['Object.is']), 'length')), 'no binding for the static Object.is')
+        assertEq(assertError(read(ok(['Object.is']), 'length', undefined, invoke)), 'no binding for the static Object.is')
         // a runtime with no invoker to ask it through answers no body
         assertEq(assertError(read(ok(['Object.is']), 'length', runtime)), 'no binding for the static Object.is')
         assertEq(assertError(read(ok(['Number.isNaN']), 'length', runtime, invoke)), 'no binding for the static Number.isNaN')

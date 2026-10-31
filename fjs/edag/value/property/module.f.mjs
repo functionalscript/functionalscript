@@ -98,14 +98,14 @@ export const staticBody = (runtime, fn, invoke) => {
 /**
  * The `length` of a static function, a property every function owns: the
  * length of the body the runtime's `static` answers for its id, `2` for
- * `Object.is`; `1` for `Object.entries`, which no body defines and every
+ * `Object.is`; `1` for `Object.entries` and `String.fromCharCode`, which no body defines and every
  * executor answers natively; and, with no runtime or no body for the id,
  * the failure naming the static, as its call would fail.
  *
  * @type {(fn: Static, runtime: Runtime | undefined, invoke: Invoke | undefined) => ValueResult}
  */
 const staticLength = (fn, runtime, invoke) => {
-    if (fn[0] === 'Object.entries') { return ok(1) }
+    if (fn[0] === 'Object.entries' || fn[0] === 'String.fromCharCode') { return ok(1) }
     const body = invoke === undefined ? ok(undefined) : staticBody(runtime, fn, invoke)
     if (body[0] === 'error') { return body }
     return body[1] === undefined ? error(noStatic(fn[0])) : ok(body[1][1])

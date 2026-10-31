@@ -72,3 +72,5 @@ type _StaticEntries = Assert<Equal<Statics[StaticId] extends StaticBody ? true :
 
 /** A native is the built-in itself, never a body beside it, which would be a second implementation. */
 type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object.entries>>
+
+type _NativeFromCharCode = Assert<Equal<Statics['String.fromCharCode'], typeof String.fromCharCode>>

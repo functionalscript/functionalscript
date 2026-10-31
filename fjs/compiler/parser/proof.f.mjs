@@ -1117,7 +1117,7 @@ export const proof = {
                 ['export default String;', 16],
                 ['export default [String];', 17],
                 ['export default { String };', 18],
-                ['export default String.fromCharCode(65);', 16],
+                ['export default String.fromCodePoint(65);', 16],
                 ['export default String?.(1);', 16],
             ]
             for (const [source, column] of sources) { expectRefused(source, 'reserved word', column) }

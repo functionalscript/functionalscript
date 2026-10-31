@@ -20,7 +20,7 @@ const members = member
 const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unknown>>} */ (/** @type {unknown} */ (statics))
 
 /** The host's own globals, each static path read from them by its keys. @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */
-const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number }))
+const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String }))
 
 /**
  * The statics whose argument is an array of entries, which no pair of
@@ -67,6 +67,14 @@ const samples = [
 ]
 
 export const proof = {
+    fromCharCode: () => {
+        const { fromCharCode } = String
+        assertEq(statics['String.fromCharCode'], fromCharCode)
+        assertEq(fromCharCode.length, 1)
+        assertEq(fromCharCode(5, 6), '\u0005\u0006')
+        assertEq(fromCharCode(), '')
+        assertEq(fromCharCode(0xd800, 0xffff, 0x1_0041, -1), '\ud800\uffffA\uffff')
+    },
     // `static`, `dot` and `in` are the runtime's three functions; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
@@ -125,14 +133,13 @@ export const proof = {
     // the section holds the built-in itself at the path, so the table is
     // complete as a value, and the host's own built-in answers alike
     // detached and on its namespace, as `host` checks a body's:
-    // `Object.entries` reads no `this`. On every sample but the two
-    // nullish ones, on which both calls throw.
+    // Both natives read no `this`; compare their successful coercion inputs.
     natives: () => {
         for (const [global, name] of staticPaths.filter(isNative)) {
             assertEq(table[`${global}.${name}`], host[global][name], [global, name])
             const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
             const detached = namespace[name]
-            for (const a of samples.filter(a => a !== null && a !== undefined)) {
+            for (const a of samples.filter(a => a !== null && a !== undefined && (global !== 'String' || typeof a !== 'bigint'))) {
                 assertStructurallySame(detached(a), namespace[name](a), [global, name, a])
             }
         }

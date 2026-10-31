@@ -552,7 +552,7 @@ export const comma = /** @type {const} */ ([',', exps])
  * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
  * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
  */
-export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /**
  * A static function as a value, `['Object.is']`: the function the

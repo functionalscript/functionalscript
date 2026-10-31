@@ -24,7 +24,7 @@ no later than this file admits any of it, a name at a time
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
 ([numbers](../values/numbers/README.md)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)` — `String`'s alone — their
+conversions `Number(exp)` and `String(exp)`, their
 words reserved ([number conversion](../conversions/number/README.md),
 [string conversion](../conversions/string/README.md)), and `Array`, as the
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
@@ -317,8 +317,9 @@ the move in the same session, after the admission.
 - [x] `String` — implemented as `String(exp)`, the string conversion,
       and `String()`, the empty-string literal; the word is reserved
       ([string conversion](../conversions/string/README.md)). Namespace
-      members remain unrecognized; spreads, multiple arguments and guarded
-      calls are refused by design, the conversion being an operator
+      admits `String.fromCharCode` as a native static value; other members
+      remain unrecognized. For the conversion, spreads, multiple arguments
+      and guarded calls are refused by design, the conversion being an operator
       ([operators and functions](../principles/README.md#operators-and-functions))
 - [ ] `RegExp`
 
@@ -550,3 +551,34 @@ These instance methods mutate an array:
 - [ ] ! `sort`
 - [ ] ! `splice`
 - [ ] ! `unshift`
+
+### String.fromCharCode proposal and approval
+
+**Problem.** The shared runtime cannot construct arbitrary UTF-16 strings
+without a native operation or a large code-unit lookup table.
+
+**Proposal.** Admit `String.fromCharCode` as a native static value in every
+executor. Preserve JavaScript's variadic ToUint16 conversion, empty call,
+lone surrogates, function identity, native text and `length` of 1. Detached
+calls, including `const { fromCharCode } = String`, read no `this`.
+Other String statics remain prohibited.
+
+**Benefits.** JavaScript compatibility and a small string-construction
+primitive for shared runtime bodies, without a 65,536-entry table.
+
+**Drawbacks.** Every executor must bind another native static.
+
+**Owner approval.** Sergey Shandar requested native implementation and FJS
+admission, including detached calls and matching length, in
+[the working session](https://chatgpt.com/local/01a192f2-7904-77a6-a6a4-116d54ef3036).
+He explicitly approved the design in
+[the first approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548181784)
+and reaffirmed it after the independent-approval review in
+[the latest approval](https://github.com/functionalscript/functionalscript/pull/3501#issuecomment-6548413108):
+“The design is approved!” He then instructed the implementation session to
+address the comments using that approval.
+
+This change proceeds under that explicit task-owner instruction. Sergey is
+also the PR author; these links record owner authorization, not an approval
+by a different designer. The review's request for independent approval is
+[recorded here](https://github.com/functionalscript/functionalscript/pull/3501#pullrequestreview-5724682234).

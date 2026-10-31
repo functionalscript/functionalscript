@@ -285,6 +285,8 @@ export const proof = {
         for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger'])) { assert(text([tag]).length > 0) }
         const native = unwrap(valueTagged(['Object.entries'], { ...options, runtime: null }))
         assert(untagged(native[0]).includes('Any::entries'))
+        const chars = unwrap(valueTagged(['String.fromCharCode'], { ...options, runtime: null }))
+        assert(untagged(chars[0]).includes('String::from_char_code(_args)'))
     },
     layout: () => {
         assertEq(braced(['Ok(v)']), '{ Ok(v) }')

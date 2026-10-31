@@ -303,7 +303,7 @@ this proposal does not take.
       and `Object.is` read in two invocations was two closures there; the
       Rust backend prints the read where a block answers it, as a
       function's body that returns it.
-- [ ] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
+- [x] Decide `String.fromCharCode` in `2360-built-in.md`; admitted, it is
       the native primitive, and the casing pair follows as bodies over a
       generated casing table.
 - [x] Admit `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
@@ -364,3 +364,8 @@ this proposal does not take.
   — the `static function` tag and `IStaticFunction`.
 - [`edag/README.md`](../../edag/README.md#nodes) — `['entry']`, the value
   node `['Object.is']` is modelled on.
+
+`String.fromCharCode` is now admitted as a native static; the task owner
+approved native construction, detached calls and JavaScript length 1 in the
+implementation session. Every executor binds it, preserving ToUint16 and
+lone surrogates. See [the admission record](../../../spec/todo/2360-built-in.md#stringfromcharcode-proposal-and-approval).
