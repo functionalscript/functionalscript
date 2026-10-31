@@ -89,7 +89,7 @@ The stack follows the [review request](https://github.com/functionalscript/funct
 - [x] Migrate CAS admission and digest consumers to the shared effectful driver.
 - [x] Migrate Adler-32 and its checksum callers.
 - [x] Migrate emitting zlib inflation and adapt its direct Git consumer.
-- [ ] Migrate the Git inflater lifecycle and packstore callers.
+- [x] Migrate the Git inflater lifecycle and packstore callers.
 - [ ] Migrate Unicode decoding with streaming emission and EOF flush.
 - [ ] Migrate MIME detection and preserve whole-input length counting.
 - [ ] Migrate Patricia construction and its SUL hash-level caller.

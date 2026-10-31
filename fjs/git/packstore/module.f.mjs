@@ -122,7 +122,7 @@ import { under } from '../../path/module.f.mjs'
 import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
-import { bytesOf, feedWithin, finish, malformed, sizeOf, start } from '../inflater/module.f.mjs'
+import { bytesOf, feedWithin, inflater, malformed, sizeOf } from '../inflater/module.f.mjs'
 import { headerBytes, maxDeltaBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText, ofWidth, oidAt } from '../oid/module.f.mjs'
@@ -503,7 +503,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
             : next.size > e.size ? entryRefusal(path, at)(`inflates to more than the ${e.size} its header declares`)
             : pureOk(next)
         const read = step(
-            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(start)),
+            checked(feedWithin(e.size)(u8ListToVecMsb(window.slice(e.dataAt)))(inflater.init[2])),
             opened => foldStep(
                 pureOk(windowsOf(at + firstBytes, end)),
                 opened,
@@ -511,7 +511,7 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
                     readBytes(path, offset, Math.min(windowBytes, end - offset)),
                     v => checked(feedWithin(e.size)(v)(progress)))))
         return step(read, progress => {
-            const done = finish(progress)
+            const [, , done] = inflater.end(progress)
             return done[0] === 'error' ? refusal(done[1]) : advance(idx, path, at, chain, e, done[1])
         })
     })
