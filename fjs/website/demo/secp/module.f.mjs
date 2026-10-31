@@ -8,7 +8,7 @@
  */
 
 import { encodeScalar } from '../../../basen/base16/module.f.mjs'
-import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.mjs'
+import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { isDigits } from '../../../text/ascii/module.f.js'
