@@ -1,7 +1,7 @@
 ## Unify streaming state-machine interfaces
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -39,11 +39,9 @@ remain available alongside it.
 
 This is the operator migration that [flow](../../../../../todo/flow.md) can
 consume; it does not require implementing its graph, optimizer, or backends.
-The [stateful parser](../../../../ebnf/todo/043-stateful-parser.md) continues to
-use `StateFold` until the common protocol ships, then adopts that protocol as
-its proposal already anticipates.
+The [stateful parser](../../../../ebnf/todo/043-stateful-parser.md) remains a separate implementation task. Its proposal uses the same operator contract; the machine-family stack does not change parser semantics.
 
-### Cases to migrate
+### Interfaces before this migration stack
 
 | Machine | Current lifecycle | What completion does |
 | --- | --- | --- |
@@ -82,21 +80,20 @@ items, and terminal results are distinct, including when any contains `null`.
 
 ### Tasks
 
-- [ ] Establish the shared operator contract and its relationship to
-      `StateFold`, `StateScan`, and `Accumulator`; update the flow and parser
-      proposals to name the same contract.
-- [ ] Provide shared drivers for pure lists and effectful chunk streams,
-      including emission, EOF flush, final summaries, and early completion.
-- [ ] Migrate the value-producing machines above and their callers, including
-      hash consumers in CAS, HMAC, and signing. Replace domain-specific lifecycle
-      spellings instead of leaving parallel interfaces indefinitely.
-- [ ] Migrate emitting zlib and Unicode stages and their drivers without losing
-      streaming or their EOF behavior.
-- [ ] Prove empty input, admissible input splits, saved-state resumption,
-      finalization and flush, domain failures, and exact stopping behavior with
-      lazy sources. Retain each domain's existing vectors and limits.
-- [ ] Document the common interface and migration in the operator API and each
-      affected module; keep domain-specific laws and completion rules explicit.
+The stack follows the [review request](https://github.com/functionalscript/functionalscript/pull/3460#pullrequestreview-5719913841): the common protocol and drivers first, then one machine family per pull request. Each step includes its own callers, proofs, scoped coverage, and documentation.
+
+- [x] Establish the shared protocol, construction adapters, and pure/effectful drivers.
+- [ ] Migrate monoid accumulation, including absorbing folds and their callers.
+- [ ] Migrate bounded bit-vector construction and preserve overflow stopping.
+- [ ] Migrate SHA-1/SHA-2 and every direct hash caller.
+- [ ] Migrate CAS admission and digest consumers to the shared effectful driver.
+- [ ] Migrate Adler-32 and its checksum callers.
+- [ ] Migrate emitting zlib inflation and adapt its direct Git consumer.
+- [ ] Migrate the Git inflater lifecycle and packstore callers.
+- [ ] Migrate Unicode decoding with streaming emission and EOF flush.
+- [ ] Migrate MIME detection and preserve whole-input length counting.
+- [ ] Migrate Patricia construction and its SUL hash-level caller.
+- [ ] Migrate full SUL encoding and finish the common API documentation.
 
 ### Related
 

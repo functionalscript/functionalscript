@@ -46,6 +46,7 @@ Every function is curried, and its configuration comes first, so
 |slicing     |`take`, `takeWhile`, `drop`, `dropWhile`                                                                    |
 |testing     |`some`, `someBy`, `none`, `every`, `isEmpty`, `includes`, `equal`, `sameItems`                              |
 |accumulating|`fold`, `reduce`, `scan`, `foldScan`, `stateScan`, `tryFold`                                                |
+|machines    |`transduce`, `run`, `fromAccumulator`                                                                    |
 |building    |`empty`, `concat`, `fromArrayLike`, `countdown`, `repeat`, `cycle`                                          |
 
 Leaving the list is two modules of its own. [`alt`](./alt/module.f.mjs)'s
@@ -74,9 +75,19 @@ toArray(zip([1, 2, 3])(['a', 'b']))     // [[1, 'a'], [2, 'b']]: the shorter one
 [`function/operator`](../function/operator/types.ts), shared with
 `foldScan`.
 
+**`transduce` drives the shared machine lifecycle.** It yields nonempty output
+chunks as `['next', output]`, then exactly one `['done', flush, summary]` event.
+Initial output precedes any source read, early completion leaves the source's
+suffix unread, and EOF runs the machine's finalizer. Output can be flattened as
+`flat(map(([, output]) => output)(transduce(machine)(input)))`; `run(machine)(input)`
+returns just the summary without holding the emitted chunks. The source remains
+lazy and is read again if these views are read separately.
+
 **`tryFold` is a fold that can give up.** Its `update` answers `null` to abort
 the whole fold, and the result is then `null` too. It is the list form of the
 `try*`/`Nullable` convention in [`doc/DESIGN.md`](../../../doc/DESIGN.md).
+`fromAccumulator` adapts this convenience form to the canonical machine, and
+`tryFold` delegates to `run`; domain machines use that shared lifecycle directly.
 
 ## Things to know
 

@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Nullable } from '../nullable/types.ts'
- * @import {Binary, Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
+ * @import {Binary, Scan, StateScan, Fold, Reduce, Equal, Step, Transduced, Transducer} from '../function/operator/types.ts'
  * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
@@ -17,7 +17,10 @@ import {
     stateScanToScan,
     foldToScan,
     reduceToScan,
+    nextStep,
+    doneStep,
 } from '../function/operator/module.f.js'
+import { assert, assertNotNullish } from '../../asserts/module.f.js'
 
 export const fromArrayLike =
     /**
@@ -255,23 +258,84 @@ export const fold = op => init => compose(foldScan(op)(init))(last(init))
 /** @type {<T>(op: Reduce<T>) => <D>(def: D) => (input: List<T>) => D | T} */
 export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
 
-/** @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => (input: List<I>) => Thunk<R>} */
-const tryFoldStep = ({ init, update, end }) => input => () => {
-    const n = next(input)
-    if (n === null) { return [end(init)] }
-    const state = update(n.first, init)
-    return state === null ? null : tryFoldStep({ init: state, update, end })(n.tail)
+/** @type {<I, S, O, A>(machine: Transducer<I, S, O, A>, input: List<I>, current: Step<S, O, A>) => Thunk<Transduced<O, A>>} */
+const transduceFrom = (machine, input, current) => () => {
+    let remaining = input
+    let step = current
+    while (true) {
+        const [tag, output, state] = step
+        if (tag === 'done') { return [step] }
+        if (output.length !== 0) {
+            return {
+                first: ['next', output],
+                tail: transduceFrom(machine, remaining, nextStep(state)),
+            }
+        }
+        const node = next(remaining)
+        if (node === null) { return [machine.end(state)] }
+        step = machine.update(state, node.first)
+        remaining = node.tail
+    }
 }
 
 /**
- * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
- * moment `update` rejects an item; otherwise finalizes with `end`. This is the
- * list-level `try*` sibling of {@link fold} for accumulations that can fail
- * partway through (see the `try*`/`Nullable` convention in `doc/DESIGN.md` §6).
+ * Drives a machine lazily, yielding its nonempty output chunks followed by one
+ * terminal chunk and summary. Initial output is emitted before reading input;
+ * an initial or updated `done` never pulls the source again. EOF calls `end`,
+ * whose flush output is kept on the terminal event. Empty chunks do not signal
+ * EOF, and skipping updates that emit nothing uses a loop rather than recursion.
  *
- * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
+ * Output alone is `flat(map(([, output]) => output)(transduce(machine)(input)))`.
+ * Reading that view and the summary separately reruns the pure source, like any
+ * other lazy list; consumers needing both should read the events once.
+ *
+ * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => (input: List<I>) => Thunk<Transduced<O, A>>}
  */
-export const tryFold = accumulator => compose(tryFoldStep(accumulator))(first(null))
+export const transduce = machine => input => transduceFrom(machine, input, machine.init)
+
+const lastEvent = last(null)
+
+/**
+ * Runs a machine to its terminal summary without holding its emitted chunks.
+ * Use {@link transduce} when the outputs are wanted as they arrive.
+ *
+ * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => (input: List<I>) => A}
+ */
+export const run = machine => {
+    const events = transduce(machine)
+    return input => {
+        const [tag, , summary] = assertNotNullish(lastEvent(events(input)))
+        assert(tag === 'done')
+        return summary
+    }
+}
+
+const rejected = doneStep(null)
+
+/**
+ * The small `Accumulator` convenience form as a canonical machine. Rejection
+ * becomes early completion with a `null` summary; state and result values can
+ * themselves be `null` without being confused with the lifecycle tag.
+ *
+ * @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => Transducer<I, T, never, Nullable<R>>}
+ */
+export const fromAccumulator = ({ init, update, end }) => ({
+    init: nextStep(init),
+    update: (state, input) => {
+        const following = update(input, state)
+        return following === null ? rejected : nextStep(following)
+    },
+    end: state => doneStep(end(state)),
+})
+
+/**
+ * Folds with the `Accumulator` convenience form through the shared machine
+ * driver. Rejection stops reading immediately and answers `null`; EOF returns
+ * its final result (the list-level `try*`/`Nullable` convention).
+ *
+ * @type {<I, T, R>(accumulator: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
+ */
+export const tryFold = accumulator => run(fromAccumulator(accumulator))
 
 /** @type {<T>(list: List<T>) => Thunk<number>} */
 const lengthList = list => () => {
