@@ -48,7 +48,7 @@ const one = {
     end: state => doneStep(state),
 }
 
-const machines = {
+const machines = /** @type {const} */ ({
     pureEmissionAndFlush: () => {
         assertStructurallySame(settled(transduce(echo)(() => pureOk(undefined))(fromList([2, 3]))), ['ok', 5])
         assertStructurallySame(settled(run(echo)(fromList([2, 3]))), ['ok', 5])
@@ -131,7 +131,7 @@ const machines = {
         assertStructurallySame(settled(run(sum)(fromList(values(50_000)))), ['ok', 50_000])
         assertStructurallySame(settled(run(sum)(empty())), ['ok', 0])
     },
-}
+})
 
 /**
  * Pulls one cell. Both constructors are pure, so the cell is reached without a

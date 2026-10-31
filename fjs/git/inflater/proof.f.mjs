@@ -88,7 +88,7 @@ export const proof = {
     },
     // A malformed chunk completes before the lazy source is pulled again.
     stopsAtMalformed: () => {
-        const source = { first: u8ListToVecMsb([0, 0]), tail: () => { throw 'pulled after refusal' } }
+        const source = /** @type {const} */ ({ first: u8ListToVecMsb([0, 0]), tail: () => { throw 'pulled after refusal' } })
         assertStructurallySame(run(inflater)(source), ['error', malformed])
     },
     // A stream that ends before it closes, or never begins.

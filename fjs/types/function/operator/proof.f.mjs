@@ -120,7 +120,7 @@ const cascadeTest = {
     },
 }
 
-const lifecycle = {
+const lifecycle = /** @type {const} */ ({
     steps: () => {
         assertStructurallySame(nextStep(null), ['next', [], null])
         assertStructurallySame(nextStep(2, [1]), ['next', [1], 2])
@@ -145,6 +145,6 @@ const lifecycle = {
         assertStructurallySame(machine.update(0, 2), ['next', [0, 2], 2])
         assertStructurallySame(machine.end(2), ['done', [2], null])
     },
-}
+})
 
 export const proof = { lifecycle, cascadeTest, joinTest, concatTest, logicalNotTest, strictEqualTest, additionTest, incrementTest, counterTest, stateScanToScanTest, foldToScanTest, reduceToScanTest }

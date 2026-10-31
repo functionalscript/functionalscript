@@ -179,7 +179,7 @@ const tryFoldTest = /** @type {const} */ ([
     },
 ])
 
-const transduceTest = {
+const transduceTest = /** @type {const} */ ({
     emptyAndNull: () => {
         /** @type {Transducer<number, null, number, null>} */
         const machine = {
@@ -221,7 +221,7 @@ const transduceTest = {
             update: (state, input) => input === 2 ? doneStep(state + input, [99]) : nextStep(state + input),
             end: () => { throw 'early completion must not finalize again' },
         }
-        const input = { first: 1, tail: { first: 2, tail: () => { throw 'early completion must not read the suffix' } } }
+        const input = /** @type {const} */ ({ first: 1, tail: { first: 2, tail: () => { throw 'early completion must not read the suffix' } } })
         assertStructurallySame(toArray(transduce(machine)(input)), [['done', [99], 3]])
         assertEq(run(machine)(input), 3)
     },
@@ -248,7 +248,7 @@ const transduceTest = {
             ['next', [1, 2]], ['done', [], 3],
         ])
     },
-}
+})
 
 const reverseTest = [
     () => {
