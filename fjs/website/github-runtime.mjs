@@ -22,6 +22,10 @@ const readToken = parse(tokenSchema)
 const readUser = parse(userSchema)
 const readExchangeFailure = parse(exchangeFailureSchema)
 
+/** The randomness comes from Web Crypto; whole bytes always have a spelling. */
+/** @type {(bytes: Uint8Array) => string} */
+const base64url = bytes => assertNotNullish(encode(toVec(bytes)))
+
 /** @type {WeakMap<Element, Promise<{ readonly token: () => string | null, readonly clear: () => void }>>} */
 const started = new WeakMap()
 
@@ -132,10 +136,6 @@ export const startGitHubLogin = (root, host = {}) => {
             available = true
             login.disabled = false
             note.textContent = 'Log in to use your GitHub API rate limit.'
-
-            /** The randomness comes from Web Crypto; whole bytes always have a spelling. */
-            /** @type {(bytes: Uint8Array) => string} */
-            const base64url = bytes => assertNotNullish(encode(toVec(bytes)))
 
             login.addEventListener('click', async () => {
                 if (login.disabled) { return }
