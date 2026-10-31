@@ -31,7 +31,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { codePoints, hexDigitsValue } from '../../text/ascii/module.f.js'
 import { ok, error } from '../../types/result/module.f.js'
-import { button, caption, inputField, option, refusal, selectField } from '../../website/demo/module.f.mjs'
+import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.mjs'
 import { secp256k1 } from '../secp/module.f.mjs'
 import { lockAndShuffle, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
 
@@ -232,7 +232,7 @@ const game = (state, seeds) => {
     return [
         ['p', button('next', label ?? 'Hand dealt', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
         ...(state.decks.length === 0 ? [] : [
-            selectField({ name: 'view', label: 'Point of view' }, views.map(v => option(v, v, v === state.view))),
+            radios('view', 'Point of view', views.map(v => ({ value: v, label: v })), state.view),
             ...deckRows(state.view, seeds, state.decks.length),
         ]),
         ...(state.pockets === null ? [] : [

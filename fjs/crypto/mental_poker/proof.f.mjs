@@ -139,7 +139,11 @@ export const proof = {
             assert(before.includes(shown('🂠', 'locked by Bob')))
             assert(!before.includes(dealt(names[0])))
             assert(before.includes('"Flop"'))
+            // The point of view is a radio group, the chosen one checked.
+            assert(before.includes('"id":"view-Table","name":"view","value":"Table","checked":""'))
             const alice = text(input(pocketed, 'view', 'Alice'))
+            assert(alice.includes('"id":"view-Alice","name":"view","value":"Alice","checked":""'))
+            assert(!alice.includes('"value":"Table","checked"'))
             assert(alice.includes(dealt(names[0])))
             assert(!alice.includes(dealt(names[2])))
             assert(alice.includes(dealt('🂠')))
