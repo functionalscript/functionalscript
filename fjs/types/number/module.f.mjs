@@ -50,12 +50,10 @@ const mo = [
  *
  * @type {(n: number) => number}
  */
-export const countOnes = n => {
-    for (const [mask, offset] of mo) {
-        n = (n & mask) + ((n >> offset) & mask)
-    }
-    return n
-}
+export const countOnes = n => mo.reduce(
+    (value, [mask, offset]) => (value & mask) + ((value >> offset) & mask),
+    n,
+)
 
 /**
  * Whether `n` is an unsigned integer that fits `max`: an integer in `0..max`,

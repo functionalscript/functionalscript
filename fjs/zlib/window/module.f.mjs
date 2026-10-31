@@ -51,11 +51,7 @@ export const push = ({ blocks, tail, tailLength, length }, byte) => {
  *
  * @type {(window: Window, bytes: readonly number[]) => Window}
  */
-export const pushAll = (window, bytes) => {
-    let result = window
-    for (const byte of bytes) { result = push(result, byte) }
-    return result
-}
+export const pushAll = (window, bytes) => bytes.reduce(push, window)
 
 /**
  * The last `n` bytes, the oldest first, `n` at most what the window holds.
