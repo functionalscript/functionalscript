@@ -23,21 +23,23 @@ import { next } from '../../types/list/module.f.mjs'
 // /** @type {(a: readonly Unknown[]) => string} */
 // const stringify = stringifySorted
 
+const { init, update, end } = utf16Decoder
+
 export const proof = {
     lifecycle: () => {
-        const [initialKind, , initialState] = utf16Decoder.init
+        const [initialKind, , initialState] = init
         assert(initialKind === 'next')
-        assertEq(stringify(utf16Decoder.end(initialState)), '["done",[],null]')
-        const [savedKind, savedOutput, savedState] = utf16Decoder.update(initialState, 0xd83d)
+        assertEq(stringify(end(initialState)), '["done",[],null]')
+        const [savedKind, savedOutput, savedState] = update(initialState, 0xd83d)
         assert(savedKind === 'next')
         assertEq(stringify(savedOutput), '[]')
-        const resumed = utf16Decoder.update(savedState, 0xde00)
+        const resumed = update(savedState, 0xde00)
         const [resumedKind, resumedOutput, resumedState] = resumed
         assert(resumedKind === 'next')
         assertEq(stringify(resumedOutput), '[128512]')
         assertEq(resumedState, null)
-        assertEq(stringify(utf16Decoder.end(savedState)), '["done",[-2147428291],null]')
-        assertEq(stringify(utf16Decoder.update(savedState, 0xde00)), stringify(resumed))
+        assertEq(stringify(end(savedState)), '["done",[-2147428291],null]')
+        assertEq(stringify(update(savedState, 0xde00)), stringify(resumed))
     },
     lazyOutput: () => {
         const input = /** @type {const} */ ({ first: 0x41, tail: () => { throw 'read past the emitted character' } })
