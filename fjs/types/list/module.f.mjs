@@ -310,6 +310,8 @@ export const run = machine => {
     }
 }
 
+const rejected = doneStep(null)
+
 /**
  * The small `Accumulator` convenience form as a canonical machine. Rejection
  * becomes early completion with a `null` summary; state and result values can
@@ -321,7 +323,7 @@ export const fromAccumulator = ({ init, update, end }) => ({
     init: nextStep(init),
     update: (state, input) => {
         const following = update(input, state)
-        return following === null ? doneStep(null) : nextStep(following)
+        return following === null ? rejected : nextStep(following)
     },
     end: state => doneStep(end(state)),
 })
