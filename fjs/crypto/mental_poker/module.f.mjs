@@ -16,7 +16,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { eq } from '../secp/module.f.mjs'
+import { eq } from '../secp/module.f.js'
 
 /** How many low bits of a card's `x` hold its index. */
 export const cardBits = 8n

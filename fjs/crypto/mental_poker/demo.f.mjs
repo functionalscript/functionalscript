@@ -41,7 +41,7 @@ import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha512 } from '../sha2/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.js'
 import { button, caption, inputField, radios, refusal } from '../../website/demo/module.f.mjs'
-import { secp256k1 } from '../secp/module.f.mjs'
+import { secp256k1 } from '../secp/module.f.js'
 import { lockAndShuffle, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
 
 const { deck, key, open } = mentalPoker(secp256k1)

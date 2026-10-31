@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
-import { curve, eq, secp256k1 } from '../secp/module.f.mjs'
+import { curve, eq, secp256k1 } from '../secp/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
 import { cardName, demo, setup, transition } from './demo.f.mjs'
