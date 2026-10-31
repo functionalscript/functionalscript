@@ -144,7 +144,7 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured on `5d2b51fe4`, the leaf conversion updates in
+Measured on `562757eec`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
 `path` wraps its computed numeric keys with `Number(...)`, in
@@ -161,6 +161,8 @@ including the policy type, parser adapter and proof policy, and replaces its
 `Array.from` ID construction with `generate(count, index => ({ index }))`.
 The whole module now compiles and is renamed to `.f.js`, with its references
 updated. These conversions expose no additional leaves.
+`website/demo/graph` replaces its numeric loop update `round++` with
+`round += 1`; its next refused construct is `new Map(bands)` in `bandsOf`.
 
 The compiler-compatible population is 172 authored `.f.js` files;
 434 authored non-proof `.f.mjs` files remain.
@@ -180,7 +182,7 @@ remaining leaves are refused as written.
 | `types/number` | `for...of` | 4 |
 | `types/prime_field` | Destructuring the `reduce` property (`prohibited property name`) | 2 |
 | `types/sorted_list` | The later `cmpReduce` referenced by `merge` | 1 |
-| `website/demo/graph` | Postfix `round++` in the loop update | 1 |
+| `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
 | `zlib/window` | `for...of` | 0 |
 
 The previous thirteen-leaf measurement is retained in the
