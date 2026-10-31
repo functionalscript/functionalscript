@@ -4,7 +4,7 @@
  * @module
  *
  * @import { List, Thunk } from '../../types/list/types.ts'
- * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { StateScan, Transducer } from '../../types/function/operator/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { U8, Utf8NonEmptyState, Utf8State, } from './types.ts'
  * @import { CodePoint } from '../code_point/types.ts'
@@ -12,6 +12,7 @@
 
 import { flatMap } from '../../types/list/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.mjs'
+import { fromStateScan } from '../../types/function/operator/module.f.js'
 import {
     bmpMax,
     decoder,
@@ -302,9 +303,22 @@ export const utf8ByteToCodePointOp = (byte, state) => {
  * sequence is flushed as a single error code and the state resets to `null`.
  * The flush itself is `eofFlush` from `code_point`, shared with UTF-16.
  *
- * @type {(state: Utf8State) => readonly [List<CodePoint>, Utf8State]}
+ * @type {(state: Utf8State) => readonly [readonly CodePoint[], null]}
  */
-export const utf8EofToCodePointOp = eofFlush(utf8StateToError)
+const utf8EofToCodePointOp = eofFlush(utf8StateToError)
+
+/**
+ * UTF-8 as a shared `init` / `update(state, byte)` / `end(state)` machine.
+ * Each step emits decoded code points; `end` emits one error unit for an
+ * incomplete sequence and completes with a `null` summary.
+ *
+ * @type {Transducer<U8, Utf8State, CodePoint, null>}
+ */
+export const utf8Decoder = fromStateScan(
+    /** @type {Utf8State} */ (null),
+    utf8ByteToCodePointOp,
+    state => utf8EofToCodePointOp(state)[0],
+)
 
 /**
  * Converts a list of UTF-8 bytes into a list of Unicode code points.
@@ -315,7 +329,7 @@ export const utf8EofToCodePointOp = eofFlush(utf8StateToError)
  * @type {(input: List<U8>) => List<CodePoint>}
  */
 export const toCodePointList =
-    decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)
+    decoder(utf8Decoder)
 
 /**
  * Encodes a string as UTF-8 bytes. The inverse of {@link u8ListToString} for
