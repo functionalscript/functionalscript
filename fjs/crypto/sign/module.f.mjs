@@ -16,7 +16,7 @@ import { bitLength } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
-import { isPublicKey } from '../secp/module.f.mjs'
+import { isPublicKey } from '../secp/module.f.js'
 
 /**
  * Builds RFC6979 helper conversions for a subgroup order.
