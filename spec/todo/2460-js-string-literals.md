@@ -1,7 +1,7 @@
 ## JS String Literals
 
 **Priority:** P5
-**Status:** open — single quotes are in the language
+**Status:** wip — single quotes are in the language
 ([strings](../values/strings/README.md)); the other spellings are deferred
 
 A JSON string literal is double-quoted, with the JSON escapes (`\"` `\\` `\/`
