@@ -109,9 +109,13 @@ export const proof = {
         play: () => {
             const { init } = demo
             assert(text(init).includes('Encode the deck'))
+            // Nothing is drawn before the first step.
+            assert(!text(init).includes('Plain deck'))
+            assert(!text(init).includes('After Alice'))
             const encoded = click(init, 'next')
             assertEq(encoded.decks.length, 1)
             const plain = text(encoded)
+            assert(!plain.includes('After Alice'))
             assert(plain.includes(shown('2♣', 'no locks')))
             assert(plain.includes(shown('9♣', 'no locks')))
             assert(!plain.includes(shown('T♣', 'no locks')))

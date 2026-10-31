@@ -187,7 +187,8 @@ const cardWithLocks = (face, locks) => [' ', ['code', face], ' ', lockBox(locks)
  * The deck after each stage, top {@link shownCards} cards, as `view` sees
  * it: every card with the locks on it, and its face where the point of view
  * knows it — the plain deck to everyone, a turn's output to the player who
- * shuffled it, every stage at the showdown.
+ * shuffled it, every stage at the showdown. `stages` counts the plain deck,
+ * so it is at least 1.
  * @type {(view: string, seeds: readonly bigint[], stages: number) => readonly Element[]}
  */
 const deckRows = (view, seeds, stages) => {
@@ -232,8 +233,8 @@ const game = (state, seeds) => {
         ['p', button('next', label ?? 'Hand dealt', label === null), ' ', button('reset', 'Start over', state.decks.length === 0)],
         ...(state.decks.length === 0 ? [] : [
             selectField({ name: 'view', label: 'Point of view' }, views.map(v => option(v, v, v === state.view))),
+            ...deckRows(state.view, seeds, state.decks.length),
         ]),
-        ...deckRows(state.view, seeds, state.decks.length),
         ...(state.pockets === null ? [] : [
             ...table(state.view, state.pockets, state.board),
         ]),
