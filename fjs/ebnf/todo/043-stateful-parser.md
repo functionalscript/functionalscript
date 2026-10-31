@@ -24,38 +24,32 @@ between it and a fold.
 
 ### Proposal
 
-Expose the parser as a machine over one input symbol at a time — a
-[`StateFold`](../../types/function/operator/types.ts), the shape the repository
-already folds with:
+Expose the parser as a machine over one input symbol at a time using the
+implemented [`Transducer`](../../types/function/operator/types.ts) lifecycle:
 
 ```ts
-StateFold<Meta<I>, S, MatchResult<T>>
-// init: S
-// update: (state: S, symbol: Meta<I>) => S
-// end: (state: S) => MatchResult<T>
+Transducer<Meta<I>, S, never, MatchResult<T>>
+// init: Step<S, never, MatchResult<T>>
+// update: (state: S, symbol: Meta<I>) => Step<S, never, MatchResult<T>>
+// end: (state: S) => Terminal<never, MatchResult<T>>
 ```
 
 One symbol is the smaller contract, and a string-at-a-time convenience is
 derivable from it, not the other way round. The record itself is what
-`fjs/crypto/sha2` already exposes as `init`/`append`/`end`.
+`fjs/crypto/sha2` already exposes as `init`/`update`/`end`.
 
-**`StateFold`, not [`todo/flow.md`](../../../todo/flow.md)'s `Transducer`.** The
-`Transducer` is design-stage — it appears in no module under `fjs/`, while
-`StateFold` and `StateScan` have a dozen users. Its extra power is a `done`
-step, letting a stage refuse further input inside the operator rather than
-through a state the driver interrogates. That is worth having eventually, and it
-is not worth inventing a second fold shape ahead of the graph engine that would
-consume it. If `Transducer` ships, this parser becomes one; until then it is the
-same shape as everything else.
+**Reuse the existing operator independently of the flow graph.** The shared
+contract and its list/effectful drivers are implemented in
+[`types/function/operator`](../../types/function/operator/README.md).
+`StateFold` remains a simple construction form adapted by `fromStateFold`;
+the parser's public machine uses the common protocol. A terminal `done` step
+lets its driver stop without pulling more symbols.
 
-**This is the value-producing top layer, and only that.** A `StateFold` emits
-nothing until `end`, which is right for a stage answering with one value and
-wrong for one whose output is a stream. [layered-parser](./layered-parser.md)'s
-lower stages emit as they go; nothing here is a decoder or tokenizer. An
-emitting layer wants emission *and* an emitting `end`, which is `Transducer`'s
-and not `StateScan`'s; `decoder` in
-[`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs)
-already works around that with a second `eofOp`.
+**This is the value-producing top layer.** Its emitted-item type is `never` and
+its final `MatchResult` is the terminal summary. [layered-parser](./layered-parser.md)'s
+lower stages emit as they go using the same protocol; the Unicode decoders in
+[`text/code_point`](../../text/code_point/module.f.js) already expose an emitting
+`update` and EOF-flushing `end`. This task changes the parser, not those stages.
 
 **Metadata stays where the rewrite set puts it.** A mapping returns a
 `Meta<O>`, the value in the metadata ([`../ast`](../ast/README.md)), so a
@@ -94,13 +88,13 @@ fold without unwrapping and re-wrapping at every stage.
 
 What replaces it:
 
-- `S` may hold the refusal — the index the match failed at, as `MatchResult`
-  reports it today — and keep accepting symbols without leaving it, so
-  `update` stays total.
-- A driver feeding symbols may inspect the state and stop early. Inspection is
-  an **optimization, not an obligation**: `end` is total either way, so a driver
-  that never looks still gets the right answer, and early exit matters only for
-  unbounded or expensive input.
+- A refusal is a `MatchResult` terminal summary, with no new error variant in
+  the operator protocol. A rejected parse may complete early with `done`, or
+  retain an absorbing refusal state until `end`; its externally visible result
+  must agree either way.
+- The common driver stops pulling on a terminal step. Parser failure reporting
+  and the unconsumed suffix for prefix parsing remain the domain decisions
+  below; the protocol does not supply a remainder field.
 
 **Refusal belongs to the driver, not the machine.**
 [DESIGN.md §10](../../../doc/DESIGN.md) names a malformed document as a *reject*
@@ -152,14 +146,16 @@ is small enough to answer in a pull request that implements nothing.
 
 ### Related
 
+- [Incremental machines](../../types/function/operator/README.md) — the
+  implemented lifecycle and drivers this parser will use.
 - [layered parser](./layered-parser.md) — the pipeline that needs every layer to
   be a streaming fold.
 - [eof-as-ordinary-symbol](../terminal/todo/eof-as-ordinary-symbol.md) — the
   contract change this needs, and its own open question.
 - [repeat-fold-mapping](../ll1/todo/repeat-fold-mapping.md) — the output side:
   a repetition's mapping as a fold over its rounds.
-- [`todo/flow.md`](../../../todo/flow.md) — the total-core decision, and the
-  `Transducer` this operator is or is not.
+- [`todo/flow.md`](../../../todo/flow.md) — the total-core decision and future
+  graph engines consuming the same operator contract.
 - [`fjs/effects/types.ts`](../../effects/types.ts) — why an effect's `Result` is
   a rule there and not here: a runner may decline a command.
 - [DESIGN.md §10](../../../doc/DESIGN.md) — refuse what you cannot handle; the

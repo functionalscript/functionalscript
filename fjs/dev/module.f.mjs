@@ -10,11 +10,11 @@
  */
 
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
-import { cmp as strCmp } from '../types/string/module.f.mjs'
+import { cmp as strCmp } from '../types/string/module.f.js'
 import { fromEntries } from '../types/object/module.f.mjs'
 import { unwrap } from '../types/result/module.f.js'
 import { mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { join, relativize, toPosix } from '../path/module.f.mjs'
+import { join, relativize, toPosix } from '../path/module.f.js'
 import { assert, assertEq } from '../asserts/module.f.js'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
 
@@ -156,6 +156,35 @@ const loadFile = f =>
     resultStep(import_(f), r => pureOk([/** @type {const} */ ([f, r])]))
 
 /**
+ * Loads a discovered file list, preserving import failures and sorting the
+ * resulting map independently of filesystem enumeration order.
+ *
+ * @type {(files: readonly string[], prefix: string) => Effect<Access | Import | All, ModuleMap, IoChannel>}
+ */
+const loadFiles = (files, prefix) => {
+    const loaded = allOk(...files.map(loadFile))
+    return mapStep(loaded, entries => fromEntries(
+        entries
+            .flat()
+            .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
+            .toSorted(([a], [b]) => strCmp(a)(b))
+    ))
+}
+
+/**
+ * Loads authored FunctionalScript files immediately inside the actual working
+ * directory. Descendants and npm's inherited `INIT_CWD` do not select this
+ * single-directory native test suite.
+ *
+ * @type {() => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
+ */
+export const loadDirectoryModuleMap = () => {
+    const discovered = walk('.', (path, { name, isDirectory }) =>
+        isDirectory || name.startsWith('.') || !isAuthored(path) ? 'skip' : 'take')
+    return step(discovered, files => loadFiles(files, ''))
+}
+
+/**
  * Where discovery starts: `INIT_CWD`, the directory `npm run` was invoked
  * from, when the environment carries it, and `.` otherwise — a runner invoked
  * directly is already where its caller is. In POSIX form on every host, so
@@ -202,17 +231,9 @@ export const loadModuleMap = ({ env, engine }, select = shouldLoad) => {
     //       we should consider optimizing them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    const loaded = step(
+    return step(
         allFiles(s, path => supported(path) && select(path)),
-        files => allOk(...files.map(loadFile)))
-    return mapStep(
-        loaded,
-        entries => fromEntries(
-            entries
-                .flat()
-                .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
-                .toSorted(([a], [b]) => strCmp(a)(b))
-        ))
+        files => loadFiles(files, prefix))
 }
 
 export const proof = {

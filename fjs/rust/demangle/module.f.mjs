@@ -26,9 +26,10 @@
  * @import { _Read } from './private.ts'
  */
 
+import { isValidCodePoint } from '../../text/code_point/module.f.js'
 import { fromU8List } from '../../text/utf8/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { reverse } from '../../types/list/module.f.js'
 
 /** The deepest a symbol may nest, the crate's own limit. */
 const maxDepth = 500
@@ -93,7 +94,7 @@ const punycodeDecode = (ascii, punycode) => {
         i = i + delta
         n = n + Math.floor(i / length)
         i = i % length
-        if (n > 0x10_ffff || (n >= 0xd800 && n <= 0xdfff) || length > 128) { return null }
+        if (!isValidCodePoint(n) || length > 128) { return null }
         output = [...output.slice(0, i), String.fromCodePoint(n), ...output.slice(i)]
         i = i + 1
         if (at === punycode.length) { return output.join('') }
@@ -511,7 +512,7 @@ const demangler = s => {
         if (tag === 'c') {
             const r = uint(i + 1)
             const v = r === null || r[0].startsWith('0x') ? -1 : Number(r[0])
-            return r === null || v < 0 || v > 0x10_ffff || (v >= 0xd800 && v <= 0xdfff) ? null
+            return r === null || !isValidCodePoint(v) ? null
                 : [`'${escapeChar("'")(String.fromCodePoint(v))}'`, r[1]]
         }
         /** @type {(j: number) => _Read<string>} */

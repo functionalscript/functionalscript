@@ -3,11 +3,13 @@
  * @import { State as DemoState } from '../../website/demo/versions/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.js'
-import { emptyState, patriciaTrie } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { patriciaTrie } from './module.f.mjs'
 import { _census, _graphOf, _load, _press, demo, presets } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../object/entry/module.f.js'
+import { nextStep } from '../function/operator/module.f.js'
+import { run } from '../list/module.f.js'
 
 /** @type {(a: bigint, b: bigint) => bigint} */
 const combine = (a, b) => a * 1_000n + b
@@ -18,7 +20,8 @@ const create = (a, b, s) => {
     return [h, [...s, [a, b, h]]]
 }
 
-const { push, end } = patriciaTrie(create)
+const trie = patriciaTrie(create)([])
+const { init, update, end } = trie
 
 /** @type {(state: State<readonly [bigint, bigint, bigint][], bigint>) => readonly bigint[]} */
 const leaves = ([, candidates]) => candidates.map(([leaf]) => leaf)
@@ -26,11 +29,11 @@ const leaves = ([, candidates]) => candidates.map(([leaf]) => leaf)
 /** @type {(inputs: readonly bigint[], expectedLeaves: readonly (readonly bigint[])[], expectedNodeCounts: readonly number[]) => void} */
 const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
     /** @type {State<readonly [bigint, bigint, bigint][], bigint>} */
-    let state = emptyState([])
+    let state = init[2]
     for (let i = 0; i < inputs.length; i++) {
         const x = inputs[i]
         const prevCount = state[0].length
-        state = push([x, x], state)
+        state = update(state, [x, x])[2]
 
         const actual = leaves(state)
         assertEq(actual.length, expectedLeaves[i].length)
@@ -43,7 +46,7 @@ const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
         for (const [l, r, h] of newNodes) { assertEq(h, combine(l, r)) }
     }
     const prevCount = state[0].length
-    const [root, finalStorage] = end(state)
+    const [root, finalStorage] = end(state)[2]
     const finalNodes = finalStorage.slice(prevCount)
     assertEq(finalNodes.length, expectedLeaves[expectedLeaves.length - 1].length - 1)
     assert(root !== undefined)
@@ -51,31 +54,31 @@ const runExample = (inputs, expectedLeaves, expectedNodeCounts) => {
 }
 
 const empty = () => {
-    const [root, storage] = end(emptyState([]))
+    const [root, storage] = end(init[2])[2]
     assertEq(storage.length, 0)
     assertEq(root, undefined)
 }
 
 const singleLeaf = () => {
-    const state = push([42n, 42n], emptyState([]))
+    const state = update(init[2], [42n, 42n])[2]
     assertEq(state[0].length, 0)
     assertEq(leaves(state).length, 1)
     assertEq(leaves(state)[0], 42n)
 
-    const [root, finalStorage] = end(state)
+    const [root, finalStorage] = end(state)[2]
     assertEq(finalStorage.length, 0)
     assertEq(root, 42n)
 }
 
 const twoLeaves = () => {
-    const s1 = push([7n, 7n], emptyState([]))
+    const s1 = update(init[2], [7n, 7n])[2]
     const prevCount = s1[0].length
-    const s2 = push([3n, 3n], s1)
+    const s2 = update(s1, [3n, 3n])[2]
     assertEq(s2[0].slice(prevCount).length, 0)
     assertEq(leaves(s2).length, 2)
 
     const prevCount2 = s2[0].length
-    const [root, finalStorage] = end(s2)
+    const [root, finalStorage] = end(s2)[2]
     const finalNodes = finalStorage.slice(prevCount2)
     assertEq(finalNodes.length, 1)
     assertEq(finalNodes[0][0], 7n)
@@ -242,5 +245,19 @@ export const proof = {
     twoLeaves,
     descending,
     ascending,
+    lifecycle: () => {
+        const input = [9n, 7n, 2n].map(x => /** @type {const} */ ([x, x]))
+        const whole = run(trie)(input)
+        assertEq(init[0], 'next')
+        assertEq(init[1].length, 0)
+        assertEq(end(init[2])[0], 'done')
+        assertEq(end(init[2])[1].length, 0)
+        for (let split = 0; split <= input.length; split++) {
+            const checkpoint = input.slice(0, split).reduce((state, candidate) => update(state, candidate)[2], init[2])
+            const resumed = { ...trie, init: nextStep(checkpoint) }
+            assertStructurallySame(run(resumed)(input.slice(split)), whole)
+        }
+        assertStructurallySame(init[2], [[], []])
+    },
     demo: demoProof,
 }

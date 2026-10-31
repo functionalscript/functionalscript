@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat, occurrences } from '../../types/string/module.f.js'
 import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
@@ -153,8 +153,8 @@ export const proof = {
         // A file is linked at its own repository path, root-relative, so the
         // same href is written wherever the page sits.
         files: () => assertEq(
-            sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-            contents('<li><a href="/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
+            sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.js'] }),
+            contents('<li><a href="/fjs/types/list/module.f.js" data-kind="file">module.f.js</a></li>')),
         // A file of the root directory has no directory in its path.
         filesAtRoot: () => assertEq(
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
@@ -262,8 +262,8 @@ export const proof = {
                 sectionsAtCommit({ ...empty, path: 'nanvm/demos/wasm', files: ['nanvm_demos.wasm', 'hello.wat'] }),
                 contents('<li><a href="/nanvm/demos/wasm/nanvm_demos.wasm" data-kind="file">nanvm_demos.wasm</a></li><li><a href="/nanvm/demos/wasm/hello.wat" data-kind="file">hello.wat</a></li>')),
             files: () => assertEq(
-                sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-                contents(`<li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs" data-kind="file">module.f.mjs</a></li>`)),
+                sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.js'] }),
+                contents(`<li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.js" data-kind="file">module.f.js</a></li>`)),
             filesAtRoot: () => assertEq(
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
                 contents(`<li><a href="${repository}/blob/${commit}/README.md" data-kind="file">README.md</a></li>`)),
@@ -403,7 +403,7 @@ export const proof = {
             const summary = html.slice(html.indexOf('<summary>'), html.indexOf('</summary>'))
             assert(summary.includes('data-copy-demo=""'), html)
             assert(summary.includes('data-demo-link-status=""'), html)
-            assertEq(html.split('data-copy-demo=""').length - 1, 1)
+            assertEq(occurrences('data-copy-demo=""')(html), 1)
         },
         scopedControlsBeforeScripts: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p',
@@ -418,7 +418,7 @@ export const proof = {
                 ...demoSection({ path: '/a/demo.f.mjs', view: ['input', { id: 'x', name: 'x' }] }),
                 ...demoSection({ path: '/a/demo.f.mjs', view: ['input', { id: 'x', name: 'x' }] }, 'second'),
             ]))
-            assertEq(html.split('id="demo"').length - 1, 1)
+            assertEq(occurrences('id="demo"')(html), 1)
             assert(html.includes('id="demo-section:6:second"'))
             assert(html.includes('id="demo-control:13:/a/demo.f.mjs:x"'))
             assert(html.includes('id="demo-control:6:second:x"'))
@@ -426,7 +426,7 @@ export const proof = {
         scopeScriptEscaping: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: null }, 'one"</script>')]))
             assert(html.includes('\\u003c/script>'))
-            assertEq(html.split('</script>').length - 1, 1)
+            assertEq(occurrences('</script>')(html), 1)
         },
         // The build's first view is in the root, so the demo shows before its
         // modules have loaded.

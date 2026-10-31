@@ -2,9 +2,10 @@
  * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
-import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
+import { toCodePointList, fromCodePointList, fromU8List, fromVec, utf8ByteToCodePointOp, utf8Decoder, stringToU8List, u8ListToString, utf8ToString } from './module.f.mjs'
+import { next } from '../../types/list/module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { u8ListToVecMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { demo, codePoints } from './demo.f.mjs'
@@ -13,6 +14,28 @@ import { unwrap } from '../../types/result/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 
 export const proof = {
+    lifecycle: () => {
+        const initial = utf8Decoder.init
+        assert(initial[0] === 'next')
+        assertEq(stringifySorted(utf8Decoder.end(initial[2])), '["done",[],null]')
+        const first = utf8Decoder.update(initial[2], 0xf0)
+        assert(first[0] === 'next')
+        const second = utf8Decoder.update(first[2], 0x9f)
+        assert(second[0] === 'next')
+        const third = utf8Decoder.update(second[2], 0x98)
+        assert(third[0] === 'next')
+        const last = utf8Decoder.update(third[2], 0x80)
+        assert(last[0] === 'next')
+        assertEq(stringifySorted(last[1]), '[128512]')
+        assertEq(last[2], null)
+        // The saved prefix remains usable, including its EOF error flush.
+        assertEq(stringifySorted(utf8Decoder.end(first[2])), '["done",[-2147483408],null]')
+        assertEq(stringifySorted(utf8Decoder.update(third[2], 0x80)), stringifySorted(last))
+    },
+    lazyOutput: () => {
+        const input = { first: 0x41, tail: () => { throw 'read past the emitted character' } }
+        assertEq(assertNotNullish(next(toCodePointList(input))).first, 0x41)
+    },
     toCodePoint: [
         () => {
             const result = stringifySorted(toArray(toCodePointList([-1, 0x100])))

@@ -6,7 +6,7 @@ import { assertEq, assertOk, assertStructurallySame } from '../../../asserts/mod
 import { emptyModule } from '../testlib.f.js'
 import { parse } from '../binary/parse/module.f.mjs'
 import { write } from '../binary/write/module.f.mjs'
-import { afterPrefix, encoding, instructions, prefix, prefixed, single } from './module.f.mjs'
+import { afterPrefix, encoding, instructions, prefix, prefixed, single } from './module.f.js'
 
 /** Immediates of each kind, zero where they are numbers. @type {{ readonly [K in Kind]: readonly unknown[] }} */
 const zero = {

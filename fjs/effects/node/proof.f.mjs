@@ -1,6 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate, _PumpStep } from "./types.ts"
+ * @import { Access, IoChannel, IoError, IoResult, NodeOp, ReadBytes, CreateExclusive, ReadFile, Rm, Stat, WriteBytes, WriteFile, _ChunkSource, _Gate, _PumpStep } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { EffectList, Next } from "../list/types.ts"
  * @import { List } from "../../types/list/types.ts"
@@ -13,15 +13,16 @@ import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { assertIoMessage } from '../testlib.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
+import { run as mockRun } from '../mock/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -35,6 +36,18 @@ const readHelloMap = {
 }
 
 const readHello = match(readHelloMap)
+
+/**
+ * What `exists` answers when `access` answers `answer`, for a failure code
+ * the virtual file system does not produce.
+ *
+ * @type {(answer: IoResult<void>) => Result<boolean, IoChannel>}
+ */
+const existsWhen = answer => {
+    /** @type {MemOperationMap<Access, null>} */
+    const map = { access: () => state => [state, answer] }
+    return mockRun(map)(null)(exists('a'))[1]
+}
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
@@ -1147,6 +1160,26 @@ export const proof = {
             const node = { first: two, tail }
             const taken = pumpCell(null, 0, ok(node))
             assert(taken[0] === 'take' && taken[2] === node)
+        },
+    },
+    exists: {
+        file: () => {
+            const [, r] = virtual(emptyState)(ioStep(writeFile('a', vec8(1n)), () => exists('a')))
+            assertStructurallySame(r, ok(true))
+        },
+        missing: () => {
+            const [, r] = run(exists('a'))
+            assertStructurallySame(r, ok(false))
+        },
+        // A file where a directory was meant, and a link cycle, name nothing.
+        notADirectory: () =>
+            assertStructurallySame(existsWhen(error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))), ok(false)),
+        loop: () =>
+            assertStructurallySame(existsWhen(error(ioError({ code: 'ELOOP', message: 'too many symbolic links' }))), ok(false)),
+        // The path may be there and the host will not say: the failure is kept.
+        permission: () => {
+            const denied = ioError({ code: 'EACCES', message: 'permission denied' })
+            assertStructurallySame(existsWhen(error(denied)), error(denied))
         },
     },
 }

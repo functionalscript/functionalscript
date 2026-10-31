@@ -4,8 +4,8 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { fromArrayLike } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { fromArrayLike } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { objectTypes, tryLength, tryRead, tryType, write } from './module.f.mjs'
 

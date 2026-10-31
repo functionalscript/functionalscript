@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`fjs/types/list`](../list/module.f.mjs) is lazy: a `tail` may be a thunk or
+[`fjs/types/list`](../list/module.f.js) is lazy: a `tail` may be a thunk or
 a `Concat`. A walker that keeps a work stack wants a strict cons — a `first`
 and a `tail` that is a cons or `null`, nothing to force — and since `types`
 offers none, each walker declares its own. At `c162c3a`:
@@ -48,10 +48,14 @@ exports.
 
 ### Tasks
 
-- [ ] Choose the spelling; export the type and `pushAll` from `fjs/types`.
-- [ ] `edag/from_fast` and its two children, `js/ast/prepare`,
-      `js/ast/sugar/pattern`, `media/datajs/vectors`, `compiler/parser` over
-      it, as each is next touched.
+- [x] Choose the spelling; export the type and `pushAll` from `fjs/types`:
+      `top`/`rest`, `Stack<F>` in `types/stack_walk/types.ts` and `pushAll`
+      in its module.
+- [x] `js/ast/sugar/pattern`, `media/datajs/vectors` and
+      `rust/serializer`'s `namesOf` over it.
+- [ ] `edag/from_fast` and its two children, `js/ast/prepare` (the
+      `first`/`tail` `Link`s, renamed to `top`/`rest`), and
+      `compiler/parser`, as each is next touched.
 
 ### Related
 

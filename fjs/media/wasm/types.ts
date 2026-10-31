@@ -25,7 +25,7 @@
  * @module
  */
 
-import type { instructions, prefixed } from './instruction/module.f.mjs'
+import type { instructions, prefixed } from './instruction/module.f.js'
 
 /** Bytes, each a `number` from 0 to 255. */
 export type Bytes = readonly number[]

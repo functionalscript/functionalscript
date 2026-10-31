@@ -13,6 +13,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { ok, unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -111,7 +112,7 @@ export const proof = {
             // with the key `at` and `()`, and nothing falls back.
             methodCall: () => {
                 const html = htmlToString(demo.view('export default [1, 2, 3].at(0);'))
-                assertEq(html.split('data-graph-group=""').length - 1, 2)
+                assertEq(occurrences('data-graph-group=""')(html), 2)
                 const labels = svgTextTags(html).filter(tag => tag.includes('data-graph-label=""'))
                 assert(labels.some(tag => tag.endsWith('>.')) && labels.some(tag => tag.endsWith('>()')), html)
                 assert(html.includes('data-graph-value-label="">&quot;at&quot;<') && !html.includes('not yet drawn'), html)
@@ -148,7 +149,7 @@ export const proof = {
             const source = /** @type {const} */ ('const a = 1 + 2; export default [a, a * 3];')
             const graph = unwrap(graphOfText(source))
             const html = htmlToString(demo.view(source))
-            assertEq(html.split(' data-graph-connection=').length - 1, graph.edges.filter(edge => typeof edge.to === 'number').length)
+            assertEq(occurrences(' data-graph-connection=')(html), graph.edges.filter(edge => typeof edge.to === 'number').length)
             assert(html.includes('data-graph-trace-layer=""'), html)
             assert(html.includes('data-graph-port-outline='), html)
             assert(html.includes('data-graph-node-name='), html)
@@ -182,7 +183,7 @@ export const proof = {
                 .map(r => r.split('"'))
                 .find(([rx, , ry, , , , h]) => Number(ry) + Number(h) / 2 === y && Number(rx) + 12 === x)
             const left = assertNotNullish(box, html)[0]
-            assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 6)
+            assertEq(occurrences(`L${left},${y}" data-graph-edge=""`)(html), 6)
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
@@ -196,18 +197,18 @@ export const proof = {
         // `rest` body cell is marked lazy, as the line to it was.
         kinds: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('data-graph-kind="terminal"').length - 1, 0)
-            assertEq(html.split('data-graph-kind="leaf"').length - 1, 0)
+            assertEq(occurrences('data-graph-kind="terminal"')(html), 0)
+            assertEq(occurrences('data-graph-kind="leaf"')(html), 0)
             assert(html.includes('data-graph-value="" data-graph-value-kind="terminal" data-graph-edge-kind="lazy">'), html)
             assert(html.includes('data-graph-value-label="" data-graph-value-kind="terminal">rest<'), html)
             assert(html.includes('data-graph-value-label="">undefined<'), html)
             // `1`, `2`, `3`, `4`, `undefined`, the key `"x"`, the length
             // `0`, and `rest`, each in a cell; only the input is a terminal.
             // The other eight cells name nodes, preserving shared operand references.
-            const refs = html.split('data-graph-value-label="" data-graph-value-ref=""').length - 1
+            const refs = occurrences('data-graph-value-label="" data-graph-value-ref=""')(html)
             assertEq(refs, 8)
-            assertEq(html.split('data-graph-value=""').length - 1 - refs, 8)
-            assertEq(html.split('data-graph-value="" data-graph-value-kind="terminal"').length - 1, 1)
+            assertEq(occurrences('data-graph-value=""')(html) - refs, 8)
+            assertEq(occurrences('data-graph-value="" data-graph-value-kind="terminal"')(html), 1)
             assert(!html.includes('>frame'), html)
             assert(html.includes('>body<'), html)
         },

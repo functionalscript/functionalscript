@@ -77,6 +77,21 @@ export const walk = ({ enter, resume }) => {
 }
 
 /**
+ * `items` pushed onto `stack`, their order kept: `items[0]` ends on top, so
+ * a walk that pops the stack meets them first to last. What a walker that
+ * keeps its own stack of work pushes the children of a node with.
+ *
+ * @type {<F>(items: readonly F[], stack: Stack<F>) => Stack<F>}
+ */
+export const pushAll = (items, stack) => {
+    let result = stack
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+        result = { top: items[Number(i)], rest: result }
+    }
+    return result
+}
+
+/**
  * A step that visits the node `result` holds inside `frame`, or ends the
  * walk with its error: for a node that is itself checked before it is
  * visited.

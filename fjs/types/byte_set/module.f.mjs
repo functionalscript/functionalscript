@@ -10,7 +10,7 @@
  */
 
 import { bitSet, bigintOps } from '../bit_set/module.f.mjs'
-import { reverse, countdown, flat, map } from '../list/module.f.mjs'
+import { reverse, countdown, flat, map } from '../list/module.f.js'
 
 const byteSet = bitSet(bigintOps)(256)
 

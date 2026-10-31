@@ -57,14 +57,14 @@
  */
 
 import { codePoints } from '../text/ascii/module.f.js'
-import { access, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
+import { exists, exitStep, isNotFound, mkdir, readdir, readUtf8File, readWhole, writeChunks, writeUtf8File } from '../effects/node/module.f.mjs'
 import { attemptStep, errorMessage, foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
-import { basename, concat as pathConcat, parent } from '../path/module.f.mjs'
+import { basename, concat as pathConcat, parent } from '../path/module.f.js'
 import { resolve } from '../path/import/module.f.mjs'
-import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
-import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
-import { toArray } from '../types/list/alt/module.f.mjs'
+import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.js'
+import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.js'
+import { toArray } from '../types/list/alt/module.f.js'
 import { catch_, import_, log } from '../effects/common/module.f.mjs'
 import { run as runInMemory } from '../effects/mock/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
@@ -771,16 +771,6 @@ const writeChangelog = build => tree => {
 }
 
 /**
- * Whether `path` is there, as a result rather than a failure: `access`
- * answers a missing path with an error, which would end the build, and the
- * callers read a missing path as an answer — no docs to copy, no funding to
- * link — and every other error as the failure it is.
- *
- * @type {(path: string) => Effect<Access, IoResult<void>, IoChannel>}
- */
-const foundAt = path => attemptStep(access(path))
-
-/**
  * One directory of rustdoc's output, copied to the same place under
  * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
  * a rustdoc page outgrows one `Vec`.
@@ -827,9 +817,6 @@ const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree
  */
 const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
 
-/** Whether rustdoc's output is there, as a result rather than a failure. */
-const rustdocFound = foundAt(rustdocDir)
-
 /**
  * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
  * it is, answering the crates it documents — or `null` when `cargo doc` was
@@ -840,15 +827,15 @@ const rustdocFound = foundAt(rustdocDir)
  * generator is an external tool ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
  * Whoever builds the site runs `cargo doc --no-deps --workspace` first.
  *
- * **Absence is asked of `access`, not of the walk's `readdir`**, whose
+ * **Absence is asked of `exists`, not of the walk's `readdir`**, whose
  * `ENOENT` the virtual file system the proofs run on does not yet report
  * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
- * Any other failure is left to the walk to report, and stops the build.
+ * Any other failure of either stops the build.
  *
  * @type {Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
  */
-const copyRustdoc = step(rustdocFound, found =>
-    found[0] === 'error' && isNotFound(found[1]) ? pureOk(null) : copyRustdocTree)
+const copyRustdoc = step(exists(rustdocDir), found =>
+    found ? copyRustdocTree : pureOk(null))
 
 /**
  * The Rust API reference, when there is one: rustdoc's output and the index
@@ -983,9 +970,6 @@ const fundingRead = step(readUtf8File(fundingPath), text => {
         : pureOk(funding[1])
 })
 
-/** Whether `funding.json` is there, as a result rather than a failure. */
-const fundingFound = foundAt(fundingPath)
-
 /**
  * The funding channels every page's footer links, read from `funding.json`.
  *
@@ -997,8 +981,8 @@ const fundingFound = foundAt(fundingPath)
  *
  * @type {Effect<Access | ReadFile, readonly Funding[], IoChannel>}
  */
-const readFunding = step(fundingFound, found =>
-    found[0] === 'error' && isNotFound(found[1]) ? pureOk([]) : fundingRead)
+const readFunding = step(exists(fundingPath), found =>
+    found ? fundingRead : pureOk([]))
 
 /**
  * What a build knows about itself: the commit and the branch the environment

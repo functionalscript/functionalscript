@@ -210,8 +210,13 @@ export type Child =
  * until the rest of the family in
  * [`todo/spawn-effect.md`](./todo/spawn-effect.md) lands, and a child whose
  * pipes nobody drains blocks once they fill.
+ * `cwd` selects the child's working directory; omitting it inherits this
+ * process's directory.
  */
-export type SpawnOptions = { readonly stdio: 'inherit' }
+export type SpawnOptions = {
+    readonly stdio: 'inherit'
+    readonly cwd?: string
+}
 
 /**
  * Starts `command` with `args` — an argument vector, no shell between them —

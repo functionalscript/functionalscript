@@ -1,15 +1,14 @@
 /**
  * Inflates a zlib stream (RFC 1950) holding DEFLATE data (RFC 1951), fed as
- * chunks, in the shape of a hash: `init`, `append` of a chunk of input, `end`.
+ * chunks through the common `init` / `update(state, chunk)` / `end` protocol.
  * The design, and why a chunk is a `Vec`, is
  * [`todo/inflate.md`](../../../todo/inflate.md).
  *
- * `append` gives the output a chunk makes and the next state, or `null` for a
- * stream that is malformed, so a refusal comes with the chunk that carries the
- * bad byte, and the output of the chunks before it has been given already. `end` gives the bytes after the
- * stream, once it has closed, or `null` while it has not: a reader that was
- * handed more than the stream is handed back the rest, which is why a window
- * need not end where the stream does.
+ * `update` emits the output a chunk makes and continues with the next state.
+ * A malformed stream completes early with `null`; EOF completes with the count
+ * of trailing bytes, or `null` for a truncated stream. An internal `done` phase
+ * still accepts input and counts trailing bytes until EOF, so a reader can
+ * distinguish a complete stream from one followed by more data.
  *
  * The framing and all three kinds of block are here: stored, fixed Huffman and
  * dynamic Huffman. Every step takes the input it has and no more, so a chunk
@@ -22,27 +21,29 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Item, Taken } from './private.ts'
- * @import { Output, State } from './types.ts'
+ * @import { Step, Transducer } from '../../types/function/operator/types.ts'
+ * @import { State } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.js'
 import { bytesIn, isWholeBytes, length, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
-import { appendBytes as adler, init as adlerInit } from '../adler32/module.f.mjs'
+import { reverse } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
+import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
+import { appendBytes as adler } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.js'
-import { decode, dynamic, fixed } from '../huffman/module.f.mjs'
-import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.mjs'
+import { decode, dynamic, fixed } from '../huffman/module.f.js'
+import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.js'
 
 /** A stream not yet read. */
-export const init = /** @type {State} */ ({
+const initial = /** @type {State} */ ({
     phase: 'header',
     input: [],
     after: 0,
     bit: 0,
     last: false,
     left: 0,
-    adler: adlerInit,
+    adler: 1,
     window: emptyWindow,
     codes: null,
 })
@@ -238,19 +239,19 @@ const step = state => {
 }
 
 /**
- * Reads a chunk of the stream: the state after it and the output it made, or
- * `null` for a stream that is malformed. Bytes that arrive after the stream has
- * closed are counted for {@link end}.
+ * Reads a chunk, emitting what it made, or completing with `null` where the
+ * stream is malformed. Bytes after its internal closing phase are still counted
+ * until the machine receives EOF.
  *
  * @throws On a `v` that is not whole bytes.
  *
- * @type {(v: Vec) => (state: State) => Nullable<Output>}
+ * @type {(state: State, v: Vec) => Step<State, Vec, Nullable<number>>}
  */
-export const append = v => state => {
+const update = (state, v) => {
     assert(isWholeBytes(v), 'a zlib stream is bytes')
     // what comes after the stream is counted and not looked at
     if (state.phase === 'done') {
-        return { state: { ...state, after: state.after + Number(bytesIn(length(v))) }, output: [] }
+        return nextStep({ ...state, after: state.after + Number(bytesIn(length(v))) })
     }
     /** @type {State} */
     let current = { ...state, input: [...state.input, ...u8ArrayMsb(v)] }
@@ -260,18 +261,24 @@ export const append = v => state => {
     let made = null
     while (true) {
         const result = step(current)
-        if (result === null) { return null }
-        if (result === more) { return { state: current, output: toArray(reverse(made)) } }
+        if (result === null) { return doneStep(null) }
+        if (result === more) { return nextStep(current, toArray(reverse(made))) }
         current = result.state
         if (result.chunk !== null) { made = { first: result.chunk, tail: made } }
     }
 }
 
 /**
- * How many bytes follow the stream, once it has closed; `null` while it has not.
- * A count, not the bytes: a reader that keeps feeding a stream that has ended
- * can bring any number of them, more than a `Vec` holds.
+ * The chunked zlib decoder. Updates emit whole-byte chunks and retain the
+ * incomplete decoding state. EOF returns the count of trailing bytes, or `null`
+ * if the stream did not close. Malformed input completes early with `null`.
+ * The count can exceed a `Vec`'s size; trailing bytes are counted without being
+ * retained, and the internal closing phase keeps accepting them until EOF.
  *
- * @type {(state: State) => Nullable<number>}
+ * @satisfies {Transducer<Vec, State, Vec, Nullable<number>>}
  */
-export const end = state => state.phase === 'done' ? state.after : null
+export const inflate = {
+    init: nextStep(initial),
+    update,
+    end: (/** @type {State} */ state) => doneStep(state.phase === 'done' ? state.after : null),
+}

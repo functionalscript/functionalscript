@@ -48,15 +48,18 @@
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
+ * @import { Transducer } from '../../types/function/operator/types.ts'
  */
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/iterable/module.f.mjs'
-import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
-import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
+import { run } from '../../types/list/module.f.js'
+import { run as runStream } from '../../effects/list/module.f.mjs'
+import { fromStateFold } from '../../types/function/operator/module.f.js'
+import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
-import { basename } from '../../path/module.f.mjs'
+import { basename } from '../../path/module.f.js'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //
@@ -114,13 +117,13 @@ const magicMime = m => m.tag === 'matched' ? m.mime : null
  *
  * The two agree because `magicStep` returns a non-`scan` state unchanged, so
  * both absorbing states are its fixed points. `detect`'s old loop stopped at
- * the first one; `push` stops only once the *whole* verdict is settled and may
+ * the first one; `update` stops only once the *whole* verdict is settled and may
  * keep folding for the UTF-8 factor after the magic state is `dead` — but a
  * `dead` or `matched` magic cannot move again, so the final magic is the same
  * either way. A signature still in `scan` at the end of the `Vec` — a prefix
  * too short to complete any signature — reads as `null`.
  *
- * Cost follows `push`, which stops only once the whole verdict is settled, not
+ * Cost follows `update`, which stops only once the whole verdict is settled, not
  * once the magic state is. On a signature match or on non-text bytes that is
  * still an early exit; on valid text it now reads the whole `Vec`, because the
  * shared machine is still tracking the UTF-8 factor this function ignores
@@ -140,7 +143,7 @@ const magicMime = m => m.tag === 'matched' ? m.mime : null
  *
  * @type {(bytes: Vec) => Nullable<string>}
  */
-export const detect = bytes => magicMime(push(detectInit)(bytes).magic)
+export const detect = bytes => magicMime(update(initial, bytes).magic)
 
 // ── Streaming detector ────────────────────────────────────────────────────────────
 //
@@ -148,7 +151,7 @@ export const detect = bytes => magicMime(push(detectInit)(bytes).magic)
 // metadata as the pure `detect` + UTF-8 path, but **without buffering the blob**.
 // It is the product of three independent folds over the byte stream — length,
 // magic-byte signature elimination, and a UTF-8 validity DFA — read off at
-// end-of-stream by `finish`. This lets `cas_get` inspect arbitrarily large blobs
+// end-of-stream by `end`. This lets `cas_get` inspect arbitrarily large blobs
 // (where a single `Vec` would overflow `maxLength`) in O(1) space, since the bulk
 // of a large blob costs only length counting once the verdict is fixed (see
 // `isSettled`: a magic match settles it immediately, a dead magic once utf8 fails).
@@ -180,15 +183,15 @@ const utf8Text = u => utf8Valid(u) && u.text
  *
  * @type {DetectState}
  */
-export const detectInit = {
+const initial = {
     length: 0n,
     magic: magicInit,
     utf8: utf8Init,
 }
 
-// The outcome can no longer change — `push` may stop decoding and only count
-// length — once `finish` is pinned down. A magic `matched` pins it on its own
-// (`finish` returns the detected mime and ignores the utf8 verdict), so we must
+// The outcome can no longer change — `update` may stop decoding and only count
+// length — once `end` is pinned down. A magic `matched` pins it on its own
+// (`end` returns the detected mime and ignores the utf8 verdict), so we must
 // not wait for utf8 to go invalid (it may stay valid forever, e.g. an ASCII PDF).
 // A magic `dead` leaves text-vs-octet open, so it settles only once utf8 can no
 // longer be text — either invalid or a control byte seen (both absorbing); `scan`
@@ -209,9 +212,9 @@ const isSettled = (magic, utf8) => {
  * the verdict is fixed (see {@link isSettled}), so large blobs — including large
  * magic-matched ones — cost ≈ length counting.
  *
- * @type {(s: DetectState) => (chunk: Vec) => DetectState}
+ * @type {(s: DetectState, chunk: Vec) => DetectState}
  */
-export const push = s => chunk => {
+const update = (s, chunk) => {
     const bits = length(chunk)
     let magic = s.magic
     let utf8 = s.utf8
@@ -235,7 +238,7 @@ export const push = s => chunk => {
  *
  * @type {(s: DetectState) => DetectMeta}
  */
-export const finish = s => {
+const end = s => {
     const byteLength = bytesIn(s.length)
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
@@ -246,6 +249,15 @@ export const finish = s => {
 }
 
 /**
+ * The MIME detector through the shared `init` / `update(state, chunk)` / `end`
+ * protocol. A settled verdict keeps accepting chunks: length is complete only
+ * at EOF, even when magic-byte or UTF-8 classification no longer changes.
+ *
+ * @type {Transducer<Vec, DetectState, never, DetectMeta>}
+ */
+export const detector = fromStateFold({ init: initial, update, end })
+
+/**
  * Classifies a whole `Vec` with the same state machine as {@link detectStream}.
  * The single-buffer counterpart for callers that already hold the bytes (the
  * `cas_get` `content: true` path materializes the blob anyway): both paths read
@@ -254,10 +266,10 @@ export const finish = s => {
  *
  * @type {(bytes: Vec) => DetectMeta}
  */
-export const detectVec = bytes => finish(push(detectInit)(bytes))
+export const detectVec = bytes => run(detector)([bytes])
 
 /**
- * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
+ * Runs {@link detector} over a CAS read stream and finalizes it at EOF,
  * deriving `cas_get` metadata without ever materializing the blob. A stream that
  * fails carries its failure out as this one's, through `step` rather than
  * through a case in the loop.
@@ -266,18 +278,7 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
  * @param {EffectList<O, Vec, IoChannel>} stream
  * @returns {Effect<O, DetectMeta, IoChannel>}
  */
-export const detectStream = stream => {
-    /** @type {(s: DetectState) => (l: EffectList<O, Vec, IoChannel>) => Effect<O, DetectMeta, IoChannel>} */
-    const loop = s => l =>
-        ioStep(
-            l,
-            node => {
-                if (node === undefined) { return pureOk(finish(s)) }
-                const { first, tail } = node
-                return loop(push(s)(first))(tail)
-            })
-    return loop(detectInit)(stream)
-}
+export const detectStream = stream => runStream(detector)(stream)
 
 // ── Extension table ───────────────────────────────────────────────────────────────
 //

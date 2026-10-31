@@ -26,7 +26,9 @@ import { fromUndefined } from '../../types/nullable/module.f.js'
 /**
  * The symbol of the first registered name: `0x110000`, one past the last
  * Unicode scalar value, so a token symbol can never be mistaken for a code
- * point of the layer below.
+ * point of the layer below. It is `maxCodePoint + 1` from
+ * `fjs/text/code_point`, spelled here because a `.f.js` module imports only
+ * `.f.js`; the proof pins the two together.
  *
  * @type {number}
  */

@@ -2,19 +2,18 @@
 
 ## The streaming decoder skeleton
 
-`decoder` wraps a per-unit step and an end-of-input step into one
-`List`-to-`List` conversion, so UTF-8 and UTF-16 share the whole streaming
-skeleton and supply only the two direction-specific steps.
+`decoder(machine)` drives a shared `Transducer` and flattens its output chunks
+into a lazy `List`. UTF-8 and UTF-16 export `utf8Decoder` and `utf16Decoder` with
+`init`, `update(state, unit)`, and `end(state)`. The pure list driver pulls one
+unit at a time and invokes `end` at EOF, so EOF needs no sentinel in the input
+alphabet. Decoded output stays incremental, including the final flush chunk.
 
-`eofFlush` builds the second of those steps. Every decoder's end-of-input
-behaviour is the same contract — *leftover state becomes exactly one error unit
-and the state resets to empty* — and the codecs differ only in how a non-empty
-state maps to its error unit (`utf8StateToError` for UTF-8, `state | errorMask`
-for an unpaired UTF-16 surrogate). Stating the contract once beside `decoder`
-keeps the "exactly one error unit" rule from being re-derived per codec, the way
-the two hand-written eof ops used to. A codec whose end-of-input step is *not*
-this shape can still pass `decoder` an arbitrary function; `eofFlush` is a
-factory for the common case, not a restriction on the interface.
+The codecs use `fromStateScan` to give their small per-unit operations the
+common lifecycle. `eofFlush` builds their EOF output: leftover state becomes
+exactly one error unit and empty state emits nothing. They differ only in how a
+non-empty state maps to its error unit (`utf8StateToError` for UTF-8,
+`state | errorMask` for an unpaired UTF-16 surrogate). Their terminal summary is
+`null`; code points are emitted items, including those emitted by `end`.
 
 `restart` shares the first step's fresh-state dispatch with its error recovery.
 Each decoder dispatches a unit from the empty state in two places: the
@@ -31,7 +30,7 @@ accepted — so recovery needs no classifier of its own.
 The code-point classification predicates — `isBmpCodePoint`, `isHighSurrogate`,
 `isLowSurrogate`, `isSupplementaryPlane`, and `isValidCodePoint` — describe fixed
 Unicode ranges, not per-encoding details, so they live in
-[`module.f.mjs`](./module.f.mjs) alongside `errorMask` and `decoder`. They are
+[`module.f.js`](./module.f.js) alongside `errorMask` and `decoder`. They are
 derived from one set of boundary constants so the surrogate bounds
 (`0xD800`–`0xDFFF`) and the maximum code point (`0x10FFFF`) are spelled out
 exactly once. UTF-8 and UTF-16 import them instead of redefining their own range

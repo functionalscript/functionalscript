@@ -37,7 +37,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError, pureError, pureOk, resultMapStep, resultStep, step, unreadableThrownValue } from '../module.f.mjs'
 import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
 import { byteLength, length, maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { asBase } from '../../types/nominal/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { toVec } from '../../types/uint8array/module.f.mjs'
@@ -1891,6 +1891,16 @@ export const proof = {
         },
     },
     spawn: {
+        workingDirectory: () => withTemporary('fjs-spawn-cwd-', async directory => {
+            await writeFile(join(directory, 'marker'), '')
+            const started = spawn('node', ['-e', 'process.exitCode = require("node:fs").existsSync("marker") ? 0 : 7'], {
+                stdio: 'inherit', cwd: directory,
+            })
+            const program = step(started, childWait)
+            await hostCheck(program, result => {
+                assertStructurallySame(unwrap(result), ['exited', 0])
+            })
+        }),
         exited: async () => {
             const program = step(
                 spawn('node', ['-e', 'process.exitCode = 3'], { stdio: 'inherit' }),

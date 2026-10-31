@@ -57,5 +57,5 @@ single code unit in a `.f.mjs` module; proofs that build fixtures with
   the shared `msb.listToVec`.
 - [i168](../code_point/README.md#the-streaming-decoder-skeleton) — the
   utf8/utf16 *decoder* skeleton, shipped as `decoder` in
-  `fjs/text/code_point/module.f.mjs` (a different, list-level duplication; this
+  `fjs/text/code_point/module.f.js` (a different, list-level duplication; this
   issue is the single-character boundary).

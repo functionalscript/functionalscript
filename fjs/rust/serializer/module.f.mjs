@@ -20,8 +20,8 @@ import { intrinsicLength, isIntrinsic, isStatic, staticText } from '../../edag/m
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _entryText, _hasEntryText, _intrinsicText } from '../../compiler/serializer/function_text/module.f.mjs'
 import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
-import { walk } from '../../types/stack_walk/module.f.js'
-import { toArray as listToArray } from '../../types/list/alt/module.f.mjs'
+import { pushAll, walk } from '../../types/stack_walk/module.f.js'
+import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 
 const kw = tagged('keyword')
 
@@ -790,7 +790,7 @@ const namesOf = root => {
         const { top, rest } = pending
         bindings = { first: instructionBindings(top), tail: bindings }
         loops = { first: instructionLoops(top), tail: loops }
-        pending = children(top).toReversed().reduce((/** @type {Stack<_Task>} */ stack, task) => ({ top: task, rest: stack }), rest)
+        pending = pushAll(children(top), rest)
     }
     return {
         bindings: identityNames([...new Set(listToArray(bindings).toReversed().flat())], '_b'),

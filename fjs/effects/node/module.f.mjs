@@ -29,7 +29,7 @@ import { tryUtf8, utf8 } from '../../text/module.f.mjs'
 import { isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.mjs'
-import { concat } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
@@ -47,7 +47,7 @@ import {
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
-import { parent } from '../../path/module.f.mjs'
+import { parent } from '../../path/module.f.js'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
@@ -434,6 +434,19 @@ export const childWait = do_('childWait')
 
 /** @type {Func<Access>} */
 export const access = do_('access')
+
+/**
+ * Whether anything is at `path`: `access` read as an answer. A failure that
+ * {@link namesNothing} — `ENOENT`, `ENOTDIR`, `ELOOP` — is `false`; any other,
+ * a permission or an I/O error among them, is the failure it is, since the
+ * path may well be there and the host will not say.
+ *
+ * @type {(path: string) => Effect<Access, boolean, IoChannel>}
+ */
+export const exists = path => resultStep(access(path), r =>
+    r[0] === 'ok' ? pureOk(true)
+        : namesNothing(r[1]) ? pureOk(false)
+        : pureError(r[1]))
 
 // createExclusive
 

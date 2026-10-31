@@ -34,8 +34,9 @@ export type Concat<T> = {
  *
  * `init` is the starting state, `update` advances the state by one item and
  * returns `null` to abort the whole fold, and `end` finalizes the surviving
- * state into a result. Keeping the three parts together lets `tryFold` drive
- * any short-circuiting accumulation without knowing its domain.
+ * state into a result. This is a convenience form: `fromAccumulator` converts
+ * it to the shared `Transducer`, and `tryFold` uses the same `run` driver as
+ * other machines. New domain machines expose the canonical lifecycle directly.
  */
 export type Accumulator<I, T, R> = {
     readonly init: T

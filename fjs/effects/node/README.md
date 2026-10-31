@@ -27,7 +27,7 @@ the end of the chain: `0` on success, and on failure the error printed to
 
 |Group           |Operations                                                                      |
 |----------------|--------------------------------------------------------------------------------|
-|files           |`readFile`, `readUtf8File`, `readWhole`, `writeFile`, `writeUtf8File`, `writeFiles`, `writeBytes`, `writeChunks`, `mkdir`, `readdir`, `rm`, `rmdir`, `rename`, `access`, `stat`, `open`, `fstat`, `pread`, `close`, `createExclusive`, `writeExclusive`|
+|files           |`readFile`, `readUtf8File`, `readWhole`, `writeFile`, `writeUtf8File`, `writeFiles`, `writeBytes`, `writeChunks`, `mkdir`, `readdir`, `rm`, `rmdir`, `rename`, `access`, `exists`, `stat`, `open`, `fstat`, `pread`, `close`, `createExclusive`, `writeExclusive`|
 |network         |`fetch`, `createServer`, `listen`, `forever`                                    |
 |processes       |`exec`, `spawn`, `childWait`                                                    |
 |other           |`inflate`, `now`, `resolveFileModule`, `test`                                   |

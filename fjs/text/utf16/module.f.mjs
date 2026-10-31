@@ -7,7 +7,7 @@
  * @module
  *
  * @import { List, Result, Thunk } from '../../types/list/types.ts'
- * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { StateScan, Transducer } from '../../types/function/operator/types.ts'
  * @import { U16 } from './types.ts'
  * @import { CodePoint } from '../code_point/types.ts'
  */
@@ -17,12 +17,13 @@ import {
     flatMap,
     empty,
     none,
-} from '../../types/list/module.f.mjs'
+} from '../../types/list/module.f.js'
 
 import { assert } from '../../asserts/module.f.js'
-import { isUintUpTo } from '../../types/number/module.f.mjs'
+import { isUintUpTo } from '../../types/number/module.f.js'
 import { compose } from '../../types/function/module.f.js'
-import { concat } from '../../types/string/module.f.mjs'
+import { concat } from '../../types/string/module.f.js'
+import { fromStateScan } from '../../types/function/operator/module.f.js'
 
 import {
     decoder,
@@ -34,7 +35,7 @@ import {
     restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
-} from '../code_point/module.f.mjs'
+} from '../code_point/module.f.js'
 
 // The `number | null` state threaded through the decoder below is the UTF-16
 // decoding state: a pending high surrogate as an unsigned integer, or `null`
@@ -196,7 +197,7 @@ const restartUtf16 = restart(word =>
  * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
  * ```
  *
- * @type {StateScan<U16, number | null, List<CodePoint>>}
+ * @type {StateScan<U16, number | null, readonly CodePoint[]>}
  */
 const utf16ByteToCodePointOp = (word, state) => {
     if (!u16(word)) {
@@ -223,15 +224,28 @@ const utf16ByteToCodePointOp = (word, state) => {
  * to flag the invalid sequence. The flush itself is `eofFlush` from
  * `code_point`, shared with UTF-8.
  *
- * @type {(state: number | null) => readonly[List<CodePoint>, number | null]}
+ * @type {(state: number | null) => readonly [readonly CodePoint[], null]}
  */
 const utf16EofToCodePointOp = eofFlush(utf16StateToError)
+
+/**
+ * UTF-16 as a shared `init` / `update(state, word)` / `end(state)` machine.
+ * Updates emit decoded code points; `end` flushes a pending high surrogate
+ * as one error unit and completes with a `null` summary.
+ *
+ * @type {Transducer<U16, number | null, CodePoint, null>}
+ */
+export const utf16Decoder = fromStateScan(
+    /** @type {number | null} */ (null),
+    utf16ByteToCodePointOp,
+    state => utf16EofToCodePointOp(state)[0],
+)
 
 /**
  * Converts a list of UTF-16 code units to a list of Unicode code points (CodePoint).
  * This function processes each UTF-16 code unit, decoding them into their corresponding Unicode code points.
  * The input list of `U16` values may represent characters in the Basic Multilingual Plane (BMP) or supplementary planes,
- * with surrogate pairs handled correctly. The function also handles EOF (`null`).
+ * with surrogate pairs handled correctly. EOF flushes any unpaired surrogate.
  *
  * @example
  *
@@ -243,7 +257,7 @@ const utf16EofToCodePointOp = eofFlush(utf16StateToError)
  * @type {(input: List<U16>) => List<CodePoint>}
  */
 export const toCodePointList =
-    decoder(utf16ByteToCodePointOp, utf16EofToCodePointOp)
+    decoder(utf16Decoder)
 
 /**
  * Converts a string to a list of UTF-16 code units (U16).

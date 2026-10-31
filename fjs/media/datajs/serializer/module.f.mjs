@@ -78,9 +78,9 @@
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
-import { empty, flat } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
-import { cmp } from '../../../types/number/module.f.mjs'
+import { empty, flat } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { cmp } from '../../../types/number/module.f.js'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.js'
 import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { pushOk, walkFold } from '../../../types/stack_walk/module.f.js'

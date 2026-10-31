@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** admitting `Object.fromEntries` and `Object.keys`, mutual recursion in a function body, and the modules `common` imports
+**Blocked by:** admitting `Object.keys`, mutual recursion in a function body, and the modules `common` imports
 
 ### Problem
 
@@ -12,9 +12,9 @@ five things, so neither module can be renamed `.f.js`:
 - **`declaredTest`** builds a `Set` of a schema's declared names, so the
   undeclared-member walk asks one lookup a key rather than scanning the
   names — a scan made a 10 000-member tuple quadratic. The language has no
-  `Set`; an object of the names read with `hasEntry` needs
-  `Object.fromEntries` to build in linear time
-  ([functionalscript/functionalscript#3356](https://github.com/functionalscript/functionalscript/pull/3356)).
+  `Set`; replace it with an object of the names read with `hasEntry`.
+  `Object.fromEntries` is now admitted and builds that object in linear
+  time.
 - **`hasUndeclaredMember`** asks `Object.keys`, which is not admitted: it
   exists to stop at the first undeclared key without reading any value,
   and `Object.entries`, the one admitted enumeration, reads every value and
@@ -30,8 +30,11 @@ five things, so neither module can be renamed `.f.js`:
 - **`types/array`**, imported for `isArray`, waits on `occurrences`
   ([`occurrences-without-map`](../../types/array/todo/occurrences-without-map.md)).
 - **`types/object`**, imported for `isObject`, `at`, `definedEntries` and
-  `definedValues`, destructures `Object` and imports `ordered_map`, `btree`
-  and `list`, none of which compiles.
+  `definedValues`, destructures `Object` and still imports the unconverted
+  `types/array` and `list/iterable` modules. Its
+  [`ordered_map`](../../types/ordered_map/module.f.js),
+  [`btree`](../../types/btree/module.f.js) and
+  [`list`](../../types/list/module.f.js) dependencies are now compiler-compatible.
 
 `validate` imports `common` and `data`, and `data` has refusals of its own.
 

@@ -78,6 +78,15 @@ export const lazyLayers = /** @type {const} */ ([
 export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag === node[0])
 
 /**
+ * The prefix operators, by the name the grammar gives each branch, to the
+ * tag its node carries: the one statement of the set, as {@link eagerLayers}
+ * is of the binary operators. The grammar builds its prefix branches from
+ * it and the syntax reader tags them with it. Pinned in `./types.ts` to the
+ * {@link UnaryTag}s that are prefixes.
+ */
+export const prefixLayer = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+
+/**
  * Every unary operator's tag, {@link UnaryTag} at run time — pinned to it in
  * `./types.ts` as {@link binaryTags} is to its own: the prefixes `-`, `~`,
  * `!` and `typeof`, and the `Number` and `String` conversions, each a node

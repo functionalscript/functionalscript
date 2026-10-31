@@ -12,7 +12,7 @@
  * word, which is its root.
  *
  * **The stripes are the encoder's own.** Each bit's height — how many levels
- * close a word on it — comes from `pushWithHeight` and `endWithHeights`
+ * close a word on it — comes from `updateWithHeight` and `endWithHeights`
  * ([`module.f.mjs`](./module.f.mjs)); the demo only draws them.
  *
  * **A hash level's symbol is raw or a hash.** It holds the bits it covers
@@ -51,7 +51,7 @@
  */
 
 import { withInputs } from '../website/demo/sharing/module.f.mjs'
-import { encode, emptyEncodeState } from './module.f.mjs'
+import { encode } from './module.f.mjs'
 import { levels } from './level/literal/module.f.mjs'
 import { isHash, isHashLength, isRaw } from './id/module.f.mjs'
 import { byteChars } from '../website/demo/bits/module.f.mjs'
@@ -65,7 +65,7 @@ import { error, ok } from '../types/result/module.f.js'
 /** The most input bits the demo draws: 128 bytes. */
 export const maxBits = 0x400
 
-const { pushWithHeight, endWithHeights } = encode(() => null)
+const { init: [, , initialState], updateWithHeight, endWithHeights } = encode(() => null)(null)
 
 /**
  * What the encoder says about `bits`, a string of `0` and `1`: the padding
@@ -75,9 +75,9 @@ const { pushWithHeight, endWithHeights } = encode(() => null)
  */
 export const stripes = bits => {
     /** @type {readonly [readonly number[], EncodeState<null>]} */
-    const start = [[], emptyEncodeState(null)]
+    const start = [[], initialState]
     const [heights, state] = [...bits].reduce(([hs, s], b) => {
-        const [h, next] = pushWithHeight(BigInt(b), s)
+        const [h, next] = updateWithHeight(s, BigInt(b))
         return /** @type {const} */ ([[...hs, h], next])
     }, start)
     const [padding, root] = endWithHeights(state)

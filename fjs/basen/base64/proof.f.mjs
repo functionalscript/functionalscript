@@ -9,7 +9,7 @@ import { encode, decode } from './module.f.mjs'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { occurrences } from '../../types/string/module.f.mjs'
+import { occurrences } from '../../types/string/module.f.js'
 
 /**
  * @param {string} s
@@ -178,7 +178,7 @@ export const proof = {
             const html = htmlToString(demo.view(demo.init))
             // `hé` is one whole block of four.
             assert(html.includes('<div data-bit-groups="" data-bit-blocks=""><div data-bit-block=""><div data-bit-box=""><span>011010</span><span data-bit-char="">a</span></div>'), html)
-            assertEq(html.split('<div data-bit-block="">').length, 2)
+            assertEq(occurrences('<div data-bit-block="">')(html), 1)
             // `h` is two characters, so its block is padded with two
             // hidden placeholders to the width of a full one.
             const short = htmlToString(demo.view('h'))

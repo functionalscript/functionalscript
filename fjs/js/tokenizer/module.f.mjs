@@ -63,10 +63,11 @@ import {
     hexDigitValue, hexDigitsValue, isDigit,
     latinSmallLetterU,
 } from '../../text/ascii/module.f.js'
+import { maxCodePoint } from '../../text/code_point/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.js'
-import { concat, empty, flat, fold, stateScan } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, empty, flat, fold, stateScan } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 // -- layer 1: the grammar, one token at a time ------------------------------
 
@@ -370,14 +371,14 @@ const templateDecodeStep = cp => decode => {
                 return {
                     ...decode,
                     state: { kind: 'normal' },
-                    value: state.acc <= 0x10_ffff ? concat(decode.value)([state.acc]) : decode.value,
-                    valid: decode.valid && state.acc <= 0x10_ffff,
+                    value: state.acc <= maxCodePoint ? concat(decode.value)([state.acc]) : decode.value,
+                    valid: decode.valid && state.acc <= maxCodePoint,
                     previous: cp,
                 }
             }
             return {
                 ...decode,
-                state: { kind: 'codePoint', acc: state.acc > 0x10_ffff ? state.acc : state.acc * 16 + unwrapHexDigitValue(cp) },
+                state: { kind: 'codePoint', acc: state.acc > maxCodePoint ? state.acc : state.acc * 16 + unwrapHexDigitValue(cp) },
                 previous: cp,
             }
         }

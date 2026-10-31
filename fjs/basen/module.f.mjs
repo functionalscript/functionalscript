@@ -17,7 +17,7 @@
  */
 
 import { msb, lsb, vec, tailPaddedUintChunkList } from '../types/bit_vec/module.f.mjs'
-import { fold } from '../types/list/module.f.mjs'
+import { fold } from '../types/list/module.f.js'
 import { compose } from '../types/function/module.f.js'
 
 const { tryListToVec: reversedListToVec } = lsb

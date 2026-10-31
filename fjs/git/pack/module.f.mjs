@@ -45,8 +45,8 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { concat, flat } from '../../types/list/module.f.mjs'
-import { toArray } from '../../types/list/alt/module.f.mjs'
+import { concat, flat } from '../../types/list/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 import { startsWith, u32be } from '../bytes/module.f.js'
 import { oidAt } from '../oid/module.f.mjs'
 

@@ -54,20 +54,13 @@ run({ text: ['hello', 'world'] })(result) // [10]
 
 #### The universal operator: `Transducer`
 
-One operator shape covers every stage; an engine interprets nothing else:
+One operator shape covers every stage; an engine interprets nothing else. The
+operator contract and pure/effectful source drivers are already implemented in
+[`fjs/types/function/operator`](../fjs/types/function/operator/README.md),
+independently of this graph proposal. Reuse those definitions:
 
 ```ts
-type Terminal<O, A> = readonly ['done', readonly O[], A]
-
-type Step<S, O, A> = |
-    readonly ['next', readonly O[], S] |
-    Terminal<O, A>
-
-type Transducer<I, S, O, A> = {
-    readonly init: Step<S, O, A>
-    readonly update: (state: S, item: I) => Step<S, O, A>
-    readonly end: (state: S) => Terminal<O, A>
-}
+import type { Step, Terminal, Transducer } from '../fjs/types/function/operator/types.ts'
 ```
 
 - `init` is the stage's first step, interpreted *before any input is
@@ -228,9 +221,9 @@ Planned engine work, each a separate change:
 
 ### Tasks
 
-- [ ] `fjs/flow/module.f.mjs` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
-  primitives `input` and `transduce`, derived operations, naive `run`
-  engine over `types/list`
+- [ ] `fjs/flow/module.f.mjs` — `Flow<E, O>`, reusing the existing
+  `Transducer`/`Step`/`Terminal` operator contract; primitives `input` and
+  `transduce`, derived operations, naive `run` engine over `types/list`
 - [ ] `fjs/flow/proof.f.mjs` — full proof coverage, including early
   termination, pre-pull termination (`take(0)` pulls nothing), `end`
   flush, and a fallible stage using `A = Result`
@@ -242,7 +235,10 @@ Planned engine work, each a separate change:
 
 ### Related
 
-- [fjs/types/list/module.f.mjs](../fjs/types/list/module.f.mjs) — the sequence
+- [Incremental machines](../fjs/types/function/operator/README.md) — the shared
+  operator lifecycle used by folds, hashes, builders, and decoders, with pure
+  list and effectful source drivers already available.
+- [fjs/types/list/module.f.js](../fjs/types/list/module.f.js) — the sequence
   type the naive engine binds to
 - [fjs/types/function/operator/module.f.js](../fjs/types/function/operator/module.f.js)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`

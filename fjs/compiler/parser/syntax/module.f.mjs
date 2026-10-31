@@ -44,12 +44,12 @@
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-import { concat } from '../../../types/list/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { concat } from '../../../types/list/module.f.js'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { literalWords } from '../../../js/keywords/module.f.js'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.js'
-import { assignmentOperators } from '../../ast/module.f.js'
+import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
@@ -1031,11 +1031,13 @@ const groupNode = node => {
 }
 
 /**
- * The operator each prefix branch of the grammar reads: `neg`, `bitnot`,
- * `not` and `typeof` are `-`, `~`, `!` and `typeof`, the tags `../ast` and
- * the EDAG share.
+ * Whether `node` is one of the grammar's prefix branches, which
+ * `prefixLayer` in `../../ast` names and tags. A type guard over the whole
+ * node, so the branch's children narrow with its name; cast to it as
+ * `hasEntry` is, its body answering a plain boolean.
  */
-const prefixOps = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+const isPrefix = /** @type {<N extends readonly [string, unknown]>(node: N) => node is Extract<N, readonly [keyof typeof prefixLayer, unknown]>} */ (
+    node => hasEntry(prefixLayer, node[0]))
 
 /**
  * A value is the node its branch made, with each access after it, the
@@ -1077,10 +1079,10 @@ const toNode = node => {
         const first = tokenAt(open)
         return symbol({ id: 'value', node: groupNode(g), first, target: invalid(first) })
     }
-    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
+    if (isPrefix(node)) {
         const [op, v, ...tailLists] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: applyTail([prefixOps[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
+        return symbol({ id: 'value', node: applyTail([prefixLayer[node[0]], nodeAt(v)], tailLists), first, target: invalid(first) })
     }
     if (node[0] === 'block') {
         const [block, first] = blockOf(unmapped(node[1]))
@@ -1114,10 +1116,10 @@ const toNode = node => {
  * @type {(node: Children<UnaryOperand, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const operandToNode = node => {
-    if (node[0] === 'neg' || node[0] === 'bitnot' || node[0] === 'not' || node[0] === 'typeof') {
+    if (isPrefix(node)) {
         const [op, v] = unmapped(node[1])
         const first = tokenAt(op)
-        return symbol({ id: 'value', node: [prefixOps[node[0]], nodeAt(v)], first, target: invalid(first) })
+        return symbol({ id: 'value', node: [prefixLayer[node[0]], nodeAt(v)], first, target: invalid(first) })
     }
     if (node[0] === 'group') {
         const [open, g] = unmapped(node[1])

@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { codePointListToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
-import { toArray } from '../../../types/list/alt/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
