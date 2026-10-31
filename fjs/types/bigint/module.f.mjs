@@ -153,11 +153,10 @@ export const log2 = v => {
         // (v >> rem) is either `0` or `1`, and it's used as a correction for
         // Math.log2 rounding.
         return result + rem + (v >> rem)
-    } else {
-        // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
-        // `result = -1n`.
-        return result + 0x400n
     }
+    // nl is Inf, it means log2(v) === 0x3FF and we add +1 to compensate for initial
+    // `result = -1n`.
+    return result + 0x400n
 }
 
 /**
