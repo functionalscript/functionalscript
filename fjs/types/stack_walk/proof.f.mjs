@@ -2,7 +2,7 @@
  * @import { Step } from './types.ts'
  */
 
-import { pushOk, walk, walkFold } from './module.f.js'
+import { pushAll, pushOk, walk, walkFold } from './module.f.js'
 import { error, ok } from '../result/module.f.js'
 import { assertEq } from '../../asserts/module.f.js'
 
@@ -70,6 +70,11 @@ export const proof = {
     pushOk: {
         ok: () => same(pushOk('frame')(ok(1)), ['push', 'frame', 1]),
         error: () => same(pushOk('frame')(error('bad')), error('bad')),
+    },
+    pushAll: {
+        empty: () => same(pushAll([], { top: 9, rest: null }), { top: 9, rest: null }),
+        order: () => same(pushAll([1, 2], { top: 9, rest: null }), { top: 1, rest: { top: 2, rest: { top: 9, rest: null } } }),
+        ontoNothing: () => same(pushAll([1], null), { top: 1, rest: null }),
     },
     // the depth is a property of the driver: no call stack per level
     depth: () => same(sum(nested(100_000)), ok(1)),

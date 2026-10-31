@@ -41,6 +41,7 @@
  */
 
 import { decodeLower } from '../../../basen/base16/module.f.mjs'
+import { pushAll } from '../../../types/stack_walk/module.f.js'
 
 const { is, keys } = Object
 
@@ -121,11 +122,7 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        let result = stack
-        for (let i = expected.length - 1; i >= 0; i -= 1) {
-            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
-        }
-        return result
+        return pushAll(expected.map((e, i) => /** @type {const} */ ([`${path}[${i}]`, e, actual[i]])), stack)
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
     const expectedKeys = keys(expected)
@@ -140,12 +137,7 @@ const children = (stack, path, expected, actual) => {
             return at(path, `expected member ${i} to be ${JSON.stringify(expectedKeys[i])}, got ${JSON.stringify(actualKeys[i])}`)
         }
     }
-    let result = stack
-    for (let i = expectedKeys.length - 1; i >= 0; i -= 1) {
-        const key = expectedKeys[i]
-        result = { top: [`${path}[${JSON.stringify(key)}]`, expected[key], actual[key]], rest: result }
-    }
-    return result
+    return pushAll(expectedKeys.map(key => /** @type {const} */ ([`${path}[${JSON.stringify(key)}]`, expected[key], actual[key]])), stack)
 }
 
 /**

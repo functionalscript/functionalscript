@@ -48,10 +48,14 @@ exports.
 
 ### Tasks
 
-- [ ] Choose the spelling; export the type and `pushAll` from `fjs/types`.
-- [ ] `edag/from_fast` and its two children, `js/ast/prepare`,
-      `js/ast/sugar/pattern`, `media/datajs/vectors`, `compiler/parser` over
-      it, as each is next touched.
+- [x] Choose the spelling; export the type and `pushAll` from `fjs/types`:
+      `top`/`rest`, `Stack<F>` in `types/stack_walk/types.ts` and `pushAll`
+      in its module.
+- [x] `js/ast/sugar/pattern`, `media/datajs/vectors` and
+      `rust/serializer`'s `namesOf` over it.
+- [ ] `edag/from_fast` and its two children, `js/ast/prepare` (the
+      `first`/`tail` `Link`s, renamed to `top`/`rest`), and
+      `compiler/parser`, as each is next touched.
 
 ### Related
 
