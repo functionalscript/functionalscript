@@ -32,9 +32,10 @@ parses and not what the writer parenthesizes.
 
 Derive the binary levels: the layer index of `op` in `eagerLayers`, offset
 to the writer's scale, with only the non-layer cases — `**`, the prefixes,
-`?:`, function, leaf — as explicit leaves. Take the prefix set from the table
-[prefix-operator-table](../../../compiler/parser/todo/prefix-operator-table.md)
-adds. `fjs/js/ast/types.ts` already imports `BinaryTag` from `compiler/ast`,
+`?:`, function, leaf — as explicit leaves. Take the prefix set from
+`prefixLayer` in [`compiler/ast`](../../../compiler/ast/module.f.js), which
+the grammar and the syntax reader already build from, plus `+`, a prefix
+the writer prints and `UnaryTag` lacks. `fjs/js/ast/types.ts` already imports `BinaryTag` from `compiler/ast`,
 so no new edge appears; whether the table itself belongs in `fjs/js/ast` is
 [compiler-layer-upward-imports](../../../todo/compiler-layer-upward-imports.md)'s
 question.
@@ -46,7 +47,7 @@ question.
 
 ### Related
 
-- [prefix-operator-table](../../../compiler/parser/todo/prefix-operator-table.md)
-  — the table the prefixes lack.
+- [`compiler/ast`](../../../compiler/ast/module.f.js)'s `prefixLayer` — the
+  prefix table.
 - [compiler-vocabulary-and-modularization](../../../todo/compiler-vocabulary-and-modularization.md)
   — "the FAST serializers own syntactic structure and precedence".
