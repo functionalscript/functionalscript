@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../../asserts/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
-import { planPattern } from './module.f.mjs'
+import { planPattern } from './module.f.js'
 
 /** @type {(value: string, column?: number) => ModuleTokenWithMetadata} */
 const token = (value, column = 1) => ({ token: { kind: 'id', value }, metadata: { path: 'pattern', line: 1, column }, newline: false })

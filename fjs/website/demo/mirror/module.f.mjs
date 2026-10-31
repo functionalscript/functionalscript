@@ -35,6 +35,7 @@
  * @import { Scan } from '../../../types/function/operator/types.ts'
  */
 
+import { generate } from '../../../types/array/generate/module.f.js'
 import { scan } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
@@ -42,13 +43,13 @@ import { min } from '../../../types/number/min/module.f.js'
 /** @type {(a: string, b: string) => number} */
 const commonPrefix = (a, b) => {
     const max = min(a.length, b.length)
-    const first = Array.from({ length: max }).findIndex((_, i) => a[i] !== b[i])
+    const first = generate(max, () => undefined).findIndex((_, i) => a[i] !== b[i])
     return first === -1 ? max : first
 }
 
 /** @type {(a: string, b: string, max: number) => number} */
 const commonSuffix = (a, b, max) => {
-    const first = Array.from({ length: max }).findIndex((_, i) => a[a.length - 1 - i] !== b[b.length - 1 - i])
+    const first = generate(max, () => undefined).findIndex((_, i) => a[a.length - 1 - i] !== b[b.length - 1 - i])
     return first === -1 ? max : first
 }
 
