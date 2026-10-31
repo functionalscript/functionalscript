@@ -25,7 +25,7 @@ import { startDemoSharing } from './demo-sharing-runtime.mjs'
 import { copy } from './copy-runtime.mjs'
 import { demoMarker, editorMarker, mirrorMarker } from './style/module.f.js'
 import { scopeIds, scopeMarker, eventNameMarker } from './demo/control_ids/module.f.mjs'
-import { editOf } from './demo/mirror/module.f.mjs'
+import { editOf } from './demo/mirror/module.f.js'
 import { dragAxisAttributes, dragValue } from './demo/module.f.mjs'
 
 /**
