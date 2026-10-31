@@ -293,16 +293,21 @@ const transduceFrom = (machine, input, current) => () => {
  */
 export const transduce = machine => input => transduceFrom(machine, input, machine.init)
 
+const lastEvent = last(null)
+
 /**
  * Runs a machine to its terminal summary without holding its emitted chunks.
  * Use {@link transduce} when the outputs are wanted as they arrive.
  *
  * @type {<I, S, O, A>(machine: Transducer<I, S, O, A>) => (input: List<I>) => A}
  */
-export const run = machine => input => {
-    const terminal = assertNotNullish(last(null)(transduce(machine)(input)))
-    assert(terminal[0] === 'done')
-    return terminal[2]
+export const run = machine => {
+    const events = transduce(machine)
+    return input => {
+        const terminal = assertNotNullish(lastEvent(events(input)))
+        assert(terminal[0] === 'done')
+        return terminal[2]
+    }
 }
 
 /**
