@@ -1,7 +1,7 @@
 ## Module dependency graph CLI command
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
