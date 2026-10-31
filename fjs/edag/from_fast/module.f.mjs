@@ -29,7 +29,7 @@ import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
 import { bind, call, done, run } from '../../js/ast/task/module.f.js'
 import { step } from '../../common/monoid/module.f.js'
-import { maxLength } from '../../types/function/length/module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.js'
 import { demandsInOrder, requiredPrefixLength } from '../demand/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: Link<T> | null) => Link<T> | null} */

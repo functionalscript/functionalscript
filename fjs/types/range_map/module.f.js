@@ -96,8 +96,8 @@ export const get =
             const search = bsearch(length)
             /** @param {number} value */
             return value => {
-                const pos = search(mid => value <= rm[mid][1] ? -1 : 1)
-                return pos < length ? rm[pos][0] : def
+                const pos = search(mid => value <= rm[Number(mid)][1] ? -1 : 1)
+                return pos < length ? rm[Number(pos)][0] : def
             }
         }
 

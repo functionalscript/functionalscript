@@ -354,5 +354,5 @@ justification is the API and the AST, which is where
   `Rule`, so it waited on the same IR carrier decision and landed with it.
 - [`../../data`](../../data/README.md) — the carrier decision,
   and the lowering that validates a set as this issue requires.
-- [`fjs/types/range_set/module.f.mjs`](../../../types/range_set/module.f.mjs) —
+- [`fjs/types/range_set/module.f.js`](../../../types/range_set/module.f.js) —
   the module, now the toggle list.

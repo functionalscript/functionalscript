@@ -45,5 +45,5 @@ export const isIndex = isUintUpTo(Infinity)
 /** @type {(length: number, body: Body) => Callable} */
 export const callable = (length, body) => {
     assert(isIndex(length) && length <= maxLength, ['invalid function length', length])
-    return factories[length](body)
+    return factories[Number(length)](body)
 }
