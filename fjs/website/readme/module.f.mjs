@@ -204,7 +204,7 @@ export const anchors = blocks => {
         let n = 0
         // A suffixed anchor another heading already has is skipped, as
         // GitHub's slugger skips it: `A`, `A-1`, `A` are `a`, `a-1`, `a-2`.
-        while (used.includes(n === 0 ? id : `${id}-${n}`)) { n++ }
+        while (used.includes(n === 0 ? id : `${id}-${n}`)) { n += 1 }
         used = [...used, n === 0 ? id : `${id}-${n}`]
     }
     return used.slice(reservedIdCount)
@@ -393,7 +393,7 @@ export const readmeNodes = href => blocks => {
             if (n[0] === 'error') { return n }
             if (b[0] === 'heading') {
                 out = [...out, linkedHeading(Math.min(b[1] + 1, 6), ids[heading], b[2].map(words).join(''), n[1])]
-                heading++
+                heading += 1
                 continue
             }
             const text = [...checkbox, ...n[1]]

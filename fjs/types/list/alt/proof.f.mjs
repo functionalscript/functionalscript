@@ -104,7 +104,7 @@ export const proof = /** @type {const} */ ({
         let left = null
         /** @type {List<number>} */
         let right = null
-        for (let i = 0; i < n; ++i) {
+        for (let i = 0; i < n; i += 1) {
             left = concat(left)([i])
             right = concat([i])(right)
         }

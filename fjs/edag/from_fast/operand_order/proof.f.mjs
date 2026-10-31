@@ -199,7 +199,7 @@ export const proof = {
         const graph = successfulGraph()
         let current = graph
         const canonical = flat(graph)
-        for (let i = 0; i < 6; ++i) {
+        for (let i = 0; i < 6; i += 1) {
             current = _convert(current)
             assertStructurallySame(flat(current), canonical)
             assertStructurallySame(evaluate(current), [0, [[[4]], [4], [4]]])
@@ -210,7 +210,7 @@ export const proof = {
             let written = assertOk(tryStringify(original))
             const normalized = sourceGraph(written)
             const canonical = flat(normalized)
-            for (let i = 0; i < 5; ++i) {
+            for (let i = 0; i < 5; i += 1) {
                 const current = sourceGraph(written)
                 assertStructurallySame(flat(current), canonical)
                 const next = assertOk(tryStringify(current))
@@ -226,7 +226,7 @@ export const proof = {
         const original = sourceGraph('const f=n=>{let r=1;while(r<n){r=r*2;}return r;};export default[f(5),(()=>{const a=[];const b=[a];return[b,a,a];})()];')
         let written = assertOk(tryStringify(original))
         const canonical = flat(sourceGraph(written))
-        for (let i = 0; i < 5; ++i) {
+        for (let i = 0; i < 5; i += 1) {
             const current = sourceGraph(written)
             assertStructurallySame(flat(current), canonical)
             const next = assertOk(tryStringify(current))

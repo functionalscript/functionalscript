@@ -76,7 +76,7 @@ export const proof = {
     stress: () => {
         /** @type {OrderedMap<number>} */
         let m = empty
-        for (let i = 0; i < 100_000; ++i) {
+        for (let i = 0; i < 100_000; i += 1) {
             m = setReplace((i * i).toString())(i)(m)
             /*
             console.log()

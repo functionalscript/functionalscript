@@ -96,7 +96,7 @@ const moduleTokenKindSet = new Set(_moduleTokenKinds)
  */
 const templateSourceAccepted = source => {
     let escaped = false
-    for (let i = 0; i < source.length; i++) {
+    for (let i = 0; i < source.length; i += 1) {
         const character = source[i]
         const cp = source.charCodeAt(i)
         if (escaped) {

@@ -70,7 +70,7 @@ const jsonRefused = value => unwrap(invert(tryJsonStringify(asHanded(value))))
 const doubled = (leaf, levels) => {
     /** @type {Unknown} */
     let value = [leaf]
-    for (let i = 0; i < levels; i++) { value = [value, value] }
+    for (let i = 0; i < levels; i += 1) { value = [value, value] }
     return value
 }
 

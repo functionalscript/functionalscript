@@ -48,7 +48,7 @@ const { sum, counted } = sums()
 const nested = depth => {
     /** @type {unknown} */
     let tree = 1
-    for (let i = 0; i < depth; ++i) { tree = [tree] }
+    for (let i = 0; i < depth; i += 1) { tree = [tree] }
     return tree
 }
 

@@ -183,7 +183,7 @@ export const work = size => f => {
         const y = f(c - 1n)
         if (y !== e - 1n) { throw [e, y] }
         c >>= 1n
-        --e
+        e -= 1n
     }
 }
 

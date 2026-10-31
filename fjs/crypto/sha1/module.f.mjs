@@ -123,7 +123,7 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
     let w = words(u)
     let t = 0
     while (true) {
-        for (let j = 0; j < 16; ++j) {
+        for (let j = 0; j < 16; j += 1) {
             const [f, k] = stages[Math.trunc((t + j) / roundsPerStage)]
             const temp = (rotl5(a) + f(b, c, d) + e + k + w[j]) & m
             e = d

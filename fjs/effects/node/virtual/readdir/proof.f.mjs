@@ -70,7 +70,7 @@ export const proof = {
                 ['base/a/x', 'deep'], ['base/a/x/deep', 'h'],
             ]
             const expected = pairs.map(([parent, name]) => entry(parent, name))
-            for (let i = 0; i < expected.length; i++) {
+            for (let i = 0; i < expected.length; i += 1) {
                 const input = [...expected.slice(i), ...expected.slice(0, i)].toReversed()
                 assertStructurallySame(order(input), expected)
             }

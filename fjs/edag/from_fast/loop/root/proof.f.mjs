@@ -72,7 +72,7 @@ export const proof = {
         assertEq(invocationRootOf(fn), loop)
         const first = graph(fn)
         let normalized = first
-        for (let generation = 0; generation < 5; ++generation) {
+        for (let generation = 0; generation < 5; generation += 1) {
             normalized = fromFast(assertOk(toFast(normalized)))
             assertStructurallySame(assertOk(identityAnalysis(normalized)), assertOk(identityAnalysis(first)))
         }
@@ -433,7 +433,7 @@ export const proof = {
             index === 0 ? allocation : ref(bindings[index - 1]), index % 2 === 0 ? 'required' : 'lazy']))
         const value = /** @type {Value} */ (['array', [ref(bindings[0]), ref(bindings[bindings.length - 1])]])
         let nested = body(['break', loopTarget, [value]])
-        for (let index = definitions.length - 1; index >= 0; --index) {
+        for (let index = definitions.length - 1; index >= 0; index -= 1) {
             nested = body(['yield', []], [definitions[index], ['block', [], nested]])
         }
         const loop = loopOf(nested)
@@ -478,7 +478,7 @@ export const proof = {
         /** @type {readonly Statement[]} */
         let statements = []
         let last = x
-        for (let depth = 0; depth < 24; ++depth) {
+        for (let depth = 0; depth < 24; depth += 1) {
             const next = id(depth + 20)
             statements = [...statements, ['if', [next], ref(y), body(['yield', [['+', ref(last), 1]]]), body(['yield', [['-', ref(last), 1]]])]]
             last = next
@@ -489,17 +489,17 @@ export const proof = {
         assertEq(assertOk(evaluate(root(loop), [0, true])), 24)
         /** @type {Block} */
         let nested = body(['break', loopTarget, [ref(x)]])
-        for (let depth = 0; depth < 20_000; ++depth) { nested = body(['yield', []], [['block', [], nested]]) }
+        for (let depth = 0; depth < 20_000; depth += 1) { nested = body(['yield', []], [['block', [], nested]]) }
         const deep = loopOf(nested)
         assertStructurallySame(graph(root(deep)), ['=>', 2, [], ['arg', 0]])
         nested = body(['break', loopTarget, [ref(x)]])
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             nested = body(['continue', loopTarget, [ref(x), ref(y)]], [['if', [], ref(y), nested, body(['break', loopTarget, [0]])]])
         }
         let conditional = graph(root(loopOf(nested)))
         assert(conditional instanceof Array && conditional[0] === '=>')
         conditional = conditional[3]
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             assert(conditional instanceof Array && conditional[0] === '?:')
             assertEq(conditional[3], 0)
             conditional = conditional[2]

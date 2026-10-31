@@ -174,7 +174,7 @@ const m1023log2 = v => {
 const benchmark = f => () => {
     let e = 1_048_575n
     let c = 1n << e
-    for (let i = 0n; i < 1_100; ++i) {
+    for (let i = 0n; i < 1_100; i += 1n) {
         {
             const x = f(c)
             assertEq(x, e)
@@ -184,7 +184,7 @@ const benchmark = f => () => {
             assertEq(x, e - 1n, [e, x])
         }
         c >>= 1n
-        --e
+        e -= 1n
     }
 }
 
@@ -198,12 +198,12 @@ const benchmarkSmall = f => () => {
             const x = f(c)
             assertEq(x, e, [e, x])
         }
-        for (let j = 1n; j < min(c >> 1n)(1_000n); ++j) {
+        for (let j = 1n; j < min(c >> 1n)(1_000n); j += 1n) {
             const x = f(c - j)
             assertEq(x, e - 1n, [j, e, x])
         }
         c >>= 1n
-        --e
+        e -= 1n
     } while (c !== 0n)
 }
 

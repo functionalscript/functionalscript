@@ -63,7 +63,7 @@ export const cBase32ToVec = s => {
     // Locate the terminator from the end one character at a time. This
     // preserves accepted non-canonical spellings with trailing zero characters
     // without ever materialising their padded body as one oversized vector.
-    for (let i = s.length - 1; i >= 0; i--) {
+    for (let i = s.length - 1; i >= 0; i -= 1) {
         const last = cBase32ToVec5x(s[i])
         if (last === null) { return null }
         const tail = unpadMsb(last)

@@ -227,7 +227,7 @@ export const proof = /** @type {const} */ ({
         let graph = fromFast(result(['function', fn]))
         /** @type {readonly Exp[]} */
         let graphs = [graph]
-        for (let index = 0; index < 6; ++index) { graph = fromFast(assertOk(toFast(graph))); graphs = [...graphs, graph] }
+        for (let index = 0; index < 6; index += 1) { graph = fromFast(assertOk(toFast(graph))); graphs = [...graphs, graph] }
         for (const later of graphs.slice(4)) { assertStructurallySame(flat(later), flat(graphs[3])) }
         for (const current of graphs) {
             assert(current instanceof Array && current[0] === '=>')

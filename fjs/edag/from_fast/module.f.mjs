@@ -289,7 +289,7 @@ const summary = (node, parts, external) => {
     let executions = []
     for (const statement of node[1].statements) {
         if (!normal) { break }
-        ++active
+        active += 1
         const part = parts[position]
         if (statement[0] === 'define') {
             relations = [...relations, [statement[1], part.references]]
@@ -304,7 +304,7 @@ const summary = (node, parts, external) => {
             } else if (part.fails || part.diverges) {
                 orderScope = { ...orderScope, opaque: [...orderScope.opaque, statement[1]], deferred: [...orderScope.deferred, ...(part.diverges ? [statement[1]] : [])] }
             }
-            ++position
+            position += 1
         } else if (statement[0] === 'block') {
             const order = orderedStep(orderScope, pending, part)
             pending = order.pending
@@ -315,7 +315,7 @@ const summary = (node, parts, external) => {
             entering = false
             returns = returns || part.returns
             normal = part.normal
-            ++position
+            position += 1
         } else if (statement[0] === 'if') {
             const arms = parts.slice(position + 1, position + 3)
             const execution = /** @type {Summary} */ ({ ...part, fails: part.fails || arms.some(part => part.fails), diverges: part.diverges || arms.some(part => part.diverges) })

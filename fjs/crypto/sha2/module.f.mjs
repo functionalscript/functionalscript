@@ -249,7 +249,7 @@ const framingInit = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
         let i = 0
         while (true) {
             const ki = k[i]
-            for (let j = 0; j < 16; ++j) {
+            for (let j = 0; j < 16; j += 1) {
                 const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
                 const t2 = bigSigma0(a) + maj(a, b, c)
                 h = g
@@ -261,7 +261,7 @@ const framingInit = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
                 b = a
                 a = (t1 + t2) & m
             }
-            ++i
+            i += 1
             if (i === kLength) { break }
             w = nextW(...w)
         }

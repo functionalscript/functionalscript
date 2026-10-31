@@ -194,7 +194,7 @@ export const proof = {
     },
     deeplyNestedMixedTreesUseTheTaskStack: () => {
         let body = decision(step, normal)
-        for (let depth = 0; depth < 20_000; ++depth) { body = decision(body, normal) }
+        for (let depth = 0; depth < 20_000; depth += 1) { body = decision(body, normal) }
         assert(isTerminalLoop(loop(body)))
     },
 }

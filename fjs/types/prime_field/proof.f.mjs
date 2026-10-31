@@ -34,7 +34,7 @@ export const proof = /** @type {const} */ ({
                 let i = 1n
                 while (i < 10_000n) {
                     assertEq(f.mul(f.reciprocal(i))(i), 1n)
-                    ++i
+                    i += 1n
                 }
             },
             pow: () => {
@@ -85,7 +85,7 @@ export const proof = /** @type {const} */ ({
                 let i = 1n
                 while (i < 1_000n) {
                     test(i)
-                    ++i;
+                    i += 1n;
                 }
                 test(f.middle);
                 test(f.max);

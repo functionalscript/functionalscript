@@ -349,7 +349,7 @@ const stress = () => ({
         let sequence = []
         // 20_000_000 is too much
         // 10_000_000 is too much for Deno 1
-        for (let i = 0; i < 5_000_000; ++i) {
+        for (let i = 0; i < 5_000_000; i += 1) {
             sequence = concat(sequence)([i])
         }
         const r = toArray(sequence)
@@ -358,7 +358,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 4_000_000 is too much
-        for (let i = 0; i < 2_000_000; ++i) {
+        for (let i = 0; i < 2_000_000; i += 1) {
             sequence = flat([sequence, [i]])
         }
         const r = toArray(sequence)
@@ -367,7 +367,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 4_000_000 is too much
-        for (let i = 0; i < 2_000_000; ++i) {
+        for (let i = 0; i < 2_000_000; i += 1) {
             sequence = flat([sequence, [i]])
         }
         const a = next(sequence)
@@ -376,7 +376,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 20_000_000 is too much
-        for (let i = 0; i < 10_000_000; ++i) {
+        for (let i = 0; i < 10_000_000; i += 1) {
             sequence = concat([i])(sequence)
         }
         const a = next(sequence)
@@ -385,7 +385,7 @@ const stress = () => ({
         /** @type {List<number>} */
         let sequence = []
         // 10_000_000 is too much
-        for (let i = 0; i < 5_000_000; ++i) {
+        for (let i = 0; i < 5_000_000; i += 1) {
             sequence = flat([[i], sequence])
         }
         const a = next(sequence)

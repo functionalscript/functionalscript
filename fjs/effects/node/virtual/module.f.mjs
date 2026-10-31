@@ -517,7 +517,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
     let queue = [[base, dir]]
     /** @type {readonly Dirent[]} */
     let result = []
-    for (let i = 0; i < queue.length; i++) {
+    for (let i = 0; i < queue.length; i += 1) {
         const [parentPath, d] = queue[i]
         for (const name of keys(d).toSorted(_compareNames)) {
             const content = d[name]

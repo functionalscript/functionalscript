@@ -885,20 +885,20 @@ export const proof = {
         for (const tag of /** @type {const} */ (['!', '+', '.'])) {
             /** @type {NormalValue} */
             let input = 3
-            for (let depth = 0; depth < 20_000; ++depth) {
+            for (let depth = 0; depth < 20_000; depth += 1) {
                 input = tag === '!' ? ['!', input] : tag === '+' ? ['+', input, 1] : ['.', input, 'x']
             }
             const block = prepare(yielding(input))
             assert(block.exit[0] === 'yield')
             let value = block.exit[1][0]
             let depth = 0
-            while (value instanceof Array && value[0] === tag) { value = value[1]; ++depth }
+            while (value instanceof Array && value[0] === tag) { value = value[1]; depth += 1 }
             assertEq(depth, 20_000)
             assertEq(value, 3)
         }
         /** @type {NormalValue} */
         let input = 3
-        for (let depth = 0; depth < 20_000; ++depth) {
+        for (let depth = 0; depth < 20_000; depth += 1) {
             input = ['block', { statements: [['define', id(depth), depth, 'required']], exit: ['yield', [input]] }]
         }
         const block = prepare(yielding(input))
@@ -914,7 +914,7 @@ export const proof = {
             const exit = value[1].exit
             assert(exit[0] === 'yield')
             value = exit[1][0]
-            ++depth
+            depth += 1
         }
         assertEq(depth, 20_000)
         assertEq(value, 3)

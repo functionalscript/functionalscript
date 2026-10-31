@@ -13,7 +13,7 @@ const fixture = (fragment, id) => {
     const wrapper = { tagName: 'DIV', parentElement: inner }
     let scrolls = 0
     /** @type {any} */
-    const target = { parentElement: wrapper, scrollIntoView: () => { scrolls++ } }
+    const target = { parentElement: wrapper, scrollIntoView: () => { scrolls += 1 } }
     /** @type {Map<string, () => void>} */
     const events = new Map()
     /** @type {any} */

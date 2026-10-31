@@ -157,7 +157,7 @@ const flows = (root, known = new Map()) => {
         let loops = own.loops
         /** @type {_Link<_Flow> | null} */
         let children = null
-        for (let index = 0; index < own.children.length; ++index) {
+        for (let index = 0; index < own.children.length; index += 1) {
             const child = assertNotNullish(results)
             results = child.tail
             children = { first: child.first, tail: children }

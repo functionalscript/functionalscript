@@ -35,7 +35,7 @@ export const encode = input => {
 export const decode = input => {
     // Count and strip trailing `=` padding (0, 1, or 2).
     let padChars = 0
-    for (let i = input.length - 1; i >= 0 && input[i] === '='; i--) { padChars++ }
+    for (let i = input.length - 1; i >= 0 && input[i] === '='; i -= 1) { padChars += 1 }
     if (padChars > 2) { return null }
 
     const body = input.slice(0, input.length - padChars)

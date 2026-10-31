@@ -267,7 +267,7 @@ export const entryTexts = text => {
     let out = []
     let blankAt = -1
     let contentIndent = 2
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i]
         const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
             why => error(`line ${i + 1}: ${why}`))
@@ -365,7 +365,7 @@ const emailAt = (text, i) => {
     const before = text[i - 1]
     if (before === undefined || !(isDomainChar(before) || '.+'.includes(before))) { return false }
     let j = i + 1
-    while (isDomainChar(text[j])) { j++ }
+    while (isDomainChar(text[j])) { j += 1 }
     return j > i + 1 && text[j] === '.' && isDomainChar(text[j + 1])
 }
 
@@ -384,7 +384,7 @@ const urlTrailing = '?!.,:*_~\'"'
  */
 export const bareUrl = text => {
     let end = 0
-    while (end < text.length && text[end] !== ' ' && text[end] !== '\t' && text[end] !== '<') { end++ }
+    while (end < text.length && text[end] !== ' ' && text[end] !== '\t' && text[end] !== '<') { end += 1 }
     let url = text.slice(0, end)
     let trimmed = true
     while (trimmed) {
@@ -437,7 +437,7 @@ export const proseSpans = autolinks => text => {
     /** @type {readonly Inline[]} */
     let out = []
     let start = 0
-    for (let i = 0; i < text.length; i++) {
+    for (let i = 0; i < text.length; i += 1) {
         const c = text[i]
         const rest = text.slice(i)
         if (c === '_' && !(isWordChar(text[i - 1]) && isWordChar(text[i + 1]))) {
@@ -648,7 +648,7 @@ export const tryParse = text => {
  */
 const headingLevel = line => {
     let level = 0
-    while (line[level] === '#') { level++ }
+    while (line[level] === '#') { level += 1 }
     return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
 }
 
@@ -658,9 +658,9 @@ const isFence = line => line.startsWith('```')
 /** A closing fence permits up to three leading spaces and trailing whitespace. @type {(line: string) => boolean} */
 const isClosingFence = line => {
     let indent = 0
-    while (line[indent] === ' ') { indent++ }
+    while (line[indent] === ' ') { indent += 1 }
     let end = line.length
-    while (line[end - 1] === ' ' || line[end - 1] === '\t') { end-- }
+    while (line[end - 1] === ' ' || line[end - 1] === '\t') { end -= 1 }
     const fence = line.slice(indent, end)
     return indent <= 3 && fence.length >= 3 && [...fence].every(c => c === '`')
 }
@@ -705,7 +705,7 @@ const foreignBlock = line => {
         return 'a list marked other than with `- `'
     }
     let digits = 0
-    while (charIs(isDigit)(trimmed[digits] ?? '')) { digits++ }
+    while (charIs(isDigit)(trimmed[digits] ?? '')) { digits += 1 }
     if (digits !== 0 && (trimmed[digits] === '.' || trimmed[digits] === ')')
         && (trimmed[digits + 1] === ' ' || trimmed[digits + 1] === '\t' || trimmed.length === digits + 1)) { return 'a numbered list' }
     if (trimmed.length !== 0 && '-=*_'.includes(trimmed[0])
@@ -741,10 +741,10 @@ const cells = row => {
     /** @type {readonly string[]} */
     let out = []
     let cell = ''
-    for (let k = 0; k < inner.length; k++) {
+    for (let k = 0; k < inner.length; k += 1) {
         if (inner[k] === '\\' && inner[k + 1] === '|') {
             cell = `${cell}|`
-            k++
+            k += 1
         } else if (inner[k] === '|') {
             out = [...out, cell.trim()]
             cell = ''
@@ -794,7 +794,7 @@ const tableAligns = (header, delimiter) => {
 const listMarker = line => {
     if (line.startsWith('- ')) { return { delimiter: '-', start: null, width: 2 } }
     let digits = 0
-    while (digits < 10 && charIs(isDigit)(line[digits] ?? '')) { digits++ }
+    while (digits < 10 && charIs(isDigit)(line[digits] ?? '')) { digits += 1 }
     const delimiter = line[digits]
     if (digits === 0 || digits > 9 || (delimiter !== '.' && delimiter !== ')') || line[digits + 1] !== ' ') { return null }
     return { delimiter, start: Number(line.slice(0, digits)), width: digits + 2 }
@@ -832,7 +832,7 @@ const readBlocks = (base, container) => lines => {
     while (i < lines.length) {
         const line = lines[i]
         const at = base + i + 1
-        if (line.trim() === '') { i++; continue }
+        if (line.trim() === '') { i += 1; continue }
         if (isFence(line)) {
             const info = line.slice(3)
             if (info.includes('`') || info.includes(' ') || info.includes('\t')) { return refuseAt(i, 'a code fence whose info string is not one word') }
@@ -854,7 +854,7 @@ const readBlocks = (base, container) => lines => {
             const spans = inlineAt(at, content)
             if (spans[0] === 'error') { return spans }
             out = [...out, [['heading', level, spans[1]], i, i]]
-            i++
+            i += 1
             continue
         }
         if (line.startsWith('>')) {
@@ -868,7 +868,7 @@ const readBlocks = (base, container) => lines => {
                 // A tab after the marker counts columns this reader does not.
                 if (rest.startsWith('\t')) { return refuseAt(end, 'a tab after a block quote marker') }
                 body = [...body, rest.startsWith(' ') ? rest.slice(1) : rest]
-                end++
+                end += 1
             }
             // GitHub continues a quote's paragraph on a line with no `>`.
             if (end < lines.length && lines[end].trim() !== '') {
@@ -910,7 +910,7 @@ const readBlocks = (base, container) => lines => {
                 }
                 /** @type {readonly string[]} */
                 let body = [first]
-                j++
+                j += 1
                 while (j < lines.length && sameList(lines[j]) === null) {
                     const l = lines[j]
                     if (l.slice(0, l.length - l.trimStart().length).includes('\t')) { return refuseAt(j, 'a tab in an indent') }
@@ -918,7 +918,7 @@ const readBlocks = (base, container) => lines => {
                         // A blank line stays in the item when an indented
                         // line follows it, and ends the list otherwise.
                         let k = j
-                        while (k < lines.length && lines[k].trim() === '') { k++ }
+                        while (k < lines.length && lines[k].trim() === '') { k += 1 }
                         if (k === lines.length || !lines[k].startsWith(indent)) { break }
                         body = [...body, ...lines.slice(j, k).map(() => '')]
                         j = k
@@ -928,7 +928,7 @@ const readBlocks = (base, container) => lines => {
                         return refuseAt(j, 'a line that GitHub reads as part of the list item above it')
                     }
                     body = [...body, l.slice(width)]
-                    j++
+                    j += 1
                 }
                 const read = readBlocks(base + start, 'a list item')(body)
                 if (read[0] === 'error') { return read }
@@ -944,7 +944,7 @@ const readBlocks = (base, container) => lines => {
                 const task = checked === null ? [] : [['task', checked]]
                 items = [...items, [...task, ...placed.map(p => p[0])]]
                 let k = j
-                while (k < lines.length && lines[k].trim() === '') { k++ }
+                while (k < lines.length && lines[k].trim() === '') { k += 1 }
                 more = k < lines.length && sameList(lines[k]) !== null
                 // So does one between two items.
                 loose = loose || (more && k !== j)
@@ -959,7 +959,7 @@ const readBlocks = (base, container) => lines => {
         const aligns = tableAligns(line, lines[i + 1])
         if (aligns !== null) {
             let end = i + 2
-            while (end < lines.length && lines[end].trim() !== '') { end++ }
+            while (end < lines.length && lines[end].trim() !== '') { end += 1 }
             const rows = lines.slice(i, end)
             /** @type {(readonly Entry[])[]} */
             let read = []
@@ -993,7 +993,7 @@ const readBlocks = (base, container) => lines => {
             && !lines[end].startsWith('>')) {
             const continued = foreignBlock(lines[end].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
-            end++
+            end += 1
         }
         // A line ending becomes one space even inside code; surrounding
         // spaces are content there, so trimming each line would change it.

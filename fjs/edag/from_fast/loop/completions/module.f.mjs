@@ -49,7 +49,7 @@ const loopInventory = root => {
         work = tail
         if (task.kind === 'loop') {
             const info = /** @type {_LoopInfo} */ ({ loop: task.loop, id: count, ancestors: task.ancestors })
-            ++count
+            count += 1
             entries = { first: info, tail: entries }
             work = { first: { kind: 'block', block: task.loop.body, ancestors: { first: task.loop.target, tail: task.ancestors } }, tail: work }
             continue
