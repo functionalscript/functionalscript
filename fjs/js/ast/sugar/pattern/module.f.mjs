@@ -20,14 +20,13 @@ import { reverse } from '../../../../types/list/module.f.mjs'
 import { toArray } from '../../../../types/list/alt/module.f.mjs'
 import { at, empty, setReplace } from '../../../../types/ordered_map/module.f.mjs'
 import { hasEntry } from '../../../../types/object/entry/module.f.js'
+import { pushAll } from '../../../../types/stack_walk/module.f.js'
 
 /** @type {(rest: Stack, top: Pending) => Stack} */
 const pushed = (rest, top) => ({ top, rest })
 
 /** @type {(pending: Stack, list: readonly BindingProperty[], parent: number | ModuleTokenWithMetadata) => Stack} */
-const properties = (pending, list, parent) => list.reduceRight(
-    /** @type {(after: Stack, property: BindingProperty) => Stack} */
-    ((after, property) => pushed(after, { property, parent })), pending)
+const properties = (pending, list, parent) => pushAll(list.map(property => ({ property, parent })), pending)
 
 /**
  * One structural walk follows document order: a property key precedes its
@@ -88,9 +87,7 @@ export const planPattern = policy => (target, namespace) => {
                 const parent = count
                 reads = { first: { source, spread: true }, tail: reads }
                 count += 1
-                pending = current[2].reduceRight(
-                    /** @type {(after: Stack, element: BindingElement, index: number) => Stack} */
-                    ((after, element, index) => pushed(after, { element, source: [parent, index] })), pending)
+                pending = pushAll(current[2].map((element, index) => /** @type {Pending} */ ({ element, source: [parent, index] })), pending)
                 break
             }
             case 'object': {

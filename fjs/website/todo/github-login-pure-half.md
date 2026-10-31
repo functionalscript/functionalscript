@@ -23,11 +23,6 @@ inside its `start` closure, where no proof reaches it:
 - the pending record `{ state, verifier, createdAt }`, whose schema is in the
   pure module;
 - the check that the registered redirect is this site's `/prs/`;
-- a base64url, hand-written over `btoa` with the alphabet swapped and the
-  padding stripped by `split`/`join`, which
-  `github-runtime.proof.mjs` writes a second time to check the first — while
-  [`fjs/basen`](../../basen/module.f.mjs) has `baseN` and a Base64 module one
-  alphabet away;
 - all of the login's messages.
 
 ### Proposal
@@ -53,10 +48,13 @@ wants for a third alphabet — rather than a second copy of it.
 
 ### Tasks
 
-- [ ] `fjs/basen/base64url` with its proof: `encode` alone, or a `decode`
-      sharing `base64`'s trimming rule.
+- [x] `fjs/basen/base64url` with its proof: `encode` alone, which is all
+      the login needs; its doc records that a `decode` shares `base64`'s
+      trimming rule.
+- [x] `github-runtime.mjs` and its proof spell `state`, `verifier` and
+      `challenge` with it; the two hand-written copies over `btoa` are gone.
 - [ ] The pure functions and messages in `github/module.f.mjs`, with proof.
-- [ ] `github-runtime.mjs` imports them; its proof drops the second base64url.
+- [ ] `github-runtime.mjs` imports them.
 
 ### Related
 

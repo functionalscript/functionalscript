@@ -1,8 +1,9 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, dedup, assoc, occurrences, findMap } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.mjs'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
+    generate: () => assertStructurallySame(generate(3, i => i + 1), [1, 2, 3]),
     stringify: () => {
         const result = stringifySorted([1, 20, 300])
         assertEq(result, '[1,20,300]')

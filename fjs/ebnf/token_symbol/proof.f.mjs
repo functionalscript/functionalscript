@@ -1,6 +1,7 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { parser } from '../ll1/module.f.mjs'
 import { encoding, start } from './module.f.js'
+import { maxCodePoint } from '../../text/code_point/module.f.mjs'
 
 const names = /** @type {const} */ (['>>', '>>>=', 'instanceof'])
 
@@ -9,7 +10,7 @@ export const proof = {
         const { encode } = encoding(names)
         assertEq(encode('>>'), 0x11_0000)
         assertEq(encode('instanceof'), 0x11_0002)
-        assertEq(start, 0x10_FFFF + 1)
+        assertEq(start, maxCodePoint + 1)
     },
     decode: [
         () => {

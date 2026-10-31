@@ -729,14 +729,8 @@ const gathered = (sha2, payload) => {
     /** @type {StateFold<Vec, { readonly state: Sha2State, readonly chunks: readonly Vec[] }, { readonly key: Vec, readonly chunks: readonly Vec[] }>} */
     const fold = {
         init: { state: sha2.init[2], chunks: [] },
-        update: ({ state, chunks }, chunk) => {
-            const [, , following] = sha2.update(state, chunk)
-            return { state: following, chunks: [...chunks, chunk] }
-        },
-        end: ({ state, chunks }) => {
-            const [, , key] = sha2.end(state)
-            return { key, chunks }
-        },
+        update: ({ state, chunks }, chunk) => ({ state: sha2.update(state, chunk)[2], chunks: [...chunks, chunk] }),
+        end: ({ state, chunks }) => ({ key: sha2.end(state)[2], chunks }),
     }
     const collected = runStream(wholeByteMachine(fromStateFold(fold)))(payload)
     return step(collected, pure)

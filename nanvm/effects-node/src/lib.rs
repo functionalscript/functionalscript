@@ -60,11 +60,12 @@ pub fn run<A: IVm>(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::codec::{decode_result, encode_object, encode_tuple};
     use nanvm_lib::{
         naive::Naive,
         vm::{
-            Array, Function, IVm, Nullish, Number, StaticCode, ToObject,
-            unstable::{f64_any, string_any, string_key},
+            Array, Function, IVm, Nullish, Number, StaticCode,
+            unstable::{f64_any, string_any},
         },
     };
 
@@ -75,11 +76,6 @@ mod test {
         Naive::static_function(code, 0, frame.to_array(), None).to_any()
     }
 
-    /// `['ok', v]` or `['error', e]`, as the language builds a `Result`.
-    fn result(tag: &str, v: V) -> V {
-        [string_any(tag), v].to_array().to_any()
-    }
-
     /// A `Pure` answering `r`, the very value, from its frame.
     fn pure(r: V) -> V {
         function(|self_, _| Ok(Naive::frame(self_)[0].clone()), [r])
@@ -87,13 +83,11 @@ mod test {
 
     /// A `Do` of `command`, `payload` and `continuation`.
     fn node(command: &str, payload: V, continuation: V) -> V {
-        [
-            (string_key::<Naive>("command"), string_any(command)),
-            (string_key::<Naive>("payload"), payload),
-            (string_key::<Naive>("continuation"), continuation),
-        ]
-        .to_object()
-        .to_any()
+        encode_object([
+            Some(("command", string_any(command))),
+            Some(("payload", payload)),
+            Some(("continuation", continuation)),
+        ])
     }
 
     fn empty() -> V {
@@ -102,21 +96,21 @@ mod test {
 
     /// A boundary that answers every command `['ok', undefined]`.
     fn answers_ok(_: V, _: V) -> Result<V, V> {
-        Ok(result("ok", Nullish::Undefined.to_any()))
+        Ok(encode_tuple("ok", Nullish::Undefined.to_any()))
     }
 
     /// A continuation that ends the run with `['ok', the answer it was given]`.
     fn ends_with_the_answer() -> V {
-        function(|_, args| Ok(pure(result("ok", args[0].clone()))), [])
+        function(|_, args| Ok(pure(encode_tuple("ok", args[0].clone()))), [])
     }
 
     /// A `Pure` ends the run with its complete `Result`, an `error` too, as
     /// the very value it answered.
     #[test]
     fn a_pure_effect_is_its_result() {
-        let ok = result("ok", f64_any(0x4014_0000_0000_0000));
+        let ok = encode_tuple("ok", f64_any(0x4014_0000_0000_0000));
         assert_eq!(run(pure(ok.clone()), answers_ok), Ok(ok));
-        let error = result("error", string_any("no"));
+        let error = encode_tuple("error", string_any("no"));
         assert_eq!(run(pure(error.clone()), answers_ok), Ok(error));
     }
 
@@ -132,14 +126,13 @@ mod test {
         let mut seen = Vec::new();
         let done = run(first, |command, _| {
             seen.push(command);
-            Ok(result("ok", Number::from(seen.len() as f64).to_any()))
+            Ok(encode_tuple("ok", Number::from(seen.len() as f64).to_any()))
         })
         .unwrap();
         assert_eq!(seen, [string_any("a"), string_any("b"), string_any("c")]);
         // The last answer is the third one, a `['ok', 3]`, inside the `['ok', _]`.
-        let [_, answer]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
-        let [tag, value]: [V; 2] = Array::try_from(answer).unwrap().try_into().unwrap();
-        assert_eq!(tag, string_any("ok"));
+        let answer = decode_result(done).unwrap().unwrap();
+        let value = decode_result(answer).unwrap().unwrap();
         assert_eq!(
             f64::from(Number::try_from(value).unwrap()),
             f64::from_bits(0x1) * 0.0 + 3.0_f64.min(3.0)
@@ -150,13 +143,11 @@ mod test {
     /// continuation receives the complete value, the very one, and goes on.
     #[test]
     fn an_operation_error_reaches_the_continuation_whole() {
-        let error = result("error", string_any("ENOENT"));
+        let error = encode_tuple("error", string_any("ENOENT"));
         let effect = node("readFile", empty(), ends_with_the_answer());
         let answer = error.clone();
         let done = run(effect, move |_, _| Ok(answer.clone())).unwrap();
-        let [tag, answer]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
-        assert_eq!(tag, string_any("ok"));
-        assert_eq!(answer, error);
+        assert_eq!(decode_result(done).unwrap(), Ok(error));
     }
 
     /// The loop is told neither the command nor the payload by a copy: the
@@ -169,17 +160,17 @@ mod test {
         let callable = function(|_, _| Ok(f64_any(0)), []);
         let returned = callable.clone();
         let continuation = function(
-            |self_, _| Ok(pure(result("ok", Naive::frame(self_)[0].clone()))),
+            |self_, _| Ok(pure(encode_tuple("ok", Naive::frame(self_)[0].clone()))),
             [returned],
         );
         let mut got = None;
         let done = run(node("x", payload, continuation), |_, p| {
             got = Some(p);
-            Ok(result("ok", Nullish::Undefined.to_any()))
+            Ok(encode_tuple("ok", Nullish::Undefined.to_any()))
         })
         .unwrap();
         assert_eq!(got, Some(kept));
-        let [_, value]: [V; 2] = Array::try_from(done).unwrap().try_into().unwrap();
+        let value = decode_result(done).unwrap().unwrap();
         assert_eq!(value, callable);
         assert!(Function::try_from(value).is_ok());
     }
@@ -218,7 +209,7 @@ mod test {
         ) -> Result<V, V> {
             let n = f64::from(Number::try_from(Naive::frame(self_)[0].clone()).unwrap());
             if n == 0.0 {
-                return Ok(pure(result("ok", Nullish::Null.to_any())));
+                return Ok(pure(encode_tuple("ok", Nullish::Null.to_any())));
             }
             let next = function(countdown, [Number::from(n - 1.0).to_any()]);
             Ok(node("tick", empty(), next))
@@ -234,13 +225,10 @@ mod test {
                 ),
                 |_, _| {
                     ticks += 1;
-                    Ok(result("ok", Nullish::Undefined.to_any()))
+                    Ok(encode_tuple("ok", Nullish::Undefined.to_any()))
                 },
             );
-            let ended = done.is_ok_and(|r| {
-                let [tag, _]: [V; 2] = Array::try_from(r).unwrap().try_into().unwrap();
-                tag == string_any("ok")
-            });
+            let ended = done.is_ok_and(|r| decode_result(r).unwrap().is_ok());
             (ended, ticks)
         };
         #[cfg(not(target_family = "wasm"))]

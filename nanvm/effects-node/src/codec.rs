@@ -280,10 +280,60 @@ pub fn encode_error<A: IVm>(error: Any<A>) -> Any<A> {
     encode_tuple("error", error)
 }
 
+/// The inverse of [`encode_result`]: an `['ok', value]` or `['error', error]`
+/// tuple as the `Result` it spells. The runners never read one back, so it
+/// is the tests' own: they unwrap a program's answer with it.
+#[cfg(test)]
+pub fn decode_result<A: IVm>(any: Any<A>) -> Result<Result<Any<A>, Any<A>>, Malformed> {
+    let Ok(tuple) = Array::try_from(any) else {
+        return malformed("not a result tuple");
+    };
+    if tuple.length() != 2 {
+        return malformed("not a result tuple");
+    }
+    let value = tuple[1].clone();
+    Ok(match decode_choice(tuple[0].clone(), &["ok", "error"])? {
+        0 => Ok(value),
+        _ => Err(value),
+    })
+}
+
 /// A `Result` as the language reads one: `['ok', value]` or `['error', error]`.
 pub fn encode_result<A: IVm>(result: Result<Any<A>, Any<A>>) -> Any<A> {
     match result {
         Ok(value) => encode_ok(value),
         Err(error) => encode_error(error),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use nanvm_lib::naive::Naive;
+
+    type V = Any<Naive>;
+
+    #[test]
+    fn decode_result_inverts_encode_result() {
+        let value: V = string_any("v");
+        assert_eq!(
+            decode_result(encode_result(Ok(value.clone()))),
+            Ok(Ok(value.clone()))
+        );
+        assert_eq!(
+            decode_result(encode_result(Err(value.clone()))),
+            Ok(Err(value))
+        );
+    }
+
+    #[test]
+    fn decode_result_refuses_what_is_not_one() {
+        let not = |any: V| assert!(decode_result(any).is_err());
+        not(string_any("ok"));
+        not([string_any("ok")].to_array().to_any());
+        not([string_any("ok"), string_any("v"), string_any("w")]
+            .to_array()
+            .to_any());
+        not(encode_tuple("done", string_any("v")));
     }
 }

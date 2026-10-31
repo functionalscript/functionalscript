@@ -32,7 +32,7 @@ import { toArray } from '../../types/list/alt/module.f.mjs'
 import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { appendBytes as adler } from '../adler32/module.f.mjs'
 import { more, read } from '../bits/module.f.js'
-import { decode, dynamic, fixed } from '../huffman/module.f.mjs'
+import { decode, dynamic, fixed } from '../huffman/module.f.js'
 import { copy, empty as emptyWindow, last as lastOf, push, pushAll } from '../window/module.f.mjs'
 
 /** A stream not yet read. */
@@ -238,8 +238,6 @@ const step = state => {
     }
 }
 
-const malformedStep = doneStep(null)
-
 /**
  * Reads a chunk, emitting what it made, or completing with `null` where the
  * stream is malformed. Bytes after its internal closing phase are still counted
@@ -263,7 +261,7 @@ const update = (state, v) => {
     let made = null
     while (true) {
         const result = step(current)
-        if (result === null) { return malformedStep }
+        if (result === null) { return doneStep(null) }
         if (result === more) { return nextStep(current, toArray(reverse(made))) }
         current = result.state
         if (result.chunk !== null) { made = { first: result.chunk, tail: made } }
@@ -279,8 +277,8 @@ const update = (state, v) => {
  *
  * @satisfies {Transducer<Vec, State, Vec, Nullable<number>>}
  */
-export const inflate = /** @type {const} */ ({
+export const inflate = {
     init: nextStep(initial),
     update,
     end: (/** @type {State} */ state) => doneStep(state.phase === 'done' ? state.after : null),
-})
+}

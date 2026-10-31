@@ -152,7 +152,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { AssignmentOperator, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
+ * @import { BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -161,7 +161,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.js'
 import { isKeyword, literalWords } from '../../../js/keywords/module.f.js'
 import { _moduleTokenKinds } from '../../tokenizer/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
-import { assignmentOperators, eagerLayers, lazyLayers } from '../../ast/module.f.js'
+import { assignmentOperators, eagerLayers, lazyLayers, prefixLayer } from '../../ast/module.f.js'
 
 const { fromEntries } = Object
 
@@ -557,6 +557,17 @@ export const parenItems = () => ['const', {
 const commaOperands = repeatFrom0([sym(','), value])
 
 /**
+ * The prefix alternatives of a rule, one per operator of `prefixLayer`, each
+ * the operator, its {@link unaryOperand} and then `rest`: what {@link unary},
+ * {@link unaryOperand} and the value rules read after a prefix's operand.
+ * Called only when a rule is forced, so {@link unaryOperand} exists by then.
+ *
+ * @type {<R extends readonly Rule[]>(rest: R) => PrefixBranches<R>}
+ */
+const prefixBranches = rest => /** @type {PrefixBranches<typeof rest>} */ (fromEntries(
+    definedEntries(prefixLayer).map(([name, tag]) => [name, /** @type {const} */ ([sym(tag), unaryOperand, ...rest])])))
+
+/**
  * What a prefix takes: every value but a function. JavaScript's
  * unary operand is a `UnaryExpression`, which an arrow function is not —
  * `-(...a) => 1` and `~(...a) => 1` are syntax errors there, so they are
@@ -595,10 +606,7 @@ const commaOperands = repeatFrom0([sym(','), value])
  * @type {Unary}
  */
 export const unary = () => ['const', {
-    neg: [sym('-'), unaryOperand],
-    bitnot: [sym('~'), unaryOperand],
-    not: [sym('!'), unaryOperand],
-    typeof: [sym('typeof'), unaryOperand],
+    ...prefixBranches([]),
     primitive: [primitiveValue, powTail],
     template: [templateValue, powTail],
     ref: [reference, powTail],
@@ -649,10 +657,7 @@ const powTail = option([sym('**'), unary])
  * @type {UnaryOperand}
  */
 export const unaryOperand = () => ['const', {
-    neg: [sym('-'), unaryOperand],
-    bitnot: [sym('~'), unaryOperand],
-    not: [sym('!'), unaryOperand],
-    typeof: [sym('typeof'), unaryOperand],
+    ...prefixBranches([]),
     primitive: [primitiveValue],
     template: [templateValue],
     ref: [reference],
@@ -769,10 +774,7 @@ export const circuitTail = option({
  * @type {() => ValueBranches}
  */
 const valueBranches = () => ({
-    neg: [sym('-'), unaryOperand, ...tail],
-    bitnot: [sym('~'), unaryOperand, ...tail],
-    not: [sym('!'), unaryOperand, ...tail],
-    typeof: [sym('typeof'), unaryOperand, ...tail],
+    ...prefixBranches(tail),
     primitive: [primitiveValue, powTail, ...tail],
     template: [templateValue, powTail, ...tail],
     name: [identifier, arrowOrRest],

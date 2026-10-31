@@ -122,6 +122,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use super::ToPrimitivePreferredType;
     use crate::common::sized_index::SizedIndex;
+    use crate::vm::test::function::{returns, throws};
     use crate::{
         naive::Naive,
         vm::{
@@ -137,29 +138,7 @@ mod tests {
     }
 
     fn function() -> Any<A> {
-        A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array(), None).to_any()
-    }
-
-    /// `() => v`, answering its frame's one item.
-    fn returns(v: Any<A>) -> Any<A> {
-        A::static_function(
-            |self_, _| Ok(A::frame(self_)[0].clone()),
-            0,
-            [v].to_array(),
-            None,
-        )
-        .to_any()
-    }
-
-    /// `() => { throw v }`, throwing its frame's one item.
-    fn throws(v: &str) -> Any<A> {
-        A::static_function(
-            |self_, _| Err(A::frame(self_)[0].clone()),
-            0,
-            [s(v)].to_array(),
-            None,
-        )
-        .to_any()
+        returns(1.0.to_any())
     }
 
     fn with(props: &[(&str, Any<A>)]) -> Any<A> {
@@ -227,7 +206,12 @@ mod tests {
     /// A method's throw is the conversion's, unchanged, and ends it.
     #[test]
     fn throw_propagates() {
-        let o = || with(&[("valueOf", throws("boom")), ("toString", returns(s("t")))]);
+        let o = || {
+            with(&[
+                ("valueOf", throws(s("boom"))),
+                ("toString", returns(s("t"))),
+            ])
+        };
         refused(o().to_number(), "boom");
         assert_eq!(o().to_string(), Ok("t".into()));
     }
@@ -256,7 +240,7 @@ mod tests {
             Any::le,
             Any::ge,
         ];
-        let o = |v| with(&[("valueOf", throws(v))]);
+        let o = |v| with(&[("valueOf", throws(s(v)))]);
         for op in ops {
             refused(op(o("left"), o("right")), "left");
         }
@@ -374,7 +358,10 @@ mod tests {
 
     /// `x`, an object whose every conversion method throws `"boom"`.
     fn boom() -> Any<A> {
-        with(&[("valueOf", throws("boom")), ("toString", throws("boom"))])
+        with(&[
+            ("valueOf", throws(s("boom"))),
+            ("toString", throws(s("boom"))),
+        ])
     }
 
     /// Each member function that converts an argument reaches the
@@ -592,7 +579,7 @@ mod tests {
             (value_of(Any::undefined()) + 1.0.to_any()).and_then(Any::to_number)
         ));
         // Both operands convert before either answer is used.
-        let t = |v| with(&[("toString", throws(v))]);
+        let t = |v| with(&[("toString", throws(s(v)))]);
         refused(t("a") + t("b"), "a");
         refused(1.0.to_any() + t("b"), "b");
     }
@@ -710,7 +697,7 @@ mod tests {
         assert_eq!(value_of(s("x")).lt(big(1)), Ok(false.to_any()));
         assert_eq!(value_of(s("x")).ge(big(1)), Ok(false.to_any()));
         // A throw is the operator's, from either side.
-        let t = |v| with(&[("valueOf", throws(v))]);
+        let t = |v| with(&[("valueOf", throws(s(v)))]);
         refused(t("l").lt(1.0.to_any()), "l");
         refused(1.0.to_any().lt(t("r")), "r");
         refused(1.0.to_any().ge(t("r")), "r");
@@ -796,7 +783,7 @@ mod tests {
         assert!(x == x.clone());
         assert!(o() != o());
         // An own method is read, never called, by a member access.
-        let m = with(&[("toString", throws("boom"))]);
+        let m = with(&[("toString", throws(s("boom")))]);
         assert!(m.dot("toString".into()).end().is_ok());
     }
 
@@ -856,7 +843,7 @@ mod tests {
             let o = || {
                 with(&[
                     ("valueOf", returns(result.clone())),
-                    ("toString", throws("t")),
+                    ("toString", throws(s("t"))),
                 ])
             };
             refused(o().to_number(), "t");
@@ -891,7 +878,7 @@ mod tests {
         );
         refused(call(s("a"), "split", vec![boom(), 0.0.to_any()]), "boom");
         // The limit converts before the separator, as `split` does.
-        let t = |v| with(&[("valueOf", throws(v))]);
+        let t = |v| with(&[("valueOf", throws(s(v)))]);
         refused(call(s("a"), "split", vec![t("sep"), t("limit")]), "limit");
     }
 
