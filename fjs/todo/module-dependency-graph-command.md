@@ -46,6 +46,8 @@ separately in the epic.
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
+  - [ ] Ensure a generic AST can be formed for every `.f.mjs` file in the repository,
+        including files the current compiler cannot parse or compile into EDAG.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
