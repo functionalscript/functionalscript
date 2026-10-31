@@ -20,6 +20,16 @@ const input = (state, name, value) => transition(state, { kind: 'input', name, v
 /** @type {(state: DemoState) => string} */
 const text = state => JSON.stringify(demo.view(state))
 
+/** A card as the view writes it: its face, then its lock box.
+ * @type {(face: string, locks: string) => string}
+ */
+const shown = (face, locks) => `["code","${face}"]," ",["svg",{"viewBox":"0 0 36 14","width":"36","height":"14","role":"img","aria-label":"${locks}"`
+
+/** The first card of a pocket row, after the cards handed to its owner.
+ * @type {(face: string) => string}
+ */
+const dealt = face => `" →"," ",["code","${face}"]`
+
 export const proof = {
     deck: () => {
         const plain = assertNotNullish(deck(0x20))
@@ -101,11 +111,18 @@ export const proof = {
             assert(text(init).includes('Encode the deck'))
             const encoded = click(init, 'next')
             assertEq(encoded.decks.length, 1)
-            assert(text(encoded).includes('2♣  3♣  4♣'))
-            assert(text(encoded).includes('Alice locks and shuffles'))
-            const shuffled = click(click(click(encoded, 'next'), 'next'), 'next')
+            const plain = text(encoded)
+            assert(plain.includes(shown('2♣', 'no locks')))
+            assert(plain.includes(shown('9♣', 'no locks')))
+            assert(!plain.includes(shown('T♣', 'no locks')))
+            assert(plain.includes('Alice locks and shuffles'))
+            const afterAlice = click(encoded, 'next')
+            // Only Alice knows the order her turn made.
+            assert(text(afterAlice).includes(shown('🂠', 'locked by Alice')))
+            assert(!text(input(afterAlice, 'view', 'Alice')).includes(shown('🂠', 'locked by Alice')))
+            const shuffled = click(click(afterAlice, 'next'), 'next')
             assertEq(shuffled.decks.length, 4)
-            assert(text(shuffled).includes('After Alice, Bob, Carol locked and shuffled:'))
+            assert(text(shuffled).includes(shown('🂠', 'locked by Alice, Bob, Carol')))
             assert(text(shuffled).includes('Deal pocket cards'))
             const pocketed = click(shuffled, 'next')
             const pockets = assertNotNullish(pocketed.pockets)
@@ -114,19 +131,32 @@ export const proof = {
             assert(pockets.every(({ handed }) => open(assertNotNullish(deck(52)))(handed) === null))
             const names = pockets.map(({ card }) => cardName(card))
             const before = text(pocketed)
-            assert(before.includes('["code","🂠 🂠"]'))
-            assert(!before.includes(`["code","${names[0]} ${names[1]}"]`))
-            assert(before.includes('["code","🂠 🂠 🂠 🂠 🂠"]'))
+            assert(before.includes(shown('🂠', 'locked by Alice')))
+            assert(before.includes(shown('🂠', 'locked by Bob')))
+            assert(!before.includes(dealt(names[0])))
             assert(before.includes('"Flop"'))
             const alice = text(input(pocketed, 'view', 'Alice'))
-            assert(alice.includes(`["code","${names[0]} ${names[1]}"]`))
-            assert(!alice.includes(`["code","${names[2]} ${names[3]}"]`))
+            assert(alice.includes(dealt(names[0])))
+            assert(!alice.includes(dealt(names[2])))
+            assert(alice.includes(dealt('🂠')))
+            // The showdown follows the deck through every turn: the top of the
+            // last one is the first pocket card.
             const showdown = text(input(pocketed, 'view', 'Showdown'))
-            assert([0, 2, 4].every(i => showdown.includes(`["code","${names[i]} ${names[i + 1]}"]`)))
+            assert(names.every(name => showdown.includes(shown(name, 'no locks'))))
+            assert(showdown.includes(shown(names[0], 'locked by Alice, Bob, Carol')))
+            // The lock cube, once asked for, follows the point of view.
+            assert(!before.includes('data-mp-cube'))
+            const cube = input(pocketed, 'cube', 'on')
+            assert(text(cube).includes('"aria-label":"Locks removed by Bob, then Carol, then Alice"'))
+            assert(text(cube).includes('"aria-label":"Locks removed by Alice, then Bob, then Carol"'))
+            assert(!text(cube).includes(`"data-mp-label":"face"},"${names[0]}"`))
+            assert(text(input(cube, 'view', 'Alice')).includes(`"data-mp-label":"face"},"${names[0]}"`))
+            assertEq(input(cube, 'cube', '').cube, '')
             // The streets open three cards, then one, then one.
             const flop = click(pocketed, 'next')
             assertEq(flop.board.length, 3)
-            assert(text(flop).includes(`["code","${flop.board.map(cardName).join(' ')} 🂠 🂠"]`))
+            assert(text(flop).includes(shown(cardName(flop.board[0]), 'no locks')))
+            assert(text({ ...flop, cube: 'on' }).includes(`"data-mp-label":"face"},"${cardName(flop.board[0])}"`))
             assert(text(flop).includes('"Turn"'))
             const turn = click(flop, 'next')
             assertEq(turn.board.length, 4)
