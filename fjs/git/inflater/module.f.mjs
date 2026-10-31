@@ -16,27 +16,31 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Step, Transducer } from '../../types/function/operator/types.ts'
  * @import { Bytes } from '../types.ts'
  * @import { Progress, Refusal } from './types.ts'
  */
 
 import { inflateTrailingCode, inflateTrailingMessage } from '../../effects/node/module.f.mjs'
 import { bytesIn, length, u8ListMsb, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
-import { flat, map, reverse } from '../../types/list/module.f.mjs'
+import { flat, map, reverse, run } from '../../types/list/module.f.mjs'
+import { nextStep, doneStep } from '../../types/function/operator/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { inflate } from '../../zlib/inflate/module.f.mjs'
 
+const { init: [, , initialState], update: updateInflate, end: endInflate } = inflate
+
 /** A stream not yet read. @type {Progress} */
-export const start = { state: inflate.init[2], made: null, size: 0 }
+const start = { state: initialState, made: null, size: 0 }
 
 /**
  * The stream after a chunk of it, or `null` where the chunk makes it malformed.
  *
  * @type {(chunk: Vec) => (progress: Progress) => Nullable<Progress>}
  */
-export const feed = chunk => ({ state, made, size }) => {
-    const [kind, output, next] = inflate.update(state, chunk)
+const feed = chunk => ({ state, made, size }) => {
+    const [kind, output, next] = updateInflate(state, chunk)
     return kind === 'done'
         ? null
         : {
@@ -89,6 +93,8 @@ export const feedWithin = limit => chunk => progress => {
 /** The refusal of a stream that is malformed: `Z_DATA_ERROR`, as zlib calls it. @type {Refusal} */
 export const malformed = { code: 'Z_DATA_ERROR', message: 'invalid zlib stream' }
 
+const malformedStep = doneStep(error(malformed))
+
 /** The refusal of a stream that ends before it closes: `Z_BUF_ERROR`, as zlib calls it. @type {Refusal} */
 const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
 
@@ -100,8 +106,8 @@ const truncated = { code: 'Z_BUF_ERROR', message: 'unexpected end of file' }
  *
  * @type {(progress: Progress) => Result<List<Vec>, Refusal>}
  */
-export const finish = ({ state, made }) => {
-    const [, , after] = inflate.end(state)
+const finish = ({ state, made }) => {
+    const [, , after] = endInflate(state)
     if (after === null) { return error(truncated) }
     return after === 0
         ? ok(reverse(made))
@@ -109,17 +115,28 @@ export const finish = ({ state, made }) => {
 }
 
 /**
+ * Accumulates a zlib stream through the common lifecycle. A malformed chunk
+ * completes early; EOF checks truncation and trailing data before answering
+ * the output. The underlying inflater keeps accepting trailing bytes until EOF.
+ *
+ * @satisfies {Transducer<Vec, Progress, never, Result<List<Vec>, Refusal>>}
+ */
+export const inflater = /** @type {const} */ ({
+    init: nextStep(start),
+    /** @type {(progress: Progress, chunk: Vec) => Step<Progress, never, Result<List<Vec>, Refusal>>} */
+    update: (progress, chunk) => {
+        const next = feed(chunk)(progress)
+        return next === null ? malformedStep : nextStep(next)
+    },
+    end: (/** @type {Progress} */ progress) => doneStep(finish(progress)),
+})
+
+/**
  * The stream held whole as chunks, inflated: its output, or the reason not.
  *
  * @type {(chunks: readonly Vec[]) => Result<List<Vec>, Refusal>}
  */
-export const inflateAll = chunks => {
-    const progress = chunks.reduce(
-        /** @type {(so: Nullable<Progress>, chunk: Vec) => Nullable<Progress>} */
-        (so, chunk) => so === null ? null : feed(chunk)(so),
-        start)
-    return progress === null ? error(malformed) : finish(progress)
-}
+export const inflateAll = run(inflater)
 
 /**
  * The stream held whole as chunks, inflated as long as its output is within
