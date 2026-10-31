@@ -11,7 +11,10 @@
 import { writeFile } from 'node:fs/promises'
 
 import { runNodeEffect } from '../../effects/node/module.mjs'
-import * as cases from '../../../nanvm/harness/fixtures/console.mjs'
+import { echo, noInput } from '../../../nanvm/harness/fixtures/console.mjs'
+
+/** @type {typeof import('../../../nanvm/harness/fixtures/console.mjs')} */
+const cases = { echo, noInput }
 
 const [, , name, file] = process.argv
 await writeFile(file, JSON.stringify(await runNodeEffect(/** @type {any} */ (cases)[name].run())))

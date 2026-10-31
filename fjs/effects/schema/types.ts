@@ -13,15 +13,15 @@ import type { Vec } from '../../types/bit_vec/types.ts'
 import type { Mkdir, ReadFile, Readdir, ResolveFileModule, Rm, Write, WriteBytes, WriteFile } from '../node/types.ts'
 import type { Read } from '../common/types.ts'
 import type { Operation, Param, Return } from '../types.ts'
-import type * as S from './module.f.mjs'
+import type { mkdir, nothing, read, readFile, readdir, resolveFileModule, rm, vec, write, writeBytes, writeFile } from './module.f.mjs'
 
 // Rebuilding the call signature drops the Phantom field, forcing a structural
 // check of the runtime schema. CheckRaw also pins that its root excludes absence.
 // The raw and annotated types intentionally differ: bigint / Vec, undefined / void.
-type _VecSchema = Assert<CheckRaw<bigint, () => ReturnType<typeof S.vec>>>
-type _NothingSchema = Assert<CheckRaw<undefined, () => ReturnType<typeof S.nothing>>>
-type _Vec = Assert<Check<Vec, typeof S.vec>>
-type _Nothing = Assert<Check<void, typeof S.nothing>>
+type _VecSchema = Assert<CheckRaw<bigint, () => ReturnType<typeof vec>>>
+type _NothingSchema = Assert<CheckRaw<undefined, () => ReturnType<typeof nothing>>>
+type _Vec = Assert<Check<Vec, typeof vec>>
+type _Nothing = Assert<Check<void, typeof nothing>>
 
 /** An operation as its schema derives it: the tag and a function of the parameters. */
 export type Derived<O extends { readonly name: string, readonly params: readonly Type[], readonly answer: Type }> =
@@ -47,12 +47,12 @@ type _Same<A extends Operation, B extends Operation> =
         ? readonly [_Signature<B>] extends readonly [_Signature<A>] ? true : false
         : false
 
-type _Mkdir = Assert<_Same<Derived<typeof S.mkdir>, Mkdir>>
-type _ReadFile = Assert<_Same<Derived<typeof S.readFile>, ReadFile>>
-type _ResolveFileModule = Assert<_Same<Derived<typeof S.resolveFileModule>, ResolveFileModule>>
-type _Readdir = Assert<_Same<Derived<typeof S.readdir>, Readdir>>
-type _WriteFile = Assert<_Same<Derived<typeof S.writeFile>, WriteFile>>
-type _WriteBytes = Assert<_Same<Derived<typeof S.writeBytes>, WriteBytes>>
-type _Rm = Assert<_Same<Derived<typeof S.rm>, Rm>>
-type _Write = Assert<_Same<Derived<typeof S.write>, Write>>
-type _Read = Assert<_Same<Derived<typeof S.read>, Read>>
+type _Mkdir = Assert<_Same<Derived<typeof mkdir>, Mkdir>>
+type _ReadFile = Assert<_Same<Derived<typeof readFile>, ReadFile>>
+type _ResolveFileModule = Assert<_Same<Derived<typeof resolveFileModule>, ResolveFileModule>>
+type _Readdir = Assert<_Same<Derived<typeof readdir>, Readdir>>
+type _WriteFile = Assert<_Same<Derived<typeof writeFile>, WriteFile>>
+type _WriteBytes = Assert<_Same<Derived<typeof writeBytes>, WriteBytes>>
+type _Rm = Assert<_Same<Derived<typeof rm>, Rm>>
+type _Write = Assert<_Same<Derived<typeof write>, Write>>
+type _Read = Assert<_Same<Derived<typeof read>, Read>>

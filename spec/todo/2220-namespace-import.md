@@ -16,6 +16,23 @@ This is planned syntax, not a claim that the current compiler supports it.
 Preserve JavaScript's module-namespace and dependency semantics; a namespace
 is not a substitute for a type-only import or an arbitrary plain object.
 
+### Syntax AST before compilation
+
+The module dependency graph needs to form an AST for JavaScript namespace
+imports even when the source cannot be admitted to FunctionalScript or
+compiled into FAST or EDAG. Represent the namespace binding and module
+specifier in the generic syntax AST independently of compiler admission.
+
+Explicit named imports are the current source workaround. Where a consumer
+needs an aggregate of imported values, construct that value from the named
+bindings it actually uses. This source cleanup does not implement namespace
+syntax or JavaScript's module namespace objects.
+
+The host proofs for [no exports](../modules/no-export/proof.mjs) and
+[an empty export pattern](../modules/empty-pattern-export/proof.mjs) retain
+namespace imports of their samples: they observe that the module has no
+default export. Reconstructing that answer would weaken those checks.
+
 ### Types are tooling, not runtime imports
 
 The former plan to accept and erase `import type` and `export type` is
@@ -52,8 +69,11 @@ an annotation: the import still has JavaScript dependency semantics.
 
 - [x] **P1:** withdraw TypeScript-only import/export syntax and the erasure path;
       keep ordinary namespace imports separate from comment-only type references.
-- [ ] Implement runtime namespace imports through the JavaScript-subset AST and
-      checked EDAG compilation, preserving admitted module observations.
+- [ ] Parse namespace imports into the generic syntax AST independently of
+      FunctionalScript admission and FAST or EDAG compilation, retaining the
+      imported module specifier for dependency extraction.
+- [ ] Admit and compile runtime namespace imports, preserving JavaScript's
+      module namespace and dependency semantics.
 - [ ] Extend the source-compatibility corpus with TypeScript-only syntax
       refusals and JSDoc/type-companion examples. Check original module source
       without a type stripper; keep type-tooling checks separate from FJS tests.

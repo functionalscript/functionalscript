@@ -33,7 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
 import { once } from 'node:events'
-import * as testContext from 'node:test'
+import { test as registerTest } from 'node:test'
 
 import { normalize, toPosix } from '../../path/module.f.js'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
@@ -1129,7 +1129,7 @@ const options = {
     env: process.env,
     home: toPosix(os.homedir()),
     std: { stdout: process.stdout, stderr: process.stderr },
-    testContext: isBun ? _wrapInlineTest(testContext.test) : testContext,
+    testContext: isBun ? _wrapInlineTest(registerTest) : { test: registerTest },
     // this file is `fjs/effects/node/module.mjs` of the package it runs from
     packageRoot: toPosix(fileURLToPath(new URL('../../..', import.meta.url))),
     engine: isBun ? 'bun' : 'Deno' in globalThis ? 'deno' : 'node',
