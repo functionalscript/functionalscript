@@ -20,6 +20,7 @@
 import { reverse, take } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** How many bytes a block holds. */
 const blockLength = 256
@@ -63,7 +64,7 @@ export const last = ({ blocks, tail, tailLength }, n) => {
     const inTail = min(n, tailLength)
     // the tail is newest first
     const newest = toArray(take(inTail)(tail))
-    const fromTail = Array.from({ length: inTail }, (_, i) => newest[inTail - 1 - i])
+    const fromTail = generate(inTail, i => newest[inTail - 1 - i])
     const rest = n - inTail
     return rest > 0
         ? [...blocks.slice(-Math.ceil(rest / blockLength)).flat().slice(-rest), ...fromTail]
@@ -93,7 +94,7 @@ export const copy = (window, distance, length) => {
     if (distance < blockLength) {
         // what is repeated is the last `distance` bytes, all there is to read
         const pattern = last(window, distance)
-        return pushAll(window, Array.from({ length }, (_, i) => pattern[i % distance]))
+        return pushAll(window, generate(length, i => pattern[i % distance]))
     }
     // a distance of a block or more is always behind the tail, whatever the
     // copy writes, so every byte is an index into the blocks
