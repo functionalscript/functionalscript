@@ -26,6 +26,10 @@ Scalar loops retain the source grammar's paired `let` and `while`, including a
 loop whose transition keeps its parameter unchanged. Ordinary prepared memo
 instructions render one lexical memo cell and demand function.
 
+A prepared terminal-loop exit uses the same loop syntax and target identities
+as a loop statement. It ends its containing region with the loop itself;
+the renderer adds no normal result, fallback return or synthetic throw.
+
 Syntax scans, ordinary expression rendering and chain continuation rendering
 use explicit immutable work stacks. Final result blocks are flattened into the
 same lexical region, retaining their required definitions and final exit. The

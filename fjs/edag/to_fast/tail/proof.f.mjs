@@ -29,6 +29,27 @@ const statementsOf = root => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopsKeepRecipeUsesInsideTheirOwningLoop: () => {
+        const self = /** @type {const} */ ({ index: 0 })
+        const parameter = /** @type {const} */ ({ index: 1 })
+        const recipe = /** @type {const} */ ({ index: 2 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', { target, parameters: [], initial: [], results: [],
+            body: { statements: [], exit: ['continue', target, []] } }] }
+        assertEq(_tailCalls(terminal, [parameter], self, target), null)
+        /** @type {Block} */
+        const withRecipe = { statements: [['define', recipe, ['array', [['ref', parameter]]], 'lazy']], exit: ['loop', {
+            target, parameters: [], initial: [], results: [], body: { statements: [['define', parameter, ['ref', recipe], 'required']], exit: ['continue', target, []] },
+        }] }
+        assertEq(_tailCalls(withRecipe, [parameter], self, target), null)
+        const selected = _tailCalls(yielded(['if', true, yielded(['ref', recipe]), terminal],
+            [['define', recipe, ['array', [['ref', parameter]]], 'lazy']]), [parameter], self, target)
+        assert(selected !== null)
+        const branch = selected.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[4].exit, terminal.exit)
+    },
     terminalBaseRecipesNeedNoRecursiveBackedge: () => {
         const self = /** @type {BindingId} */ ({ index: 0 })
         const parameter = /** @type {BindingId} */ ({ index: 1 })

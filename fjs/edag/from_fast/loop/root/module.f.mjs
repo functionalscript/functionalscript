@@ -40,6 +40,7 @@ const restBlockTask = (block, length, target) => {
         }
         const exit = block.exit
         const valid = !exitValues(exit).some(value => hasLoopTransfer(value, target))
+            && (exit[0] !== 'loop' || !hasLoopTransfer(exit[1].body, target))
             && (exit[0] !== 'continue' || exit[1] === target && _restArguments(block, length, target) !== null)
             && (exit[0] !== 'break' || exit[1] === target)
         return done({ valid, normal: exit[0] === 'yield' })
@@ -108,7 +109,7 @@ const blockTask = (block, owner, expected) => {
             if (exit[1] !== owner.fn.target) { throw 'a root return must name its owning function' }
             return finished(statements, exit, false)
         }
-        if (exit[0] === 'throw') { return finished(statements, exit, false) }
+        if (exit[0] === 'throw' || exit[0] === 'loop') { return finished(statements, exit, false) }
         if (exit[1] !== owner.loop.target) { throw 'a loop transfer must name its owning loop' }
         if (exit[0] === 'break') {
             if (exit[2].length !== 1) { throw 'an invocation loop has one whole public result' }

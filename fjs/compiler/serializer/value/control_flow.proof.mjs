@@ -11,7 +11,7 @@
 import { Buffer } from 'node:buffer'
 import { throws } from 'node:assert/strict'
 
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
@@ -155,6 +155,41 @@ export const proof = /** @type {const} */ ({
                 const apply = await load(text)
                 assertEq(apply(/** @param {number} value */ value => value < 100_001), 100_001)
             }
+        }
+    },
+    terminalLoopHasNoSyntheticFailure: async () => {
+        const source = /** @type {const} */ ('export default x=>{while(true){let y=0;if(x){if(x<0){return 2;}y=1;}return x*x+y;}};')
+        const graph = sourceGraph(source)
+        assert(!assertOk(identityAnalysis(graph)).nodes.some(node => node[0] === 'throw'))
+        const apply = await load(codeOnly(graph))
+        for (const [input, expected] of /** @type {const} */ ([[0, 0], [2, 5], [-2, 2]])) {
+            assertEq(apply(input), expected)
+        }
+        assertEq(assertError(tryStringify(graph)), 'a shared comma outside a scope')
+    },
+    terminalLoopOwningReturnsUseDeepWhile: async () => {
+        const source = /** @type {const} */ ('export default n=>{let i=0;while(true){if(i===n){return i;}i+=1;}};')
+        const graph = sourceGraph(source)
+        assert(!assertOk(identityAnalysis(graph)).nodes.some(node => node[0] === 'throw'))
+        for (const text of graphOutputs(graph)) {
+            assert(text.includes('while('), text)
+            const apply = await load(text)
+            assertEq(apply(0), 0)
+            assertEq(apply(100_001), 100_001)
+        }
+    },
+    terminalLoopKeepsSharedReturnsAndSelectedFailure: async () => {
+        const source = /** @type {const} */ ('export default stop=>{while(true){if(stop){throw 7;}const value=[];return [value,value];}};')
+        const graph = sourceGraph(source)
+        assertEq(assertOk(identityAnalysis(graph)).nodes.filter(node => node[0] === 'throw').length, 1)
+        for (const text of graphOutputs(graph)) {
+            const apply = await load(text)
+            const first = apply(false)
+            const second = apply(false)
+            assertEq(first[0], first[1])
+            assertEq(second[0], second[1])
+            assert(first[0] !== second[0])
+            throws(() => apply(true))
         }
     },
     immediateWriteKeepsOneSharedAllocation: async () => {

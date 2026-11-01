@@ -47,6 +47,11 @@ and frame positions. `Options.runtime` supplies the runtime expression for
 operations that need it, and `Options.text` supplies each prepared function's
 represented source text.
 
+A terminal loop exit uses the same labelled `loop { ... }` spelling as a loop
+statement. It is the block's final expression, with no normal result or
+synthetic fallback. Returns and throws in its body retain their enclosing
+function's owner.
+
 Marked and plain scopes agree after demarking each line. Keywords and
 initializer literals retain their token kinds. Import metadata records unique
 VM and unstable helper names; `useLinesTagged` and `useLines` add the requested

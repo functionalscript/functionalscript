@@ -337,6 +337,7 @@ const definitions = ({ parameters, body }) => {
     /** @type {(exit: Exit) => readonly _DefinitionTask[]} */
     const exit = e => {
         switch (e[0]) {
+            case 'loop': { return statement(e) }
             case 'yield': { return e[1].flatMap(value) }
             case 'continue':
             case 'break': { return e[2].flatMap(value) }

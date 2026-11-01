@@ -68,7 +68,8 @@ const scan = input => {
         } else if (task[0] === 'block') {
             const block = task[1]
             const exit = block.exit
-            children = [...block.statements.map(statement => /** @type {ScanTask} */ (['statement', statement])),
+            const statements = exit[0] === 'loop' ? [...block.statements, exit] : block.statements
+            children = [...statements.map(/** @returns {ScanTask} */ statement => ['statement', statement]),
                 ...exit[0] === 'yield' ? exit[1].map(value => /** @type {ScanTask} */ (['value', value]))
                     : exit[0] === 'return' ? [/** @type {ScanTask} */ (['value', exit[2]])]
                         : exit[0] === 'throw' ? [/** @type {ScanTask} */ (['value', exit[1]])] : []]
@@ -401,6 +402,7 @@ const blockText = (outer, input, normal) => {
         case 'yield': { return `${before}${normal === 'none' || exit[1].length === 0 ? '' : `${normal === 'return' ? keyword('return') : `${keyword('export')} ${keyword('default')}`} ${expression(context, exit[1][0])};`}` }
         case 'return': { return `${before}${keyword('return')} ${expression(context, exit[2])};` }
         case 'throw': { return `${before}${keyword('throw')} ${expression(context, exit[1])};` }
+        case 'loop': { return `${before}${statementText(context, exit)}` }
         case 'break': case 'continue': { return `${before}${keyword(exit[0])}${context.runtime ? ` L${context.loops.indexOf(exit[1])}` : ''};` }
         default: { throw ['not an exit', exit] }
     }
@@ -425,6 +427,7 @@ export const stringify = (block, kind = 'module', runtime = false) => untagged(r
 
 /** A prepared module namespace becomes its original named exports. @type {(block: Block) => string} */
 export const renderModule = block => {
+    if (block.exit[0] === 'loop') { return render(block) }
     const context = contextFor(blockBindings(block), blockSyntax(block), false, false)
     const value = /** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]
     const entries = /** @type {Extract<Operator<Value>, readonly ['object', unknown]>} */ (value)[1]

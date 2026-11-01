@@ -99,6 +99,18 @@ export const proof = {
         assertEq(expression(['in', 'a-b', ['<', 1, 2]]), '"a-b" in (1<2)')
         assertEq(expression(['in', 'x', ['+', 1, 2]]), '"x" in 1+2')
     },
+    expressionBoundaryGrouping: () => {
+        assertEq(expression(['()', ['Object.is'], [1, 1]]), 'Object.is(1,1)')
+        assertEq(expression(['()', ['slice'], ['abc', 1, 2]]), '(($0,$1,$2)=>$0.slice($1,$2))("abc",1,2)')
+        assertEq(expression(['.', ['?.', null, 'x'], 'y']), '(null?.x).y')
+        assertEq(expression(['.', ['.', 'a', 'b', ['|?.()', []]], 'c']), '("a".b?.()).c')
+        assertEq(expression(['+', 1, ['+', 2]]), '1+ +2')
+        assertEq(expression(['+', ['+', 2]]), '+ +2')
+        assertEq(expression(['-', ['-', 1]]), '- -1')
+        assertEq(expression(['-', 1, -2]), '1- -2')
+        assertEq(expression(['**', -2n, 3]), '(-2n)**3')
+        assertEq(expression(['**', ['-', 2], 3]), '(-2)**3')
+    },
     detachedWrappedCallees: () => {
         const member = /** @type {Value} */ (['.', 'abc', 'slice'])
         const optional = /** @type {Value} */ (['?.', null, 'slice'])
@@ -248,6 +260,39 @@ export const proof = {
         }]], exit: ['yield', [['ref', slot]]] }
         assertEq(stringify(block, 'expression'), '(()=>{let $0=0;while(true){if($0<2){$0=$0+1;continue;}else{break;}}return $0;})()')
         assertEq(untagged(render(block, 'expression')), stringify(block, 'expression'))
+    },
+    terminalLoopExitsKeepTheirActualTail: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const local = id(0)
+        /** @type {PreparedFunction} */
+        const fn = { target: owner, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [], exit: ['loop', target, {
+                statements: [['define', local, 7]], exit: ['return', owner, ['ref', local]],
+            }],
+        } }
+        assertEq(functionStringify(fn), '()=>{L0:while(true){const $0=7;return $0;}}')
+        assertEq(expression(['function', fn]), '()=>{while(true){const $0=7;return $0;}}')
+        const block = yielding(['function', fn])
+        assertEq(untagged(render(block, 'expression', true)), stringify(block, 'expression', true))
+        /** @type {Block} */
+        const failing = { statements: [['define', local, 9]], exit: ['loop', target, {
+            statements: [], exit: ['throw', ['ref', local]],
+        }] }
+        assertEq(stringify(failing), 'const $0=9;while(true){throw $0;}')
+        assertEq(untagged(renderModule(failing)), stringify(failing))
+        assertEq(stringify(failing, 'factory'), 'export default()=>{const $0=9;while(true){throw $0;}};')
+        assertEq(stringify({ statements: [], exit: ['loop', target, { statements: [], exit: ['continue', target] }] }),
+            'while(true){continue;}')
+    },
+    terminalLoopTargetsUseIdentity: () => {
+        const outer = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Block} */
+        const block = { statements: [], exit: ['loop', outer, {
+            statements: [], exit: ['loop', inner, { statements: [], exit: ['continue', outer] }],
+        }] }
+        assertEq(stringify(block, 'module', true), 'L0:while(true){L1:while(true){continue L0;}}')
     },
     // A statement or an exit no case names is refused, not written as
     // `undefined`.

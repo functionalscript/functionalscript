@@ -355,7 +355,10 @@ root matching at each owning block boundary.
 ## Enclosing-function returns
 
 [`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
-returns and outer-loop transfers through helpers. Only nonroot loops with
+returns and outer-loop transfers through helpers. A terminal loop has no normal
+completion: return-only helpers carry the owning function's result directly,
+and several outward exit kinds dispatch exhaustively over their actual cases.
+No normal fallback is added. For loops that can resume, only nonroot loops with
 escaping control gain a private completion result: `["normal", resultValues]`,
 `["return", value]`, `["break", targetId, resultValues]`, or
 `["continue", targetId, nextValues]`. The completion occupies one loop-result

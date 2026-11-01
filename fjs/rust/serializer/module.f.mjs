@@ -548,6 +548,9 @@ const memo = (s, m) => map1((/** @type {readonly string[]} */ body) => [
 /** A prepared instruction has exactly one Rust spelling. @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statement = (s, st) => ok(/** @type {Printed<readonly string[]>} */ (/** @type {NonNullable<_Context['ready']>} */ (s.ready)[10].get(st)))
 
+/** A statement loop and a terminal loop share their lexical target and body. @type {(s: _Context, loop: readonly ['loop', LoopTarget, Block]) => Result<Printed<readonly string[]>, readonly unknown[]>} */
+const loopText = (s, loop) => map1(parts => [`'${loopLabel(s, loop[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, loop[2], false))
+
 /** @type {(s: _Context, st: Statement) => Result<Printed<readonly string[]>, readonly unknown[]>} */
 const statementReady = (s, st) => {
     switch (st[0]) {
@@ -556,7 +559,7 @@ const statementReady = (s, st) => {
         case 'memo': { return memo(s, st[1]) }
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
         case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
-        case 'loop': { return map1(parts => [`'${loopLabel(s, st[1])}: ${kw('loop')} ${braced(parts)}`])(block(s, st[2], false)) }
+        case 'loop': { return loopText(s, st) }
         // `'while'`, the one statement left: `children` refuses any other
         default: {
             const w = st[1]
@@ -607,9 +610,10 @@ const blockReady = (s, b, result, functionBody, valueBlock) => {
     /** @type {Result<Printed<readonly string[]>, readonly unknown[]>} */
     const end = exit[0] === 'yield'
         ? exit[1].length === 0 ? ok(code([])) : map1(text => [text])(expression(s, exit[1][0], result))
-        : exit[0] === 'continue' || exit[0] === 'break' ? ok(code([`${kw(exit[0])} '${loopLabel(s, exit[1])};`]))
-            : exit[0] === 'throw' ? map1(text => [result ? `Err(${text})` : valueBlock ? `(Err::<Any<A>, Any<A>>(${text}))?` : `${kw('return')} Err(${text});`])(expression(s, exit[1], false))
-                : map1(text => [functionBody ? text : `${kw('return')} ${text};`])(expression(s, exit[2], true))
+        : exit[0] === 'loop' ? loopText(s, exit)
+            : exit[0] === 'continue' || exit[0] === 'break' ? ok(code([`${kw(exit[0])} '${loopLabel(s, exit[1])};`]))
+                : exit[0] === 'throw' ? map1(text => [result ? `Err(${text})` : valueBlock ? `(Err::<Any<A>, Any<A>>(${text}))?` : `${kw('return')} Err(${text});`])(expression(s, exit[1], false))
+                    : map1(text => [functionBody ? text : `${kw('return')} ${text};`])(expression(s, exit[2], true))
     return map2((parts, last) => [...parts.flat(), ...last])(all(region.statements.map(st => statement(s, st))), end)
 }
 
@@ -618,6 +622,9 @@ const valueTask = (context, value, result = false) => ({ kind: 'value', context,
 
 /** One region spelling request, retaining its transfer context. @type {(context: _Context, b: Block, result?: boolean, functionBody?: boolean, valueBlock?: boolean) => _Task} */
 const blockTask = (context, b, result = false, functionBody = false, valueBlock = false) => ({ kind: 'block', context, block: b, result, functionBody, valueBlock })
+
+/** @type {(context: _Context, loop: readonly ['loop', LoopTarget, Block]) => readonly _Task[]} */
+const loopTasks = (context, loop) => [blockTask(context, loop[2])]
 
 /** @type {(context: _Context, step: Step<Value> | undefined, property: boolean, member: boolean) => _Task} */
 const stepTask = (context, step, property, member) => ({ kind: 'steps', context, step, property, member })
@@ -677,7 +684,7 @@ const children = task => {
             const exit = region.exit
             const end = exit[0] === 'yield' ? exit[1].length === 0 ? [] : [valueTask(s, exit[1][0], task.result)]
                 : exit[0] === 'return' ? [valueTask(s, exit[2], true)]
-                    : exit[0] === 'throw' ? [valueTask(s, exit[1])] : []
+                    : exit[0] === 'throw' ? [valueTask(s, exit[1])] : exit[0] === 'loop' ? loopTasks(s, exit) : []
             return [...region.statements.map(statement => /** @type {_Task} */ ({ kind: 'statement', context: s, statement })), ...end]
         }
         case 'statement': {
@@ -687,7 +694,7 @@ const children = task => {
                 case 'memo': { return [blockTask(s, st[1].initializer, false, false, true)] }
                 case 'block': { return [blockTask(s, st[1])] }
                 case 'if': { return [valueTask(s, st[1]), blockTask(s, st[2]), blockTask(s, st[3])] }
-                case 'loop': { return [blockTask(s, st[2])] }
+                case 'loop': { return loopTasks(s, st) }
                 case 'while': { return [valueTask(s, st[1].initial), valueTask(s, st[1].condition), blockTask(s, st[1].body)] }
                 default: { throw ['not a statement', st] }
             }
@@ -768,7 +775,7 @@ const instructionLoops = task => {
     }
     if (task.kind !== 'block') { return [] }
     const exit = flattened(task.block).exit
-    return exit[0] === 'continue' || exit[0] === 'break' ? [exit[1]] : []
+    return exit[0] === 'continue' || exit[0] === 'break' || exit[0] === 'loop' ? [exit[1]] : []
 }
 
 /** Debug indices keep familiar spellings; equal indices never alias identities. @type {<T extends { readonly index: number }>(ids: readonly T[], prefix: string) => ReadonlyMap<T, string>} */
