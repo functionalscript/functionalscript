@@ -37,6 +37,17 @@ The open question is what DISOT does on top of that, since "as safe as
 Git" may not be safe enough for a trust layer whose whole point is that an
 id names one thing.
 
+One thing is decided, and does not wait on the rest: DISOT timestamps
+SHA-1 history before any second name exists.
+[git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md)
+timestamps the history as the hosts hold it, and carries the risk analysis
+under which that is accepted — the timestamp is over a message that names
+the commits it covers by SHA-1, and the exposure is to an attack not known today, in
+the window before the map lands.
+[git-sha256-map-branch](./git-sha256-map-branch.md) then adds the SHA-256
+names to the same branch. The questions below decide what that map names
+and who vouches for it; they gate the map, not the timestamp.
+
 ### Open questions
 
 Each is a candidate, not a decision; several may combine. The answers
@@ -156,9 +167,12 @@ covers.
   names.
 - [git-name-resolution](./git-name-resolution.md) — a name resolved to an
   id, and what that id is trusted to mean.
+- [git-trusted-timestamp-branch](./git-trusted-timestamp-branch.md) —
+  the timestamp over SHA-1 history that precedes any answer here, and the
+  risk analysis that accepts it.
 - [git-sha256-map-branch](./git-sha256-map-branch.md) — the process for
   the per-repository table in 2: built by a walk, grown by deltas, kept on
-  a `disot` branch.
+  the same `disot` branch.
 - [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html)
   — Git's own SHA-1 ↔ SHA-256 mapping and its rules.
 - [SHAttered](https://shattered.io/) and
