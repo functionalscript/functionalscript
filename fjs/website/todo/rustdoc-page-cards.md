@@ -3,6 +3,10 @@
 **Priority:** P3
 **Status:** open
 
+Depends on [link-previews](link-previews.md). Until it lands, `rustdocHead`
+holds only the favicon links, so every card tag is missing on these pages;
+this issue is what remains once it has.
+
 ### Problem
 
 The Rust API reference under `/cargo.doc/<crate>/` lacks `og:title` and
@@ -10,10 +14,9 @@ The Rust API reference under `/cargo.doc/<crate>/` lacks `og:title` and
 page. `cargo doc` writes those pages, and the site adds only one fixed
 fragment to each `<head>`, `rustdocHead` in
 [`../cargo-doc/module.f.mjs`](../cargo-doc/module.f.mjs), through
-`--html-in-header`. It is the same on every page, so it carries only the tags
-that do not vary by page: `og:site_name`, `og:type`, `og:image` and
-`twitter:card`
-([link-previews](link-previews.md)).
+`--html-in-header`. It is the same on every page, so once link-previews
+lands it carries only the tags that do not vary by page: `og:site_name`,
+`og:type`, `og:image` and `twitter:card`.
 
 Slack, Discord, Telegram, Facebook and LinkedIn fall back to the page's
 `<title>` and the URL they fetched, so the cards they build are right. A
