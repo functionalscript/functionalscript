@@ -1008,8 +1008,11 @@ parts do not delay the epic's foundation gate:
       profiles are implemented above. Broader source reconstruction keeps
       the owning early return outside the private continuation and uses the
       existing nested `m` and `K(z)` semantic corpus.
-- [ ] Audit self tail calls in every output function, including generated
-      helpers, and replace fallbacks that retain self tail calls with common
+- [ ] Audit current self-tail output profiles through final functions and
+      generated helpers in public source, code-only JavaScript/function text
+      and Rust. Reuse existing witnesses, add missing conformance tests, and
+      distinguish bounded loops, explicit refusals and recursive fallbacks.
+- [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes; track broader profiles
       in the
