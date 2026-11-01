@@ -1,7 +1,7 @@
 ## General source profiles for supplied invocation graphs
 
 **Priority:** P2
-**Status:** wip
+**Status:** wip — shared-sequence source admission is the next step.
 
 ### Problem
 
