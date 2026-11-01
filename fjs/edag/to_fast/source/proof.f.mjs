@@ -50,9 +50,11 @@ export const proof = {
     captures: () => {
         /** @type {Exp} */
         const array = ['[]', []]
-        assertEq(reason(['=>', 0, [1], ['frame', 0]]), 'a frame slot holding a primitive')
+        assertEq(reason(['=>', 0, [1], ['frame', 0]]), null)
         const missing = /** @type {const} */ (['undefined'])
-        assertEq(reason(['[]', [missing, ['=>', 0, [missing], ['frame', 0]]]]), 'a frame slot holding a primitive')
+        assertEq(reason(['[]', [missing, ['=>', 0, [missing], ['frame', 0]]]]), null)
+        assertEq(reason(['=>', 0, [1, 1, missing, missing], ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]]), null)
+        assertEq(reason(['=>', 0, [1], 7]), 'a frame slot the body never reads')
         assertEq(reason(['=>', 0, [array, array], ['[]', [['frame', 0], ['frame', 1]]]]), 'a frame slot that repeats another')
         assertEq(reason(['=>', 1, [], ['=>', 0, [['arg', 0], ['arg', 0]], ['[]', [['frame', 0], ['frame', 1]]]]]), 'a frame slot that repeats another')
         assertEq(reason(['=>', 0, [array], 1]), 'a frame slot the body never reads')
