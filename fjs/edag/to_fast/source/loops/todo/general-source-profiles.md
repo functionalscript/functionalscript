@@ -60,21 +60,24 @@ also executes deep source and code-only output, nested `m` joins, parameterized
 `K(z)` continuations and named exports. This extends output profiles, not source
 syntax or admission.
 
-### Repeated source output for parameterized joins
+### Shared sequences after placement
 
 The supplied `K(z)` join fixture now emits valid FJS whose native execution
-preserves the selected input, early return and shared result. After parsing
-that first source output, a second public serialization is still refused by
-the existing graph check with `a shared comma outside a scope`. The check is
-unchanged; first-output success does not establish a general source-normalized
-graph, stable hashes or a repeated graph/text fixed point. The established
-canonical profile contracts remain unchanged.
+preserves the selected input, early return and shared result. Its reparsed graph
+can also be serialized again. Common FAST placement establishes ordinary shared
+sequences as bindings, so source admission accepts those placed values without
+a separate graph-region ban. Required work and shared results keep their
+existing placement and evaluation regions.
 
 The source-origin numeric join in the host corpus's
-`terminalLoopHasNoSyntheticFailure` reaches the same refusal. Its terminal
-loop preserves early returns, its EDAG contains no invented throw, and general
-code-only output executes correctly. Public source spelling for that shared
-join belongs to this graph-region task alongside the reparsed `K(z)` fixture.
+`terminalLoopHasNoSyntheticFailure` also reaches public source output. Its
+terminal loop preserves early returns, and its EDAG contains no invented throw.
+Source and code-only output execute the same results.
+
+Remaining genuine lazy FAST definitions still fail the existing `lazyReason`
+check. These successful shared-sequence profiles establish no general graph
+identity, stable hash or graph/text fixed-point guarantee. The established
+canonical profile contracts remain unchanged.
 
 ### A demanded lazy terminal prefix
 
@@ -122,17 +125,18 @@ fallback; non-reifiable forms retain the explicit `Result` error
       or dropping reached work.
 - [x] Keep the demanded lazy-prefix graph in a `while` profile with its shared
       result, while preserving the supplied FAST definition during coordination.
-- [ ] Resolve the reparsed `K(z)` and source-origin numeric joins'
-      `a shared comma outside a scope` refusal
-      and define its source-normalization domain before claiming repeated cycles.
+- [x] Admit shared sequences established as ordinary bindings by common
+      placement, including the reparsed `K(z)` and source-origin numeric joins,
+      while preserving reached work and sharing.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner
       and source-representability contracts; keep existing refusals for other
       supplied profiles.
-- [ ] Extend strict graph/text cycle evidence within each named normalization
-      domain, alongside deep source execution, required failures, captures, rest,
-      arity and unchanged prior layouts across the shared JS/Rust path.
+- [ ] Define and verify further graph/text cycle domains, including
+      shared-continuation profiles, alongside deep source execution, required
+      failures, captures, rest, arity and unchanged prior layouts across the
+      shared JS/Rust path.
 
 ### Related
 

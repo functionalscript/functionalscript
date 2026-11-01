@@ -77,11 +77,9 @@ const reads = e => {
  * @type {(e: Exp) => boolean}
  */
 const redundantAnchor = e => {
-    /** @type {(n: readonly unknown[]) => readonly unknown[]} */
-    const everything = n => n[0] === '=>' ? [...operandsOf(n), n[3]] : operandsOf(n)
     /** @type {(root: unknown) => readonly unknown[]} */
     const reached = root => visit(operandsOf)([])(root).map(([n]) => n)
-    return visit(everything)([])(e).some(([n]) => {
+    return visit(allOperands)([])(e).some(([n]) => {
         if (!(n instanceof Array) || n[0] !== ',') { return false }
         /** @type {readonly unknown[]} */
         const all = n[1]
@@ -92,20 +90,28 @@ const redundantAnchor = e => {
     })
 }
 
+/** Include nested function bodies when classifying generated fixtures. @type {(node: readonly unknown[]) => readonly unknown[]} */
+const allOperands = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
+
 /**
  * Newly admitted operand prefixes in the generated family. Its old scope
  * roots are the graph, function bodies and conditional arms; all other
- * operands previously refused commas. Admission has already excluded shared
- * operand commas before the law asks this question.
- * @type {(e: Exp) => boolean}
+ * operands previously refused commas. Both shared and independent operand
+ * prefixes can normalize their sequence regions when read back. `sharedOnly`
+ * selects precisely the family members newly admitted by removing the shared
+ * operand-comma restriction; the family's only region openers are functions
+ * and conditionals.
+ * @type {(e: Exp, sharedOnly?: boolean) => boolean}
  */
-const generatedOperandPrefix = e => {
+const generatedOperandPrefix = (e, sharedOnly = false) => {
+    /** @type {readonly Exp[]} */
+    const shared = sharedOnly ? visit(allOperands)([])(e).filter(([, count]) => count > 1).map(([node]) => node) : []
     /** @type {readonly { readonly value: unknown; readonly region: boolean }[]} */
     let pending = [{ value: e, region: true }]
     while (pending.length !== 0) {
         const [{ value, region }, ...rest] = pending
         if (!(value instanceof Array)) { pending = rest; continue }
-        if (value[0] === ',' && !region) { return true }
+        if (value[0] === ',' && !region && (!sharedOnly || shared.some(node => Object.is(node, value)))) { return true }
         const children = value[0] === '=>'
             ? [...value[2].map((/** @type {unknown} */ value) => ({ value, region: false })), { value: value[3], region: true }]
             : operandsOf(value).map((child, index) => ({ value: child, region: value[0] === '?:' && index !== 0 }))
@@ -1141,11 +1147,6 @@ export const proof = {
         refuses(['+', 1], 'a unary + node')
         // A node kind with a spelling, in a position that has none.
         refuses(['rest'], 'the arguments outside a function')
-        // One comma shared across operand positions still has no canonical
-        // source spelling; independent local prefixes have their own blocks.
-        const operand = /** @type {const} */ ([',', [1, 2]])
-        refuses(['[]', [operand, operand]], 'a shared comma outside a scope')
-        refuses(['=>', 0, [], ['[]', [operand, operand]]], 'a shared comma outside a scope')
         // An access key no literal spells: a computed one, and the three
         // numbers the tokenizer does not read back.
         // a key the EDAG's index admits nowhere, which only a graph built
@@ -1777,6 +1778,15 @@ export const proof = {
         () => generated.filter((_, i) => i % lawParts === k).forEach(e => {
             const written = tryStringify(e)
             if (written[0] === 'error') { return }
+            // The former shared-operand-comma refusal adds first-output source
+            // support, without extending the old canonical graph/text domain.
+            // Dedicated shared-comma proofs check values, allocation identity
+            // and required failures through this same public source boundary.
+            if (generatedOperandPrefix(e, true)) {
+                const { imports } = unresolved(unwrap(parse(path)(written[1])))
+                assertEq(imports.length, 0, written[1])
+                return
+            }
             if (redundantAnchor(e) || generatedOperandPrefix(e)) { rewrites(e) } else { reads(e) }
         }),
     ])),

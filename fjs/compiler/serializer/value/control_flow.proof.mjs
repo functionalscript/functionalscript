@@ -57,6 +57,9 @@ const load = async source => (await loadModule(source)).default
 /** A callback that must stay in an unselected region. @type {() => never} */
 const unselected = () => { throw 'unselected computation' }
 
+/** A callback whose completed result is discarded. @type {() => undefined} */
+const complete = () => undefined
+
 /** The nested fixture's normal continuation. @type {(value: number) => number} */
 const timesTen = value => value * 10
 
@@ -161,11 +164,22 @@ export const proof = /** @type {const} */ ({
         const source = /** @type {const} */ ('export default x=>{while(true){let y=0;if(x){if(x<0){return 2;}y=1;}return x*x+y;}};')
         const graph = sourceGraph(source)
         assert(!assertOk(identityAnalysis(graph)).nodes.some(node => node[0] === 'throw'))
-        const apply = await load(codeOnly(graph))
-        for (const [input, expected] of /** @type {const} */ ([[0, 0], [2, 5], [-2, 2]])) {
-            assertEq(apply(input), expected)
+        for (const text of graphOutputs(graph)) {
+            const apply = await load(text)
+            for (const [input, expected] of /** @type {const} */ ([[0, 0], [2, 5], [-2, 2]])) {
+                assertEq(apply(input), expected)
+            }
         }
-        assertEq(assertError(tryStringify(graph)), 'a shared comma outside a scope')
+    },
+    terminalBranchJoinKeepsItsSelectedParameter: async () => {
+        const source = /** @type {const} */ ('export default (x,y)=>{while(true){if(x){if(y){return 0;}y=1;}return -x+y;}};')
+        for (const text of outputs(source)) {
+            const apply = await load(text)
+            for (const [x, y, expected] of /** @type {const} */ ([
+                [0, 0, 0], [0, 2, 2], [0, -3, -3], [1, 0, 0],
+                [2, 0, -1], [-2, 0, 3], [2, 1, 0], [-2, -1, 0],
+            ])) { assertEq(apply(x, y), expected) }
+        }
     },
     terminalLoopOwningReturnsUseDeepWhile: async () => {
         const source = /** @type {const} */ ('export default n=>{let i=0;while(true){if(i===n){return i;}i+=1;}};')
@@ -224,18 +238,42 @@ export const proof = /** @type {const} */ ({
     },
     suppliedParameterizedContinuationsKeepNativeInputs: async () => {
         for (const fn of [_controlFlowFunctions.parameterizedJoin, _controlFlowFunctions.parameterizedHelper]) {
-            const graph = fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
-            for (const text of graphOutputs(graph)) {
-                const apply = await load(text)
-                for (const [selected, stop, expected] of /** @type {const} */ ([
-                    [false, false, 5], [false, true, 5], [true, false, 8],
-                ])) {
-                    const result = apply(selected, stop, sharedAllocationPair)
-                    assertEq(result[0], result[1])
-                    assertStructurallySame(result, [[expected], [expected]])
+            let graph = fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
+            for (let round = 0; round < 3; round += 1) {
+                const [general, source] = graphOutputs(graph)
+                for (const text of [general, source]) {
+                    const apply = await load(text)
+                    for (const [selected, stop, expected] of /** @type {const} */ ([
+                        [false, false, 5], [false, true, 5], [true, false, 8],
+                    ])) {
+                        const result = apply(selected, stop, sharedAllocationPair)
+                        const next = apply(selected, stop, sharedAllocationPair)
+                        assertEq(result[0], result[1])
+                        assertEq(next[0], next[1])
+                        assert(result[0] !== next[0])
+                        assertStructurallySame(result, [[expected], [expected]])
+                    }
+                    assertEq(apply(true, true, unselected), 42)
+                    throws(() => apply(false, false, unselected))
                 }
-                assertEq(apply(true, true, unselected), 42)
+                graph = sourceGraph(source)
             }
+        }
+    },
+    genuineLazySharedCommaKeepsPublicRefusal: async () => {
+        /** @type {Exp} */
+        const shared = [',', [['()', ['arg', 1], []], ['[]', []]]]
+        /** @type {Exp} */
+        const graph = ['=>', 2, [], ['[]', [['?:', ['arg', 0], shared, 0], shared]]]
+        assertEq(assertError(tryStringify(graph)), 'a shared node reached from outside the lazy operand that establishes it')
+        const apply = await load(codeOnly(graph))
+        for (const selected of [false, true]) {
+            const result = apply(selected, complete)
+            assert(result[1] instanceof Array)
+            assertEq(result[1].length, 0)
+            assertEq(result[0], selected ? result[1] : 0)
+            const next = apply(selected, complete)
+            assert(result[1] !== next[1])
         }
     },
     authoredSelfTailCallsUseDeepLoops: async () => {
@@ -266,6 +304,27 @@ export const proof = /** @type {const} */ ({
             const apply = await load(text)
             assertEq(apply(100_001, 0), 100_001)
             assertEq(apply(3, 7), 10)
+        }
+    },
+    sharedSequenceTailCallsUseDeepWhile: async () => {
+        /** @type {Exp} */
+        const call = ['()', ['self'], [
+            ['-', ['arg', 0], 1], ['+', ['arg', 1], 1],
+        ]]
+        /** @type {Exp} */
+        const shared = [',', [0, call]]
+        /** @type {Exp} */
+        const graph = ['=>', 2, [], ['?:',
+            ['>', ['arg', 0], 0],
+            ['?:', ['===', ['%', ['arg', 0], 2], 0], shared, [',', [1, shared]]],
+            ['arg', 1],
+        ]]
+        for (const text of graphOutputs(graph)) {
+            assert(text.includes('while('), text)
+            const apply = await load(text)
+            assertEq(apply(0, 7), 7)
+            assertEq(apply(3, 7), 10)
+            assertEq(apply(100_001, 7), 100_008)
         }
     },
     sharedTailPrefixKeepsSelectedFailure: async () => {
