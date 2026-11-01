@@ -42,6 +42,18 @@ const outputs = source => {
  */
 const load = async source => (await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)).default
 
+/** A callback that must stay in an unselected region. @type {() => never} */
+const unselected = () => { throw 'unselected computation' }
+
+/** The nested fixture's normal continuation. @type {(value: number) => number} */
+const timesTen = value => value * 10
+
+/** One fresh allocation is shared by both returned positions. @param {number} value */
+const sharedAllocationPair = value => {
+    const allocation = /** @type {const} */ ([value])
+    return /** @type {const} */ ([allocation, allocation])
+}
+
 export const proof = /** @type {const} */ ({
     referenceConditionalExpression: async () => {
         const left = /** @type {const} */ ([1])
@@ -139,30 +151,22 @@ export const proof = /** @type {const} */ ({
     suppliedNestedJoinKeepsNativeReturnOwnership: async () => {
         const graph = fromFast({ statements: [], exit: ['yield', [['function', controlFlowFunctions.nested]]] })
         const apply = await load(codeOnly(graph))
-        const skipped = () => { throw 'unselected computation' }
-        /** @param {number} value */
-        const following = value => value * 10
-        assertEq(apply(false, 5, skipped, following), 50)
-        assertEq(apply(true, 5, () => ({ a: 7, b: false, c: 99 }), following), 70)
-        assertEq(apply(true, 5, () => ({ a: 7, b: true, c: 99 }), skipped), 99)
+        assertEq(apply(false, 5, unselected, timesTen), 50)
+        assertEq(apply(true, 5, () => ({ a: 7, b: false, c: 99 }), timesTen), 70)
+        assertEq(apply(true, 5, () => ({ a: 7, b: true, c: 99 }), unselected), 99)
     },
     suppliedParameterizedContinuationsKeepNativeInputs: async () => {
         for (const fn of [controlFlowFunctions.parameterizedJoin, controlFlowFunctions.parameterizedHelper]) {
             const graph = fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
             const apply = await load(codeOnly(graph))
-            /** @param {number} value */
-            const operation = value => {
-                const allocation = /** @type {const} */ ([value])
-                return [allocation, allocation]
-            }
             for (const [selected, stop, expected] of /** @type {const} */ ([
                 [false, false, 5], [false, true, 5], [true, false, 8],
             ])) {
-                const result = apply(selected, stop, operation)
+                const result = apply(selected, stop, sharedAllocationPair)
                 assertEq(result[0], result[1])
                 assertStructurallySame(result, [[expected], [expected]])
             }
-            assertEq(apply(true, true, () => { throw 'unselected continuation' }), 42)
+            assertEq(apply(true, true, unselected), 42)
         }
     },
     authoredSelfTailCallsUseDeepLoops: async () => {
