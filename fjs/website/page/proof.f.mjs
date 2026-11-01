@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -54,6 +54,20 @@ const issue = name => ({ name, status: 'open', priority: 'P3' })
 const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], readme: [], demo: null, api: null, apiIndex: null }
 
 export const proof = {
+    readmeDescription: {
+        // A paragraph of badges has no text, so the next paragraph is the
+        // description, its links read as their text.
+        skipsBadges: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['h2', 'Title'],
+            ['p', ['a', { href: 'x' }, ['img', { alt: 'badge' }]]],
+            ['p', ' A ', ['a', { href: 'y' }, 'safe'], ' language. '],
+            ['p', 'Second.']]]), 'A safe language.'),
+        // A README this site does not render is a note about it, not its text.
+        refused: () => assertEq(readmeDescription([['p', { 'data-readme-refused': '' }, 'README.md is not rendered here.']]), undefined),
+        // A README of headings alone describes nothing.
+        noParagraph: () => assertEq(readmeDescription([['article', { 'data-readme': '' }, ['h2', 'Title'], 'text']]), undefined),
+        none: () => assertEq(readmeDescription([]), undefined),
+    },
     issueNameOrder: () => assertEq(issueOrder(issue('z.md'), issue('a.md')), 1),
     fileHref: () => {
         assertEq(fileHref(null)('nanvm/demos/wasm')('hello.wat'), '/nanvm/demos/wasm/hello.wat')
@@ -512,15 +526,23 @@ export const proof = {
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
         },
-        // A pasted link's card names the page and the site, from the static
-        // page alone.
+        // A pasted link's card names the page, what it is about and the site,
+        // from the static page alone; without a README, the site describes it.
         previewMeta: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes(
-                '<meta property="og:site_name" content="FunctionalScript">'
+                `<meta name="description" content="${siteDescription}">`
+                + '<meta property="og:site_name" content="FunctionalScript">'
                 + '<meta property="og:type" content="website">'
                 + '<meta property="og:title" content="fjs · FunctionalScript">'
+                + `<meta property="og:description" content="${siteDescription}">`
                 + '<meta name="twitter:card" content="summary">'), html)
+        },
+        // A directory with a README is described by it.
+        describedByItsReadme: () => {
+            const html = pageHtml({ ...empty, path: 'fjs', readme: [['article', { 'data-readme': '' }, ['p', 'All of it.']]] })
+            assert(html.includes('<meta name="description" content="All of it.">'), html)
+            assert(html.includes('<meta property="og:description" content="All of it.">'), html)
         },
         // A demo stays in main while the catalogue lives beside it.
         carriesADemo: () => {

@@ -38,7 +38,7 @@ import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.mjs'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
-import { htmlDocument, parseElement } from '../../media/html/module.f.mjs'
+import { htmlDocument, parseElement, textContent } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse } from '../../types/list/module.f.js'
@@ -59,6 +59,36 @@ export const repository = 'https://github.com/functionalscript/functionalscript'
  * @type {string}
  */
 export const siteName = 'FunctionalScript'
+
+/**
+ * What the site is, in one sentence: the description of a page that has none
+ * of its own.
+ *
+ * @type {string}
+ */
+export const siteDescription = 'FunctionalScript is a safe, purely functional programming language and a strict subset of ECMAScript/JavaScript.'
+
+/**
+ * A directory's description: the text of the first paragraph of its README
+ * that has any, or `undefined` for a directory whose README has none, or is
+ * not rendered.
+ *
+ * **The first paragraph with text**, because a README often opens with a
+ * paragraph of badges, which are images, and an image's text is in an
+ * attribute.
+ *
+ * **The whole paragraph, uncut.** A card or a search result cuts the text to
+ * what it shows, and each cuts it to a different length.
+ *
+ * @type {(readme: readonly Element[]) => string | undefined}
+ */
+export const readmeDescription = readme => readme
+    .flatMap(e => {
+        const [tag, { 'data-readme': article }, children] = parseElement(e)
+        return tag === 'article' && article !== undefined ? children : []
+    })
+    .flatMap(n => typeof n !== 'string' && n[0] === 'p' ? [textContent(n).trim()] : [])
+    .find(text => text !== '')
 
 /**
  * A page's `<title>`: what the page is, then the site it belongs to.
@@ -667,7 +697,8 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
- * shows for a pasted link: the page's title and the site it belongs to.
+ * shows for a pasted link: the page's title, what it is about, and the site
+ * it belongs to.
  *
  * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
  * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
@@ -678,12 +709,17 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * is in the HTML the build writes, so the card needs nothing from the
  * runtime.
  *
- * @type {(title: string) => readonly Element[]}
+ * **The description twice.** `description` is the one a search engine shows
+ * under the title; `og:description` is the card's.
+ *
+ * @type {(title: string) => (description: string) => readonly Element[]}
  */
-export const previewMeta = title => [
+export const previewMeta = title => description => [
+    ['meta', { name: 'description', content: description }],
     ['meta', { property: 'og:site_name', content: siteName }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: title }],
+    ['meta', { property: 'og:description', content: description }],
     ['meta', { name: 'twitter:card', content: 'summary' }],
 ]
 
@@ -701,13 +737,13 @@ export const previewMeta = title => [
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (content: Element) => string}
+ * @type {(build: Build) => (title: string) => (description: string) => (content: Element) => string}
  */
-export const shell = build => title => content => htmlDocument(lang)(
+export const shell = build => title => description => content => htmlDocument(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
-    ...previewMeta(title),
+    ...previewMeta(title)(description),
     stylesheetLink,
     ...faviconLinks,
     earlyInputCapture,
@@ -733,7 +769,7 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  *
  * @type {(build: Build) => (dir: Dir) => string}
  */
-export const page = build => dir => shell(build)(pageTitle(dir.path))(directoryLayout(build)(dir)(testsMain(
+export const page = build => dir => shell(build)(pageTitle(dir.path))(readmeDescription(dir.readme) ?? siteDescription)(directoryLayout(build)(dir)(testsMain(
     breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),

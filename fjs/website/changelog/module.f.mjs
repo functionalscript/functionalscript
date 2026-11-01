@@ -285,7 +285,7 @@ const neighbours = ({ previous, next }) => {
  *
  * @type {(build: Build) => (release: Release) => (document: Document) => string}
  */
-export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
+export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(`What changed in FunctionalScript ${release.version}.`)(['main',
     breadcrumb(`${changelogDir}/${release.version}`)(release.version),
     ...neighbours(release),
     ...(document.length === 0
@@ -303,7 +303,7 @@ export const releasePage = build => release => document => shell(build)(pageTitl
  *
  * @type {(build: Build) => (versions: readonly string[]) => string}
  */
-export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
+export const indexPage = build => versions => shell(build)(pageTitle('Releases'))('What changed in each release of FunctionalScript.')(['main',
     breadcrumb(changelogDir)(changelogDir),
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>

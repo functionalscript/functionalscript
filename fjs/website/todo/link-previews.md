@@ -60,7 +60,9 @@ what a crawler fetches.
 
 - [x] Title tags in `shell`: `og:site_name`, `og:type`, `og:title` and
   `twitter:card` (`summary`), so a pasted link shows the page's title.
-- [ ] A description for each page: `description` and `og:description`.
+- [x] A description for each page: `description` and `og:description`. A
+  directory's is the first paragraph of its README with text; a release's
+  names its version; every other page uses the site's own.
 - [ ] An `origin` on `Build`, and `og:url`.
 - [ ] A raster preview image: `og:image`, and `twitter:card` becomes
   `summary_large_image`.

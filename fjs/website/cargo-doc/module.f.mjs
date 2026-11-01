@@ -23,7 +23,7 @@
 
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
-import { footer, header, pageTitle, shell } from '../page/module.f.mjs'
+import { footer, header, pageTitle, shell, siteDescription } from '../page/module.f.mjs'
 import { faviconLinks } from '../style/module.f.js'
 
 /**
@@ -64,7 +64,7 @@ export const cargoDocHref = `/${cargoDocDir}/index.html`
  *
  * @type {(build: Build) => (crates: readonly string[]) => string}
  */
-export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'))(['main',
+export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'))(siteDescription)(['main',
     ['h1', 'Rust API'],
     ['p', 'The workspace’s crates, documented by ', ['code', 'cargo doc'], '.'],
     ['ul', ...crates.map(crate => /** @type {Element} */ (['li', ['a', { href: crateHref(crate) }, crate]]))],

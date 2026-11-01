@@ -2,7 +2,7 @@
  * @import { Element } from './types.ts'
  */
 
-import { htmlToString, htmlUtf8, isRawText, isVoidTag, pageRefusal, parseElement, rawTextContent, scriptRefusal } from "./module.f.mjs"
+import { htmlToString, htmlUtf8, isRawText, isVoidTag, pageRefusal, parseElement, rawTextContent, scriptRefusal, textContent } from "./module.f.mjs"
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 
@@ -129,5 +129,6 @@ export const proof = {
         assertEq(isRawText('style'), true)
         assertEq(isRawText('div'), false)
     },
+    textContent: () => assertEq(textContent(['p', 'a ', ['a', { href: 'x' }, 'b', ['img', { alt: 'c' }]], ' d']), 'a b d'),
     rawTextContent: () => assertEq(rawTextContent(['a', ['b', 'x'], '</c']), 'a<\\/c'),
 }
