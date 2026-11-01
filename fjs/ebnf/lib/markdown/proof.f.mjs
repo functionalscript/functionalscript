@@ -88,19 +88,21 @@ export const proof = {
         // be told apart by the one symbol the backend looks at.
         emptyStrong: () => refuses('****'),
         emptyEm: () => refuses('**'),
-        /**
-         * **Emphasis refuses what CommonMark would nest.** GitHub renders
-         * `**see [details](url)**` as bold around a working link, and every
-         * released file is read there as well as on the site. Reading the
-         * delimiters as text would give one source two answers; refusing
-         * leaves one, and says so at build time. Supporting the nesting is
-         * `todo/commonmark-constructs.md`.
-         */
-        linkInsideStrong: () => refuses(`**see [details](u)**`),
-        // Code is the one span emphasis holds, as a label holds it: a README
-        // sets a name in bold as `` **`Object` is reserved** ``.
+        // A plain link is a span emphasis holds, as GitHub renders
+        // `**see [details](url)**` bold around a working link, alone, first
+        // or between text and code.
+        linkInsideStrong: () => accepts(`**see [details](u)**`),
+        linkOpeningStrong: () => accepts(`**[a ${tick}b${tick}](u) and ${tick}c${tick}**`),
+        linkInsideEm: () => accepts(`*[a](u)*`),
+        // Its label holds text and code, as an image's does: no emphasis.
+        emphasisInALinkInsideStrong: () => refuses(`**[*a*](u)**`),
+        // Code is a span emphasis holds, as a label holds it: a README sets
+        // a name in bold as `` **`Object` is reserved** ``.
         codeInsideStrong: () => accepts(`**a ${tick}b${tick} c**`),
         codeInsideEm: () => accepts(`*${tick}b${tick}*`),
+        // Emphasis inside emphasis is what CommonMark nests and this
+        // refuses: reading its delimiters as text would give one source two
+        // answers. Supporting it is `todo/commonmark-constructs.md`.
         emphasisInsideStrong: () => refuses(`**a *b* c**`),
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.

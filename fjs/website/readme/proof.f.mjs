@@ -92,7 +92,7 @@ export const proof = /** @type {const} */ ({
             const blocks = [
                 ['heading', 1, [['text', 'T']]],
                 ['heading', 6, [['text', 'S']]],
-                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', [['text', 'c'], ['code', 'h']]], ['em', [['text', 'd']]], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
+                ['paragraph', [['text', 'a '], ['code', 'b'], ['strong', [['text', 'c'], ['code', 'h'], ['link', [['text', 'l']], 'm']]], ['em', [['text', 'd']]], ['link', [['text', 'e '], ['code', 'f']], 'g']]],
                 ['code', 'js', 'x'],
                 ['code', '', 'y'],
                 ['list', false, [[['paragraph', [['text', 'i']]], ['list', true, [[['paragraph', [['text', 'k']]]]]]], [['paragraph', [['text', 'j']]]]]],
@@ -108,7 +108,7 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 linkedHeading(2, 't', 'T', ['T']),
                 linkedHeading(6, 's', 'S', ['S']),
-                ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
+                ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h'], ['a', { href: 'm' }, 'l']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
                 fence('x', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]),
                 fence('y', ['code', 'y']),
                 ['ul', ['li', 'i', ['ul', ['li', ['p', 'k']]]], ['li', 'j']],
@@ -124,6 +124,8 @@ export const proof = /** @type {const} */ ({
                 ['ul', ['li', ['blockquote', ['p', 'w']]]],
             ]))
         },
+        // A link inside bold is placed as any link is, or refused.
+        strongLinkRefusal: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['strong', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
         quoteRefusal: () => assertStructurallySame(readmeNodes(href)([['quote', [['paragraph', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
         // A fence the tokenizer reads is coloured, in any case of its
         // language's name; any other stays its text.

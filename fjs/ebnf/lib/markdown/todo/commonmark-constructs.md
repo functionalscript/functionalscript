@@ -18,7 +18,7 @@ than argued from the spec:
 
 | written | GitHub reads | this subset |
 | --- | --- | --- |
-| `**see [details](u)**` | bold around a link | refused |
+| `**see [details](u)**` | bold around a link | read, the link's label holding text and code; a `!` before it, an image, refused |
 | `[**details**](u)` | a link whose words are bold | refused |
 | a two-backtick code span | one code span holding `x` | read as that span, one space stripped each side; three backticks refused |
 | a code span padded with spaces | `code` — one stripped each side | refused |
