@@ -685,9 +685,12 @@ const isClosingFence = line => {
  *
  * **Each is refused, not read as prose.** An indented block quote, a table row, raw
  * HTML, a numbered list, another bullet, an indented code block, a
- * fence, heading or list item indented by up to three spaces, a
- * thematic break and a heading's underline are each a structure on GitHub,
- * and prose here would be the README GitHub does not show.
+ * fence, heading, list item or thematic break indented by up to three
+ * spaces, and a heading's underline, a `---` or `===` right under a
+ * paragraph's line, are each a structure on GitHub, and prose here would
+ * be the README GitHub does not show. An unindented thematic break where a
+ * block starts is read as a `rule` before this is asked; a run of `-` or
+ * `=` too short for one is refused here with the underlines.
  *
  * @type {(line: string) => string | null}
  */
