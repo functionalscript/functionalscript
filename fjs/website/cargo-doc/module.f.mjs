@@ -64,7 +64,7 @@ export const cargoDocHref = `/${cargoDocDir}/index.html`
  *
  * @type {(build: Build) => (crates: readonly string[]) => string}
  */
-export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'))(siteDescription)(['main',
+export const cargoDocPage = build => crates => shell(build)({ href: cargoDocHref, title: pageTitle('Rust API'), description: siteDescription })(['main',
     ['h1', 'Rust API'],
     ['p', 'The workspace’s crates, documented by ', ['code', 'cargo doc'], '.'],
     ['ul', ...crates.map(crate => /** @type {Element} */ (['li', ['a', { href: crateHref(crate) }, crate]]))],

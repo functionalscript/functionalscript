@@ -130,6 +130,19 @@ export type Build = {
 }
 
 /**
+ * What a page says about itself in its `<head>`: where it is, what it is
+ * called, and what it is about.
+ */
+export type Head = {
+    /** The page's root-relative URL, as the site links it. */
+    readonly href: string
+    /** The page's `<title>`, which is also its card's title. */
+    readonly title: string
+    /** One paragraph on what the page is about, for a card or a search result. */
+    readonly description: string
+}
+
+/**
  * What one entry of a directory's list is, which is the icon a reader tells
  * it by: a subdirectory, a file, or an issue in the directory's `todo/`.
  */

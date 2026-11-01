@@ -39,15 +39,13 @@ what a crawler fetches.
   needs a description as well. The obvious source is the first paragraph of
   the directory's README (`dir.readme`, already rendered at build time). A
   directory without a README falls back to one site-wide tagline.
-- **Absolute URLs.** `og:url` and `og:image` must be absolute, and the build
-  does not know its own domain: `Build` in
-  [`../page/types.ts`](../page/types.ts) has `commit`, `branch` and `funding`
-  only. There are two options:
-  - Hard-code `https://functionalscript.com` as a constant next to
-    `repository`. This is simple, but a preview deployment on
-    `*.workers.dev` would then point its cards at production.
-  - Add an `origin` field to `Build`, filled from the deploy environment.
-    This is correct for previews too, and is the recommended option.
+- **Absolute URLs.** `og:url` and `og:image` must be absolute. Production
+  deploys only from a push to `main`, so a build of `main` is published at
+  `https://functionalscript.com` (`origin` in
+  [`../page/module.f.mjs`](../page/module.f.mjs)). A preview's alias URL is
+  reported by Wrangler only after the upload that follows the build, so a
+  preview, like a local build, has no origin and leaves `og:url` out; a card
+  then falls back to the URL it fetched.
 - **The image.** The site's only logo is
   [`../favicon.svg`](../favicon.svg). Most platforms (Facebook, X, LinkedIn,
   and often Slack) refuse SVG for `og:image`, so the site needs a raster
@@ -63,9 +61,11 @@ what a crawler fetches.
 - [x] A description for each page: `description` and `og:description`. A
   directory's is the first paragraph of its README with text; a release's
   names its version; every other page uses the site's own.
-- [ ] An `origin` on `Build`, and `og:url`.
+- [x] `og:url` on production builds, from the page's `href` and the
+  origin a build of `main` is published at.
 - [ ] A raster preview image: `og:image`, and `twitter:card` becomes
-  `summary_large_image`.
+  `summary_large_image`. A preview build has no origin, so either it has no
+  image or its image points at production's.
 
 ### Verification
 

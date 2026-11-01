@@ -28,7 +28,7 @@
  * @module
  *
  * @import { Element, Node } from '../../media/html/types.ts'
- * @import { Build, Dir, Kind, PageDemo, Proof } from './types.ts'
+ * @import { Build, Dir, Head, Kind, PageDemo, Proof } from './types.ts'
  * @import { Funding } from '../funding/types.ts'
  * @import { Issue } from '../issue/types.ts'
  */
@@ -52,6 +52,33 @@ import { priorities, statuses } from '../issue/module.f.js'
  * @type {string}
  */
 export const repository = 'https://github.com/functionalscript/functionalscript'
+
+/**
+ * Where the site is published: the origin of every absolute URL a page
+ * gives of itself.
+ *
+ * @type {string}
+ */
+export const productionOrigin = 'https://functionalscript.com'
+
+/**
+ * The origin a build is published at, or `null` when the build cannot know
+ * it.
+ *
+ * **Production is `main`, and only `main`.** The website workflow deploys
+ * production from a push to `main` alone, so a build of `main` is published
+ * at {@link productionOrigin}.
+ *
+ * **A preview's origin is Wrangler's to say, after the build.** Its alias
+ * URL is reported by the upload that follows the build, so the build has no
+ * origin to write; neither does a local one. A page then gives no absolute
+ * URL of itself, and a card falls back to the URL it was fetched from, which
+ * is right, rather than to production's, which would be a page the preview
+ * does not show.
+ *
+ * @type {(build: Build) => string | null}
+ */
+export const origin = build => build.branch === 'main' ? productionOrigin : null
 
 /**
  * The site's name, which the root page's title is on its own.
@@ -697,8 +724,9 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
- * shows for a pasted link: the page's title, what it is about, and the site
- * it belongs to.
+ * shows for a pasted link: the page's title, what it is about, the site it
+ * belongs to and, when the build knows its {@link origin}, the page's own
+ * URL.
  *
  * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
  * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
@@ -712,14 +740,19 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * **The description twice.** `description` is the one a search engine shows
  * under the title; `og:description` is the card's.
  *
- * @type {(title: string) => (description: string) => readonly Element[]}
+ * **`og:url` is absolute or absent.** Open Graph requires an absolute URL,
+ * so a page whose build has no origin leaves it out rather than write a
+ * relative one.
+ *
+ * @type {(origin: string | null) => (head: Head) => readonly Element[]}
  */
-export const previewMeta = title => description => [
+export const previewMeta = origin => ({ href, title, description }) => [
     ['meta', { name: 'description', content: description }],
     ['meta', { property: 'og:site_name', content: siteName }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: title }],
     ['meta', { property: 'og:description', content: description }],
+    ...(origin === null ? [] : [/** @type {Element} */ (['meta', { property: 'og:url', content: `${origin}${href}` }])]),
     ['meta', { name: 'twitter:card', content: 'summary' }],
 ]
 
@@ -737,13 +770,13 @@ export const previewMeta = title => description => [
  * purpose: one that runs a suite marks it for the runtime — see
  * {@link testsMain} — and a changelog page does not.
  *
- * @type {(build: Build) => (title: string) => (description: string) => (content: Element) => string}
+ * @type {(build: Build) => (head: Head) => (content: Element) => string}
  */
-export const shell = build => title => description => content => htmlDocument(lang)(
-    ['title', title],
+export const shell = build => head => content => htmlDocument(lang)(
+    ['title', head.title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
-    ...previewMeta(title)(description),
+    ...previewMeta(origin(build))(head),
     stylesheetLink,
     ...faviconLinks,
     earlyInputCapture,
@@ -769,7 +802,11 @@ export const testsMain = (...nodes) => ['main', { 'data-browser-tests': '', 'dat
  *
  * @type {(build: Build) => (dir: Dir) => string}
  */
-export const page = build => dir => shell(build)(pageTitle(dir.path))(readmeDescription(dir.readme) ?? siteDescription)(directoryLayout(build)(dir)(testsMain(
+export const page = build => dir => shell(build)({
+    href: pageHref(dir.path),
+    title: pageTitle(dir.path),
+    description: readmeDescription(dir.readme) ?? siteDescription,
+})(directoryLayout(build)(dir)(testsMain(
     breadcrumb(dir.path)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),

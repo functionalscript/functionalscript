@@ -6,7 +6,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, productionOrigin, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -537,6 +537,18 @@ export const proof = {
                 + '<meta property="og:title" content="fjs · FunctionalScript">'
                 + `<meta property="og:description" content="${siteDescription}">`
                 + '<meta name="twitter:card" content="summary">'), html)
+        },
+        // A build of `main` is production, so its page gives its own URL;
+        // a local build, above, gives none.
+        productionUrl: () => {
+            const html = page({ ...local, branch: 'main' })({ ...empty, path: 'fjs/types' })
+            assert(html.includes(`<meta property="og:url" content="${productionOrigin}/fjs/types/index.html">`), html)
+            assert(!pageHtml({ ...empty, path: 'fjs' }).includes('og:url'), 'no origin, no URL')
+        },
+        // A preview's origin is only known after its upload, so it gives none.
+        previewHasNoUrl: () => {
+            const html = page({ ...local, branch: 'claude/x' })({ ...empty, path: 'fjs' })
+            assert(!html.includes('og:url'), html)
         },
         // A directory with a README is described by it.
         describedByItsReadme: () => {
