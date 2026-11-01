@@ -1,7 +1,7 @@
 ## Preserve primitive captures on source readback
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
