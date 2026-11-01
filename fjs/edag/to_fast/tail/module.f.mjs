@@ -10,9 +10,9 @@
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
-import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
+import { operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
-import { _restTransition } from '../../../js/ast/invocation/module.f.js'
+import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
 const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
@@ -149,20 +149,7 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
                 })))
             }
             if (value[0] === '()' && value[1] instanceof Array && value[1][0] === 'ref' && value[1][1] === self) {
-                const args = value[2]
-                if (rest !== null) { return done({ block: _restTransition(parameters.length, args, target), changed: true }) }
-                if (args.length > parameters.length || args.some(isSpread)) {
-                    // Materialize the invocation before reading its fixed
-                    // prefix. Every extra value and lazy demand stays reached.
-                    // This private vector's identity is never exposed.
-                    const binding = { index: self.index + 1 }
-                    return done({ block: {
-                        statements: [['define', binding, ['array', args], 'required']],
-                        exit: ['continue', target, parameters.map((_, index) => ['.', ['ref', binding], index])],
-                    }, changed: true })
-                }
-                const fixed = /** @type {readonly Value[]} */ (args)
-                return done({ block: { statements: [], exit: ['continue', target, parameters.map((_, index) => index < fixed.length ? fixed[index] : undefined)] }, changed: true })
+                return done({ block: _invocationTransition(parameters.length, value[2], target, rest !== null), changed: true })
             }
         }
         return done({ block: { statements: [], exit: ['break', target, [value]] }, changed: false })

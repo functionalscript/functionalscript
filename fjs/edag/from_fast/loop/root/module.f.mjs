@@ -117,8 +117,17 @@ const blockTask = (block, owner, expected) => {
         }
         if (owner.fn.rest !== null) {
             const args = _restArguments(block, owner.fn.parameters.length, owner.loop.target)
-            if (args === null) { throw 'invalid canonical rest invocation transition' }
-            return finished(assertNotNullish(statements).tail, ['return', owner.fn.target, ['()', owner.self, args]], false)
+            if (args !== null) { return finished(assertNotNullish(statements).tail, ['return', owner.fn.target, ['()', owner.self, args]], false) }
+            if (!owner.transported) { throw 'invalid canonical rest invocation transition' }
+            // The owning-tail producer established this invocation signature
+            // before completion transport. Its packet projections retain the
+            // fixed values and fresh rest payload, but not the inverse recipe.
+            // The actual call creates its own rest array from those elements.
+            const length = owner.fn.parameters.length
+            if (exit[2].length !== length + 1) { throw 'invalid transported rest invocation signature' }
+            return finished(statements, ['return', owner.fn.target, ['()', owner.self,
+                [...exit[2].slice(0, length), ['...', exit[2][Number(length)]]],
+            ]], false)
         }
         if (exit[2].length !== owner.fn.parameters.length) { throw 'invalid canonical invocation transition signature' }
         return finished(statements, ['return', owner.fn.target, ['()', owner.self, exit[2]]], false)
@@ -130,16 +139,35 @@ const blockTask = (block, owner, expected) => {
  * Resolve a matched root to the ordinary function constructor's own value body.
  * A synthesized self binding is lexical only; existing self/captures are kept.
  * A reached normal yield violates the normalized loop-body transfer contract.
- * @type {(fn: FastFunction, loop: Loop) => FastFunction}
+ * @type {(fn: FastFunction, loop: Loop, transported: boolean, terminal: boolean) => FastFunction}
  */
-export const directInvocationRoot = (fn, loop) => {
+const resolveInvocationRoot = (fn, loop, transported, terminal) => {
     const self = fn.self ?? { index: fn.target.index }
-    const owner = /** @type {_Owner} */ ({ fn, loop, self: ['ref', self] })
+    const owner = /** @type {_Owner} */ ({ fn, loop, self: ['ref', self], transported })
     const aliases = loop.parameters.map((binding, i) => /** @type {Statement} */ (['define', binding, loop.initial[i], 'lazy']))
-    const prefix = fn.body.statements.slice(0, -1).map(statement => {
+    const prefix = (terminal ? fn.body.statements : fn.body.statements.slice(0, -1)).map(statement => {
         const alias = /** @type {Extract<Statement, readonly ['define', ...unknown[]]>} */ (statement)
         return /** @type {Statement} */ (['define', alias[1], alias[2], 'lazy'])
     })
     const result = run(blockTask(loop.body, owner, null)).block
     return { ...fn, self, body: { statements: [...prefix, ...aliases, ...result.statements], exit: result.exit } }
+}
+
+/** @type {(fn: FastFunction, loop: Loop) => FastFunction} */
+export const directInvocationRoot = (fn, loop) => resolveInvocationRoot(fn, loop, false, false)
+
+/**
+ * Resolve the outer invocation loop introduced by owning-tail normalization.
+ * The producer proves the invocation layout and fresh-rest transitions before
+ * completion packets transport them through nested helpers. This entry does
+ * not widen structural admission for arbitrary FAST loops. A terminal root
+ * needs neither a public result binding nor a normal-completion successor.
+ * @type {(fn: FastFunction, target: LoopTarget) => FastFunction}
+ */
+export const _directOwningInvocationRoot = (fn, target) => {
+    const exit = fn.body.exit
+    const last = fn.body.statements.at(-1)
+    const loop = exit[0] === 'loop' ? exit[1] : last !== undefined && last[0] === 'loop' ? last[1] : null
+    if (loop === null || loop.target !== target) { throw 'an owning invocation root must retain its target' }
+    return resolveInvocationRoot(fn, loop, true, exit[0] === 'loop')
 }

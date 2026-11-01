@@ -45,6 +45,7 @@ pub mod object_is;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
+pub mod owning_self_tail_calls;
 pub mod parameters;
 pub mod property;
 pub mod recursion;
@@ -112,6 +113,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },
+    crate::Case { name: "owning_self_tail_calls", fixture: crate::fixtures::owning_self_tail_calls::module::<Naive>, expected: owning_self_tail_calls::module::<Naive>, json: owning_self_tail_calls::JSON, throws: owning_self_tail_calls::THROWS },
     crate::Case { name: "parameters", fixture: crate::fixtures::parameters::module::<Naive>, expected: parameters::module::<Naive>, json: parameters::JSON, throws: parameters::THROWS },
     crate::Case { name: "property", fixture: crate::fixtures::property::module::<Naive>, expected: property::module::<Naive>, json: property::JSON, throws: property::THROWS },
     crate::Case { name: "recursion", fixture: crate::fixtures::recursion::module::<Naive>, expected: recursion::module::<Naive>, json: recursion::JSON, throws: recursion::THROWS },

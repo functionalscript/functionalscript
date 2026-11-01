@@ -51,6 +51,7 @@ pub mod object_is;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
+pub mod owning_self_tail_calls;
 pub mod parameters;
 pub mod parity;
 pub mod property;
