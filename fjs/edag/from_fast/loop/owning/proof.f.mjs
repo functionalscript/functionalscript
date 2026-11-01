@@ -46,7 +46,7 @@ const normalized = source => {
     return { fn: result.fn, root: result.root }
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     functionsWithoutCrossingTailCallsKeepTheirIdentity: () => {
         /** @type {FastFunction} */
         const missing = { ...crossed(7), self: null }
@@ -266,4 +266,4 @@ export const proof = {
         assert(inside[0] === 'loop')
         assertStructurallySame(inside[1].body.exit, ['yield', []])
     },
-}
+})
