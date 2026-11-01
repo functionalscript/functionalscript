@@ -44,6 +44,7 @@ import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/mod
 import { intersperse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { priorities, statuses } from '../issue/module.f.js'
+import { origin } from '../origin/module.f.js'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -52,14 +53,6 @@ import { priorities, statuses } from '../issue/module.f.js'
  * @type {string}
  */
 export const repository = 'https://github.com/functionalscript/functionalscript'
-
-/**
- * Where the site is published: the origin of every absolute URL a page
- * gives of itself.
- *
- * @type {string}
- */
-export const productionOrigin = 'https://functionalscript.com'
 
 /**
  * The card image every page shares: the logo and the site's name on a
@@ -72,25 +65,6 @@ export const productionOrigin = 'https://functionalscript.com'
  * @type {string}
  */
 export const previewImagePath = '/fjs/website/preview.png'
-
-/**
- * The origin a build is published at, or `null` when the build cannot know
- * it.
- *
- * **Production is `main`, and only `main`.** The website workflow deploys
- * production from a push to `main` alone, so a build of `main` is published
- * at {@link productionOrigin}.
- *
- * **A preview's origin is Wrangler's to say, after the build.** Its alias
- * URL is reported by the upload that follows the build, so the build has no
- * origin to write; neither does a local one. A page then gives no absolute
- * URL of itself, and a card falls back to the URL it was fetched from, which
- * is right, rather than to production's, which would be a page the preview
- * does not show.
- *
- * @type {(build: Build) => string | null}
- */
-export const origin = build => build.branch === 'main' ? productionOrigin : null
 
 /**
  * The site's name, which the root page's title is on its own.
@@ -736,7 +710,7 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 
 /**
  * The card tags that are the same on every page: the site, the kind of
- * page and, when the build knows its {@link origin}, the site's card image.
+ * page and, when the build has an origin, the site's card image.
  *
  * **Shared with rustdoc's pages.** `cargo doc` writes the Rust API
  * reference, and the site adds one fixed fragment to every page's `<head>`
@@ -750,8 +724,8 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * where there is an image, and the small `summary` where there is none.
  *
  * **`og:image` is absolute or absent.** Open Graph requires an absolute URL,
- * so a build with no origin leaves it out rather than write a relative one,
- * or production's image on a preview that may not have it yet.
+ * so a local build, which has no origin, leaves it out rather than write a
+ * relative one.
  *
  * @type {(origin: string | null) => readonly Element[]}
  */
@@ -777,7 +751,7 @@ const largeCard = origin => [
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
  * shows for a pasted link: the page's title, what it is about and, when the
- * build knows its {@link origin}, its own URL, then the {@link siteMeta}
+ * build has an origin, its own URL, then the {@link siteMeta}
  * every page shares.
  *
  * **In the static page, because a crawler runs no script.** Every tag here
@@ -819,7 +793,7 @@ export const shell = build => head => content => htmlDocument(lang)(
     ['title', head.title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
-    ...previewMeta(origin(build))(head),
+    ...previewMeta(origin(build.branch))(head),
     stylesheetLink,
     ...faviconLinks,
     earlyInputCapture,

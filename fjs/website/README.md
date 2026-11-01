@@ -883,19 +883,22 @@ own sentence.
 **rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
 Rust API reference, and the site adds one fixed fragment to every page's
 `<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
-pages share: the site's name, the page kind, the card type and, on
-production, the image. Each page's title and description are rustdoc's own
-`<title>` and `<meta name="description">`, which a card falls back to, and
-it has no `og:url`.
+pages share: the site's name, the page kind, the card type and, where the
+build has an origin, the image. Each page's title and description are
+rustdoc's own `<title>` and `<meta name="description">`, which a card falls
+back to; `og:title` and `og:url`, which Open Graph requires, are missing
+([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
 
-**A URL and an image only where the build knows its origin.** Open Graph
-wants both absolute. Production deploys only from a push to `main`, so a
-build of `main` is published at `https://functionalscript.com` and writes
-`og:url`, `og:image` and the large card. A preview's alias URL is reported
-by Wrangler only after the upload that follows its build, so a preview, like
-a local build, writes neither and gets the small card. A card for a preview
-link then falls back to the URL it fetched, rather than to a production page
-or image the preview may not match.
+**A URL and an image wherever the build has an origin.** Open Graph wants
+both absolute, so a page needs to know where it is published, which
+[`origin/`](./origin/module.f.js) says from the build's branch. Production
+deploys only from a push to `main`, so a build of `main` is at
+`https://functionalscript.com`. Any other branch is its preview, at the alias
+the upload names it by, which is computed in that same module so the two
+cannot disagree. Both write `og:url`, `og:image` and the large card, so a
+preview's card can be checked before it merges. A local build names no
+branch, has no address anyone can fetch, and gets neither and the small
+card.
 
 **The image is a committed PNG.** [`preview.png`](./preview.png) is the logo
 and the site's name on 1200×630, the size the large cards show uncropped.

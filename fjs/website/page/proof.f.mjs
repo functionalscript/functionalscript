@@ -6,7 +6,8 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, previewImagePath, productionOrigin, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, previewImagePath, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { origin, productionOrigin } from '../origin/module.f.js'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -552,10 +553,12 @@ export const proof = {
             const localHtml = pageHtml({ ...empty, path: 'fjs' })
             assert(!localHtml.includes('og:url') && !localHtml.includes('og:image'), 'no origin, no URL and no image')
         },
-        // A preview's origin is only known after its upload, so it gives none.
-        previewHasNoUrl: () => {
+        // A preview's page gives its URL and image at the preview's own origin.
+        previewUrl: () => {
+            const preview = origin('claude/x')
             const html = page({ ...local, branch: 'claude/x' })({ ...empty, path: 'fjs' })
-            assert(!html.includes('og:url'), html)
+            assert(html.includes(`<meta property="og:url" content="${preview}/fjs/index.html">`), html)
+            assert(html.includes(`<meta property="og:image" content="${preview}${previewImagePath}">`), html)
         },
         // A directory with a README is described by it.
         describedByItsReadme: () => {

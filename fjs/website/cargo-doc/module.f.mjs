@@ -23,7 +23,8 @@
 
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
-import { footer, header, origin, pageTitle, shell, siteDescription, siteMeta } from '../page/module.f.mjs'
+import { footer, header, pageTitle, shell, siteDescription, siteMeta } from '../page/module.f.mjs'
+import { origin } from '../origin/module.f.js'
 import { faviconLinks } from '../style/module.f.js'
 
 /**
@@ -88,7 +89,7 @@ export const rustdocHeadPath = '_rustdoc-head.html'
  *
  * @type {(build: Build) => string}
  */
-export const rustdocHead = build => [...faviconLinks, ...siteMeta(origin(build))].map(e => concat(element(e))).join('')
+export const rustdocHead = build => [...faviconLinks, ...siteMeta(origin(build.branch))].map(e => concat(element(e))).join('')
 
 /** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
 export const rustdocFooterPath = '_rustdoc-footer.html'
