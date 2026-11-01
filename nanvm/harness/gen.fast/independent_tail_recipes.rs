@@ -18,297 +18,273 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b1729_9: Any<A> = _b8461.clone();
             if Any::<A>::to_boolean((Any::gt(_b1728_8.clone(), f64_any(0x0000000000000000)))?) {
                 let mut _b8463: Any<A> = Nullish::Undefined.to_any();
-                {
+                if Any::<A>::to_boolean(_b1729_9.clone()) {
                     let mut _b8464: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean(_b1729_9.clone()) {
-                        let mut _b8465: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b1728_8.clone() % f64_any(0x4000000000000000))?) {
-                            let _b8466: Any<A> = f64_any(0x0000000000000000);
-                            _b8465 = _b8466.clone();
-                        } else {
-                            let _b8467: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8465 = _b8467.clone();
-                        }
-                        let _b15_15: Any<A> = _b8465.clone();
-                        let _b8468: Any<A> = _b15_15.clone();
-                        _b8464 = _b8468.clone();
+                    if Any::<A>::to_boolean((_b1728_8.clone() % f64_any(0x4000000000000000))?) {
+                        let _b8465: Any<A> = f64_any(0x0000000000000000);
+                        _b8464 = _b8465.clone();
                     } else {
-                        let mut _b8469: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b1728_8.clone() % f64_any(0x4008000000000000))?) {
-                            let _b8470: Any<A> = f64_any(0x0000000000000000);
-                            _b8469 = _b8470.clone();
-                        } else {
-                            let _b8471: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8469 = _b8471.clone();
-                        }
-                        let _b15_20: Any<A> = _b8469.clone();
-                        let _b8472: Any<A> = _b15_20.clone();
-                        _b8464 = _b8472.clone();
+                        let _b8466: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8464 = _b8466.clone();
                     }
-                    let _b15_22: Any<A> = _b8464.clone();
-                    let _b8473: Any<A> = _b15_22.clone();
-                    _b8463 = _b8473.clone();
+                    let _b15_14: Any<A> = _b8464.clone();
+                    let _b8467: Any<A> = _b15_14.clone();
+                    _b8463 = _b8467.clone();
+                } else {
+                    let mut _b8468: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b1728_8.clone() % f64_any(0x4008000000000000))?) {
+                        let _b8469: Any<A> = f64_any(0x0000000000000000);
+                        _b8468 = _b8469.clone();
+                    } else {
+                        let _b8470: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8468 = _b8470.clone();
+                    }
+                    let _b15_19: Any<A> = _b8468.clone();
+                    let _b8471: Any<A> = _b15_19.clone();
+                    _b8463 = _b8471.clone();
                 }
-                let _b15_24: Any<A> = _b8463.clone();
-                if Any::<A>::to_boolean((strict_eq(_b15_24.clone(), f64_any(0x0000000000000000)))?) {
+                let _b15_21: Any<A> = _b8463.clone();
+                if Any::<A>::to_boolean((strict_eq(_b15_21.clone(), f64_any(0x0000000000000000)))?) {
+                    let _b8472: Any<A> = (_b1728_8.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8473: Any<A> = false.to_any();
+                    _b8460 = _b8472.clone();
+                    _b8461 = _b8473.clone();
+                    continue '_loop15;
+                } else {
                     let _b8474: Any<A> = (_b1728_8.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8475: Any<A> = false.to_any();
+                    let _b8475: Any<A> = true.to_any();
                     _b8460 = _b8474.clone();
                     _b8461 = _b8475.clone();
                     continue '_loop15;
-                } else {
-                    let _b8476: Any<A> = (_b1728_8.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8477: Any<A> = true.to_any();
-                    _b8460 = _b8476.clone();
-                    _b8461 = _b8477.clone();
-                    continue '_loop15;
                 }
             } else {
-                let _b8478: Any<A> = f64_any(0x0000000000000000);
-                _b8462 = _b8478.clone();
+                let _b8476: Any<A> = f64_any(0x0000000000000000);
+                _b8462 = _b8476.clone();
                 break '_loop15;
             }
         }
         let _b1747: Any<A> = _b8462.clone();
         Ok(_b1747.clone())
-    }, 2, Array::default(), Some("($0,$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;if($7>0){let $9=undefined;{let $10=undefined;if($8){let $11=undefined;if($7%2){const $12=0;$11=$12;}else{const $13=1;$11=$13;}const $14=$11;const $15=$14;$10=$15;}else{let $16=undefined;if($7%3){const $17=0;$16=$17;}else{const $18=1;$16=$18;}const $19=$16;const $20=$19;$10=$20;}const $21=$10;const $22=$21;$9=$22;}const $23=$9;if($23===0){const $24=$7-1;const $25=false;$4=$24;$5=$25;continue L0;}else{const $26=$7-1;const $27=true;$4=$26;$5=$27;continue L0;}}else{const $28=0;$6=$28;break L0;}}const $29=$6;return $29;}")).to_any();
+    }, 2, Array::default(), Some("($0,$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;if($7>0){let $9=undefined;if($8){let $10=undefined;if($7%2){const $11=0;$10=$11;}else{const $12=1;$10=$12;}const $13=$10;const $14=$13;$9=$14;}else{let $15=undefined;if($7%3){const $16=0;$15=$16;}else{const $17=1;$15=$17;}const $18=$15;const $19=$18;$9=$19;}const $20=$9;if($20===0){const $21=$7-1;const $22=false;$4=$21;$5=$22;continue L0;}else{const $23=$7-1;const $24=true;$4=$23;$5=$24;continue L0;}}else{const $25=0;$6=$25;break L0;}}const $26=$6;return $26;}")).to_any();
     let _b34: Any<A> = A::static_function(|_self, _args| {
-        let _b8479: Any<A> = _args.argument(0);
-        let _b8480: Any<A> = _args.argument(1);
-        let _b8481: Any<A> = _args.argument(2);
-        let _b8482: Any<A> = _args.argument(3);
+        let _b8477: Any<A> = _args.argument(0);
+        let _b8478: Any<A> = _args.argument(1);
+        let _b8479: Any<A> = _args.argument(2);
+        let _b8480: Any<A> = _args.argument(3);
+        let mut _b8481: Any<A> = _b8477.clone();
+        let mut _b8482: Any<A> = _b8478.clone();
         let mut _b8483: Any<A> = _b8479.clone();
         let mut _b8484: Any<A> = _b8480.clone();
-        let mut _b8485: Any<A> = _b8481.clone();
-        let mut _b8486: Any<A> = _b8482.clone();
-        let mut _b8487: Any<A> = Nullish::Undefined.to_any();
+        let mut _b8485: Any<A> = Nullish::Undefined.to_any();
         '_loop34: loop {
-            let _b3818_45: Any<A> = _b8483.clone();
-            let _b3819_46: Any<A> = _b8484.clone();
-            let _b3820_47: Any<A> = _b8485.clone();
-            let _b3821_48: Any<A> = _b8486.clone();
-            if Any::<A>::to_boolean((Any::gt(_b3818_45.clone(), f64_any(0x0000000000000000)))?) {
-                let mut _b8488: Any<A> = Nullish::Undefined.to_any();
-                {
-                    let mut _b8489: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean(_b3819_46.clone()) {
-                        let mut _b8490: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b3818_45.clone() % f64_any(0x4000000000000000))?) {
-                            let _b8491: Any<A> = f64_any(0x0000000000000000);
-                            _b8490 = _b8491.clone();
-                        } else {
-                            let _b8492: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8490 = _b8492.clone();
-                        }
-                        let _b34_54: Any<A> = _b8490.clone();
-                        let _b8493: Any<A> = _b34_54.clone();
-                        _b8489 = _b8493.clone();
+            let _b3818_42: Any<A> = _b8481.clone();
+            let _b3819_43: Any<A> = _b8482.clone();
+            let _b3820_44: Any<A> = _b8483.clone();
+            let _b3821_45: Any<A> = _b8484.clone();
+            if Any::<A>::to_boolean((Any::gt(_b3818_42.clone(), f64_any(0x0000000000000000)))?) {
+                let mut _b8486: Any<A> = Nullish::Undefined.to_any();
+                if Any::<A>::to_boolean(_b3819_43.clone()) {
+                    let mut _b8487: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b3818_42.clone() % f64_any(0x4000000000000000))?) {
+                        let _b8488: Any<A> = f64_any(0x0000000000000000);
+                        _b8487 = _b8488.clone();
                     } else {
-                        let mut _b8494: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b3818_45.clone() % f64_any(0x4008000000000000))?) {
-                            let _b8495: Any<A> = f64_any(0x0000000000000000);
-                            _b8494 = _b8495.clone();
-                        } else {
-                            let _b8496: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8494 = _b8496.clone();
-                        }
-                        let _b34_59: Any<A> = _b8494.clone();
-                        let _b8497: Any<A> = _b34_59.clone();
-                        _b8489 = _b8497.clone();
+                        let _b8489: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8487 = _b8489.clone();
                     }
-                    let _b34_61: Any<A> = _b8489.clone();
-                    let _b8498: Any<A> = _b34_61.clone();
-                    _b8488 = _b8498.clone();
+                    let _b34_50: Any<A> = _b8487.clone();
+                    let _b8490: Any<A> = _b34_50.clone();
+                    _b8486 = _b8490.clone();
+                } else {
+                    let mut _b8491: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b3818_42.clone() % f64_any(0x4008000000000000))?) {
+                        let _b8492: Any<A> = f64_any(0x0000000000000000);
+                        _b8491 = _b8492.clone();
+                    } else {
+                        let _b8493: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8491 = _b8493.clone();
+                    }
+                    let _b34_55: Any<A> = _b8491.clone();
+                    let _b8494: Any<A> = _b34_55.clone();
+                    _b8486 = _b8494.clone();
                 }
-                let _b34_63: Any<A> = _b8488.clone();
-                if Any::<A>::to_boolean((strict_eq(_b34_63.clone(), f64_any(0x0000000000000000)))?) {
-                    let _b8499: Any<A> = (_b3818_45.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8500: Any<A> = false.to_any();
-                    let _b8501: Any<A> = _b3821_48.clone();
-                    let _b8502: Any<A> = _b3820_47.clone();
-                    _b8483 = _b8499.clone();
-                    _b8484 = _b8500.clone();
-                    _b8485 = _b8501.clone();
-                    _b8486 = _b8502.clone();
+                let _b34_57: Any<A> = _b8486.clone();
+                if Any::<A>::to_boolean((strict_eq(_b34_57.clone(), f64_any(0x0000000000000000)))?) {
+                    let _b8495: Any<A> = (_b3818_42.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8496: Any<A> = false.to_any();
+                    let _b8497: Any<A> = _b3821_45.clone();
+                    let _b8498: Any<A> = _b3820_44.clone();
+                    _b8481 = _b8495.clone();
+                    _b8482 = _b8496.clone();
+                    _b8483 = _b8497.clone();
+                    _b8484 = _b8498.clone();
                     continue '_loop34;
                 } else {
-                    let _b8503: Any<A> = (_b3818_45.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8504: Any<A> = true.to_any();
-                    let _b8505: Any<A> = _b3820_47.clone();
-                    let _b8506: Any<A> = _b3821_48.clone();
-                    _b8483 = _b8503.clone();
-                    _b8484 = _b8504.clone();
-                    _b8485 = _b8505.clone();
-                    _b8486 = _b8506.clone();
+                    let _b8499: Any<A> = (_b3818_42.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8500: Any<A> = true.to_any();
+                    let _b8501: Any<A> = _b3820_44.clone();
+                    let _b8502: Any<A> = _b3821_45.clone();
+                    _b8481 = _b8499.clone();
+                    _b8482 = _b8500.clone();
+                    _b8483 = _b8501.clone();
+                    _b8484 = _b8502.clone();
                     continue '_loop34;
                 }
             } else {
-                let _b8507: Any<A> = [_b3820_47.clone(), _b3821_48.clone()].to_array().to_any();
-                _b8487 = _b8507.clone();
+                let _b8503: Any<A> = [_b3820_44.clone(), _b3821_45.clone()].to_array().to_any();
+                _b8485 = _b8503.clone();
                 break '_loop34;
             }
         }
-        let _b3837: Any<A> = _b8487.clone();
+        let _b3837: Any<A> = _b8485.clone();
         Ok(_b3837.clone())
-    }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;let $8=$4;let $9=$5;let $10=$6;let $11=$7;let $12=undefined;L0:while(true){const $13=$8;const $14=$9;const $15=$10;const $16=$11;if($13>0){let $17=undefined;{let $18=undefined;if($14){let $19=undefined;if($13%2){const $20=0;$19=$20;}else{const $21=1;$19=$21;}const $22=$19;const $23=$22;$18=$23;}else{let $24=undefined;if($13%3){const $25=0;$24=$25;}else{const $26=1;$24=$26;}const $27=$24;const $28=$27;$18=$28;}const $29=$18;const $30=$29;$17=$30;}const $31=$17;if($31===0){const $32=$13-1;const $33=false;const $34=$16;const $35=$15;$8=$32;$9=$33;$10=$34;$11=$35;continue L0;}else{const $36=$13-1;const $37=true;const $38=$15;const $39=$16;$8=$36;$9=$37;$10=$38;$11=$39;continue L0;}}else{const $40=[$15,$16];$12=$40;break L0;}}const $41=$12;return $41;}")).to_any();
+    }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;let $8=$4;let $9=$5;let $10=$6;let $11=$7;let $12=undefined;L0:while(true){const $13=$8;const $14=$9;const $15=$10;const $16=$11;if($13>0){let $17=undefined;if($14){let $18=undefined;if($13%2){const $19=0;$18=$19;}else{const $20=1;$18=$20;}const $21=$18;const $22=$21;$17=$22;}else{let $23=undefined;if($13%3){const $24=0;$23=$24;}else{const $25=1;$23=$25;}const $26=$23;const $27=$26;$17=$27;}const $28=$17;if($28===0){const $29=$13-1;const $30=false;const $31=$16;const $32=$15;$8=$29;$9=$30;$10=$31;$11=$32;continue L0;}else{const $33=$13-1;const $34=true;const $35=$15;const $36=$16;$8=$33;$9=$34;$10=$35;$11=$36;continue L0;}}else{const $37=[$15,$16];$12=$37;break L0;}}const $38=$12;return $38;}")).to_any();
     let _b54: Any<A> = A::static_function(|_self, _args| {
-        let _b8508: Any<A> = _args.argument(0);
-        let _b8509: Any<A> = _args.argument(1);
-        let _b8510: Any<A> = _args.argument(2);
-        let mut _b8511: Any<A> = _b8508.clone();
-        let mut _b8512: Any<A> = _b8509.clone();
-        let mut _b8513: Any<A> = _b8510.clone();
-        let mut _b8514: Any<A> = Nullish::Undefined.to_any();
+        let _b8504: Any<A> = _args.argument(0);
+        let _b8505: Any<A> = _args.argument(1);
+        let _b8506: Any<A> = _args.argument(2);
+        let mut _b8507: Any<A> = _b8504.clone();
+        let mut _b8508: Any<A> = _b8505.clone();
+        let mut _b8509: Any<A> = _b8506.clone();
+        let mut _b8510: Any<A> = Nullish::Undefined.to_any();
         '_loop54: loop {
-            let _b6018_85: Any<A> = _b8511.clone();
-            let _b6019_86: Any<A> = _b8512.clone();
-            let _b6020_87: Any<A> = _b8513.clone();
-            if Any::<A>::to_boolean((Any::gt(_b6018_85.clone(), f64_any(0x0000000000000000)))?) {
-                let mut _b8515: Any<A> = Nullish::Undefined.to_any();
-                {
-                    let mut _b8516: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean(_b6019_86.clone()) {
-                        let mut _b8517: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b6018_85.clone() % f64_any(0x4000000000000000))?) {
-                            let _b8518: Any<A> = f64_any(0x0000000000000000);
-                            _b8517 = _b8518.clone();
-                        } else {
-                            let _b8519: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8517 = _b8519.clone();
-                        }
-                        let _b54_93: Any<A> = _b8517.clone();
-                        let _b8520: Any<A> = _b54_93.clone();
-                        _b8516 = _b8520.clone();
+            let _b6018_79: Any<A> = _b8507.clone();
+            let _b6019_80: Any<A> = _b8508.clone();
+            let _b6020_81: Any<A> = _b8509.clone();
+            if Any::<A>::to_boolean((Any::gt(_b6018_79.clone(), f64_any(0x0000000000000000)))?) {
+                let mut _b8511: Any<A> = Nullish::Undefined.to_any();
+                if Any::<A>::to_boolean(_b6019_80.clone()) {
+                    let mut _b8512: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b6018_79.clone() % f64_any(0x4000000000000000))?) {
+                        let _b8513: Any<A> = f64_any(0x0000000000000000);
+                        _b8512 = _b8513.clone();
                     } else {
-                        let mut _b8521: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b6018_85.clone() % f64_any(0x4008000000000000))?) {
-                            let _b8522: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8521 = _b8522.clone();
-                        } else {
-                            let _b8523: Any<A> = f64_any(0x0000000000000000);
-                            _b8521 = _b8523.clone();
-                        }
-                        let _b54_98: Any<A> = _b8521.clone();
-                        let _b8524: Any<A> = _b54_98.clone();
-                        _b8516 = _b8524.clone();
+                        let _b8514: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8512 = _b8514.clone();
                     }
-                    let _b54_100: Any<A> = _b8516.clone();
-                    let _b8525: Any<A> = _b54_100.clone();
-                    _b8515 = _b8525.clone();
+                    let _b54_86: Any<A> = _b8512.clone();
+                    let _b8515: Any<A> = _b54_86.clone();
+                    _b8511 = _b8515.clone();
+                } else {
+                    let mut _b8516: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b6018_79.clone() % f64_any(0x4008000000000000))?) {
+                        let _b8517: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8516 = _b8517.clone();
+                    } else {
+                        let _b8518: Any<A> = f64_any(0x0000000000000000);
+                        _b8516 = _b8518.clone();
+                    }
+                    let _b54_91: Any<A> = _b8516.clone();
+                    let _b8519: Any<A> = _b54_91.clone();
+                    _b8511 = _b8519.clone();
                 }
-                let _b54_102: Any<A> = _b8515.clone();
-                if Any::<A>::to_boolean((strict_eq(_b54_102.clone(), f64_any(0x0000000000000000)))?) {
-                    let _b54_103: Any<A> = [(_b6018_85.clone() - f64_any(0x3ff0000000000000))?, false.to_any(), _b6020_87.clone(), if Any::<A>::to_boolean(_b6020_87.clone()) { (Err::<Any<A>, Any<A>>(f64_any(0x401c000000000000)))? } else { Nullish::Undefined.to_any() }].to_array().to_any();
-                    let _b8526: Any<A> = (Any::dot(_b54_103.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b8527: Any<A> = (Any::dot(_b54_103.clone(), f64_any(0x3ff0000000000000)).end())?;
-                    let _b8528: Any<A> = (Any::dot(_b54_103.clone(), f64_any(0x4000000000000000)).end())?;
-                    _b8511 = _b8526.clone();
-                    _b8512 = _b8527.clone();
-                    _b8513 = _b8528.clone();
+                let _b54_93: Any<A> = _b8511.clone();
+                if Any::<A>::to_boolean((strict_eq(_b54_93.clone(), f64_any(0x0000000000000000)))?) {
+                    let _b54_94: Any<A> = [(_b6018_79.clone() - f64_any(0x3ff0000000000000))?, false.to_any(), _b6020_81.clone(), if Any::<A>::to_boolean(_b6020_81.clone()) { (Err::<Any<A>, Any<A>>(f64_any(0x401c000000000000)))? } else { Nullish::Undefined.to_any() }].to_array().to_any();
+                    let _b8520: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b8521: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b8522: Any<A> = (Any::dot(_b54_94.clone(), f64_any(0x4000000000000000)).end())?;
+                    _b8507 = _b8520.clone();
+                    _b8508 = _b8521.clone();
+                    _b8509 = _b8522.clone();
                     continue '_loop54;
                 } else {
-                    let _b8529: Any<A> = (_b6018_85.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8530: Any<A> = true.to_any();
-                    let _b8531: Any<A> = _b6020_87.clone();
-                    _b8511 = _b8529.clone();
-                    _b8512 = _b8530.clone();
-                    _b8513 = _b8531.clone();
+                    let _b8523: Any<A> = (_b6018_79.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8524: Any<A> = true.to_any();
+                    let _b8525: Any<A> = _b6020_81.clone();
+                    _b8507 = _b8523.clone();
+                    _b8508 = _b8524.clone();
+                    _b8509 = _b8525.clone();
                     continue '_loop54;
                 }
             } else {
-                let _b8532: Any<A> = f64_any(0x0000000000000000);
-                _b8514 = _b8532.clone();
+                let _b8526: Any<A> = f64_any(0x0000000000000000);
+                _b8510 = _b8526.clone();
                 break '_loop54;
             }
         }
-        let _b6037: Any<A> = _b8514.clone();
+        let _b6037: Any<A> = _b8510.clone();
         Ok(_b6037.clone())
-    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;if($10>0){let $13=undefined;{let $14=undefined;if($11){let $15=undefined;if($10%2){const $16=0;$15=$16;}else{const $17=1;$15=$17;}const $18=$15;const $19=$18;$14=$19;}else{let $20=undefined;if($10%3){const $21=1;$20=$21;}else{const $22=0;$20=$22;}const $23=$20;const $24=$23;$14=$24;}const $25=$14;const $26=$25;$13=$26;}const $27=$13;if($27===0){const $28=[$10-1,false,$12,$12?(()=>{throw 7;})():undefined];const $29=$28[0];const $30=$28[1];const $31=$28[2];$6=$29;$7=$30;$8=$31;continue L0;}else{const $32=$10-1;const $33=true;const $34=$12;$6=$32;$7=$33;$8=$34;continue L0;}}else{const $35=0;$9=$35;break L0;}}const $36=$9;return $36;}")).to_any();
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;if($10>0){let $13=undefined;if($11){let $14=undefined;if($10%2){const $15=0;$14=$15;}else{const $16=1;$14=$16;}const $17=$14;const $18=$17;$13=$18;}else{let $19=undefined;if($10%3){const $20=1;$19=$20;}else{const $21=0;$19=$21;}const $22=$19;const $23=$22;$13=$23;}const $24=$13;if($24===0){const $25=[$10-1,false,$12,$12?(()=>{throw 7;})():undefined];const $26=$25[0];const $27=$25[1];const $28=$25[2];$6=$26;$7=$27;$8=$28;continue L0;}else{const $29=$10-1;const $30=true;const $31=$12;$6=$29;$7=$30;$8=$31;continue L0;}}else{const $32=0;$9=$32;break L0;}}const $33=$9;return $33;}")).to_any();
     let _b76: Any<A> = A::static_function(|_self, _args| {
-        let _b8533: Any<A> = _args.argument(0);
-        let _b8534: Any<A> = _args.argument(1);
-        let _b8535: Any<A> = _args.argument(2);
-        let mut _b8536: Any<A> = _b8533.clone();
-        let mut _b8537: Any<A> = _b8534.clone();
-        let mut _b8538: Any<A> = _b8535.clone();
-        let mut _b8539: Any<A> = Nullish::Undefined.to_any();
+        let _b8527: Any<A> = _args.argument(0);
+        let _b8528: Any<A> = _args.argument(1);
+        let _b8529: Any<A> = _args.argument(2);
+        let mut _b8530: Any<A> = _b8527.clone();
+        let mut _b8531: Any<A> = _b8528.clone();
+        let mut _b8532: Any<A> = _b8529.clone();
+        let mut _b8533: Any<A> = Nullish::Undefined.to_any();
         '_loop76: loop {
-            let _b8438_123: Any<A> = _b8536.clone();
-            let _b8439_124: Any<A> = _b8537.clone();
-            let _b8440_125: Any<A> = _b8538.clone();
-            let _b8540 = std::cell::RefCell::new(None::<Any<A>>);
+            let _b8438_114: Any<A> = _b8530.clone();
+            let _b8439_115: Any<A> = _b8531.clone();
+            let _b8440_116: Any<A> = _b8532.clone();
+            let _b8534 = std::cell::RefCell::new(None::<Any<A>>);
             let _b61: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                if let Some(value) = _b8540.borrow().as_ref() { return Ok(value.clone()); }
-                let value: Any<A> = { [_b8438_123.clone()].to_array().to_any() };
-                *_b8540.borrow_mut() = Some(value.clone());
+                if let Some(value) = _b8534.borrow().as_ref() { return Ok(value.clone()); }
+                let value: Any<A> = { [_b8438_114.clone()].to_array().to_any() };
+                *_b8534.borrow_mut() = Some(value.clone());
                 Ok(value)
             };
-            let _b8542 = std::cell::RefCell::new(None::<Any<A>>);
+            let _b8536 = std::cell::RefCell::new(None::<Any<A>>);
             let _b63: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                if let Some(value) = _b8542.borrow().as_ref() { return Ok(value.clone()); }
+                if let Some(value) = _b8536.borrow().as_ref() { return Ok(value.clone()); }
                 let value: Any<A> = { A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [(_b61())?].to_array(), Some("()=>$0")).to_any() };
-                *_b8542.borrow_mut() = Some(value.clone());
+                *_b8536.borrow_mut() = Some(value.clone());
                 Ok(value)
             };
-            if Any::<A>::to_boolean((Any::gt(_b8438_123.clone(), f64_any(0x0000000000000000)))?) {
-                let mut _b8544: Any<A> = Nullish::Undefined.to_any();
-                {
-                    let mut _b8545: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean(_b8439_124.clone()) {
-                        let mut _b8546: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b8438_123.clone() % f64_any(0x4000000000000000))?) {
-                            let _b8547: Any<A> = f64_any(0x0000000000000000);
-                            _b8546 = _b8547.clone();
-                        } else {
-                            let _b8548: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8546 = _b8548.clone();
-                        }
-                        let _b76_138: Any<A> = _b8546.clone();
-                        let _b8549: Any<A> = _b76_138.clone();
-                        _b8545 = _b8549.clone();
+            if Any::<A>::to_boolean((Any::gt(_b8438_114.clone(), f64_any(0x0000000000000000)))?) {
+                let mut _b8538: Any<A> = Nullish::Undefined.to_any();
+                if Any::<A>::to_boolean(_b8439_115.clone()) {
+                    let mut _b8539: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b8438_114.clone() % f64_any(0x4000000000000000))?) {
+                        let _b8540: Any<A> = f64_any(0x0000000000000000);
+                        _b8539 = _b8540.clone();
                     } else {
-                        let mut _b8550: Any<A> = Nullish::Undefined.to_any();
-                        if Any::<A>::to_boolean((_b8438_123.clone() % f64_any(0x4008000000000000))?) {
-                            let _b8551: Any<A> = f64_any(0x0000000000000000);
-                            _b8550 = _b8551.clone();
-                        } else {
-                            let _b8552: Any<A> = f64_any(0x3ff0000000000000);
-                            _b8550 = _b8552.clone();
-                        }
-                        let _b76_143: Any<A> = _b8550.clone();
-                        let _b8553: Any<A> = _b76_143.clone();
-                        _b8545 = _b8553.clone();
+                        let _b8541: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8539 = _b8541.clone();
                     }
-                    let _b76_145: Any<A> = _b8545.clone();
-                    let _b8554: Any<A> = _b76_145.clone();
-                    _b8544 = _b8554.clone();
+                    let _b76_128: Any<A> = _b8539.clone();
+                    let _b8542: Any<A> = _b76_128.clone();
+                    _b8538 = _b8542.clone();
+                } else {
+                    let mut _b8543: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b8438_114.clone() % f64_any(0x4008000000000000))?) {
+                        let _b8544: Any<A> = f64_any(0x0000000000000000);
+                        _b8543 = _b8544.clone();
+                    } else {
+                        let _b8545: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8543 = _b8545.clone();
+                    }
+                    let _b76_133: Any<A> = _b8543.clone();
+                    let _b8546: Any<A> = _b76_133.clone();
+                    _b8538 = _b8546.clone();
                 }
-                let _b76_147: Any<A> = _b8544.clone();
-                if Any::<A>::to_boolean((strict_eq(_b76_147.clone(), f64_any(0x0000000000000000)))?) {
-                    let _b8555: Any<A> = (_b8438_123.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8556: Any<A> = false.to_any();
-                    let _b8557: Any<A> = (_b63())?;
-                    _b8536 = _b8555.clone();
-                    _b8537 = _b8556.clone();
-                    _b8538 = _b8557.clone();
+                let _b76_135: Any<A> = _b8538.clone();
+                if Any::<A>::to_boolean((strict_eq(_b76_135.clone(), f64_any(0x0000000000000000)))?) {
+                    let _b8547: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8548: Any<A> = false.to_any();
+                    let _b8549: Any<A> = (_b63())?;
+                    _b8530 = _b8547.clone();
+                    _b8531 = _b8548.clone();
+                    _b8532 = _b8549.clone();
                     continue '_loop76;
                 } else {
-                    let _b8558: Any<A> = (_b8438_123.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8559: Any<A> = true.to_any();
-                    let _b8560: Any<A> = (_b63())?;
-                    _b8536 = _b8558.clone();
-                    _b8537 = _b8559.clone();
-                    _b8538 = _b8560.clone();
+                    let _b8550: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8551: Any<A> = true.to_any();
+                    let _b8552: Any<A> = (_b63())?;
+                    _b8530 = _b8550.clone();
+                    _b8531 = _b8551.clone();
+                    _b8532 = _b8552.clone();
                     continue '_loop76;
                 }
             } else {
-                let _b8561: Any<A> = [(_b61())?, (_b61())?, (_b63())?, (Any::call(_b8440_125.clone(), Array::default().to_any()))?].to_array().to_any();
-                _b8539 = _b8561.clone();
+                let _b8553: Any<A> = [(_b61())?, (_b61())?, (_b63())?, (Any::call(_b8440_116.clone(), Array::default().to_any()))?].to_array().to_any();
+                _b8533 = _b8553.clone();
                 break '_loop76;
             }
         }
-        let _b8457: Any<A> = _b8539.clone();
+        let _b8457: Any<A> = _b8533.clone();
         Ok(_b8457.clone())
-    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=(()=>{let $14,$15=false;return()=>{if(!$15){$14=[$10];$15=true;}return $14;};})();const $16=(()=>{let $17,$18=false;return()=>{if(!$18){$17=(($19)=>(()=>$19))($13());$18=true;}return $17;};})();if($10>0){let $20=undefined;{let $21=undefined;if($11){let $22=undefined;if($10%2){const $23=0;$22=$23;}else{const $24=1;$22=$24;}const $25=$22;const $26=$25;$21=$26;}else{let $27=undefined;if($10%3){const $28=0;$27=$28;}else{const $29=1;$27=$29;}const $30=$27;const $31=$30;$21=$31;}const $32=$21;const $33=$32;$20=$33;}const $34=$20;if($34===0){const $35=$10-1;const $36=false;const $37=$16();$6=$35;$7=$36;$8=$37;continue L0;}else{const $38=$10-1;const $39=true;const $40=$16();$6=$38;$7=$39;$8=$40;continue L0;}}else{const $41=[$13(),$13(),$16(),$12()];$9=$41;break L0;}}const $42=$9;return $42;}")).to_any();
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=(()=>{let $14,$15=false;return()=>{if(!$15){$14=[$10];$15=true;}return $14;};})();const $16=(()=>{let $17,$18=false;return()=>{if(!$18){$17=(($19)=>(()=>$19))($13());$18=true;}return $17;};})();if($10>0){let $20=undefined;if($11){let $21=undefined;if($10%2){const $22=0;$21=$22;}else{const $23=1;$21=$23;}const $24=$21;const $25=$24;$20=$25;}else{let $26=undefined;if($10%3){const $27=0;$26=$27;}else{const $28=1;$26=$28;}const $29=$26;const $30=$29;$20=$30;}const $31=$20;if($31===0){const $32=$10-1;const $33=false;const $34=$16();$6=$32;$7=$33;$8=$34;continue L0;}else{const $35=$10-1;const $36=true;const $37=$16();$6=$35;$7=$36;$8=$37;continue L0;}}else{const $38=[$13(),$13(),$16(),$12()];$9=$38;break L0;}}const $39=$9;return $39;}")).to_any();
     Ok([(string_key("scalar"), _b15.clone()), (string_key("vectors"), _b34.clone()), (string_key("selectedFailure"), _b54.clone()), (string_key("snapshots"), _b76.clone())].to_object().to_any())
 }
