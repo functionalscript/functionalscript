@@ -858,6 +858,7 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
 [data-readme] :is(p, ul, pre, table, blockquote) { margin: 0 0 1rem }
 [data-readme] blockquote { border-left: .25em solid var(--border); color: var(--muted); padding: 0 1em }
 [data-readme] blockquote > :last-child { margin-bottom: 0 }
+[data-readme] hr { background: var(--border); border: 0; height: .25em; margin: 1.5rem 0 }
 [data-readme] ul { padding-left: 2em }
 [data-readme] li + li { margin-top: .25em }
 [data-readme] li > :is(p, pre) { margin-top: 1rem }

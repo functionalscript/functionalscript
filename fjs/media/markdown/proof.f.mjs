@@ -383,6 +383,12 @@ export const proof = {
             ['list', false, [[['paragraph', [['text', 'c d']]]]]],
             ['code', 'js', 'x\n'],
         ]]]),
+        // Three or more of one of `-`, `*` and `_`, spaced or not, are a
+        // rule wherever a block starts; `- - -` is one, not a list.
+        thematicBreaks: () => assertStructurallySame(blocks('---\n\n***\n___ _\n* * *\n- - -\n# a\n---\n'),
+            [['rule'], ['rule'], ['rule'], ['rule'], ['rule'], ['heading', 1, [['text', 'a']]], ['rule']]),
+        // Text after the marks makes a list or a paragraph of the line.
+        notAThematicBreak: () => assertStructurallySame(blocks('- - a\n'), [['list', false, [[['list', false, [[['paragraph', [['text', 'a']]]]]]]]]]),
         quoteWithoutASpace: () => assertStructurallySame(blocks('>a\n'), [['quote', [['paragraph', [['text', 'a']]]]]]),
         emptyQuote: () => assertStructurallySame(blocks('>\n'), [['quote', []]]),
         nestedQuote: () => assertStructurallySame(blocks('>> a\n> > b\n'), [['quote', [['quote', [['paragraph', [['text', 'a b']]]]]]]]),
@@ -558,7 +564,10 @@ export const proof = {
             numberedParenTab: () => assertEq(refusal('12)\titem'), 'line 1: a numbered list'),
             numberedTabAfterParagraph: () => assertEq(refusal('text\n1.\titem'), 'line 2: a numbered list'),
             numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),
-            thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
+            // Under a paragraph's line, `---` underlines a heading on GitHub.
+            setextDashes: () => assertEq(refusal('a\n---\n'), 'line 2: a thematic break or a heading underline'),
+            indentedThematicBreak: () => assertEq(refusal(' ---\n'), 'line 1: a thematic break or a heading underline'),
+            twoDashes: () => assertEq(refusal('--\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
             hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
             hardBreakInAnItem: () => assertEq(refusal('- first  \n  second\n'), 'line 1: a hard line break'),

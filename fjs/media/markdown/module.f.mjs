@@ -652,6 +652,20 @@ const headingLevel = line => {
     return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
 }
 
+/**
+ * Whether a line is a thematic break: three or more of one of `-`, `*` and
+ * `_`, unindented, with spaces between them and nothing else. A `- - -` is
+ * one, not a list, as GitHub reads it.
+ *
+ * @type {(line: string) => boolean}
+ */
+const isThematicBreak = line => {
+    const mark = line[0]
+    if (mark !== '-' && mark !== '*' && mark !== '_') { return false }
+    const marks = [...line].filter(c => c !== ' ')
+    return marks.length >= 3 && marks.every(c => c === mark)
+}
+
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
 const isFence = line => line.startsWith('```')
 
@@ -880,6 +894,13 @@ const readBlocks = (base, container) => lines => {
             i = end
             continue
         }
+        // Under a paragraph's line, a `---` is that paragraph's heading
+        // underline, which the paragraph refuses; here, a block starts.
+        if (isThematicBreak(line)) {
+            out = [...out, [['rule'], i, i]]
+            i++
+            continue
+        }
         const marker = listMarker(line)
         if (marker !== null) {
             /** @type {(l: string) => ListMarker | null} */
@@ -1013,8 +1034,9 @@ const readBlocks = (base, container) => lines => {
  * The blocks are the ones a README is written in: an ATX heading, a
  * paragraph, a code fence opened by three backticks, a list of `- ` items,
  * each holding blocks of its own indented by two spaces and opening with a
- * GitHub task checkbox or not, a table whose rows open with a pipe, and a
- * block quote, its lines opening with `>`, holding blocks of its own.
+ * GitHub task checkbox or not, a table whose rows open with a pipe, a
+ * block quote, its lines opening with `>`, holding blocks of its own, and a
+ * thematic break, `---`.
  *
  * **What GitHub reads differently is refused, not approximated.** A line
  * after a list item with no blank before it and no indentation continues

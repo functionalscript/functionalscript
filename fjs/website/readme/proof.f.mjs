@@ -104,6 +104,7 @@ export const proof = /** @type {const} */ ({
                 ['list', true, [[['task', false], ['paragraph', [['text', 'q']]], ['paragraph', [['text', 'r']]]]]],
                 ['quote', [['paragraph', [['text', 'u']]], ['list', false, [[['paragraph', [['text', 'v']]]]]]]],
                 ['list', false, [[['quote', [['paragraph', [['text', 'w']]]]]]]],
+                ['rule'],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
                 linkedHeading(2, 't', 'T', ['T']),
@@ -122,6 +123,7 @@ export const proof = /** @type {const} */ ({
                 // A quote's paragraph is a `p`, in a tight list's item too.
                 ['blockquote', ['p', 'u'], ['ul', ['li', 'v']]],
                 ['ul', ['li', ['blockquote', ['p', 'w']]]],
+                ['hr'],
             ]))
         },
         quoteRefusal: () => assertStructurallySame(readmeNodes(href)([['quote', [['paragraph', [['link', [['text', 'x']], 'bad']]]]]]), error('no')),
