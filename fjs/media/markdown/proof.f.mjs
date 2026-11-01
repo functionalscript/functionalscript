@@ -1,7 +1,7 @@
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
+import { error, unwrap } from '../../types/result/module.f.js'
 import { demo } from './demo.f.mjs'
 import { bareUrl, entryTexts, proseSpans, tryParse, tryParseBlocks, tryParseEntry } from './module.f.mjs'
 
@@ -109,6 +109,17 @@ export const proof = {
         strongCode: () => assertStructurallySame(spans(`**${tick}O${tick} is ${tick}r${tick}**`),
             [['strong', [['code', 'O'], ['text', ' is '], ['code', 'r']]]]),
         emCode: () => assertStructurallySame(spans(`*a ${tick}b${tick}*`), [['em', [['text', 'a '], ['code', 'b']]]]),
+        // A body holds a link too, opening with it or after text, its label
+        // holding text and code.
+        strongLink: () => assertStructurallySame(spans(`**see [a ${tick}b${tick}](u)** and *[c](v) ${tick}d${tick}*`), [
+            ['strong', [['text', 'see '], ['link', [['text', 'a '], ['code', 'b']], 'u']]],
+            ['text', ' and '],
+            ['em', [['link', [['text', 'c']], 'v'], ['text', ' '], ['code', 'd']]],
+        ]),
+        // A plain link's label opens or closes with code, or holds it alone.
+        strongLinkLabels: () => assertStructurallySame(spans(`**[${tick}a${tick} b](u) [${tick}c${tick}](v)**`), [
+            ['strong', [['link', [['code', 'a'], ['text', ' b']], 'u'], ['text', ' '], ['link', [['code', 'c']], 'v']]],
+        ]),
         // Two backticks open a span that may hold one, and the one space
         // each end carries is stripped, as CommonMark strips it.
         doubleCode: () => assertStructurallySame(spans(`a ${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
@@ -306,6 +317,11 @@ export const proof = {
             text: () => assertEq(tryParseEntry('_a_')[0], 'error'),
             strong: () => assertEq(tryParseEntry('**a_**')[0], 'error'),
             label: () => assertEq(tryParseEntry('[_a_](u)')[0], 'error'),
+            // A link inside bold is read as any link is.
+            labelInsideStrong: () => assertEq(tryParseEntry('**[_a_](u)**')[0], 'error'),
+            targetInsideStrong: () => assertStructurallySame(tryParseEntry('**[a](&amp;)**'), error('an entity in a link target')),
+            // After an `!`, GitHub reads an image, which bold does not hold here.
+            imageInsideStrong: () => assertStructurallySame(tryParseEntry('**a ![b](u)**'), error('an image inside bold or emphasis')),
             labelWithCode: () => assertStructurallySame(
                 spans(`[the ${tick}a${tick} file](u)`),
                 [['link', [['text', 'the '], ['code', 'a'], ['text', ' file']], 'u']]),
@@ -383,6 +399,15 @@ export const proof = {
             ['list', false, [[['paragraph', [['text', 'c d']]]]]],
             ['code', 'js', 'x\n'],
         ]]]),
+        // Three or more of one of `-`, `*` and `_`, spaced or not, are a
+        // rule wherever a block starts; `- - -` is one, not a list.
+        thematicBreaks: () => assertStructurallySame(blocks('---\n\n***\n___ _\n* * *\n- - -\n# a\n---\n'),
+            [['rule'], ['rule'], ['rule'], ['rule'], ['rule'], ['heading', 1, [['text', 'a']]], ['rule']]),
+        // `***` and `___` end a paragraph; `---` there is refused below.
+        thematicBreakAfterAParagraph: () => assertStructurallySame(blocks('a\n***\nb\n_ _ _\n'),
+            [['paragraph', [['text', 'a']]], ['rule'], ['paragraph', [['text', 'b']]], ['rule']]),
+        // Text after the marks makes a list or a paragraph of the line.
+        notAThematicBreak: () => assertStructurallySame(blocks('- - a\n'), [['list', false, [[['list', false, [[['paragraph', [['text', 'a']]]]]]]]]]),
         quoteWithoutASpace: () => assertStructurallySame(blocks('>a\n'), [['quote', [['paragraph', [['text', 'a']]]]]]),
         emptyQuote: () => assertStructurallySame(blocks('>\n'), [['quote', []]]),
         nestedQuote: () => assertStructurallySame(blocks('>> a\n> > b\n'), [['quote', [['quote', [['paragraph', [['text', 'a b']]]]]]]]),
@@ -558,7 +583,10 @@ export const proof = {
             numberedParenTab: () => assertEq(refusal('12)\titem'), 'line 1: a numbered list'),
             numberedTabAfterParagraph: () => assertEq(refusal('text\n1.\titem'), 'line 2: a numbered list'),
             numberIsProse: () => assertEq(refusal('1.5 is a number\n\n2024 a\n\n12\n'), null),
-            thematicBreak: () => assertEq(refusal('***\n'), 'line 1: a thematic break or a heading underline'),
+            // Under a paragraph's line, `---` underlines a heading on GitHub.
+            setextDashes: () => assertEq(refusal('a\n---\n'), 'line 2: a thematic break or a heading underline'),
+            indentedThematicBreak: () => assertEq(refusal(' ---\n'), 'line 1: a thematic break or a heading underline'),
+            twoDashes: () => assertEq(refusal('--\n'), 'line 1: a thematic break or a heading underline'),
             setextUnderline: () => assertEq(refusal('a\n===\n'), 'line 2: a thematic break or a heading underline'),
             hardBreak: () => assertEq(refusal('a  \nb\n'), 'line 1: a hard line break'),
             hardBreakInAnItem: () => assertEq(refusal('- first  \n  second\n'), 'line 1: a hard line break'),

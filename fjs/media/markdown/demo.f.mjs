@@ -23,12 +23,19 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../html/types.ts'
- * @import { Entry, Inline } from './types.ts'
+ * @import { Emphasised, Entry, Inline, LinkLabel } from './types.ts'
  */
 
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
 import { tryParse } from './module.f.mjs'
 import { assertStructurallySame } from '../../asserts/module.f.js'
+
+/**
+ * A label's or a body's span as a node: code, a link, or its words.
+ *
+ * @type {(l: LinkLabel | Emphasised) => Node}
+ */
+const labelNode = l => l[0] === 'code' ? ['code', l[1]] : l[0] === 'link' ? ['a', { href: l[2] }, ...l[1].map(labelNode)] : l[1]
 
 /**
  * One span: the name the parser gave it, then the span rendered as itself.
@@ -40,8 +47,7 @@ const spanView = span => {
     if (kind === 'code') { return ['li', ['code', kind], ' ', ['code', span[1]]] }
     if (kind === 'image') { return ['li', ['code', kind], ' ', span[1], ' → ', ['code', span[2]]] }
     /** @type {readonly Node[]} */
-    const label = kind === 'text' ? []
-        : span[1].map(l => l[0] === 'code' ? /** @type {Node} */(['code', l[1]]) : l[1])
+    const label = kind === 'text' ? [] : span[1].map(labelNode)
     if (kind === 'strong') { return ['li', ['code', kind], ' ', ['strong', ...label]] }
     if (kind === 'em') { return ['li', ['code', kind], ' ', ['em', ...label]] }
     if (kind === 'link') {
@@ -58,6 +64,9 @@ const entryView = entry => ['li', ['ul', ...entry.map(spanView)]]
 export const proof = /** @type {const} */ ({
     image: () => assertStructurallySame(spanView(['image', 'diagram', 'image.svg']),
         ['li', ['code', 'image'], ' ', 'diagram', ' → ', ['code', 'image.svg']]),
+    // A link inside bold is drawn as a link.
+    strongLink: () => assertStructurallySame(spanView(['strong', [['text', 'see '], ['link', [['code', 'a']], 'u']]]),
+        ['li', ['code', 'strong'], ' ', ['strong', 'see ', ['a', { href: 'u' }, ['code', 'a']]]]),
 })
 
 /**
