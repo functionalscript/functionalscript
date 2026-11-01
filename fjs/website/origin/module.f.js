@@ -12,16 +12,16 @@
  */
 
 /** The Worker name in `wrangler.jsonc`, which shares the alias's DNS label. */
-const workerName = 'functionalscript'
+const workerName = /** @type {const} */ ('functionalscript')
 
 /** The account's `workers.dev` subdomain, under which every preview is published. */
-const workersSubdomain = 'functionalscript.workers.dev'
+const workersSubdomain = /** @type {const} */ ('functionalscript.workers.dev')
 
 /** The alias's budget: a DNS label is 63 characters, shared with a dash and the Worker name. */
 const aliasBudget = 63 - 1 - workerName.length
 
 /** The characters an alias keeps; every run of others becomes one hyphen. */
-const aliasCharacters = 'abcdefghijklmnopqrstuvwxyz0123456789'
+const aliasCharacters = /** @type {const} */ ('abcdefghijklmnopqrstuvwxyz0123456789')
 
 /** A string's hyphen-separated parts, without empty ones, rejoined. */
 const trimHyphens = (/** @type {string} */ s) => s.split('-').filter(part => part !== '').join('-')
