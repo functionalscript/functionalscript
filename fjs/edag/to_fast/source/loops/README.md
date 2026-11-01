@@ -202,8 +202,9 @@ duplicate calls written in source do not establish the same graph-sharing case.
 
 The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture
-lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and
-`factoredInvocationProfilesKeepSelectedWorkAndSharedResults` cover newly retained
+lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and the
+[shared-continuation proofs](./shared_continuations.proof.f.mjs), including
+`factoredInvocationProfilesKeepSelectedWorkAndSharedResults`, cover newly retained
 profiles and their first source readback; they do not claim general fixed points.
 `sourceLoopRetentionChecksLexicalTransferRegions` pins the remaining lexical
 boundaries.

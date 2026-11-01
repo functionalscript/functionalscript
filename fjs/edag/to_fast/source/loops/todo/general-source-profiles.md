@@ -52,7 +52,7 @@ and common preparation emits it with existing private state/result storage.
 before the shared continuation: dropping the test or duplicating a shared call
 would change required evaluation or sharing.
 
-The source-loop proof
+The [shared-continuation proof](../shared_continuations.proof.f.mjs)
 `factoredInvocationProfilesKeepSelectedWorkAndSharedResults` covers this profile,
 required-prefix and observed-rest variants, plus a shared allocation case. The
 [host corpus](../../../../../compiler/serializer/value/control_flow.proof.mjs)
