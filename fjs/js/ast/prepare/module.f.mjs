@@ -9,7 +9,8 @@
  *
  * The pass trusts normalized producer invariants. It performs neither source
  * admission nor graph analysis, and it introduces no function boundaries for
- * result blocks. Expression-valued conditionals remain expression-valued.
+ * result blocks. Eligible single-result statement joins use a private
+ * parameterized continuation; expression conditionals retain their value shape.
  * Owning returns in member and optional-chain operands use the same logical
  * return normalizer as graph construction. Physical lowering preserves its
  * receiver snapshots and selected regions. Other outward chain transfers
@@ -30,6 +31,7 @@ import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable } from '../../../types/list/iterable/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
+import { _immutableJoin } from './joins/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -320,8 +322,9 @@ const values = (input, context, snapshots = []) => {
 
 /** @type {(input: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
 const functionValue = (input, context) => call(() => {
-    const value = _freshSelf(input)
-    const normalized = normalizeLazyReturns(value.body, value.target, value.self)
+    const fresh = _freshSelf(input)
+    const value = _immutableJoin({ ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) })
+    const normalized = value.body
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
         && root !== undefined && root[0] === 'loop' ? root[1].target : null

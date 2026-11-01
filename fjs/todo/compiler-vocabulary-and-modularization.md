@@ -980,6 +980,12 @@ parts do not delay the epic's foundation gate:
       explicit returns; an ownership proof precedes moving a targeted return
       across a function boundary. The task owner approved this audit before
       preparation is changed.
+- [x] Implement the [direct one-result statement join](../compiler/control-flow.md#first-immutable-join-profile)
+      with an immutable parameterized continuation in common preparation.
+      Preserve owning early returns, required work, captures and sharing;
+      verify direct JavaScript and Rust execution. Self-bearing functions and
+      unsupported profiles keep their existing lowering. This completes the
+      task-owner-approved first implementation boundary.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
@@ -988,12 +994,11 @@ parts do not delay the epic's foundation gate:
       belong to optional future optimization rather than the core model.
       Remove redundant control-flow bridges
       with their consumers once the corpus demonstrates the replacement.
-      Start with the [one-result statement join](../compiler/control-flow.md#first-immutable-join-profile)
-      represented by `parameterizedJoin`: direct common preparation still
-      emits a mutable slot. Keep the owning early return outside the private
-      continuation and use the existing nested `m` and `K(z)` semantic corpus.
-      Track the graph route separately: its one-pass invocation wrapper also
-      needs owner-preserving normalization before claiming immutable output.
+      The direct `parameterizedJoin` profile is implemented above. Track its
+      graph route separately: the one-pass invocation wrapper still needs
+      owner-preserving normalization before claiming immutable output. Keep
+      the owning early return outside the private continuation and use the
+      existing nested `m` and `K(z)` semantic corpus.
 - [ ] Audit self tail calls in every output function, including generated
       helpers, and replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
