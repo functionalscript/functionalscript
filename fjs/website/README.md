@@ -867,6 +867,37 @@ carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
 
+## A shared link shows a card
+
+Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
+link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
+[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+`shell`. They are in the static HTML because a crawler runs no script.
+
+**A title and a description on every page.** A directory's description is
+the first paragraph of its README that has text, so a paragraph of badges is
+skipped. A release names its version, and every other page uses the site's
+own sentence.
+
+**A URL and an image only where the build knows its origin.** Open Graph
+wants both absolute. Production deploys only from a push to `main`, so a
+build of `main` is published at `https://functionalscript.com` and writes
+`og:url`, `og:image` and the large card. A preview's alias URL is reported
+by Wrangler only after the upload that follows its build, so a preview, like
+a local build, writes neither and gets the small card. A card for a preview
+link then falls back to the URL it fetched, rather than to a production page
+or image the preview may not match.
+
+**The image is a committed PNG.** [`preview.png`](./preview.png) is the logo
+and the site's name on 1200×630, the size the large cards show uncropped.
+Those platforms refuse SVG for a card, so the favicon cannot serve. Like the
+favicon, it is rendered once and committed, since it changes too rarely for
+a build step to buy anything.
+
+**Checking a card.** View a page's source, or paste its URL into a preview
+debugger such as opengraph.xyz. Platforms cache cards, so a link shared
+before a change keeps its old card for a while.
+
 ## Every page opens with the same header
 
 The logo and the site's name, linking home; then **CLI**, **PRs**, **Releases**,

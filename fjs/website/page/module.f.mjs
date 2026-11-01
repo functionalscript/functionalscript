@@ -62,6 +62,18 @@ export const repository = 'https://github.com/functionalscript/functionalscript'
 export const productionOrigin = 'https://functionalscript.com'
 
 /**
+ * The card image every page shares: the logo and the site's name on a
+ * 1200×630 canvas, the size the large cards of Facebook, X and LinkedIn
+ * show uncropped.
+ *
+ * **A PNG, not the logo's SVG,** because those platforms refuse SVG for a
+ * card. It was rendered once from the logo and is committed as it is.
+ *
+ * @type {string}
+ */
+export const previewImagePath = '/fjs/website/preview.png'
+
+/**
  * The origin a build is published at, or `null` when the build cannot know
  * it.
  *
@@ -722,16 +734,32 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
         /** @type {Node} */ (['a', { href: address }, description, ['span', { 'aria-hidden': 'true' }, ' ↗']])))),
 ]]
 
+/** The small card, without an image. @type {Element} */
+const summaryCard = ['meta', { name: 'twitter:card', content: 'summary' }]
+
+/**
+ * The large card: the page's absolute URL and the site's image, both at
+ * `origin`.
+ *
+ * @type {(origin: string) => (href: string) => readonly Element[]}
+ */
+const largeCard = origin => href => [
+    ['meta', { property: 'og:url', content: `${origin}${href}` }],
+    ['meta', { property: 'og:image', content: `${origin}${previewImagePath}` }],
+    ['meta', { property: 'og:image:alt', content: `${siteName} logo` }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+]
+
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
  * shows for a pasted link: the page's title, what it is about, the site it
  * belongs to and, when the build knows its {@link origin}, the page's own
- * URL.
+ * URL and the site's card image.
  *
  * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
  * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
- * too, but shows no card without `twitter:card`. `summary` is the small card,
- * the one that needs no image.
+ * and image too, but shows no card without `twitter:card`: the large one
+ * where there is an image, and the small `summary` where there is none.
  *
  * **In the static page, because a crawler runs no script.** Every tag here
  * is in the HTML the build writes, so the card needs nothing from the
@@ -740,9 +768,10 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * **The description twice.** `description` is the one a search engine shows
  * under the title; `og:description` is the card's.
  *
- * **`og:url` is absolute or absent.** Open Graph requires an absolute URL,
- * so a page whose build has no origin leaves it out rather than write a
- * relative one.
+ * **`og:url` and `og:image` are absolute or absent.** Open Graph requires
+ * absolute URLs, so a page whose build has no origin leaves both out rather
+ * than write relative ones, or production's image on a preview that may
+ * not have it yet.
  *
  * @type {(origin: string | null) => (head: Head) => readonly Element[]}
  */
@@ -752,8 +781,7 @@ export const previewMeta = origin => ({ href, title, description }) => [
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: title }],
     ['meta', { property: 'og:description', content: description }],
-    ...(origin === null ? [] : [/** @type {Element} */ (['meta', { property: 'og:url', content: `${origin}${href}` }])]),
-    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ...(origin === null ? [summaryCard] : largeCard(origin)(href)),
 ]
 
 /**
