@@ -507,6 +507,11 @@ self binding for other uses and non-tail calls while its tail calls become
 loop transfers. Preserve simultaneous argument updates, iteration-local
 values and shared-value lifetimes through the common preparation stage.
 
+This is a portability and stack-safety requirement. V8 and SpiderMonkey do
+not support proper tail calls, so emitted self tail recursion can still grow
+the call stack and overflow on long runs. Emitting `while` keeps the self
+tail-call chain bounded in stack usage without depending on engine TCO.
+
 Code output must preserve program semantics, including observable value
 sharing, but need not preserve exact EDAG structure on reparse. Helper and
 IIFE insertion can change graph structure and therefore its hash. Exact
