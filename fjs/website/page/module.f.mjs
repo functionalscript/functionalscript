@@ -82,13 +82,26 @@ export const siteName = 'FunctionalScript'
 export const siteDescription = 'FunctionalScript is a safe, purely functional programming language and a strict subset of ECMAScript/JavaScript.'
 
 /**
- * A directory's description: the text of the first paragraph of its README
- * that has any, or `undefined` for a directory whose README has none, or is
- * not rendered.
+ * Whether a paragraph is a field rather than prose: it opens with a bold
+ * label ending in a colon, as `**Status:** implemented` renders.
  *
- * **The first paragraph with text**, because a README often opens with a
- * paragraph of badges, which are images, and an image's text is in an
- * attribute.
+ * A bold lead-in that opens prose ends its sentence with a period instead,
+ * so it is not a field.
+ *
+ * @type {(children: readonly Node[]) => boolean}
+ */
+const isField = ([first]) => first !== undefined && typeof first !== 'string'
+    && first[0] === 'strong' && textContent(first).trim().endsWith(':')
+
+/**
+ * A directory's description: the text of the first paragraph of prose in its
+ * README, or `undefined` for a directory whose README has none, or is not
+ * rendered.
+ *
+ * **The first paragraph of prose**, because a README often opens with
+ * something else: a paragraph of badges, which are images whose text is in
+ * an attribute, so it has none; or a field such as `**Status:** implemented`
+ * ({@link isField}), which opens most READMEs under `spec/`.
  *
  * **The whole paragraph, uncut.** A card or a search result cuts the text to
  * what it shows, and each cuts it to a different length.
@@ -100,7 +113,11 @@ export const readmeDescription = readme => readme
         const [tag, { 'data-readme': article }, children] = parseElement(e)
         return tag === 'article' && article !== undefined ? children : []
     })
-    .flatMap(n => typeof n !== 'string' && n[0] === 'p' ? [textContent(n).trim()] : [])
+    .flatMap(n => {
+        if (typeof n === 'string') { return [] }
+        const [tag, , children] = parseElement(n)
+        return tag === 'p' && !isField(children) ? [textContent(n).trim()] : []
+    })
     .find(text => text !== '')
 
 /**

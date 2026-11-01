@@ -63,6 +63,12 @@ export const proof = {
             ['p', ['a', { href: 'x' }, ['img', { alt: 'badge' }]]],
             ['p', ' A ', ['a', { href: 'y' }, 'safe'], ' language. '],
             ['p', 'Second.']]]), 'A safe language.'),
+        // A field opens many READMEs; the prose after it is the description.
+        // A bold lead-in that ends with a period is prose, not a field.
+        skipsFields: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['p', ['strong', 'Status:'], ' implemented'],
+            ['p', ['strong', 'Fields end with a colon.'], ' This is prose.']]]),
+            'Fields end with a colon. This is prose.'),
         // A README this site does not render is a note about it, not its text.
         refused: () => assertEq(readmeDescription([['p', { 'data-readme-refused': '' }, 'README.md is not rendered here.']]), undefined),
         // A README of headings alone describes nothing.

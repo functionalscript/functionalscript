@@ -876,9 +876,10 @@ link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
 `shell`. They are in the static HTML because a crawler runs no script.
 
 **A title and a description on every page.** A directory's description is
-the first paragraph of its README that has text, so a paragraph of badges is
-skipped. A release names its version, and every other page uses the site's
-own sentence.
+the first paragraph of prose in its README. A paragraph of badges has no
+text, and a field such as `**Status:** implemented`, which opens most READMEs
+under `spec/`, is a label rather than prose, so both are skipped. A release
+names its version, and every other page uses the site's own sentence.
 
 **rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
 Rust API reference, and the site adds one fixed fragment to every page's
