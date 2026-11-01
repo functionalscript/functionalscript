@@ -986,6 +986,12 @@ parts do not delay the epic's foundation gate:
       verify direct JavaScript and Rust execution. Self-bearing functions and
       unsupported profiles keep their existing lowering. This completes the
       task-owner-approved first implementation boundary.
+- [x] Recover the [canonical one-pass invocation join](../js/ast/prepare/one_pass/README.md)
+      on the default JavaScript/Rust graph route. Restore the owning returns
+      and required entry snapshots, then use the immutable continuation.
+      Preserve backedges, scoped binding collisions and unsupported profiles;
+      verify deep genuine loops and self-tail execution. Public FJS source
+      reconstruction remains separate.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
@@ -994,9 +1000,9 @@ parts do not delay the epic's foundation gate:
       belong to optional future optimization rather than the core model.
       Remove redundant control-flow bridges
       with their consumers once the corpus demonstrates the replacement.
-      The direct `parameterizedJoin` profile is implemented above. Track its
-      graph route separately: the one-pass invocation wrapper still needs
-      owner-preserving normalization before claiming immutable output. Keep
+      The direct and default graph-route `parameterizedJoin` profiles are
+      implemented above. The public source profile still retains its wrapper
+      until source-compatible reconstruction covers the exposed join. Keep
       the owning early return outside the private continuation and use the
       existing nested `m` and `K(z)` semantic corpus.
 - [ ] Audit self tail calls in every output function, including generated

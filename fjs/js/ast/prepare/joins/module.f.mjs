@@ -33,9 +33,29 @@ const plainValue = root => {
     }
 }
 
-/** No definition or control boundary is moved across the chosen join. @type {(statements: readonly Statement[]) => boolean} */
-const requiredDefinitions = statements => statements.every(statement => statement[0] === 'define'
-    && statement[3] === 'required' && plainValue(statement[2]))
+/** Required prefix/suffix bindings keep their existing evaluation region. @type {(statements: readonly Statement[]) => readonly BindingId[] | null} */
+const requiredBindings = statements => {
+    /** @type {List<BindingId>} */
+    let bindings = null
+    let index = 0
+    while (index < statements.length) {
+        const statement = statements[Number(index)]
+        if (statement[0] !== 'define' || statement[3] !== 'required' || !plainValue(statement[2])) { return null }
+        bindings = { first: statement[1], tail: bindings }
+        index += 1
+    }
+    return toArray(bindings).toReversed()
+}
+
+/** Preserve the scopes of declarations selected to move to a function root.
+ * @type {(fn: FastFunction, before: readonly BindingId[], moved: readonly BindingId[]) => boolean}
+ */
+export const _freshAtRoot = (fn, before, moved) => {
+    /** @type {readonly BindingId[]} */
+    const declared = [...fn.parameters, ...fn.captures.map(capture => capture.binding),
+        ...(fn.rest === null ? [] : [fn.rest]), ...before]
+    return moved.every((binding, index) => !declared.includes(binding) && moved.indexOf(binding) === index)
+}
 
 /**
  * Normal outer-arm results invoke the shared continuation. Inner zero-result
@@ -86,13 +106,16 @@ export const _immutableJoin = fn => {
     if (join === undefined || join[0] !== 'if' || join[1].length !== 1 || !plainValue(join[2])) { return fn }
     const prefix = fn.body.statements.slice(0, index)
     const suffix = fn.body.statements.slice(index + 1)
-    if (!requiredDefinitions(prefix) || !requiredDefinitions(suffix)) { return fn }
+    const prefixBindings = requiredBindings(prefix)
+    if (prefixBindings === null || requiredBindings(suffix) === null) { return fn }
     const continuation = /** @type {const} */ ({ index: join[1][0].index })
     const target = /** @type {const} */ ({ kind: 'function', index: fn.target.index })
     const then = run(branchTask(join[3], true, fn.target, continuation))
     if (then === null) { return fn }
     const otherwise = run(branchTask(join[4], true, fn.target, continuation))
     if (otherwise === null) { return fn }
+    const moved = otherwise.statements.flatMap(statement => statement[0] === 'define' ? [statement[1]] : [])
+    if (!_freshAtRoot(fn, prefixBindings, moved)) { return fn }
     /** @type {Block} */
     const body = { statements: suffix, exit: ['return', target, exit[2]] }
     /** @type {FastFunction} */

@@ -12,7 +12,7 @@ import { identityAnalysis } from '../../../../edag/analysis/module.f.mjs'
 import { fromFast } from '../../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../../edag/memo/module.f.mjs'
 import { toData } from '../../../../edag/value/to_unknown/module.f.mjs'
-import { _immutableJoin } from './module.f.mjs'
+import { _freshAtRoot, _immutableJoin } from './module.f.mjs'
 
 /** Equal presentation indices retain independent binding identities. @type {() => BindingId} */
 const id = () => ({ index: 0 })
@@ -279,6 +279,50 @@ export const proof = /** @type {const} */ ({
         const guarded = accepted(failing)
         assertError(called(guarded, [false, false, duplicate()]))
         assertStructurallySame(evaluated(guarded, [true, false, duplicate()]), evaluated(failing, [true, false, duplicate()]))
+    },
+    falseArmShadowsKeepTheirExistingLexicalScope: () => {
+        const { fn, selected, prefix } = fixture()
+        const join = joinOf(fn)
+        for (const binding of [selected, prefix]) {
+            const local = id()
+            const shadowed = joinArms(fn, join[3], block(['yield', [ref(binding)]], [
+                ['define', binding, 0, 'required'],
+            ]))
+            const fresh = joinArms(fn, join[3], block(['yield', [ref(local)]], [
+                ['define', local, 0, 'required'],
+            ]))
+            rejected(shadowed)
+            accepted(fresh)
+            for (const condition of /** @type {const} */ ([false, true])) {
+                const args = /** @type {const} */ ([condition, false, duplicate()])
+                assertStructurallySame(evaluated(shadowed, args), evaluated(fresh, args))
+            }
+        }
+        const nested = joinArms(fn, join[3], block(['yield', [0]], [
+            ['if', [], true, block(['yield', []], [['define', selected, 7, 'required']]), block(['yield', []])],
+        ]))
+        const transformed = accepted(nested)
+        const args = /** @type {const} */ ([false, false, duplicate()])
+        assertStructurallySame(evaluated(transformed, args), evaluated(nested, args))
+    },
+    rootFreshnessUsesBindingIdentityAndPriorScopes: () => {
+        const { fn, selected, captured, rest, prefix } = fixture()
+        for (const binding of [selected, captured, rest]) {
+            assertEq(_freshAtRoot(fn, [], [binding]), false)
+        }
+        assertEq(_freshAtRoot(fn, [prefix], [prefix]), false)
+        const empty = statements(returned({ ...fn, rest: null }, 0), [])
+        assertEq(_freshAtRoot(empty, [], []), true)
+        const local = id(), distinct = id()
+        const loop = loopFixture(false)
+        // The same ID denotes locals in two original lexical regions. Moving
+        // both to one root would create two declarations of that identity.
+        const nested = statements(returned(fn, 0), [['loop', { ...loop, body: { ...loop.body, statements: [
+            ['define', local, 1, 'required'],
+            ['if', [], true, block(['yield', []]), block(['yield', []], [['define', local, 2, 'required']])],
+        ] } }]])
+        assertEq(_freshAtRoot(nested, [], [local, local]), false)
+        assertEq(_freshAtRoot(nested, [], [local, distinct]), true)
     },
     unsupportedFunctionProfilesRetainInputIdentity: () => {
         const { fn, joined } = fixture()

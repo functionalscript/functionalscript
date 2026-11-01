@@ -328,12 +328,15 @@ distinct:
 | Input route | Current output for this corpus |
 | --- | --- |
 | `parameterizedJoin` directly through `prepareFunction` | Immutable continuation and guarded calls; no `let` or `while`. |
-| The same join through `fromFast`, `fromAnalysis` and preparation | A one-pass invocation loop, with loop storage and a mutable conditional-result slot. The generated body exits on every path and has no continue. |
+| The same join through `fromFast`, `fromAnalysis` and default preparation | The canonical one-pass wrapper is recovered; an immutable continuation and guarded calls need no `let` or `while`. |
+| Public FJS source output for the same graph | Retains the existing loop reconstruction and source-readback profile. |
 | `parameterizedHelper` through either route | Immutable continuation and guarded calls; no `let` or `while`. |
 | Source `expressionJoinKeepsSelectedWrite` | An already supported immutable expression profile. |
 
 The [common join pass](../js/ast/prepare/joins/README.md) implements the direct
-one-result, non-loop profile. Its immutable continuation spelling is:
+one-result, non-loop profile. Default preparation also uses
+[one-pass invocation recovery](../js/ast/prepare/one_pass/README.md) to expose
+that profile after graph conversion. Its immutable continuation spelling is:
 
 ```js
 export default (selected, stop, operation) => {
@@ -379,19 +382,29 @@ and [native JavaScript checks](../js/ast/prepare/immutable_joins.proof.mjs)
 exercise the new boundary, including unsupported-profile identity, early
 returns, selected failures, required prefixes, rest/capture metadata, allocation
 sharing, fresh invocations and retained self-tail lowering. The
-[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.mjs) also prepares
-these FAST inputs directly; its [native tests](../../nanvm/harness/tests/immutable_joins.rs)
-execute the continuation, owning return and shared captured allocations.
+[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.mjs) prepares
+both the direct FAST inputs and their full `fromFast`/analysis/`fromAnalysis`
+route; its [native tests](../../nanvm/harness/tests/immutable_joins.rs) execute
+the continuation, owning return and shared captured allocations, plus a genuine
+self-tail loop. The [graph-route JavaScript proofs](../edag/to_fast/immutable_invocation.proof.mjs)
+check the same owners and allocation lifetimes, unchanged public source
+readback, and deep genuine loop/self-tail execution.
 
 Direct JavaScript function text still uses the general statement writer's
 `else {}` spelling, which the FJS source grammar refuses. The manual spelling
-above is admitted FJS; the new preparation profile is not a widening of public
-source output or its readback guarantees. Removing the graph route's one-pass
-invocation wrapper is a separate normalization gate: recover its function
-returns and normal continuation in common reconstruction before claiming
-immutable output for that route. A direct-preparation fix alone does not close
-it. Broader result signatures, lazy source profiles and mutable-storage
-optimizations remain separate work.
+above is admitted FJS; the preparation profiles do not widen public source
+output or its readback guarantees. One-pass recovery runs only in default
+preparation. It uses the existing invocation-root matcher and inverse to restore
+the owning returns and required entry snapshots. A read of the inverse's fresh
+self binding signals a backedge, so that wrapper is retained. Recovery also
+retains the original function when the immutable-join profile cannot consume
+the result, including lazy, nested-loop and hidden value-transfer regions.
+Removing the loop scope requires fresh root identities for iteration inputs
+and all lifted declarations. The direct join pass applies the same restriction
+to flattened false-arm declarations. Valid shadowing that would collide at the
+function root retains its original scoped lowering; no renaming is introduced.
+Public source reconstruction, broader result signatures, lazy source profiles
+and mutable-storage optimizations remain separate work.
 
 ## Source boundaries and reconstruction gaps
 
@@ -436,8 +449,9 @@ it is not required to represent normal joins. The host corpus's
 `expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
 without `let` or `while`. The [first immutable join profile](#first-immutable-join-profile)
 now lowers a supplied statement conditional to a private continuation in direct
-common preparation. The graph route's one-pass wrapper and other result-bearing
-regions retain their existing layouts. The new helper preserves owners,
+common preparation. Default preparation can recover its canonical graph-route
+wrapper too; source-loop preparation and other result-bearing regions retain
+their existing layouts. The private continuation preserves owners,
 selected evaluation and observable sharing, while its insertion may change the
 graph's shape. This baseline
 does not change source assignment admission or declare existing slot output
