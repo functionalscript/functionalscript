@@ -41,7 +41,7 @@ const normalized = source => {
     assert(result.root !== null)
     assert(result.fn !== source)
     assertEq(result.fn.target, source.target)
-    assertEq(result.fn.self, source.self)
+    assert(result.fn.self !== null && result.fn.self !== source.self)
     assertEq(result.fn.captures, source.captures)
     return { fn: result.fn, root: result.root }
 }
@@ -142,7 +142,59 @@ export const proof = /** @type {const} */ ({
         ]))], [['define', alias, ref(self), 'lazy']])))
         const returned = returnedAlias.root.body.exit
         assert(returned[0] === 'loop')
-        assertStructurallySame(returned[1].body.exit, ['break', returnedAlias.root.target, [ref(self)]])
+        const exit = returned[1].body.exit
+        assert(exit[0] === 'break')
+        const value = exit[2][0]
+        assert(value instanceof Array && value[0] === 'ref')
+        assertEq(value[1], returnedAlias.fn.self)
+    },
+    selfAliasesKeepTheirValueAcrossShadowingLoopBindings: () => {
+        for (const shadowParameter of [false, true]) {
+            /** @type {Loop} */
+            const loop = { target, parameters: shadowParameter ? [self] : [], initial: shadowParameter ? [7] : [],
+                results: shadowParameter ? [local] : [self], body: body(['break', target, [['===', ref(alias), ref(self)]]], [
+                    ['if', [], ref(n), body(['return', owner, recursive(undefined, alias)]), body(['yield', []])],
+                ]) }
+            const result = normalized(fn(body(['return', owner, ['===', ref(alias), ref(self)]], [
+                ['define', alias, ref(self), 'lazy'], ['loop', loop],
+            ])))
+            const exit = result.root.body.exit
+            assert(exit[0] === 'break')
+            const comparison = exit[2][0]
+            assert(comparison instanceof Array && comparison[0] === '===')
+            const aliased = comparison[1], original = comparison[2]
+            assert(aliased instanceof Array && aliased[0] === 'ref')
+            assertEq(aliased[1], result.fn.self)
+            assert(original instanceof Array && original[0] === 'ref')
+            assertEq(original[1], shadowParameter ? result.fn.self : self)
+            const statement = result.root.body.statements[0]
+            assert(statement[0] === 'loop' && statement[1].body.exit[0] === 'break')
+            const inner = statement[1].body.exit[2][0]
+            assert(inner instanceof Array && inner[0] === '===')
+            const incoming = inner[2]
+            assert(incoming instanceof Array && incoming[0] === 'ref')
+            assertEq(incoming[1], shadowParameter ? self : result.fn.self)
+        }
+    },
+    laterDefinitionsAndRegionResultsShadowSelfAliases: () => {
+        /** @type {readonly Statement[]} */
+        const bindings = [
+            ['define', alias, 7, 'required'],
+            ['block', [alias], body(['yield', [7]])],
+            ['if', [alias], ref(n), body(['yield', [7]]), body(['yield', [8]])],
+        ]
+        for (const binding of bindings) {
+            const result = normalized(fn(body(['loop', loopOf(body(['return', owner, ref(alias)], [
+                ['if', [], ref(n), body(['return', owner, recursive()]), body(['yield', []])],
+            ]))], [['define', alias, ref(self), 'lazy'], binding])))
+            const inside = result.root.body.exit
+            assert(inside[0] === 'loop')
+            const exit = inside[1].body.exit
+            assert(exit[0] === 'break')
+            const value = exit[2][0]
+            assert(value instanceof Array && value[0] === 'ref')
+            assertEq(value[1], alias)
+        }
     },
     returnedRegionsKeepTheirTailPosition: () => {
         /** @type {readonly Value[]} */

@@ -2,7 +2,8 @@
  * Fixed-parameter tail transitions preserve invocation values and ordinary calls.
  *
  * @import { Exp, Args } from '../../types.ts'
- * @import { Function as FastFunction } from '../../../js/ast/types.ts'
+ * @import { BindingId, Function as FastFunction } from '../../../js/ast/types.ts'
+ * @import { Function as PreparedFunction } from '../../../js/ast/prepare/types.ts'
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -42,6 +43,24 @@ const run = (fn, args) => evaluate(['()', stable(fn), args])
 
 /** @type {(fn: FastFunction) => boolean} */
 const loops = fn => fn.body.statements.some(statement => statement[0] === 'loop')
+
+/** The selected recursive call reads this invocation's fresh self binding. @type {(fn: PreparedFunction, previous: BindingId) => void} */
+const preparedSelfCall = (fn, previous) => {
+    assert(fn.self !== null && fn.self !== previous)
+    assertEq(fn.self.index, previous.index)
+    const exit = fn.body.exit
+    assert(exit[0] === 'return')
+    assertEq(exit[1], fn.target)
+    const value = exit[2]
+    assert(value instanceof Array && value[0] === 'if')
+    const selected = value[2].exit
+    assert(selected[0] === 'yield' && selected[1].length === 1)
+    const call = selected[1][0]
+    assert(call instanceof Array && call[0] === '()')
+    const callee = call[1]
+    assert(callee instanceof Array && callee[0] === 'ref')
+    assertEq(callee[1], fn.self)
+}
 
 export const proof = /** @type {const} */ ({
     eitherConditionalArmCanReturnAnArbitraryBase: () => {
@@ -506,7 +525,7 @@ export const proof = /** @type {const} */ ({
         const raw = prepareFunction(source)
         assertEq(raw.target, target)
         assertEq(raw.parameters, source.parameters)
-        assertEq(raw.self, self)
+        preparedSelfCall(raw, self)
         assertEq(raw.rest, null)
         assertEq(raw.captures[0].binding, captured)
         const graph = fromFast(result(['function', source]))
@@ -527,7 +546,7 @@ export const proof = /** @type {const} */ ({
             ['()', ref(self), [['-', ref(count), 1], ref(b), ['+', ref(a), ref(b)]]], ['array', [ref(rest), ref(captured)]]]]) })
         const rawRest = prepareFunction(restSource)
         assertEq(rawRest.rest, rest)
-        assertEq(rawRest.self, self)
+        preparedSelfCall(rawRest, self)
         assertEq(rawRest.parameters, source.parameters)
         const restGraph = fromFast(result(['function', restSource]))
         const normalRest = _tailFunction(restGraph)
