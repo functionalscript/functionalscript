@@ -42,7 +42,7 @@ const outputs = source => {
  */
 const load = async source => (await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)).default
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     referenceConditionalExpression: async () => {
         const left = /** @type {const} */ ([1])
         const right = /** @type {const} */ ([2])
@@ -53,7 +53,7 @@ export const proof = {
         }
     },
     referenceExpressionBlocks: async () => {
-        const source = 'export default c=>c?(()=>{const x=5;return x*x;})():(()=>{const y=6;return y*y;})();'
+        const source = /** @type {const} */ ('export default c=>c?(()=>{const x=5;return x*x;})():(()=>{const y=6;return y*y;})();')
         for (const text of outputs(source)) {
             const choose = await load(text)
             assertEq(choose(true), 25)
@@ -68,7 +68,7 @@ export const proof = {
         }
     },
     referenceReassignmentVersions: async () => {
-        const source = 'export default (f,g)=>{let a=0;const x=f(a);a=a+1;return g(a)+x;};'
+        const source = /** @type {const} */ ('export default (f,g)=>{let a=0;const x=f(a);a=a+1;return g(a)+x;};')
         for (const text of outputs(source)) {
             const apply = await load(text)
             assertEq(apply(
@@ -78,7 +78,7 @@ export const proof = {
         }
     },
     referenceBreakIncludesPrecedingUpdate: async () => {
-        const source = 'export default (x,c)=>{let a=0;let b=1;while(true){if(x(b)){b+=1;break;}if(x(a)){a+=2;continue;}a+=b;b+=1;}return c(b,a);};'
+        const source = /** @type {const} */ ('export default (x,c)=>{let a=0;let b=1;while(true){if(x(b)){b+=1;break;}if(x(a)){a+=2;continue;}a+=b;b+=1;}return c(b,a);};')
         for (const text of outputs(source)) {
             const apply = await load(text)
             assertStructurallySame(apply(
@@ -88,7 +88,7 @@ export const proof = {
         }
     },
     referenceBreakAndOwningReturn: async () => {
-        const source = 'export default (x,m,c)=>{let a=0;while(true){a+=1;if(x(a)){break;}a+=1;if(x(a)){return m(a);}a+=1;}return c(a);};'
+        const source = /** @type {const} */ ('export default (x,m,c)=>{let a=0;while(true){a+=1;if(x(a)){break;}a+=1;if(x(a)){return m(a);}a+=1;}return c(a);};')
         for (const text of outputs(source)) {
             const apply = await load(text)
             for (const [stop, expected] of /** @type {const} */ ([
@@ -116,7 +116,7 @@ export const proof = {
         }
     },
     immediateWriteKeepsOneSharedAllocation: async () => {
-        const source = 'export default initial=>{let m=initial;const ignored=(()=>{m=[m];return undefined;})();return [m,m];};'
+        const source = /** @type {const} */ ('export default initial=>{let m=initial;const ignored=(()=>{m=[m];return undefined;})();return [m,m];};')
         const initial = /** @type {const} */ ([7])
         for (const text of outputs(source)) {
             const apply = await load(text)
@@ -129,7 +129,7 @@ export const proof = {
         }
     },
     expressionJoinKeepsSelectedWrite: async () => {
-        const source = 'export default (c,n)=>{const value=c?(()=>{n+=1;return n;})():n;return [value,n];};'
+        const source = /** @type {const} */ ('export default (c,n)=>{const value=c?(()=>{n+=1;return n;})():n;return [value,n];};')
         for (const text of outputs(source)) {
             const apply = await load(text)
             assertStructurallySame(apply(false, 5), [5, 5])
@@ -152,7 +152,7 @@ export const proof = {
             const apply = await load(codeOnly(graph))
             /** @param {number} value */
             const operation = value => {
-                const allocation = [value]
+                const allocation = /** @type {const} */ ([value])
                 return [allocation, allocation]
             }
             for (const [selected, stop, expected] of /** @type {const} */ ([
@@ -180,7 +180,7 @@ export const proof = {
         }
     },
     generatedLoopHelperUsesDeepLoop: async () => {
-        const source = 'export default n=>{let i=0;let sum=0;while(i<n){sum+=i;i+=1;}return sum;};'
+        const source = /** @type {const} */ ('export default n=>{let i=0;let sum=0;while(i<n){sum+=i;i+=1;}return sum;};')
         for (const text of outputs(source)) {
             assert(text.includes('while('), text)
             const apply = await load(text)
@@ -206,4 +206,4 @@ export const proof = {
         assertEq(apply(100_001, 0), 100_001)
         assertEq(apply(3, 7), 10)
     },
-}
+})

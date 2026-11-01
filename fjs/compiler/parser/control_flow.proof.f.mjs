@@ -52,7 +52,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     switchBreakOutsideALoopStillNeedsSyntaxAdmission: () => {
-        const source = 'export default tag=>{let m=0;switch(tag){case 1:{m=m+1;break;}}return m;};'
+        const source = /** @type {const} */ ('export default tag=>{let m=0;switch(tag){case 1:{m=m+1;break;}}return m;};')
         assertError(syntax(source))
         assertError(parse(path)(source))
     },
