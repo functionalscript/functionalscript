@@ -29,12 +29,12 @@ const bind = (task, then) => taskBind(task, result => result[0] === 'error' ? ta
  * Ordinary function bodies own their exits; construction captures and nested
  * loop initializers still run in the containing region. Statement returns exit
  * the enclosing function; a return cannot escape an emitted value region.
- * Empty-input roots retain this spelling only without a normal loop result;
- * returning roots keep their established recursive source normalization.
- * @type {(loop: Loop) => boolean}
+ * The earlier scalar profile keeps its arity limits. General invocation roots
+ * use the same lexical checks with common one-result state packing instead.
+ * @type {(loop: Loop, general?: boolean) => boolean}
  */
-const localLoop = loop => {
-    if (loop.parameters.length > 1) { return false }
+const localLoop = (loop, general = false) => {
+    if (!general && loop.parameters.length > 1) { return false }
     /** @type {readonly _Scope[]} */
     let pending = [{ kind: 'block', block: loop.body, target: loop.target, value: false }]
     while (pending.length !== 0) {
@@ -59,7 +59,7 @@ const localLoop = loop => {
         const exit = block.exit
         if (exit[0] === 'return' && scope.value
             || scope.value && (exit[0] === 'break' || exit[0] === 'continue')
-            || exit[0] === 'break' && exit[1] === loop.target && loop.parameters.length === 0
+            || !general && exit[0] === 'break' && exit[1] === loop.target && loop.parameters.length === 0
             || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== target) { return false }
         pending = [...exitValues(exit).map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
         for (const statement of block.statements) {
@@ -107,6 +107,9 @@ const recursiveFunction = fn => {
         statements: [...fn.body.statements.slice(0, -1), ['loop', retained]],
     } }) }
     if (isTerminalLoop(loop)) { return done(fn) }
+    // Keep existing source plans first. Their common one-result layout also
+    // carries normal joins before a shared tail, without restoring recursion.
+    if (localLoop(loop, true)) { return done(fn) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

@@ -46,7 +46,7 @@ domain.
 
 ## Audit of the reference cases
 
-The source-profile column describes the current parent implementation, with
+The source-profile column describes current source admission, with
 the explicit-return wrappers above. In particular, an ordinary function's
 conditional branches still use the terminating-guard grammar; loop bodies
 already admit normally completing conditional branches.
@@ -153,11 +153,13 @@ successful return. This does not expose the first failure. Only normal paths
 supply `m1`; the returning arm supplies no placeholder.
 
 Current source grammar rejects the outer normally completing branch. The
-paused conditional-admission draft reaches FAST and EDAG for it; the separate
-[source-profile investigation](../edag/to_fast/source/loops/todo/general-source-profiles.md)
-records a target-source refusal of the factored continuation. These are
-different boundaries. The output limitation is not evidence that FAST lacks
-the required result-bearing conditional or owning return.
+supplied normalized FAST fixture now executes through both public FJS source
+and code-only output, preserving the selected `m` and owning return. This does
+not admit the original source spelling. The separate
+[source-profile work](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+also covers parameterized `K(z)` output; its first source output executes, but
+serializing the reparsed join again still meets a graph-validation refusal.
+These are different boundaries, not missing FAST control constructs.
 
 ### Cases 8–10: loop state, results and owning returns
 
@@ -265,11 +267,13 @@ and `expressionBlockAssignmentBoundaries`, admit some enclosing writes and
 refuse boundary-requiring captures. This permission stays; parameterized
 continuations neither replace it nor generally authorize mutable captures.
 
-Source `recursiveFunction`/`resultBlock` reconstruct a terminal value profile
-that can refuse structured normal joins and a shared suffix. Common preparation
-can otherwise render those steps. Retaining structured FAST is a prototype
-proposal, not an agreed blanket fallback; scope, demand, owner and identity
-checks remain.
+Source coordination now preserves lexically local invocation loops with normal
+joins and a shared suffix after trying the established source plans. Common
+preparation uses its existing private loop state/result storage. Nearest-loop
+ownership, value-region transfer and statement-block checks remain; so do final
+graph and genuine-lazy checks. `recursiveFunction`/`resultBlock` still provide
+their restricted terminal-value fallback for other profiles. This is a source
+output extension, with no source-admission or optimizer change.
 
 Every self tail-call evaluation must serialize as a `while` transfer, including
 in generated helpers. Existing
@@ -278,6 +282,13 @@ profiles; current recursive fallbacks that retain self tail calls are gaps
 against the target contract. Non-tail uses, ordinary recursive identity and
 invocation-local memo lifetimes still matter; profile extensions do not make
 arbitrary calls loop transfers.
+
+The shared-tail, prefix, observed-rest and generated-helper fixtures now execute
+deep transfers through `while` in public source output as well as code-only
+output. Retaining a demanded-prefix graph does not admit genuine lazy FAST
+remaining in the source plan. New output profiles have no blanket graph/hash
+or fixed-point guarantee: the reparsed parameterized join is still refused with
+`a shared comma outside a scope`, while established canonical domains stay exact.
 
 The baseline output model uses immutable bindings and parameterized
 continuations for ordinary branches, with mutable state for `while` lowering.
@@ -302,7 +313,7 @@ helpers.
 | --- | --- |
 | [Parser/source](parser/control_flow.proof.f.mjs) | Six groups pin ordinary-if syntax limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. |
 | [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
-| [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. The exact supplied nested-join and parameterized-continuation FAST fixtures also execute through the general code-only writer. A supplied shared-tail graph separately records its explicit source-output refusal. |
+| [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
 
 Result equality does not establish graph identity. Source parsing, graph/source
 reconstruction and native target execution remain separate gates; Rust text is

@@ -24,7 +24,6 @@
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
-import { isTerminalLoop } from '../loop/terminal/module.f.js'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -551,10 +550,12 @@ const statementTask = (statement, context) => call(() => {
                 })
             })
         }
-        const packed = context.sourceLoops && loop.parameters.length > 1 && isTerminalLoop(loop)
-        const empty = context.sourceLoops && loop.parameters.length === 0 && isTerminalLoop(loop)
+        // Structured one-result source loops use the existing private state
+        // and result slot. This lowers transfers, without reusing source locals.
+        const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
+        const packed = context.sourceLoops && loop.parameters.length > 1 && loop.results.length === 1
+        const empty = context.sourceLoops && loop.parameters.length === 0 && loop.results.length === 1 && normal
         return bind(values(packed ? [['array', loop.initial]] : loop.initial, context), initial => {
-            const normal = assertNotNullish(context.flows.get(loop.body)).breaks.includes(loop.target)
             const temporaries = fresh(initial.next, initial.value.length)
             const parameters = fresh(initial.next + temporaries.length, packed || empty ? 1 : loop.parameters.length)
             // Source loop re-entry preserves one private state/result slot.

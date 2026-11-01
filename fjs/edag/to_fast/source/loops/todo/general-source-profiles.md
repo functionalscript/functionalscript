@@ -32,8 +32,6 @@ const profile = ['=>', 2, [], ['?:',
 ]];
 ```
 
-`tryStringify(profile)` returns
-`['error', 'a factored terminal continuation outside the source loop profile']`.
 The placed FAST contains a result-free decision whose two arms complete with
 empty yields, followed by one common continuation:
 
@@ -47,20 +45,34 @@ empty yields, followed by one common continuation:
 }
 ```
 
-The current terminal-tree fold requires a terminal decision's enclosing exit to
-be an empty yield. It therefore refuses this factored suffix, and recursive
-source reconstruction cannot recover its source value form. The test may still
-fail or perform required work; dropping it because its arms agree would change
-evaluation. Duplicating a shared call or moving arguments before that work would
-also change the graph's contract.
+The terminal-tree fold alone cannot recover this factored suffix. After the
+established source plans, the coordinator now retains the lexically local loop
+and common preparation emits it with existing private state/result storage.
+`tryStringify(profile)` succeeds with `while` output. Its decision remains
+before the shared continuation: dropping the test or duplicating a shared call
+would change required evaluation or sharing.
 
-The source-loop proof `unsupportedFactoredInvocationProfilesReturnReasons`
-includes this profile, required-prefix and observed-rest variants, plus a shared
-allocation case. It pins the current explicit refusal.
+The source-loop proof
+`factoredInvocationProfilesKeepSelectedWorkAndSharedResults` covers this profile,
+required-prefix and observed-rest variants, plus a shared allocation case. The
+[host corpus](../../../../../compiler/serializer/value/control_flow.proof.mjs)
+also executes deep source and code-only output, nested `m` joins, parameterized
+`K(z)` continuations and named exports. This extends output profiles, not source
+syntax or admission.
+
+### Repeated source output for parameterized joins
+
+The supplied `K(z)` join fixture now emits valid FJS whose native execution
+preserves the selected input, early return and shared result. After parsing
+that first source output, a second public serialization is still refused by
+the existing graph check with `a shared comma outside a scope`. The check is
+unchanged; first-output success does not establish a general source-normalized
+graph, stable hashes or a repeated graph/text fixed point. The established
+canonical profile contracts remain unchanged.
 
 ### A demanded lazy terminal prefix
 
-`lazyTerminalPrefixesRetainTheirRecursiveSourceFallback` constructs a canonical
+`lazyTerminalPrefixesRetainTheirInvocationLoops` constructs a canonical
 invocation root with a lazy array definition. Its terminal test reads the array's
 numeric element, and its completed result reads the same array twice:
 
@@ -70,12 +82,18 @@ numeric element, and its completed result reads the same array twice:
 // break result: ['array', [['ref', shared], ['ref', shared]]]
 ```
 
-The source coordinator currently reifies this loop as recursion, preserving the
-lazy definition. The proof checks both the original and converted graphs at
-three transfers and immediate completion: both return `[[0], [0]]`, with the
-two result elements referencing one array. This is an actual first demand and
-shared allocation, not an unused declaration. It is a supplied FAST fixture;
-ordinary source `const` declarations establish required definitions.
+The source coordinator now retains this supplied FAST loop and its lazy
+definition unchanged. The corresponding EDAG emits `while` source after normal
+graph placement; the proof checks its source readback at three transfers and
+immediate completion. Both return `[[0], [0]]`, with the two result elements
+referencing one array. This is an actual first demand and shared allocation,
+not an unused declaration. Ordinary source `const` declarations establish
+required definitions.
+
+Retaining this loop does not widen final source validation: any genuine lazy
+FAST definition that remains in the placed source plan is still refused by
+`sourceReason`. The supported graph profile and arbitrary lazy FAST are
+different boundaries.
 
 Required-prefix terminal recognition cannot simply accept every lazy definition.
 An unselected initializer must remain unevaluated, the first reached demand must
@@ -88,19 +106,25 @@ same invocation-local value. Loop re-entry must recreate iteration-local storage
 boundary for statement blocks, outer-loop transfers and returns or loop transfers
 escaping value regions. Broader source spelling must preserve exact owners and
 normal continuations through those regions. Reifiable forms keep their recursive
-fallback; non-reifiable forms retain the explicit `Result` error above.
+fallback; non-reifiable forms retain the explicit `Result` error
+`a factored terminal continuation outside the source loop profile`.
 
 ### Tasks
 
-- [ ] Retain normally completing decisions followed by one common tail
-      continuation, without duplicating its evaluation or dropping reached work.
-- [ ] Extend demanded lazy terminal prefixes through a shared plan that preserves
-      first-demand order, memo identity, captures and per-invocation lifetime.
+- [x] Retain lexically local normal decisions followed by one common tail
+      continuation; emit and execute source without duplicating the continuation
+      or dropping reached work.
+- [x] Keep the demanded lazy-prefix graph in a `while` profile with its shared
+      result, while preserving the supplied FAST definition during coordination.
+- [ ] Resolve the reparsed `K(z)` join's `a shared comma outside a scope` refusal
+      and define its source-normalization domain before claiming repeated cycles.
+- [ ] Extend remaining genuine lazy source plans only with a contract preserving
+      conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner
       and source-representability contracts; keep existing refusals for other
       supplied profiles.
-- [ ] For each admitted profile, verify strict graph/text cycles from the first
-      source parse, deep source execution, required failures, captures, rest,
+- [ ] Extend strict graph/text cycle evidence within each named normalization
+      domain, alongside deep source execution, required failures, captures, rest,
       arity and unchanged prior layouts across the shared JS/Rust path.
 
 ### Related

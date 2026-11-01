@@ -2,7 +2,7 @@
  * Plain loops use admitted source while statements; other tail loops retain
  * recursive spelling. Both paths preserve execution and stable round trips.
  *
- * @import { Block, Function as FastFunction, Loop, Value } from '../../../../js/ast/types.ts'
+ * @import { Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Exp } from '../../../types.ts'
  */
 
@@ -41,6 +41,28 @@ const lazyPrefixFunction = () => {
             statements: [['define', lazyBinding, ['array', [['ref', statement[1].parameters[0]]]], 'lazy'],
                 ...statement[1].body.statements.slice(0, -1), ['if', terminal[1], ['>', ['.', ['ref', lazyBinding], 0], 0], terminal[3], normal]],
         } }]],
+    } }
+}
+
+/** An owning value return removes a one-pass wrapper, without a recursive call. @returns {FastFunction} */
+const valueReturnFunction = () => {
+    const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+    const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+    const input = /** @type {const} */ ({ index: 0 })
+    const state = /** @type {const} */ ({ index: 0 })
+    const result = /** @type {const} */ ({ index: 0 })
+    const unused = /** @type {const} */ ({ index: 0 })
+    return { target: owner, parameters: [input], rest: null, self: null, captures: [], body: {
+        statements: [['loop', { target, parameters: [state], initial: [['ref', input]], results: [result], body: {
+            statements: [
+                ['define', unused, ['if', ['===', ['ref', state], 0],
+                    { statements: [], exit: ['return', owner, 7] }, { statements: [], exit: ['yield', [['ref', state]]] }], 'required'],
+                ['if', [], ['>', ['ref', state], 0], { statements: [], exit: ['break', target, [['ref', state]]] },
+                    { statements: [], exit: ['throw', 'negative input'] }],
+            ],
+            exit: ['yield', []],
+        } }]],
+        exit: ['return', owner, ['ref', result]],
     } }
 }
 
@@ -168,41 +190,62 @@ export const proof = /** @type {const} */ ({
             }
         }
     },
-    lazyTerminalPrefixesRetainTheirRecursiveSourceFallback: () => {
-        const binding = lazyBinding
-        const fallback = lazyPrefixFunction()
-        const original = yielded(['function', fallback])
+    lazyTerminalPrefixesRetainTheirInvocationLoops: () => {
+        const original = yielded(['function', lazyPrefixFunction()])
         const converted = assertOk(_sourceLoops(original))
-        assert(converted !== original)
+        assertEq(converted, original)
         assert(converted.exit[0] === 'yield')
         const value = converted.exit[1][0]
         assert(value instanceof Array && value[0] === 'function')
-        assert(value[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === binding && statement[3] === 'lazy'))
-        const exit = value[1].body.exit
-        assert(exit[0] === 'return' && exit[2] instanceof Array && exit[2][0] === 'if')
-        for (const candidate of [original, converted]) {
+        const root = value[1].body.statements.at(-1)
+        assert(root !== undefined && root[0] === 'loop')
+        assert(root[1].body.statements.some(statement => statement[0] === 'define' && statement[1] === lazyBinding && statement[3] === 'lazy'))
+        const source = fromFast(original)
+        const output = assertOk(tryStringify(source))
+        assert(output.includes('while('), output)
+        const restored = graph(output)
+        for (const candidate of [source, restored]) {
             for (const input of /** @type {const} */ ([3, 0])) {
-                const result = evaluate(['()', fromFast(candidate), [input, 0]])
+                const result = evaluate(['()', candidate, [input, 0]])
                 assertStructurallySame(result, [[0], [0]])
                 assert(result instanceof Array)
                 assertEq(result[0], result[1])
             }
         }
     },
-    unsupportedFactoredInvocationProfilesReturnReasons: () => {
-        const call = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]])
-        const prefix = /** @type {Exp} */ ([',', [['[]', [['arg', 0]]], call]])
-        const array = /** @type {Exp} */ (['[]', [1]])
-        const restCall = /** @type {Exp} */ (['()', ['self'], [['-', ['arg', 0], 1], 7]])
-        /** @type {readonly Exp[]} */
+    factoredInvocationProfilesKeepSelectedWorkAndSharedResults: () => {
+        /** @type {Exp} */
+        const call = ['()', ['self'], [['-', ['arg', 0], 1], ['+', ['arg', 1], 1]]]
+        /** @type {Exp} */
+        const prefix = [',', [['[]', [['arg', 0]]], call]]
+        /** @type {Exp} */
+        const array = ['[]', [1]]
+        /** @type {Exp} */
+        const restCall = ['()', ['self'], [['-', ['arg', 0], 1], 7]]
+        /** @type {readonly { readonly value: Exp; readonly tail: boolean; readonly cases: readonly (readonly [readonly Exp[], unknown])[] }[]} */
         const profiles = [
-            ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], call, call], ['arg', 1]]],
-            ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], prefix, prefix], ['arg', 1]]],
-            ['=>', 0, [], ['?:', true, array, array]],
-            ['=>', 1, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['%', ['arg', 0], 2], 0], restCall, restCall], ['rest']]],
+            { value: ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], call, call], ['arg', 1]]],
+                tail: true, cases: [[[0, 10], 10], [[3, 10], 13]] },
+            { value: ['=>', 2, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['arg', 1], 0], prefix, prefix], ['arg', 1]]],
+                tail: true, cases: [[[0, 10], 10], [[3, 10], 13]] },
+            { value: ['=>', 0, [], ['?:', true, array, array]], tail: false, cases: [[[], [1]]] },
+            { value: ['=>', 1, [], ['?:', ['>', ['arg', 0], 0], ['?:', ['===', ['%', ['arg', 0], 2], 0], restCall, restCall], ['rest']]],
+                tail: true, cases: [[[0, 9, 10], [9, 10]], [[3, 9, 10], [7]]] },
         ]
-        for (const profile of profiles) {
-            assertEq(assertError(tryStringify(profile)), 'a factored terminal continuation outside the source loop profile')
+        for (const { value, tail, cases } of profiles) {
+            const output = assertOk(tryStringify(value))
+            if (tail) { assert(output.includes('while('), output) }
+            const restored = graph(output)
+            for (const candidate of [value, restored]) {
+                for (const [args, expected] of cases) {
+                    /** @type {Exp} */
+                    const invocation = ['()', candidate, args]
+                    const result = evaluate(['[]', [invocation, invocation]])
+                    assertStructurallySame(result, [expected, expected])
+                    assert(result instanceof Array)
+                    assertEq(result[0], result[1])
+                }
+            }
         }
     },
     sharedNormalRecipesKeepRequiredCallsAfterTheDecision: () => {
@@ -1629,14 +1672,13 @@ export const proof = /** @type {const} */ ({
         const multi = _tailFunction(counter)
         const loop = multi.body.statements.at(-1)
         assert(loop !== undefined && loop[0] === 'loop')
-        const fallback = /** @type {FastFunction} */ ({ ...multi, body: { ...multi.body,
+        /** @type {FastFunction} */
+        const multiThrowing = { ...multi, body: { ...multi.body,
             statements: [...multi.body.statements.slice(0, -1), ['loop', { ...loop[1], body: { statements: [], exit: ['throw', 'fallback stopped'] } }]],
-        } })
-        const converted = assertOk(_sourceLoops(yielded(['function', fallback])))
-        assert(converted.exit[0] === 'yield')
-        const value = converted.exit[1][0]
-        assert(value instanceof Array && value[0] === 'function')
-        assertStructurallySame(value[1].body.exit, ['throw', 'fallback stopped'])
+        } }
+        const retained = yielded(['function', multiThrowing])
+        assertEq(assertOk(_sourceLoops(retained)), retained)
+        failure(['()', fromFast(retained), [3, 0]])
         const original = graph('const f=n=>n>0?f(n-1):(()=>{throw 1})();export default f(3);')
         const written = assertOk(tryStringify(original))
         failure(original)
@@ -1763,10 +1805,19 @@ export const proof = /** @type {const} */ ({
         }
     },
     nestedSourceValuesRetainTheirExecutionRegions: () => {
-        // A demanded lazy prefix retains recursive source, so every containing
-        // value still needs traversal after required terminal roots keep loops.
-        const fn = lazyPrefixFunction()
-        const inner = /** @type {Value} */ (['function', fn])
+        // An owning value return removes its one-pass wrapper. Every containing
+        // value must be remapped without crossing an ordinary function owner.
+        const fn = valueReturnFunction()
+        /** @type {Value} */
+        const inner = ['function', fn]
+        const original = yielded(inner)
+        const converted = assertOk(_sourceLoops(original))
+        assert(converted !== original)
+        for (const candidate of [original, converted]) {
+            assertEq(evaluate(['()', fromFast(candidate), [0]]), 7)
+            assertEq(evaluate(['()', fromFast(candidate), [3]]), 3)
+            failure(['()', fromFast(candidate), [-1]])
+        }
         const binding = /** @type {const} */ ({ index: 0 })
         const parameter = /** @type {const} */ ({ index: 0 })
         const output = /** @type {const} */ ({ index: 0 })
@@ -1789,6 +1840,45 @@ export const proof = /** @type {const} */ ({
         for (const exit of /** @type {readonly Block['exit'][]} */ ([['throw', inner], ['continue', target, [inner]], ['return', fn.target, inner]])) {
             const source = /** @type {Block} */ ({ statements: [], exit })
             assert(assertOk(_sourceLoops(source)) !== source)
+        }
+    },
+    owningValueReturnsKeepTheirThrowingTail: () => {
+        const fn = valueReturnFunction()
+        const statement = fn.body.statements.at(-1)
+        assert(statement !== undefined && statement[0] === 'loop')
+        /** @type {FastFunction} */
+        const throwing = { ...fn, body: { ...fn.body, statements: [['loop', { ...statement[1], body: {
+            statements: statement[1].body.statements.slice(0, 1), exit: ['throw', 'following failure'],
+        } }]] } }
+        const original = yielded(['function', throwing])
+        const converted = assertOk(_sourceLoops(original))
+        assert(converted !== original)
+        for (const candidate of [original, converted]) {
+            assertEq(evaluate(['()', fromFast(candidate), [0]]), 7)
+            failure(['()', fromFast(candidate), [3]])
+        }
+    },
+    owningValueReturnsKeepUnsupportedNormalContinuationsRefused: () => {
+        const fn = valueReturnFunction()
+        const statement = fn.body.statements.at(-1)
+        assert(statement !== undefined && statement[0] === 'loop')
+        const loop = statement[1]
+        const unused = /** @type {const} */ ({ index: 0 })
+        /** @type {Statement} */
+        const normal = ['if', [], true, { statements: [], exit: ['yield', []] }, { statements: [], exit: ['yield', []] }]
+        /** @type {readonly Block[]} */
+        const bodies = [
+            { statements: [...loop.body.statements.slice(0, 1), normal], exit: ['break', loop.target, [9]] },
+            { statements: [...loop.body.statements.slice(0, 1), normal, ['define', unused, 1, 'required']], exit: ['break', loop.target, [9]] },
+        ]
+        for (const body of bodies) {
+            /** @type {FastFunction} */
+            const unsupported = { ...fn, body: { ...fn.body, statements: [['loop', { ...loop, body }]] } }
+            const source = yielded(['function', unsupported])
+            const original = fromFast(source)
+            assertEq(evaluate(['()', original, [0]]), 7)
+            assertEq(evaluate(['()', original, [3]]), 9)
+            assertEq(assertError(_sourceLoops(source)), 'a factored terminal continuation outside the source loop profile')
         }
     },
     deepValuesRetainIdentity: () => {

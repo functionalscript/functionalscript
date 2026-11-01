@@ -1,8 +1,9 @@
 # Source loop output
 
 The source coordinator retains loops that the admitted FunctionalScript grammar
-can express and reconstructs other canonical invocation roots as recursive
-functions. It consumes the normalized FAST chosen by
+can express, including lexical normal joins followed by one shared continuation.
+Its remaining reconstruction fallback reifies other canonical invocation roots
+as recursive functions. It consumes the normalized FAST chosen by
 [EDAG output conversion](../../README.md); it does not repeat tail-call
 eligibility, value placement, source-write analysis or mutable-state selection.
 [Common preparation](../../../../js/ast/prepare/README.md) owns physical
@@ -28,6 +29,7 @@ existing output layouts.
 | Result-block normalization | Required normal-arm definitions and terminal conditional result trees become one result value block, then pass the unchanged plain-loop checks. |
 | Branching transition | A selected terminal tree supplies the complete next-input vector to the exact loop. Required work stays in its lexical branches. |
 | Terminal tree | Required definitions and result-free decisions end in exact continuations, one-result breaks or explicit throws. There is at least one continuation; empty semantic inputs also require a normal-completion leaf. |
+| General structured invocation | After the earlier plans, retain lexically local invocation loops, including result-bearing decisions followed by one shared suffix. Empty, multiple fixed and observed-rest inputs use the existing one-result preparation. |
 
 The broader result-block, branching and terminal plans apply to canonical
 rest-free roots with zero or multiple fixed inputs and roots with observed
@@ -38,6 +40,12 @@ roots use the packed path. Both conditional orientations are supported.
 For a validated base-first rest-only plain root, the shared orientation helper
 negates the terminal test and swaps its arms without moving prefixes or changing
 transfer identities.
+
+The general structured plan retains statement-level joins and their following
+work rather than duplicating a shared continuation or restoring recursion.
+Transfers must still target the nearest active loop; returns and loop transfers
+cannot escape emitted value regions, and arbitrary statement blocks remain
+outside this plan. Retaining a loop does not bypass final source validation.
 
 For example, source serialization of this function retains bounded-stack
 execution, including a call with `100000`:
@@ -107,6 +115,13 @@ A selected throw evaluates its required prefix and payload once, then exits
 without a state or normal-result write. Earlier zero-input divergent and
 throw/continue layouts retain their previous plans.
 
+General structured invocation loops use the same physical storage when they
+have one result: multiple inputs share the packed state/result slot, and empty
+inputs use the private result slot when they can break normally. Nonreturning
+empty-input loops remain stateless. Their normal decisions and suffix stay in
+the original statement region. All transfer operands finish before a slot
+write; this is loop lowering, not a variable-reuse optimization.
+
 ## Invocation lifetimes
 
 The [shared invocation recipe](../../../../js/ast/invocation/module.f.js)
@@ -138,11 +153,17 @@ between iteration and normal-result computation, changing original graph bytes,
 hashes and function text under the
 [function-source exception](../../../../../spec/principles/README.md#function-source-representation-exception).
 One-use missing/extra/spread argument setup can also inline on that parse.
-The graph obtained from the first emitted source is the source-normalized
-baseline. Its identity analysis and canonical text then remain exact on repeated
-graph/source cycles; helpers, projection demands and private invocation wrappers
-must not accumulate. Existing raw scalar fixtures retain their exact graph and
-source contracts.
+For the established canonical profiles, the graph obtained from the first
+emitted source is the source-normalized baseline. Its identity analysis and
+canonical text then remain exact on repeated graph/source cycles; helpers,
+projection demands and private invocation wrappers must not accumulate.
+Existing raw scalar fixtures retain their exact graph and source contracts.
+
+The newly retained general structured profiles have separate evidence for
+output parsing and execution. They do not yet have a general graph/hash or
+fixed-point contract. In particular, the parameterized `K(z)` join fixture emits
+valid source, but serializing its reparsed graph again is still refused with
+`a shared comma outside a scope`; the final graph validation remains in force.
 
 Construction can omit an ordered redundant anchor suffix already demanded by
 the result. Discarded literal `undefined` anchors also normalize away: they
@@ -164,24 +185,28 @@ Supplied profiles that cannot regain source grammar return
 `a factored terminal continuation outside the source loop profile` through
 `Result`. They must not assert, duplicate shared calls or emit unreadable source.
 Source transfers to outer loop targets, returns escaping value regions, and
-general lazy or structured prefixes remain bounded by their existing admission.
+remaining genuine lazy definitions remain bounded by their existing admission.
 These are limits on supplied canonical FAST/EDAG output profiles, not additional
 source-language refusals. Code-only JavaScript/function text and Rust retain
 their wider common-preparation domain.
 
 The remaining work is tracked in
-[general source profiles](todo/general-source-profiles.md), including a demanded
-lazy terminal prefix and a normally completing decision followed by one shared
-continuation. Distinct duplicate calls written in source do not establish the
-same graph-sharing case.
+[general source profiles](todo/general-source-profiles.md). Every self tail-call
+evaluation must emit a `while` transfer, including generated helpers;
+remaining recursive fallbacks are gaps against that output contract. The
+demanded-prefix graph and lexical shared-continuation profiles now retain their
+loops. This does not admit arbitrary lazy FAST or nonlocal transfers. Distinct
+duplicate calls written in source do not establish the same graph-sharing case.
 
 ## Evidence
 
 The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture
-lifetimes. `lazyTerminalPrefixesRetainTheirRecursiveSourceFallback`,
-`unsupportedFactoredInvocationProfilesReturnReasons` and
-`sourceLoopRetentionChecksLexicalTransferRegions` pin the fallback boundaries.
+lifetimes. `lazyTerminalPrefixesRetainTheirInvocationLoops` and
+`factoredInvocationProfilesKeepSelectedWorkAndSharedResults` cover newly retained
+profiles and their first source readback; they do not claim general fixed points.
+`sourceLoopRetentionChecksLexicalTransferRegions` pins the remaining lexical
+boundaries.
 `explicitThrowRootsKeepFirstParseFixedPoints` and
 `explicitThrowRootsKeepReachedFailuresAndNormalResults` cover selected throws
 and mixed completion paths.
@@ -190,5 +215,9 @@ The [native serializer proofs](../../../../compiler/serializer/value/proof.mjs)
 observe deep transfers, required evaluation order, held creating-iteration
 captures, rest identity and public arity. Complete initial source spellings are
 pinned by [compiler output proofs](../../../../compiler/proof.f.mjs).
+The [control-flow host corpus](../../../../compiler/serializer/value/control_flow.proof.mjs)
+executes supplied nested joins, parameterized continuations, selected prefixes,
+rest and named exports through both source and code-only output, with deep
+self-tail transfers.
 Common preparation's [proofs](../../../../js/ast/prepare/proof.f.mjs) pin
 physical state/result writes separately from logical graph conversion.
