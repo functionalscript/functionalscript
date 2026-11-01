@@ -1008,11 +1008,17 @@ parts do not delay the epic's foundation gate:
       profiles are implemented above. Broader source reconstruction keeps
       the owning early return outside the private continuation and uses the
       existing nested `m` and `K(z)` semantic corpus.
-- [ ] Audit self tail calls in every output function, including generated
-      helpers, and replace fallbacks that retain self tail calls with common
+- [x] Audit current self-tail output profiles through final functions and
+      generated helpers in public source, code-only JavaScript/function text
+      and Rust. Reuse existing witnesses, add missing conformance tests, and
+      distinguish bounded loops, explicit refusals and recursive fallbacks.
+      Record routes, witnesses and limits in the
+      [self-tail output audit](../compiler/self-tail-output.md).
+- [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
-      argument snapshots and invocation-local lifetimes; track broader profiles
-      in the
+      argument snapshots and invocation-local lifetimes. Start with
+      [independent shared terminal recipes](../edag/to_fast/tail/todo/independent-terminal-recipes.md).
+      Track broader source admission in the
       [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.
 - [ ] Name each specification feature's implementing layer. Update affected

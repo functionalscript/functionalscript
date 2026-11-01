@@ -128,6 +128,13 @@ same invocation-local value. Loop re-entry must recreate iteration-local storage
 
 ### Other profile boundaries
 
+The [independent terminal-recipe graph](../../../tail/todo/independent-terminal-recipes.md)
+is currently refused by public source, while general JS/function text and Rust
+accept recursive output. Its bounded-stack gap belongs to common tail planning;
+the source refusal remains a separate admission boundary. The
+[output audit](../../../../../compiler/self-tail-output.md) distinguishes these
+routes and the existing one-pass source reconstruction evidence.
+
 `sourceLoopRetentionChecksLexicalTransferRegions` also records the existing
 boundary for statement blocks, outer-loop transfers and returns or loop transfers
 escaping value regions. Broader source spelling must preserve exact owners and

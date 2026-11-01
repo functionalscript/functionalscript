@@ -3,20 +3,44 @@
  * check the syntax and evaluation order that string comparisons cannot prove;
  * the interpreter itself never compiles or executes this text.
  * @import { Exp, Function as FunctionExp } from '../../../edag/types.ts'
+ * @import { Function as FastFunction } from '../../../js/ast/types.ts'
  */
 
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
-import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { fromFast } from '../../../edag/from_fast/module.f.mjs'
+import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.mjs'
+import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */
 const compile = (e, captures = []) => Function(
     ...captures.map((_, i) => `$${i}`),
     `"use strict";return (${assertOk(tryFunctionText(e))});`,
 )(...captures)
+
+/** Check emitted syntax at the same native function-text boundary.
+ * @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any}
+ */
+const compileWhile = (e, captures = []) => {
+    const text = assertOk(tryFunctionText(e))
+    const tokens = toArray(tokenize(stringToCodePointList(text))(''))
+    assert(tokens.every(({ token }) => token.kind !== 'error'), text)
+    assert(tokens.some(({ token }) => token.kind === 'while'), text)
+    return compile(e, captures)
+}
+
+/** @type {(fn: FastFunction) => FunctionExp} */
+const graphOf = fn => {
+    const graph = fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
+    assert(graph instanceof Array && graph[0] === '=>')
+    return graph
+}
 
 /** @type {(body: Exp) => unknown} */
 const run = body => compile(['=>', 0, [], body])()
@@ -120,6 +144,95 @@ export const proof = {
         const failing = compile(['=>', 1, [], ['?:', ['<', ['arg', 0], 5], [',', [['?:', ['===', ['arg', 0], 3], ['throw', 'three'], 0], call(['+', ['arg', 0], 1])]], ['arg', 0]]])
         assertEq(failing(4), 5)
         throws(() => failing(0), e => e === 'three')
+    },
+    generatedLoopHelpersKeepDeepFunctionTextExecution: () => {
+        const source = /** @type {const} */ ('export default n=>{let i=0;while(i<n){i+=1;}return i;};')
+        const graph = _defaultExport(unresolved(assertOk(parse('/generated-loop-helper.f.js')(source))).edag)
+        assert(graph instanceof Array && graph[0] === '=>')
+        const fn = compileWhile(graph)
+        assertEq(fn.length, 1)
+        assertEq(fn(0), 0)
+        assertEq(fn(100_001), 100_001)
+    },
+    deferredOwningReturnsKeepTheirFunctionTextTailTransfers: () => {
+        const fixtures = _fixtures()
+        const aliased = compileWhile(graphOf(fixtures.insideAlias))
+        assertEq(aliased.length, 1)
+        assertEq(aliased(0), 7)
+        assertEq(aliased(100_001), 7)
+
+        const swapped = compileWhile(graphOf(fixtures.tailValues))
+        assertEq(swapped.length, 3)
+        assertStructurallySame(swapped(0, 1, 2), [1, 2])
+        assertStructurallySame(swapped(100_001, 1, 2), [2, 1])
+
+        const rest = compileWhile(graphOf(fixtures.rest))
+        const element = /** @type {const} */ ([9])
+        assertEq(rest.length, 2)
+        const first = rest(100_001, null, element)
+        const second = rest(2, null, element)
+        assert(first[0] !== first[1])
+        assertEq(first[1], first[2])
+        assertEq(first[3](), first[1])
+        assertEq(first[0][0], element)
+        assertEq(first[1][0], element)
+        assert(first[1] !== second[1])
+
+        const selected = compileWhile(graphOf(fixtures.extraArguments))
+        assertEq(selected.length, 2)
+        assertEq(selected(-1, true), 9)
+        assertEq(selected(0, true), 7)
+        throws(() => selected(1, true))
+        assertEq(selected(100_001, false), 7)
+
+        // These wider recipes are admitted by function text while the public
+        // source writer retains its explicit admission boundary.
+        const nestedGraph = graphOf(fixtures.nestedRecipe)
+        assertError(tryStringify(nestedGraph))
+        const nested = compileWhile(nestedGraph)
+        assertEq(nested.length, 1)
+        assertEq(nested(0), 7)
+        assertEq(nested(100_001), 7)
+
+        const payloadGraph = graphOf(fixtures.normalPayload)
+        assertError(tryStringify(payloadGraph))
+        const payload = compileWhile(payloadGraph)
+        assertEq(payload.length, 3)
+        const reached = payload(100_001, true, 'tail')
+        const normal = payload(3, false, 'normal')
+        assertStructurallySame(reached, [['tail', [0]], ['tail', [0]]])
+        assertStructurallySame(normal, [['normal', [3]], ['normal', [3]]])
+        assertEq(reached[0], reached[1])
+        assertEq(normal[0], normal[1])
+        assert(reached[0] !== normal[0])
+    },
+    mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork: () => {
+        /** @type {Exp} */
+        const ordinary = ['()', ['self'], [0]]
+        /** @type {FunctionExp} */
+        const graph = ['=>', 1, [7, ['[]', []], 9], ['?:', ['>', ['arg', 0], 1],
+            ['()', ['self'], [['-', ['arg', 0], 1]]],
+            ['?:', ['===', ['arg', 0], 1], ['[]', [ordinary, ordinary]],
+                ['[]', [['frame', 2], ['frame', 0], ['frame', 1], ['self']]]],
+        ]]
+        // Function text reads externally supplied slots, not graph literals.
+        const captured = /** @type {const} */ ([19])
+        const fn = compileWhile(graph, [17, captured, 29])
+        assertEq(fn.length, 1)
+        const base = fn(0)
+        assertStructurallySame(base.slice(0, 2), [29, 17])
+        assertEq(base[2], captured)
+        assertEq(base[3], fn)
+        const first = fn(100_001)
+        const second = fn(1)
+        for (const result of [first, second]) {
+            assertEq(result[0], result[1])
+            assertStructurallySame(result[0].slice(0, 2), [29, 17])
+            assertEq(result[0][2], captured)
+            assertEq(result[0][3], fn)
+        }
+        assert(first[0] !== second[0])
+        assert(first[0] !== base)
     },
     tailArgumentCounts: () => {
         const missing = compile(['=>', 2, [], ['?:', ['>', ['arg', 0], 0],
