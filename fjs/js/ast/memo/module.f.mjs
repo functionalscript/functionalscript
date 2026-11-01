@@ -341,7 +341,7 @@ const loopTask = (loop, context, terminal = false) => call(() => {
                 return done({
                     statements: terminal ? initial.statements : concat(initial.statements)([['loop', mapped]]),
                     exit: terminal ? ['loop', mapped] : null,
-                    memo: initial.memo, usesMemo: initial.usesMemo, changed: body !== loop.body || initial.usesMemo,
+                    memo: initial.memo, usesMemo: initial.usesMemo, changed: mapped !== loop || initial.usesMemo,
                 })
             }
             // Removed self aliases must be rewritten in every reached loop,
