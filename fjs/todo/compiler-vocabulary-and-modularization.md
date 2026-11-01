@@ -992,6 +992,10 @@ parts do not delay the epic's foundation gate:
       Preserve backedges, scoped binding collisions and unsupported profiles;
       verify deep genuine loops and self-tail execution. Public FJS source
       reconstruction remains separate.
+- [ ] Emit the canonical immutable joins through public FJS source output.
+      Use source-compatible guard spelling, retain the shared recovery profile
+      and verify parser readback, execution and reserialization for `K(z)` and
+      nested `m`. Genuine self-tail recursion still requires `while` output.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
