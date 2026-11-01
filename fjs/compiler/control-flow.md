@@ -321,20 +321,19 @@ F(selected, stop, operation):
 ```
 
 It has one normal result, an abrupt path owned by `F`, and one shared normal
-suffix. Direct common preparation currently gives this statement conditional
-a private result slot, selected writes and an immutable read of the joined
-value. The resulting JavaScript uses `let` without a `while`. The routes must
-be distinguished:
+suffix. Direct common preparation now extracts a private parameterized
+continuation instead of declaring a conditional-result slot. The routes remain
+distinct:
 
 | Input route | Current output for this corpus |
 | --- | --- |
-| `parameterizedJoin` directly through `prepareFunction` | Mutable conditional-result slot; no loop. |
+| `parameterizedJoin` directly through `prepareFunction` | Immutable continuation and guarded calls; no `let` or `while`. |
 | The same join through `fromFast`, `fromAnalysis` and preparation | A one-pass invocation loop, with loop storage and a mutable conditional-result slot. The generated body exits on every path and has no continue. |
 | `parameterizedHelper` through either route | Immutable continuation and guarded calls; no `let` or `while`. |
 | Source `expressionJoinKeepsSelectedWrite` | An already supported immutable expression profile. |
 
-The first implementation step should handle the direct one-result, non-loop
-profile in common preparation. Its immutable continuation spelling is:
+The [common join pass](../js/ast/prepare/joins/README.md) implements the direct
+one-result, non-loop profile. Its immutable continuation spelling is:
 
 ```js
 export default (selected, stop, operation) => {
@@ -349,9 +348,13 @@ export default (selected, stop, operation) => {
 
 Only the normal suffix moves into `shared`. The early return stays in `F`;
 neither a placeholder result nor a call to `shared` is introduced on that
-path. The initial profile uses required immutable bindings, no lazy definition
-or loop transfer in the extracted region, and one joined value. The following
-criteria govern the replacement:
+path. The initial profile uses required immutable definitions, no lazy definition
+or loop transfer in the extracted region, and one joined value. Operand value
+blocks and value-region conditionals retain their existing plan. Ordinary nested
+functions keep their own owners; their capture expressions are checked in the
+constructing region. Functions with a self binding retain their existing
+lowering so the new helper cannot hide an owning self-tail call or its alias.
+The following criteria govern the replacement:
 
 - Evaluate the test once, retain reached required work and skip unselected work.
 - Pass the selected result to one private continuation body. Do not duplicate
@@ -371,8 +374,19 @@ provide the semantic backstop. Their
 `suppliedNestedJoinKeepsNativeReturnOwnership` and
 `suppliedParameterizedContinuationsKeepNativeInputs`, cover both normal inputs,
 the bypassing return, shared allocations, fresh invocations and repeated public
-source writes. The implementation must also exercise direct common preparation,
-where the result slot is present today. Removing the graph route's one-pass
+source writes. [Direct preparation proofs](../js/ast/prepare/joins/proof.f.mjs)
+and [native JavaScript checks](../js/ast/prepare/immutable_joins.proof.mjs)
+exercise the new boundary, including unsupported-profile identity, early
+returns, selected failures, required prefixes, rest/capture metadata, allocation
+sharing, fresh invocations and retained self-tail lowering. The
+[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.mjs) also prepares
+these FAST inputs directly; its [native tests](../../nanvm/harness/tests/immutable_joins.rs)
+execute the continuation, owning return and shared captured allocations.
+
+Direct JavaScript function text still uses the general statement writer's
+`else {}` spelling, which the FJS source grammar refuses. The manual spelling
+above is admitted FJS; the new preparation profile is not a widening of public
+source output or its readback guarantees. Removing the graph route's one-pass
 invocation wrapper is a separate normalization gate: recover its function
 returns and normal continuation in common reconstruction before claiming
 immutable output for that route. A direct-preparation fix alone does not close
@@ -421,10 +435,11 @@ Broader use of mutable output variables is an optional future optimization;
 it is not required to represent normal joins. The host corpus's
 `expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
 without `let` or `while`. The [first immutable join profile](#first-immutable-join-profile)
-identifies a supplied statement conditional that still uses physical join
-slots in direct common preparation. Its replacement must preserve owners,
-selected evaluation and observable sharing, while helper insertion may change
-the graph's shape. This baseline
+now lowers a supplied statement conditional to a private continuation in direct
+common preparation. The graph route's one-pass wrapper and other result-bearing
+regions retain their existing layouts. The new helper preserves owners,
+selected evaluation and observable sharing, while its insertion may change the
+graph's shape. This baseline
 does not change source assignment admission or declare existing slot output
 semantically incorrect.
 

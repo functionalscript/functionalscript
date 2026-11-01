@@ -22,7 +22,17 @@ iterations retain separate first-demand lifetimes. A failed initializer leaves
 the completion flag unset. Serializers implement that declared memo protocol;
 they do not decide where a value is established.
 
-Result blocks and conditionals use private result slots when their control
+An eligible function-level statement conditional with one result first becomes
+an [immutable parameterized continuation](./joins/README.md). Required prefix
+work stays in the function; only the normally reached suffix moves into the
+helper. Arm-local values enter through its parameter, established outer values
+through immutable captures, and early returns still leave the original
+function. The initial profile keeps lazy/control-bearing values, loop transfers,
+broader signatures and functions with a self binding in their existing plan.
+The latter restriction preserves existing self-tail recognition rather than
+hiding it inside a helper.
+
+Other result blocks and conditionals use private result slots when their control
 must remain in the containing statement flow. A return still exits its owning
 function, and a transfer still names its owning loop. Ordinary expression
 regions retain their value shape. When a child expression requires statements,

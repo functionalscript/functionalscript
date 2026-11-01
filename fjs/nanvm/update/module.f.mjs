@@ -22,6 +22,7 @@ import { generate as generateCommands, path as commandsPath } from '../commands/
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.mjs'
+import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
 import { generate as generateRuntime } from '../runtime/module.f.mjs'
 
 /**
@@ -36,6 +37,7 @@ const rustFiles = () => [
     [methodsPath, generateMethods()],
     [valuesPath, generateValues()],
     [deferredTailCallsPath, generateDeferredTailCalls()],
+    [immutableJoinsPath, generateImmutableJoins()],
     [commandsPath, generateCommands()],
 ]
 
@@ -43,8 +45,8 @@ const rustFiles = () => [
  * Regenerates `nanvm/lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
  * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs` and interpreted
- * value fixture `nanvm/harness/gen.values/captures.rs`, the raw deferred-call
- * fixture `nanvm/harness/gen.fast/deferred_owning_tail_calls.rs`, the command set
+ * value fixture `nanvm/harness/gen.values/captures.rs`, the deferred-call and
+ * directly prepared join fixtures under `nanvm/harness/gen.fast/`, the command set
  * `nanvm/effects-node/src/gen.commands.rs`, and the runtime compiled for
  * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.mjs)).
  *
