@@ -87,7 +87,10 @@ formatting or identifier spelling. For FJS-admitted input,
 FAST-to-EDAG-to-FAST must preserve the defined semantics, sharing and
 conditional evaluation. Any stronger graph
 round-trip guarantee must state its supported domain and permitted
-normalizations.
+normalizations. General code serialization may introduce functions and IIFEs;
+its output need not reproduce the input EDAG's shape or hash when reparsed.
+The [serialization contract](#serialization-contract) requires self tail
+recursion to become `while`.
 
 #### Control-flow vocabulary
 
@@ -111,6 +114,7 @@ transfers; this review does not introduce another control-flow IR.
 | Continuation inputs | An ordered interface through which incoming paths supply values to the following computation. Different paths may supply different immutable versions. |
 | Shared continuation | One continuation body reached from several predecessors, potentially with different input values. Its encoding can share a computation after a join, or share a function body with distinct calls; those encodings have different graph identities. |
 | Transfer snapshot | Establish all transfer operands from the current immutable values before updating destination slots. Captures retain immutable iteration values, never those slots. |
+| Self tail call | An evaluation that calls the current function and supplies its result directly as that invocation's result, with no pending computation afterward. Tail position belongs to the evaluation and its use, not to a printed function name or globally to a shared graph node. |
 | Terminal region | A region with no normal path to its following statements. Returning, throwing, transferring elsewhere and diverging are different ways not to reach that continuation. |
 | Divergence | Execution that never completes, such as an infinite loop. Prefer "conditional with normal completion" to "nonterminating if", which can suggest divergence. |
 
@@ -192,8 +196,11 @@ owners; this proposal does not require a Rust input parser.
   than a separate binding policy in the Rust serializer.
 - **Graph-to-FAST owns tail-loop lowering.** The
   [tail-call owner](../edag/to_fast/README.md#tail-call-eligibility) defines existing-case migration,
-  evaluation-aware eligibility and invocation requirements. It uses the common
-  placement analysis; every serializer renders the same decisions.
+  evaluation-aware tail position and invocation requirements. It uses the common
+  placement analysis; every serializer renders the same decisions. The target
+  contract requires every self tail call to become a `while` transfer,
+  including in generated functions; current profile restrictions are
+  implementation gaps, not exceptions to that requirement.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
   the bindings and computations already expressed in FAST, using the target's
   syntax and runtime operations. They do not traverse EDAG, rediscover graph
@@ -432,8 +439,8 @@ return F(g(m1))
 `m0` is the incoming value. Only normal paths produce `m1` and reach the one
 following `g` call; the inner return exits `F`. The read of `x.a` remains
 required, including on the returning path. EDAG construction can reference
-one following computation directly; introducing a continuation function is
-not part of this contract.
+one following computation directly. Serialization may instead introduce a
+continuation function or IIFE under the contract below.
 
 **A continuation can be parameterized.** The task owner's function spelling
 makes its input explicit:
@@ -464,6 +471,53 @@ they do not imply identical graph structure. Sharing a function body leaves
 its distinct call sites distinct, whereas a joined computation can reference
 one call node. The model specifies the continuation's inputs before choosing
 its graph encoding or claiming identity preservation.
+
+##### Serialization contract
+
+The task owner permits additional generated functions and immediately invoked
+function expressions (IIFEs). Parameterized continuation functions, expression
+blocks and private helpers are all available output choices. Prefer a simple,
+correct common lowering over preserving the input graph's constructor layout.
+
+An IIFE may reassign variables in its enclosing scope. For example, inside a
+function whose following computation uses `m`:
+
+```js
+let m = initial
+const ignored = (() => {
+    m = f(m)
+    return undefined
+})()
+return g(m)
+```
+
+The write reaches the following `g(m)` without returning the updated `m` as
+the IIFE's result. Source normalization exports the write as an immutable
+binding version; generated output may use private mutable temporaries.
+An inserted IIFE has its own return owner, so an intended return from the
+enclosing function must still reach that original owner. Generated function
+blocks also keep explicit returns under the current scope restriction.
+
+The required structural property is: **every self tail-call evaluation must
+be converted into a transfer in a `while` loop.** This applies to authored
+functions and generated helpers. Retaining self tail recursion as a recursive
+source fallback is not an acceptable final output. Inserting an IIFE must
+not hide an original tail call from that lowering. A function can retain its
+self binding for other uses and non-tail calls while its tail calls become
+loop transfers. Preserve simultaneous argument updates, iteration-local
+values and shared-value lifetimes through the common preparation stage.
+
+Code output must preserve program semantics, including observable value
+sharing, but need not preserve exact EDAG structure on reparse. Helper and
+IIFE insertion can change graph structure and therefore its hash. Exact
+graph/text round trips remain separately named guarantees for supported
+canonical profiles; they are not a gate on general serialization.
+
+This is the target contract, not a claim that all current output profiles
+meet it. The current source coordinator retains recursive fallbacks for some
+profiles; the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+records those implementation gaps. Audit those paths against the `while`
+requirement instead of preserving their recursive spelling for compatibility.
 
 ##### Switch selection and execution
 
@@ -582,7 +636,8 @@ as the starting corpus, with these corrections and distinctions:
   prove EDAG identity. Distinct incoming paths may supply different arguments;
   two calls to one helper remain distinct invocation nodes.
 - Recursive loop sketches explain state transfer; bounded-stack execution
-  requires loop/tail-call lowering, rather than naive JavaScript recursion.
+  requires loop/tail-call lowering. Serialization must emit `while` for self
+  tail recursion, including in any generated continuation helpers.
 
 Extend that corpus with the nested example above and switch dispatch,
 switch-local breaks, return/continue ownership, stacked labels, no match,
@@ -903,9 +958,16 @@ parts do not delay the epic's foundation gate:
       decide their common normalization and any graph canonicalization before
       selecting constructor changes or compatibility adapters.
 - [ ] Rework structured source reconstruction against that contract, using
-      common preparation. State the supported round-trip domain and permitted
-      normalizations, then remove redundant control-flow bridges with their
-      consumers once the corpus demonstrates the replacement.
+      common preparation. Allow helper functions and enclosing-variable writes
+      from IIFEs; preserve completion owners and semantics without requiring
+      general exact-graph round trips. Remove redundant control-flow bridges
+      with their consumers once the corpus demonstrates the replacement.
+- [ ] Audit self tail calls in every output function, including generated
+      helpers, and replace fallbacks that retain self tail calls with common
+      `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
+      argument snapshots and invocation-local lifetimes; track broader profiles
+      in the
+      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.
 - [ ] Name each specification feature's implementing layer. Update affected
       pages with their code moves, then finish the remaining vocabulary alignment.
