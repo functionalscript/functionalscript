@@ -8,6 +8,11 @@ work stays in the continuation and runs only on a normally completing arm.
 Existing owning returns and throws bypass the continuation.
 The pass trusts normalized transfer ownership and normal result arities;
 producer invariants are not revalidated as a separate admission boundary.
+False-arm declarations moved after the returning guard must retain fresh
+binding identities at the function root. A declaration that shadows a
+parameter, capture, rest binding or required prefix keeps the original branch
+scope and physical join plan. Nested declarations that remain in their own
+branches do not need to move.
 
 The initial profile accepts required definitions, one top-level result-bearing
 conditional, and result-free nested decisions in its arms. Operand value blocks,

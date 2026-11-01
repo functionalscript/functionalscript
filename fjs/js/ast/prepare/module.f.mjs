@@ -32,6 +32,7 @@ import { iterable } from '../../../types/list/iterable/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
 import { _immutableJoin } from './joins/module.f.mjs'
+import { _recoverOnePassJoin } from './one_pass/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -323,7 +324,10 @@ const values = (input, context, snapshots = []) => {
 /** @type {(input: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
 const functionValue = (input, context) => call(() => {
     const fresh = _freshSelf(input)
-    const value = _immutableJoin({ ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) })
+    /** @type {NormalFunction} */
+    const logical = { ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) }
+    const joined = _immutableJoin(logical)
+    const value = context.sourceLoops ? joined : _recoverOnePassJoin(joined)
     const normalized = value.body
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
