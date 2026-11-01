@@ -51,17 +51,21 @@ what a crawler fetches.
   it can carry only the tags that do not vary by page: `og:site_name`,
   `og:type`, `twitter:card` and, where the build knows its origin,
   `og:image`. rustdoc writes each page's own `<title>` and
-  `<meta name="description">`, which a card falls back to without
-  `og:title` and `og:description`; `og:url` is left out.
-- **Absolute URLs.** `og:url` and `og:image` must be absolute, and the build
-  does not know its own domain: `Build` in
-  [`../page/types.ts`](../page/types.ts) has `commit`, `branch` and `funding`
-  only. There are two options:
-  - Hard-code `https://functionalscript.com` as a constant next to
-    `repository`. This is simple, but a preview deployment on
-    `*.workers.dev` would then point its cards at production.
-  - Add an `origin` field to `Build`, filled from the deploy environment.
-    This is correct for previews too, and is the recommended option.
+  `<meta name="description">`, which the major consumers fall back to, as
+  they fall back to the fetched URL. That leaves `og:title` and `og:url`,
+  which the Open Graph protocol requires, missing on these pages. Adding
+  them means rewriting each rustdoc page as the generator copies it, which
+  needs an HTML parser the repository does not have; it is a follow-up of
+  its own, not part of this issue.
+- **Absolute URLs.** `og:url` and `og:image` must be absolute, so a page
+  needs to know where it is published. `Build` already has the branch, and
+  that is enough: a build of `main` is production,
+  `https://functionalscript.com`, and any other branch is its preview, whose
+  alias the upload computes from the branch (`uploadArgs` in
+  [`../cloudflare/module.f.mjs`](../cloudflare/module.f.mjs)). Moving that
+  rule where pages can read it gives a preview its own URL and image, so its
+  card can be checked before merge. Only a local build, which names no
+  branch, has no origin.
 - **The image.** The site's only logo is
   [`../favicon.svg`](../favicon.svg). Most platforms (Facebook, X, LinkedIn,
   and often Slack) refuse SVG for `og:image`, so the site needs a raster
