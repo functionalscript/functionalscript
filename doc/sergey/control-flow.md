@@ -193,5 +193,5 @@ const loop0 = a0 => {
 ## The Main Principles
 
 - reassignment of mutable variable `let` makes a new `const`.
-- while uses external mutable reassignments as parameters for recursion.
+- `while` uses external mutable reassignments as parameters for recursion.
 - `return` in `if` or `while` makes the code outside of `if`/`while` block as a part of an expression. Sometimes, we need to create `shared` object for the continuation.
