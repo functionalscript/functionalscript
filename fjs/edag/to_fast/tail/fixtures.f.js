@@ -1,5 +1,5 @@
-/** Shared identity-sensitive DAG fixtures for independent terminal recipes.
- * @import { Exp } from '../../types.ts'
+/** Shared identity-sensitive DAG fixtures for terminal and mixed self uses.
+ * @import { Exp, Function as FunctionExp } from '../../types.ts'
  */
 
 /** Each terminal call is reused in both arms of the outer decision.
@@ -59,3 +59,15 @@ const snapshots = () => {
 export const _independentTailRecipes = () => /** @type {const} */ ({
     scalar: scalar(), vectors: vectors(), selectedFailure: selectedFailure(), snapshots: snapshots(),
 })
+
+/** Tail transitions end in one shared ordinary self call and following work.
+ * @type {() => FunctionExp}
+ */
+export const _mixedSelfUses = () => {
+    const ordinary = /** @type {const} */ (['()', ['self'], [0]])
+    return ['=>', 1, [7, ['[]', []], 9], ['?:', ['>', ['arg', 0], 1],
+        ['()', ['self'], [['-', ['arg', 0], 1]]],
+        ['?:', ['===', ['arg', 0], 1], ['[]', [ordinary, ordinary]],
+            ['[]', [['frame', 2], ['frame', 0], ['frame', 1], ['self']]]],
+    ]]
+}

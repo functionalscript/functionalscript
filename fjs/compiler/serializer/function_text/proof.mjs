@@ -14,6 +14,7 @@ import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.mjs'
+import { _mixedSelfUses } from '../../../edag/to_fast/tail/fixtures.f.js'
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
@@ -207,14 +208,7 @@ export const proof = {
         assert(reached[0] !== normal[0])
     },
     mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork: () => {
-        /** @type {Exp} */
-        const ordinary = ['()', ['self'], [0]]
-        /** @type {FunctionExp} */
-        const graph = ['=>', 1, [7, ['[]', []], 9], ['?:', ['>', ['arg', 0], 1],
-            ['()', ['self'], [['-', ['arg', 0], 1]]],
-            ['?:', ['===', ['arg', 0], 1], ['[]', [ordinary, ordinary]],
-                ['[]', [['frame', 2], ['frame', 0], ['frame', 1], ['self']]]],
-        ]]
+        const graph = _mixedSelfUses()
         // Function text reads externally supplied slots, not graph literals.
         const captured = /** @type {const} */ ([19])
         const fn = compileWhile(graph, [17, captured, 29])
