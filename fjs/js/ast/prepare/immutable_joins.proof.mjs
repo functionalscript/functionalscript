@@ -3,6 +3,7 @@
  * Supplied joins have their own source-independent admission boundary.
  * @import { BindingId, Block, Function as FastFunction, Statement, Value } from '../types.ts'
  * @import { Function as PreparedFunction } from './types.ts'
+ * @import { JsToken } from '../../../ebnf/lib/js/types.ts'
  */
 
 import { throws } from 'node:assert/strict'
@@ -14,6 +15,9 @@ import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare, prepareFunction } from './module.f.mjs'
 import { functionStringify, stringify } from '../serializer/module.f.mjs'
+import { tokenize } from '../../tokenizer/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(binding: BindingId) => Value} */
 const ref = binding => ['ref', binding]
@@ -43,10 +47,18 @@ const graphCompiled = fn => {
     return { text, apply: Function(`"use strict";return (${text});`)() }
 }
 
+/** @type {(text: string) => readonly JsToken['kind'][]} */
+const tokenKinds = text => {
+    const tokens = toArray(tokenize(stringToCodePointList(text))(''))
+    assert(tokens.every(({ token }) => token.kind !== 'error'), text)
+    return tokens.map(({ token }) => token.kind)
+}
+
 /** @type {(text: string) => void} */
 const immutable = text => {
-    assert(!/\blet\b/.test(text), text)
-    assert(!/\bwhile\s*\(/.test(text), text)
+    const kinds = tokenKinds(text)
+    assert(!kinds.includes('let'), text)
+    assert(!kinds.includes('while'), text)
 }
 
 /** @type {(fn: FastFunction) => BindingId} */
@@ -251,7 +263,7 @@ export const proof = /** @type {const} */ ({
         assert(ownsSelfCall(direct.prepared.body, direct.prepared.self))
         assertEq(direct.apply(3), 0)
         const lowered = graphCompiled(recursive)
-        assert(/\bwhile\s*\(/.test(lowered.text), lowered.text)
+        assert(tokenKinds(lowered.text).includes('while'), lowered.text)
         assertEq(lowered.apply(100_001), 0)
     },
 })
