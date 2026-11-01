@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Document, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
+ * @import { Align, Block, Blocks, Document, Emphasised, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -65,26 +65,21 @@ const codeText = node => {
 }
 
 /**
- * Text and code alternating, as a link's label and a bold body hold them:
- * the leading run, if any, then each code span and the run after it.
+ * A plain link's label as its spans: text and code alternating, the
+ * leading run, if any, then each code span and the run after it.
  *
- * @type {(lead: unknown, pairs: unknown) => readonly Label[]}
+ * @type {(node: unknown) => readonly Label[]}
  */
-const labelsOf = (lead, pairs) => {
+const labelOf = node => {
+    const [lead, pairs] = arr(node)
     /** @type {readonly Label[]} */
-    const head = lead === undefined || arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
     return [...head, ...arr(pairs).flatMap(pair => {
         const [code, tail] = arr(pair)
         /** @type {readonly Label[]} */
         const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         return [/** @type {Label} */(['code', codeText(code)]), ...after]
     })]
-}
-
-/** A plain link's label as its spans. @type {(node: unknown) => readonly Label[]} */
-const labelOf = node => {
-    const [lead, rest] = arr(node)
-    return labelsOf(lead, rest)
 }
 
 /**
@@ -163,15 +158,30 @@ const linkLabelOf = node => {
 
 /**
  * A bold or emphasised body as its spans, by the branch the grammar took:
- * one opening with text, or one opening with a code span.
+ * one opening with text, or one opening with a code span or a link. A link
+ * right after an `!` would be an image on GitHub, which a body here does
+ * not hold, so it is refused.
  *
- * @type {(node: unknown) => readonly Label[]}
+ * @type {(node: unknown) => Result<readonly Emphasised[], string>}
  */
 const emphasisOf = node => {
     const [tag, body] = arr(node)
-    if (tag === 'code') { return labelsOf(undefined, body) }
-    const [lead, rest] = arr(body)
-    return labelsOf(lead, rest)
+    const [lead, rest] = tag === 'text' ? arr(body) : [undefined, body]
+    /** @type {readonly Emphasised[]} */
+    let out = lead === undefined ? [] : [['text', lexeme(lead)]]
+    for (const part of arr(rest)) {
+        const [kind, pair] = arr(part)
+        const [span, tail] = arr(pair)
+        /** @type {readonly Emphasised[]} */
+        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        if (kind === 'code') {
+            out = [...out, ['code', codeText(span)], ...after]
+            continue
+        }
+        if (beforeBang(out[out.length - 1]) !== null) { return error('an image inside bold or emphasis') }
+        out = [...out, ['link', ...plainLinkOf(span)], ...after]
+    }
+    return ok(out)
 }
 
 /**
@@ -192,9 +202,9 @@ const spanOf = node => {
         return ok(['link', label[1], targetOf(l)])
     }
     const [kind, inner] = arr(arr(body)[1])
-    return ok(kind === 'strong'
-        ? ['strong', emphasisOf(arr(inner)[1])]
-        : ['em', emphasisOf(arr(inner)[0])])
+    const read = emphasisOf(kind === 'strong' ? arr(inner)[1] : arr(inner)[0])
+    if (read[0] === 'error') { return read }
+    return ok(kind === 'strong' ? ['strong', read[1]] : ['em', read[1]])
 }
 
 /**
@@ -575,6 +585,11 @@ const readProse = entry => {
         const last = span[1][span[1].length - 1]
         if (span[0] !== 'link' && ((first[0] === 'text' && first[1].startsWith(' ')) || (last[0] === 'text' && last[1].endsWith(' ')))) {
             return error('bold or emphasis padded with a space')
+        }
+        // A link inside bold or emphasis is checked as any link is.
+        for (const l of span[0] === 'link' ? [] : span[1]) {
+            const read = l[0] === 'link' ? readProse([l]) : ok([])
+            if (read[0] === 'error') { return read }
         }
         // A label's code spans side by side are one span in CommonMark too.
         if (codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }

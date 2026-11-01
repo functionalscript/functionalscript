@@ -283,8 +283,10 @@ export const readmeNodes = href => blocks => {
     const node = span => {
         const kind = span[0]
         if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong') { return ok(['strong', ...span[1].map(labelNode)]) }
-        if (kind === 'em') { return ok(['em', ...span[1].map(labelNode)]) }
+        if (kind === 'strong' || kind === 'em') {
+            const inner = nodes(span[1])
+            return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
+        }
         if (kind === 'image') { return imageNode(span) }
         if (kind === 'link') {
             const target = href(span[2])
