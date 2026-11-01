@@ -994,6 +994,9 @@ parts do not delay the epic's foundation gate:
       continuation and use the existing nested `m` and `K(z)` semantic corpus.
       Track the graph route separately: its one-pass invocation wrapper also
       needs owner-preserving normalization before claiming immutable output.
+      Current step: implement the task-owner-approved direct one-result join
+      in common preparation, with JS/Rust execution evidence and existing
+      self-tail lowering retained.
 - [ ] Audit self tail calls in every output function, including generated
       helpers, and replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
