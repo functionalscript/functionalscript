@@ -876,10 +876,14 @@ link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
 `shell`. They are in the static HTML because a crawler runs no script.
 
 **A title and a description on every page.** A directory's description is
-the first paragraph of prose in its README. A paragraph of badges has no
-text, and a field such as `**Status:** implemented`, which opens most READMEs
-under `spec/`, is a label rather than prose, so both are skipped. A release
-names its version, and every other page uses the site's own sentence.
+the first sentence of the first paragraph of prose in its README. A
+paragraph of badges has no text, and a field such as `**Status:** implemented`,
+which opens most READMEs under `spec/`, is a label rather than prose, so both
+are skipped. A sentence ends at a `.`, `!` or `?` outside code, since in code
+those are operators. A sentence longer than 160 characters, about what a
+search result shows, is cut at a word and ends with "…"; otherwise each
+platform cuts it mid-sentence at a length of its own. A release names its
+version, and every other page uses the site's own sentence.
 
 **rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
 Rust API reference, and the site adds one fixed fragment to every page's

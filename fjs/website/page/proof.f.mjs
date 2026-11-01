@@ -1,12 +1,13 @@
 /**
  * @import { Build, Dir } from './types.ts'
  * @import { Issue } from '../issue/types.ts'
+ * @import { Node } from '../../media/html/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, previewImagePath, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, previewImagePath, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
 import { origin, productionOrigin } from '../origin/module.f.js'
 
 /** @type {(dir: Dir) => string} */
@@ -67,8 +68,34 @@ export const proof = {
         // A bold lead-in that ends with a period is prose, not a field.
         skipsFields: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
             ['p', ['strong', 'Status:'], ' implemented'],
-            ['p', ['strong', 'Fields end with a colon.'], ' This is prose.']]]),
-            'Fields end with a colon. This is prose.'),
+            ['p', ['strong', 'A lead-in, not a field'], ' opens this prose.']]]),
+            'A lead-in, not a field opens this prose.'),
+        // The first sentence describes the page, the rest of the paragraph
+        // does not; `!` and `?` end a sentence too.
+        firstSentence: () => {
+            const of = (/** @type {readonly Node[]} */ ...p) => readmeDescription([['article', { 'data-readme': '' }, ['p', ...p]]])
+            assertEq(of('One. Two.'), 'One.')
+            assertEq(of('Why? Because.'), 'Why?')
+            assertEq(of('Stop! Go.'), 'Stop!')
+            // No sentence end inside a word or at a decimal point.
+            assertEq(of('Version 1.5 is a.b and more'), 'Version 1.5 is a.b and more')
+        },
+        // Punctuation in code is an operator, not the end of a sentence.
+        codeIsNotASentenceEnd: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['p', 'Has ', ['code', 'a! b'], ' and ', ['a', { href: 'x' }, ['code', '?. x']], ' both. Then more.']]]),
+            'Has a! b and ?. x both.'),
+        // A sentence over the limit is cut at a word, without the punctuation
+        // before the cut, and says so.
+        limit: () => {
+            const of = (/** @type {string} */ t) => readmeDescription([['article', { 'data-readme': '' }, ['p', t]]])
+            const exact = `${'a'.repeat(descriptionLimit - 1)}.`
+            assertEq(of(exact), exact)
+            const words = 'word, '.repeat(40)
+            const cut = of(words)
+            assert(cut !== undefined && cut.length <= descriptionLimit && cut.endsWith('word…'), String(cut))
+            // One word longer than the limit is cut inside it.
+            assertEq(of('x'.repeat(200)), `${'x'.repeat(descriptionLimit - 1)}…`)
+        },
         // A README this site does not render is a note about it, not its text.
         refused: () => assertEq(readmeDescription([['p', { 'data-readme-refused': '' }, 'README.md is not rendered here.']]), undefined),
         // A README of headings alone describes nothing.

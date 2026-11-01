@@ -94,17 +94,86 @@ const isField = ([first]) => first !== undefined && typeof first !== 'string'
     && first[0] === 'strong' && textContent(first).trim().endsWith(':')
 
 /**
- * A directory's description: the text of the first paragraph of prose in its
- * README, or `undefined` for a directory whose README has none, or is not
- * rendered.
+ * The longest description a page gives: about what a search result shows
+ * before it cuts the text, and more than most cards show.
+ *
+ * @type {number}
+ */
+export const descriptionLimit = 160
+
+/**
+ * A paragraph's text as runs, each marked with whether it is code: the text
+ * of a `code` element is one run, whatever is inside it.
+ *
+ * @type {(nodes: readonly Node[]) => readonly (readonly [string, boolean])[]}
+ */
+const runs = nodes => nodes.flatMap(n => {
+    if (typeof n === 'string') { return [/** @type {const} */ ([n, false])] }
+    const [tag, , children] = parseElement(n)
+    return tag === 'code' ? [/** @type {const} */ ([textContent(n), true])] : runs(children)
+})
+
+/**
+ * The first sentence of a paragraph's runs: its text up to the first `.`,
+ * `!` or `?` that ends a run of prose and is followed by a space or by
+ * nothing, or the whole text where no sentence ends.
+ *
+ * **Not inside code**, because there `.` is a property access and `!` an
+ * operator: in "the conditional (`?:`) and `!`", neither ends a sentence.
+ *
+ * @type {(runs: readonly (readonly [string, boolean])[]) => string}
+ */
+const firstSentence = runs => {
+    const text = runs.map(([t]) => t).join('')
+    const ends = runs.flatMap(([t, code], i) => {
+        const start = runs.slice(0, i).reduce((n, [s]) => n + s.length, 0)
+        return code ? [] : [...t].flatMap((c, j) => {
+            const end = start + j + 1
+            return '.!?'.includes(c) && (end === text.length || text[end] === ' ') ? [end] : []
+        })
+    })
+    return text.slice(0, ends[0] ?? text.length)
+}
+
+/**
+ * `text` without the punctuation and spaces that end it, which would dangle
+ * before an ellipsis.
+ *
+ * @type {(text: string) => string}
+ */
+const trimEndPunctuation = text => {
+    const last = text.at(-1)
+    return last !== undefined && ',;:—- '.includes(last) ? trimEndPunctuation(text.slice(0, -1)) : text
+}
+
+/**
+ * `text` cut to {@link descriptionLimit}: whole, or up to the last space that
+ * leaves room for an ellipsis, without the punctuation before it.
+ *
+ * @type {(text: string) => string}
+ */
+const limit = text => {
+    if (text.length <= descriptionLimit) { return text }
+    const cut = text.slice(0, descriptionLimit - 1)
+    const space = cut.lastIndexOf(' ')
+    return `${trimEndPunctuation(space > 0 ? cut.slice(0, space) : cut)}…`
+}
+
+/**
+ * A directory's description: the first sentence of the first paragraph of
+ * prose in its README, or `undefined` for a directory whose README has none,
+ * or is not rendered.
  *
  * **The first paragraph of prose**, because a README often opens with
  * something else: a paragraph of badges, which are images whose text is in
  * an attribute, so it has none; or a field such as `**Status:** implemented`
  * ({@link isField}), which opens most READMEs under `spec/`.
  *
- * **The whole paragraph, uncut.** A card or a search result cuts the text to
- * what it shows, and each cuts it to a different length.
+ * **The first sentence, within {@link descriptionLimit}.** A card or a search
+ * result cuts a longer text wherever its own length runs out, a different
+ * place on each, mid-sentence. A first sentence usually says what the page
+ * is and reads whole; one longer than the limit is cut at a word, and says
+ * so with an ellipsis.
  *
  * @type {(readme: readonly Element[]) => string | undefined}
  */
@@ -116,7 +185,7 @@ export const readmeDescription = readme => readme
     .flatMap(n => {
         if (typeof n === 'string') { return [] }
         const [tag, , children] = parseElement(n)
-        return tag === 'p' && !isField(children) ? [textContent(n).trim()] : []
+        return tag === 'p' && !isField(children) ? [limit(firstSentence(runs(children)).trim())] : []
     })
     .find(text => text !== '')
 
