@@ -188,6 +188,29 @@ const loop0 = a0 => {
                 : loop0(a2 + 1)
         })()
 }
+return loop0(0)
+```
+
+## Case 10. `while (c)`
+
+```ts
+let a = 0
+while (c(a)) {
+    a += 1
+}
+```
+
+Alternative
+
+```ts
+let a = 0
+while (true) {
+    if (c(a)) {
+        a += 1
+        continue
+    }
+    break
+}
 ```
 
 ## The Main Principles
