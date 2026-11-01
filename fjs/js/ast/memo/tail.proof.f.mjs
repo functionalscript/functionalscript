@@ -57,14 +57,24 @@ const contains = (node, predicate) => predicate(node) || node !== null && typeof
 
 /** @type {(node: unknown) => boolean} */
 const tailPacket = node => node instanceof Array && node[0] === 'array' && node[1] instanceof Array && node[1][0] === 'tail'
-/** @type {(node: unknown) => boolean} */
-const selfCall = node => node instanceof Array && node[0] === '()' && node[1] instanceof Array
-    && node[1][0] === 'ref' && node[1][1] === self
-/** @type {(node: unknown) => boolean} */
-const owningSelfReturn = node => node instanceof Array && node[0] === 'return' && node[1] === owner
-    && (selfCall(node[2]) || node[2] instanceof Array && node[2][0] === 'if'
+/** The normalizer may establish a fresh immutable snapshot of the same self. @type {(block: Block) => readonly BindingId[]} */
+const selfBindings = block => {
+    /** @type {readonly BindingId[]} */
+    let aliases = [self]
+    for (const statement of block.statements) {
+        if (statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === 'ref'
+            && aliases.includes(statement[2][1])) { aliases = [...aliases, statement[1]] }
+    }
+    return aliases
+}
+/** @type {(node: unknown, aliases: readonly BindingId[]) => boolean} */
+const selfCall = (node, aliases) => node instanceof Array && node[0] === '()' && node[1] instanceof Array
+    && node[1][0] === 'ref' && aliases.includes(node[1][1])
+/** @type {(node: unknown, aliases: readonly BindingId[]) => boolean} */
+const owningSelfReturn = (node, aliases) => node instanceof Array && node[0] === 'return' && node[1] === owner
+    && (selfCall(node[2], aliases) || node[2] instanceof Array && node[2][0] === 'if'
         && [node[2][2], node[2][3]].some(region => region.exit[0] === 'yield'
-            && region.exit[1].length === 1 && selfCall(region.exit[1][0])))
+            && region.exit[1].length === 1 && selfCall(region.exit[1][0], aliases)))
 
 /** @type {(block: Block) => readonly FastFunction[]} */
 const getters = block => block.statements.flatMap(statement => statement[0] === 'define'
@@ -77,9 +87,10 @@ export const proof = /** @type {const} */ ({
         ]))
         for (const convert of [normalize, normalizeReturns]) {
             const normalized = convert(original)
+            const selves = selfBindings(normalized.body)
             assert(contains(normalized.body, tailPacket), 'a getter must return the arguments of its deferred self tail call')
-            assert(contains(normalized.body, owningSelfReturn), 'the source demand must reconstruct an owning self tail return')
-            assert(getters(normalized.body).every(fn => fn.captures.every(capture => capture.binding !== self)),
+            assert(contains(normalized.body, node => owningSelfReturn(node, selves)), 'the source demand must reconstruct an owning self tail return')
+            assert(getters(normalized.body).every(fn => fn.captures.every(capture => !selves.includes(capture.binding))),
                 'the deferred tail callee must not become a getter capture')
             assertEq(data(normalized, [0, 7]), 7)
             assertEq(data(normalized, [4, 7]), 11)
@@ -151,9 +162,10 @@ export const proof = /** @type {const} */ ({
             ['define', closure, ['function', nested], 'required'],
         ]), [['define', alias, ref(self), 'lazy'], ['define', nextAlias, ref(alias), 'required']])
         const normalized = normalize(original)
+        const selves = selfBindings(normalized.body)
         assert(contains(normalized.body, tailPacket))
-        assert(contains(normalized.body, owningSelfReturn))
-        assert(getters(normalized.body).every(fn => fn.captures.every(capture => capture.binding !== self
+        assert(contains(normalized.body, node => owningSelfReturn(node, selves)))
+        assert(getters(normalized.body).every(fn => fn.captures.every(capture => !selves.includes(capture.binding)
             && capture.binding !== alias && capture.binding !== nextAlias)))
         assertEq(data(normalized, [3, 4]), 7)
     },
