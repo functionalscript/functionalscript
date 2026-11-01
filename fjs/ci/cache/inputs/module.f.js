@@ -29,7 +29,7 @@ const sharedFiles = [
 const excludedFiles = [
     '.assetsignore', '.github/FUNDING.yml', '.github/dependabot.yml',
     'LICENSE', 'favicon.ico', 'funding.json', 'wrangler.jsonc',
-    'fjs/website/favicon.svg',
+    'fjs/website/favicon.svg', 'fjs/website/preview.png',
 ]
 
 /** Environment manifests and npm sidecars affect every tool-backed check. */
