@@ -5,7 +5,7 @@
  *
  * @module
  * @import { Statement, Value } from '../../types.ts'
- * @import { _TailRegion } from './private.ts'
+ * @import { _TailRegion } from './types.ts'
  */
 
 /** @type {(value: Value, index?: number) => _TailRegion} */

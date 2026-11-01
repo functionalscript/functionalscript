@@ -1,3 +1,9 @@
+/**
+ * Terminal evaluation regions exposed by the invocation helper.
+ *
+ * @module
+ */
+
 import type { Block, Value } from '../../types.ts'
 
 export type _TailRegion =
