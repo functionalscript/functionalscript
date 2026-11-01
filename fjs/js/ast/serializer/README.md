@@ -20,6 +20,11 @@ The renderer performs no transfer-admission analysis. Code-only
 values with positional names, omitting the module wrapper and captured values.
 The public compatibility APIs live in [`compiler/serializer`](../../../compiler/serializer/README.md).
 
+An empty alternative has no `else` clause in either output mode. The condition
+still appears once, and nonempty alternatives retain their braced scope. A
+prepared terminating branch therefore uses the existing FJS guard spelling;
+the renderer adds no join or completion analysis.
+
 Binding and loop identities determine names; diagnostic indices are not keys.
 Source functions with several captures name them in signature order before the
 body, so parsing the output preserves that order even if body reads differ.

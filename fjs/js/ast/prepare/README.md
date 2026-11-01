@@ -32,13 +32,15 @@ broader signatures and functions with a self binding in their existing plan.
 The latter restriction preserves existing self-tail recognition rather than
 hiding it inside a helper.
 
-Default JavaScript and Rust preparation also [recovers canonical one-pass
+Common JavaScript, Rust and FJS source preparation also [recovers canonical one-pass
 invocation joins](./one_pass/README.md). The loop's one whole result must be
 returned immediately by its function. The existing invocation resolver restores
 breaks as owning returns and entry aliases as ordered immutable snapshots;
 recovery completes only if the statement-join pass accepts the body. A restored
 backedge, existing self binding or unsupported control region retains the
-original loop. Source-loop preparation keeps its current reconstruction domain.
+original loop. Genuine source loops keep their existing state and result plans.
+The source profile selects terminating guards with empty normal alternatives;
+broader inner decisions retain their invocation loop under the current grammar.
 Removing a region also requires every declaration moved to the function root
 to have a fresh binding identity there. A scope collision retains the original
 plan, including for false-arm declarations flattened by the direct join pass.
