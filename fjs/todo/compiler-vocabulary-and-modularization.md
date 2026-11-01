@@ -2,8 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
-migration are implemented; control-flow vocabulary and contract review precede
-further conditional admission work; lexical/specification alignment remains
+migration are implemented; the control-flow conversion audit and conformance
+corpus are in progress before further conditional admission work;
+lexical/specification alignment remains
 
 ### Problem
 
