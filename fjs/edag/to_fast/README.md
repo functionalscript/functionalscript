@@ -135,6 +135,9 @@ dependencies move with the recipe and factor recursively, including direct
 aliases. A terminal base recipe produces a one-pass loop with no backedge.
 Tests, ordinary operands, required aliases and captures keep their demands;
 independent interleaved recipes retain their existing recursive layout.
+The finite [two-recipe reproducer](tail/todo/independent-terminal-recipes.md)
+records accepted output that can overflow the native stack; this fallback does
+not satisfy the self-tail loop requirement.
 
 After tail-control placement, [`join`](join/module.f.mjs) recovers normal
 statement results selected by the same established test. A residual value, or

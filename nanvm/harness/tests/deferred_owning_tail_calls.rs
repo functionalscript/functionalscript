@@ -9,6 +9,7 @@ mod deferred;
 
 use nanvm_harness::runtime;
 use nanvm_lib::{
+    common::sized_index::SizedIndex,
     naive::Naive,
     vm::{Any, Array, Function, Nullish, Object, ToAny, ToArray, unstable::string_any},
 };
@@ -72,6 +73,28 @@ fn selected_tail_values_read_one_argument_snapshot() {
             Ok(expected.into())
         );
     }
+
+    let left = [11.0.to_any()].to_array().to_any();
+    let right = [22.0.to_any()].to_array().to_any();
+    for (n, first, second) in [
+        (0.0, left.clone(), right.clone()),
+        (3.0, right.clone(), left.clone()),
+    ] {
+        let result = Array::try_from(
+            call.call([n.to_any(), left.clone(), right.clone()].to_array())
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result[0], first);
+        assert_eq!(result[1], second);
+    }
+    let shared = Array::try_from(
+        call.call([2.0.to_any(), left.clone(), left.clone()].to_array())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(shared[0], left);
+    assert_eq!(shared[1], left);
 }
 
 #[test]
@@ -121,6 +144,48 @@ fn rest_snapshots_stay_shared_within_one_invocation() {
     assert_eq!(second[1], second[2]);
     assert_ne!(first[1], second[1]);
     assert_eq!(held.call([].to_array()).unwrap(), first[1]);
+}
+
+#[test]
+fn rest_snapshots_preserve_opaque_elements_and_fresh_empty_arrays() {
+    let call = function(&exports(), "rest");
+    let element = [9.0.to_any()].to_array().to_any();
+    let populated = Array::try_from(
+        call.call([2.0.to_any(), Nullish::Null.to_any(), element.clone()].to_array())
+            .unwrap(),
+    )
+    .unwrap();
+    let previous = Array::try_from(populated[0].clone()).unwrap();
+    let current = Array::try_from(populated[1].clone()).unwrap();
+    assert_ne!(previous, current);
+    assert_eq!(previous[0], element);
+    assert_eq!(current[0], element);
+    assert_eq!(populated[1], populated[2]);
+    let read = Function::try_from(populated[3].clone()).unwrap();
+    assert_eq!(read.length(), 0);
+    assert_eq!(read.call([].to_array()).unwrap(), populated[1]);
+
+    let empty = Array::try_from(
+        call.call([2.0.to_any(), Nullish::Null.to_any()].to_array())
+            .unwrap(),
+    )
+    .unwrap();
+    let previous_empty = Array::try_from(empty[0].clone()).unwrap();
+    let current_empty = Array::try_from(empty[1].clone()).unwrap();
+    assert!(previous_empty.is_empty());
+    assert!(current_empty.is_empty());
+    assert_ne!(previous_empty, current_empty);
+    assert_eq!(empty[1], empty[2]);
+    let held = Function::try_from(empty[3].clone()).unwrap();
+    assert_eq!(held.call([].to_array()).unwrap(), empty[1]);
+
+    let next = Array::try_from(
+        call.call([2.0.to_any(), Nullish::Null.to_any()].to_array())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_ne!(empty[1], next[1]);
+    assert_eq!(held.call([].to_array()).unwrap(), empty[1]);
 }
 
 #[test]
@@ -183,6 +248,22 @@ fn normal_payloads_keep_their_sharing_and_opaque_tags() {
                 Ok(format!("[\"{tag}\",[{result_n}]]"))
             );
         }
+    }
+}
+
+#[test]
+fn identical_calls_create_fresh_normal_memo_payloads() {
+    let call = function(&exports(), "normalPayload");
+    for tail in [false, true] {
+        let args = [3.0.to_any(), tail.to_any(), string_any("tail")].to_array();
+        let first = Array::try_from(call.call(args.clone()).unwrap()).unwrap();
+        let second = Array::try_from(call.call(args).unwrap()).unwrap();
+        assert_eq!(first[0], first[1]);
+        assert_eq!(second[0], second[1]);
+        assert_ne!(first[0], second[0]);
+        let first_payload = Array::try_from(first[0].clone()).unwrap();
+        let second_payload = Array::try_from(second[0].clone()).unwrap();
+        assert_ne!(first_payload[1], second_payload[1]);
     }
 }
 

@@ -367,7 +367,7 @@ The following criteria govern the replacement:
 - Keep abrupt transfers under their existing owner. Introducing a helper must
   not hide an owning self tail call; eligible self tails in any output function
   still require common `while` lowering. This nonrecursive witness does not
-  complete the broader self-tail audit.
+  complete the [broader self-tail audit](self-tail-output.md).
 - Preserve the function's arity and existing source admission. Have JS and Rust
   render the common plan; do not teach each writer to rediscover the join.
 
@@ -421,6 +421,8 @@ graph and genuine-lazy checks. `recursiveFunction`/`resultBlock` still provide
 their restricted terminal-value fallback for other profiles. This is a source
 output extension, with no source-admission or optimizer change.
 
+The [self-tail output audit](self-tail-output.md) maps current routes, native
+witnesses, source refusals and the remaining shared-recipe recursion gap.
 Every self tail-call evaluation must serialize as a `while` transfer, including
 in generated helpers. Existing
 [tail eligibility](../edag/to_fast/README.md#tail-call-eligibility) covers selected
