@@ -83,11 +83,15 @@ literal occurrence at each use; arbitrary sharing of that identity-free tag is
 also outside the raw graph domain. Primitive captures and equivalent duplicate
 capture values can be compacted by canonical graph construction. Unused
 nonprimitive capture inputs remain eager and are preserved. Source output
-continues to refuse unused, primitive and duplicate frame layouts. These cases,
+continues to refuse unused, primitive and duplicate frame layouts. A source
+parse can turn an established sequence capture into a primitive frame, reaching
+that refusal on the next write; the
+[capture-normalization follow-up](source/todo/primitive-capture-normalization.md)
+tracks this boundary. These cases,
 redundant comma anchors and the pure lazy splitting above are excluded from a
-claim of raw graph identity. Their normalized graph and output text stabilize
-on subsequent conversions; their established values, failures and sharing are
-retained.
+claim of raw graph identity. Within the declared supported domains, normalized
+graphs and output text stabilize on subsequent conversions; established values,
+failures and sharing are retained.
 
 ## Tail-call eligibility
 
@@ -204,11 +208,13 @@ work is tracked under [general source profiles](source/loops/todo/general-source
 [`source`](source/module.f.mjs) is a separate source-spelling admission pass.
 It retains the parser's representability restrictions and consumes the common
 conversion's chosen definitions. It performs no second placement algorithm.
-Unshared operand-local commas have a value-block/IIFE spelling. Their first
-source parse can relocate safe anchors or compact equivalent capture slots;
-the resulting graph and source spelling then stabilize exactly. Shared commas
-outside canonical scopes remain refused. This extends source graph admission
-without adding source syntax.
+Operand-local commas have a value-block/IIFE spelling. Common placement can
+establish shared sequences as ordinary bindings, which source admission now
+accepts. Required work and repeated reads retain the same placement; remaining
+genuine lazy FAST definitions still require unsupported memo storage and are
+refused. Existing unshared-operand profiles retain their first-parse anchor and
+capture normalization and subsequent exact cycles. Shared-sequence admission
+adds no general graph/hash or fixed-point guarantee and no source syntax.
 Canonical JavaScript bytes now come from prepared FAST, so names, grouping and
 single-use temporary declarations may differ from the former direct graph
 writers. Code-only function text still treats frame slots as external values

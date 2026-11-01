@@ -161,9 +161,11 @@ Existing raw scalar fixtures retain their exact graph and source contracts.
 
 The newly retained general structured profiles have separate evidence for
 output parsing and execution. They do not yet have a general graph/hash or
-fixed-point contract. In particular, the parameterized `K(z)` join fixture emits
-valid source, but serializing its reparsed graph again is still refused with
-`a shared comma outside a scope`; the final graph validation remains in force.
+fixed-point contract. The parameterized `K(z)` join fixture emits valid source
+and its reparsed graph can be serialized again. Ordinary shared sequences that
+common FAST placement establishes as bindings are source-spellable; required
+work and repeated reads retain that placement. Remaining genuine lazy FAST
+definitions still fail source admission.
 
 Construction can omit an ordered redundant anchor suffix already demanded by
 the result. Discarded literal `undefined` anchors also normalize away: they

@@ -157,9 +157,8 @@ supplied normalized FAST fixture now executes through both public FJS source
 and code-only output, preserving the selected `m` and owning return. This does
 not admit the original source spelling. The separate
 [source-profile work](../edag/to_fast/source/loops/todo/general-source-profiles.md)
-also covers parameterized `K(z)` output; its first source output executes, but
-serializing the reparsed join again still meets a graph-validation refusal.
-These are different boundaries, not missing FAST control constructs.
+also covers parameterized `K(z)` output and serialization of its reparsed graph.
+Source admission and graph-to-source reconstruction remain separate boundaries.
 
 ### Cases 8–10: loop state, results and owning returns
 
@@ -287,8 +286,10 @@ The shared-tail, prefix, observed-rest and generated-helper fixtures now execute
 deep transfers through `while` in public source output as well as code-only
 output. Retaining a demanded-prefix graph does not admit genuine lazy FAST
 remaining in the source plan. New output profiles have no blanket graph/hash
-or fixed-point guarantee: the reparsed parameterized join is still refused with
-`a shared comma outside a scope`, while established canonical domains stay exact.
+or fixed-point guarantee. Ordinary shared sequences placed as bindings now
+reach public source output, including the reparsed parameterized join and the
+source-origin numeric terminal-loop join. Established canonical domains stay
+exact; remaining genuine lazy FAST definitions are still refused.
 
 The baseline output model uses immutable bindings and parameterized
 continuations for ordinary branches, with mutable state for `while` lowering.

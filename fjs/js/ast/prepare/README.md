@@ -278,8 +278,9 @@ multiple-result loops keep independent result slots and their logical result
 signatures. It adds no storage-reuse optimization or source grammar. The
 established canonical profiles retain their fixed-point contracts; newly
 retained shared-continuation profiles do not yet have a general graph/text
-fixed point. In particular, the reparsed `K(z)` join can still fail the final
-source graph check with `a shared comma outside a scope`.
+fixed point. Shared sequences established as ordinary bindings by common
+placement can reach source output, while remaining genuine lazy definitions
+retain the source admission pass's existing refusal.
 
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation

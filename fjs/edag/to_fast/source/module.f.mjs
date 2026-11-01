@@ -59,9 +59,9 @@ const captureReason = (a, index, node) => {
 /** The graph-specific restrictions which survive the common migration. @type {(a: Analysis, module: boolean) => string | null} */
 const graphReason = (a, module) => {
     const shared = new Set(a.shared)
-    /** @type {readonly { value: Operand, region: boolean, module: boolean }[]} */
-    let pending = [{ value: a.root, region: true, module }]
-    /** @type {readonly (readonly [number, boolean, boolean])[]} */
+    /** @type {readonly { value: Operand, module: boolean }[]} */
+    let pending = [{ value: a.root, module }]
+    /** @type {readonly (readonly [number, boolean])[]} */
     let seen = []
     while (pending.length !== 0) {
         const [current, ...rest] = pending
@@ -70,34 +70,33 @@ const graphReason = (a, module) => {
         const index = value[1]
         // Only shared entries can repeat a path; ordinary chains need no cache.
         if (shared.has(index)) {
-            if (seen.some(([i, region, module]) => i === index && region === current.region && module === current.module)) { pending = rest; continue }
-            seen = [...seen, [index, current.region, current.module]]
+            if (seen.some(([i, module]) => i === index && module === current.module)) { pending = rest; continue }
+            seen = [...seen, [index, current.module]]
         }
         const node = a.nodes[index]
         if (node[0] === 'args') { return 'a args node' }
         if (node[0] === 'memberPresent') { return 'an internal member-presence query' }
         if (node[0] === '+' && node.length === 2) { return 'a unary + node' }
         if (node[0] === ',') {
-            if (!current.region && !current.module && shared.has(index)) { return 'a shared comma outside a scope' }
             if (node[1].length < 2) { return 'a comma with fewer than two operands' }
             if (!current.module && node[1].slice(0, -1).some(value => value instanceof Array && ['rest', 'arg', 'frame', 'self'].includes(a.nodes[value[1]][0]))) { return 'an anchor that is a name' }
-            pending = [...node[1].map(value => ({ value, region: false, module: current.module })), ...rest]
+            pending = [...node[1].map(value => ({ value, module: current.module })), ...rest]
             continue
         }
         if (node[0] === '=>') {
             const why = captureReason(a, index, node)
             if (why !== null) { return why }
-            pending = [...node[2].map(value => ({ value, region: false, module: false })), { value: node[3], region: true, module: false }, ...rest]
+            pending = [...node[2].map(value => ({ value, module: false })), { value: node[3], module: false }, ...rest]
             continue
         }
         if (node[0] === '.' || node[0] === '?.' || node[0] === '?.()') {
             const head = node[0] === '?.()' ? null : keyReason(a, node[2], callStep(node[3]))
             if (head !== null) { return head }
             let lazy = node[0] !== '.'
-            /** @type {readonly { value: Operand, region: boolean, module: boolean }[]} */
+            /** @type {readonly { value: Operand, module: boolean }[]} */
             let children = [
-                { value: node[1], region: false, module: current.module },
-                ...(node[0] === '?.()' ? node[2].map(itemOperand) : keyValues(a, node[2])).map(value => ({ value, region: lazy, module: !lazy && current.module })),
+                { value: node[1], module: current.module },
+                ...(node[0] === '?.()' ? node[2].map(itemOperand) : keyValues(a, node[2])).map(value => ({ value, module: !lazy && current.module })),
             ]
             let step = node[3]
             while (step !== undefined) {
@@ -107,14 +106,14 @@ const graphReason = (a, module) => {
                     if (why !== null) { return why }
                 }
                 const values = step[0] === '|.' ? keyValues(a, step[1]) : step[1].map(itemOperand)
-                children = [...children, ...values.map(value => ({ value, region: lazy, module: !lazy && current.module }))]
+                children = [...children, ...values.map(value => ({ value, module: !lazy && current.module }))]
                 step = step[2]
             }
             pending = [...children, ...rest]
             continue
         }
         const lazy = node[0] === '?:'
-        pending = [...operandsOf(node).map((value, index) => ({ value, region: lazy && index !== 0, module: current.module && !(lazy && index !== 0) })), ...rest]
+        pending = [...operandsOf(node).map((value, index) => ({ value, module: current.module && !(lazy && index !== 0) })), ...rest]
     }
     return null
 }
