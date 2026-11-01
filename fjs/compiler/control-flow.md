@@ -1,0 +1,312 @@
+# Control-flow model and conversion audit
+
+This audit applies the [control-flow vocabulary](../todo/compiler-vocabulary-and-modularization.md#control-flow-vocabulary)
+across source syntax/admission, FAST, EDAG and target reconstruction.
+Representability does not imply source admission. Drafts
+[#3511](https://github.com/functionalscript/functionalscript/pull/3511) and
+[#3512](https://github.com/functionalscript/functionalscript/pull/3512) remain
+paused; their experiments do not change current admission.
+
+The [reference cases](../../doc/sergey/control-flow.md) are fragments. Admission
+checks add ordinary-function wrappers with explicit final returns. Cases 8/9
+already contain the corrected break result and initial invocation. Case 10
+adds a conditional loop. Implicit returns and source case fall-through remain
+outside admission.
+
+## Region inputs, results and owners
+
+The existing [FAST types](../js/ast/types.ts) provide the relevant constructs.
+Names below stand for binding or target identities, not printed identifiers.
+The pseudocode abbreviates an absent `else` as an empty, zero-result yield.
+
+| Construct | Inputs and normal results | Transfer ownership |
+| --- | --- | --- |
+| Ordinary function `F` | Parameters, rest and established captures are available to its body. Each invocation has fresh invocation-local values. | `return F(v)` finishes that invocation. A nested ordinary function has its own return owner. |
+| Expression/result block | Reads established bindings in scope; yields its declared ordered result signature. It creates no invocation. | An owning return or loop transfer can cross it; that path supplies no normal block results. |
+| Conditional | Evaluates its test once; the selected arm supplies the common normal result signature. An unchanged binding supplies its incoming version. | Abrupt arms bypass the join and following continuation. |
+| Loop `L` | Entry values initialize immutable iteration parameters. Input and exit-result signatures are independent. | `continue L(values)` supplies all next inputs simultaneously; `break L(values)` supplies its results and resumes after `L`. |
+| Source switch | Reads the discriminant and reached labels; case and no-match paths can carry updated outer bindings. | Its break owner differs from an enclosing loop's continue owner. Break-capable switches use a one-pass FAST loop; terminal switches lower directly to conditional value chains. |
+
+Lexical region inputs are established bindings, not extra formal parameters.
+Branch locals stay local; zero results differ from one `undefined` result.
+
+FAST records `yield`, function return, loop transfer and throw explicitly.
+EDAG encodes them through dependencies, conditionals, sharing and helper graphs,
+without new switch, loop or return operations. The
+[construction contract](../edag/from_fast/loops.md) specifies completion relay;
+[preparation](../js/ast/prepare/README.md) establishes all transfer operands
+before slot writes, so dependent updates read one old snapshot.
+
+Correctness preserves successful values, required failures, conditional
+evaluation, allocation sharing and invocation lifetimes. Under the
+[failure policy](../../spec/principles/README.md#failure-is-one-outcome), the
+first failure, its payload and prior work are not language observations and
+require no diagnostic-order barriers. Graph identity has its own normalization
+domain.
+
+## Audit of the reference cases
+
+The source-profile column describes the current parent implementation, with
+the explicit-return wrappers above. In particular, an ordinary function's
+conditional branches still use the terminating-guard grammar; loop bodies
+already admit normally completing conditional branches.
+
+| Case | Required normalized meaning | Current source profile |
+| --- | --- | --- |
+| 1. Conditional expression | Select `a` or `b` once and supply one result. | Admitted. |
+| 2. Expression blocks | Only the selected block establishes its local `x` or `y`; its result feeds `r0`. | Admitted for these immediate-call shapes. |
+| 3. Terminating guard | True returns `f()` from `F`; false reaches the following `g()` return. | Admitted. |
+| 4. Partly returning conditional | `x` stays local. The inner return exits `F`; both normal outer paths reach one following `c()` call. | Ordinary source branch rejected; supplied FAST can express the control flow. |
+| 5. Sequential reassignment | Keep `a0`, the established `f(a0)` result, and fresh `a1`; the suffix reads their respective versions. | Admitted. |
+| 6. Conditional reassignment | Join one `a1`: true supplies `a0 + 2`, false supplies `a0`; call `f(a1)` once afterward. | Ordinary source branch rejected; joins already exist in FAST and in source loop bodies. |
+| 7. Reassignment with an early return | Only normal paths join `z1`; the inner return skips the continuation using it. | Ordinary source branch rejected; supplied FAST expresses it. |
+| 8. Loop with break and continue | Loop state `(a,b)` and results `(a,b)` have explicit ordered signatures. Break supplies the updated `b`. | Admitted. |
+| 9. Loop with an owning return | A break supplies loop state to the suffix; `return m(a)` leaves `F` and bypasses that suffix. | Admitted. |
+| 10. Conditional loop | Test before each reached iteration, including zero iterations; false supplies the current loop state to the suffix. | Admitted with an explicit following function terminator. |
+
+### Cases 1–3: values, regions and a terminating guard
+
+Case 1 is a one-result conditional, represented by EDAG's `?:`. Case 2 adds
+arm-local definitions. Its IIFE can become a result region only under the
+immediate-call/capture rules: its return then yields the local result,
+without returning from the enclosing function. Case 3 instead exits `F`:
+
+```text
+if (a) { return F(f()) } else { yield() }
+return F(g())
+```
+
+Its value form is `a ? f() : g()` inside `F`; only false reaches `g`.
+[Guard proofs](parser/func.proof.f.mjs), `guards`, pin this graph shape.
+
+### Cases 4–7: one normal continuation and immutable versions
+
+Case 4 has two normally completing paths to a zero-input continuation
+`K() = c()`: outer false, or `f()` reached and `x.a()` false. Returning
+`x.b()` bypasses `K`. Establish `f()` once; repeating it can change the
+identities used by both member calls.
+
+Case 5 needs no join: establish `a0 = 0`, required `x = f(a0)`, then fresh
+`a1 = a0 + 1`, and return `F(g(a1) + x)`. Assignment changes the current
+version, not established `x`. Write/capture analysis precedes normalization.
+
+Case 6 adds a one-result join, followed by one call:
+
+```text
+required a0 = 0
+a1 = if (b) { yield(a0 + 2) } else { yield(a0) }
+return F(f(a1))
+```
+
+The alternative `b ? shared(a0 + 2) : shared(a0)` may agree in execution;
+aliasing `f` does not make its two calls one graph node.
+
+In Case 7 the continuation has a real input:
+
+```text
+K(z) = c(z + 5)
+
+required z0 = 0
+z1 = if (a) {
+    required x = f()
+    if (x.a()) { return F(x.b()) } else { yield() }
+    yield(z0 + x.c())
+} else {
+    yield(z0)
+}
+return F(K(z1))
+```
+
+`K` denotes the suffix, not a required function allocation. A helper can pass
+immutable `z` without capturing mutable outer state or branch-local `x`.
+Multiple helper calls need a sharing argument beyond result equality.
+
+### The nested `m` example
+
+The same rule applies to the task owner's variant:
+
+```js
+if (a) {
+    const x = f()
+    m = x.a
+    if (x.b) { return x.c }
+}
+return g(m)
+```
+
+Inside owner `F`, its input is `m0` and its normal result is `m1`:
+
+```text
+m1 = if (a) {
+    required x = f()
+    required m2 = x.a
+    if (x.b) { return F(x.c) } else { yield() }
+    yield(m2)
+} else {
+    yield(m0)
+}
+return F(g(m1))
+```
+
+The returning path still requires `x.a`: deleting its failure could invent a
+successful return. This does not expose the first failure. Only normal paths
+supply `m1`; the returning arm supplies no placeholder.
+
+Current source grammar rejects the outer normally completing branch. The
+paused conditional-admission draft reaches FAST and EDAG for it; the separate
+[source-profile investigation](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+records a target-source refusal of the factored continuation. These are
+different boundaries. The output limitation is not evidence that FAST lacks
+the required result-bearing conditional or owning return.
+
+### Cases 8–10: loop state, results and owning returns
+
+Case 8's corrected transfer structure is:
+
+```text
+(ra, rb) = loop L(a = 0, b = 1) -> (ra, rb) {
+    if (x(b)) { break L(a, b + 1) } else { yield() }
+    if (x(a)) { continue L(a + 2, b) } else { yield() }
+    continue L(a + b, b + 1)
+}
+return F(c(rb, ra))
+```
+
+Break carries updated `b + 1`. Continue skips the suffix and snapshots every
+next operand before slot writes. The recursive sketch illustrates the state;
+it does not itself establish bounded-stack JavaScript execution.
+
+Case 9 has two distinct exits:
+
+```text
+ar = loop L(a = 0) -> (ar) {
+    required a1 = a + 1
+    if (x(a1)) { break L(a1) } else { yield() }
+    required a2 = a1 + 1
+    if (x(a2)) { return F(m(a2)) } else { yield() }
+    continue L(a2 + 1)
+}
+return F(c(ar))
+```
+
+The `m` path leaves `F`; only break reaches `c`. The reference includes
+`return loop0(0)`. Moving `c` into a helper is an encoding choice that must
+preserve owners, evaluation regions and sharing, not the meaning of break.
+
+Case 10 tests on entry and after each continue, including zero iterations.
+If an admitted condition expression updates bindings, their latest versions
+survive both true and false exits. Its fragment needs an explicit final return
+when wrapped as a function.
+
+Existing [source-loop proofs](../edag/to_fast/source/loops/proof.f.mjs),
+`sourceLoopTransfersKeepStateAndFirstParseFixedPoints` and
+`sourceFunctionExitsKeepTheirOwnersAndFirstParseFixedPoints`, cover transfers,
+owning returns, nested loops and wide state signatures. The shared
+[sugar proofs](../js/ast/sugar/proof.f.mjs) separately cover state selection,
+conditional joins inside loop bodies, fresh snapshots and required failures.
+
+## Switch dispatch, execution and transfer owners
+
+Dispatch evaluates the discriminant once, then reached labels in source order
+using strict equality until the first match. Skip later labels after a match.
+No match selects default, or normal exit when absent. In general JavaScript,
+default's written position does not stop the label search. Reached expression
+updates flow to the selected body or no-match continuation.
+
+Execution starts at the selected body. Normal completion enters the next body
+without testing its label; the final normal end exits the switch. Break exits
+its switch, continue targets the enclosing loop, and return leaves its function.
+
+These general rules do not expand [current switch admission](../../spec/control-flow/switch/README.md):
+
+- Outside loops, braced cases terminate. A final default makes the switch
+  terminate the function body; without one, the no-match path reaches the
+  following function-body terminator.
+- Inside loop bodies, every case path exits explicitly. Break supplies the
+  switch's normal results; continue belongs to the enclosing loop. Existing
+  normalization uses a one-pass FAST loop with a distinct switch target `S`.
+- Source fall-through, non-final default and direct module-level switch remain
+  outside the current admitted profile.
+
+For an enclosing loop `L` and function `F`, the owners remain distinct:
+
+```text
+break S(values)     -> resume after switch S
+continue L(values)  -> start the next iteration of L
+return F(value)     -> finish F
+```
+
+Unmatched dispatch can break `S` with unchanged incoming values. A matched
+case can instead supply its changed outer versions. A nested loop's break
+belongs to that loop, not `S`. Neither a keyword search nor an invented
+ordinary function for each case establishes these relationships.
+
+General fall-through needs explicit case-entry edges. In
+`case 0: m += 1; case 1: m += 2; break; default: m += 3`, dispatch to case 0
+passes its updated `m` into case 1; dispatch directly to case 1 supplies the
+incoming `m`. The common exit receives `(m0 + 1) + 2`, `m0 + 2`, or `m0 + 3`
+respectively for case 0, case 1 and no match. Preserve those operations rather
+than assuming arithmetic reassociation. The current
+corpus can build such control flow directly in FAST; automatic source
+fall-through admission and the source-to-FAST encoding are separate work.
+
+## Source boundaries and reconstruction gaps
+
+The [source representation](../js/ast/sugar/source.ts) stores returns in both
+`SourceStatement` and `SourceExit`. Parser `closed`/`internalReturn` and sugar
+`normalizedExit`, `functionValue` and immediate-call handling depend on that
+distinction. Statement returns stay abrupt; terminal value exits can yield
+before restoring or safely eliminating the function boundary. Specify that
+mapping explicitly: storage position must not silently change return ownership.
+
+Immediate calls retain their invocation until safe elimination. Existing
+[binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
+and `expressionBlockAssignmentBoundaries`, admit some enclosing writes and
+refuse boundary-requiring captures. This permission stays; parameterized
+continuations neither replace it nor generally authorize mutable captures.
+
+Source `recursiveFunction`/`resultBlock` reconstruct a terminal value profile
+that can refuse structured normal joins and a shared suffix. Common preparation
+can otherwise render those steps. Retaining structured FAST is a prototype
+proposal, not an agreed blanket fallback; scope, demand, owner and identity
+checks remain.
+
+Every self tail-call evaluation must serialize as a `while` transfer, including
+in generated helpers. Existing
+[tail eligibility](../edag/to_fast/README.md#tail-call-eligibility) covers selected
+profiles; current recursive fallbacks that retain self tail calls are gaps
+against the target contract. Non-tail uses, ordinary recursive identity and
+invocation-local memo lifetimes still matter; profile extensions do not make
+arbitrary calls loop transfers.
+
+The baseline output model uses immutable bindings and parameterized
+continuations for ordinary branches, with mutable state for `while` lowering.
+Broader use of mutable output variables is an optional future optimization;
+it is not required to represent normal joins. The host corpus's
+`expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
+without `let` or `while`. Other supplied result-bearing conditionals can use
+physical join slots in current common preparation; audit the actual profile.
+Replacing those slots must preserve owners, selected evaluation and observable
+sharing, while helper insertion may change the graph's shape. This baseline
+does not change source assignment admission or declare existing slot output
+semantically incorrect.
+
+Reusing storage after a variable's last use and other mutable-variable
+optimizations are out of scope. This work targets correct generated programs
+and self-tail execution without recursive stack growth, including generated
+helpers.
+
+## Conformance evidence and remaining gates
+
+| Corpus | What it establishes |
+| --- | --- |
+| [Parser/source](parser/control_flow.proof.f.mjs) | Six groups pin ordinary-if syntax limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. |
+| [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
+| [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. The exact supplied nested-join and parameterized-continuation FAST fixtures also execute through the general code-only writer. A supplied shared-tail graph separately records its explicit source-output refusal. |
+
+Result equality does not establish graph identity. Source parsing, graph/source
+reconstruction and native target execution remain separate gates; Rust text is
+not native Rust execution. Normalization domains and subsequent fixed points
+follow the [architecture contract](./architecture.md#graph-and-output-contracts).
+The next step must name its boundary, preserve explicit returns and sharing,
+and expose unsupported profiles without introducing another serializer model.
