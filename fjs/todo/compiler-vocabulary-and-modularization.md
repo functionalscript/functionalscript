@@ -990,8 +990,12 @@ parts do not delay the epic's foundation gate:
       on the default JavaScript/Rust graph route. Restore the owning returns
       and required entry snapshots, then use the immutable continuation.
       Preserve backedges, scoped binding collisions and unsupported profiles;
-      verify deep genuine loops and self-tail execution. Public FJS source
-      reconstruction remains separate.
+      verify deep genuine loops and self-tail execution.
+- [x] Emit the canonical immutable joins through public FJS source output.
+      Use source-compatible terminating guards and the shared recovery profile;
+      normal or inverted inner decisions retain their existing invocation loop.
+      Verify parser readback, execution and reserialization for `K(z)` and
+      nested `m`. Genuine self-tail recursion still requires `while` output.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
@@ -1000,10 +1004,9 @@ parts do not delay the epic's foundation gate:
       belong to optional future optimization rather than the core model.
       Remove redundant control-flow bridges
       with their consumers once the corpus demonstrates the replacement.
-      The direct and default graph-route `parameterizedJoin` profiles are
-      implemented above. The public source profile still retains its wrapper
-      until source-compatible reconstruction covers the exposed join. Keep
-      the owning early return outside the private continuation and use the
+      The direct, default graph-route and public source `parameterizedJoin`
+      profiles are implemented above. Broader source reconstruction keeps
+      the owning early return outside the private continuation and uses the
       existing nested `m` and `K(z)` semantic corpus.
 - [ ] Audit self tail calls in every output function, including generated
       helpers, and replace fallbacks that retain self tail calls with common

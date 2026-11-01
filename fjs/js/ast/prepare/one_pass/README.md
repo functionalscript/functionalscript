@@ -1,6 +1,6 @@
 # One-pass invocation joins
 
-`_recoverOnePassJoin(function)` matches the existing canonical invocation-root
+`_recoverOnePassJoin(function, guardsOnly = false)` matches the existing canonical invocation-root
 profile: one loop result is returned immediately by its owning function, and
 loop entry values follow the function's established input bindings. It reuses
 the invocation resolver to restore statement-level breaks as owning returns.
@@ -30,6 +30,16 @@ The reused invocation-root helpers consume normalized FAST only; their existing
 `edag/from_fast` location introduces no graph analysis here. Relocating that
 shared API belongs to the compiler architecture work.
 
-Common preparation uses this profile for default JavaScript and Rust output.
-The FJS source profile keeps its current loop reconstruction and readback domain;
-this pass does not extend source syntax or graph/text identity guarantees.
+Common preparation uses this profile for JavaScript, Rust and public FJS source
+output. The JavaScript renderer spells empty alternatives as guards so the
+canonical joins parse through the existing FJS grammar. Genuine source loops
+keep their existing state/result layouts. This extends the supplied source
+output profile without extending source syntax or graph/text identity guarantees.
+
+Source preparation selects the guard-only subset: every moved decision has an
+empty normally completing alternative and a then block ending in an explicit
+return or throw, with the same rule for nested guards. Normal inner decisions,
+inverted guards and nonempty alternatives retain the original invocation loop.
+Default JavaScript and Rust keep the broader existing join profile. This check
+chooses whether to remove the source loop; it does not introduce another join
+lowering or revalidate producer-established owners and result arities.

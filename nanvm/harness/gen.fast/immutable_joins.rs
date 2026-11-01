@@ -17,7 +17,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
 
         }
         Any::call(_b0_3.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
-    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=($4)=>$2($4+5);if($0){if($1){return 42;}else{}return $3(3);}else{}return $3(0);}")).to_any()), (string_key("nested"), A::static_function(|_self, _args| {
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=($4)=>$2($4+5);if($0){if($1){return 42;}return $3(3);}return $3(0);}")).to_any()), (string_key("nested"), A::static_function(|_self, _args| {
         let _b0_9: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [_args.argument(0)].to_array().to_any()) }, 1, [_args.argument(3)].to_array(), Some("($1)=>$0($1)")).to_any();
         if Any::<A>::to_boolean(_args.argument(0)) {
             let _b0_11: Any<A> = (Any::call(_args.argument(2), Array::default().to_any()))?;
@@ -30,7 +30,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
 
         }
         Any::call(_b0_9.clone(), [_args.argument(1)].to_array().to_any())
-    }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=($5)=>$3($5);if($0){const $6=$2();const $7=$6.a;if($6.b){return $6.c;}else{}return $4($7);}else{}return $4($1);}")).to_any()), (string_key("graphParameterizedJoin"), {
+    }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=($5)=>$3($5);if($0){const $6=$2();const $7=$6.a;if($6.b){return $6.c;}return $4($7);}return $4($1);}")).to_any()), (string_key("graphParameterizedJoin"), {
         let _b8: Any<A> = A::static_function(|_self, _args| {
             let _b337_17: Any<A> = _args.argument(0);
             let _b338_18: Any<A> = _args.argument(1);
@@ -45,7 +45,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
 
             }
             Any::call(_b0_20.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
-        }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;const $6=($7)=>$5($7+5);if($3){if($4){return 42;}else{}return $6(3);}else{}return $6(0);}")).to_any();
+        }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;const $6=($7)=>$5($7+5);if($3){if($4){return 42;}return $6(3);}return $6(0);}")).to_any();
         _b8.clone()
     }), (string_key("graphNested"), {
         let _b13: Any<A> = A::static_function(|_self, _args| {
@@ -66,7 +66,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
 
             }
             Any::call(_b0_31.clone(), [_b613_28.clone()].to_array().to_any())
-        }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;const $8=($9)=>$7($9);if($4){const $10=$6();const $11=$10.a;const $12=$11;if($10.b){return $10.c;}else{}return $8($11);}else{}return $8($5);}")).to_any();
+        }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;const $8=($9)=>$7($9);if($4){const $10=$6();const $11=$10.a;const $12=$11;if($10.b){return $10.c;}return $8($11);}return $8($5);}")).to_any();
         _b13.clone()
     }), (string_key("operation"), A::static_function(|_self, _args| {
         let _b0_37: Any<A> = [_args.argument(0)].to_array().to_any();
