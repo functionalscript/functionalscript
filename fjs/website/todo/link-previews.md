@@ -50,6 +50,9 @@ what a crawler fetches.
   that opens with a bold label ending in a colon, such as
   `**Status:** implemented`, which opens most READMEs under `spec/`. A
   directory without a README, and the root page, use one site-wide tagline.
+  Pages that are not a directory's have no README to read: a release's page
+  names its version, the release index says it lists every release, and the
+  CLI, pull-requests and Rust API index pages use the tagline.
 - **The rustdoc pages.** `rustdocHead` is the same on every rustdoc page, so
   it can carry only the tags that do not vary by page: `og:site_name`,
   `og:type`, `twitter:card` and, where the build knows its origin,
