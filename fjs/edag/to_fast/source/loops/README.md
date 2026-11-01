@@ -10,6 +10,14 @@ eligibility, value placement, source-write analysis or mutable-state selection.
 slots, simultaneous transfers, immutable snapshots and invocation lifetimes.
 The serializers render that prepared plan.
 
+Before checking loop profiles, the coordinator reuses shared
+[normal-result forwarding](../../../../js/ast/results/README.md). A one-result
+statement block containing only a one-result conditional and an exact yield of
+that result becomes the same conditional with the outer result binding. The
+test, branch scopes and abrupt owners stay unchanged. This admits canonical
+independent-recipe selector regions through existing loop syntax, without
+admitting general statement blocks or relaxing lazy/nonlocal restrictions.
+
 Source output is a partial API. Its domain is narrower than code-only
 JavaScript/function text and Rust, which consume the general prepared loop.
 This distinction does not restrict the admitted source loop grammar in the

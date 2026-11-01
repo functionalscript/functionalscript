@@ -130,8 +130,11 @@ same invocation-local value. Loop re-entry must recreate iteration-local storage
 
 The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
 now use bounded common loop planning for general JS/function text and Rust.
-Public source still refuses their structured selection region. Source admission
-is unchanged, and parser readback remains a separate extension gate. The
+Shared result forwarding now exposes their scalar, vector and selected-failure
+selectors as existing source conditionals. Those profiles pass parser readback,
+deep native execution and reserialization. The snapshot graph retains genuine
+lazy placement and its explicit refusal. General statement blocks and nonlocal
+profiles keep their existing restrictions. The
 [output audit](../../../../../compiler/self-tail-output.md) distinguishes these
 routes and the existing one-pass source reconstruction evidence.
 
@@ -152,6 +155,9 @@ fallback; non-reifiable forms retain the explicit `Result` error
 - [x] Admit shared sequences established as ordinary bindings by common
       placement, including the reparsed `K(z)` and source-origin numeric joins,
       while preserving reached work and sharing.
+- [x] Reuse shared normal-result forwarding to emit canonical independent-recipe
+      selectors through existing source loop syntax; prove readback and deep
+      execution while retaining genuine-lazy refusals.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner

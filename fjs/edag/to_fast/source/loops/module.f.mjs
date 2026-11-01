@@ -16,6 +16,7 @@ import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
 import { exitValues } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.js'
+import { _forwardResult } from '../../../../js/ast/results/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
 
 /** @type {<T>(value: T) => Task<T>} */
@@ -158,7 +159,7 @@ const valueTask = source => call(/** @type {() => Task<Value>} */ (() => {
 /** @type {(source: Statement) => Task<Statement>} */
 const statementTask = source => call(/** @type {() => Task<Statement>} */ (() => {
     if (source[0] === 'define') { return bind(valueTask(source[2]), value => done(value === source[2] ? source : ['define', source[1], value, source[3]])) }
-    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(block === source[2] ? source : ['block', source[1], block])) }
+    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(_forwardResult(block === source[2] ? source : ['block', source[1], block]))) }
     if (source[0] === 'if') {
         return bind(valueTask(source[2]), test => bind(blockTask(source[3]), then => bind(blockTask(source[4]), otherwise =>
             done(test === source[2] && then === source[3] && otherwise === source[4] ? source : ['if', source[1], test, then, otherwise]))))

@@ -1,7 +1,8 @@
 /**
  * Independent shared tail recipes cross all three JavaScript output boundaries.
  * Native execution establishes bounded stack use, argument snapshots and escaped
- * allocation identity; public FJS source retains its explicit admission limit.
+ * allocation identity. Admitted public FJS selectors also cross source readback;
+ * genuine lazy snapshot graphs retain their explicit admission boundary.
  * @import { Exp } from '../../../edag/types.ts'
  */
 
@@ -19,6 +20,8 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { stringify as valueStringify } from './module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
+import { parse } from '../../source/module.f.mjs'
 
 /** @type {(source: string) => Promise<any>} */
 const load = async source => (await import(`data:text/javascript,${encodeURIComponent(source)}`)).default
@@ -36,13 +39,25 @@ const hasWhile = source => {
  * @type {(graph: Exp) => Promise<readonly ((...args: readonly unknown[]) => any)[]>}
  */
 const outputs = async graph => {
-    assertError(tryStringify(graph))
     const table = assertOk(identityAnalysis(graph))
     const code = javascript(prepare(fromAnalysis(table)), 'module', true)
     const value = valueStringify(assertOk(memo(table)({ args: [] })))
     const fn = assertOk(tryFunctionText(graph))
     for (const text of [code, value, fn]) { hasWhile(text) }
     return [await load(code), await load(value), Function(`"use strict";return (${fn});`)()]
+}
+
+/** @type {(source: string) => Exp} */
+const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/independent-source-tail.f.mjs')(source))).edag)
+
+/** Both source generations must parse under the unchanged FJS grammar.
+ * @type {(graph: Exp) => readonly string[]}
+ */
+const sourceGenerations = graph => {
+    const first = assertOk(tryStringify(graph))
+    const second = assertOk(tryStringify(sourceGraph(first)))
+    sourceGraph(second)
+    return [first, second]
 }
 
 export const proof = /** @type {const} */ ({
@@ -110,5 +125,58 @@ export const proof = /** @type {const} */ ({
             assertEq(base[2](), base[0])
             assert(base[0] !== first[0])
         }
+    },
+    independentSourceSelectorsKeepDeepLoopsAcrossReadback: async () => {
+        for (const source of sourceGenerations(_independentTailRecipes().scalar)) {
+            hasWhile(source)
+            const apply = await load(source)
+            assertEq(apply.length, 2)
+            for (const flag of /** @type {const} */ ([false, true])) {
+                assertEq(apply(0, flag), 0)
+                assertEq(apply(2, flag), 0)
+                assertEq(apply(100_001, flag), 0)
+            }
+        }
+    },
+    sourceRecipeVectorsKeepOpaqueInputsAndFreshResultsAcrossReadback: async () => {
+        const left = /** @type {const} */ ([1])
+        const right = /** @type {const} */ ([2])
+        const readLeft = () => left
+        const readRight = () => right
+        for (const source of sourceGenerations(_independentTailRecipes().vectors)) {
+            hasWhile(source)
+            const apply = await load(source)
+            assertEq(apply.length, 4)
+            const unchanged = apply(2, false, left, right)
+            const swapped = apply(2, true, left, right)
+            assertEq(unchanged[0], left)
+            assertEq(unchanged[1], right)
+            assertEq(swapped[0], right)
+            assertEq(swapped[1], left)
+            assert(unchanged !== apply(2, false, left, right))
+            for (const flag of /** @type {const} */ ([false, true])) {
+                const deep = apply(100_001, flag, readLeft, readRight)
+                assertEq(deep[0], readRight)
+                assertEq(deep[1], readLeft)
+                assertEq(deep[0](), right)
+                assertEq(deep[1](), left)
+            }
+        }
+    },
+    sourceSelectorsKeepRequiredArgumentFailuresOnTheirChosenPath: async () => {
+        for (const source of sourceGenerations(_independentTailRecipes().selectedFailure)) {
+            hasWhile(source)
+            const apply = await load(source)
+            assertEq(apply.length, 3)
+            assertEq(apply(0, false, true), 0)
+            assertEq(apply(0, true, true), 0)
+            assertEq(apply(1, false, true), 0)
+            throws(() => apply(1, true, true))
+            assertEq(apply(100_001, false, false), 0)
+            assertEq(apply(100_001, true, false), 0)
+        }
+    },
+    genuineLazySnapshotGraphsKeepTheirPublicSourceRefusal: () => {
+        assertError(tryStringify(_independentTailRecipes().snapshots))
     },
 })

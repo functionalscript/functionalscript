@@ -143,6 +143,10 @@ nonexclusive dependencies remain outside the selection region, visible to both
 selection and continuation; exclusive dependencies stay with their recipe.
 The [shared fixtures](tail/fixtures.f.js) cover interleaved calls, distinct
 argument vectors, selected failures and creating-invocation captures.
+The common join walk also removes a sole conditional's exact result-forwarding
+wrapper using shared [normal-result forwarding](../../js/ast/results/README.md).
+Its test and arms retain their scopes and transfer owners. Source coordination
+reuses the same rewrite before checking its existing loop profiles.
 
 After tail-control placement, [`join`](join/module.f.mjs) recovers normal
 statement results selected by the same established test. A residual value, or
