@@ -79,6 +79,15 @@ check. These successful shared-sequence profiles establish no general graph
 identity, stable hash or graph/text fixed-point guarantee. The established
 canonical profile contracts remain unchanged.
 
+The [deferred-tail fixtures](../../../../from_fast/deferred_tail_calls/fixtures.f.mjs)
+also retain two existing public-source limits: `nestedRecipe` and `normalPayload`.
+Their general JavaScript and Rust output executes deep owning tail transitions,
+but source output still refuses their remaining lazy placement. The
+[native proof](../../../../../compiler/serializer/value/deferred_tail_calls.proof.mjs)
+records that current admission boundary without requiring a particular error
+payload. Supporting these source profiles is separate from carrying tail
+completions through memo getters.
+
 ### A demanded lazy terminal prefix
 
 `lazyTerminalPrefixesRetainTheirInvocationLoops` constructs a canonical

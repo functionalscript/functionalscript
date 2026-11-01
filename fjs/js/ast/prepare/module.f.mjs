@@ -320,7 +320,7 @@ const values = (input, context, snapshots = []) => {
 
 /** @type {(value: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
 const functionValue = (value, context) => call(() => {
-    const normalized = normalizeLazyReturns(value.body, value.target)
+    const normalized = normalizeLazyReturns(value.body, value.target, value.self)
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
         && root !== undefined && root[0] === 'loop' ? root[1].target : null

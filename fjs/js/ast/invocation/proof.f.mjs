@@ -5,7 +5,7 @@ import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
 import { toData } from '../../../edag/value/to_unknown/module.f.mjs'
-import { _invocationTransition, _restArguments, _restTransition } from './module.f.js'
+import { _invocationTransition, _isSelf, _restArguments, _restTransition } from './module.f.js'
 
 const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
 const first = /** @type {const} */ ({ index: 0 })
@@ -23,6 +23,18 @@ const runTransition = transition => {
 }
 
 export const proof = /** @type {const} */ ({
+    selfAliasesUseResolvedBindingIdentity: () => {
+        const sameIndex = /** @type {const} */ ({ ...first })
+        assert(_isSelf(['ref', first], [first, second]))
+        assert(_isSelf(['ref', second], [first, second]))
+        assert(!_isSelf(['ref', sameIndex], [first, second]))
+        assert(!_isSelf(['ref', first], []))
+        /** @type {readonly Value[]} */
+        const others = [0, null, ['array', [['ref', first]]]]
+        for (const value of others) {
+            assert(!_isSelf(value, [first]))
+        }
+    },
     fixedCallsPadMissingValuesAndPreserveArrayArguments: () => {
         assertStructurallySame(_invocationTransition(0, [], target), { statements: [], exit: ['continue', target, []] })
         const missing = runTransition(_invocationTransition(2, [0], target))

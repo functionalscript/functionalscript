@@ -291,6 +291,15 @@ reach public source output, including the reparsed parameterized join and the
 source-origin numeric terminal-loop join. Established canonical domains stay
 exact; remaining genuine lazy FAST definitions are still refused.
 
+Supplied FAST can also return from its owning function during a lazy
+initializer's first demand. Memo getters transport an owning self tail call as
+evaluated arguments in a private completion, rather than invoking the owner
+recursively. Nested getters forward that completion; the owner restores the
+direct self return before invocation-loop normalization. The deferred-tail
+fixtures execute this path deeply in JavaScript and Rust. Their nested-recipe
+and shared normal-payload profiles retain their existing FJS-source output
+limits; general target execution does not widen source admission.
+
 The baseline output model uses immutable bindings and parameterized
 continuations for ordinary branches, with mutable state for `while` lowering.
 Broader use of mutable output variables is an optional future optimization;
@@ -315,6 +324,7 @@ helpers.
 | [Parser/source](parser/control_flow.proof.f.mjs) | Six groups pin ordinary-if syntax limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. |
 | [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
+| [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.mjs) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. |
 
 Result equality does not establish graph identity. Source parsing, graph/source
 reconstruction and native target execution remain separate gates; Rust text is

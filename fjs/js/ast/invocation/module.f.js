@@ -9,6 +9,9 @@
 /** @type {(value: Value, binding: BindingId) => boolean} */
 const names = (value, binding) => value instanceof Array && value[0] === 'ref' && value[1] === binding
 
+/** Immutable lexical aliases can name the same function owner. @type {(value: Value, aliases: readonly BindingId[]) => boolean} */
+export const _isSelf = (value, aliases) => value instanceof Array && value[0] === 'ref' && aliases.includes(value[1])
+
 /**
  * The fixed projections of the rest array: `[0]` to `[length - 1]` of
  * the binding, in order.

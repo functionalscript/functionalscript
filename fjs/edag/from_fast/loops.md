@@ -99,9 +99,9 @@ normal result. JavaScript and Rust both lower the recovered recursion to
 
 This normalization follows memo lowering. Current source computed initializers
 are required; source lazy declarations are reference aliases. Genuine lazy
-FAST initializer recipes can hide owning self calls earlier in memo lowering;
-that separate [deferred-tail case](./loop/todo/deferred-owning-self-tail-calls.md)
-still needs function-owned tail transport.
+FAST initializers use memo's private tail completion to carry evaluated
+arguments through getter helpers. Only the owning demand restores the direct
+self call, so invocation normalization sees it before loop-helper extraction.
 
 [Canonical invocation roots](./loop/root/README.md) reuse the enclosing function
 only for exact entry aliases, a matching invocation transition and one direct

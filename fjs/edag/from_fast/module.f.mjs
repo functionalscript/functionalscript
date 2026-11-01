@@ -430,7 +430,7 @@ const lowerValues = (input, context) => {
 const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
-    const memoized = normalizeMemo(lifted, [], source.target)
+    const memoized = normalizeMemo(lifted, [], source.target, source.self)
     const owning = _owningTailCalls(memoized === source.body ? source : { ...source, body: memoized })
     const prepared = owning.fn
     const originalScalar = rootLoopOf(prepared)
