@@ -512,6 +512,16 @@ export const proof = {
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
         },
+        // A pasted link's card names the page and the site, from the static
+        // page alone.
+        previewMeta: () => {
+            const html = pageHtml({ ...empty, path: 'fjs' })
+            assert(html.includes(
+                '<meta property="og:site_name" content="FunctionalScript">'
+                + '<meta property="og:type" content="website">'
+                + '<meta property="og:title" content="fjs · FunctionalScript">'
+                + '<meta name="twitter:card" content="summary">'), html)
+        },
         // A demo stays in main while the catalogue lives beside it.
         carriesADemo: () => {
             const html = pageHtml({ ...empty, path: 'a', files: ['demo.f.mjs'], demo: { path: '/a/demo.f.mjs', view: null } })

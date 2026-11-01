@@ -56,6 +56,15 @@ what a crawler fetches.
 - **Proof.** Extend [`../proof.f.mjs`](../proof.f.mjs) to check that a page
   carries the tags with its own title, description and absolute URL.
 
+### Steps
+
+- [x] Title tags in `shell`: `og:site_name`, `og:type`, `og:title` and
+  `twitter:card` (`summary`), so a pasted link shows the page's title.
+- [ ] A description for each page: `description` and `og:description`.
+- [ ] An `origin` on `Build`, and `og:url`.
+- [ ] A raster preview image: `og:image`, and `twitter:card` becomes
+  `summary_large_image`.
+
 ### Verification
 
 After deploying, check a few pages with a preview debugger, such as

@@ -666,6 +666,28 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 ]]
 
 /**
+ * The `<meta>` tags a chat or a social network reads to build the card it
+ * shows for a pasted link: the page's title and the site it belongs to.
+ *
+ * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
+ * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
+ * too, but shows no card without `twitter:card`. `summary` is the small card,
+ * the one that needs no image.
+ *
+ * **In the static page, because a crawler runs no script.** Every tag here
+ * is in the HTML the build writes, so the card needs nothing from the
+ * runtime.
+ *
+ * @type {(title: string) => readonly Element[]}
+ */
+export const previewMeta = title => [
+    ['meta', { property: 'og:site_name', content: siteName }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: title }],
+    ['meta', { name: 'twitter:card', content: 'summary' }],
+]
+
+/**
  * The frame every page of the site shares: its `<head>`, its {@link header}
  * and its {@link footer}, around the page's own content.
  *
@@ -685,6 +707,7 @@ export const shell = build => title => content => htmlDocument(lang)(
     ['title', title],
     // OAuth callback parameters must not become subresource referrers.
     ['meta', { name: 'referrer', content: 'no-referrer' }],
+    ...previewMeta(title),
     stylesheetLink,
     ...faviconLinks,
     earlyInputCapture,
