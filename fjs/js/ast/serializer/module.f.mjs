@@ -22,6 +22,8 @@ import { _name as symbol, _binding as declaration, _resolve as resolve } from '.
 import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'
 import { isIntrinsic } from '../../../edag/module.f.mjs'
+import { maxLength } from '../../../types/function/length/module.f.js'
+import { assertNotNullish } from '../../../asserts/module.f.js'
 
 const keyword = tagged('keyword')
 
@@ -111,6 +113,9 @@ const contextFor = (ids, syntax, runtime, external) => {
     const captureAliases = functions.map(fn => /** @type {const} */ ([fn, fn.captures.map((_, index) => ({ index }))]))
     return { ids: [...new Set([...ids, ...captureAliases.flatMap(([, bindings]) => bindings)])], ...syntax, captureAliases, runtime, aliases: [], binding: null, external }
 }
+
+/** @type {(context: Context, fn: PreparedFunction) => readonly BindingId[]} */
+const captureLocals = (context, fn) => assertNotNullish(context.captureAliases.find(([owner]) => owner === fn))[1]
 
 /** @type {(context: Context, id: BindingId) => string} */
 const name = (context, id) => {
@@ -340,19 +345,19 @@ const blockExpression = (context, input) => {
 /** @type {(context: Context, fn: PreparedFunction) => string} */
 const functionText = (context, fn) => {
     const references = fn.captures.flatMap(capture => capture.value instanceof Array && capture.value[0] === 'ref' ? [capture.value[1]] : [])
-    const captured = context.runtime && !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
+    const captured = !context.external && (references.length !== fn.captures.length || new Set(references).size !== references.length)
     const aliases = captured || context.external ? context.aliases : [
         ...context.aliases,
         ...fn.captures.map(capture => /** @type {const} */ ([capture.binding, /** @type {readonly ['ref', BindingId]} */ (capture.value)[1]]))
             .filter(([binding, source]) => binding !== source),
     ]
-    const self = fn.self === null || context.binding === null || context.runtime ? [] : [/** @type {const} */ ([fn.self, context.binding])]
+    const self = fn.self === null || context.binding === null || context.runtime || captured ? [] : [/** @type {const} */ ([fn.self, context.binding])]
     let inner = { ...context, aliases: [...aliases, ...self], binding: null, external: false }
     const params = [...fn.parameters.map(id => declared(inner, id)), ...fn.rest === null ? [] : [`...${declared(inner, fn.rest)}`]].join(',')
     let preface = ''
-    if (!context.runtime && fn.captures.length > 1) {
+    if (!context.runtime && !captured && fn.captures.length > 1) {
         const before = inner
-        const locals = /** @type {readonly [PreparedFunction, readonly BindingId[]]} */ (context.captureAliases.find(([owner]) => owner === fn))[1]
+        const locals = captureLocals(context, fn)
         inner = { ...inner, aliases: [...inner.aliases.filter(([from]) => !fn.captures.some(capture => capture.binding === from)), ...fn.captures.map((capture, index) => /** @type {const} */ ([capture.binding, locals[index]]))] }
         preface = fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, locals[index])}=${name(before, capture.binding)};`).join('')
     }
@@ -363,7 +368,16 @@ const functionText = (context, fn) => {
         ? `(${keyword('function')} ${declared(inner, fn.self)}(${params}){${preface}${blockText(inner, fn.body, 'return')}})`
         : `(${params})=>${body}`
     if (!captured || fn.captures.length === 0) { return lambda }
-    return `((${fn.captures.map(capture => declared(inner, capture.binding)).join(',')})=>(${lambda}))(${fn.captures.map(capture => expression(context, capture.value, 2)).join(',')})`
+    const input = !context.runtime && fn.captures.length > maxLength ? captureLocals(context, fn)[0] : null
+    const parameters = input === null ? fn.captures.map(capture => declared(inner, capture.binding)).join(',') : declared(inner, input)
+    const initialize = input === null ? '' : fn.captures.map((capture, index) => `${keyword('const')} ${declared(inner, capture.binding)}=${name(inner, input)}[${primitive(index)}];`).join('')
+    // Source recursion keeps the parser's direct const-arrow initializer.
+    const returned = !context.runtime && fn.self !== null
+        ? `${keyword('const')} ${declared(inner, fn.self)}=${lambda};${keyword('return')} ${name(inner, fn.self)};`
+        : `${keyword('return')} (${lambda});`
+    const wrapped = input !== null || !context.runtime && fn.self !== null ? `{${initialize}${returned}}` : `(${lambda})`
+    const argumentsText = fn.captures.map(capture => expression(context, capture.value, 2)).join(',')
+    return `((${parameters})=>${wrapped})(${input === null ? argumentsText : `[${argumentsText}]`})`
 }
 
 /** @type {(context: Context, statement: Statement) => string} */

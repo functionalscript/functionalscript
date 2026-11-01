@@ -37,7 +37,7 @@ const keyValues = (a, key) => {
     return node !== null && node[0] === 'Number' ? [node[1]] : []
 }
 
-/** Captures of invocation reads name the same value even as distinct nodes. @type {(a: Analysis, slot: Operand) => string | null} */
+/** Primitives have no identity key; invocation reads name the same value even as distinct nodes. @type {(a: Analysis, slot: Operand) => string | null} */
 const captureKey = (a, slot) => {
     if (!(slot instanceof Array)) { return null }
     const node = a.nodes[slot[1]]
@@ -50,8 +50,7 @@ const captureKey = (a, slot) => {
 /** @type {(a: Analysis, index: number, node: Extract<Node, readonly ['=>', ...unknown[]]>) => string | null} */
 const captureReason = (a, index, node) => {
     const slots = node[2]
-    const names = slots.map(slot => captureKey(a, slot))
-    if (names.includes(null)) { return 'a frame slot holding a primitive' }
+    const names = slots.map(slot => captureKey(a, slot)).filter(key => key !== null)
     if (new Set(names).size !== names.length) { return 'a frame slot that repeats another' }
     return slots.some((_, k) => !a.nodes.some((read, j) => a.scope[j] === index && read[0] === 'frame' && read[1] === k)) ? 'a frame slot the body never reads' : null
 }
