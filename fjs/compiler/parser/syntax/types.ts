@@ -93,7 +93,7 @@ export type Node =
 
 /**
  * The block syntax: zero or more statements — `const` declarations and
- * guards, {@link BlockStatement} — followed by the one statement that ends
+ * conditionals, {@link BlockStatement} — followed by the one statement that ends
  * it, a `return` or a `throw` with its value, or a switch with a `default`,
  * {@link BlockEnd}, or a candidate final loop retained for source admission.
  * The grammar enforces this order; a bare `return`, a bare `throw` and a
@@ -108,7 +108,7 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
  */
 export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For]
 
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
+/** A block's statement before the one that ends it, tagged by its keyword: a declaration, assignment, conditional, loop, or switch without a `default`. The statements after a conditional run when its selected arm finishes normally. */
 export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', Switch]
 
 /** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
@@ -157,7 +157,7 @@ export type While = {
     readonly block: LoopBlock
 }
 
-/** A loop's block: statements in order, including syntax after transfers, and no required terminator. */
+/** A normal lexical block for a loop or conditional arm: statements in order, including syntax after transfers, and no required terminator. */
 export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 
 /** A classic `for` keeps its lexical initializer and step until normalization. */
@@ -200,20 +200,11 @@ export type Assignment = Statement & {
 }
 
 /**
- * A guard, `if (condition) block`: the token it begins with, its condition,
- * and its block, which ends as every block does, {@link BlockEnd}. It
- * records no `;`: a block statement ends at its `}`, and JavaScript inserts
- * no semicolon after one, so the statement after a guard may share its
- * line. The statements after the guard, up to and including the body's own
- * terminator, are what runs when the condition is falsy; the fold makes
- * the two arms of a conditional of them
- * ([spec: functions](../../../../spec/functions/README.md)).
+ * A function-body conditional has the same normal lexical arms as a loop's
+ * conditional. An arm may return or throw, or finish normally and resume the
+ * surrounding block. The function body retains its own {@link BlockEnd}.
  */
-export type If = {
-    readonly start: ModuleTokenWithMetadata
-    readonly condition: Node
-    readonly block: Block
-}
+export type If = LoopIf
 
 /**
  * An access's key: the token a constant key is read from — the name after

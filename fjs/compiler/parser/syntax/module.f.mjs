@@ -1136,9 +1136,9 @@ const operandToNode = node => {
 
 /**
  * A block from its children, `{`, the retained body contents and `}`:
- * its ordered statements, `const`s and guards, then what ends it, the
+ * its ordered statements, declarations and conditionals, then what ends it, the
  * terminator's own record, {@link toEnd} — and the `{` it begins at. A
- * function's body, a guard's block and a case's are read the same way.
+ * function's body and a terminal switch case are read the same way.
  *
  * @type {(node: Children<BlockRule, ModuleTokenWithMetadata, Out>) => readonly [Block, ModuleTokenWithMetadata]}
  */
@@ -1322,8 +1322,8 @@ const toLoopElse = ([kind, branch]) => {
 /**
  * A block's statement, tagged by its keyword: a `const` or a `let`, its
  * record; what begins with a name, an assignment or a call statement,
- * {@link toBodyNameStatement}; a guard, `if ( condition ) block` — the `if`
- * it begins at, its condition, and its block read as a body's is. Loops
+ * {@link toBodyNameStatement}; a normal conditional, with its lexical arms
+ * and optional alternate retained as in a loop. Loops
  * are read by `toBlockContents`, which also retains final-loop candidates.
  *
  * @type {(node: Children<SimpleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
@@ -1332,11 +1332,7 @@ const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        default: {
-            const [first, , condition, , blk] = unmapped(branch)
-            const [block] = blockOf(unmapped(blk))
-            return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
-        }
+        default: { return symbol({ id: 'statement', statement: ['if', loopIfAt(branch)] }) }
     }
 }
 

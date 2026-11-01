@@ -36,7 +36,7 @@
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
  * blockContents ::= simpleStatement* (terminator | (while | for) [blockContents])
- * statement ::= const | 'if' '(' value ')' block | let
+ * statement ::= const | loopIfStatement | let
  *             | while | for | bodyNameStatement
  * while  ::= 'while' '(' value ')' loopBlock
  * for    ::= 'for' '(' [forInitializer] ';' [value] ';' [nameExpression] ')' loopBlock
@@ -1183,18 +1183,17 @@ export const terminator = /** @type {const} */ ({
 
 /**
  * A statement of a function's block body before its {@link terminator}: a
- * `const`, or a guard, `if (condition) block` — its block this same
- * {@link block}, so the branch always ends in a terminator, and the
- * statements after the guard are what runs when the condition is falsy
+ * `const`, or a conditional, {@link loopIfStatement}, whose selected arm
+ * may finish normally before the following statement runs. The function's
+ * own {@link block} still requires its terminator
  * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
- * follows the guard's `}`: a block statement takes no `;` in JavaScript,
+ * follows the conditional's `}`: a block statement takes no `;` in JavaScript,
  * and one written there is the empty statement the language refuses, as
  * `;;` is. `const` and `if` decide the two in one symbol. A thunk, since
  * the block holds this rule and this rule holds the block.
  *
- * The bare consequent, `if (c) return v;`, and `else` are not read: the
- * guard admits one form, and the others are follow-ups
- * ([spec: functions](../../../../spec/functions/README.md)).
+ * Every arm has braces; a bare consequent, `if (c) return v;`, is not read.
+ * Alternates use the same braced and `else if` forms as a loop conditional.
  *
  * A `let` is a declaration as a `const` is, {@link letStatement}, and a
  * loop is `while (condition) loopBlock`. Both stand where a `const` may,
@@ -1213,7 +1212,7 @@ export const terminator = /** @type {const} */ ({
  */
 export const simpleStatement = () => ['const', {
     const: constStatement,
-    if: [sym('if'), sym('('), value, sym(')'), block],
+    if: loopIfStatement,
     let: letStatement,
     name: bodyNameStatement,
 }]
@@ -1322,7 +1321,7 @@ export const loopSwitch = [sym('switch'), sym('('), value, sym(')'), sym('{'), r
 /** An alternate block or conditional. Braces make its two starts unambiguous. @type {LoopElse} */
 export const loopElse = () => ['const', { block: loopBlock, if: loopIfStatement }]
 
-/** A normal conditional shared by a loop statement and an `else if` tail. @type {LoopIfStatement} */
+/** A normal conditional shared by function and loop statements and an `else if` tail. @type {LoopIfStatement} */
 export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock, option([sym('else'), loopElse])]
 
 /** The plain loop statement shared by module and function bodies. @type {WhileStatement} */

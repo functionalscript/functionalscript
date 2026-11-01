@@ -38,6 +38,12 @@ Returning paths still return explicitly; other paths throw or continue
 indefinitely, so the function cannot silently fall through and answer
 `undefined`.
 
+Braced `if`, `else` and `else if` branches may complete normally before
+that terminator ([bodies and guards](../control-flow/guards/README.md)). Such
+a branch continues with the following statements; it does not return from
+the function. The function still needs its own terminating statement after
+the `if`, even when both arms return.
+
 ## Pages
 
 - [Parameters](./parameters/README.md)
