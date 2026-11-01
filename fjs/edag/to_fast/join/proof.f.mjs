@@ -45,6 +45,23 @@ const evaluate = (block, parameter, argument) => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopKeepsItsInternalNormalJoin: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const condition = id(0), parameter = id(1)
+        const branch = source(ref(condition), ['+', selected(ref(condition), 2, 3), ref(parameter)])
+        assert(branch.exit[0] === 'yield')
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', { target, parameters: [parameter], initial: [0], results: [],
+            body: { statements: branch.statements, exit: ['continue', target, branch.exit[1]] } }] }
+        const after = _joinResults(terminal)
+        assert(after.exit[0] === 'loop')
+        assertEq(after.statements.length, 0)
+        assertEq(after.exit[1].target, target)
+        const joined = after.exit[1].body.statements[0]
+        assert(joined[0] === 'if')
+        assertEq(joined[1].length, 1)
+        assertEq(after.exit[1].body.exit[0], 'continue')
+    },
     normalResultsRetainOneContinuationAndAllocation: () => {
         const condition = id(0), value = id(1), input = id(2)
         const allocation = /** @type {Value} */ (['array', [7]])

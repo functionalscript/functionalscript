@@ -23,9 +23,10 @@
  * and its body admits every symbol but the backtick, those characters are
  * consumed as code content and never reach the emphasis or link rules.
  *
- * **Emphasis holds text and code, and refuses what it cannot hold.** No
- * emphasised span in the tree nests or holds a link, and a README sets a
- * name in bold as `` **`Object` is reserved** ``, so the rules say so. Where
+ * **Emphasis holds text, code and plain links, and refuses what it cannot
+ * hold.** A README sets a name in bold as `` **`Object` is reserved** ``,
+ * and a document links from bold, `**[capl.md](./capl.md)**`, but no
+ * emphasised span in the tree nests, so the rules say so. Where
  * CommonMark would nest, this refuses rather than reading the delimiters as
  * text: the same file is read on GitHub too, and a body that swallowed them
  * would give the two renderings different answers about one source.
@@ -130,49 +131,6 @@ const labelText = repeatFrom1(remove(any, set('][*`\\')))
 /** A run of an emphasis body's text: no asterisk, backtick, bracket or backslash. */
 const emphasisText = repeatFrom1(remove(any, set('*`[\\')))
 
-/** A code span inside emphasis, and the run of text after it, if any. */
-const emphasisCode = [code, option(emphasisText)]
-
-/**
- * A body of emphasis: text with none of the symbols that open a span.
- *
- * **The exclusions are a refusal, not an oversight.** CommonMark nests —
- * GitHub renders `**see [details](url)**` as bold around a working link, and
- * every released file here is read there as well as on the site. A body that
- * admitted those symbols as ordinary text would put the two renderings of one
- * file at odds: a link on GitHub, its own brackets on the site. Refusing
- * leaves one reading, and the author is told at build time rather than a
- * reader left to notice.
- *
- * A code span is the one span it holds, read as code, which is the form a
- * README sets a name in bold with. A body opens with text or with code,
- * the two branches told apart by their first symbol. Its padding — a space
- * just inside an asterisk — is matched here and refused after, in
- * [`media/markdown`](../../../media/markdown/module.f.mjs): with code inside,
- * "no space before the closing asterisk" is no longer a choice one symbol
- * of lookahead can make. Supporting the rest of the nesting CommonMark
- * defines is `todo/commonmark-constructs.md`.
- */
-const emphasised = {
-    text: [emphasisText, repeatFrom0(emphasisCode)],
-    code: repeatFrom1(emphasisCode),
-}
-
-/**
- * Bold or emphasis, **factored through the asterisk they share**. Written as
- * two alternatives, `** … **` and `* … *`, both would begin with the same
- * symbol and the backend could not choose between them with the one symbol
- * of lookahead it has. So the opening asterisk is consumed first and the
- * choice is made on the symbol after it: another asterisk is `strong`, and
- * anything else is the first symbol of `em`'s body. That body is non-empty
- * for the same reason — an empty one would let `em` begin with the asterisk
- * `strong` begins with.
- */
-export const emphasis = /**@type {const}*/(['*', {
-    strong: ['*', emphasised, '**'],
-    em: [emphasised, '*'],
-}])
-
 /** A run of a link target's symbols: no parenthesis, space or backslash. */
 const targetText = remove(any, set(')( \\'))
 
@@ -200,6 +158,54 @@ const labelled = label => ['[', label, '](',
  * and the form a link inside a label takes.
  */
 const plainLink = labelled([option(labelText), repeatFrom0([code, option(labelText)])])
+
+/**
+ * A code span or a plain link inside emphasis, and the run of text after
+ * it, if any: a backtick or a bracket tells them apart.
+ */
+const emphasisSpan = {
+    code: [code, option(emphasisText)],
+    link: [plainLink, option(emphasisText)],
+}
+
+/**
+ * A body of emphasis: text, and the code spans and plain links between.
+ *
+ * **What it does not read is a refusal, not an oversight.** CommonMark
+ * nests, and every released file here is read on GitHub as well as on the
+ * site. A body that admitted a span opener as ordinary text would put the
+ * two renderings of one file at odds: a link on GitHub, its own brackets on
+ * the site. So a body holds the spans it reads and none other: a code span,
+ * the form a README sets a name in bold with, and a plain link, as GitHub
+ * renders `**see [details](url)**` bold around a working link. Its label
+ * holds text and code, as an image's does; emphasis inside emphasis stays
+ * out. A body opens with text or with a span, the two branches told apart
+ * by their first symbol. Its padding — a space
+ * just inside an asterisk — is matched here and refused after, in
+ * [`media/markdown`](../../../media/markdown/module.f.mjs): with code inside,
+ * "no space before the closing asterisk" is no longer a choice one symbol
+ * of lookahead can make. Supporting the rest of the nesting CommonMark
+ * defines is `todo/commonmark-constructs.md`.
+ */
+const emphasised = {
+    text: [emphasisText, repeatFrom0(emphasisSpan)],
+    span: repeatFrom1(emphasisSpan),
+}
+
+/**
+ * Bold or emphasis, **factored through the asterisk they share**. Written as
+ * two alternatives, `** … **` and `* … *`, both would begin with the same
+ * symbol and the backend could not choose between them with the one symbol
+ * of lookahead it has. So the opening asterisk is consumed first and the
+ * choice is made on the symbol after it: another asterisk is `strong`, and
+ * anything else is the first symbol of `em`'s body. That body is non-empty
+ * for the same reason — an empty one would let `em` begin with the asterisk
+ * `strong` begins with.
+ */
+export const emphasis = /**@type {const}*/(['*', {
+    strong: ['*', emphasised, '**'],
+    em: [emphasised, '*'],
+}])
 
 /**
  * An inline link.

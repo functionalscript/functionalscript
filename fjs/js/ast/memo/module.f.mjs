@@ -22,6 +22,8 @@ import { _hasReturn, memoCells, recipeCells } from './cells/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 import { _exposeOperands, liftReturns } from '../returns/module.f.mjs'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
+import { _isSelf } from '../invocation/module.f.js'
+import { _tailRegion } from '../invocation/tail/module.f.js'
 
 /** @type {(index?: number) => BindingId} */
 const binding = (index = 0) => ({ index })
@@ -29,6 +31,11 @@ const binding = (index = 0) => ({ index })
 const ref = id => ['ref', id]
 /** A source binder shadows only this region's active aliases. @type {(aliases: ReadonlyMap<BindingId, number>, bindings: readonly BindingId[]) => ReadonlyMap<BindingId, number>} */
 const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id]) => !bindings.includes(id)))
+/** @type {(aliases: readonly BindingId[], bindings: readonly BindingId[]) => readonly BindingId[]} */
+const withoutSelfAliases = (aliases, bindings) => aliases.filter(id => !bindings.includes(id))
+
+/** Only lexical self aliases are rewritten in an otherwise deferred value. @type {MemoLayout} */
+const selfOnlyPlan = { cells: [], definitions: new Map(), loops: new Set() }
 
 /** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoLayout, memo: BindingId, index: number, cell: Value) => Value} */
 const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
@@ -115,6 +122,24 @@ const recipeFunction = (index, context) => call(() => {
         [...toArray(concat(recipe.statements)([['define', initialized, recipe.value, 'required']]))], recipe.memo))
 })
 
+/** Forward abrupt recipe completions; only the source owner invokes its self. @type {(initialized: BindingId, context: _Context) => readonly Statement[]} */
+const completionDispatch = (initialized, context) => {
+    if (!context.completions) { return [] }
+    const owner = assertNotNullish(context.recipeOwner ?? context.sourceOwner)
+    /** @type {Value} */
+    const payload = ['.', ref(initialized), 1]
+    /** @type {Block} */
+    const escaping = context.recipeOwner !== null || context.sourceSelf === null
+        ? { statements: [], exit: ['return', owner, context.recipeOwner === null ? payload : ref(initialized)] }
+        : { statements: [['if', [], ['===', ['.', ref(initialized), 0], 'tail'],
+            { statements: [], exit: ['return', owner, ['()', ref(context.sourceSelf), [['...', payload]]]] },
+            { statements: [], exit: ['return', owner, payload] },
+        ]], exit: ['yield', []] }
+    return [['if', [], [context.sourceSelf === null ? '===' : '!==', ['.', ref(initialized), 0], context.sourceSelf === null ? 'return' : 'normal'],
+        escaping, { statements: [], exit: ['yield', []] },
+    ]]
+}
+
 /**
  * First demand invokes the declaration's recipe; hits reuse its payload.
  * A narrower getter receives only its prefix and cannot replace caller-local
@@ -133,12 +158,7 @@ const demand = (index, context) => {
         : ['array', context.plan.cells.slice(0, recipe.width).map((_, slot) => ['.', ref(context.memo), slot])])
     const updated = /** @type {Value} */ (sameWidth ? ['.', completed, 1]
         : ['array', context.plan.cells.map((_, slot) => ['.', slot < recipe.width ? ['.', completed, 1] : ref(context.memo), slot])])
-    /** @type {readonly Statement[]} */
-    const dispatch = context.completions ? [['if', [], ['===', ['.', ref(initialized), 0], 'return'],
-        { statements: [], exit: ['return', assertNotNullish(context.recipeOwner ?? context.sourceOwner),
-            context.recipeOwner === null ? ['.', ref(initialized), 1] : ref(initialized)] },
-        { statements: [], exit: ['yield', []] },
-    ]] : []
+    const dispatch = completionDispatch(initialized, context)
     return {
         statements: [['if', [value, memo], ['.', cell, 0],
             { statements: [], exit: ['yield', [['.', cell, 1], ref(context.memo)]] },
@@ -168,13 +188,14 @@ const ownsMemo = (source, plan) => {
         const value = item.first
         if (value === null || typeof value !== 'object') { continue }
         if (!(value instanceof Array)) {
-            if (value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
+            if (value.exit[0] === 'loop' && plan.loops.has(value.exit[1]) || value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
                 || statement[0] === 'loop' && plan.loops.has(statement[1]))) { return true }
             /** @type {readonly (Value | Block)[]} */
             const children = [...value.statements.flatMap(statement => statement[0] === 'define'
                 ? statement[3] === 'required' ? [statement[2]] : []
                 : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit)]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit),
+                ...value.exit[0] === 'loop' ? [value.exit[1].body] : []]
             pending = concat(children)(pending)
             continue
         }
@@ -201,6 +222,7 @@ const conditionalValue = (test, then, otherwise, source) => {
 const valueTask = (source, context) => call(() => {
     if (source === null || typeof source !== 'object') { return done(plain(source, context)) }
     if (source[0] === 'ref') {
+        if (_isSelf(source, context.selfAliases)) { return done(plain(ref(assertNotNullish(context.sourceSelf)), context)) }
         const index = context.aliases.get(source[1])
         return done(index === undefined ? plain(source, context) : demand(index, context))
     }
@@ -244,9 +266,53 @@ const valueTask = (source, context) => call(() => {
     })
 })
 
+/** Returned normal values belong to the source function, even inside a recipe. @type {(block: Block, context: _Context) => Task<_Block>} */
+const returnedBlockTask = (block, context) => blockTask(block.exit[0] === 'yield' && block.exit[1].length === 1
+    ? { ...block, exit: ['return', assertNotNullish(context.sourceOwner), block.exit[1][0]] } : block, { ...context, operand: false })
+
+/**
+ * Keep an owning tail call outside the getter's invocation. The private packet
+ * carries evaluated arguments, never a computed recursive result. Other getters
+ * forward the packet until the original demand can make the owning return.
+ * @type {(source: Value, context: _Context) => Task<_Exit>}
+ */
+const returnedValueTask = (source, context) => {
+    /** @type {() => Task<_Exit>} */
+    const visit = () => {
+        const region = _tailRegion(source)
+        if (region.kind === 'block') {
+            return bind(returnedBlockTask(region.block, context), result => done({ statements: result.block.statements,
+                exit: result.block.exit, memo: result.memo, normal: false, usesMemo: result.usesMemo }))
+        }
+        if (region.kind === 'if') {
+            return bind(valueTask(region.test, context), test => bind(returnedBlockTask(region.then, { ...context, memo: test.memo }), then =>
+                bind(returnedBlockTask(region.otherwise, { ...context, memo: test.memo }), otherwise => done({
+                    statements: concat(test.statements)([['if', [], test.value, then.block, otherwise.block]]), exit: ['yield', []], memo: test.memo,
+                    normal: false, usesMemo: test.usesMemo || then.usesMemo || otherwise.usesMemo,
+                }))))
+        }
+        const value = region.value
+        const tail = value instanceof Array && value[0] === '()' && _isSelf(value[1], context.selfAliases)
+        /** @type {Value} */
+        const input = tail ? ['array', value[2]] : value
+        return bind(valuesTask([input], context), values => done({ statements: values.statements,
+            exit: ['return', assertNotNullish(context.recipeOwner), ['array', [tail ? 'tail' : 'return', values.values[0]]]],
+            memo: values.memo, normal: false, usesMemo: values.usesMemo,
+        }))
+    }
+    return call(visit)
+}
+
 /** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
 const exitTask = (exit, context) => call(() => {
-    if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
+    if (exit[0] === 'loop') {
+        return bind(loopTask(exit[1], context, true), loop => done({
+            statements: loop.statements, exit: assertNotNullish(loop.exit), memo: loop.memo, normal: false, usesMemo: loop.usesMemo,
+        }))
+    }
+    if (!context.lexicalOnly && context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
+    if (context.completions && context.recipeOwner !== null && context.sourceSelf !== null
+        && exit[0] === 'return' && exit[1] === context.sourceOwner) { return returnedValueTask(exit[2], context) }
     const inputs = exitValues(exit)
     return bind(valuesTask(inputs, context), values => {
         /** @type {Exit} */
@@ -264,18 +330,24 @@ const exitTask = (exit, context) => call(() => {
     })
 })
 
-/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<_Loop>} */
-const loopTask = (loop, context) => call(() => {
+/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context, terminal?: boolean) => Task<_Loop>} */
+const loopTask = (loop, context, terminal = false) => call(() => {
     if (!context.plan.loops.has(loop)) {
         return bind(valuesTask(loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
-            const finish = body => done({
-                statements: concat(initial.statements)([['loop', body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
-                    ? loop : { ...loop, initial: initial.values, body }]]),
-                memo: initial.memo, usesMemo: initial.usesMemo, changed: body !== loop.body || initial.usesMemo,
-            })
-            return context.completions && context.recipeOwner !== null
-                ? bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo: initial.memo, operand: false }), body => finish(body.block))
+            const finish = body => {
+                const mapped = body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
+                    ? loop : { ...loop, initial: initial.values, body }
+                return done({
+                    statements: terminal ? initial.statements : concat(initial.statements)([['loop', mapped]]),
+                    exit: terminal ? ['loop', mapped] : null,
+                    memo: initial.memo, usesMemo: initial.usesMemo, changed: mapped !== loop || initial.usesMemo,
+                })
+            }
+            // Removed self aliases must be rewritten in every reached loop,
+            // including bodies that need no memo transport of their own.
+            return context.completions && context.recipeOwner !== null || context.selfAliases.length !== 0
+                ? bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo: initial.memo, operand: false }), body => finish(body.block))
                 : finish(loop.body)
         })
     }
@@ -285,30 +357,30 @@ const loopTask = (loop, context) => call(() => {
     const outputMemo = binding(loop.target.index)
     const target = /** @type {const} */ ({ kind: 'loop', index: loop.target.index })
     return bind(valuesTask(loop.initial, context), initial =>
-        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
+        bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
-                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
+                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: terminal ? [] : [result, outputMemo],
                 body: { statements: [
                     ...loop.parameters.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(state), i], 'required'])),
                     ...body.block.statements,
                 ], exit: body.block.exit },
             })
-            return done({ statements: concat(initial.statements)([
+            return done({ statements: terminal ? initial.statements : concat(initial.statements)([
                 ['loop', internal],
                 ...loop.results.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(result), i], 'required'])),
-            ]), memo: outputMemo, usesMemo: true, changed: true })
+            ]), exit: terminal ? ['loop', internal] : null, memo: terminal ? initial.memo : outputMemo, usesMemo: true, changed: true })
         }))
 })
 
 /** Thread normal-path memo bindings through source statement regions. @type {(block: Block, context: _Context) => Task<_Block>} */
 const blockTask = (block, context) => {
-    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, changed: boolean, usesMemo: boolean) => Task<_Block>} */
-    const each = (index, statements, memo, aliases, changed, usesMemo) => call(() => {
-        const current = /** @type {_Context} */ ({ ...context, memo, aliases })
-        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>) => Task<_Block>} */
-        const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases) => {
+    /** @type {(index: number, statements: List<Statement>, memo: BindingId, aliases: ReadonlyMap<BindingId, number>, selfAliases: readonly BindingId[], changed: boolean, usesMemo: boolean) => Task<_Block>} */
+    const each = (index, statements, memo, aliases, selfAliases, changed, usesMemo) => call(() => {
+        const current = /** @type {_Context} */ ({ ...context, memo, aliases, selfAliases })
+        /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>, nextSelfAliases?: readonly BindingId[]) => Task<_Block>} */
+        const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases, nextSelfAliases = selfAliases) => {
             const next = concat(statements)(pieces)
-            return normal ? each(index + 1, next, nextMemo, nextAliases, changed || different, usesMemo || used)
+            return normal || context.lexicalOnly ? each(index + 1, next, nextMemo, nextAliases, nextSelfAliases, changed || different, usesMemo || used)
                 : done({ block: { statements: toArray(next), exit: block.exit }, memo: nextMemo, normal: false, usesMemo: usesMemo || used })
         }
         if (index === block.statements.length) {
@@ -320,6 +392,8 @@ const blockTask = (block, context) => {
         const statement = block.statements[index]
         if (statement[0] === 'define') {
             const shadowed = withoutAliases(aliases, [statement[1]])
+            const shadowedSelf = withoutSelfAliases(selfAliases, [statement[1]])
+            if (!context.lexicalOnly && _isSelf(statement[2], selfAliases)) { return resume(null, memo, true, false, true, shadowed, [...shadowedSelf, statement[1]]) }
             if (statement[3] === 'lazy') {
                 const selected = context.plan.definitions.get(statement)
                 if (selected !== undefined) {
@@ -330,32 +404,41 @@ const blockTask = (block, context) => {
                         /** @type {readonly Statement[]} */
                         const reset = local ? [['define', nextMemo, withCell(context.plan, memo, selected, ['array', [false, undefined]]), 'required']] : []
                         return bind(recipeFunction(selected, current), fn => resume(
-                            [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active))
+                            [...reset, ['define', context.recipes[selected].binding, ['function', fn], 'required']], nextMemo, true, local, true, active, shadowedSelf))
                     }
-                    return resume(null, memo, true, false, true, active)
+                    return resume(null, memo, true, false, true, active, shadowedSelf)
                 }
                 const initializer = statement[2]
                 const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
-                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]])) }
-                return resume([statement], memo, false, false, true, shadowed)
+                if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]]), shadowedSelf) }
+                if (selfAliases.length === 0) { return resume([statement], memo, false, false, true, shadowed, shadowedSelf) }
+                // Preserve first-demand evaluation while replacing references
+                // to aliases whose declarations have been removed. An empty
+                // memo plan exposes no demands, recipes or evaluation prefix.
+                return bind(valueTask(initializer, { ...current, plan: selfOnlyPlan, aliases: new Map(), owners: null,
+                    completions: false, recipeOwner: null }), value => {
+                    assert(value.statements === null)
+                    return resume([['define', statement[1], value.value, 'lazy']], memo, value.value !== initializer,
+                        false, true, shadowed, shadowedSelf)
+                })
             }
             return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([
                 value.value === statement[2] ? statement : ['define', statement[1], value.value, statement[3]],
-            ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo, true, shadowed))
+            ]), value.memo, value.value !== statement[2] || value.statements !== null, value.usesMemo, true, shadowed, shadowedSelf))
         }
         if (statement[0] === 'loop') {
             return bind(loopTask(statement[1], current), loop => resume(loop.statements, loop.memo,
-                loop.changed, loop.usesMemo, true, withoutAliases(aliases, statement[1].results)))
+                loop.changed, loop.usesMemo, true, withoutAliases(aliases, statement[1].results), withoutSelfAliases(selfAliases, statement[1].results)))
         }
         if (statement[0] === 'block') {
             return bind(blockTask(statement[2], current), result => {
                 if (result.normal && result.memo !== memo) {
                     const nextMemo = binding()
                     return resume([['block', [...statement[1], nextMemo], memoResult(result)]], nextMemo, true, result.usesMemo,
-                        true, withoutAliases(aliases, statement[1]))
+                        true, withoutAliases(aliases, statement[1]), withoutSelfAliases(selfAliases, statement[1]))
                 }
                 return resume([result.block === statement[2] ? statement : ['block', statement[1], result.block]], memo,
-                    result.block !== statement[2], result.usesMemo, result.normal, withoutAliases(aliases, statement[1]))
+                    result.block !== statement[2], result.usesMemo, result.normal, withoutAliases(aliases, statement[1]), withoutSelfAliases(selfAliases, statement[1]))
             })
         }
         return bind(valueTask(statement[2], current), test =>
@@ -368,10 +451,27 @@ const blockTask = (block, context) => {
                         : test.value === statement[2] && then.block === statement[3] && otherwise.block === statement[4] ? statement
                             : ['if', statement[1], test.value, then.block, otherwise.block])
                     return resume(concat(test.statements)([mapped]), nextMemo, mapped !== statement || test.statements !== null,
-                        test.usesMemo || then.usesMemo || otherwise.usesMemo, then.normal || otherwise.normal, withoutAliases(aliases, statement[1]))
+                        test.usesMemo || then.usesMemo || otherwise.usesMemo, then.normal || otherwise.normal, withoutAliases(aliases, statement[1]), withoutSelfAliases(selfAliases, statement[1]))
                 })))
     })
-    return each(0, null, context.memo, context.aliases, false, false)
+    return each(0, null, context.memo, context.aliases, context.selfAliases, false, false)
+}
+
+/**
+ * Give the implicit self one unshadowed binding before physical preparation.
+ * The empty-plan walk only renames free reads of the old self. Definitions,
+ * deferred evaluation, transfers and ordinary nested function bodies retain
+ * their syntax; capture values still evaluate in the constructing scope.
+ * @type {(fn: FastFunction) => FastFunction}
+ */
+export const _freshSelf = fn => {
+    if (fn.self === null) { return fn }
+    const self = binding(fn.self.index)
+    /** @type {_Context} */
+    const context = { plan: selfOnlyPlan, aliases: new Map(), selfAliases: [fn.self], sourceSelf: self,
+        recipes: [], memo: binding(), owners: null, operand: false, sourceOwner: fn.target, recipeOwner: null,
+        completions: false, lexicalOnly: true }
+    return { ...fn, self, body: run(blockTask(fn.body, context)).block }
 }
 
 /**
@@ -380,24 +480,35 @@ const blockTask = (block, context) => {
  * required cells make repeated normalization a no-op. External lazy bindings
  * have no available recipe and remain explicit admission boundaries. Only a
  * source function supplies the owner for returns across statement helpers.
- * @type {(root: Block, externalLazyIds: readonly BindingId[], functionTarget: FunctionTarget | null, returnsOnly: boolean) => Block}
+ * @type {(root: Block, externalLazyIds: readonly BindingId[], functionTarget: FunctionTarget | null, returnsOnly: boolean, sourceSelf: BindingId | null) => Block}
  */
-const normalize = (root, externalLazyIds, functionTarget, returnsOnly) => {
+const normalize = (root, externalLazyIds, functionTarget, returnsOnly, sourceSelf) => {
     const plan = memoCells(root, externalLazyIds, functionTarget, returnsOnly)
     if (plan === null) { return root }
     const memo = binding()
     const recipes = plan.cells.map(cell => ({ binding: binding(cell.binding.index), width: plan.cells.length }))
     const completions = functionTarget !== null && plan.cells.some(cell => _hasReturn(cell.initializer, functionTarget))
-    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), recipes, memo, owners: null, operand: false,
+    // Alias declarations expose their original self read to the common free-
+    // binding analysis. Actual tail matching still uses lexical alias snapshots.
+    const originalSelf = completions && sourceSelf !== null && freeBindings(plan.block).includes(sourceSelf) ? sourceSelf : null
+    const self = originalSelf === null ? null : binding(originalSelf.index)
+    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), selfAliases: self === null ? [] : [self, assertNotNullish(originalSelf)], sourceSelf: self, recipes, memo, owners: null, operand: false,
         sourceOwner: functionTarget, recipeOwner: null, completions })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
-    return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }
+    /** @type {readonly Statement[]} */
+    const selfSnapshot = self === null ? [] : [['define', self, ref(assertNotNullish(originalSelf)), 'lazy']]
+    return { statements: [
+        // A lexical alias retains the owning function even where a nested
+        // declaration or loop parameter reuses its original binding identity.
+        ...selfSnapshot,
+        ['define', memo, initializer, 'required'], ...result.block.statements,
+    ], exit: result.block.exit }
 }
 
-/** @type {(root: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null) => Block} */
-export const normalizeMemo = (root, externalLazyIds = [], functionTarget = null) => normalize(root, externalLazyIds, functionTarget, false)
+/** @type {(root: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null, sourceSelf?: BindingId | null) => Block} */
+export const normalizeMemo = (root, externalLazyIds = [], functionTarget = null, sourceSelf = null) => normalize(root, externalLazyIds, functionTarget, false, sourceSelf)
 
-/** Preserve existing physical memo programs while sharing deferred return transport. @type {(root: Block, functionTarget: FunctionTarget) => Block} */
-export const normalizeLazyReturns = (root, functionTarget) => memoCells(root, [], functionTarget, true) === null
-    ? root : normalize(liftReturns(root, functionTarget), [], functionTarget, true)
+/** Preserve existing physical memo programs while sharing deferred return transport. @type {(root: Block, functionTarget: FunctionTarget, sourceSelf?: BindingId | null) => Block} */
+export const normalizeLazyReturns = (root, functionTarget, sourceSelf = null) => memoCells(root, [], functionTarget, true) === null
+    ? root : normalize(liftReturns(root, functionTarget), [], functionTarget, true, sourceSelf)

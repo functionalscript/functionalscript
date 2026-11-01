@@ -21,6 +21,8 @@ import { directory, generate } from '../rust/module.f.mjs'
 import { generate as generateCommands, path as commandsPath } from '../commands/module.f.mjs'
 import { generate as generateMethods, path as methodsPath } from '../methods/module.f.mjs'
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
+import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.mjs'
+import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
 import { edagPath, rustPath } from '../runtime/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { generateRustTests, main } from './module.f.mjs'
@@ -49,6 +51,10 @@ export const proof = {
         assertEq(tableResult, generateMethods())
         const [, valuesResult] = virtual(written)(readUtf8File(valuesPath))
         assertEq(assertOk(valuesResult), generateValues())
+        const [, deferredTailCallsResult] = virtual(written)(readUtf8File(deferredTailCallsPath))
+        assertEq(assertOk(deferredTailCallsResult), generateDeferredTailCalls())
+        const [, immutableJoinsResult] = virtual(written)(readUtf8File(immutableJoinsPath))
+        assertEq(assertOk(immutableJoinsResult), generateImmutableJoins())
         const [, commandsResult] = virtual(written)(readUtf8File(commandsPath))
         assertEq(assertOk(commandsResult), generateCommands())
         // the runtime, compiled last: Rust for the VM and EDAG for the corpus proof

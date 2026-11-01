@@ -112,6 +112,50 @@ const loopPacket = (exit, kind, target, values, memo) => {
 }
 
 export const proof = /** @type {const} */ ({
+    skippedTerminalOperandsKeepTheirOwnedMemoRegions: () => {
+        const local = id(0)
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {readonly Block[]} */
+        const bodies = [
+            body(['throw', 7]),
+            body(['throw', ref(output)], [['define', local, ['array', [7]], 'lazy'], ['loop', counting(ref(local))]]),
+        ]
+        for (const loopBody of bodies) {
+            /** @type {Value} */
+            const argument = ['block', body(['loop', { target, parameters: [], initial: [], results: [], body: loopBody }])]
+            const source = yielded(['?.()', null, [argument]], [
+                ['define', lazy, ['array', [7]], 'lazy'], ['loop', counting(ref(lazy))],
+            ])
+            assertEq(evaluate(source), undefined)
+        }
+    },
+    terminalLoopsThreadMemoWithoutNormalResults: () => {
+        /** @type {Block} */
+        const source = body(['loop', {
+            target: loopTarget, parameters: [state], initial: [0], results: [], body: body(['continue', loopTarget, [['+', ref(state), 1]]], [
+                ['if', [], ['===', ref(state), 2], body(['return', functionTarget, ['array', [ref(lazy), ref(lazy)]]]), body(['yield', []])],
+            ]),
+        }], [['define', lazy, ['array', [7]], 'lazy']])
+        const terminalTarget = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const terminalState = id(0)
+        /** @type {readonly Block[]} */
+        const cases = [source, .../** @type {const} */ ([false, true]).map(/** @returns {Block} */ initialized => body(['loop', {
+            target: terminalTarget, parameters: initialized ? [terminalState] : [], initial: initialized ? [ref(lazy)] : [], results: [],
+            body: body(['return', functionTarget, ['array', [ref(output), ref(output)]]]),
+        }], [['define', lazy, ['array', [7]], 'lazy'], ['loop', counting(ref(lazy))]]))]
+        for (const source of cases) {
+            const normalized = normalizeMemo(source, [], functionTarget)
+            assert(normalized.exit[0] === 'loop')
+            assertEq(normalized.exit[1].results.length, 0)
+            /** @type {FastFunction} */
+            const fn = { target: functionTarget, parameters: [], rest: null, self: null, captures: [], body: normalized }
+            const graph = fromFast(yielded(['function', fn]))
+            const value = assertOk(toData(assertOk(memo(assertOk(identityAnalysis(['()', graph, []])))({ args: [] }))))
+            assertStructurallySame(value, [[7], [7]])
+            assert(value instanceof Array)
+            assertEq(value[0], value[1])
+        }
+    },
     deferredReturns,
     initializerLoops,
     ownedOperands,

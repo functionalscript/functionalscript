@@ -239,9 +239,11 @@ exports or terminal throw.
 
 Source resolution retains the loop's target identity and verifies the absence
 of an owning break before desugaring. Normalization uses the existing loop
-operations with no normal result or false-condition exit. Any internal
-unreachable-completion guard is an invariant check, not an implicit function
-result or a reachable post-loop continuation; no new VM operation is needed.
+operations with no normal result or false-condition exit. The loop itself ends
+its FAST block; there is no synthetic throw or implicit returned value after
+it. Graph construction uses the terminal computation directly. A helper whose
+only completing outcome is an owning function return supplies that result
+without a normal-completion fallback; no new VM operation is needed.
 
 ## Bindings and captures
 

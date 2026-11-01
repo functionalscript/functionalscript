@@ -239,6 +239,56 @@ export const proof = {
         assert(code.includes("break '_loop0;"))
         assert(code.includes("break '_loop0_1;"))
     },
+    terminalLoopsHaveNoNormalTail: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 3 })
+        /** @type {Block} */
+        const body = {
+            statements: [['define', x, 1]],
+            exit: ['loop', target, { statements: [], exit: ['continue', target] }],
+        }
+        const plain = unwrap(scope(body, options))
+        assertStructurallySame(plain.lines, [
+            'let _b0: Any<A> = f64_any(0x3ff0000000000000);',
+            "'_loop3: loop { continue '_loop3; }",
+        ])
+        assertStructurallySame(plain.lines, unwrap(scopeTagged(body, options)).lines.map(untagged))
+        assertStructurallySame(plain.uses, { vm: [], unstable: ['f64_any'] })
+        for (const result of [false, true]) {
+            assertEq(text(['block', { statements: [], exit: body.exit }], result),
+                "{ '_loop3: loop { continue '_loop3; } }")
+        }
+    },
+    terminalLoopsRetainLexicalTransfers: () => {
+        /** @type {LoopTarget} */
+        const outer = { kind: 'loop', index: 0 }
+        /** @type {LoopTarget} */
+        const inner = { kind: 'loop', index: 0 }
+        /** @type {Block} */
+        const body = {
+            statements: [],
+            exit: ['loop', outer, {
+                statements: [
+                    ['define', x, 1],
+                    ['loop', inner, {
+                        statements: [['if', false,
+                            { statements: [], exit: ['continue', outer] },
+                            { statements: [], exit: ['break', inner] },
+                        ]],
+                        exit: ['yield', []],
+                    }],
+                ],
+                exit: ['return', fn.target, ['ref', x]],
+            }],
+        }
+        const code = unwrap(scope(body, options)).lines.join('\n')
+        assert(code.startsWith("'_loop0: loop {"))
+        assert(code.includes("'_loop0_1: loop {"))
+        assert(code.includes("continue '_loop0;"))
+        assert(code.includes("break '_loop0_1;"))
+        assert(code.includes('return Ok(_b0.clone());'))
+        const throws = unwrap(scope({ statements: [], exit: ['loop', outer, { statements: [], exit: ['throw', 2] }] }, options))
+        assertEq(throws.lines.join('\n'), "'_loop0: loop { return Err(f64_any(0x4000000000000000)); }")
+    },
     memoAndSlots: () => {
         const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
         /** @type {Block} */

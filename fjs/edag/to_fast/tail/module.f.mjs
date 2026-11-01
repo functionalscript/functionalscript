@@ -10,9 +10,9 @@
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
-import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
+import { operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
-import { _restTransition } from '../../../js/ast/invocation/module.f.js'
+import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
 const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
@@ -32,8 +32,9 @@ const recipeUses = source => {
         if (task.kind === 'block') {
             const { block } = task
             const tail = task.tail && block.exit[0] === 'yield' && block.exit[1].length === 1
+            const terminal = block.exit[0] === 'loop' ? [blockTask(block.exit[1].body, owner, false)] : []
             pending = [...block.statements.map(statement => /** @type {_UseTask} */ ({ kind: 'statement', statement, owner })),
-                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...pending]
+                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...terminal, ...pending]
             continue
         }
         if (task.kind === 'statement') {
@@ -129,7 +130,7 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
         return bind(valueTask(value), result => done(result.block))
     })
     /** @type {(block: Block, selected: BindingId) => Task<Block>} */
-    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' ? done(block)
+    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' || block.exit[0] === 'loop' ? done(block)
         : bind(selectedValueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0], selected), result =>
             done({ statements: [...block.statements, ...result.statements], exit: result.exit })))
     /** @type {(value: Value) => Task<_Result>} */
@@ -148,27 +149,18 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
                 })))
             }
             if (value[0] === '()' && value[1] instanceof Array && value[1][0] === 'ref' && value[1][1] === self) {
-                const args = value[2]
-                if (rest !== null) { return done({ block: _restTransition(parameters.length, args, target), changed: true }) }
-                if (args.length > parameters.length || args.some(isSpread)) {
-                    // Materialize the invocation before reading its fixed
-                    // prefix. Every extra value and lazy demand stays reached.
-                    // This private vector's identity is never exposed.
-                    const binding = { index: self.index + 1 }
-                    return done({ block: {
-                        statements: [['define', binding, ['array', args], 'required']],
-                        exit: ['continue', target, parameters.map((_, index) => ['.', ['ref', binding], index])],
-                    }, changed: true })
-                }
-                const fixed = /** @type {readonly Value[]} */ (args)
-                return done({ block: { statements: [], exit: ['continue', target, parameters.map((_, index) => index < fixed.length ? fixed[index] : undefined)] }, changed: true })
+                return done({ block: _invocationTransition(parameters.length, value[2], target, rest !== null), changed: true })
             }
         }
         return done({ block: { statements: [], exit: ['break', target, [value]] }, changed: false })
     })
     /** @type {(block: Block) => Task<_Result>} */
     const ordinaryBlockTask = block => call(() => {
-        if (block.exit[0] === 'throw') { return done(/** @type {_Result} */ ({ block, changed: false })) }
+        if (block.exit[0] === 'throw' || block.exit[0] === 'loop') {
+            /** @type {_Result} */
+            const result = { block, changed: false }
+            return done(result)
+        }
         return bind(valueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]), result => done({
             block: { statements: [...block.statements, ...result.block.statements], exit: result.block.exit }, changed: result.changed,
         }))

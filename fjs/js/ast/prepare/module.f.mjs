@@ -9,7 +9,8 @@
  *
  * The pass trusts normalized producer invariants. It performs neither source
  * admission nor graph analysis, and it introduces no function boundaries for
- * result blocks. Expression-valued conditionals remain expression-valued.
+ * result blocks. Eligible single-result statement joins use a private
+ * parameterized continuation; expression conditionals retain their value shape.
  * Owning returns in member and optional-chain operands use the same logical
  * return normalizer as graph construction. Physical lowering preserves its
  * receiver snapshots and selected regions. Other outward chain transfers
@@ -26,10 +27,12 @@ import { scalarLoopOf } from '../loop/module.f.js'
 import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
-import { assertNotNullish } from '../../../asserts/module.f.js'
+import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { iterable } from '../../../types/list/iterable/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { normalizeLazyReturns } from '../memo/module.f.mjs'
+import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
+import { _immutableJoin } from './joins/module.f.mjs'
+import { _recoverOnePassJoin } from './one_pass/module.f.mjs'
 
 /** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
 const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
@@ -71,6 +74,7 @@ const facts = node => {
         // `'exit'`, the one tag left: every `_Node` is built in this function
         default: {
             const exit = node[1]
+            if (exit[0] === 'loop') { return { ...empty, children: [['loop', exit[1]]] } }
             return exit[0] === 'yield' ? { ...empty, children: exit[1].map(value => ['value', value]) }
                 : exit[0] === 'break' || exit[0] === 'continue' ? { ...empty, loops: [exit[1]], children: exit[2].map(value => ['value', value]) }
                     : { ...empty, returns: exit[0] === 'return', children: [['value', exit[0] === 'return' ? exit[2] : exit[1]]] }
@@ -183,6 +187,7 @@ const writes = (block, id) => {
     /** @type {_Link<Block> | null} */
     let work = { first: block, tail: null }
     while (work !== null) {
+        /** @type {Block} */
         const current = work.first
         work = work.tail
         for (const statement of current.statements) {
@@ -194,6 +199,7 @@ const writes = (block, id) => {
                 case 'while': { work = { first: statement[1].body, tail: work }; break }
             }
         }
+        if (current.exit[0] === 'loop') { work = { first: current.exit[2], tail: work } }
     }
     return false
 }
@@ -315,13 +321,18 @@ const values = (input, context, snapshots = []) => {
     return each(0, context.next, null)
 }
 
-/** @type {(value: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
-const functionValue = (value, context) => call(() => {
-    const normalized = normalizeLazyReturns(value.body, value.target)
+/** @type {(input: NormalFunction, context: _Context) => _Task<_Prepared<PreparedFunction> & { readonly statements: readonly Statement[] }>} */
+const functionValue = (input, context) => call(() => {
+    const fresh = _freshSelf(input)
+    /** @type {NormalFunction} */
+    const logical = { ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) }
+    const joined = _immutableJoin(logical)
+    const value = context.sourceLoops ? joined : _recoverOnePassJoin(joined)
+    const normalized = value.body
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null
         && root !== undefined && root[0] === 'loop' ? root[1].target : null
-    const summary = normalized === value.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
+    const summary = normalized === input.body ? context.flows : new Map([...context.flows, ...flows(['block', normalized], context.flows)])
     /** @type {_Context} */
     const local = { ...context, flows: summary, next: Math.max(context.next, assertNotNullish(summary.get(normalized)).next) }
     return bind(values(value.captures.map(capture => capture.value), local), prepared => {
@@ -422,6 +433,13 @@ const transfer = (input, slots, context) => call(() => bind(values(input, contex
 
 /** @type {(exit: NormalExit, context: _Context) => _Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */
 const exitValue = (exit, context) => call(/** @returns {_Task<_Prepared<{ readonly statements: readonly Statement[], readonly exit: Exit }>>} */ () => {
+    if (exit[0] === 'loop') {
+        return bind(statementTask(['loop', exit[1]], context), result => {
+            const terminal = assertNotNullish(result.value.at(-1))
+            assert(terminal[0] === 'loop', 'a terminal loop has no result continuation')
+            return done({ value: { statements: result.value.slice(0, -1), exit: terminal }, next: result.next })
+        })
+    }
     if (exit[0] === 'yield') {
         if (context.yields !== null) {
             return bind(transfer(exit[1], context.yields, context), result => done({ value: { statements: result.value, exit: ['yield', []] }, next: result.next }))

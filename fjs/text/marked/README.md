@@ -478,7 +478,7 @@ points, as the tokenizer's are).
   Rust. It never overrides a kind, so a refinement can come later. The colour
   is a new stylesheet variable, `--syntax-name`.
 - **The model lives in `fjs/text/marked`, the JavaScript fallback and oracle in
-  [`fjs/js/marked`](../../js/marked/module.f.mjs)**, and only the drawing,
+  `fjs/js/marked`** ([module](../../js/marked/module.f.mjs)), and only the drawing,
   `render` and `highlight`, under the website: the compiler's proofs hold its
   output to the oracle without depending on the website, and this module
   stays language-independent, with no tokenizer behind it.

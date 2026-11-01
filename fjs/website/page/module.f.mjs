@@ -625,7 +625,7 @@ const dirItem = dir => name => ['li', ['a', {
 const section = heading => items =>
     items.length === 0
         ? []
-        : [['details', { 'data-section': '', open: '' },
+        : [['details', { 'data-section': '', open: heading === 'Contents' ? '' : undefined },
             summary(heading)(),
             ['ul', { 'data-links': '' }, ...items]]]
 
@@ -640,9 +640,9 @@ const section = heading => items =>
  * then files, as GitHub and a file manager list them: a directory is where a
  * reader goes next, and a file is where the reading stops.
  *
- * **Issues are a list of their own, open by default.** An issue is about
- * the directory rather than in it. Showing its open work beside Contents
- * makes both lists available immediately; a reader can fold either away.
+ * **Issues are a list of their own, collapsed by default.** An issue is about
+ * the directory rather than in it. Contents starts open; a reader expands
+ * Issues when they want to browse the directory's work.
  * Each entry's icon is its status and a badge its priority, and the list is
  * in {@link issueOrder}: by priority, the P1s first, and by status within
  * each priority, rather than wherever their names sort.

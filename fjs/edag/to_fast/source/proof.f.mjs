@@ -4,7 +4,7 @@
  * @import { Exp, ExpOp } from '../../types.ts'
  * @import { Analysis, Node } from '../../analysis/types.ts'
  * @import { List } from '../../../types/list/types.ts'
- * @import { Block, Value } from '../../../js/ast/types.ts'
+ * @import { Block, Loop, Value } from '../../../js/ast/types.ts'
  */
 
 import { conditional } from '../../testlib.f.js'
@@ -26,12 +26,35 @@ const reason = (value, module = false) => {
 const shared = value => ['?:', true, value, value]
 
 export const proof = {
+    terminalLoopAdmissionChecksItsBodyAndEntryValues: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const binding = /** @type {const} */ ({ index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        /** @type {Block} */
+        const body = { statements: [], exit: ['continue', target, [['ref', binding]]] }
+        /** @type {Loop} */
+        const loop = { target, parameters: [binding], initial: [0], results: [], body }
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', loop] }
+        const table = assertOk(identityAnalysis(0))
+        assertEq(sourceReason(table, terminal), null)
+        /** @type {Block} */
+        const lazyBody = { statements: [['define', binding, ['array', []], 'lazy']], exit: ['return', owner, ['ref', binding]] }
+        const refusal = /** @type {const} */ ('a shared node reached from outside the lazy operand that establishes it')
+        assertEq(sourceReason(table, { statements: [], exit: ['loop', { ...loop, body: lazyBody }] }), refusal)
+        /** @type {Block} */
+        const lazyEntry = { statements: [], exit: ['loop', { target, parameters: [binding],
+            initial: [['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: lazyBody }]], results: [], body }] }
+        assertEq(sourceReason(table, lazyEntry), refusal)
+    },
     captures: () => {
         /** @type {Exp} */
         const array = ['[]', []]
-        assertEq(reason(['=>', 0, [1], ['frame', 0]]), 'a frame slot holding a primitive')
+        assertEq(reason(['=>', 0, [1], ['frame', 0]]), null)
         const missing = /** @type {const} */ (['undefined'])
-        assertEq(reason(['[]', [missing, ['=>', 0, [missing], ['frame', 0]]]]), 'a frame slot holding a primitive')
+        assertEq(reason(['[]', [missing, ['=>', 0, [missing], ['frame', 0]]]]), null)
+        assertEq(reason(['=>', 0, [1, 1, missing, missing], ['[]', [['frame', 0], ['frame', 1], ['frame', 2], ['frame', 3]]]]), null)
+        assertEq(reason(['=>', 0, [1], 7]), 'a frame slot the body never reads')
         assertEq(reason(['=>', 0, [array, array], ['[]', [['frame', 0], ['frame', 1]]]]), 'a frame slot that repeats another')
         assertEq(reason(['=>', 1, [], ['=>', 0, [['arg', 0], ['arg', 0]], ['[]', [['frame', 0], ['frame', 1]]]]]), 'a frame slot that repeats another')
         assertEq(reason(['=>', 0, [array], 1]), 'a frame slot the body never reads')
@@ -54,7 +77,8 @@ export const proof = {
         assertEq(reason([',', [1, 2]]), null)
         assertEq(reason(['[]', [[',', [1, 2]]]]), null)
         const operand = /** @type {const} */ ([',', [1, 2]])
-        assertEq(reason(['[]', [operand, operand]]), 'a shared comma outside a scope')
+        assertEq(reason(['[]', [operand, operand]]), null)
+        assertEq(reason(['=>', 0, [], ['[]', [operand, operand]]]), null)
         assertEq(reason(['[]', [[',', [1, 2]]]], true), null)
         assertEq(reason(['=>', 0, [], [',', [['rest'], 1]]]), 'an anchor that is a name')
         assertEq(reason(['?:', true, [',', [1, 2]], 3]), null)

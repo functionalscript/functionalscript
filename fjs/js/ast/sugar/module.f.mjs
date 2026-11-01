@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Operator, Statement, Value } from '../types.ts'
+ * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Loop, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
@@ -115,7 +115,9 @@ const references = root => {
                 : statement[0] === 'if' ? [valueTask(statement[2]), blockTask(statement[3]), blockTask(statement[4])]
                 : statement[0] === 'block' ? [blockTask(statement[2])]
                 : [...statement[1].initial.map(valueTask), blockTask(statement[1].body)])
-            pending = [...statements, ...exitValues(block.exit).map(valueTask), ...rest]
+            const exit = block.exit
+            pending = [...statements, ...(exit[0] === 'loop'
+                ? [...exit[1].initial.map(valueTask), blockTask(exit[1].body)] : exitValues(exit).map(valueTask)), ...rest]
             continue
         }
         const { value } = task
@@ -319,7 +321,8 @@ const leaf = (environment, context, value) => {
     if (value[0] === '()' && value[2].length === 0 && value[1] instanceof Array && value[1][0] === 'function') {
         const source = value[1][1]
         const fn = functionValue(source, environment, context)
-        if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', { ...fn.body, exit: ['yield', exitValues(fn.body.exit)] }], fn.target)) {
+        const scanned = fn.body.exit[0] === 'loop' ? fn.body : { ...fn.body, exit: /** @type {const} */ (['yield', exitValues(fn.body.exit)]) }
+        if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', scanned], fn.target)) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
             return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null, breakRegion: null })] }
         }
@@ -719,13 +722,11 @@ const normalizedLoop = (loop, environment, context, terminal) => {
         ]],
         exit: ['yield', []],
     }
+    /** @type {Loop} */
+    const normalized = { target: loop.target, parameters, initial: sources.map(source => lookup(environment, source)), results, body }
     return {
-        block: {
-            statements: [['loop', { target: loop.target, parameters, initial: sources.map(source => lookup(environment, source)), results, body }]],
-            // As for a normalized exhaustive switch, this required block exit
-            // guards an impossible fallthrough; it is no returned value.
-            exit: terminal ? ['throw', 'a terminal loop completed normally'] : ['yield', []],
-        },
+        block: terminal ? { statements: [], exit: ['loop', normalized] }
+            : { statements: [['loop', normalized]], exit: ['yield', []] },
         environment: terminal ? environment : [...environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
         normal: !terminal,
         hasLoopExit: step.hasFunctionExit,

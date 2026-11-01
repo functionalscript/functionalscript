@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -41,6 +41,22 @@ const identities = (bindings, expected) => {
 }
 
 export const proof = {
+    terminalLoopsKeepTheirLexicalDependencies: () => {
+        /** @type {Loop} */
+        const loop = { target: outer, parameters: [state], initial: [['ref', a]], results: [], body: {
+            statements: [['define', local, ['ref', state], 'required']],
+            exit: ['continue', outer, [['array', [['ref', local], ['ref', b]]]]],
+        } }
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', loop] }
+        assertEq(exitValues(terminal.exit), loop.initial)
+        identities(freeBindings(terminal), [a, b])
+        assertEq(hasLoopTransfer(terminal, outer), true)
+        assertEq(hasLoopTransfer(terminal, inner), false)
+        /** @type {Loop} */
+        const captured = { ...loop, initial: [], body: returning(fn([], nestedReturning(['block', loop.body]))) }
+        assertEq(hasLoopTransfer({ statements: [], exit: ['loop', captured] }, outer), false)
+    },
     loopTransferOwners: () => {
         const escaping = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, [['ref', a]]] })
         const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })
