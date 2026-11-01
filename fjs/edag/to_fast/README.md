@@ -74,6 +74,11 @@ owner. This is the existing source writer's pure lazy normalization, now chosen
 once for all targets. It can split graph nodes; it preserves evaluation and
 allocation identity at the established bindings.
 
+A successful tail plan can subsequently establish inert invocation-prefix
+allocations as required bindings, as described below. This preserves their
+observable identity and evaluation behavior but can add required graph anchors;
+it does not extend the raw graph/hash round-trip domain.
+
 The exact graph round-trip domain uses canonical capture layouts and canonical
 binding reads. FAST references use binding object identity, and `fromFast`
 constructs one `arg`, `rest`, `frame` or `self` read node per binding identity.
@@ -143,6 +148,14 @@ nonexclusive dependencies remain outside the selection region, visible to both
 selection and continuation; exclusive dependencies stay with their recipe.
 The [shared fixtures](tail/fixtures.f.js) cover interleaved calls, distinct
 argument vectors, selected failures and creating-invocation captures.
+After a successful tail-loop plan, inert prefix definitions over invocation
+inputs and earlier established prefix values become required immutable
+bindings at their existing declaration positions. Arrays without spreads,
+objects with literal keys and closures with established captures can retain
+one invocation's allocation without memo storage. Calls, lookups, coercions,
+spreads and unknown outer deferred reads keep their demand owners. The
+normalization belongs to the planned invocation body; ordinary module-root
+lazy placement keeps its existing contract.
 The common join walk also removes a sole conditional's exact result-forwarding
 wrapper using shared [normal-result forwarding](../../js/ast/results/README.md).
 Its test and arms retain their scopes and transfer owners. Source coordination

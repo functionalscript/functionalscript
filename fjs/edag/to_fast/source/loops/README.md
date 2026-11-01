@@ -182,6 +182,16 @@ required work retain their evaluation and sharing. Capture compaction,
 canonical binding reads and pure lazy splitting remain subject to the
 [general graph round-trip domain](../../README.md).
 
+Successful common tail plans also establish inert prefix constructions over
+invocation inputs and earlier required values as immutable bindings. This gives
+the independent-recipe snapshot graph one array and reader per iteration without
+memo storage. Escaped readers retain their creating snapshot. Advancing only
+these inert constructions preserves observable demand order; calls, lookups,
+coercions, spreads and unknown outer deferred values keep their existing owners.
+The [bounded snapshot contract](todo/general-source-profiles.md#immutable-invocation-snapshots)
+requires semantic source readback and reserialization, without a raw graph/hash
+fixed point. Module-root lazy placement retains its existing contract.
+
 ## Eligibility and fallback
 
 The source coordinator first attempts the shared plans above. Other canonical
