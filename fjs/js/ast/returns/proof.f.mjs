@@ -42,6 +42,26 @@ const regions = root => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopBodyLiftingDoesNotDuplicateOrdinaryInitializers: () => {
+        const parameter = id(), callee = id(), value = id()
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Statement} */
+        const prefix = ['define', id(), ['array', []], 'required']
+        /** @type {Loop} */
+        const loop = { target, parameters: [parameter], initial: [['()', ref(callee), []]], results: [], body: {
+            statements: [['define', value, ['block', returned(7)], 'required']],
+            exit: ['continue', target, [ref(parameter)]],
+        } }
+        const mapped = liftReturns(body(['loop', loop], [prefix]), owner)
+        assertEq(mapped.statements.length, 1)
+        assertEq(mapped.statements[0], prefix)
+        assert(mapped.exit[0] === 'loop')
+        assertEq(mapped.exit[1].initial, loop.initial)
+        assert(mapped.exit[1].body !== loop.body)
+        const reached = mapped.exit[1].body.statements[0]
+        assert(reached[0] === 'block')
+        assertStructurallySame(reached[2].exit, ['return', owner, 7])
+    },
     terminalLoopVisitsEntryAndBodyWithoutAddingAContinuation: () => {
         const parameter = id(), value = id()
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
