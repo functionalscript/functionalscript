@@ -42,6 +42,48 @@ const regions = root => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopVisitsEntryAndBodyWithoutAddingAContinuation: () => {
+        const parameter = id(), value = id()
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Loop} */
+        const loop = { target, parameters: [parameter], initial: [1], results: [], body: {
+            statements: [['define', value, ['block', returned(7)], 'required']],
+            exit: ['continue', target, [ref(parameter)]],
+        } }
+        const source = body(['loop', loop])
+        const mapped = liftReturns(source, owner)
+        assert(mapped.exit[0] === 'loop')
+        assertEq(mapped.exit[1].target, target)
+        assertEq(mapped.exit[1].results.length, 0)
+        const first = mapped.exit[1].body.statements[0]
+        assert(first[0] === 'block')
+        assertEq(first[2].exit[0], 'return')
+        /** @type {Block} */
+        const entryReturn = { statements: [], exit: ['loop', { ...loop, initial: [['block', returned(9)]] }] }
+        const entry = liftReturns(entryReturn, owner)
+        assert(entry.exit[0] === 'loop')
+        assertEq(entry.statements.length, 1)
+        const reached = entry.statements[0]
+        assert(reached[0] === 'block')
+        assertStructurallySame(reached[2].exit, ['return', owner, 9])
+        /** @type {Block} */
+        const unchanged = { statements: [], exit: ['loop', { ...loop, body: body(['continue', target, [ref(parameter)]]) }] }
+        assertEq(liftReturns(unchanged, owner), unchanged)
+        const diverging = liftValueReturns(['block', unchanged], id(), owner)
+        assertEq(diverging.normal, false)
+        assert(diverging.statement !== null && diverging.statement[0] === 'block')
+        assertEq(diverging.statement[2].exit[0], 'loop')
+        assert(unchanged.exit[0] === 'loop')
+        /** @type {Block} */
+        const conditionalEntry = { statements: [], exit: ['loop', { ...unchanged.exit[1],
+            initial: [['if', true, returned(9), yielded([1])]],
+        }] }
+        const selected = liftReturns(conditionalEntry, owner)
+        assert(selected.exit[0] === 'loop')
+        assertEq(selected.statements.length, 1)
+        assertEq(selected.exit[1].initial.length, 1)
+        assertEq(selected.exit[1].body, unchanged.exit[1].body)
+    },
     forwardingConsumesOnlyTheOwningTailResult: () => {
         const value = id(), different = id()
         const prefix = /** @type {Statement} */ (['define', different, ['array', []], 'required'])

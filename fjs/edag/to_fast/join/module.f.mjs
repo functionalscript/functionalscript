@@ -180,7 +180,12 @@ const joinTask = (block, inherited) => call(() => {
 const blockTask = (block, inherited = []) => {
     /** @type {(index: number, statements: readonly Statement[], deferred?: readonly Definition[]) => Task<Block>} */
     const each = (index, statements, deferred = inherited) => call(() => {
-        if (index === block.statements.length) { return joinTask({ ...block, statements }, inherited) }
+        if (index === block.statements.length) {
+            const exit = block.exit
+            return exit[0] === 'loop'
+                ? bind(blockTask(exit[1].body, deferred), body => done({ statements, exit: ['loop', { ...exit[1], body }] }))
+                : joinTask({ ...block, statements }, inherited)
+        }
         const statement = block.statements[index]
         if (statement[0] === 'define') { return each(index + 1, [...statements, statement], statement[3] === 'lazy' ? [...deferred, statement] : deferred) }
         if (statement[0] === 'loop') { return bind(blockTask(statement[1].body, deferred), body => each(index + 1, [...statements, ['loop', { ...statement[1], body }]], deferred)) }

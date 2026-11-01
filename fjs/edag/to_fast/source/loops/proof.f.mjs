@@ -330,6 +330,11 @@ export const proof = /** @type {const} */ ({
             ['loop', { target: nested, parameters: [inner], initial: [['array', [1]]], results: [], body: { statements: [], exit: ['break', nested, []] } }],
         ], exit: ['break', target, [['ref', state]]] })
         assertEq(assertOk(_sourceLoops(accepted)), accepted)
+        const terminal = module({ statements: [], exit: ['loop', {
+            target: nested, parameters: [], initial: [], results: [],
+            body: { statements: [], exit: ['return', owner, 7] },
+        }] })
+        assertEq(assertOk(_sourceLoops(terminal)), terminal)
         /** @type {readonly Block[]} */
         const refused = [
             { statements: [['define', first, ['block', { statements: [], exit: ['return', owner, 1] }], 'required']], exit: ['break', target, [1]] },
@@ -1608,6 +1613,10 @@ export const proof = /** @type {const} */ ({
         assertEq(assertOk(_sourceLoops(divergent)), divergent)
         const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
         const output = /** @type {const} */ ({ index: 0 })
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', { target, parameters: [], initial: [], results: [],
+            body: { statements: [], exit: ['continue', target, []] } }] }
+        assertEq(assertOk(_sourceLoops(terminal)), terminal)
         const throwing = /** @type {FastFunction} */ ({ ...empty, body: {
             statements: [['loop', { target, parameters: [], initial: [], results: [output], body: { statements: [], exit: ['throw', 'stopped'] } }]],
             exit: ['return', empty.target, ['ref', output]],
@@ -1782,7 +1791,11 @@ export const proof = /** @type {const} */ ({
             const source = /** @type {Block} */ ({ statements, exit: ['yield', [value]] })
             assert(assertOk(_sourceLoops(source)) !== source)
         }
-        for (const exit of /** @type {readonly Block['exit'][]} */ ([['throw', inner], ['continue', target, [inner]], ['return', fn.target, inner]])) {
+        /** @type {readonly Block['exit'][]} */
+        const exits = [['throw', inner], ['continue', target, [inner]], ['return', fn.target, inner],
+            ['loop', { ...loop, results: [], body: { statements: [], exit: ['throw', inner] } }],
+        ]
+        for (const exit of exits) {
             const source = /** @type {Block} */ ({ statements: [], exit })
             assert(assertOk(_sourceLoops(source)) !== source)
         }

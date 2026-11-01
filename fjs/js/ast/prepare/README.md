@@ -9,6 +9,11 @@ The standalone function entry point requires normally completing capture
 values. A construction whose capture evaluation can transfer to its enclosing
 scope is prepared as a value in that containing region instead.
 
+A normalized terminal-loop exit keeps its lack of normal completion. Entry
+state is prepared before a terminal loop exit in the physical block; no
+returned value or failure is added afterward. Both target serializers consume
+that exit directly, and Rust spells it as a diverging `loop` expression.
+
 Required definitions remain ordered immutable definitions. A lazy definition
 becomes a memo declaration with private value and completion slots and a
 prepared initializer region. Its references become explicit demands. Each
@@ -75,11 +80,20 @@ Returns and throws still exit their exact owner;
 ordinary nested function bodies do not supply an enclosing loop's break. The
 prepared region ends with an empty unreachable yield, so both serializers omit
 the unreachable suffix, including after unconditional tail loops.
-For source functions alone, a proven-unreachable empty completion receives a
-terminal return, satisfying the source block grammar after a diverging loop.
+For older statement-loop forms in source functions, a proven-unreachable empty
+completion receives a terminal return, satisfying the source block grammar.
 The last prepared `while` supplies its result alias so invocation-root
 reconstruction remains exact; otherwise the unreachable return uses `undefined`.
 A normally completing empty region retains its own signature.
+
+A normalized terminal loop is instead a block exit, `['loop', loop]`, with no
+normal successor or loop results. Preparation shares the ordinary loop-state
+lowering, retains entry values and private state slots before the exit, and
+keeps the final `['loop', target, body]` as the prepared exit. Writes in that
+body determine the prefix slots' mutability. This structural form receives no
+synthetic throw, empty yield or compatibility return. JavaScript renders a
+final `while (true)` and Rust a final `loop` expression; neither adds a suffix.
+The representation does not admit implicit source function returns.
 
 The canonical scalar loop produced for existing source tail recursion becomes
 a prepared `while`: its condition reads a fresh immutable snapshot of the

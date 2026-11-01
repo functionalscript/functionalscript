@@ -12,6 +12,7 @@
 
 import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
 import { operatorOperands } from '../../../js/ast/module.f.mjs'
+import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { _prohibitedAccess } from '../../../compiler/parser/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
@@ -121,7 +122,7 @@ const graphReason = (a, module) => {
 /** @type {(block: Block) => readonly Value[]} */
 const blockValues = block => [
     ...block.statements.flatMap(statement => statement[0] === 'define' ? [statement[2]] : statement[0] === 'if' ? [statement[2]] : statement[0] === 'loop' ? statement[1].initial : []),
-    ...block.exit[0] === 'yield' ? block.exit[1] : block.exit[0] === 'continue' || block.exit[0] === 'break' ? block.exit[2] : [block.exit[0] === 'return' ? block.exit[2] : block.exit[1]],
+    ...exitValues(block.exit),
 ]
 
 /**
@@ -139,7 +140,8 @@ const lazyReason = fast => {
             const { block } = task
             if (block.statements.some(statement => statement[0] === 'define' && statement[3] === 'lazy')) { return 'a shared node reached from outside the lazy operand that establishes it' }
             const blocks = block.statements.flatMap(statement => statement[0] === 'block' ? [statement[2]] : statement[0] === 'if' ? [statement[3], statement[4]] : statement[0] === 'loop' ? [statement[1].body] : [])
-            pending = [...blocks.map(block => ({ block })), ...blockValues(block).map(value => ({ value })), ...rest]
+            const terminal = block.exit[0] === 'loop' ? [block.exit[1].body] : []
+            pending = [...blocks.map(block => ({ block })), ...terminal.map(block => ({ block })), ...blockValues(block).map(value => ({ value })), ...rest]
             continue
         }
         const { value } = task

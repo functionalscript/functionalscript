@@ -53,6 +53,50 @@ const recipeBlock = plan => {
 }
 
 export const proof = /** @type {const} */ ({
+    terminalLoopsRetainLazyInventoryAndReturnOwners: () => {
+        /** @type {Loop} */
+        const loop = { target, parameters: [], initial: [], results: [], body: body([], ['return', functionTarget, ['ref', a]]) }
+        const source = body([['define', a, ['array', [7]], 'lazy']], ['loop', loop])
+        assertEq(_hasReturn(['block', source], functionTarget), true)
+        const plan = planned(source, [], functionTarget)
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.cells[0].binding, a)
+        assert(plan.block.exit[0] === 'loop')
+        assertEq(plan.block.exit[1].results.length, 0)
+        assert(plan.loops.has(plan.block.exit[1]))
+    },
+    deferredTerminalLoopsKeepTheirConditionalPrerequisites: () => {
+        /** @type {Loop} */
+        const loop = { target, parameters: [], initial: [], results: [],
+            body: body([['define', known, ['ref', a], 'required']], ['throw', ['ref', known]]) }
+        /** @type {Value} */
+        const captured = ['function', { target: functionTarget, parameters: [], rest: null, self: null,
+            captures: [{ binding: known, value: ['ref', a] }], body: body([], ['return', functionTarget, ['ref', known]]) }]
+        /** @type {Value} */
+        const initializer = ['if', true, body([], ['loop', loop]), body([], ['yield', [captured]])]
+        const source = body([
+            ['define', a, ['array', [4]], 'lazy'], ['define', b, initializer, 'lazy'],
+        ], ['yield', [['ref', b]]])
+        const plan = planned(source)
+        assertEq(plan.cells.length, 2)
+        assertEq(plan.cells[0].binding, a)
+        assertEq(plan.cells[1].initializer, initializer)
+    },
+    terminalRecipeReturnsKeepTheirFunctionOwner: () => {
+        /** @type {Value} */
+        const returned = ['block', body([], ['loop', { target, parameters: [], initial: [], results: [],
+            body: body([], ['return', functionTarget, 7]) }])]
+        const source = containing(reading(a), [['define', a, returned, 'lazy']])
+        const plan = memoCells(source, [], functionTarget, true)
+        assert(plan !== null)
+        assertEq(plan.cells.length, 1)
+        assertEq(plan.cells[0].initializer, returned)
+        /** @type {Value} */
+        const initializer = ['block', body([['define', b, returned, 'lazy']], ['yield', [['ref', b]]])]
+        const recipe = recipeCells(initializer, { cells: [], definitions: new Map(), loops: new Set() }, new Map(), functionTarget)
+        assertEq(recipe.localCount, 1)
+        assertEq(recipe.layout.cells[0].binding, b)
+    },
     deferredReturnInventoryKeepsFunctionBoundaries: () => {
         const returned = body([], ['return', functionTarget, 7])
         const foreign = /** @type {const} */ ({ kind: 'function', index: 0 })

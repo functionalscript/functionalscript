@@ -56,6 +56,12 @@ force them eagerly.
 
 ## Enclosing-function returns
 
+A terminal loop ends its FAST block and has no normal completion. Its helper
+computation supplies the block's EDAG goal. If all completing paths return to
+the same owning function, their values become the helper result directly;
+there is no normal/return tag test or fabricated fallback. Multiple outward
+transfer kinds use an exhaustive dispatch over their actual outcomes.
+
 The [completion contract](./README.md#enclosing-function-returns) transports
 private normal/return/break/continue packets through generated helpers. Resolved
 target identities and lexical introduction order determine dispatch, independently

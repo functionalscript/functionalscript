@@ -168,13 +168,14 @@ const ownsMemo = (source, plan) => {
         const value = item.first
         if (value === null || typeof value !== 'object') { continue }
         if (!(value instanceof Array)) {
-            if (value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
+            if (value.exit[0] === 'loop' && plan.loops.has(value.exit[1]) || value.statements.some(statement => statement[0] === 'define' && plan.definitions.has(statement)
                 || statement[0] === 'loop' && plan.loops.has(statement[1]))) { return true }
             /** @type {readonly (Value | Block)[]} */
             const children = [...value.statements.flatMap(statement => statement[0] === 'define'
                 ? statement[3] === 'required' ? [statement[2]] : []
                 : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit)]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(value.exit),
+                ...value.exit[0] === 'loop' ? [value.exit[1].body] : []]
             pending = concat(children)(pending)
             continue
         }
@@ -246,6 +247,11 @@ const valueTask = (source, context) => call(() => {
 
 /** @type {(exit: Exit, context: _Context) => Task<_Exit>} */
 const exitTask = (exit, context) => call(() => {
+    if (exit[0] === 'loop') {
+        return bind(loopTask(exit[1], context, true), loop => done({
+            statements: loop.statements, exit: assertNotNullish(loop.exit), memo: loop.memo, normal: false, usesMemo: loop.usesMemo,
+        }))
+    }
     if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
     const inputs = exitValues(exit)
     return bind(valuesTask(inputs, context), values => {
@@ -264,16 +270,20 @@ const exitTask = (exit, context) => call(() => {
     })
 })
 
-/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context) => Task<_Loop>} */
-const loopTask = (loop, context) => call(() => {
+/** Replace one source loop by a private user-state/memo transport loop. @type {(loop: Loop, context: _Context, terminal?: boolean) => Task<_Loop>} */
+const loopTask = (loop, context, terminal = false) => call(() => {
     if (!context.plan.loops.has(loop)) {
         return bind(valuesTask(loop.initial, context), initial => {
             /** @type {(body: Block) => Task<_Loop>} */
-            const finish = body => done({
-                statements: concat(initial.statements)([['loop', body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
-                    ? loop : { ...loop, initial: initial.values, body }]]),
-                memo: initial.memo, usesMemo: initial.usesMemo, changed: body !== loop.body || initial.usesMemo,
-            })
+            const finish = body => {
+                const mapped = body === loop.body && initial.values.every((value, i) => value === loop.initial[i])
+                    ? loop : { ...loop, initial: initial.values, body }
+                return done({
+                    statements: terminal ? initial.statements : concat(initial.statements)([['loop', mapped]]),
+                    exit: terminal ? ['loop', mapped] : null,
+                    memo: initial.memo, usesMemo: initial.usesMemo, changed: body !== loop.body || initial.usesMemo,
+                })
+            }
             return context.completions && context.recipeOwner !== null
                 ? bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo: initial.memo, operand: false }), body => finish(body.block))
                 : finish(loop.body)
@@ -287,16 +297,16 @@ const loopTask = (loop, context) => call(() => {
     return bind(valuesTask(loop.initial, context), initial =>
         bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), memo, owners: { first: { source: loop.target, target }, tail: context.owners }, operand: false }), body => {
             const internal = /** @type {Loop} */ ({
-                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: [result, outputMemo],
+                target, parameters: [state, memo], initial: [['array', initial.values], ref(initial.memo)], results: terminal ? [] : [result, outputMemo],
                 body: { statements: [
                     ...loop.parameters.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(state), i], 'required'])),
                     ...body.block.statements,
                 ], exit: body.block.exit },
             })
-            return done({ statements: concat(initial.statements)([
+            return done({ statements: terminal ? initial.statements : concat(initial.statements)([
                 ['loop', internal],
                 ...loop.results.map((id, i) => /** @type {Statement} */ (['define', id, ['.', ref(result), i], 'required'])),
-            ]), memo: outputMemo, usesMemo: true, changed: true })
+            ]), exit: terminal ? ['loop', internal] : null, memo: terminal ? initial.memo : outputMemo, usesMemo: true, changed: true })
         }))
 })
 

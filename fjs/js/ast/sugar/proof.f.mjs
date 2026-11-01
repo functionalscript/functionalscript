@@ -115,17 +115,39 @@ export const proof = {
         for (const body of ['', 'continue;']) {
             // Inspect deliberate divergence; never execute either function.
             const normalized = fn(`export default ()=>{while(true){${body}}};`)
-            assertEq(normalized.body.statements.length, 1)
-            const loop = normalized.body.statements[0]
+            assertEq(normalized.body.statements.length, 0)
+            const loop = normalized.body.exit
             assert(loop[0] === 'loop')
             assertEq(loop[1].parameters.length, 0)
             assertEq(loop[1].results.length, 0)
             assertEq(loop[1].body.statements.length, 0)
             assert(loop[1].body.exit[0] === 'continue')
             assertEq(loop[1].body.exit[1], loop[1].target)
-            // FAST requires an exit record even after a non-completing loop.
-            // The unreachable guard is not an implicit returned undefined.
-            assertStructurallySame(normalized.body.exit, ['throw', 'a terminal loop completed normally'])
+            assertEq(freeLoopBindings(loop[1]).length, 0)
+            assert(!assertOk(analysis(graph(`export default ()=>{while(true){${body}}};`))).nodes.some(node => node[0] === 'throw'))
+        }
+    },
+    terminalLoopKeepsItsFunctionResultAndBranchContinuation: () => {
+        const source = /** @type {const} */ ('export default x=>{while(true){let y=0;if(x){if(x<0){return 2;}y=1;}return x*x+y;}};')
+        const normalized = fn(source)
+        const loop = normalized.body.exit
+        assert(loop[0] === 'loop')
+        assertEq(normalized.body.statements.length, 0)
+        assertEq(loop[1].parameters.length, 0)
+        assertEq(loop[1].results.length, 0)
+        const returned = loop[1].body.exit
+        assert(returned[0] === 'return')
+        assertEq(returned[1], normalized.target)
+        const branch = loop[1].body.statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        assertEq(branch[1].length, 1)
+        const early = branch[3].statements.find(statement => statement[0] === 'if')
+        assert(early !== undefined && early[0] === 'if')
+        assert(early[3].exit[0] === 'return')
+        assertEq(early[3].exit[1], normalized.target)
+        assert(!assertOk(analysis(graph(source))).nodes.some(node => node[0] === 'throw'))
+        for (const [value, expected] of [[0, 0], [2, 5], [-2, 2]]) {
+            assertStructurallySame(result(`const fn=${source.slice('export default '.length, -1)};export default fn(${value});`), { default: expected })
         }
     },
     terminalLoopReturnsKeepTheirOwningFunction: () => {
@@ -137,9 +159,13 @@ export const proof = {
             ['export default (()=>{if(true){while(true){return 5;}}return 9;})();', 5],
             ['export default (()=>{switch(1){case 1:{while(true){return 6;}}default:{return 9;}}})();', 6],
             ['export default (()=>{while(true){const inner=()=>{while(true){return 11;}};return inner();}})();', 11],
+            ['export default ((...args)=>{while(true){return args;}})(1,2,3);', [1, 2, 3]],
+            ['const value=[7];export default (()=>{while(true){return value;}})();', [7]],
+            ['export default (n=>{const alias=n;while(true){return alias;}})(7);', 7],
         ])
         for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
         assertError(memo(assertOk(analysis(graph('export default (()=>{while(true){throw "terminal failure";}})();'))))({ args: [] }))
+        assertEq(assertOk(analysis(graph('export default ()=>{while(true){throw "terminal failure";}};'))).nodes.filter(node => node[0] === 'throw').length, 1)
     },
     terminalLoopRegionsPreserveExpressionBlockUpdates: () => {
         const cases = /** @type {const} */ ([
@@ -148,6 +174,11 @@ export const proof = {
             ['export default (()=>{let n=0;while(true){switch((()=>{n+=1;return n;})()){case 1:{continue;}default:{return n;}}}})();', 2],
         ])
         for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    terminalSwitchLogicalLabelsKeepTheirSelectedValue: () => {
+        for (const label of ['true&&1', 'false||1', 'null??1']) {
+            assertStructurallySame(result(`export default (()=>{while(true){switch(1){case ${label}:{return 7;}default:{return 9;}}}})();`), { default: 7 })
+        }
     },
     switchBreaksMergeStateAndResumeTheirLoop: () => {
         /** @type {readonly (readonly [string, unknown])[]} */

@@ -4,7 +4,7 @@
  * @import { Exp, ExpOp } from '../../types.ts'
  * @import { Analysis, Node } from '../../analysis/types.ts'
  * @import { List } from '../../../types/list/types.ts'
- * @import { Block, Value } from '../../../js/ast/types.ts'
+ * @import { Block, Loop, Value } from '../../../js/ast/types.ts'
  */
 
 import { conditional } from '../../testlib.f.js'
@@ -26,6 +26,27 @@ const reason = (value, module = false) => {
 const shared = value => ['?:', true, value, value]
 
 export const proof = {
+    terminalLoopAdmissionChecksItsBodyAndEntryValues: () => {
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const binding = /** @type {const} */ ({ index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        /** @type {Block} */
+        const body = { statements: [], exit: ['continue', target, [['ref', binding]]] }
+        /** @type {Loop} */
+        const loop = { target, parameters: [binding], initial: [0], results: [], body }
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', loop] }
+        const table = assertOk(identityAnalysis(0))
+        assertEq(sourceReason(table, terminal), null)
+        /** @type {Block} */
+        const lazyBody = { statements: [['define', binding, ['array', []], 'lazy']], exit: ['return', owner, ['ref', binding]] }
+        const refusal = /** @type {const} */ ('a shared node reached from outside the lazy operand that establishes it')
+        assertEq(sourceReason(table, { statements: [], exit: ['loop', { ...loop, body: lazyBody }] }), refusal)
+        /** @type {Block} */
+        const lazyEntry = { statements: [], exit: ['loop', { target, parameters: [binding],
+            initial: [['function', { target: owner, parameters: [], rest: null, self: null, captures: [], body: lazyBody }]], results: [], body }] }
+        assertEq(sourceReason(table, lazyEntry), refusal)
+    },
     captures: () => {
         /** @type {Exp} */
         const array = ['[]', []]

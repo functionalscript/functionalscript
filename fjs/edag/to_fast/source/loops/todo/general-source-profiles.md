@@ -70,6 +70,12 @@ unchanged; first-output success does not establish a general source-normalized
 graph, stable hashes or a repeated graph/text fixed point. The established
 canonical profile contracts remain unchanged.
 
+The source-origin numeric join in the host corpus's
+`terminalLoopHasNoSyntheticFailure` reaches the same refusal. Its terminal
+loop preserves early returns, its EDAG contains no invented throw, and general
+code-only output executes correctly. Public source spelling for that shared
+join belongs to this graph-region task alongside the reparsed `K(z)` fixture.
+
 ### A demanded lazy terminal prefix
 
 `lazyTerminalPrefixesRetainTheirInvocationLoops` constructs a canonical
@@ -116,7 +122,8 @@ fallback; non-reifiable forms retain the explicit `Result` error
       or dropping reached work.
 - [x] Keep the demanded lazy-prefix graph in a `while` profile with its shared
       result, while preserving the supplied FAST definition during coordination.
-- [ ] Resolve the reparsed `K(z)` join's `a shared comma outside a scope` refusal
+- [ ] Resolve the reparsed `K(z)` and source-origin numeric joins'
+      `a shared comma outside a scope` refusal
       and define its source-normalization domain before claiming repeated cycles.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.

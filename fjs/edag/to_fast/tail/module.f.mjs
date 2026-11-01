@@ -32,8 +32,9 @@ const recipeUses = source => {
         if (task.kind === 'block') {
             const { block } = task
             const tail = task.tail && block.exit[0] === 'yield' && block.exit[1].length === 1
+            const terminal = block.exit[0] === 'loop' ? [blockTask(block.exit[1].body, owner, false)] : []
             pending = [...block.statements.map(statement => /** @type {_UseTask} */ ({ kind: 'statement', statement, owner })),
-                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...pending]
+                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...terminal, ...pending]
             continue
         }
         if (task.kind === 'statement') {
@@ -129,7 +130,7 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
         return bind(valueTask(value), result => done(result.block))
     })
     /** @type {(block: Block, selected: BindingId) => Task<Block>} */
-    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' ? done(block)
+    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' || block.exit[0] === 'loop' ? done(block)
         : bind(selectedValueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0], selected), result =>
             done({ statements: [...block.statements, ...result.statements], exit: result.exit })))
     /** @type {(value: Value) => Task<_Result>} */
@@ -168,7 +169,11 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
     })
     /** @type {(block: Block) => Task<_Result>} */
     const ordinaryBlockTask = block => call(() => {
-        if (block.exit[0] === 'throw') { return done(/** @type {_Result} */ ({ block, changed: false })) }
+        if (block.exit[0] === 'throw' || block.exit[0] === 'loop') {
+            /** @type {_Result} */
+            const result = { block, changed: false }
+            return done(result)
+        }
         return bind(valueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]), result => done({
             block: { statements: [...block.statements, ...result.block.statements], exit: result.block.exit }, changed: result.changed,
         }))

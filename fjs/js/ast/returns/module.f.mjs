@@ -309,6 +309,20 @@ const blockTask = (source, context, mode) => {
     const each = (index, statements, returns, lifted, changed) => call(() => {
         if (index === source.statements.length) {
             const exit = source.exit
+            if (exit[0] === 'loop') {
+                const loop = exit[1]
+                return bind(sequenceTask(loop.initial, context.owner, false, context.permitted), initial => {
+                    const next = initial.statements.reduce((/** @type {List<Statement>} */ tail, first) => ({ first, tail }), statements)
+                    if (!initial.normal) { return finish(next, exit, false, true, true, true) }
+                    return bind(blockTask(loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), body => {
+                        /** @type {Exit} */
+                        const mapped = !initial.lifted && body.block === loop.body ? exit
+                            : ['loop', { ...loop, initial: initial.lifted ? initial.values : loop.initial, body: body.block }]
+                        return finish(next, mapped, false, returns || context.operand || initial.lifted || body.returns,
+                            lifted || initial.lifted || body.lifted, changed || mapped !== exit || initial.lifted)
+                    })
+                })
+            }
             if (context.operand && (exit[0] === 'return' && exit[1] !== context.owner
                 || (exit[0] === 'break' || exit[0] === 'continue') && !toArray(context.loops).includes(exit[1]))) {
                 throw 'a value region may return only to its owning function or transfer within its own loops'
