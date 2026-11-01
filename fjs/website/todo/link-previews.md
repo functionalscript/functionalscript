@@ -56,7 +56,8 @@ what a crawler fetches.
   which the Open Graph protocol requires, missing on these pages. Adding
   them means rewriting each rustdoc page as the generator copies it, which
   needs an HTML parser the repository does not have; it is a follow-up of
-  its own, not part of this issue.
+  its own, not part of this issue:
+  [rustdoc-page-cards](rustdoc-page-cards.md).
 - **Absolute URLs.** `og:url` and `og:image` must be absolute, so a page
   needs to know where it is published. `Build` already has the branch, and
   that is enough: a build of `main` is production,
