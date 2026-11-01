@@ -652,6 +652,20 @@ const headingLevel = line => {
     return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
 }
 
+/**
+ * Whether a line is a thematic break: three or more of one of `-`, `*` and
+ * `_`, unindented, with spaces between them and nothing else. A `- - -` is
+ * one, not a list, as GitHub reads it.
+ *
+ * @type {(line: string) => boolean}
+ */
+const isThematicBreak = line => {
+    const mark = line[0]
+    if (mark !== '-' && mark !== '*' && mark !== '_') { return false }
+    const marks = [...line].filter(c => c !== ' ')
+    return marks.length >= 3 && marks.every(c => c === mark)
+}
+
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
 const isFence = line => line.startsWith('```')
 
@@ -671,9 +685,12 @@ const isClosingFence = line => {
  *
  * **Each is refused, not read as prose.** An indented block quote, a table row, raw
  * HTML, a numbered list, another bullet, an indented code block, a
- * fence, heading or list item indented by up to three spaces, a
- * thematic break and a heading's underline are each a structure on GitHub,
- * and prose here would be the README GitHub does not show.
+ * fence, heading, list item or thematic break indented by up to three
+ * spaces, and a heading's underline, a `---` or `===` right under a
+ * paragraph's line, are each a structure on GitHub, and prose here would
+ * be the README GitHub does not show. An unindented thematic break where a
+ * block starts is read as a `rule` before this is asked; a run of `-` or
+ * `=` too short for one is refused here with the underlines.
  *
  * @type {(line: string) => string | null}
  */
@@ -880,6 +897,13 @@ const readBlocks = (base, container) => lines => {
             i = end
             continue
         }
+        // Under a paragraph's line, a `---` is that paragraph's heading
+        // underline, which the paragraph refuses; here, a block starts.
+        if (isThematicBreak(line)) {
+            out = [...out, [['rule'], i, i]]
+            i++
+            continue
+        }
         const marker = listMarker(line)
         if (marker !== null) {
             /** @type {(l: string) => ListMarker | null} */
@@ -989,8 +1013,9 @@ const readBlocks = (base, container) => lines => {
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
             && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
-            // A quote ends a paragraph, as GitHub reads it.
-            && !lines[end].startsWith('>')) {
+            // A quote ends a paragraph, as GitHub reads it, and so does a
+            // thematic break but `---`, which underlines the paragraph.
+            && !lines[end].startsWith('>') && !(isThematicBreak(lines[end]) && lines[end][0] !== '-')) {
             const continued = foreignBlock(lines[end].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
             end += 1
@@ -1013,8 +1038,9 @@ const readBlocks = (base, container) => lines => {
  * The blocks are the ones a README is written in: an ATX heading, a
  * paragraph, a code fence opened by three backticks, a list of `- ` items,
  * each holding blocks of its own indented by two spaces and opening with a
- * GitHub task checkbox or not, a table whose rows open with a pipe, and a
- * block quote, its lines opening with `>`, holding blocks of its own.
+ * GitHub task checkbox or not, a table whose rows open with a pipe, a
+ * block quote, its lines opening with `>`, holding blocks of its own, and a
+ * thematic break, `---`.
  *
  * **What GitHub reads differently is refused, not approximated.** A line
  * after a list item with no blank before it and no indentation continues
