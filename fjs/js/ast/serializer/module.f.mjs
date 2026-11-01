@@ -391,7 +391,10 @@ const statementText = (context, statement) => {
             return `${keyword('const')} ${declared(context, memo.binding)}=(()=>{${keyword('let')} ${declared(context, memo.valueSlot)},${declared(context, memo.doneSlot)}=${primitive(false)};${keyword('return')}()=>{${keyword('if')}(!${name(context, memo.doneSlot)}){${name(context, memo.valueSlot)}=${blockExpression(context, memo.initializer)};${name(context, memo.doneSlot)}=${primitive(true)};}${keyword('return')} ${name(context, memo.valueSlot)};};})();`
         }
         case 'block': { return `{${blockText(context, statement[1], 'none')}}` }
-        case 'if': { return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${keyword('else')}{${blockText(context, statement[3], 'none')}}` }
+        case 'if': {
+            const otherwise = blockText(context, statement[3], 'none')
+            return `${keyword('if')}(${expression(context, statement[1])}){${blockText(context, statement[2], 'none')}}${otherwise === '' ? '' : `${keyword('else')}{${otherwise}}`}`
+        }
         case 'loop': { return `${context.runtime ? `L${context.loops.indexOf(statement[1])}:` : ''}${keyword('while')}(${primitive(true)}){${blockText(context, statement[2], 'none')}}` }
         case 'while': {
             const loop = statement[1]

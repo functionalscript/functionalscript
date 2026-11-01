@@ -33,6 +33,7 @@ neither reconstructs joins independently. Unsupported profiles return the input
 function unchanged. Graph conversion's one-pass invocation wrappers and general
 graph/text canonicalization remain separate boundaries.
 
-Direct JavaScript output uses the general code-only grammar. Its empty `else`
-clauses are not admitted by the current FJS parser; this pass adds no source
-admission or graph-to-source reconstruction capability.
+The JavaScript renderer omits empty alternatives, so the extracted guards use
+the existing FJS spelling. Public source preparation also reuses this pass after
+[canonical one-pass recovery](../one_pass/README.md). Source admission still
+belongs to the source coordinator; this pass adds no source grammar.

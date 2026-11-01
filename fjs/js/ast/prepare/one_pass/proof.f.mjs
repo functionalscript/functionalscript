@@ -84,6 +84,31 @@ const joinOf = fn => {
     assert(join[0] === 'if')
     return join
 }
+/** @type {(fn: FastFunction, then: Block, otherwise: Block) => FastFunction} */
+const joinArms = (fn, then, otherwise) => {
+    const join = joinOf(fn)
+    return statements(fn, [fn.body.statements[0], ['if', join[1], join[2], then, otherwise], ...fn.body.statements.slice(2)])
+}
+/** Valid ordinary joins whose inner decisions exceed the guard-only profile. */
+const guardProfiles = () => {
+    const { fn, stop } = fixture()
+    const work = id(), local = id()
+    /** @type {FastFunction} */
+    const source = { ...fn, parameters: [...fn.parameters, work] }
+    const otherwise = joinOf(source)[4]
+    const required = block(['yield', []], [['define', local, ['()', ref(work), []], 'required']])
+    const normal = joinArms(source, block(['yield', [3]], [
+        ['if', [], ref(stop), required, block(['yield', []])],
+    ]), otherwise)
+    const inverted = joinArms(source, block(['yield', [3]], [
+        ['if', [], ref(stop), block(['yield', []]), block(['return', fn.target, 42])],
+    ]), otherwise)
+    const terminal = joinArms(source, block(['yield', [3]], [
+        ['if', [], ref(stop), block(['return', fn.target, 42]),
+            block(['return', fn.target, 13], required.statements)],
+    ]), otherwise)
+    return { normal, inverted, terminal }
+}
 /** @type {(terminal?: boolean) => Loop} */
 const nestedLoop = (terminal = false) => {
     const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
@@ -97,9 +122,9 @@ const called = (fn, args = []) => memo(assertOk(identityAnalysis(fromFast(block(
 ])))))({ args: [] })
 /** @type {(fn: FastFunction, args?: readonly Value[]) => unknown} */
 const evaluated = (fn, args = []) => assertOk(toData(assertOk(called(fn, args))))
-/** @type {(fn: FastFunction) => FastFunction} */
-const accepted = fn => {
-    const result = _recoverOnePassJoin(fn)
+/** @type {(fn: FastFunction, guardsOnly?: boolean) => FastFunction} */
+const accepted = (fn, guardsOnly = false) => {
+    const result = _recoverOnePassJoin(fn, guardsOnly)
     assert(result !== fn)
     assert(!result.body.statements.some(statement => statement[0] === 'loop'))
     return result
@@ -122,6 +147,7 @@ export const proof = /** @type {const} */ ({
         const { fn, loop } = wrapped()
         assertEq(invocationRootOf(fn), loop)
         const result = accepted(fn)
+        const guarded = accepted(fn, true)
         assertEq(result.target, fn.target)
         assertEq(result.parameters, fn.parameters)
         assertEq(result.captures, fn.captures)
@@ -132,6 +158,7 @@ export const proof = /** @type {const} */ ({
                 const args = /** @type {const} */ ([selected, stop, operation()])
                 const actual = evaluated(result, args)
                 assertStructurallySame(actual, evaluated(fn, args))
+                assertStructurallySame(evaluated(guarded, args), actual)
                 if (selected && stop) { assertEq(actual, 42) }
                 else {
                     assert(actual instanceof Array)
@@ -145,6 +172,46 @@ export const proof = /** @type {const} */ ({
         }
         assertEq(evaluated(result, [true, true, operation(true)]), 42)
         assertError(called(result, [false, false, operation(true)]))
+    },
+    guardOnlyRecoveryKeepsOrdinaryInnerDecisionsInTheirWrapper: () => {
+        const { normal, inverted, terminal } = guardProfiles()
+        for (const source of /** @type {const} */ ([normal, inverted, terminal])) {
+            const { fn, loop } = wrapped(source)
+            assertEq(invocationRootOf(fn), loop)
+            const result = accepted(fn)
+            assertEq(_recoverOnePassJoin(fn, true), fn)
+            for (const selected of /** @type {const} */ ([false, true])) {
+                for (const stop of /** @type {const} */ ([false, true])) {
+                    const args = /** @type {const} */ ([selected, stop, operation(), operation()])
+                    assertStructurallySame(evaluated(result, args), evaluated(fn, args))
+                }
+            }
+        }
+        const required = wrapped(normal).fn
+        const failure = /** @type {const} */ ([true, true, operation(), operation(true)])
+        assertError(called(required, failure))
+        assertError(called(accepted(required), failure))
+        const skipped = /** @type {const} */ ([true, false, operation(), operation(true)])
+        assertStructurallySame(evaluated(accepted(required), skipped), evaluated(required, skipped))
+        const early = wrapped(inverted).fn
+        const suffixFailure = /** @type {const} */ ([true, false, operation(true), operation()])
+        assertEq(evaluated(early, suffixFailure), 42)
+        assertEq(evaluated(accepted(early), suffixFailure), 42)
+        assertError(called(accepted(early), [true, true, operation(true), operation()]))
+        const both = wrapped(terminal).fn
+        assertEq(evaluated(accepted(both), [true, false, operation(true), operation()]), 13)
+        assertError(called(accepted(both), [true, false, operation(), operation(true)]))
+    },
+    guardOnlyRecoveryPreservesOwningThrows: () => {
+        const source = fixture().fn
+        const selected = joinArms(source, joinOf(source)[3], block(['throw', 'selected arm']))
+        const { fn } = wrapped(selected)
+        const result = accepted(fn, true)
+        assert(result.body.exit[0] === 'throw')
+        assertError(called(fn, [false, false, operation()]))
+        assertError(called(result, [false, false, operation()]))
+        assertEq(evaluated(result, [true, true, operation(true)]), 42)
+        assertStructurallySame(evaluated(result, [true, false, operation()]), evaluated(fn, [true, false, operation()]))
     },
     entryAliasesAndCurrentInputSnapshotsStayRequiredAndOrdered: () => {
         const source = fixture(true).fn
@@ -334,13 +401,16 @@ export const proof = /** @type {const} */ ({
     ordinaryNestedFunctionBodiesKeepTheirIndependentOwners: () => {
         const source = fixture().fn
         const target = /** @type {const} */ ({ kind: 'function', index: 0 })
-        const self = id()
+        const self = id(), local = id()
         /** @type {Value} */
         const value = ['function', { target, parameters: [], rest: null, self, captures: [],
-            body: block(['return', target, ref(self)], [['loop', nestedLoop()]]) }]
+            body: block(['return', target, ref(self)], [
+                ['loop', nestedLoop()],
+                ['if', [], true, block(['yield', []], [['define', local, ['array', []], 'required']]), block(['yield', []])],
+            ]) }]
         const candidate = returned(source, value)
         const { fn } = wrapped(candidate)
-        const result = accepted(fn)
+        const result = accepted(fn, true)
         const definition = result.body.statements[result.parameters.length + 1]
         assert(definition[0] === 'define')
         const helper = definition[2]

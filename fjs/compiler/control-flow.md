@@ -329,7 +329,7 @@ distinct:
 | --- | --- |
 | `parameterizedJoin` directly through `prepareFunction` | Immutable continuation and guarded calls; no `let` or `while`. |
 | The same join through `fromFast`, `fromAnalysis` and default preparation | The canonical one-pass wrapper is recovered; an immutable continuation and guarded calls need no `let` or `while`. |
-| Public FJS source output for the same graph | Retains the existing loop reconstruction and source-readback profile. |
+| Public FJS source output for the same graph | Immutable continuation and guards; parser readback, execution and reserialization preserve the supplied profile. |
 | `parameterizedHelper` through either route | Immutable continuation and guarded calls; no `let` or `while`. |
 | Source `expressionJoinKeepsSelectedWrite` | An already supported immutable expression profile. |
 
@@ -387,15 +387,20 @@ both the direct FAST inputs and their full `fromFast`/analysis/`fromAnalysis`
 route; its [native tests](../../nanvm/harness/tests/immutable_joins.rs) execute
 the continuation, owning return and shared captured allocations, plus a genuine
 self-tail loop. The [graph-route JavaScript proofs](../edag/to_fast/immutable_invocation.proof.mjs)
-check the same owners and allocation lifetimes, unchanged public source
+check the same owners and allocation lifetimes, public source
 readback, and deep genuine loop/self-tail execution.
 
-Direct JavaScript function text still uses the general statement writer's
-`else {}` spelling, which the FJS source grammar refuses. The manual spelling
-above is admitted FJS; the preparation profiles do not widen public source
-output or its readback guarantees. One-pass recovery runs only in default
-preparation. It uses the existing invocation-root matcher and inverse to restore
-the owning returns and required entry snapshots. A read of the inverse's fresh
+The JavaScript writer omits empty alternatives, retaining the existing guard
+spelling accepted by the FJS parser. Public source output now uses the same
+one-pass recovery and immutable continuation as default preparation. Its
+[native readback proofs](serializer/value/immutable_source_joins.proof.mjs)
+check parsing, execution and reserialization of the supplied `K(z)` and nested
+`m` profiles without imposing graph/hash equality. Explicit source returns
+remain required. Recovery uses the existing invocation-root matcher and inverse
+to restore the owning returns and required entry snapshots. Source recovery
+requires every moved decision to have an empty normal alternative and a
+terminating then block; broader normal or inverted inner decisions retain their
+invocation loop. A read of the inverse's fresh
 self binding signals a backedge, so that wrapper is retained. Recovery also
 retains the original function when the immutable-join profile cannot consume
 the result, including lazy, nested-loop and hidden value-transfer regions.
@@ -403,7 +408,7 @@ Removing the loop scope requires fresh root identities for iteration inputs
 and all lifted declarations. The direct join pass applies the same restriction
 to flattened false-arm declarations. Valid shadowing that would collide at the
 function root retains its original scoped lowering; no renaming is introduced.
-Public source reconstruction, broader result signatures, lazy source profiles
+Broader source reconstruction, result signatures, lazy source profiles
 and mutable-storage optimizations remain separate work.
 
 ## Source boundaries and reconstruction gaps
@@ -449,9 +454,9 @@ it is not required to represent normal joins. The host corpus's
 `expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
 without `let` or `while`. The [first immutable join profile](#first-immutable-join-profile)
 now lowers a supplied statement conditional to a private continuation in direct
-common preparation. Default preparation can recover its canonical graph-route
-wrapper too; source-loop preparation and other result-bearing regions retain
-their existing layouts. The private continuation preserves owners,
+common preparation. Default and public source preparation can recover its
+canonical graph-route wrapper too; genuine source loops and other result-bearing
+regions retain their existing plans. The private continuation preserves owners,
 selected evaluation and observable sharing, while its insertion may change the
 graph's shape. This baseline
 does not change source assignment admission or declare existing slot output
