@@ -1,7 +1,7 @@
 ## Preserve owning self tails in deferred return recipes
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
