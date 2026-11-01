@@ -1,7 +1,9 @@
 # FunctionalScript Compiler
 
 [Compiler architecture](./architecture.md) defines the representations, pass
-boundaries and shared FAST migration contracts.
+boundaries and shared FAST migration contracts. The
+[control-flow audit](./control-flow.md) maps completion, continuation inputs
+and transfer owners to the existing representations and conformance proofs.
 
 The front end: a grammar-based tokenizer over
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the

@@ -2,8 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
-migration are implemented; control-flow vocabulary and contract review precede
-further conditional admission work; lexical/specification alignment remains
+migration are implemented; the control-flow conversion audit and conformance
+corpus are in progress before further conditional admission work;
+lexical/specification alignment remains
 
 ### Problem
 
@@ -498,6 +499,16 @@ An inserted IIFE has its own return owner, so an intended return from the
 enclosing function must still reach that original owner. Generated function
 blocks also keep explicit returns under the current scope restriction.
 
+The baseline serialization model uses immutable bindings and parameterized
+continuations for ordinary control flow, with mutable state for `while`
+lowering. Broader use of mutable output variables is an optional future
+optimization, not a requirement for representing branches or joins. The IIFE
+write example above illustrates an allowed encoding, not a requirement to
+create mutable locals. Audit existing non-loop result slots against that
+baseline without changing source assignment admission. Reusing a variable
+after its last use and similar storage optimizations are out of scope here.
+The goal is correct generated programs with stack-safe self-tail execution.
+
 The required structural property is: **every self tail-call evaluation must
 be converted into a transfer in a `while` loop.** This applies to authored
 functions and generated helpers. Retaining self tail recursion as a recursive
@@ -955,17 +966,24 @@ parts do not delay the epic's foundation gate:
       before resuming the conditional-admission drafts. Assume explicit
       function returns; implicit-return desugaring comes afterward. Audit
       existing FAST/EDAG and source mappings against the agreed model.
-- [ ] Build the corrected reference cases into an end-to-end conformance
+- [x] Audit existing source/FAST/EDAG and output mappings against the proposed
+      model; record the representation contracts and separate admission/output
+      gaps in the [control-flow audit](../compiler/control-flow.md).
+- [x] Build the corrected reference cases into an end-to-end conformance
       corpus, separating syntax, admission, normalization, graph behavior and
       output. Include parameterized continuations and the switch edges above;
-      mark unsupported forms honestly.
+      mark unsupported forms honestly. The
+      [control-flow audit](../compiler/control-flow.md) links each stage's proof.
 - [ ] Audit source statement/exit returns and immediate-call boundaries;
       decide their common normalization and any graph canonicalization before
       selecting constructor changes or compatibility adapters.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
-      general exact-graph round trips. Remove redundant control-flow bridges
+      general exact-graph round trips. Use parameters/immutable bindings for
+      non-loop continuations in the baseline; broader mutable output variables
+      belong to optional future optimization rather than the core model.
+      Remove redundant control-flow bridges
       with their consumers once the corpus demonstrates the replacement.
 - [ ] Audit self tail calls in every output function, including generated
       helpers, and replace fallbacks that retain self tail calls with common
