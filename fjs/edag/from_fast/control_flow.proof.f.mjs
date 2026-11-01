@@ -108,7 +108,7 @@ const parameterized = helper => {
 }
 
 /** The host conformance proof emits these same immutable normalized FAST functions. */
-export const controlFlowFunctions = /** @type {const} */ ({
+export const _controlFlowFunctions = /** @type {const} */ ({
     nested: nestedMutable(),
     parameterizedJoin: parameterized(false),
     parameterizedHelper: parameterized(true),
@@ -221,7 +221,7 @@ const conditionalLoop = () => {
 
 export const proof = /** @type {const} */ ({
     nestedMutableJoinAndOwningReturn: () => {
-        const fn = controlFlowFunctions.nested
+        const fn = _controlFlowFunctions.nested
         /** @type {Value} */
         const incoming = ['array', [5]]
         sharedPair(evaluated(fn, [false, incoming, failing(), duplicateArgument()]), [5])
@@ -241,7 +241,7 @@ export const proof = /** @type {const} */ ({
         sharedPair(evaluated(fn, [objectFactory(false)]), [41])
     },
     parameterizedContinuationsAgreeAcrossEncodings: () => {
-        for (const fn of [controlFlowFunctions.parameterizedJoin, controlFlowFunctions.parameterizedHelper]) {
+        for (const fn of [_controlFlowFunctions.parameterizedJoin, _controlFlowFunctions.parameterizedHelper]) {
             sharedPair(evaluated(fn, [false, false, allocatedPair()]), [5])
             sharedPair(evaluated(fn, [false, true, allocatedPair()]), [5])
             sharedPair(evaluated(fn, [true, false, allocatedPair()]), [8])

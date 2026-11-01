@@ -12,7 +12,7 @@ import { Buffer } from 'node:buffer'
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
-import { controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
+import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
@@ -152,14 +152,14 @@ export const proof = /** @type {const} */ ({
         }
     },
     suppliedNestedJoinKeepsNativeReturnOwnership: async () => {
-        const graph = fromFast({ statements: [], exit: ['yield', [['function', controlFlowFunctions.nested]]] })
+        const graph = fromFast({ statements: [], exit: ['yield', [['function', _controlFlowFunctions.nested]]] })
         const apply = await load(codeOnly(graph))
         assertEq(apply(false, 5, unselected, timesTen), 50)
         assertEq(apply(true, 5, () => ({ a: 7, b: false, c: 99 }), timesTen), 70)
         assertEq(apply(true, 5, () => ({ a: 7, b: true, c: 99 }), unselected), 99)
     },
     suppliedParameterizedContinuationsKeepNativeInputs: async () => {
-        for (const fn of [controlFlowFunctions.parameterizedJoin, controlFlowFunctions.parameterizedHelper]) {
+        for (const fn of [_controlFlowFunctions.parameterizedJoin, _controlFlowFunctions.parameterizedHelper]) {
             const graph = fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
             const apply = await load(codeOnly(graph))
             for (const [selected, stop, expected] of /** @type {const} */ ([
