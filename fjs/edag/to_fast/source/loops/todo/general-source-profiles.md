@@ -128,10 +128,10 @@ same invocation-local value. Loop re-entry must recreate iteration-local storage
 
 ### Other profile boundaries
 
-The [independent terminal-recipe graph](../../../tail/todo/independent-terminal-recipes.md)
-is currently refused by public source, while general JS/function text and Rust
-accept recursive output. Its bounded-stack gap belongs to common tail planning;
-the source refusal remains a separate admission boundary. The
+The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
+now use bounded common loop planning for general JS/function text and Rust.
+Public source still refuses their structured selection region. Source admission
+is unchanged, and parser readback remains a separate extension gate. The
 [output audit](../../../../../compiler/self-tail-output.md) distinguishes these
 routes and the existing one-pass source reconstruction evidence.
 

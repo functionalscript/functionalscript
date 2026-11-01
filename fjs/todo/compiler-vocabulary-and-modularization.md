@@ -1016,8 +1016,9 @@ parts do not delay the epic's foundation gate:
       [self-tail output audit](../compiler/self-tail-output.md).
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
-      argument snapshots and invocation-local lifetimes. Start with
-      [independent shared terminal recipes](../edag/to_fast/tail/todo/independent-terminal-recipes.md).
+      argument snapshots and invocation-local lifetimes. Independent shared
+      terminal recipes now have [common loop planning](../compiler/self-tail-output.md#independent-shared-terminal-recipes)
+      and native JavaScript/Rust conformance witnesses.
       Track broader source admission in the
       [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.

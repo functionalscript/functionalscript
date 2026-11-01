@@ -6,9 +6,10 @@ output must use `while`; it cannot depend on engine tail-call optimization.
 Rust consumes the same loop plan. Ordinary non-tail calls and observable self
 identity retain their meaning.
 
-This audit records the existing profiles and final native witnesses. It does
-not establish a guarantee for every supplied graph: the independent terminal
-recipe case below still emits recursion. Explicit source returns remain required.
+This audit records the existing profiles and final native witnesses, including
+independent shared terminal recipes. Its evidence covers the named profiles;
+broader source-admission and direct-preparation boundaries remain below.
+Explicit source returns remain required.
 
 ## Routes and owner boundaries
 
@@ -44,29 +45,35 @@ for the named profiles, not portable maximums for ordinary recursion.
 | Mixed tail/non-tail uses and self as a value | [Graph proofs](../edag/to_fast/tail_calls/proof.f.mjs), `nonTailSelfValuesAndCallsRetainTheirFunctionBinding`, `restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls`; [function-text corpus](serializer/function_text/proof.mjs), `mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork`. Only eligible tail evaluations become transfers; ordinary calls keep following work and the public function retains its identity. |
 | Immutable continuations | [Source readback](serializer/value/immutable_source_joins.proof.mjs), [graph output](../edag/to_fast/immutable_invocation.proof.mjs). These acyclic helpers preserve owning returns, sharing and captures; they are not recursive-loop witnesses. |
 
+## Independent shared terminal recipes
+
+The identity-sensitive [shared fixtures](../edag/to_fast/tail/fixtures.f.js)
+reuse each terminal call object across several decision leaves. Common planning
+walks that decision tree once to produce a private recipe index, then dispatches
+to one physical continuation per recipe. Reached base results and abrupt exits
+complete the invocation before dispatch. Required prefix work and nonexclusive
+shared dependencies keep their common scope; exclusive dependencies remain in
+their selected recipe. The existing single-root continuation keeps its layout.
+
+[Pure planner proofs](../edag/to_fast/tail/proof.f.mjs) verify shared physical
+regions, required order and dependency scope. The
+[native JavaScript proofs](serializer/value/independent_tail_recipes.proof.mjs)
+execute code-only modules, evaluated-value modules and function text at 100,001
+transfers. The [native Rust tests](../../nanvm/harness/tests/independent_tail_recipes.rs)
+use the same graphs. Distinct argument vectors, selected ignored-argument
+failures, shared allocations and escaped readers retain their original meaning.
+
+Public FJS source still refuses this structured selection profile. Source
+admission is unchanged; extending that output requires separate parser readback
+and execution evidence.
+
 ## Remaining boundaries
-
-### Independent shared terminal recipes
-
-Two independent shared terminal call recipes currently retain recursion in
-accepted code-only JS, evaluated-value JS and function text. The finite
-[reproducer and follow-up](../edag/to_fast/tail/todo/independent-terminal-recipes.md)
-returns `0` at shallow depths but overflows the native JS stack at 100,001 calls.
-Rust accepts the graph and emits owning calls in memo initializers; native Rust
-overflow was not measured. Public FJS source explicitly refuses this graph.
-
-The [pure planner proof](../edag/to_fast/tail/proof.f.mjs),
-`independentInterleavedRecipesKeepTheirExistingLayout`, records the narrower
-single-root factoring capability. It does not prove the retained recursion
-stack-safe. The follow-up must extend common planning while preserving selected
-demand, sharing and per-invocation lifetimes.
 
 ### Source refusals and recursive reconstruction
 
 The deferred fixtures `nestedRecipe` and `normalPayload` are explicit public
 source refusals because genuine lazy placement remains. General JS and Rust
-execute their owning tails deeply. They are source-admission gaps, distinct
-from the accepted recursive output above; see
+execute their owning tails deeply. They remain source-admission gaps; see
 [general source profiles](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 
 The source coordinator's

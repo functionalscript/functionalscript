@@ -422,7 +422,7 @@ their restricted terminal-value fallback for other profiles. This is a source
 output extension, with no source-admission or optimizer change.
 
 The [self-tail output audit](self-tail-output.md) maps current routes, native
-witnesses, source refusals and the remaining shared-recipe recursion gap.
+witnesses, source refusals and bounded shared-recipe loop planning.
 Every self tail-call evaluation must serialize as a `while` transfer, including
 in generated helpers. Existing
 [tail eligibility](../edag/to_fast/README.md#tail-call-eligibility) covers selected
