@@ -43,10 +43,13 @@ what a crawler fetches.
 
 - **A description for each page.** `shell` takes only a title today, so it
   needs a description as well. The obvious source is the first paragraph of
-  the directory's README with text (`dir.readme`, already rendered at build
-  time). A paragraph of badges has none, since an image's text is in an
-  attribute, so it is skipped: the root README opens with one. A directory
-  without a README, and the root page, use one site-wide tagline.
+  prose in the directory's README (`dir.readme`, already rendered at build
+  time). Two kinds of opening paragraph are not prose and are skipped: a
+  paragraph of badges has no text, since an image's text is in an
+  attribute, as the root README's first one shows; and a field, a paragraph
+  that opens with a bold label ending in a colon, such as
+  `**Status:** implemented`, which opens most READMEs under `spec/`. A
+  directory without a README, and the root page, use one site-wide tagline.
 - **The rustdoc pages.** `rustdocHead` is the same on every rustdoc page, so
   it can carry only the tags that do not vary by page: `og:site_name`,
   `og:type`, `twitter:card` and, where the build knows its origin,
