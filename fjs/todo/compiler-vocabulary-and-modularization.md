@@ -999,6 +999,9 @@ parts do not delay the epic's foundation gate:
       owner-preserving normalization before claiming immutable output. Keep
       the owning early return outside the private continuation and use the
       existing nested `m` and `K(z)` semantic corpus.
+      Current step: the task owner approved recognizing the one-pass invocation
+      wrapper, restoring its function returns and structured join before
+      preparation, and checking the complete JavaScript/Rust graph route.
 - [ ] Audit self tail calls in every output function, including generated
       helpers, and replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
