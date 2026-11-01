@@ -2,8 +2,8 @@
 
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
-migration are implemented; remaining lexical/specification alignment follows
-with the feature and integration milestones
+migration are implemented; control-flow vocabulary and contract review precede
+further conditional admission work; lexical/specification alignment remains
 
 ### Problem
 
@@ -14,22 +14,22 @@ information, but parsing, desugaring, binding, graph analysis and code emission
 are spread across implementation descriptions. The same words can therefore
 suggest different responsibilities to different contributors.
 
-The JS and Rust writers illustrate the boundary we need to make explicit.
-Their shared-node counting has already been consolidated:
-[identity-shared-walks](../edag/todo/identity-shared-walks.md) records the completed
-work. Binding and block-placement decisions still live in the writers. A
-common graph-to-FAST conversion should own sharing, bindings and evaluation
-regions for every MVP target. The MVP prioritizes minimal implementation code
-and consistent behavior across languages through one shared conversion.
+The shared FAST foundation and writer migration are implemented:
+[compiler architecture](../compiler/architecture.md) records the current owners.
+Graph-to-FAST conversion and common preparation own sharing, placement and
+transfers; JS and Rust writers consume their decisions. The remaining review
+must make source completion, normalization and source reconstruction use one
+control-flow contract, before extending conditional admission further.
 
 The specification has the same gap from the reader's side. A page says what
 a feature accepts and, for sugar, what it lowers to — a pattern "is sugar
 over reads the language has", a guard "adds no node" — but not which stage
 does it, so the website that will show the pages cannot say where a feature
 is implemented, and a contributor cannot tell a placement that follows the
-design from one that drifted. Today the parser's fold desugars while it
-resolves names, and a module becomes a function in two places;
-[below](#where-a-feature-is-implemented) records both.
+design from one that drifted. The
+[original migration analysis](#where-a-feature-is-implemented) records the
+earlier parser-fold responsibilities; it is historical context, not the current
+ownership map.
 
 This issue defines the target vocabulary and module organization, followed by
 incremental implementation. It spans JS syntax infrastructure, EDAG, Rust
@@ -87,7 +87,52 @@ formatting or identifier spelling. For FJS-admitted input,
 FAST-to-EDAG-to-FAST must preserve the defined semantics, sharing and
 conditional evaluation. Any stronger graph
 round-trip guarantee must state its supported domain and permitted
-normalizations.
+normalizations. General code serialization may introduce functions and IIFEs;
+its output need not reproduce the input EDAG's shape or hash when reparsed.
+The [serialization contract](#serialization-contract) requires self tail
+recursion to become `while`.
+
+#### Control-flow vocabulary
+
+These terms describe semantics independently of source syntax or constructor
+names. The [FAST types](../js/ast/types.ts) and
+[FAST contract](#fast-contract) already express normal results and targeted
+transfers; this review does not introduce another control-flow IR.
+
+| Term | Meaning |
+| --- | --- |
+| Lexical scope | Where a declaration can be named. It is distinct from when a computation is evaluated. |
+| Evaluation region | The reached part of a computation in which a value may be established or demanded. A branch region creates no function invocation. |
+| Invocation | One execution of an ordinary function, with its own parameters, locals and shared-value lifetime; it reads the function's established captures. |
+| Completion | How execution leaves a region: normally with its results, or by an abrupt transfer. This is a semantic classification, not a requirement to allocate completion objects. |
+| Normal completion | Finish the current region and resume its normal continuation. In normalized FAST, `yield(values)` supplies that region's ordered results. Zero results differ from one result whose value is `undefined`. |
+| Abrupt transfer | `break`, `continue`, `return` or failure bypasses the current region's normal continuation. A transfer can complete an enclosing construct normally: a switch-local break exits its case but resumes after the switch. |
+| Transfer owner / target | The resolved construct an exit belongs to. A source `break` names the nearest enclosing loop or switch; `continue` names the nearest enclosing loop; `return` names its ordinary function. Nested functions establish new owners. Failure uses the existing failure channel. |
+| Result signature | The ordered values a normally completing region supplies. Loop input and result signatures are independent. |
+| Join | Where normal predecessors supply versions of the same result bindings. Returning or throwing paths supply no placeholder results to that join. |
+| Continuation | The computation resumed after a region completes normally. It can have explicit inputs carrying that path's values; it need not be represented as a function. |
+| Continuation inputs | An ordered interface through which incoming paths supply values to the following computation. Different paths may supply different immutable versions. |
+| Shared continuation | One continuation body reached from several predecessors, potentially with different input values. Its encoding can share a computation after a join, or share a function body with distinct calls; those encodings have different graph identities. |
+| Transfer snapshot | Establish all transfer operands from the current immutable values before updating destination slots. Captures retain immutable iteration values, never those slots. |
+| Self tail call | An evaluation that calls the current function and supplies its result directly as that invocation's result, with no pending computation afterward. Tail position belongs to the evaluation and its use, not to a printed function name or globally to a shared graph node. |
+| Terminal region | A region with no normal path to its following statements. Returning, throwing, transferring elsewhere and diverging are different ways not to reach that continuation. |
+| Divergence | Execution that never completes, such as an infinite loop. Prefer "conditional with normal completion" to "nonterminating if", which can suggest divergence. |
+
+`yield` here is internal result delivery, unrelated to JavaScript generator
+syntax. Reaching a branch or case block's closing brace is normal completion;
+it does not return from its function. For this work, source function block
+fall-through remains refused: a successfully completing function must state
+its return explicitly. Throwing and non-returning paths retain their existing
+meaning. First establish the control-flow model under that restriction; only
+afterward consider desugaring implicit function returns into explicit exits.
+
+Correct lowering preserves successful values, required failure, conditional
+evaluation and the declared sharing/invocation contracts. The
+[failure policy](../../spec/principles/README.md#failure-is-one-outcome) does not
+make the first failure, its payload or work performed before failure observable.
+Graph-identity preservation is a stronger, separately stated contract than
+equivalent execution; supported round trips must name their normalization
+domain.
 
 #### Proposed module map
 
@@ -151,8 +196,11 @@ owners; this proposal does not require a Rust input parser.
   than a separate binding policy in the Rust serializer.
 - **Graph-to-FAST owns tail-loop lowering.** The
   [tail-call owner](../edag/to_fast/README.md#tail-call-eligibility) defines existing-case migration,
-  evaluation-aware eligibility and invocation requirements. It uses the common
-  placement analysis; every serializer renders the same decisions.
+  evaluation-aware tail position and invocation requirements. It uses the common
+  placement analysis; every serializer renders the same decisions. The target
+  contract requires every self tail call to become a `while` transfer,
+  including in generated functions; current profile restrictions are
+  implementation gaps, not exceptions to that requirement.
 - **MVP backends own target spelling and runtime mapping.** Serializers render
   the bindings and computations already expressed in FAST, using the target's
   syntax and runtime operations. They do not traverse EDAG, rediscover graph
@@ -322,6 +370,290 @@ normalization needed by the baseline scalar root-loop round trip. B implements
 that input capability before C migrates existing output. General signatures
 follow in E; a foundational round-trip dependency does not wait for them.
 
+#### Control-flow contract review
+
+Normal joins, immutable binding versions, explicit loop state and targeted
+exits already exist in FAST and are preserved by existing FAST/EDAG
+conversions. EDAG encodes their meaning through expression dependencies,
+sharing and recursion rather than literal return or loop-transfer nodes.
+Define the control-flow model independently of those constructor shapes,
+then audit every conversion against it. Reuse the existing representation
+where it satisfies that contract; existing special cases do not constrain
+the model.
+[PR #3511](https://github.com/functionalscript/functionalscript/pull/3511) and
+[PR #3512](https://github.com/functionalscript/functionalscript/pull/3512) are
+paused drafts while this contract is reviewed. Their tests and source-output
+investigation remain evidence; the reconstruction recipe in #3512 is a
+prototype finding, not an agreed implementation requirement.
+
+The review must settle these rules before resuming implementation:
+
+- Sequential composition resumes following statements only on normal
+  completion. A conditional evaluates its test once and selects one arm;
+  an absent `else` completes normally with the incoming binding versions.
+- Normally completing arms supply one ordered join signature. Branch-local
+  declarations stay local; outer bindings named by the result signature cross
+  the join. A return bypasses that join and continuation. Selecting a valid
+  signature does not require a new liveness optimization.
+- A source return retains the same function owner whether stored as a source
+  statement or a source block exit. Audit the current `SourceStatement`,
+  `SourceExit` and immediate-call normalization together. An immediate-call
+  rewrite may replace an owning return with a region yield only when removing
+  that return's own invocation boundary; ordinary branch entry creates no
+  such invocation. The rewrite must preserve the invocation's other semantics.
+- Preserve source scope, declaration and capture checks before erasing their
+  evidence, including checks of syntactically unreachable code. Source syntax,
+  FJS admission and target-source representability remain separate boundaries.
+- Terminal-guard normalization and recognizers such as `terminalTree` must
+  implement or recognize a stated profile of this contract. A recognizer's
+  accepted shapes do not define all valid terminal control flow. Decide any
+  compatibility canonicalization and its graph-identity effects explicitly.
+
+For the task owner's example, inside an ordinary function `F`:
+
+```js
+if (a) {
+    const x = f()
+    m = x.a
+    if (x.b) {
+        return x.c
+    }
+}
+return g(m)
+```
+
+The conceptual normalized FAST is:
+
+```text
+m1 = if (a) {
+    required x = f()
+    required m2 = x.a
+    if (x.b) { return F(x.c) } else { yield() }
+    yield(m2)
+} else {
+    yield(m0)
+}
+return F(g(m1))
+```
+
+`m0` is the incoming value. Only normal paths produce `m1` and reach the one
+following `g` call; the inner return exits `F`. The read of `x.a` remains
+required, including on the returning path. EDAG construction can reference
+one following computation directly. Serialization may instead introduce a
+continuation function or IIFE under the contract below.
+
+**A continuation can be parameterized.** The task owner's function spelling
+makes its input explicit:
+
+```js
+const z0 = 0
+const shared = z => c(z + 5)
+return a
+    ? (() => {
+        const x = f()
+        return x.a()
+            ? x.b()
+            : (() => {
+                const z1 = z0 + x.c()
+                return shared(z1)
+            })()
+    })()
+    : shared(z0)
+```
+
+Here `K(z) = c(z + 5)` is the shared continuation. The false outer arm supplies
+`z0`; the normally completing inner arm supplies `z1`; the returning inner
+arm bypasses `K`. Sharing the continuation does not require equal input values.
+In structured FAST, a normal join can bind `z_join` from `z0` or `z1`, followed
+by one `return F(c(z_join + 5))`. In a function encoding, `shared` receives
+the selected value as an argument. Both express parameterized following work;
+they do not imply identical graph structure. Sharing a function body leaves
+its distinct call sites distinct, whereas a joined computation can reference
+one call node. The model specifies the continuation's inputs before choosing
+its graph encoding or claiming identity preservation.
+
+##### Serialization contract
+
+The task owner permits additional generated functions and immediately invoked
+function expressions (IIFEs). Parameterized continuation functions, expression
+blocks and private helpers are all available output choices. Prefer a simple,
+correct common lowering over preserving the input graph's constructor layout.
+
+An IIFE may reassign variables in its enclosing scope. For example, inside a
+function whose following computation uses `m`:
+
+```js
+let m = initial
+const ignored = (() => {
+    m = f(m)
+    return undefined
+})()
+return g(m)
+```
+
+The write reaches the following `g(m)` without returning the updated `m` as
+the IIFE's result. Source normalization exports the write as an immutable
+binding version; generated output may use private mutable temporaries.
+An inserted IIFE has its own return owner, so an intended return from the
+enclosing function must still reach that original owner. Generated function
+blocks also keep explicit returns under the current scope restriction.
+
+The required structural property is: **every self tail-call evaluation must
+be converted into a transfer in a `while` loop.** This applies to authored
+functions and generated helpers. Retaining self tail recursion as a recursive
+source fallback is not an acceptable final output. Inserting an IIFE must
+not hide an original tail call from that lowering. A function can retain its
+self binding for other uses and non-tail calls while its tail calls become
+loop transfers. Preserve simultaneous argument updates, iteration-local
+values and shared-value lifetimes through the common preparation stage.
+
+This is a portability and stack-safety requirement. V8 and SpiderMonkey do
+not support proper tail calls, so emitted self tail recursion can still grow
+the call stack and overflow on long runs. Emitting `while` keeps the self
+tail-call chain bounded in stack usage without depending on engine TCO.
+
+Code output must preserve program semantics, including observable value
+sharing, but need not preserve exact EDAG structure on reparse. Helper and
+IIFE insertion can change graph structure and therefore its hash. Exact
+graph/text round trips remain separately named guarantees for supported
+canonical profiles; they are not a gate on general serialization.
+
+This is the target contract, not a claim that all current output profiles
+meet it. The current source coordinator retains recursive fallbacks for some
+profiles; the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+records those implementation gaps. Audit those paths against the `while`
+requirement instead of preserving their recursive spelling for compatibility.
+
+##### Switch selection and execution
+
+Switch lowering has two distinct responsibilities:
+
+1. **Dispatch:** establish the discriminant once, then test case labels with
+   strict equality in source order until the first match. Later labels are
+   not evaluated after a match. No match selects `default`, or completes the
+   switch normally if there is none. Reached discriminant/label expressions
+   can update binding versions; those updates flow to later tests, the
+   selected case or the no-match continuation.
+2. **Case execution:** start at the selected body. A switch-local `break`
+   exits to the continuation after the switch. A normally completing body
+   falls through to the next body without testing its label. At the end of
+   the last body, normal completion exits the switch. An owning return,
+   throw or enclosing-loop continue bypasses the switch continuation.
+
+This describes general control flow without expanding FJS admission. The
+[current switch profile](../../spec/control-flow/switch/README.md) admits
+terminal braced cases outside loops, and explicitly exiting braced cases
+inside loops. Fall-through remains refused. A non-final `default` and other
+refused spellings remain separate admission work; in the general model all
+case labels are searched before choosing an unmatched default, regardless of
+its written position.
+
+**Without break, with terminal cases.** This existing function-body form:
+
+```js
+switch (e()) {
+    case 1: { return f() }
+}
+return g()
+```
+
+becomes conceptually:
+
+```text
+required d = e()
+if (d === 1) { return F(f()) } else { return F(g()) }
+```
+
+There is no normal join from the returning case. The no-match path reaches
+the following statements. A terminal default replaces that no-match path.
+
+**With break, with a normal continuation.** For this switch inside a loop:
+
+```js
+switch (tag) {
+    case 1: { m = f(m); break }
+}
+// Following loop-body statements use m.
+```
+
+Existing normalization uses a one-pass FAST loop as the switch's transfer
+region. It has no next-iteration transfers; its break results resume the
+following statements:
+
+```text
+required d = tag
+m1 = loop S() -> (m_result) {
+    if (d === 1) {
+        required m2 = f(m0)
+        break S(m2)
+    } else {
+        break S(m0)
+    }
+}
+// One shared continuation reads m1.
+```
+
+Here the constant label and discriminant perform no writes, so no match
+carries `m0` unchanged. In outer loop `L`, `break S(values)` resumes after
+the switch, `continue L(values)` starts the next iteration of `L`, and
+`return F(value)` exits `F`. A break inside a nested loop belongs to that
+loop; a switch does not become a continue owner. These resolved owners,
+not a keyword search, determine the lowering. No switch EDAG operation is
+needed for the admitted profile.
+
+**Without break, with fall-through.** This general JavaScript example is
+currently refused by FJS:
+
+```js
+switch (tag) {
+    case 0: { m += 1 }
+    case 1: { m += 2; break }
+    default: { m += 3 }
+}
+return g(m)
+```
+
+Its control-flow edges are:
+
+```text
+dispatch 0  -> case0(m0) -> case1(m0 + 1) -> afterSwitch(m0 + 1 + 2)
+dispatch 1  ------------> case1(m0)     -> afterSwitch(m0 + 2)
+no match   -> default(m0)              -> afterSwitch(m0 + 3)
+afterSwitch(m_result) -> return F(g(m_result))
+```
+
+Dispatch selects an entry, rather than an independent Boolean guard around
+each body. `case1` joins its dispatch and fall-through inputs; `afterSwitch`
+joins normally exiting state. The fall-through edge does not test label `1`.
+The final default needs no break because its normal end already exits the
+switch. These edges state the required meaning; choosing its FAST encoding
+and admitting source fall-through are subsequent work, not delivered here.
+
+##### Reference cases
+
+Use the task owner's
+[control-flow examples](https://github.com/functionalscript/functionalscript/blob/sergey/temp1/doc/sergey/control-flow.md)
+as the starting corpus, with these corrections and distinctions:
+
+- Case 8's break arm returns `[a, b + 1]`, preserving the update before break.
+- Case 9's recursive sketch needs its final `return loop0(0)` invocation.
+- Parameterized continuation helper sketches explain execution but do not
+  prove EDAG identity. Distinct incoming paths may supply different arguments;
+  two calls to one helper remain distinct invocation nodes.
+- Recursive loop sketches explain state transfer; bounded-stack execution
+  requires loop/tail-call lowering. Serialization must emit `while` for self
+  tail recursion, including in any generated continuation helpers.
+
+Extend that corpus with the nested example above and switch dispatch,
+switch-local breaks, return/continue ownership, stacked labels, no match,
+reached-label writes and fall-through edges. Record unsupported admission or
+source-output profiles explicitly. Check source-to-FAST structure, EDAG
+execution/sharing and target reconstruction as separate stages; Rust text
+serialization alone is not evidence of native Rust execution. Function
+block fall-through remains refused throughout this model and conformance
+work. Desugaring implicit function returns follows an agreed model; broader
+JS/TS admission is also separate work.
+
 #### Where a feature is implemented
 
 Every feature the specification describes names the layer that implements
@@ -351,9 +683,14 @@ this issue owns the vocabulary the line uses and the placements below.
 | Serialization | A target's spelling of FAST and of its runtime operations. |
 | Evaluation | What a value converts to, what fails, what a built-in answers: the interpreter's and the VM's. |
 
-Where a feature lives today, and where the vocabulary places it:
+**Historical migration context.** The following table and migration examples
+describe the original parser/writer arrangement before milestones A-C. Use
+[compiler architecture](../compiler/architecture.md) for current ownership;
+these observations do not reopen the completed foundation work.
 
-| Feature | Today | Layer |
+Where the original implementation placed a feature, and its intended owner:
+
+| Feature | Original placement | Layer |
 | --- | --- | --- |
 | Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
 | Default parameters | The fold: `functionScope` and `lateRound`, one conditional entry reading the rest array twice | Desugaring, two fresh entries |
@@ -613,6 +950,29 @@ documentation and run the affected checks with each implementation increment.
 The remaining architecture alignment accompanies relevant moves; unrelated
 parts do not delay the epic's foundation gate:
 
+- [ ] Agree the [control-flow vocabulary](#control-flow-vocabulary) and
+      [control-flow model and completion/ownership contract](#control-flow-contract-review)
+      before resuming the conditional-admission drafts. Assume explicit
+      function returns; implicit-return desugaring comes afterward. Audit
+      existing FAST/EDAG and source mappings against the agreed model.
+- [ ] Build the corrected reference cases into an end-to-end conformance
+      corpus, separating syntax, admission, normalization, graph behavior and
+      output. Include parameterized continuations and the switch edges above;
+      mark unsupported forms honestly.
+- [ ] Audit source statement/exit returns and immediate-call boundaries;
+      decide their common normalization and any graph canonicalization before
+      selecting constructor changes or compatibility adapters.
+- [ ] Rework structured source reconstruction against that contract, using
+      common preparation. Allow helper functions and enclosing-variable writes
+      from IIFEs; preserve completion owners and semantics without requiring
+      general exact-graph round trips. Remove redundant control-flow bridges
+      with their consumers once the corpus demonstrates the replacement.
+- [ ] Audit self tail calls in every output function, including generated
+      helpers, and replace fallbacks that retain self tail calls with common
+      `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
+      argument snapshots and invocation-local lifetimes; track broader profiles
+      in the
+      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.
 - [ ] Name each specification feature's implementing layer. Update affected
       pages with their code moves, then finish the remaining vocabulary alignment.
