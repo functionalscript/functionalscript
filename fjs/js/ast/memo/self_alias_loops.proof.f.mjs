@@ -9,6 +9,8 @@ import { assert, assertEq, assertError, assertOk } from '../../../asserts/module
 import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { memo } from '../../../edag/memo/module.f.mjs'
+import { prepareFunction } from '../prepare/module.f.mjs'
+import { functionStringify } from '../serializer/module.f.mjs'
 import { _freshSelf, normalizeLazyReturns, normalizeMemo } from './module.f.mjs'
 
 /** @type {(kind: 'ordinary' | 'terminal' | 'nested' | 'nested-terminal' | 'lazy' | 'lazy-loop' | 'recipe-lazy' | 'recipe-lazy-loop', mode: Definition[3], capture: boolean) => FastFunction} */
@@ -173,6 +175,35 @@ export const proof = /** @type {const} */ ({
         const plain = { ...source, self: null, body: { statements: [], exit: ['return', source.target, 7] } }
         assertEq(_freshSelf(plain), plain)
         assertEq(evaluate(plain, false), 7)
+    },
+    initialOnlySelfRenamingSurvivesAnUnchangedOrdinaryLoop: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const self = /** @type {const} */ ({ index: 0 })
+        const state = /** @type {const} */ ({ index: 1 })
+        const output = /** @type {const} */ ({ index: 2 })
+        const callable = /** @type {const} */ ({ index: 3 })
+        /** @type {FastFunction} */
+        const original = { target: owner, parameters: [], rest: null, self, captures: [], body: {
+            statements: [['loop', { target, parameters: [state], initial: [['ref', self]], results: [output],
+                body: { statements: [], exit: ['break', target, [['ref', state]]] } }]],
+            exit: ['return', owner, ['ref', output]],
+        } }
+        const fresh = _freshSelf(original)
+        assert(fresh.self !== null && fresh.self !== self)
+        const [source] = original.body.statements
+        const [mapped] = fresh.body.statements
+        assert(source[0] === 'loop' && mapped[0] === 'loop')
+        assertEq(mapped[1].body, source[1].body)
+        const [initial] = mapped[1].initial
+        assert(initial instanceof Array && initial[0] === 'ref')
+        assertEq(initial[1], fresh.self)
+        for (const fn of [original, fresh]) {
+            const graph = fromFast({ statements: [['define', callable, ['function', fn], 'required']],
+                exit: ['yield', [['===', ['()', ['ref', callable], []], ['ref', callable]]]] })
+            assertEq(assertOk(memo(assertOk(identityAnalysis(graph)))({ args: [] })), true)
+            assert(functionStringify(prepareFunction(fn)).length !== 0)
+        }
     },
     freshSelfRenamingPreservesDefinitionsAndUnreachableSyntax: () => {
         const source = shadowFixture('loop', 'required')
