@@ -249,6 +249,24 @@ captures, fresh rest and reached failure order remain in their lexical region.
 Default preparation, logical graph contracts and exact first-parse graph/text
 cycles are unchanged.
 
+After the established source plans, lexically admitted structured invocation
+loops can also retain normal decisions followed by one shared continuation.
+For every such one-result loop, multiple semantic inputs use the existing
+packed state/result slot and empty inputs use the existing private result slot
+when they can break normally. Nonreturning empty-input loops stay stateless;
+the body need not be a terminal tree. Single-input loops keep their shared
+scalar slot. Statement joins and their following work remain in their lexical
+region, and all transfer operands are established before any slot write.
+Immutable iteration snapshots preserve captures and fresh rest arrays.
+
+This extension changes source physical layout only. Default preparation and
+multiple-result loops keep independent result slots and their logical result
+signatures. It adds no storage-reuse optimization or source grammar. The
+established canonical profiles retain their fixed-point contracts; newly
+retained shared-continuation profiles do not yet have a general graph/text
+fixed point. In particular, the reparsed `K(z)` join can still fail the final
+source graph check with `a shared comma outside a scope`.
+
 The shared FAST [`returns`](../returns/module.f.mjs) pass exposes owning returns
 at member and optional-call boundaries before physical lowering. Preparation
 invokes it with the current function owner and refreshes the summary for the
