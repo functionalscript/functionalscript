@@ -77,6 +77,9 @@ export const proof = {
             assertEq(of('One. Two.'), 'One.')
             assertEq(of('Why? Because.'), 'Why?')
             assertEq(of('Stop! Go.'), 'Stop!')
+            // A character outside the BMP is two code units, and shifts
+            // nothing: the sentence still ends at its period.
+            assertEq(of('😀 hello. Second sentence.'), '😀 hello.')
             // No sentence end inside a word or at a decimal point.
             assertEq(of('Version 1.5 is a.b and more'), 'Version 1.5 is a.b and more')
         },
@@ -95,6 +98,9 @@ export const proof = {
             assert(cut !== undefined && cut.length <= descriptionLimit && cut.endsWith('word…'), String(cut))
             // One word longer than the limit is cut inside it.
             assertEq(of('x'.repeat(200)), `${'x'.repeat(descriptionLimit - 1)}…`)
+            // A cut never splits a character in two: 79 whole emoji fit
+            // before the ellipsis, and the 80th would be cut in half.
+            assertEq(of('😀'.repeat(100)), `${'😀'.repeat(79)}…`)
         },
         // A README this site does not render is a note about it, not its text.
         refused: () => assertEq(readmeDescription([['p', { 'data-readme-refused': '' }, 'README.md is not rendered here.']]), undefined),

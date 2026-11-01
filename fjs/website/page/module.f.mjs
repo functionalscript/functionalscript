@@ -127,7 +127,8 @@ const firstSentence = runs => {
     const text = runs.map(([t]) => t).join('')
     const ends = runs.flatMap(([t, code], i) => {
         const start = runs.slice(0, i).reduce((n, [s]) => n + s.length, 0)
-        return code ? [] : [...t].flatMap((c, j) => {
+        // Code units, as `text` is indexed: every character looked for is one.
+        return code ? [] : t.split('').flatMap((c, j) => {
             const end = start + j + 1
             return '.!?'.includes(c) && (end === text.length || text[end] === ' ') ? [end] : []
         })
@@ -147,6 +148,18 @@ const trimEndPunctuation = text => {
 }
 
 /**
+ * `text` without a high surrogate at its end: what is left when a cut falls
+ * inside a character outside the Basic Multilingual Plane, half of which
+ * would show as a broken character.
+ *
+ * @type {(text: string) => string}
+ */
+const wholeCharacters = text => {
+    const last = text.charCodeAt(text.length - 1)
+    return last >= 0xd800 && last <= 0xdbff ? text.slice(0, -1) : text
+}
+
+/**
  * `text` cut to {@link descriptionLimit}: whole, or up to the last space that
  * leaves room for an ellipsis, without the punctuation before it.
  *
@@ -154,7 +167,7 @@ const trimEndPunctuation = text => {
  */
 const limit = text => {
     if (text.length <= descriptionLimit) { return text }
-    const cut = text.slice(0, descriptionLimit - 1)
+    const cut = wholeCharacters(text.slice(0, descriptionLimit - 1))
     const space = cut.lastIndexOf(' ')
     return `${trimEndPunctuation(space > 0 ? cut.slice(0, space) : cut)}…`
 }
