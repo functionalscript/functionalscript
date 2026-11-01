@@ -150,7 +150,7 @@ return c(b, a)
 ```ts
 const loop0 = (a, b) =>
     x(b)
-    ? [a, b]
+    ? [a, b + 1]
     : x(a)
         ? loop0(a + 2, b)
         : loop0(a + b, b + 1)
