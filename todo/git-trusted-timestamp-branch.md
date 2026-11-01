@@ -105,6 +105,15 @@ the map names and who vouches for it; that stays open in
   takes only SHA-1 is refused, since that would bind a name an attacker
   can collide. The response records which algorithm was used, in the
   token's `messageImprint`.
+- The **request** is a pure function of the message: the imprint and its
+  algorithm, and `certReq`, so the token carries the certificate and a
+  clone can check it from the blob alone. **No nonce.** A nonce lets a
+  requester tell a fresh response from a replayed one, and a replayed
+  response is a genuine token over the same imprint, proving the message
+  existed by an earlier time — a true claim, and a stronger one. A cached
+  response for a hash someone has seen before is as good as a new one. So
+  the request needs no randomness, which keeps `fjs tts` free of that
+  effect and its request bytes reproducible in a proof.
 - The **response** is the RFC 3161 `TimeStampResp` as the authority sent
   it, status and token together, rather than the extracted token the
   commit-header design stores
@@ -131,10 +140,13 @@ index or the working tree.
    SHA-1 as a string, several as the sorted array. A revision that names
    no commit, or that is `disot`, is refused.
 3. **Timestamp it.** Request an RFC 3161 timestamp with the hash of the
-   serialized message as imprint, from `--tsa`. On a granted response
-   write `tts.json`: `{"message":…,"tsa":"…","response":"…"}`, members in
-   that order, the message as the value, the URL as given, the response as
-   DER in standard base64 with padding, no whitespace outside the strings.
+   serialized message as imprint, from `--tsa`. Decode the response as
+   far as the token's `TSTInfo`: refuse a status other than `granted` or
+   `grantedWithMods`, and refuse a `messageImprint` that is not the hash
+   just sent — an authority answering for another message. Then write
+   `tts.json`: `{"message":…,"tsa":"…","response":"…"}`, members in that
+   order, the message as the value, the URL as given, the response as DER
+   in standard base64 with padding, no whitespace outside the strings.
 4. **Commit** the blob and its tree, with the `disot` head as the one
    parent, and move `refs/heads/disot` to it. Nothing is fetched or pushed.
 
@@ -143,11 +155,17 @@ index or the working tree.
 Each stands alone, after the skeleton, as its own pull request. The concern
 comes first, then the fix.
 
-- **The response is not checked.** A bad or forged response gets recorded.
-  Check status, imprint, nonce, signature and the signer's certificate chain
-  before writing, as [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks;
-  request with `certReq` so the token carries the certificate and a clone
-  can check it from the blob alone.
+- **The signature is not checked.** The skeleton checks the status and
+  the imprint and nothing further, so a forged token with the right
+  imprint gets recorded. Check the rest before writing, as
+  [disot-cli-epic](../fjs/todo/disot-cli-epic.md) asks: the digest of the
+  `TSTInfo` bytes against the `messageDigest` signed attribute, the
+  signature over the signed attributes — retagged from `[0]` to `SET` as
+  the signer saw them — with the certificate the `signingCertificate`
+  attribute names, and that certificate's validity at `genTime` and its
+  chain. Most public authorities sign with RSA, which
+  [`fjs/crypto`](../fjs/crypto/README.md) does not have yet; this addition
+  waits on a verifier for it.
 - **The parent is not checked.** A damaged or substituted `tts.json` is
   built on, and the chain then renews a wrong link. Hash the parent's
   message by its rule and require the imprint in its response; refuse a
