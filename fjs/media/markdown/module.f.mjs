@@ -1010,8 +1010,9 @@ const readBlocks = (base, container) => lines => {
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
             && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
-            // A quote ends a paragraph, as GitHub reads it.
-            && !lines[end].startsWith('>')) {
+            // A quote ends a paragraph, as GitHub reads it, and so does a
+            // thematic break but `---`, which underlines the paragraph.
+            && !lines[end].startsWith('>') && !(isThematicBreak(lines[end]) && lines[end][0] !== '-')) {
             const continued = foreignBlock(lines[end].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
             end += 1

@@ -387,6 +387,9 @@ export const proof = {
         // rule wherever a block starts; `- - -` is one, not a list.
         thematicBreaks: () => assertStructurallySame(blocks('---\n\n***\n___ _\n* * *\n- - -\n# a\n---\n'),
             [['rule'], ['rule'], ['rule'], ['rule'], ['rule'], ['heading', 1, [['text', 'a']]], ['rule']]),
+        // `***` and `___` end a paragraph; `---` there is refused below.
+        thematicBreakAfterAParagraph: () => assertStructurallySame(blocks('a\n***\nb\n_ _ _\n'),
+            [['paragraph', [['text', 'a']]], ['rule'], ['paragraph', [['text', 'b']]], ['rule']]),
         // Text after the marks makes a list or a paragraph of the line.
         notAThematicBreak: () => assertStructurallySame(blocks('- - a\n'), [['list', false, [[['list', false, [[['paragraph', [['text', 'a']]]]]]]]]]),
         quoteWithoutASpace: () => assertStructurallySame(blocks('>a\n'), [['quote', [['paragraph', [['text', 'a']]]]]]),
