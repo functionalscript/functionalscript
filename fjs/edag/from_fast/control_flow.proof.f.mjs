@@ -93,7 +93,8 @@ const parameterized = helper => {
     const continuationValue = func(continuationTarget, [input], block(['return', continuationTarget, ['()', ref(capture), [['+', ref(input), 5]]]]), [
         { binding: capture, value: ref(operation) },
     ])
-    const stopped = /** @type {Statement} */ (['if', [], ref(stop), block(['return', target, 42]), block(['yield', []])])
+    /** @type {Statement} */
+    const stopped = ['if', [], ref(stop), block(['return', target, 42]), block(['yield', []])]
     return { target, parameters: [selected, stop, operation], rest: null, self: null, captures: [],
         body: helper
             ? block(['return', target, ['()', ref(continuation), [0]]], [
@@ -167,7 +168,8 @@ const returningLoop = () => {
 /** Dispatch is complete before case execution follows its fall-through edge. @type {() => FastFunction} */
 const fallingSwitch = () => {
     const target = functionTarget(), region = loopTarget(), tag = id(), failLabel = id(), selected = id(), first = id(), result = id(), inner = id()
-    const laterLabel = /** @type {Value} */ (['if', ref(failLabel), block(['throw', 'unreached label']), block(['yield', [1]])])
+    /** @type {Value} */
+    const laterLabel = ['if', ref(failLabel), block(['throw', 'unreached label']), block(['yield', [1]])]
     return { target, parameters: [tag, failLabel], rest: null, self: null, captures: [],
         body: block(['return', target, ref(result)], [
             ['loop', { target: region, parameters: [], initial: [], results: [result], body: block(['break', region, [9]], [
@@ -184,12 +186,13 @@ const fallingSwitch = () => {
 /** A switch-local break resumes the iteration; continue skips its remaining work. @type {() => FastFunction} */
 const switchInLoop = () => {
     const target = functionTarget(), outer = loopTarget(), region = loopTarget(), count = id(), total = id(), next = id(), contribution = id(), rounds = id(), result = id()
-    const selected = /** @type {Loop} */ ({ target: region, parameters: [], initial: [], results: [contribution],
+    /** @type {Loop} */
+    const selected = { target: region, parameters: [], initial: [], results: [contribution],
         body: block(['break', region, [ref(next)]], [
             ['if', [], ['===', ref(next), 2], block(['continue', outer, [ref(next), ref(total)]]), block(['yield', []])],
             ['if', [], ['===', ref(next), 4], block(['break', region, [40]]), block(['yield', []])],
         ]),
-    })
+    }
     return { target, parameters: [], rest: null, self: null, captures: [],
         body: block(['return', target, ['array', [ref(rounds), ref(result)]]], [
             ['loop', { target: outer, parameters: [count, total], initial: [0, 0], results: [rounds, result],
@@ -218,7 +221,9 @@ const conditionalLoop = () => {
 
 export const proof = /** @type {const} */ ({
     nestedMutableJoinAndOwningReturn: () => {
-        const fn = controlFlowFunctions.nested, incoming = /** @type {Value} */ (['array', [5]])
+        const fn = controlFlowFunctions.nested
+        /** @type {Value} */
+        const incoming = ['array', [5]]
         sharedPair(evaluated(fn, [false, incoming, failing(), duplicateArgument()]), [5])
         sharedPair(evaluated(fn, [true, incoming, objectFactory(false), duplicateArgument()]), [41])
         assertStructurallySame(evaluated(fn, [true, incoming, objectFactory(true), failing()]), [41])
@@ -227,11 +232,12 @@ export const proof = /** @type {const} */ ({
     },
     establishedCallResultKeepsAllocationSharing: () => {
         const target = functionTarget(), factory = id(), local = id()
-        const fn = /** @type {FastFunction} */ ({ target, parameters: [factory], rest: null, self: null, captures: [],
+        /** @type {FastFunction} */
+        const fn = { target, parameters: [factory], rest: null, self: null, captures: [],
             body: block(['return', target, ['array', [['.', ref(local), 'a'], ['.', ref(local), 'c']]]], [
                 ['define', local, ['()', ref(factory), []], 'required'],
             ]),
-        })
+        }
         sharedPair(evaluated(fn, [objectFactory(false)]), [41])
     },
     parameterizedContinuationsAgreeAcrossEncodings: () => {

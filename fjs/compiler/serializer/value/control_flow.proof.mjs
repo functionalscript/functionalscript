@@ -48,6 +48,9 @@ const unselected = () => { throw 'unselected computation' }
 /** The nested fixture's normal continuation. @type {(value: number) => number} */
 const timesTen = value => value * 10
 
+/** Keep the break result's argument order. @type {(b: number, a: number) => readonly [number, number]} */
+const breakPair = (b, a) => [b, a]
+
 /** One fresh allocation is shared by both returned positions. @param {number} value */
 const sharedAllocationPair = value => {
     const allocation = /** @type {const} */ ([value])
@@ -95,7 +98,7 @@ export const proof = /** @type {const} */ ({
             const apply = await load(text)
             assertStructurallySame(apply(
                 /** @param {number} value */ value => value === 0 || value === 4,
-                /** @type {(b: number, a: number) => readonly number[]} */ ((b, a) => [b, a]),
+                breakPair,
             ), [5, 8])
         }
     },
@@ -195,14 +198,16 @@ export const proof = /** @type {const} */ ({
         // This is supplied EDAG, not two independently written source calls.
         // Source reconstruction currently refuses its shared continuation;
         // the general writer still lowers and executes the self tail loop.
-        const call = /** @type {Exp} */ (['()', ['self'], [
+        /** @type {Exp} */
+        const call = ['()', ['self'], [
             ['-', ['arg', 0], 1], ['+', ['arg', 1], 1],
-        ]])
-        const graph = /** @type {Exp} */ (['=>', 2, [], ['?:',
+        ]]
+        /** @type {Exp} */
+        const graph = ['=>', 2, [], ['?:',
             ['>', ['arg', 0], 0],
             ['?:', ['===', ['arg', 1], 0], call, call],
             ['arg', 1],
-        ]])
+        ]]
         assertEq(assertError(tryStringify(graph)), 'a factored terminal continuation outside the source loop profile')
         const text = codeOnly(graph)
         assert(text.includes('while('), text)
