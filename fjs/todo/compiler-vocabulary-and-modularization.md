@@ -996,6 +996,10 @@ parts do not delay the epic's foundation gate:
       normal or inverted inner decisions retain their existing invocation loop.
       Verify parser readback, execution and reserialization for `K(z)` and
       nested `m`. Genuine self-tail recursion still requires `while` output.
+- [ ] Emit the bounded independent-recipe selector profile as public FJS
+      source. Forward the redundant result wrapper through its conditional,
+      preserve branch scopes and transfer owners, and verify parser readback,
+      reserialization and deep execution without widening source grammar.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
