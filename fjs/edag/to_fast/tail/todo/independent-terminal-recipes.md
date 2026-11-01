@@ -1,7 +1,7 @@
 ## Independent shared terminal recipes retain recursion
 
 **Priority:** P1
-**Status:** open
+**Status:** wip
 
 ### Problem
 
