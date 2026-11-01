@@ -977,6 +977,9 @@ parts do not delay the epic's foundation gate:
 - [ ] Audit source statement/exit returns and immediate-call boundaries;
       decide their common normalization and any graph canonicalization before
       selecting constructor changes or compatibility adapters.
+      Current step: the task owner approved a return/IIFE ownership audit,
+      selection of one existing non-loop join with mutable result slots, and
+      its immutable replacement contract before preparation is changed.
 - [ ] Rework structured source reconstruction against that contract, using
       common preparation. Allow helper functions and enclosing-variable writes
       from IIFEs; preserve completion owners and semantics without requiring
