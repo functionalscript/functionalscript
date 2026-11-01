@@ -23,12 +23,13 @@ import { generate as generateMethods, path as methodsPath } from '../methods/mod
 import { generate as generateValues, path as valuesPath } from '../values/module.f.mjs'
 import { generate as generateDeferredTailCalls, path as deferredTailCallsPath } from '../fast/deferred_owning_tail_calls/module.f.mjs'
 import { generate as generateImmutableJoins, path as immutableJoinsPath } from '../fast/immutable_joins/module.f.mjs'
+import { generate as generateIndependentTailRecipes, path as independentTailRecipesPath } from '../fast/independent_tail_recipes/module.f.mjs'
 import { generate as generateRuntime } from '../runtime/module.f.mjs'
 
 /**
  * The Rust files {@link generateRustTests} writes before the runtime, in
  * order: the corpus, one file per group, then the completeness table, the
- * interpreted-value and raw-FAST fixtures, and the command set.
+ * interpreted-value, raw-FAST and graph fixtures, and the command set.
  *
  * @type {() => readonly (readonly [path: string, text: string])[]}
  */
@@ -38,6 +39,7 @@ const rustFiles = () => [
     [valuesPath, generateValues()],
     [deferredTailCallsPath, generateDeferredTailCalls()],
     [immutableJoinsPath, generateImmutableJoins()],
+    [independentTailRecipesPath, generateIndependentTailRecipes()],
     [commandsPath, generateCommands()],
 ]
 
@@ -45,8 +47,9 @@ const rustFiles = () => [
  * Regenerates `nanvm/lib/tests/test/gen.corpus/` from the shared test data,
  * one file at a time, stopping at the first that fails, and then the
  * completeness table `nanvm/lib/src/vm/lambda/gen.methods.rs` and interpreted
- * value fixture `nanvm/harness/gen.values/captures.rs`, the deferred-call and
- * directly prepared join fixtures under `nanvm/harness/gen.fast/`, the command set
+ * value fixture `nanvm/harness/gen.values/captures.rs`, the deferred-call,
+ * directly prepared join and independent terminal-recipe fixtures under
+ * `nanvm/harness/gen.fast/`, the command set
  * `nanvm/effects-node/src/gen.commands.rs`, and the runtime compiled for
  * `nanvm-lib` and as EDAG ([`../runtime`](../runtime/module.f.mjs)).
  *

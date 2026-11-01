@@ -133,11 +133,16 @@ invocation before reaching the recipe. Required calls and allocations in that
 recipe retain their original identities and order. Exclusive terminal lazy
 dependencies move with the recipe and factor recursively, including direct
 aliases. A terminal base recipe produces a one-pass loop with no backedge.
-Tests, ordinary operands, required aliases and captures keep their demands;
-independent interleaved recipes retain their existing recursive layout.
-The finite [two-recipe reproducer](tail/todo/independent-terminal-recipes.md)
-records accepted output that can overflow the native stack; this fallback does
-not satisfy the self-tail loop requirement.
+Tests, ordinary operands, required aliases and captures keep their demands.
+Independent exclusively terminal recipes use one result-bearing selection
+region followed by one continuation per recipe. The original decision tree
+yields a private recipe index; reached base results and abrupt exits finish
+their invocation directly. Dispatch evaluates the selected recipe once through
+the existing invocation transition. Required prefix definitions and shared
+nonexclusive dependencies remain outside the selection region, visible to both
+selection and continuation; exclusive dependencies stay with their recipe.
+The [shared fixtures](tail/fixtures.f.js) cover interleaved calls, distinct
+argument vectors, selected failures and creating-invocation captures.
 
 After tail-control placement, [`join`](join/module.f.mjs) recovers normal
 statement results selected by the same established test. A residual value, or
