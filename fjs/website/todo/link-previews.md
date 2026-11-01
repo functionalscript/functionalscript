@@ -10,10 +10,16 @@ Facebook, LinkedIn or Discord, the result is no preview, or just the bare
 title. Those services build a preview card from Open Graph and Twitter
 `<meta>` tags, and the site has none of them.
 
-Every page gets its `<head>` from `shell` in
+Every page the generator writes gets its `<head>` from `shell` in
 [`../page/module.f.mjs`](../page/module.f.mjs). That function writes the
 `<title>`, a referrer `<meta>`, the stylesheet, the favicons and the fragment
 runtime, and nothing else.
+
+The Rust API reference under `/cargo.doc/<crate>/` is the exception: `cargo
+doc` writes those pages, and the site adds only one fixed fragment to each
+`<head>`, `rustdocHead` in
+[`../cargo-doc/module.f.mjs`](../cargo-doc/module.f.mjs), through
+`--html-in-header`. Today that fragment is the favicon links alone.
 
 Crawlers do not run JavaScript, but that is not a problem: every page is
 complete HTML once the site is built, so tags added in `shell` will be in
@@ -37,8 +43,16 @@ what a crawler fetches.
 
 - **A description for each page.** `shell` takes only a title today, so it
   needs a description as well. The obvious source is the first paragraph of
-  the directory's README (`dir.readme`, already rendered at build time). A
-  directory without a README falls back to one site-wide tagline.
+  the directory's README with text (`dir.readme`, already rendered at build
+  time). A paragraph of badges has none, since an image's text is in an
+  attribute, so it is skipped: the root README opens with one. A directory
+  without a README, and the root page, use one site-wide tagline.
+- **The rustdoc pages.** `rustdocHead` is the same on every rustdoc page, so
+  it can carry only the tags that do not vary by page: `og:site_name`,
+  `og:type`, `twitter:card` and, where the build knows its origin,
+  `og:image`. rustdoc writes each page's own `<title>` and
+  `<meta name="description">`, which a card falls back to without
+  `og:title` and `og:description`; `og:url` is left out.
 - **Absolute URLs.** `og:url` and `og:image` must be absolute, and the build
   does not know its own domain: `Build` in
   [`../page/types.ts`](../page/types.ts) has `commit`, `branch` and `funding`
