@@ -1,4 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
+import { previewImagePath, productionOrigin } from '../page/module.f.mjs'
 import { cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocHead, rustdocHeadPath, rustdocFooter, rustdocHeader } from './module.f.mjs'
 
 const local = /** @type {const} */ ({ commit: null, branch: null, funding: [] })
@@ -18,9 +19,17 @@ export const proof = {
     },
     // The bars rustdoc puts on its pages are the site's own, as HTML
     // fragments: no document around them, since rustdoc places them.
+    // The head carries the favicons and the card tags every page shares:
+    // no title, description or URL, which differ by page and are rustdoc's.
     rustdocHead: () => {
         assertEq(rustdocHeadPath, '_rustdoc-head.html')
-        assertEq(rustdocHead, '<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">')
+        const icons = '<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'
+        const site = '<meta property="og:site_name" content="FunctionalScript"><meta property="og:type" content="website">'
+        assertEq(rustdocHead(local), `${icons}${site}<meta name="twitter:card" content="summary">`)
+        assertEq(rustdocHead({ ...local, branch: 'main' }), `${icons}${site}`
+            + `<meta property="og:image" content="${productionOrigin}${previewImagePath}">`
+            + '<meta property="og:image:alt" content="FunctionalScript logo">'
+            + '<meta name="twitter:card" content="summary_large_image">')
     },
     rustdocHeader: () => {
         const html = rustdocHeader(local)

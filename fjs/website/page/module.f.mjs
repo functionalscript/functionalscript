@@ -734,17 +734,41 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
         /** @type {Node} */ (['a', { href: address }, description, ['span', { 'aria-hidden': 'true' }, ' ↗']])))),
 ]]
 
-/** The small card, without an image. @type {Element} */
-const summaryCard = ['meta', { name: 'twitter:card', content: 'summary' }]
+/**
+ * The card tags that are the same on every page: the site, the kind of
+ * page and, when the build knows its {@link origin}, the site's card image.
+ *
+ * **Shared with rustdoc's pages.** `cargo doc` writes the Rust API
+ * reference, and the site adds one fixed fragment to every page's `<head>`
+ * there, so these are all the card tags those pages can carry. rustdoc
+ * writes each page's own `<title>` and description, which a card falls back
+ * to.
+ *
+ * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
+ * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
+ * and image too, but shows no card without `twitter:card`: the large one
+ * where there is an image, and the small `summary` where there is none.
+ *
+ * **`og:image` is absolute or absent.** Open Graph requires an absolute URL,
+ * so a build with no origin leaves it out rather than write a relative one,
+ * or production's image on a preview that may not have it yet.
+ *
+ * @type {(origin: string | null) => readonly Element[]}
+ */
+export const siteMeta = origin => [
+    ['meta', { property: 'og:site_name', content: siteName }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ...(origin === null
+        ? [/** @type {Element} */ (['meta', { name: 'twitter:card', content: 'summary' }])]
+        : largeCard(origin)),
+]
 
 /**
- * The large card: the page's absolute URL and the site's image, both at
- * `origin`.
+ * The large card's tags: the site's image at `origin`.
  *
- * @type {(origin: string) => (href: string) => readonly Element[]}
+ * @type {(origin: string) => readonly Element[]}
  */
-const largeCard = origin => href => [
-    ['meta', { property: 'og:url', content: `${origin}${href}` }],
+const largeCard = origin => [
     ['meta', { property: 'og:image', content: `${origin}${previewImagePath}` }],
     ['meta', { property: 'og:image:alt', content: `${siteName} logo` }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
@@ -752,14 +776,9 @@ const largeCard = origin => href => [
 
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
- * shows for a pasted link: the page's title, what it is about, the site it
- * belongs to and, when the build knows its {@link origin}, the page's own
- * URL and the site's card image.
- *
- * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
- * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
- * and image too, but shows no card without `twitter:card`: the large one
- * where there is an image, and the small `summary` where there is none.
+ * shows for a pasted link: the page's title, what it is about and, when the
+ * build knows its {@link origin}, its own URL, then the {@link siteMeta}
+ * every page shares.
  *
  * **In the static page, because a crawler runs no script.** Every tag here
  * is in the HTML the build writes, so the card needs nothing from the
@@ -768,20 +787,16 @@ const largeCard = origin => href => [
  * **The description twice.** `description` is the one a search engine shows
  * under the title; `og:description` is the card's.
  *
- * **`og:url` and `og:image` are absolute or absent.** Open Graph requires
- * absolute URLs, so a page whose build has no origin leaves both out rather
- * than write relative ones, or production's image on a preview that may
- * not have it yet.
+ * **`og:url` is absolute or absent**, as `og:image` is.
  *
  * @type {(origin: string | null) => (head: Head) => readonly Element[]}
  */
 export const previewMeta = origin => ({ href, title, description }) => [
     ['meta', { name: 'description', content: description }],
-    ['meta', { property: 'og:site_name', content: siteName }],
-    ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: title }],
     ['meta', { property: 'og:description', content: description }],
-    ...(origin === null ? [summaryCard] : largeCard(origin)(href)),
+    ...(origin === null ? [] : [/** @type {Element} */ (['meta', { property: 'og:url', content: `${origin}${href}` }])]),
+    ...siteMeta(origin),
 ]
 
 /**

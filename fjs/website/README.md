@@ -198,7 +198,8 @@ rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
 `--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
-icons in the pinned rustdoc. The original links remain; the HTML icon
+icons in the pinned rustdoc, and the card tags
+([A shared link shows a card](#a-shared-link-shows-a-card)). The original links remain; the HTML icon
 selection rule prefers the last equally appropriate icon. Verify the tab
 icon after a hard refresh when changing the rustdoc pin.
 
@@ -878,6 +879,14 @@ link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
 the first paragraph of its README that has text, so a paragraph of badges is
 skipped. A release names its version, and every other page uses the site's
 own sentence.
+
+**rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
+Rust API reference, and the site adds one fixed fragment to every page's
+`<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
+pages share: the site's name, the page kind, the card type and, on
+production, the image. Each page's title and description are rustdoc's own
+`<title>` and `<meta name="description">`, which a card falls back to, and
+it has no `og:url`.
 
 **A URL and an image only where the build knows its origin.** Open Graph
 wants both absolute. Production deploys only from a push to `main`, so a

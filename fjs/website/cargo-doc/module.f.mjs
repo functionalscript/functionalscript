@@ -23,7 +23,7 @@
 
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
-import { footer, header, pageTitle, shell, siteDescription } from '../page/module.f.mjs'
+import { footer, header, origin, pageTitle, shell, siteDescription, siteMeta } from '../page/module.f.mjs'
 import { faviconLinks } from '../style/module.f.js'
 
 /**
@@ -79,11 +79,16 @@ export const cargoDocPage = build => crates => shell(build)({ href: cargoDocHref
  */
 export const rustdocHeaderPath = '_rustdoc-header.html'
 
-/** Where `rustdoc-bars` writes the favicon links for rustdoc, `--html-in-header`. @type {string} */
+/** Where `rustdoc-bars` writes the favicon links and card tags for rustdoc, `--html-in-header`. @type {string} */
 export const rustdocHeadPath = '_rustdoc-head.html'
 
-/** The site's shared favicon links, serialized for rustdoc's `<head>`. @type {string} */
-export const rustdocHead = faviconLinks.map(e => concat(element(e))).join('')
+/**
+ * What rustdoc adds to every page's `<head>`: the site's favicon links and
+ * the card tags every page shares ({@link siteMeta}), serialized.
+ *
+ * @type {(build: Build) => string}
+ */
+export const rustdocHead = build => [...faviconLinks, ...siteMeta(origin(build))].map(e => concat(element(e))).join('')
 
 /** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
 export const rustdocFooterPath = '_rustdoc-footer.html'

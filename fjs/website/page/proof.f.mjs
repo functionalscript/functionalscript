@@ -532,10 +532,10 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes(
                 `<meta name="description" content="${siteDescription}">`
-                + '<meta property="og:site_name" content="FunctionalScript">'
-                + '<meta property="og:type" content="website">'
                 + '<meta property="og:title" content="fjs · FunctionalScript">'
                 + `<meta property="og:description" content="${siteDescription}">`
+                + '<meta property="og:site_name" content="FunctionalScript">'
+                + '<meta property="og:type" content="website">'
                 + '<meta name="twitter:card" content="summary">'), html)
         },
         // A build of `main` is production, so its page gives its own URL;
@@ -544,6 +544,8 @@ export const proof = {
             const html = page({ ...local, branch: 'main' })({ ...empty, path: 'fjs/types' })
             assert(html.includes(
                 `<meta property="og:url" content="${productionOrigin}/fjs/types/index.html">`
+                + '<meta property="og:site_name" content="FunctionalScript">'
+                + '<meta property="og:type" content="website">'
                 + `<meta property="og:image" content="${productionOrigin}${previewImagePath}">`
                 + '<meta property="og:image:alt" content="FunctionalScript logo">'
                 + '<meta name="twitter:card" content="summary_large_image">'), html)
