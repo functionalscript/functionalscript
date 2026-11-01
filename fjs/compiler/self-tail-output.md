@@ -63,9 +63,17 @@ transfers. The [native Rust tests](../../nanvm/harness/tests/independent_tail_re
 use the same graphs. Distinct argument vectors, selected ignored-argument
 failures, shared allocations and escaped readers retain their original meaning.
 
-Public FJS source still refuses this structured selection profile. Source
-admission is unchanged; extending that output requires separate parser readback
-and execution evidence.
+The [shared normal-result rewrite](../js/ast/results/README.md) forwards the
+selector wrapper's result into its sole conditional, preserving branch scopes
+and transfer owners. Public FJS source now emits the scalar, vector and selected
+failure profiles. Native proofs parse, execute and reserialize each profile
+through two source generations, including 100,001 transfers, opaque arguments,
+fresh result arrays and skipped/reached failures. These are semantic readback
+guarantees, without a graph/hash fixed-point requirement.
+
+The snapshot graph retains genuine lazy placement and its explicit source
+refusal. Arbitrary statement blocks and broader nonlocal source profiles remain
+outside the forwarding rule.
 
 ## Remaining boundaries
 

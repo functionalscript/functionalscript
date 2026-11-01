@@ -13,6 +13,7 @@
 import { operatorOperands, mapOperator } from '../../../js/ast/module.f.mjs'
 import { exitValues, freeBindings } from '../../../js/ast/control/module.f.mjs'
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
+import { _forwardResult } from '../../../js/ast/results/module.f.js'
 import { anchored, lowerValue } from '../../from_fast/module.f.mjs'
 import { demandsInOrder } from '../../demand/module.f.mjs'
 
@@ -189,7 +190,7 @@ const blockTask = (block, inherited = []) => {
         const statement = block.statements[index]
         if (statement[0] === 'define') { return each(index + 1, [...statements, statement], statement[3] === 'lazy' ? [...deferred, statement] : deferred) }
         if (statement[0] === 'loop') { return bind(blockTask(statement[1].body, deferred), body => each(index + 1, [...statements, ['loop', { ...statement[1], body }]], deferred)) }
-        if (statement[0] === 'block') { return bind(blockTask(statement[2], deferred), body => each(index + 1, [...statements, ['block', statement[1], body]], deferred)) }
+        if (statement[0] === 'block') { return bind(blockTask(statement[2], deferred), body => each(index + 1, [...statements, _forwardResult(['block', statement[1], body])], deferred)) }
         return bind(blockTask(statement[3], deferred), left => bind(blockTask(statement[4], deferred), right => each(index + 1, [...statements, ['if', statement[1], statement[2], left, right]], deferred)))
     })
     return each(0, [])
