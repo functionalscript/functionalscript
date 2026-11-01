@@ -327,7 +327,7 @@ const functionValue = (input, context) => call(() => {
     /** @type {NormalFunction} */
     const logical = { ...fresh, body: normalizeLazyReturns(fresh.body, fresh.target, fresh.self) }
     const joined = _immutableJoin(logical)
-    const value = context.sourceLoops ? joined : _recoverOnePassJoin(joined)
+    const value = _recoverOnePassJoin(joined, context.sourceLoops)
     const normalized = value.body
     const root = normalized.statements.at(-1)
     const sourceBranchTarget = context.sourceLoops && value.parameters.length === 0 && value.rest !== null

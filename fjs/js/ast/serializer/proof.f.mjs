@@ -4,9 +4,17 @@
  *
  * @import { BindingId } from '../types.ts'
  * @import { Block, Function as PreparedFunction, Value } from '../prepare/types.ts'
+ * @import { Values } from '../../../edag/value/types.ts'
+ * @import { ValueResult } from '../../../edag/value/control/types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
+import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
+import { invoke, memo } from '../../../edag/memo/module.f.mjs'
+import { call } from '../../../edag/value/call/module.f.mjs'
+import { ok } from '../../../types/result/module.f.js'
+import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
+import { parse } from '../../../compiler/source/module.f.mjs'
 import { untagged } from '../../../text/marked/module.f.mjs'
 import { functionStringify, render, renderModule, stringify } from './module.f.mjs'
 
@@ -22,7 +30,61 @@ const choice = (condition, then, otherwise) => ['if', condition, yielding(then),
 /** @type {(value: Value) => string} */
 const expression = value => stringify(yielding(value), 'expression')
 
+/** Read actual FJS source before calling its represented export.
+ * @type {(source: string, args?: Values) => ValueResult}
+ */
+const invokeSource = (source, args = []) => {
+    const graph = _defaultExport(unresolved(assertOk(parse('/prepared-guard.f.mjs')(source))).edag)
+    const fn = memo(assertOk(identityAnalysis(graph)))({ args: [] })
+    return call(fn, args.map(value => () => ok(value)), invoke)
+}
+
 export const proof = {
+    emptyAlternativeSpellsAnAdmittedTerminatingGuard: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const selected = id(0)
+        /** @type {PreparedFunction} */
+        const fn = { target, parameters: [selected], rest: null, self: null, captures: [], body: {
+            statements: [['if', ['ref', selected], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', []] }]],
+            exit: ['return', target, 9],
+        } }
+        for (const runtime of [false, true]) {
+            const block = yielding(['function', fn])
+            const source = stringify(block, 'module', runtime)
+            assertEq(source, 'export default ($0)=>{if($0){return 7;}return 9;};')
+            assertEq(untagged(render(block, 'module', runtime)), source)
+            assertEq(assertOk(invokeSource(source, [true])), 7)
+            assertEq(assertOk(invokeSource(source, [false])), 9)
+            /** @type {PreparedFunction} */
+            const failing = { ...fn, parameters: [], body: { ...fn.body,
+                statements: [['if', ['.', null, 'required test'], { statements: [], exit: ['return', target, 7] }, { statements: [], exit: ['yield', []] }]],
+            } }
+            assertError(invokeSource(stringify(yielding(['function', failing]), 'module', runtime)))
+        }
+    },
+    nonemptyAlternativesKeepTheirLexicalScope: () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const selected = id(0)
+        /** @type {PreparedFunction} */
+        const fn = { target, parameters: [selected], rest: null, self: null, captures: [], body: {
+            statements: [], exit: ['loop', loop, {
+                statements: [['if', ['ref', selected], { statements: [], exit: ['return', target, 7] },
+                    { statements: [['define', selected, false]], exit: ['return', target, ['ref', selected]] },
+                ]], exit: ['continue', loop],
+            }],
+        } }
+        for (const runtime of [false, true]) {
+            const block = yielding(['function', fn])
+            const source = stringify(block, 'module', runtime)
+            assertEq(source, `export default ($0)=>{${runtime ? 'L0:' : ''}while(true){if($0){return 7;}else{const $0=false;return $0;}continue${runtime ? ' L0' : ''};}};`)
+            assertEq(untagged(render(block, 'module', runtime)), source)
+            if (!runtime) {
+                assertEq(assertOk(invokeSource(source, [true])), 7)
+                assertEq(assertOk(invokeSource(source, [false])), false)
+            }
+        }
+    },
     stackSafety: () => {
         const count = 20_000
         /** @type {Value} */

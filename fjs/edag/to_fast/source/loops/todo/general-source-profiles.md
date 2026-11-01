@@ -69,6 +69,14 @@ sequences as bindings, so source admission accepts those placed values without
 a separate graph-region ban. Required work and shared results keep their
 existing placement and evaluation regions.
 
+Public source preparation also recovers the canonical nonrecursive invocation
+wrapper for `K(z)` and nested `m`, using the existing immutable-join pass.
+Empty alternatives render as guards through the unchanged FJS grammar. The
+[native source proofs](../../../../../compiler/serializer/value/immutable_source_joins.proof.mjs)
+execute both the first output and its reserialization, preserving owners,
+selected failures, sharing and invocation lifetimes. Genuine loops keep their
+existing `while` profiles; this adds no graph/hash equality requirement.
+
 The source-origin numeric join in the host corpus's
 `terminalLoopHasNoSyntheticFailure` also reaches public source output. Its
 terminal loop preserves early returns, and its EDAG contains no invented throw.
