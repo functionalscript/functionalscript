@@ -19,17 +19,37 @@ const projections = (binding, length) => length === 0
     ? []
     : [...projections(binding, length - 1), /** @type {Value} */ (['.', ['ref', binding], length - 1])]
 
-/** @type {(length: number, args: readonly Item<Value>[], target: LoopTarget) => Block} */
-export const _restTransition = (length, args, target) => {
-    const binding = /** @type {BindingId} */ ({ index: target.index })
+/** @param {readonly Item<Value>[]} args @returns {args is readonly Value[]} */
+const fixedArguments = args => args.every(item => !(item instanceof Array) || item[0] !== '...')
+
+/** @type {(args: readonly Value[], length: number) => readonly Value[]} */
+const fixedValues = (args, length) => length === 0 ? []
+    : [...fixedValues(args, length - 1), length - 1 < args.length ? args[Number(length - 1)] : undefined]
+
+/**
+ * Finish every call argument before simultaneously rebinding the invocation.
+ * Missing fixed arguments are undefined. Extra arguments and spreads retain
+ * their required evaluation even when no fixed parameter receives their value.
+ * A rest invocation establishes a fresh rest array on every transition.
+ * @type {(length: number, args: readonly Item<Value>[], target: LoopTarget, rest?: boolean) => Block}
+ */
+export const _invocationTransition = (length, args, target, rest = false) => {
+    if (!rest && args.length <= length && fixedArguments(args)) {
+        return { statements: [], exit: ['continue', target, fixedValues(args, length)] }
+    }
+    /** @type {BindingId} */
+    const binding = { index: target.index }
+    const fixed = projections(binding, length)
+    /** @type {readonly Value[]} */
+    const values = rest ? [...fixed, ['()', ['slice'], [['ref', binding], length]]] : fixed
     return {
         statements: [['define', binding, ['array', args], 'required']],
-        exit: ['continue', target, [
-            ...projections(binding, length),
-            ['()', ['slice'], [['ref', binding], length]],
-        ]],
+        exit: ['continue', target, values],
     }
 }
+
+/** @type {(length: number, args: readonly Item<Value>[], target: LoopTarget) => Block} */
+export const _restTransition = (length, args, target) => _invocationTransition(length, args, target, true)
 
 /**
  * Only the final required array and its fixed projections/fresh slice form an

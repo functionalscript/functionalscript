@@ -23,7 +23,8 @@ import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
 import { invariantState } from '../../js/ast/loop/invariant/module.f.mjs'
 import { exitValues, freeLoopBindings } from '../../js/ast/control/module.f.mjs'
 import { aggregateHelper, rootLoopOf, scalarHelper } from './loop/module.f.mjs'
-import { directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { _directOwningInvocationRoot, directInvocationRoot, invocationRootOf } from './loop/root/module.f.mjs'
+import { _owningTailCalls } from './loop/owning/module.f.mjs'
 import { completeBlockTransfers, completeTransfers } from './loop/completions/module.f.mjs'
 import { normalizeMemo } from '../../js/ast/memo/module.f.mjs'
 import { liftReturns, _forwardReturns } from '../../js/ast/returns/module.f.mjs'
@@ -430,14 +431,15 @@ const functionValue = (source, context) => call(() => {
     if (source.parameters.length > maxLength) { throw 'a function exceeds the fixed-parameter limit' }
     const lifted = _forwardReturns(liftReturns(source.body, source.target), source.target)
     const memoized = normalizeMemo(lifted, [], source.target)
-    /** @type {FastFunction} */
-    const prepared = memoized === source.body ? source : { ...source, body: memoized }
+    const owning = _owningTailCalls(memoized === source.body ? source : { ...source, body: memoized })
+    const prepared = owning.fn
     const originalScalar = rootLoopOf(prepared)
-    const originalRoot = originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared)
+    const originalRoot = owning.root ?? (originalScalar !== null && scalarLoopOf(originalScalar) !== null ? originalScalar : invocationRootOf(prepared))
     const normalized = completeTransfers(prepared, originalRoot)
     const scalar = rootLoopOf(normalized)
     const matched = scalar !== null && scalarLoopOf(scalar) !== null ? null : invocationRootOf(normalized)
-    const fn = matched !== null ? directInvocationRoot(normalized, matched) : normalized
+    const fn = owning.root !== null ? _directOwningInvocationRoot(normalized, owning.root.target)
+        : matched !== null ? directInvocationRoot(normalized, matched) : normalized
     return bind(lowerValues(fn.captures.map(capture => capture.value), { ...context, transfer: { kind: 'default' } }), captures => {
         const placed = orderedOperands(captures, values => ['[]', values])
         const candidates = placed.values.filter(exp => exp instanceof Array)

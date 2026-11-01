@@ -82,6 +82,27 @@ Standalone blocks never invent a source-function owner.
 
 ## Canonical root loops
 
+Before extracting loop helpers, [`loop/owning`](./loop/owning/module.f.mjs)
+preserves source-function self tail calls as transfers to an outer invocation
+loop. Fresh public inputs feed the original iteration bindings; defaults,
+destructuring, local declarations and capture snapshots run again for each
+invocation. Immutable self aliases name the same owner. Nested ordinary
+functions keep their own bodies and recursion owners.
+
+Completion transport relays an inner loop's invocation transfer back to this
+outer owner. Construction retains the producer's root identity across that
+transport, then restores a direct owning self call for shared tail-loop
+recovery. This avoids a function/helper call cycle that grows the host stack.
+A wholly tail-recursive invocation root is terminal and needs no invented
+normal result. JavaScript and Rust both lower the recovered recursion to
+`while`; ordinary non-tail recursion keeps its normal call semantics.
+
+This normalization follows memo lowering. Current source computed initializers
+are required; source lazy declarations are reference aliases. Genuine lazy
+FAST initializer recipes can hide owning self calls earlier in memo lowering;
+that separate [deferred-tail case](./loop/todo/deferred-owning-self-tail-calls.md)
+still needs function-owned tail transport.
+
 [Canonical invocation roots](./loop/root/README.md) reuse the enclosing function
 only for exact entry aliases, a matching invocation transition and one direct
 public result. The established scalar form takes priority; general roots cover
@@ -342,6 +363,11 @@ The construction proofs retain the delivered integration cases:
   shared normal joins, scoped completion dispatch and bounded join growth.
 - [Root matching](./loop/root/proof.f.mjs) pins positive and negative invocation
   forms, retained entry values, simultaneous transitions, rest recipes and arity.
+- [Owning-tail normalization](./loop/owning/proof.f.mjs),
+  [native JavaScript execution](../../compiler/serializer/value/owning_tail_calls.proof.mjs)
+  and the [Rust fixture](../../../nanvm/harness/fixtures/owning-self-tail-calls.mjs)
+  cover invocation ownership across terminal and ordinary loops, including
+  deep execution without recursive stack growth.
 - [Memo integration](./loop/memo/integration/proof.f.mjs),
   [initializer-owned cells](./initializer_loop_cells/proof.f.mjs),
   [deferred crossings](./deferred_loop_cells/proof.f.mjs) and
