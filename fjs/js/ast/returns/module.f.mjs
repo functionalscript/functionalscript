@@ -312,7 +312,8 @@ const blockTask = (source, context, mode) => {
             if (exit[0] === 'loop') {
                 const loop = exit[1]
                 return bind(sequenceTask(loop.initial, context.owner, false, context.permitted), initial => {
-                    const next = initial.statements.reduce((/** @type {List<Statement>} */ tail, first) => ({ first, tail }), statements)
+                    const next = initial.lifted
+                        ? initial.statements.reduce((/** @type {List<Statement>} */ tail, first) => ({ first, tail }), statements) : statements
                     if (!initial.normal) { return finish(next, exit, false, true, true, true) }
                     return bind(blockTask(loop.body, { ...context, loops: { first: loop.target, tail: context.loops } }, 'none'), body => {
                         /** @type {Exit} */
