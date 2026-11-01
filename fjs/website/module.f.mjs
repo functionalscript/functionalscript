@@ -73,7 +73,7 @@ import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/mo
 import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
-import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, prsDir, shell, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
@@ -103,7 +103,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  *
  * @type {(build: Build) => (dir: Dir) => string}
  */
-const rootPage = build => dir => shell(build)(siteName)(directoryLayout(build)(dir)(testsMain(
+const rootPage = build => dir => shell(build)({ href: pageHref('.'), title: siteName, description: siteDescription })(directoryLayout(build)(dir)(testsMain(
     ['h1', 'FunctionalScript'],
     ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),

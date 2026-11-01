@@ -34,7 +34,7 @@ export const proof = {
     writes: () => {
         const [root, code] = run(funding)
         assertEq(code, 0)
-        assertEq(textOf(root, '_rustdoc-head.html'), rustdocHead)
+        assertEq(textOf(root, '_rustdoc-head.html'), rustdocHead({ commit: null, branch: null, funding: [] }))
         assert(textOf(root, '_rustdoc-header.html').startsWith('<header><nav aria-label="Site">'))
         assert(textOf(root, '_rustdoc-footer.html').includes('<a href="https://example.com/">Support'))
         assertEq(textOf(root, '_rustdoc.css'), rustdocStylesheet)

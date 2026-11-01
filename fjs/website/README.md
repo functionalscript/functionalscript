@@ -198,7 +198,8 @@ rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
 `--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
-icons in the pinned rustdoc. The original links remain; the HTML icon
+icons in the pinned rustdoc, and the card tags
+([A shared link shows a card](#a-shared-link-shows-a-card)). The original links remain; the HTML icon
 selection rule prefers the last equally appropriate icon. Verify the tab
 icon after a hard refresh when changing the rustdoc pin.
 
@@ -866,6 +867,53 @@ the SVG's `type` tells a browser which one it can skip. The `.ico` cannot
 carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
+
+## A shared link shows a card
+
+Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
+link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
+[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+`shell`. They are in the static HTML because a crawler runs no script.
+
+**A title and a description on every page.** A directory's description is
+the first sentence of the first paragraph of prose in its README. A
+paragraph of badges has no text, and a field such as `**Status:** implemented`,
+which opens most READMEs under `spec/`, is a label rather than prose, so both
+are skipped. A sentence ends at a `.`, `!` or `?` outside code, since in code
+those are operators. A sentence longer than 160 characters, about what a
+search result shows, is cut at a word and ends with "…"; otherwise each
+platform cuts it mid-sentence at a length of its own. A release names its
+version, and every other page uses the site's own sentence.
+
+**rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
+Rust API reference, and the site adds one fixed fragment to every page's
+`<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
+pages share: the site's name, the page kind, the card type and, where the
+build has an origin, the image. Each page's title and description are
+rustdoc's own `<title>` and `<meta name="description">`, which a card falls
+back to; `og:title` and `og:url`, which Open Graph requires, are missing
+([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
+
+**A URL and an image wherever the build has an origin.** Open Graph wants
+both absolute, so a page needs to know where it is published, which
+[`origin/`](./origin/module.f.js) says from the build's branch. Production
+deploys only from a push to `main`, so a build of `main` is at
+`https://functionalscript.com`. Any other branch is its preview, at the alias
+the upload names it by, which is computed in that same module so the two
+cannot disagree. Both write `og:url`, `og:image` and the large card, so a
+preview's card can be checked before it merges. A local build names no
+branch, has no address anyone can fetch, and gets neither and the small
+card.
+
+**The image is a committed PNG.** [`preview.png`](./preview.png) is the logo
+and the site's name on 1200×630, the size the large cards show uncropped.
+Those platforms refuse SVG for a card, so the favicon cannot serve. Like the
+favicon, it is rendered once and committed, since it changes too rarely for
+a build step to buy anything.
+
+**Checking a card.** View a page's source, or paste its URL into a preview
+debugger such as opengraph.xyz. Platforms cache cards, so a link shared
+before a change keeps its old card for a while.
 
 ## Every page opens with the same header
 

@@ -111,6 +111,15 @@ export const parseElement = e => {
 }
 
 /**
+ * The text a node reads as: a string itself, an element its children's text
+ * joined, with no separator, as the DOM's `textContent` joins it.
+ * Attributes are not text, so an image says nothing here.
+ *
+ * @type {(n: Node) => string}
+ */
+export const textContent = n => typeof n === 'string' ? n : parseElement(n)[2].map(textContent).join('')
+
+/**
  * Whether `tag` names a void element, which has no children and no end tag.
  */
 export const isVoidTag = includes(voidTagList)

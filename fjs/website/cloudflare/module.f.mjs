@@ -23,32 +23,23 @@ import { rust } from '../../ci/config/module.f.js'
 import { rustdocHeadPath, rustdocFooterPath, rustdocHeaderPath, rustdocStylesheetPath } from '../cargo-doc/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { assert } from '../../asserts/module.f.js'
+import { previewAlias } from '../origin/module.f.js'
 
 /** Exact CLI pin used by GitHub Actions; legacy Workers Builds keeps its own CLI. */
 export const wranglerVersion = /** @type {const} */ ('4.74.0')
 
-/** The Worker name in wrangler.jsonc shares the alias's DNS-label budget. */
-const workerName = /** @type {const} */ ('functionalscript')
-
 /**
- * Build argv without a shell. Branch names become lowercase DNS aliases,
- * with punctuation collapsed to hyphens. The branch alias,
- * separating dash and Worker name together fit within 63 characters.
- * An empty alias, a leading digit or unknown mode is refused before upload. Normalized
- * branch names can collide, as Workers Builds aliases can; use distinct aliases
- * when naming preview branches.
+ * Build argv without a shell. A preview is named by its branch's
+ * {@link previewAlias}, the one a page gives its own URL by. A branch with no
+ * alias, or an unknown mode, is refused before upload.
  * @type {(mode: string, branch: string) => readonly string[]}
  */
 export const uploadArgs = (mode, branch) => {
     assert(mode === 'production' || mode === 'preview', 'Expected production or preview deployment mode.')
     const cli = /** @type {const} */ (['--yes', `wrangler@${wranglerVersion}`])
     if (mode === 'production') { return [...cli, 'deploy'] }
-    const alias = branch.toLowerCase().split('')
-        .map(c => 'abcdefghijklmnopqrstuvwxyz0123456789'.includes(c) ? c : '-')
-        .join('').split('-').filter(part => part !== '').join('-')
-        .slice(0, 63 - 1 - workerName.length).split('-').filter(part => part !== '').join('-')
-    assert(alias !== '', 'The branch has no usable preview alias.')
-    assert('abcdefghijklmnopqrstuvwxyz'.includes(alias.slice(0, 1)), 'The preview alias must begin with a letter.')
+    const alias = previewAlias(branch)
+    assert(alias !== null, 'The branch has no usable preview alias: it must begin with a letter.')
     return [...cli, 'versions', 'upload', '--preview-alias', alias]
 }
 
