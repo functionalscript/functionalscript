@@ -7,9 +7,9 @@
 
 An AI coding agent asked to write FunctionalScript has nothing to load that
 tells it what FunctionalScript is. It sees `.f.js` / `.f.mjs` files, assumes
-ordinary JavaScript, and writes code the compiler refuses: mutation, classes,
-`let`, loops, imports outside the subset. It does not know that `fjs test`
-runs the proofs, or that `fjs compile` exists.
+ordinary JavaScript, and writes code the compiler refuses, such as classes or
+mutating an object's contents ([spec](../spec/README.md)). It does not know
+that `fjs test` runs the proofs, or that `fjs compile` exists.
 
 The repository already writes this knowledge down, but only for its own
 contributors: [AGENTS.md](../AGENTS.md) and [fjs/AGENTS.md](../fjs/AGENTS.md)
@@ -24,9 +24,10 @@ instructions) — that a user installs into their agent once and that load
 when the task matches. Candidates, smallest useful set first:
 
 1. **Writing FunctionalScript.** The subset in brief: what `.f.js` means,
-   what is allowed and refused, the module shape (`export default`, imports
-   by relative path with an extension), and a link to [spec/](../spec/README.md)
-   as the reference rather than a copy of it.
+   what is allowed and refused, the module shape (`export default`, and
+   imports as [spec/modules/imports.md](../spec/modules/imports.md) admits
+   them), and a link to [spec/](../spec/README.md) as the reference rather
+   than a copy of it.
 2. **Testing.** Writing a `proof.f.mjs` and running `fjs test`, pointing at
    [fjs/emergent_testing](../fjs/emergent_testing/README.md).
 3. **Compiling.** `fjs compile` and its outputs, pointing at
