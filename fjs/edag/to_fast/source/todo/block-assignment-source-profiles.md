@@ -24,10 +24,10 @@ export default (() => {
 })();
 ```
 
-The value is `[1, 1]`. The lookup must still precede every argument computation;
-removing the query outright would change which failure wins when the receiver
-is nullish or an argument throws. Optional calls must skip argument writes and
-retain the previous binding values.
+The value is `[1, 1]`. Replacing the query must preserve required lookup
+failures and successful results. The [failure policy](../../../../../spec/principles/README.md#failure-is-one-outcome)
+does not require preserving which failure wins or its diagnostic payload.
+Optional calls must skip argument writes and retain the previous binding values.
 
 Spread and stacked switch-label state can establish a shared node inside one
 selected region and read it later outside. The existing source profile refuses

@@ -251,20 +251,135 @@ than assuming arithmetic reassociation. The current
 corpus can build such control flow directly in FAST; automatic source
 fall-through admission and the source-to-FAST encoding are separate work.
 
+## Return ownership and immediate-call audit
+
+The two source return constructors retain the same lexical `FunctionTarget`;
+their storage positions have different normalization roles. They are not
+interchangeable input constructors. The current mapping is:
+
+| Boundary | Current owner and normalization |
+| --- | --- |
+| Parsed function | Parser [`entered`, `returned` and `closed`](parser/module.f.mjs) assign the function target. A return inside a loop region is a `SourceStatement`; an ordinary terminal return is a `SourceExit`. |
+| Statement return | Sugar [`normalizedBlock`](../js/ast/sugar/module.f.mjs) keeps `['return', F, value]` as an abrupt exit. No following normal join consumes a result from that path. |
+| Terminal source return | Sugar `normalizedExit` produces a local one-result yield in the admitted terminal profile. `functionValue` restores `['return', F, value]` at the ordinary function boundary. A yield in this intermediate body is not an implicit source return. |
+| Immediate function call | Sugar `leaf` eliminates an eligible zero-argument call only after checking for other owning returns and invocation bindings. It excludes the final return from that check, but still scans a terminal loop. A required invocation boundary remains a function call. |
+| Immediate call with enclosing writes | Parser `blockCall`, `closed` and `internalReturn` apply the existing invocation/capture limits. Sugar `enclosedValue` exports the expression result and changed outer binding versions on normal completion; subsequent code reads those immutable versions. |
+| Normalized FAST to EDAG | [`functionValue` and `controlTask`](../edag/from_fast/module.f.mjs) consume explicit owners. A local yield resumes the suffix; a return exits its function. Loop [completion helpers](../edag/from_fast/loop/completions/module.f.mjs) relay that owner across generated helpers. |
+| Prepared target code | Common [`prepareValue` and `exitValue`](../js/ast/prepare/module.f.mjs) hoist outward transfers into the containing flow. JavaScript's [`blockExpression`](../js/ast/serializer/module.f.mjs) may then spell a local result block as an IIFE; [Rust](../rust/serializer/module.f.mjs) can use a lexical block. These spellings do not change a source function's return target. |
+
+The normalization contract keeps this distinction at its producer boundary.
+Terminal source results may become yields only where the function return will
+be restored, or where admitted immediate-call elimination makes that result
+local. Moving a targeted statement return into that path requires an ownership
+proof; changing its array tag or storage position alone is insufficient.
+An ordinary function, including a source IIFE, owns its returns. A normalized
+value block creates no invocation, so `return F(v)` can cross it. A serializer
+must not wrap that outward transfer in a new function and thereby catch it.
+
+For example, the admitted source
+`n => { const r = (() => { n = n + 1; return 10; })(); return [n, r]; }`
+returns `[3, 10]` at input `2`: the inner return finishes the immediate call,
+while the outer return reads the updated version of `n`. The
+[parser ownership proof](parser/control_flow.proof.f.mjs),
+`immediateReturnKeepsItsOwnOwnerWhileWritesEscape`, pins that distinction.
+[Binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
+and `expressionBlockAssignmentBoundaries`, cover admitted writes and retained
+invocation boundaries. [Native output proofs](serializer/value/control_flow.proof.mjs),
+`immediateWriteKeepsOneSharedAllocation` and `expressionJoinKeepsSelectedWrite`,
+check shared allocations and selected versions after output. Those write
+permissions remain; a private continuation does not authorize mutable captures.
+
+### Graph normalization boundary
+
+This audit retains the current source constructors and EDAG operations. It
+does not add a general return-constructor rewrite or another control-flow IR.
+Simple expression bodies and explicit final returns, local terminal IIFEs and
+their expression forms, and terminating guards can already produce the same
+analysis-normalized graph. That observation about those forms is not a general
+canonicalization law for arbitrary statement returns or function boundaries.
+
+The existing [graph contract](architecture.md#graph-and-output-contracts)
+continues to distinguish semantics from graph identity. Helper insertion can
+introduce function/call nodes; required anchors, shared reads and capture
+compaction have their named normalization domains. Output must parse and
+preserve successful results, required failures, sharing and invocation
+lifetimes. This audit adds no raw graph/hash equality or general graph/text
+fixed-point requirement. Explicit function returns remain required.
+
+### First immutable join profile
+
+The existing [_controlFlowFunctions.parameterizedJoin](../edag/from_fast/control_flow.proof.f.mjs)
+is a concrete supplied normalized FAST input to `prepareFunction`:
+
+```text
+F(selected, stop, operation):
+    z = if (selected) {
+        if (stop) { return F(42) } else { yield() }
+        yield(3)
+    } else { yield(0) }
+    return F(operation(z + 5))
+```
+
+It has one normal result, an abrupt path owned by `F`, and one shared normal
+suffix. Direct common preparation currently gives this statement conditional
+a private result slot, selected writes and an immutable read of the joined
+value. The resulting JavaScript uses `let` without a `while`. The routes must
+be distinguished:
+
+| Input route | Current output for this corpus |
+| --- | --- |
+| `parameterizedJoin` directly through `prepareFunction` | Mutable conditional-result slot; no loop. |
+| The same join through `fromFast`, `fromAnalysis` and preparation | A one-pass invocation loop, with loop storage and a mutable conditional-result slot. The generated body exits on every path and has no continue. |
+| `parameterizedHelper` through either route | Immutable continuation and guarded calls; no `let` or `while`. |
+| Source `expressionJoinKeepsSelectedWrite` | An already supported immutable expression profile. |
+
+The first implementation step should handle the direct one-result, non-loop
+profile in common preparation. Its immutable continuation spelling is:
+
+```js
+export default (selected, stop, operation) => {
+    const shared = z => operation(z + 5)
+    if (selected) {
+        if (stop) { return 42 }
+        return shared(3)
+    }
+    return shared(0)
+}
+```
+
+Only the normal suffix moves into `shared`. The early return stays in `F`;
+neither a placeholder result nor a call to `shared` is introduced on that
+path. The initial profile uses required immutable bindings, no lazy definition
+or loop transfer in the extracted region, and one joined value. The following
+criteria govern the replacement:
+
+- Evaluate the test once, retain reached required work and skip unselected work.
+- Pass the selected result to one private continuation body. Do not duplicate
+  a call or allocation merely because its syntax is equal.
+- Capture established immutable bindings; pass branch-local results as inputs.
+  Each invocation retains its own values and allocation sharing.
+- Keep abrupt transfers under their existing owner. Introducing a helper must
+  not hide an owning self tail call; eligible self tails in any output function
+  still require common `while` lowering. This nonrecursive witness does not
+  complete the broader self-tail audit.
+- Preserve the function's arity and existing source admission. Have JS and Rust
+  render the common plan; do not teach each writer to rediscover the join.
+
+The existing `nested` and `parameterizedJoin`/`parameterizedHelper` fixtures
+provide the semantic backstop. Their
+[native tests](serializer/value/control_flow.proof.mjs),
+`suppliedNestedJoinKeepsNativeReturnOwnership` and
+`suppliedParameterizedContinuationsKeepNativeInputs`, cover both normal inputs,
+the bypassing return, shared allocations, fresh invocations and repeated public
+source writes. The implementation must also exercise direct common preparation,
+where the result slot is present today. Removing the graph route's one-pass
+invocation wrapper is a separate normalization gate: recover its function
+returns and normal continuation in common reconstruction before claiming
+immutable output for that route. A direct-preparation fix alone does not close
+it. Broader result signatures, lazy source profiles and mutable-storage
+optimizations remain separate work.
+
 ## Source boundaries and reconstruction gaps
-
-The [source representation](../js/ast/sugar/source.ts) stores returns in both
-`SourceStatement` and `SourceExit`. Parser `closed`/`internalReturn` and sugar
-`normalizedExit`, `functionValue` and immediate-call handling depend on that
-distinction. Statement returns stay abrupt; terminal value exits can yield
-before restoring or safely eliminating the function boundary. Specify that
-mapping explicitly: storage position must not silently change return ownership.
-
-Immediate calls retain their invocation until safe elimination. Existing
-[binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
-and `expressionBlockAssignmentBoundaries`, admit some enclosing writes and
-refuse boundary-requiring captures. This permission stays; parameterized
-continuations neither replace it nor generally authorize mutable captures.
 
 Source coordination now preserves lexically local invocation loops with normal
 joins and a shared suffix after trying the established source plans. Common
@@ -305,10 +420,11 @@ continuations for ordinary branches, with mutable state for `while` lowering.
 Broader use of mutable output variables is an optional future optimization;
 it is not required to represent normal joins. The host corpus's
 `expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
-without `let` or `while`. Other supplied result-bearing conditionals can use
-physical join slots in current common preparation; audit the actual profile.
-Replacing those slots must preserve owners, selected evaluation and observable
-sharing, while helper insertion may change the graph's shape. This baseline
+without `let` or `while`. The [first immutable join profile](#first-immutable-join-profile)
+identifies a supplied statement conditional that still uses physical join
+slots in direct common preparation. Its replacement must preserve owners,
+selected evaluation and observable sharing, while helper insertion may change
+the graph's shape. This baseline
 does not change source assignment admission or declare existing slot output
 semantically incorrect.
 
