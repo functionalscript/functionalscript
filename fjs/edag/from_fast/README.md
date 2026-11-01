@@ -248,6 +248,14 @@ recovery can then lower it to a loop without a function/getter call cycle.
 Immutable self aliases retain the same owner, while ordinary nested function
 bodies and non-tail calls retain their normal call semantics.
 
+Alias elimination also rewrites loop bodies without memo state and initializers
+that remain lazy. Those deferred initializers retain their first-demand work.
+A fresh lexical self snapshot preserves the owning function across declarations
+and loop parameters that reuse its original binding identity. Region results
+and local declarations still shadow their own incoming aliases.
+Common physical preparation also gives free self reads an unshadowed function
+binding before generating names; capture initializers keep their outer scope.
+
 Tail completion is abrupt: the interrupted cell is never marked ready, and a
 new owning invocation gets fresh cells, default setup and local declarations.
 Arguments, including spreads and ignored extras, finish before the completion

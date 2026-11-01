@@ -88,6 +88,9 @@ loop. Fresh public inputs feed the original iteration bindings; defaults,
 destructuring, local declarations and capture snapshots run again for each
 invocation. Immutable self aliases name the same owner. Nested ordinary
 functions keep their own bodies and recursion owners.
+The normalized invocation uses a fresh self binding for that same function;
+loop parameters, region results and local declarations can therefore shadow
+their original identities without replacing the owning function.
 
 Completion transport relays an inner loop's invocation transfer back to this
 outer owner. Construction retains the producer's root identity across that

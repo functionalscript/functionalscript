@@ -34,6 +34,9 @@ const withoutAliases = (aliases, bindings) => new Map([...aliases].filter(([id])
 /** @type {(aliases: readonly BindingId[], bindings: readonly BindingId[]) => readonly BindingId[]} */
 const withoutSelfAliases = (aliases, bindings) => aliases.filter(id => !bindings.includes(id))
 
+/** Only lexical self aliases are rewritten in an otherwise deferred value. @type {MemoLayout} */
+const selfOnlyPlan = { cells: [], definitions: new Map(), loops: new Set() }
+
 /** Replace one private cell, retaining every other lifetime's latest state. @type {(plan: MemoLayout, memo: BindingId, index: number, cell: Value) => Value} */
 const withCell = (plan, memo, index, cell) => ['array', plan.cells.map((_, slot) => slot === index ? cell : ['.', ref(memo), slot])]
 /** @type {(value: Value, context: _Context) => _Value} */
@@ -307,7 +310,7 @@ const exitTask = (exit, context) => call(() => {
             statements: loop.statements, exit: assertNotNullish(loop.exit), memo: loop.memo, normal: false, usesMemo: loop.usesMemo,
         }))
     }
-    if (context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
+    if (!context.lexicalOnly && context.operand && exit[0] !== 'yield' && exit[0] !== 'throw') { throw 'memo demands cannot transport nonlocal operand completions yet' }
     if (context.completions && context.recipeOwner !== null && context.sourceSelf !== null
         && exit[0] === 'return' && exit[1] === context.sourceOwner) { return returnedValueTask(exit[2], context) }
     const inputs = exitValues(exit)
@@ -341,7 +344,9 @@ const loopTask = (loop, context, terminal = false) => call(() => {
                     memo: initial.memo, usesMemo: initial.usesMemo, changed: body !== loop.body || initial.usesMemo,
                 })
             }
-            return context.completions && context.recipeOwner !== null
+            // Removed self aliases must be rewritten in every reached loop,
+            // including bodies that need no memo transport of their own.
+            return context.completions && context.recipeOwner !== null || context.selfAliases.length !== 0
                 ? bind(blockTask(loop.body, { ...context, aliases: withoutAliases(context.aliases, loop.parameters), selfAliases: withoutSelfAliases(context.selfAliases, loop.parameters), memo: initial.memo, operand: false }), body => finish(body.block))
                 : finish(loop.body)
         })
@@ -375,7 +380,7 @@ const blockTask = (block, context) => {
         /** @type {(pieces: List<Statement>, nextMemo: BindingId, different: boolean, used: boolean, normal?: boolean, nextAliases?: ReadonlyMap<BindingId, number>, nextSelfAliases?: readonly BindingId[]) => Task<_Block>} */
         const resume = (pieces, nextMemo, different, used, normal = true, nextAliases = aliases, nextSelfAliases = selfAliases) => {
             const next = concat(statements)(pieces)
-            return normal ? each(index + 1, next, nextMemo, nextAliases, nextSelfAliases, changed || different, usesMemo || used)
+            return normal || context.lexicalOnly ? each(index + 1, next, nextMemo, nextAliases, nextSelfAliases, changed || different, usesMemo || used)
                 : done({ block: { statements: toArray(next), exit: block.exit }, memo: nextMemo, normal: false, usesMemo: usesMemo || used })
         }
         if (index === block.statements.length) {
@@ -388,7 +393,7 @@ const blockTask = (block, context) => {
         if (statement[0] === 'define') {
             const shadowed = withoutAliases(aliases, [statement[1]])
             const shadowedSelf = withoutSelfAliases(selfAliases, [statement[1]])
-            if (_isSelf(statement[2], selfAliases)) { return resume(null, memo, true, false, true, shadowed, [...shadowedSelf, statement[1]]) }
+            if (!context.lexicalOnly && _isSelf(statement[2], selfAliases)) { return resume(null, memo, true, false, true, shadowed, [...shadowedSelf, statement[1]]) }
             if (statement[3] === 'lazy') {
                 const selected = context.plan.definitions.get(statement)
                 if (selected !== undefined) {
@@ -406,7 +411,16 @@ const blockTask = (block, context) => {
                 const initializer = statement[2]
                 const root = initializer instanceof Array && initializer[0] === 'ref' ? aliases.get(initializer[1]) : undefined
                 if (root !== undefined) { return resume(null, memo, true, false, true, new Map([...shadowed, [statement[1], root]]), shadowedSelf) }
-                return resume([statement], memo, false, false, true, shadowed, shadowedSelf)
+                if (selfAliases.length === 0) { return resume([statement], memo, false, false, true, shadowed, shadowedSelf) }
+                // Preserve first-demand evaluation while replacing references
+                // to aliases whose declarations have been removed. An empty
+                // memo plan exposes no demands, recipes or evaluation prefix.
+                return bind(valueTask(initializer, { ...current, plan: selfOnlyPlan, aliases: new Map(), owners: null,
+                    completions: false, recipeOwner: null }), value => {
+                    assert(value.statements === null)
+                    return resume([['define', statement[1], value.value, 'lazy']], memo, value.value !== initializer,
+                        false, true, shadowed, shadowedSelf)
+                })
             }
             return bind(valueTask(statement[2], current), value => resume(concat(value.statements)([
                 value.value === statement[2] ? statement : ['define', statement[1], value.value, statement[3]],
@@ -444,6 +458,23 @@ const blockTask = (block, context) => {
 }
 
 /**
+ * Give the implicit self one unshadowed binding before physical preparation.
+ * The empty-plan walk only renames free reads of the old self. Definitions,
+ * deferred evaluation, transfers and ordinary nested function bodies retain
+ * their syntax; capture values still evaluate in the constructing scope.
+ * @type {(fn: FastFunction) => FastFunction}
+ */
+export const _freshSelf = fn => {
+    if (fn.self === null) { return fn }
+    const self = binding(fn.self.index)
+    /** @type {_Context} */
+    const context = { plan: selfOnlyPlan, aliases: new Map(), selfAliases: [fn.self], sourceSelf: self,
+        recipes: [], memo: binding(), owners: null, operand: false, sourceOwner: fn.target, recipeOwner: null,
+        completions: false, lexicalOnly: true }
+    return { ...fn, self, body: run(blockTask(fn.body, context)).block }
+}
+
+/**
  * Normalize local lazy values crossing a helper or returning at first demand.
  * The original block identity is returned when no such cells exist. Generated
  * required cells make repeated normalization a no-op. External lazy bindings
@@ -459,12 +490,20 @@ const normalize = (root, externalLazyIds, functionTarget, returnsOnly, sourceSel
     const completions = functionTarget !== null && plan.cells.some(cell => _hasReturn(cell.initializer, functionTarget))
     // Alias declarations expose their original self read to the common free-
     // binding analysis. Actual tail matching still uses lexical alias snapshots.
-    const self = completions && sourceSelf !== null && freeBindings(plan.block).includes(sourceSelf) ? sourceSelf : null
-    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), selfAliases: self === null ? [] : [self], sourceSelf: self, recipes, memo, owners: null, operand: false,
+    const originalSelf = completions && sourceSelf !== null && freeBindings(plan.block).includes(sourceSelf) ? sourceSelf : null
+    const self = originalSelf === null ? null : binding(originalSelf.index)
+    const context = /** @type {_Context} */ ({ plan, aliases: new Map(), selfAliases: self === null ? [] : [self, assertNotNullish(originalSelf)], sourceSelf: self, recipes, memo, owners: null, operand: false,
         sourceOwner: functionTarget, recipeOwner: null, completions })
     const result = run(blockTask(plan.block, context))
     const initializer = /** @type {Value} */ (['array', plan.cells.map(() => ['array', [false, undefined]])])
-    return { statements: [['define', memo, initializer, 'required'], ...result.block.statements], exit: result.block.exit }
+    /** @type {readonly Statement[]} */
+    const selfSnapshot = self === null ? [] : [['define', self, ref(assertNotNullish(originalSelf)), 'lazy']]
+    return { statements: [
+        // A lexical alias retains the owning function even where a nested
+        // declaration or loop parameter reuses its original binding identity.
+        ...selfSnapshot,
+        ['define', memo, initializer, 'required'], ...result.block.statements,
+    ], exit: result.block.exit }
 }
 
 /** @type {(root: Block, externalLazyIds?: readonly BindingId[], functionTarget?: FunctionTarget | null, sourceSelf?: BindingId | null) => Block} */

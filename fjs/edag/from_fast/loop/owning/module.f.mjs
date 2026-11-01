@@ -75,7 +75,7 @@ const tailValueTask = (value, context) => call(() => {
 
 /** @type {(loop: Loop, context: _Context) => Task<_Result<Loop>>} */
 const loopTask = (loop, context) => bind(eachTask(loop.initial, value => valueTask(value, context)), initial =>
-    bind(blockTask(loop.body, { ...context, insideLoop: true }, false), body => done(result({ ...loop, initial: initial.value, body: body.value },
+    bind(blockTask(loop.body, { ...context, aliases: context.aliases.filter(binding => !loop.parameters.includes(binding)), insideLoop: true }, false), body => done(result({ ...loop, initial: initial.value, body: body.value },
         initial.tail || body.tail, initial.base || body.base))))
 
 /** @type {(statement: Statement, context: _Context) => Task<_Result<Statement>>} */
@@ -123,9 +123,10 @@ const blockTask = (block, context, returnedYield) => {
         // Collapse its references as well: a now-unused alias must not make an
         // extracted loop helper capture a self slot that its graph never reads.
         if (statement[0] === 'define' && _isSelf(statement[2], aliases)) {
-            return each(index + 1, [...aliases, statement[1]], statements, tail, base)
+            return each(index + 1, [...aliases.filter(binding => binding !== statement[1]), statement[1]], statements, tail, base)
         }
-        return bind(statementTask(statement, local), mapped => each(index + 1, aliases,
+        const bindings = statement[0] === 'define' ? [statement[1]] : statement[0] === 'loop' ? statement[1].results : statement[1]
+        return bind(statementTask(statement, local), mapped => each(index + 1, aliases.filter(binding => !bindings.includes(binding)),
             [...statements, mapped.value], tail || mapped.tail, base || mapped.base))
     })
     return each(0, context.aliases, [], false, false)
@@ -141,8 +142,11 @@ export const _owningTailCalls = fn => {
     if (fn.self === null) { return { fn, root: null } }
     /** @type {LoopTarget} */
     const target = { kind: 'loop', index: fn.target.index }
+    // Existing lexical binders cannot shadow this reference to the owner.
+    /** @type {BindingId} */
+    const self = { index: fn.self.index }
     /** @type {_Context} */
-    const context = { owner: fn.target, target, aliases: [fn.self], insideLoop: false, length: fn.parameters.length, rest: fn.rest !== null }
+    const context = { owner: fn.target, target, aliases: [self, fn.self], insideLoop: false, length: fn.parameters.length, rest: fn.rest !== null }
     const body = run(blockTask(fn.body, context, false))
     if (!body.tail) { return { fn, root: null } }
     const parameters = fn.parameters.map(binding => ({ index: binding.index }))
@@ -152,7 +156,7 @@ export const _owningTailCalls = fn => {
     /** @type {Loop} */
     const loop = { target, parameters: [...fn.parameters, ...fn.rest === null ? [] : [fn.rest]],
         initial: [...parameters, ...rest === null ? [] : [rest]].map(binding => ['ref', binding]), results: body.base ? [result] : [], body: body.value }
-    return { fn: { ...fn, parameters, rest, body: body.base
+    return { fn: { ...fn, self, parameters, rest, body: body.base
         ? { statements: [['loop', loop]], exit: ['return', fn.target, ['ref', result]] }
         : { statements: [], exit: ['loop', loop] } }, root: loop }
 }
