@@ -1,7 +1,8 @@
 /**
- * Retain loops admitted by shared source preparation and reify other canonical
- * invocation loops as recursive source. Placement and tail eligibility stay in
- * common FAST; the source adapter chooses no mutable state or target syntax.
+ * Retain loops admitted by shared source preparation and reify one-pass
+ * canonical invocation roots without introducing recursion. Other potential
+ * backedges receive an explicit source refusal. Placement and tail eligibility
+ * stay in common FAST; this adapter chooses no mutable state or target syntax.
  *
  * @module
  * @import { Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
@@ -13,7 +14,7 @@ import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
-import { exitValues } from '../../../../js/ast/control/module.f.mjs'
+import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.js'
 import { _forwardResult } from '../../../../js/ast/results/module.f.js'
@@ -114,6 +115,7 @@ const recursiveFunction = fn => {
     // Keep existing source plans first. Their common one-result layout also
     // carries normal joins before a shared tail, without restoring recursion.
     if (localLoop(loop, true)) { return done(fn) }
+    if (hasLoopTransfer(loop.body, loop.target, 'continue')) { return taskDone(error('an invocation backedge outside the source loop profile')) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount

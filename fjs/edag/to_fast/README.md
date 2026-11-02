@@ -74,6 +74,11 @@ owner. This is the existing source writer's pure lazy normalization, now chosen
 once for all targets. It can split graph nodes; it preserves evaluation and
 allocation identity at the established bindings.
 
+A successful tail plan can subsequently establish inert invocation-prefix
+allocations as required bindings, as described below. This preserves their
+observable identity and evaluation behavior but can add required graph anchors;
+it does not extend the raw graph/hash round-trip domain.
+
 The exact graph round-trip domain uses canonical capture layouts and canonical
 binding reads. FAST references use binding object identity, and `fromFast`
 constructs one `arg`, `rest`, `frame` or `self` read node per binding identity.
@@ -143,6 +148,14 @@ nonexclusive dependencies remain outside the selection region, visible to both
 selection and continuation; exclusive dependencies stay with their recipe.
 The [shared fixtures](tail/fixtures.f.js) cover interleaved calls, distinct
 argument vectors, selected failures and creating-invocation captures.
+After a successful tail-loop plan, inert prefix definitions over invocation
+inputs and earlier established prefix values become required immutable
+bindings at their existing declaration positions. Arrays without spreads,
+objects with literal keys and closures with established captures can retain
+one invocation's allocation without memo storage. Calls, lookups, coercions,
+spreads and unknown outer deferred reads keep their demand owners. The
+normalization belongs to the planned invocation body; ordinary module-root
+lazy placement keeps its existing contract.
 The common join walk also removes a sole conditional's exact result-forwarding
 wrapper using shared [normal-result forwarding](../../js/ast/results/README.md).
 Its test and arms retain their scopes and transfer owners. Source coordination
@@ -152,9 +165,16 @@ After tail-control placement, [`join`](join/module.f.mjs) recovers normal
 statement results selected by the same established test. A residual value, or
 shared selected recipe first demanded by following work, becomes an explicit
 result of that statement conditional. Terminal arms keep their transfers and
-the following continuation remains one computation. A deferred recipe used
-only within one resulting arm becomes required at its first proven demand;
-the shared graph demand query checks calls, lookups, spreads and lazy barriers.
+the following continuation remains one computation. The same recovery handles
+a conditional value first demanded by an immediately following required
+initializer. The ordered-demand and scope checks keep earlier work and
+branch results in place; a decision that rebinds its own test cannot establish
+the later condition's value. Moved arms and recipes retain their original
+lexical dependencies, including deferred captures. Each normal arm yields an
+immutable joined value.
+A deferred recipe used only within one resulting arm becomes required at its
+first proven demand; the shared graph demand query checks calls, lookups,
+spreads and lazy barriers.
 Earlier work and recipes with other uses keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function
@@ -162,6 +182,15 @@ bodies remain opaque. A closure first demanded after the control join is
 constructed there once, with the selected immutable capture values.
 Deferred declarations depending on a recovered result follow its conditional
 in their original dependency order; their evaluation still waits for first use.
+Only newly recovered results can change where those declarations belong.
+First-demand recovery can descend through a definition's first referencing
+statement conditional when only one arm uses it and the test and following
+continuation do not. Later dependent definitions are considered first, so their
+prerequisites retain their declaration order. Each move preserves both its
+initializer's dependencies and its own binding identity across intervening
+declarations. The existing ordered-demand proof chooses the executed use;
+deferred declarations, ordinary function bodies and loop boundaries do not
+authorize moving evaluation.
 
 ## Invocation construction
 

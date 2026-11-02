@@ -8,7 +8,8 @@
 
 import { assertEq } from '../../../asserts/module.f.js'
 import { emptyModule, everything } from '../testlib.f.js'
-import { functions, wat } from './module.f.mjs'
+import { toText } from '../../../text/marked/module.f.mjs'
+import { functions, functionsMarked, wat } from './module.f.mjs'
 
 /** `wasmprinter`'s text of `everything`. */
 const everythingWat = [
@@ -207,6 +208,20 @@ export const proof = /** @type {const} */ ({
         assertEq(texts.length, 2)
         texts.forEach(text => assertEq(everythingWat.includes(text), true))
         assertEq(texts[1], everythingWat.split('\n').at(-6) + '\n')
+    },
+    // The marked text is the text, each word with its kind: a page that draws
+    // it shows the same WAT, coloured.
+    functionsMarked: () => {
+        const marked = functionsMarked(everything)
+        assertEq(JSON.stringify(marked.map(toText)), JSON.stringify(functions(everything)))
+        /** @type {(kind: string) => readonly string[]} */
+        const words = kind => marked.flatMap(m => m.flatMap(([text, k]) => k === kind ? [text] : []))
+        for (const [kind, word] of /** @type {const} */ ([['keyword', 'func'], ['keyword', 'i32.const'], ['identifier', '$f'], ['number', '0'], ['comment', '(;1;)'], ['comment', ';; label = @1']])) {
+            assertEq(words(kind).includes(word), true)
+        }
+        // Nothing that is a word is left plain: what stays plain is
+        // parentheses and blanks.
+        assertEq(marked.every(m => m.every(([text, k]) => k !== undefined || [...text].every(c => '() \n'.includes(c)))), true)
     },
     // An `end` or `else` with no block open, which no binary holds: at the
     // body's own indentation, as `wasmprinter` puts it.

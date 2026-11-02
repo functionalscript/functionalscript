@@ -102,9 +102,10 @@ export const freeLoopBindings = loop => freeBindings(loop.body, loop.parameters)
  * Find a transfer to one exact loop target through values and statement
  * regions, including nested loops. Ordinary function bodies remain opaque;
  * their captures still execute in the constructing region.
- * @type {(root: Value | Block, target: LoopTarget) => boolean}
+ * An optional kind distinguishes an invocation backedge from a normal break.
+ * @type {(root: Value | Block, target: LoopTarget, kind?: 'break' | 'continue') => boolean}
  */
-export const hasLoopTransfer = (root, target) => {
+export const hasLoopTransfer = (root, target, kind = undefined) => {
     /** @type {Link<Value | Block> | null} */
     let work = { first: root, tail: null }
     while (work !== null) {
@@ -118,7 +119,7 @@ export const hasLoopTransfer = (root, target) => {
                 : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
         } else {
             const exit = node.exit
-            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target) { return true }
+            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target && (kind === undefined || exit[0] === kind)) { return true }
             children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
                 : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
                     : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit),

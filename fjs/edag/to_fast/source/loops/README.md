@@ -2,8 +2,9 @@
 
 The source coordinator retains loops that the admitted FunctionalScript grammar
 can express, including lexical normal joins followed by one shared continuation.
-Its remaining reconstruction fallback reifies other canonical invocation roots
-as recursive functions. It consumes the normalized FAST chosen by
+Its remaining reconstruction fallback reifies canonical invocation roots with
+no potential owning backedge as one-pass functions. It consumes the normalized
+FAST chosen by
 [EDAG output conversion](../../README.md); it does not repeat tail-call
 eligibility, value placement, source-write analysis or mutable-state selection.
 [Common preparation](../../../../js/ast/prepare/README.md) owns physical
@@ -182,13 +183,30 @@ required work retain their evaluation and sharing. Capture compaction,
 canonical binding reads and pure lazy splitting remain subject to the
 [general graph round-trip domain](../../README.md).
 
+Successful common tail plans also establish inert prefix constructions over
+invocation inputs and earlier required values as immutable bindings. This gives
+the independent-recipe snapshot graph one array and reader per iteration without
+memo storage. Escaped readers retain their creating snapshot. Advancing only
+these inert constructions preserves observable demand order; calls, lookups,
+coercions, spreads and unknown outer deferred values keep their existing owners.
+The [bounded snapshot contract](todo/general-source-profiles.md#immutable-invocation-snapshots)
+requires semantic source readback and reserialization, without a raw graph/hash
+fixed point. Module-root lazy placement retains its existing contract.
+
 ## Eligibility and fallback
 
-The source coordinator first attempts the shared plans above. Other canonical
-invocation roots use the graph owner's transfer resolver to reconstruct a
-recursive function. Synthesized invocation-read aliases become required reads,
+The source coordinator first attempts the shared plans above. Before inverse
+reconstruction, the shared transfer query checks for a potential `continue` to
+the exact invocation loop target. Such a backedge returns
+`an invocation backedge outside the source loop profile` through `Result`.
+The structural query can conservatively refuse unreachable backedges too;
+ordinary nested function bodies retain their own owners.
+
+Canonical roots without that continuation use the graph owner's transfer
+resolver for one-pass reconstruction. Synthesized invocation-read aliases become
+required reads,
 and terminal statement decisions return through source value conditionals.
-A reifiable lazy definition retains its first-demand behavior in that recursive
+A reifiable lazy definition retains its first-demand behavior in that one-pass
 source form.
 
 Supplied profiles that cannot regain source grammar return
@@ -202,13 +220,17 @@ their wider common-preparation domain.
 
 The remaining work is tracked in
 [general source profiles](todo/general-source-profiles.md). Every self tail-call
-evaluation must emit a `while` transfer, including generated helpers;
-remaining recursive fallbacks are gaps against that output contract. The
+evaluation must emit a `while` transfer, including generated helpers. The
+inverse fallback cannot restore recursion from a possible owning backedge. The
 demanded-prefix graph and lexical shared-continuation profiles now retain their
 loops. This does not admit arbitrary lazy FAST or nonlocal transfers. Distinct
 duplicate calls written in source do not establish the same graph-sharing case.
 
 ## Evidence
+
+The [fallback boundary proofs](fallback.proof.f.mjs) share
+[fixture constructors](fixtures.f.js) with native public-source readback. They
+cover explicit backedge refusal and retained one-pass self behavior.
 
 The [source-loop proofs](proof.f.mjs) retain exact first-parse graph/text checks,
 source exits, nested and 18-state loops, required failures, rest and capture

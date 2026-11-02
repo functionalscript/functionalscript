@@ -1,8 +1,8 @@
 /**
  * Independent shared tail recipes cross all three JavaScript output boundaries.
  * Native execution establishes bounded stack use, argument snapshots and escaped
- * allocation identity. Admitted public FJS selectors also cross source readback;
- * genuine lazy snapshot graphs retain their explicit admission boundary.
+ * allocation identity. Public FJS selectors and immutable invocation snapshots
+ * also cross source readback without requiring exact graph identity.
  * @import { Exp } from '../../../edag/types.ts'
  */
 
@@ -18,7 +18,8 @@ import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
-import { tryFunctionText, tryStringify } from '../module.f.mjs'
+import { tryFunctionText, tryMarked, tryStringify } from '../module.f.mjs'
+import { toText } from '../../../text/marked/module.f.mjs'
 import { stringify as valueStringify } from './module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
@@ -55,9 +56,45 @@ const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/indepen
  */
 const sourceGenerations = graph => {
     const first = assertOk(tryStringify(graph))
-    const second = assertOk(tryStringify(sourceGraph(first)))
+    assertEq(toText(assertOk(tryMarked(graph))), first)
+    const next = sourceGraph(first)
+    const second = assertOk(tryStringify(next))
+    assertEq(toText(assertOk(tryMarked(next))), second)
     sourceGraph(second)
     return [first, second]
+}
+
+/** Shared allocations and readers keep their creating invocation across calls.
+ * @type {(apply: (...args: readonly unknown[]) => any) => void}
+ */
+const snapshotLifetimes = apply => {
+    assertEq(apply.length, 3)
+    const results = [false, true].flatMap(flag => [1, 2, 100_001].map(n => apply(n, flag, null)))
+    for (const [index, result] of results.entries()) {
+        assertEq(result[0], result[1])
+        assertEq(result[2].length, 0)
+        assertEq(result[2](), result[0])
+        assertStructurallySame(result[0], [0])
+        assertStructurallySame(result[3], [1])
+        assert(result[0] !== result[3])
+        for (const earlier of results.slice(0, index)) {
+            assert(result !== earlier)
+            assert(result[0] !== earlier[0])
+            assert(result[2] !== earlier[2])
+            assert(result[3] !== earlier[3])
+        }
+    }
+    const previous = /** @type {const} */ ([-1])
+    for (const flag of [false, true]) {
+        let reads = 0
+        const base = apply(0, flag, () => { reads += 1; return previous })
+        assertEq(reads, 1)
+        assertEq(base[3], previous)
+        assertEq(base[0], base[1])
+        assertEq(base[2](), base[0])
+        for (const result of results) { assert(base[0] !== result[0]) }
+    }
+    for (const result of results) { assertEq(result[2](), result[0]) }
 }
 
 export const proof = /** @type {const} */ ({
@@ -104,26 +141,7 @@ export const proof = /** @type {const} */ ({
     },
     sharedAllocationsAndEscapedReadersKeepTheirCreatingInvocation: async () => {
         for (const apply of await outputs(_independentTailRecipes().snapshots)) {
-            assertEq(apply.length, 3)
-            const first = apply(100_001, false, null)
-            const second = apply(2, true, null)
-            for (const result of [first, second]) {
-                assertEq(result[0], result[1])
-                assertEq(result[2].length, 0)
-                assertEq(result[2](), result[0])
-                assertStructurallySame(result[0], [0])
-                assertStructurallySame(result[3], [1])
-                assert(result[0] !== result[3])
-            }
-            assert(first[0] !== second[0])
-            assert(first[3] !== second[3])
-            assertEq(first[2](), first[0])
-            const previous = /** @type {const} */ ([-1])
-            const base = apply(0, false, () => previous)
-            assertEq(base[3], previous)
-            assertEq(base[0], base[1])
-            assertEq(base[2](), base[0])
-            assert(base[0] !== first[0])
+            snapshotLifetimes(apply)
         }
     },
     independentSourceSelectorsKeepDeepLoopsAcrossReadback: async () => {
@@ -176,7 +194,31 @@ export const proof = /** @type {const} */ ({
             assertEq(apply(100_001, true, false), 0)
         }
     },
-    genuineLazySnapshotGraphsKeepTheirPublicSourceRefusal: () => {
-        assertError(tryStringify(_independentTailRecipes().snapshots))
+    sourceSnapshotsKeepCreatingInvocationAcrossReadback: async () => {
+        for (const source of sourceGenerations(_independentTailRecipes().snapshots)) {
+            hasWhile(source)
+            snapshotLifetimes(await load(source))
+        }
+    },
+    skippedThrowingDependenciesStayLazyAcrossDeepTailInvocations: async () => {
+        const bad = /** @type {const} */ (['()', ['=>', 0, [], ['throw', 7]], []])
+        const box = /** @type {const} */ (['[]', [bad]])
+        const inner = /** @type {const} */ (['?:', ['arg', 1], ['[]', [box, box]], ['?:', ['arg', 2], box, 0]])
+        const n = /** @type {const} */ (['arg', 3])
+        const graph = /** @type {const} */ (['=>', 4, [], ['?:', ['>', n, 0],
+            ['()', ['self'], [['arg', 0], ['arg', 1], ['arg', 2], ['-', n, 1]]],
+            ['?:', ['arg', 0], inner, bad],
+        ]])
+        assertError(tryStringify(graph))
+        assertError(tryMarked(graph))
+        for (const apply of await outputs(graph)) {
+            assertEq(apply.length, 4)
+            for (const count of [0, 1, 100_001]) {
+                assertEq(apply(true, false, false, count), 0)
+                throws(() => apply(false, false, false, count), value => value === 7)
+                throws(() => apply(true, true, false, count), value => value === 7)
+                throws(() => apply(true, false, true, count), value => value === 7)
+            }
+        }
     },
 })

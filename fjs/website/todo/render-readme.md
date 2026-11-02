@@ -20,7 +20,7 @@ explains the module, and its page shows the file name.
 
 [`media/markdown`](../../media/markdown/module.f.mjs), over the grammar
 [`ebnf/lib/markdown`](../../ebnf/lib/markdown/module.f.mjs), reads a
-**release file**: a flat list of `- ` entries whose spans are text, code,
+**release file**: a flat list of `-` entries whose spans are text, code,
 bold, italic and links. Its types say what it cannot express — headings, code
 fences, numbered lists, nested lists, block quotes, tables, interior blank
 lines — and its block layer, `entryTexts`, refuses any line that is neither an

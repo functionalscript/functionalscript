@@ -33,7 +33,7 @@
  */
 
 import {
-    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, simpleStatement, body, callArguments,
+    _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body, callArguments,
     circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
@@ -79,6 +79,10 @@ export const diagrams = [
     ['body', body],
     ['block', block],
     ['blockContents', blockContents],
+    ['branchBlock', branchBlock],
+    ['branchContents', branchContents],
+    ['branchElse', branchElse],
+    ['ifStatement', ifStatement],
     ['simpleStatement', simpleStatement],
     ['whileStatement', whileStatement],
     ['loopBlock', loopBlock],

@@ -93,6 +93,69 @@ const independent = () => {
 }
 
 export const proof = /** @type {const} */ ({
+    invocationPrefixSnapshotsUseOnlyEstablishedInputsAndDependencies: () => {
+        const self = id(), parameter = id(), rest = id(), literal = id(), alias = id(), array = id(), object = id(), reader = id(), capture = id()
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 1 })
+        /** @type {readonly Statement[]} */
+        const definitions = [
+            ['define', literal, 7, 'lazy'],
+            ['define', alias, ref(parameter), 'lazy'],
+            ['define', array, ['array', [ref(alias), ref(self), ref(rest)]], 'lazy'],
+            ['define', object, ['object', [[':', 'snapshot', ref(array)], [':', 0, ref(literal)]]], 'lazy'],
+            ['define', reader, ['function', { target: owner, parameters: [], rest: null, self: null,
+                captures: [{ binding: capture, value: ref(object) }], body: { statements: [], exit: ['return', owner, ref(capture)] } }], 'lazy'],
+        ]
+        const source = yielded(['()', ref(self), [ref(parameter)]], definitions)
+        const result = _tailCalls(source, [parameter], self, target, rest)
+        assert(result !== null)
+        for (const [index, original] of definitions.entries()) {
+            const definition = result.statements[index]
+            assert(original[0] === 'define' && definition[0] === 'define')
+            assertEq(definition[1], original[1])
+            assertEq(definition[2], original[2])
+            assertEq(definition[3], 'required')
+        }
+    },
+    invocationPrefixSnapshotsDoNotDemandUnknownOwnersOrWork: () => {
+        const self = id(), parameter = id(), unknown = id(), required = id()
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const owner = /** @type {const} */ ({ kind: 'function', index: 1 })
+        const capture = id()
+        /** @type {readonly Value[]} */
+        const deferred = [
+            ref(unknown), ['array', [ref(unknown)]], ['array', [['...', ref(parameter)]]],
+            ['object', [['...', ref(parameter)]]], ['object', [[':', ['Number', ref(parameter)], 1]]],
+            ['object', [[':', 'unknown', ref(unknown)]]],
+            ['function', { target: owner, parameters: [], rest: null, self: null,
+                captures: [{ binding: capture, value: ref(unknown) }], body: { statements: [], exit: ['return', owner, ref(capture)] } }],
+            ['()', ref(parameter), []], ['.', ref(parameter), 'value'], ['+', ref(parameter), 1],
+        ]
+        /** @type {readonly Statement[]} */
+        const definitions = [
+            ...deferred.map(/** @returns {Statement} */ value => ['define', id(), value, 'lazy']),
+            ['define', required, ['()', ref(parameter), []], 'required'],
+            ['define', id(), ['array', [ref(required)]], 'lazy'],
+        ]
+        const result = _tailCalls(yielded(['()', ref(self), [ref(parameter)]], definitions), [parameter], self, target)
+        assert(result !== null)
+        for (const [index, definition] of definitions.slice(0, -1).entries()) { assertEq(result.statements[index], definition) }
+        const promoted = result.statements.at(-1)
+        assert(promoted !== undefined && promoted[0] === 'define')
+        assertEq(promoted[3], 'required')
+    },
+    invocationPrefixSnapshotsStopAtControlStatements: () => {
+        const self = id(), parameter = id(), value = id()
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        /** @type {Statement} */
+        const decision = ['if', [], true, { statements: [], exit: ['yield', []] }, { statements: [], exit: ['yield', []] }]
+        /** @type {Statement} */
+        const deferred = ['define', value, ['array', [ref(parameter)]], 'lazy']
+        const result = _tailCalls(yielded(['()', ref(self), [ref(parameter)]], [decision, deferred]), [parameter], self, target)
+        assert(result !== null)
+        assertEq(result.statements[0], decision)
+        assertEq(result.statements[1], deferred)
+    },
     terminalLoopsKeepRecipeUsesInsideTheirOwningLoop: () => {
         const self = /** @type {const} */ ({ index: 0 })
         const parameter = /** @type {const} */ ({ index: 1 })
@@ -236,7 +299,7 @@ export const proof = /** @type {const} */ ({
         const fixture = independent()
         const { original, lowered, body } = lowering(fixture.source, fixture.parameters, fixture.self)
         assertEq(body.statements[0], fixture.prefix)
-        assertEq(body.statements[1], fixture.deferred)
+        assertStructurallySame(body.statements[1], ['define', fixture.shared, fixture.deferred[2], 'required'])
         const statements = statementsOf(body)
         assertEq(statements.filter(statement => statement === fixture.firstPrefix).length, 1)
         assertEq(statements.filter(statement => statement === fixture.secondPrefix).length, 1)

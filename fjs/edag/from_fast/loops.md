@@ -299,7 +299,7 @@ distinguish the following cases before target spelling:
 | Static-function `length` requiring a missing or failing runtime body | The full property read retains its failure before arguments. |
 | Runtime-only method bound, absent or failing; runtime override versus an own field | Existing guard result and own/runtime/native precedence, including noncallable runtime answers. |
 | Returning computed key or argument | Preserve the reached conversion/prefix and payload identity; skip remaining work. |
-| Continued optional regions and a closed `|!()` boundary | Preserve selected skips and later forced-call argument evaluation. |
+| Continued optional regions and a closed `\|!()` boundary | Preserve selected skips and later forced-call argument evaluation. |
 | Caller, iteration and initializer memo cells plus returned closures | Preserve selected updates, aliases, receiver captures and fresh invocation lifetimes. |
 | Invalid query tag/arity/key encoding and repeated graph conversions | Closed admission, metadata/sharing and stable canonical round trips. |
 

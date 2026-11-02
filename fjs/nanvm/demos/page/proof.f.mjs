@@ -13,6 +13,7 @@
  * @import { JsHeap, Runs, Sample, State } from './types.ts'
  */
 
+import { tagged } from '../../../text/marked/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
@@ -87,7 +88,7 @@ const perform = map => effect => {
     return result[1]
 }
 
-const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: '(module)' }
+const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rustPath('hi')}`]: 'pub fn module() {}', [`/${watPath('hi')}`]: `(${tagged('keyword')('module')})` }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance([0x68, 0x69])))(load(hi.place))
@@ -100,12 +101,13 @@ export const proof = {
         assertEq(samplePath('spec/operators/comma'), 'spec/operators/comma/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
-        assertEq(watPath('hello'), `${buildDirectory}/hello.wat`)
+        assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)
     },
     load: () => {
         assertStructurallySame(ready.source, ok('export default 1'))
         assertStructurallySame(ready.rust, ok('pub fn module() {}'))
-        assertStructurallySame(ready.wat, ok('(module)'))
+        // The disassembly's words with their kinds, read back from its tags.
+        assertStructurallySame(ready.wat, ok([['('], ['module', 'keyword'], [')']]))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.runs, null)
         // A file that does not arrive is the reason it is not shown.

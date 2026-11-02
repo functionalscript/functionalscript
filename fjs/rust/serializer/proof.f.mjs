@@ -191,6 +191,22 @@ export const proof = {
         assert(unwrap(scope(yielding([['ref', y]]), options, [{ binding: y, text: 'other.clone()' }])).lines[0].includes('other.clone()'))
         assertStructurallySame(unwrap(scope(yielding([['ref', y]]), options, [{ binding: y, text: 'other.clone()', uses: [['vm', 'ToAny']] }])).uses.vm, ['ToAny'])
     },
+    statementConditionalsOmitOnlyEmptyAlternates: () => {
+        const condition = /** @type {const} */ (['()', ['ref', x], []])
+        const yes = /** @type {const} */ ({ statements: [], exit: ['return', fn.target, 7] })
+        const empty = yielding([])
+        const absent = unwrap(scope({ statements: [['if', condition, yes, empty]], exit: ['yield', [0]] }, options)).lines.join('\n')
+        assertEq(absent.includes(' else '), false)
+        // Omitting the empty spelling must retain one fallible test evaluation.
+        assertEq(absent.split('Any::call(').length - 1, 1)
+        assert(absent.includes('Any::<A>::to_boolean((Any::call(_b0.clone(), Array::default().to_any()))?)'))
+        assert(absent.includes('return Ok(f64_any(0x401c000000000000));'))
+        const required = unwrap(scope({ statements: [['if', condition, yes, { statements: [], exit: ['throw', 3] }]], exit: ['yield', [0]] }, options)).lines.join('\n')
+        assert(required.includes(' else '))
+        assert(required.includes('return Err(f64_any(0x4008000000000000));'))
+        // A value conditional always keeps its alternate, including undefined.
+        assert(text(['if', condition, yielding([1]), yielding([undefined])]).includes(' else '))
+    },
     names: () => {
         assertEq(text(['ref', x]), '_b0.clone()')
         assertEq(untagged(unwrap(valueTagged(['ref', x], options, [{ binding: x, text: 'external.clone()' }]))[0]), 'external.clone()')

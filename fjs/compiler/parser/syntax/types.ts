@@ -108,8 +108,19 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
  */
 export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For]
 
-/** A block's statement before the one that ends it, tagged by its keyword: a `const`, a `let` — the record a `const` has, under the keyword that declares a variable — an assignment, {@link Assignment}, a guard, a loop, or a switch without a `default`, {@link Switch}, the statements after it in the list being what runs when no label matched. */
-export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', Switch]
+/** A block's statement before the one that ends it: a declaration, assignment, terminating guard or normal conditional, loop, or switch without a `default`. The following statements run when such a switch has no matching label. */
+export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['switch', Switch]
+
+/** A conditional arm keeps its ordinary statements and explicit ending, if present. */
+export type BranchBlock = readonly ['branch', readonly BlockStatement[], BlockEnd | null]
+
+/** A conditional with a normal arm or an alternate, retained separately from the legacy terminating guard. */
+export type NormalIf = {
+    readonly start: ModuleTokenWithMetadata
+    readonly condition: Node
+    readonly block: BranchBlock
+    readonly otherwise: BranchBlock | null
+}
 
 /** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
 export type NamedStatement = readonly ['const', Const] | readonly ['assign', Assignment]
@@ -528,6 +539,7 @@ export type Out =
     | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'end', readonly end: Block[1] }
     | { readonly id: 'blockContents', readonly statements: Block[1] }
+    | { readonly id: 'branchContents' | 'branchElse', readonly block: BranchBlock }
     | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }

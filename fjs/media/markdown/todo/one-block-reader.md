@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) holds two block readers for a `- ` list.
+[`module.f.mjs`](../module.f.mjs) holds two block readers for a `-` list.
 `entryTexts`, which `tryParse` runs for a release file, is a hand loop over
 lines: `line.startsWith('- ')` opens an entry, a line starting with two
 spaces continues it, blank lines and nested markers are refused. `readBlocks`,

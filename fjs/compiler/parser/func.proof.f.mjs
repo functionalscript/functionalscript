@@ -145,9 +145,10 @@ export const proof = {
             // body does, a capture of the arm through the body
             expect('const x = 10; export default (a) => { if (a) { return 1; } const y = x; return y; };', "[\"{}\",[[\":\",\"default\",[\"=>\",1,[],[\"?:\",[\"arg\",0],1,10]]]]]")
         },
-        // The forms outside this step are refused where the grammar stops:
-        // the bare consequent, `else`, a `;` after the `}`, a block that
-        // does not terminate, and a guard at module level. The statements
+        // Function fallthrough, a bare consequent, a `;` after the `}`, and
+        // a guard at module level remain outside the grammar. Normal arms
+        // with a following function terminator have separate admission proofs.
+        // The statements
         // after a guard are JavaScript's one block with the ones before
         // it, so a name that block has bound — a parameter, a `const`
         // before the guard, or one after an earlier guard — is `duplicate
@@ -168,9 +169,8 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('export default (a) => { if (a) return 1; return 2; };', 'unexpected token', 1, 32)
-            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 46)
+            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 65)
             expect('export default (a) => { if (a) { return 1; }; return 2; };', 'unexpected token', 1, 45)
-            expect('export default (a) => { if (a) { const x = 1; } return 2; };', 'unexpected token', 1, 47)
             expect('export default (a) => { if (a) { return 1; } };', 'unexpected token', 1, 46)
             expect('if (1) { throw 1; } export default 2;', 'unexpected token', 1, 1)
             expect('export default (a) => { if (a) { return 1; } const a = 2; return a; };', 'duplicate id', 1, 52)

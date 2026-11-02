@@ -493,7 +493,7 @@ export const testSection = dir => intro => {
  *
  * @type {(path: string) => string}
  */
-const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
+export const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
 
 /**
  * Where a directory's page is written, relative to the site's root:

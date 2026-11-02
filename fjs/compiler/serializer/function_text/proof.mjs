@@ -8,7 +8,7 @@
 
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
@@ -186,17 +186,17 @@ export const proof = {
         throws(() => selected(1, true))
         assertEq(selected(100_001, false), 7)
 
-        // These wider recipes are admitted by function text while the public
-        // source writer retains its explicit admission boundary.
+        // Dependent recipes now also cross public source admission.
         const nestedGraph = graphOf(fixtures.nestedRecipe)
-        assertError(tryStringify(nestedGraph))
+        assertOk(parse('/dependent-function-text.f.mjs')(assertOk(tryStringify(nestedGraph))))
         const nested = compileWhile(nestedGraph)
         assertEq(nested.length, 1)
         assertEq(nested(0), 7)
         assertEq(nested(100_001), 7)
 
+        // Normal memo payloads also cross public source admission.
         const payloadGraph = graphOf(fixtures.normalPayload)
-        assertError(tryStringify(payloadGraph))
+        assertOk(parse('/normal-payload-function-text.f.mjs')(assertOk(tryStringify(payloadGraph))))
         const payload = compileWhile(payloadGraph)
         assertEq(payload.length, 3)
         const reached = payload(100_001, true, 'tail')

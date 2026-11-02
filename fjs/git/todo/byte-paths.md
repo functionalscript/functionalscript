@@ -93,22 +93,22 @@ why `fjs/git` wants it and what it does until then.
       That is the only spelling that settles it: no POSIX absolute path has a
       drive root, since a directory named `C:` at the root spells `/C:/…`.
 
-      Two roots it cannot settle, each a miss and never a wrong object:
+  Two roots it cannot settle, each a miss and never a wrong object:
 
-      - **`//`.** A UNC share begins with one, and so does a perfectly ordinary
-        POSIX path — Linux resolves `//tmp/r` as `/tmp/r`. Measured on Git
-        2.43.0, a borrower opened through `//<tmp>/b` read a `C:/donor/objects`
-        entry as a name below its own `objects/` and answered the blob at exit
-        0, so the ambiguous root is read as the platform that can be measured.
-        A Windows store on a share loses a drive-rooted or backslash-led entry
-        for it. A revision that read `//` as Windows instead sent such an entry
-        to the host unprefixed, where node resolves it against the *process*
-        directory — a third place named by nobody, and worse than the miss.
-      - **A relative path.** `fjs/git/repo`'s `tryCommonDir` answers one for a
-        `.git` beside the caller, and it carries no root at all, so a Windows
-        caller's `C:/donor/objects` is joined below the store.
+  - **`//`.** A UNC share begins with one, and so does a perfectly ordinary
+    POSIX path — Linux resolves `//tmp/r` as `/tmp/r`. Measured on Git
+    2.43.0, a borrower opened through `//<tmp>/b` read a `C:/donor/objects`
+    entry as a name below its own `objects/` and answered the blob at exit
+    0, so the ambiguous root is read as the platform that can be measured.
+    A Windows store on a share loses a drive-rooted or backslash-led entry
+    for it. A revision that read `//` as Windows instead sent such an entry
+    to the host unprefixed, where node resolves it against the *process*
+    directory — a third place named by nobody, and worse than the miss.
+  - **A relative path.** `fjs/git/repo`'s `tryCommonDir` answers one for a
+    `.git` beside the caller, and it carries no root at all, so a Windows
+    caller's `C:/donor/objects` is joined below the store.
 
-      Asking the host removes the guess and both gaps together.
+  Asking the host removes the guess and both gaps together.
 - [ ] Decide where a remark goes, so an unusable borrowing is reported rather
       than passed over. This is its own question and may want its own issue.
 

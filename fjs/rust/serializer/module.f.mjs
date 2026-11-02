@@ -558,7 +558,7 @@ const statementReady = (s, st) => {
         case 'write': { return map1(text => [`${binding(s, st[1])} = ${text};`])(expression(s, st[2], false)) }
         case 'memo': { return memo(s, st[1]) }
         case 'block': { return map1(parts => [braced(parts)])(block(s, st[1], false)) }
-        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)} ${kw('else')} ${braced(no)}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
+        case 'if': { return map3((condition, yes, no) => [`${kw('if')} ${truth(condition)} ${braced(yes)}${no.length === 0 ? '' : ` ${kw('else')} ${braced(no)}`}`])(expression(s, st[1], false), block(s, st[2], false), block(s, st[3], false)) }
         case 'loop': { return loopText(s, st) }
         // `'while'`, the one statement left: `children` refuses any other
         default: {
