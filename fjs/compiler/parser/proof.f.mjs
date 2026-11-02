@@ -1658,7 +1658,7 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         () => {
-            const tokenList = tokenizeString('export default {1:2}')
+            const tokenList = tokenizeString('export default {1 2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')

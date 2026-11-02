@@ -84,6 +84,19 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    numericObjectKeysUseNumberLiteralSpelling: () => {
+        for (const source of [
+            'export default {1:2};',
+            'export default {0:1,0x70:2,0b11:3,1_000:4,1.5:5,2e3:6};',
+            'const {0:first,0x70:value=3}=source;export default value;',
+            'export default ({0x70:value=3})=>value;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'export default {0};',
+            'export default {-1:2};',
+            'export default {0n:1};',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
     constructorsHaveArgumentListsAndMemberPrecedence: () => {
         for (const source of [
             'export default new Map();',
@@ -945,7 +958,6 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default [1 2];'), ['error', 'number'])
         assertStructurallySame(read('export default 1; const a = 2;'), ['error', 'const'])
         assertStructurallySame(read('const a = 1; import x from "m"; export default a;'), ['error', 'import'])
-        assertStructurallySame(read('export default {1: 2};'), ['error', 'number'])
         assertStructurallySame(read('export default;'), ['error', ';'])
         assertStructurallySame(read('export default "abc;'), ['error', 'error'])
     },

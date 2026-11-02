@@ -87,17 +87,19 @@ DataJS or FunctionalScript output writes the member, `{"x":undefined}`; a
 
 ## Property Keys
 
-A key is written in one of three ways:
+A key is written in one of four ways:
 
 |Form|Example|
 |----|-------|
 |string literal|`{ "a": 1 }`|
 |identifier|`{ a: 1 }`|
+|Number literal|`{ 0x70: 1 }`, `{ 3e7: true }`|
 |computed|`{ ["a"]: 1 }`, `{ [k]: 1 }`|
 
-The first two spell a constant key. The brackets of a computed key hold any
-value, as an index's do: a string literal there is the same constant key by
-a third spelling, and the three spellings mix freely inside one object. An
+The string and identifier forms spell a constant string key. The brackets of
+a computed key hold any value, as an index's do: a string literal there is
+the same constant key by another spelling. All four forms mix freely inside
+one object. An
 identifier key is an [identifier](../../lexical/identifiers/README.md) — ASCII letters, digits, `_`
 and `$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`,
 as it may in JavaScript. A key no identifier spells is written as a string:
@@ -134,8 +136,18 @@ properties, as in JavaScript, whichever spelling each key takes. What
 not owning it, and `__proto__` is the one key with a rule of its own
 ([below](#the-__proto__-key)).
 
-A numeric key literal such as `{ 3e7: true }` is not recognized yet — see
-the [roadmap](../../todo/README.md); `{ [3e7]: true }` is the same object.
+A Number literal property name uses the same lowering as its computed form:
+`{ 0x70: 'a' }` is `{ [0x70]: 'a' }`. The literal's numeric value, `112`,
+remains the key operand in FAST and EDAG; object construction converts it to
+the property name `"112"`. Decimal, hexadecimal, binary, exponent and numeric
+separator forms use the same number reader as a value. Graph outputs may
+therefore write the key in brackets, while value outputs write `"112"`.
+
+The members keep their evaluation order and duplicate-key behavior:
+`{ 0x70: 'a', 112: 'b', "112": 'c' }` has one property, `"112": 'c'`.
+An earlier member's value is still evaluated even when a later key overwrites it.
+Only a Number literal is added by this spelling: BigInt literal property names
+remain unsupported, and signed keys use the computed form, `{ [-1]: true }`.
 
 ## The `__proto__` Key
 

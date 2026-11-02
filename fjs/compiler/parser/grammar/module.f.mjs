@@ -104,7 +104,7 @@
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
  * member ::= id [ ':' value [ '=' value ] | '=' value ]
- *          | string ':' value [ '=' value ] | '[' value ']' ':' value [ '=' value ]
+ *          | (string | number) ':' value [ '=' value ] | '[' value ']' ':' value [ '=' value ]
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
  *
@@ -1043,7 +1043,7 @@ const valued = /** @type {const} */ ([sym(':'), value, option([sym('='), value])
 
 /**
  * A member of an object, `key: value`, by the key's spelling: a bare
- * identifier or a string literal, the two spellings of a constant key, or
+ * identifier, a string literal or a Number literal, or
  * a computed `[k]`, whose brackets hold any value, {@link value}, as an
  * index's do — `["a"]` is the constant `"a"` again, and `[a]` a key read
  * at run time, converted to a property key as JavaScript converts it. The
@@ -1058,6 +1058,7 @@ const valued = /** @type {const} */ ([sym(':'), value, option([sym('='), value])
 export const member = /** @type {const} */ ({
     plain: [identifierName, option({ valued, default: [sym('='), value] })],
     string: [sym('string'), ...valued],
+    number: [sym('number'), ...valued],
     computed: [sym('['), value, sym(']'), ...valued],
 })
 

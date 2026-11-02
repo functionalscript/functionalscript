@@ -83,6 +83,15 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
+    numericObjectKeysDoNotExecuteTheirValues: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('export default { 0x70: unknown(), 0b11: null.x };')],
+            nested: { 'module.f.js': [utf8('import value from "./absent.f.js"; const { 0: picked = missing() } = value; export default picked;')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stderr, '')
+    },
     failuresContinue: () => {
         const [state, result] = execute({
             invalid: { 'module.f.mjs': [utf8('export default ;')] },
