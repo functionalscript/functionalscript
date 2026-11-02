@@ -13,7 +13,7 @@ A WASM demo page draws its sample's Rust coloured from
 committed, so `npm run gen` and CI's drift check keep them fresh.
 
 The marked files are read by the page alone. Committing them doubles the
-generated Rust in the tree, about 176K for 40 samples today, and every
+generated Rust in the tree, about 176K for 40 samples at `cf6d6467`, and every
 change to the Rust printer or a sample shows up twice in a diff. The WAT the
 same pages show takes the other path: the deploy's build script writes each
 sample's `.wat.marked` into the ignored `nanvm/demos/wasm/`
