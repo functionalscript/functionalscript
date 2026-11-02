@@ -17,11 +17,11 @@ const tryFold = (
     const { length } = it
     let i = 0
     while (i < length) {
-        const r = f(it[Number(i)], state)
-        if (r[0]) {
-            return r
+        const [stop, result] = f(it[Number(i)], state)
+        if (stop) {
+            return result
         }
-        state = r[1]
+        state = result
         i += 1
     }
     return c(state)
