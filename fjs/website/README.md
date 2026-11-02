@@ -889,7 +889,7 @@ version, and every other page uses the site's own sentence.
 Rust API reference, and the site adds one fixed fragment to every page's
 `<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
 pages share: the site's name, the page kind, the card type and, where the
-build has an origin, the image. Each page's title and description are
+build has an origin, the root page's card image. Each page's title and description are
 rustdoc's own `<title>` and `<meta name="description">`, which a card falls
 back to; `og:title` and `og:url`, which Open Graph requires, are missing
 ([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
@@ -905,11 +905,38 @@ preview's card can be checked before it merges. A local build names no
 branch, has no address anyone can fetch, and gets neither and the small
 card.
 
-**The image is a committed PNG.** [`preview.png`](./preview.png) is the logo
-and the site's name on 1200×630, the size the large cards show uncropped.
-Those platforms refuse SVG for a card, so the favicon cannot serve. Like the
-favicon, it is rendered once and committed, since it changes too rarely for
-a build step to buy anything.
+**A page with a README shows it as its card.** The image is the README as
+its page shows it, without the header, the catalogue, the breadcrumb or the
+footer, so a link to a directory says in the card what the directory holds.
+Every other page — the PR queue, the CLI reference, the changelog's, a
+README the reader refused, and rustdoc's — shows the root page's card, whose
+alt text is the site's name; a page's own card is described by its title.
+
+- **A screenshot, taken at build time.** Only a browser lays out the site's
+  own CSS, so the card cannot drift from the page. The generator writes a
+  card page, `_card.html`, beside each page that has a card, and lists them
+  in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
+  workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
+  has headless Chrome screenshot each as `_card.png`. It drives Chrome over
+  the DevTools protocol with Node's own `WebSocket`, so the step adds no npm
+  dependency; `CHROME_PATH` names another browser. A local build writes the
+  card pages and no images, as it writes no `og:image`. The root always has
+  a card, since every other page falls back to it: its README, or the site's
+  name and description where the README is not rendered.
+- **1200×630 at 1×, light.** The size the large cards show uncropped, and
+  those platforms refuse SVG. A card cannot follow the viewer's dark mode.
+- **The whole README, faded at the bottom.** A card that stopped at the
+  first heading would be empty for a README whose intro is a line or none,
+  so it runs on, and the last 140px fade into the background rather than
+  cutting a line in half.
+- **Trimmed to even margins.** 40px above the first heading and 48px on
+  each side; the README's reading width does not apply on a card.
+- **No controls.** Permalinks and buttons are hidden; a picture cannot use
+  them.
+- **An image from another site gets five seconds.** One that has not loaded
+  by then, or fails, is removed before the screenshot, so a slow badge server
+  costs the card its badge and never draws a broken image. A badge shows its
+  value at the build, and the cards are rebuilt with every deploy.
 
 **Checking a card.** View a page's source, or paste its URL into a preview
 debugger such as opengraph.xyz. Platforms cache cards, so a link shared

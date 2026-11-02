@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, previewImagePath, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
 import { origin, productionOrigin } from '../origin/module.f.js'
 
 /** @type {(dir: Dir) => string} */
@@ -183,6 +183,7 @@ export const proof = {
      * root itself rather than under `./`. Neither is encoded: a path to
      * write is not a URL.
      */
+    urlPath: () => assertEq(urlPath('fjs/a#b/c?d/100%/%20/é x/_card.html'), 'fjs/a%23b/c%3Fd/100%25/%2520/%C3%A9%20x/_card.html'),
     pagePath: {
         root: () => assertEq(pagePath('.'), 'index.html'),
         nested: () => assertEq(pagePath('fjs/types/list'), 'fjs/types/list/index.html'),
@@ -579,15 +580,16 @@ export const proof = {
                 + '<meta name="twitter:card" content="summary">'), html)
         },
         // A build of `main` is production, so its page gives its own URL;
-        // a local build, above, gives none.
+        // a local build, above, gives none. Without a README, the page shows
+        // the root page's card, named for the site.
         productionUrl: () => {
             const html = page({ ...local, branch: 'main' })({ ...empty, path: 'fjs/types' })
             assert(html.includes(
                 `<meta property="og:url" content="${productionOrigin}/fjs/types/index.html">`
                 + '<meta property="og:site_name" content="FunctionalScript">'
                 + '<meta property="og:type" content="website">'
-                + `<meta property="og:image" content="${productionOrigin}${previewImagePath}">`
-                + '<meta property="og:image:alt" content="FunctionalScript logo">'
+                + `<meta property="og:image" content="${productionOrigin}/_card.png">`
+                + '<meta property="og:image:alt" content="FunctionalScript">'
                 + '<meta name="twitter:card" content="summary_large_image">'), html)
             const localHtml = pageHtml({ ...empty, path: 'fjs' })
             assert(!localHtml.includes('og:url') && !localHtml.includes('og:image'), 'no origin, no URL and no image')
@@ -597,7 +599,26 @@ export const proof = {
             const preview = origin('claude/x')
             const html = page({ ...local, branch: 'claude/x' })({ ...empty, path: 'fjs' })
             assert(html.includes(`<meta property="og:url" content="${preview}/fjs/index.html">`), html)
-            assert(html.includes(`<meta property="og:image" content="${preview}${previewImagePath}">`), html)
+            assert(html.includes(`<meta property="og:image" content="${preview}/_card.png">`), html)
+        },
+        // The tags every page shares, rustdoc's included, show the root page's card.
+        siteMeta: () => assertStructurallySame(siteMeta(productionOrigin).slice(2), [
+            ['meta', { property: 'og:image', content: `${productionOrigin}/_card.png` }],
+            ['meta', { property: 'og:image:alt', content: 'FunctionalScript' }],
+            ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+        ]),
+        // A page with a README shows its own card, named by the page's title;
+        // a README the reader refused leaves it the root page's.
+        ownCard: () => {
+            const production = { ...local, branch: 'main' }
+            const html = page(production)({ ...empty, path: 'fjs/a b', readme: [['article', { 'data-readme': '' }, ['p', 'All of it.']]] })
+            assert(html.includes(
+                `<meta property="og:image" content="${productionOrigin}${cardImageHref('fjs/a b')}">`
+                + '<meta property="og:image:alt" content="fjs/a b · FunctionalScript">'), html)
+            assertEq(cardImageHref('fjs/a b'), '/fjs/a%20b/_card.png')
+            assertEq(cardImageHref('.'), '/_card.png')
+            const refused = page(production)({ ...empty, path: 'fjs', readme: [['p', { 'data-readme-refused': '' }, 'no']] })
+            assert(refused.includes(`<meta property="og:image" content="${productionOrigin}/_card.png">`), refused)
         },
         // A directory with a README is described by it.
         describedByItsReadme: () => {
