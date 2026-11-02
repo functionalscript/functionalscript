@@ -154,7 +154,7 @@ const symbols = (state, codes) => {
         const next = item(codes, input, pos, window)
         if (next === null) { return null }
         if (next === more) { break }
-        ;({ window, pos, end } = next)
+        ({ window, pos, end } = next)
     }
     if (!end && pos === state.bit) { return more }
     const taken = made(state, window, pos)

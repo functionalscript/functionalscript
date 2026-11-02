@@ -51,8 +51,8 @@ const visit = (receiver, key, fn, invoke) => {
         switch (key) {
             case 'map': { output = [...output, value]; break }
             case 'flatMap': { output = [...output, ...flatten([value], 1)]; break }
-            case 'filter': { if (truthy(value)) { output = [...output, element] }; break }
-            case 'every': { if (!truthy(value)) { return ok(false) }; break }
+            case 'filter': { if (truthy(value)) { output = [...output, element] } break }
+            case 'every': { if (!truthy(value)) { return ok(false) } break }
             default: {
                 if (truthy(value)) {
                     return ok(key === 'some' ? true : key === 'findIndex' || key === 'findLastIndex' ? index : element)
