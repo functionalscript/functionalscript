@@ -917,7 +917,9 @@ alt text is the site's name; a page's own card is described by its title.
   card page, `_card.html`, beside each page that has a card, and lists them
   in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
   workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
-  has headless Chrome screenshot each as `_card.png`. It drives Chrome over
+  has headless Chrome screenshot each as `_card.png`, four tabs at a time
+  (`CARD_TABS` overrides it), so a card waiting on a slow image holds up
+  only its own tab. It drives Chrome over
   the DevTools protocol with Node's own `WebSocket`, so the step adds no npm
   dependency; `CHROME_PATH` names another browser. A local build writes the
   card pages and no images, as it writes no `og:image`. The root always has
