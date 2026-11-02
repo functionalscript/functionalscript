@@ -12,7 +12,7 @@ export default [a, c, d, length, f];
 A `const`, a module's or a body's, exported or not, and a fixed
 [parameter](../../functions/parameters/README.md) may bind a **pattern** in place of a name: an
 object pattern, `{ p, … }`, each property a shorthand name or a key and a
-target, `a: t`, `"a": t`, `["a"]: t`, `[3]: t`; or an array pattern,
+target, `a: t`, `"a": t`, `0: t`, `["a"]: t`, `[3]: t`; or an array pattern,
 `[t, …]`, each item a target or an elision, `[, t]`; a target a name or a
 pattern again, and a trailing comma allowed as the literals allow one. Each name is a binding
 by the rule above — reserved, refused twice, exported as `then`, or
@@ -24,6 +24,11 @@ A pattern is sugar over reads the language has, and that is its whole
 semantics: the graph outputs write the reads, `const [c, d] = v;` as
 `const $0=[...v];const c=$0[0];const d=$0[1];`, as a guard is written as
 its conditional ([functions](../../functions/README.md)).
+
+A Number literal key in an object pattern is the same read as its bracketed
+form: `const { 0: first } = value;` reads the same property as
+`const { [0]: first } = value;`. Renamed targets, nested patterns and defaults
+use the same binding rules with either spelling.
 
 - An object pattern's property is the [property access](../../property-access/README.md)
   its key spells, with every rule of one: a `null` or `undefined` source

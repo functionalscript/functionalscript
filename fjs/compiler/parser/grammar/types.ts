@@ -145,6 +145,7 @@ export type Member = {
         readonly default: readonly [number, Value]
     }>]
     readonly string: readonly [number, number, Value, Option<readonly [number, Value]>]
+    readonly number: readonly [number, number, Value, Option<readonly [number, Value]>]
     readonly computed: readonly [number, Value, number, number, Value, Option<readonly [number, Value]>]
 }
 

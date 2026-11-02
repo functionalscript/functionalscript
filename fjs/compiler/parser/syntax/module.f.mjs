@@ -1569,6 +1569,11 @@ export const _toMember = ([tag, branch]) => {
             const key = tokenAt(s)
             return memberOf({ key, spelling: 'string', name: textOf(key), value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
         }
+        case 'number': {
+            const [n, , v, init] = unmapped(branch)
+            const key = tokenAt(n)
+            return memberOf({ key, spelling: 'number', node: ['primitive', _primitiveOf(['number', n])], value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
+        }
         case 'computed': {
             const [, k, , , v, init] = unmapped(branch)
             const first = firstAt(k)

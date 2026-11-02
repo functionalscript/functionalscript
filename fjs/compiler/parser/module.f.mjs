@@ -844,15 +844,15 @@ const itemAt = ([kind, items], index) =>
     kind === 'array' ? operandOf(elementItem(items[index])) : entryOperandOf(items[index])
 
 /**
- * The node a member's computed key is, or `null` where the item at `index`
- * has none: an array's item, a spread, or a member whose key is a constant.
+ * The node of a computed or numeric-literal key, or `null` where the item
+ * at `index` has none: an array's item, a spread, or a named constant key.
  *
  * @type {(container: Container, index: number) => Node | null}
  */
 const computedKeyAt = ([kind, items], index) => {
     if (kind === 'array') { return null }
     const entry = items[index]
-    return entry instanceof Array || entry.spelling !== 'computed' ? null : entry.node
+    return entry instanceof Array || !hasEntry(entry, 'node') ? null : entry.node
 }
 
 /**
@@ -891,8 +891,8 @@ const badKey = ([kind, items], index) => {
         return element[0] === 'elision' ? arrayHole(element[1]) : null
     }
     const member = items[index]
-    // a spread names no key, and a computed key is an own property's
-    if (member instanceof Array || member.spelling === 'computed') { return null }
+    // A spread names no key; computed and numeric-literal keys name own properties.
+    if (member instanceof Array || hasEntry(member, 'node')) { return null }
     const { key, name, spelling } = member
     return name === protoKey && spelling !== 'shorthand' ? protoKeyError(key) : null
 }
