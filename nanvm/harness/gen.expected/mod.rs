@@ -29,6 +29,7 @@ pub mod named;
 pub mod named_imports;
 pub mod named_imports_throws;
 pub mod nested;
+pub mod normal_if;
 pub mod not_a_function;
 pub mod nullish;
 pub mod number;
@@ -97,6 +98,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "named_imports", fixture: crate::fixtures::named_imports::module::<Naive>, expected: named_imports::module::<Naive>, json: named_imports::JSON, throws: named_imports::THROWS },
     crate::Case { name: "named_imports_throws", fixture: crate::fixtures::named_imports_throws::module::<Naive>, expected: named_imports_throws::module::<Naive>, json: named_imports_throws::JSON, throws: named_imports_throws::THROWS },
     crate::Case { name: "nested", fixture: crate::fixtures::nested::module::<Naive>, expected: nested::module::<Naive>, json: nested::JSON, throws: nested::THROWS },
+    crate::Case { name: "normal_if", fixture: crate::fixtures::normal_if::module::<Naive>, expected: normal_if::module::<Naive>, json: normal_if::JSON, throws: normal_if::THROWS },
     crate::Case { name: "not_a_function", fixture: crate::fixtures::not_a_function::module::<Naive>, expected: not_a_function::module::<Naive>, json: not_a_function::JSON, throws: not_a_function::THROWS },
     crate::Case { name: "nullish", fixture: crate::fixtures::nullish::module::<Naive>, expected: nullish::module::<Naive>, json: nullish::JSON, throws: nullish::THROWS },
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },

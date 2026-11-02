@@ -662,6 +662,35 @@ export const proof = {
             ['export default (()=>{let x=0;let y=1;while(x<3){let local=1;local=local+1;x=x+1;y=y+local;}return [x,y];})();', [3, 7]],
         ])) { assertStructurallySame(result(source), { default: expected }, source) }
     },
+    ordinaryConditionalJoinsOneOuterVersionWithoutExportingLocals: () => {
+        const normalized = fn('export default (selected,initial)=>{let value=initial;if(selected){let local=initial;local=[local];value=local;}return [value,value];};')
+        const branch = normalized.body.statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        // The branch's mutable local stays private. Only value crosses the join.
+        assertEq(branch[1].length, 1)
+        assert(branch[3].exit[0] === 'yield' && branch[4].exit[0] === 'yield')
+        assertEq(branch[3].exit[1].length, 1)
+        const incoming = normalized.body.statements[0]
+        assert(incoming[0] === 'define')
+        assertStructurallySame(incoming[2], ['ref', normalized.parameters[1]])
+        assertStructurallySame(branch[4].exit[1], [['ref', incoming[1]]])
+        const returned = normalized.body.exit
+        assert(returned[0] === 'return' && returned[1] === normalized.target)
+        assertStructurallySame(returned[2], ['array', [['ref', branch[1][0]], ['ref', branch[1][0]]]])
+    },
+    ordinaryConditionalTestsPassTheirUpdatedVersionToEitherArm: () => {
+        for (const [selected, expected] of /** @type {const} */ ([[true, 3], [false, 5]])) {
+            assertStructurallySame(result(`export default (selected=>{let value=0;if((()=>{value+=1;return selected;})()){value+=2;}else{value+=4;}return value;})(${selected});`), { default: expected })
+        }
+        assertStructurallySame(result('export default (()=>{let value=0;if((()=>{value+=1;return false;})()){value+=2;}return value;})();'), { default: 1 })
+    },
+    ordinaryConditionalKeepsSelectedAndOverwrittenRequiredWork: () => {
+        for (const work of ['const required=null.x;value=9;', 'value=null.x;value=9;']) {
+            const source = `const f=selected=>{let value=0;if(selected){${work}}else{value=7;}return value;};`
+            assertStructurallySame(result(`${source}export default f(false);`), { default: 7 })
+            assertError(memo(assertOk(analysis(graph(`${source}export default f(true);`))))({ args: [] }))
+        }
+    },
     conditionalBodyResultsMergeOnlyOuterWrites: () => {
         /** @type {string} */
         const source = 'export default (n,selected)=>{let i=0;let sum=0;while(i<n){if(selected){let local=1;local=local+1;sum=sum+i;i=i+local;}i=i+1;}return [i,sum];};'

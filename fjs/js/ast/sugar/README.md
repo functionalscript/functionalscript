@@ -76,8 +76,10 @@ terminal loop therefore remains deliberate divergence. Its FAST block ends
 directly with the loop exit. That exit has no normal successor and introduces
 no synthetic throw or implicit undefined result.
 
-A conditional statement inside a loop instead keeps the surrounding statement
-continuation. Both arms normalize from the same preceding immutable mapping.
+A conditional statement keeps the surrounding statement continuation. The
+admitted ordinary-function profile has normally completing arms and at most one
+assigned outer binding; loop conditionals retain their broader existing
+profile. Both use this same normalization from the preceding immutable mapping.
 The union of the normally completing arms' assigned outer bindings becomes
 explicit FAST branch results in binding-introduction order. Each normal arm yields its latest immutable versions,
 retaining preceding versions for names it does not write. An omitted `else`

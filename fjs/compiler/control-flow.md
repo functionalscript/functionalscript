@@ -13,12 +13,14 @@ already contain the corrected break result and initial invocation. Case 10
 adds a conditional loop. Implicit returns and source case fall-through remain
 outside admission.
 
-## Contract prepared for review
+## Approved control-flow contract
 
-These implemented boundaries are presented for owner review; agreement remains
-an open gate:
+The task owner approved this contract and the first ordinary-function
+conditional increment; the
+[proposal and approval](../todo/compiler-vocabulary-and-modularization.md#first-approved-admission-boundary)
+record its scope.
 
-- Explicit source returns remain required. Ordinary-source cases 4, 6
+- Explicit source returns remain required. Ordinary-source cases 4
   and 7 remain unadmitted; supplied FAST and emitted-source readback have
   separate gates.
 - Normal region completion supplies ordered results. Return, break and continue
@@ -76,19 +78,19 @@ not extend the language's failure-payload or prior-work contract.
 ## Audit of the reference cases
 
 The source-profile column describes current source admission, with
-the explicit-return wrappers above. In particular, an ordinary function's
-conditional branches still use the terminating-guard grammar; loop bodies
-already admit normally completing conditional branches.
+the explicit-return wrappers above. Ordinary functions admit existing
+terminating guards and normally completing conditionals joining at most one
+outer binding. Loop bodies retain their broader conditional profile.
 
 | Case | Required normalized meaning | Current source profile |
 | --- | --- | --- |
 | 1. Conditional expression | Select `a` or `b` once and supply one result. | Admitted. |
 | 2. Expression blocks | Only the selected block establishes its local `x` or `y`; its result feeds `r0`. | Admitted for these immediate-call shapes. |
 | 3. Terminating guard | True returns `f()` from `F`; false reaches the following `g()` return. | Admitted. |
-| 4. Partly returning conditional | `x` stays local. The inner return exits `F`; both normal outer paths reach one following `c()` call. | Ordinary source branch rejected; supplied FAST can express the control flow. |
+| 4. Partly returning conditional | `x` stays local. The inner return exits `F`; both normal outer paths reach one following `c()` call. | Syntax forms an AST; FJS admission refuses the mixed return/normal branch. Supplied FAST can express it. |
 | 5. Sequential reassignment | Keep `a0`, the established `f(a0)` result, and fresh `a1`; the suffix reads their respective versions. | Admitted. |
-| 6. Conditional reassignment | Join one `a1`: true supplies `a0 + 2`, false supplies `a0`; call `f(a1)` once afterward. | Ordinary source branch rejected; joins already exist in FAST and in source loop bodies. |
-| 7. Reassignment with an early return | Only normal paths join `z1`; the inner return skips the continuation using it. | Ordinary source branch rejected; supplied FAST expresses it. |
+| 6. Conditional reassignment | Join one `a1`: true supplies `a0 + 2`, false supplies `a0`; call `f(a1)` once afterward. | Admitted with normal arms, an optional `else` and an explicit following function terminator. |
+| 7. Reassignment with an early return | Only normal paths join `z1`; the inner return skips the continuation using it. | Syntax forms an AST; FJS admission refuses the mixed return/normal branch. Supplied FAST expresses it. |
 | 8. Loop with break and continue | Loop state `(a,b)` and results `(a,b)` have explicit ordered signatures. Break supplies the updated `b`. | Admitted. |
 | 9. Loop with an owning return | A break supplies loop state to the suffix; `return m(a)` leaves `F` and bypasses that suffix. | Admitted. |
 | 10. Conditional loop | Test before each reached iteration, including zero iterations; false supplies the current loop state to the suffix. | Admitted with an explicit following function terminator. |
@@ -181,7 +183,8 @@ The returning path still requires `x.a`: deleting its failure could invent a
 successful return. This does not expose the first failure. Only normal paths
 supply `m1`; the returning arm supplies no placeholder.
 
-Current source grammar rejects the outer normally completing branch. The
+Generic source syntax forms the outer branch, but FJS admission still refuses
+its mixed return/normal completion. The
 supplied normalized FAST fixture now executes through both public FJS source
 and code-only output, preserving the selected `m` and owning return. This does
 not admit the original source spelling. The separate
@@ -509,7 +512,7 @@ parse, execute and reserialize both graphs through two source generations at
 allocation within an invocation and allocate fresh payloads in later calls.
 Skipped failing transitions stay skipped, and reached failures still fail.
 These named output profiles do not admit arbitrary lazy storage or ordinary
-source cases 4, 6 and 7.
+source cases 4 and 7.
 
 The baseline output model uses immutable bindings and parameterized
 continuations for ordinary branches, with mutable state for `while` lowering.
@@ -535,7 +538,7 @@ helpers.
 
 | Corpus | What it establishes |
 | --- | --- |
-| [Parser/source](parser/control_flow.proof.f.mjs) | Six groups pin ordinary-if syntax limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. |
+| [Parser/source](parser/control_flow.proof.f.mjs) | Pins mixed-return conditional admission limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. [Normal conditional proofs](parser/normal_if.proof.f.mjs) cover the first ordinary immutable join profile. |
 | [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
 | [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.mjs) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |

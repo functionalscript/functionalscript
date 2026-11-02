@@ -1,22 +1,20 @@
 ## A block whose end is reachable
 
 **Priority:** P2
-**Status:** open — a function body that runs off its end stays refused by
-design, and its modules take a source rewrite; an `if` block that runs off
-its end is a language change that needs formal language-design approval first
-([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions))
+**Status:** wip — generic branch syntax and the approved one-outer-binding
+normal-completion profile are implemented; broader conditional completion and
+joins remain open, while function bodies still need explicit terminators
 
 ### Problem
 
-A FunctionalScript block ends in a terminating statement — a `return`, a
-`throw`, or a switch with a `default` — and nothing after it may run
-([bodies and guards](../control-flow/guards/README.md)). A loop's block is the
-one exception ([loops](../control-flow/loops/README.md)). JavaScript has no such
-rule: a function body that runs off its end returns `undefined`, and an `if`
-block that runs off its end goes on with the statement after the `if`.
-The guard's own page lists "a branch that does not terminate and with it
-`else`" as a follow-up, and [the roadmap](./README.md) repeats it, with no
-record to hold it. This is that record, together with the function body.
+A FunctionalScript function body ends in an explicit terminating statement,
+while a normally completing conditional branch continues after its `if`
+([bodies and guards](../control-flow/guards/README.md)). The first admitted
+ordinary-function branch profile joins at most one assigned outer binding;
+the broader mixed-return and multi-binding forms remain open. JavaScript also
+lets a function run off its end and return `undefined`; FunctionalScript keeps
+that case separate and refuses it. This issue tracks the branch extensions
+and source rewrites needed by function bodies without explicit terminators.
 
 At `442ea8f` a reachable block end is the first refusal of 26 modules, 11 of
 them among the modules the self-hosting loader depends on
@@ -59,7 +57,9 @@ in three shapes:
 
 ### Proposal and stages
 
-The three shapes take three different answers.
+The three shapes take three different answers. The inventory above is pinned
+to its original commit; it has not been recounted after the bounded branch
+admission below.
 
 **A function body: keep the refusal, rewrite the source.**
 [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
@@ -89,11 +89,27 @@ fall-through paths in `fjs/cli`'s `dispatchCommands` and
 `fjs/compiler/edag`'s `_moduleExports` must still reach their following
 return or throw.
 
-Implement this in two stages. First let the generic syntax AST represent
-non-terminating branches, independently of FunctionalScript admission and
-FAST or EDAG compilation. This lets the module dependency check parse the
-source without requiring it to compile. Then admit and normalize the source
-form using the existing FAST branch results and shared EDAG continuation.
+The generic syntax AST now represents these ordinary conditional branches
+independently of FunctionalScript admission and FAST or EDAG compilation.
+This lets the module dependency check parse the source without requiring it
+to compile. The first FJS admission increment uses the existing FAST branch
+results: both arms complete normally and may assign at most one outer
+binding, with an omitted `else` retaining its incoming value. Branch-local
+writes do not count toward that bound. The surrounding function keeps its
+explicit terminator.
+
+Nested normal conditionals and loops retain their lexical scopes and local
+loop transfers. An owning-function return or explicit throw inside a normal
+arm, including in its loops, remains refused; a nested ordinary function has
+its own return owner. Broader joins and partly returning arms are separate
+increments under the
+[control-flow contract](../../fjs/todo/compiler-vocabulary-and-modularization.md#control-flow-contract-review).
+
+The language designer `sergey-shandar` approved the contract and this bounded
+case 6 increment in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+by instructing implementation after the case 6 proposal. This records approval
+for that increment, not for every form described by the general model.
 
 **A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
 `default` is the function-body shape once more, rewritten the same way: the
@@ -136,8 +152,8 @@ target:
 }
 ```
 
-The current FAST-to-EDAG converter already represents this hand-built FAST
-as the following graph; accepting the source spelling remains future work:
+The source spelling is now admitted, and the existing FAST-to-EDAG converter
+represents its normalized FAST as the following graph:
 
 ```js
 ['=>', 2, [], ['+', ['?:', ['arg', 0], 1, ['arg', 1]], 2]]
@@ -169,15 +185,19 @@ of repeating that code in the arm.
 - [ ] Rewrite the function bodies with no terminator, `return undefined` or a
       `throw`, and a terminator after each `switch` with no `default`; no
       approval needed.
-- [ ] Parse non-terminating `if` branches into the generic syntax AST without
+- [x] Parse non-terminating `if` branches into the generic syntax AST without
       requiring FunctionalScript admission or FAST/EDAG compilation.
-- [ ] Settle the `if` form and record formal language-design approval, with a
-      link, under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
-- [ ] Admit and normalize an `if` block whose end is reachable, and `else`,
-      using existing FAST branch results and normal `yield` exits under the
-      [variable contract](../bindings/variables/README.md#normalization), with
-      a shared continuation through every output; the guard page and
-      [refused constructs](./refused-constructs.md) updated.
+- [x] Record formal language-design approval for the bounded case 6 profile,
+      with a link, under
+      [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
+- [x] Admit and normalize normal arms with optional `else` and at most one
+      assigned outer binding, using existing FAST results and normal `yield`
+      exits under the
+      [variable contract](../bindings/variables/README.md#normalization).
+      Update the guard page and [refused constructs](./refused-constructs.md).
+- [ ] Extend ordinary-function admission to partly returning branches and
+      broader joins under the completion and ownership contract, preserving
+      one shared normal continuation and explicit function terminators.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
 ### Related

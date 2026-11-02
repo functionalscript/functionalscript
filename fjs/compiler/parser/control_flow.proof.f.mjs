@@ -26,18 +26,16 @@ const evaluated = source => {
 }
 
 export const proof = /** @type {const} */ ({
-    ordinaryConditionalSourceStillNeedsSyntaxAdmission: () => {
+    partlyReturningConditionalsStillNeedAdmission: () => {
         for (const source of [
             // Reference Case 4: the outer arm can complete normally.
             'export default (a,f,c)=>{if(a){const x=f();if(x.a()){return x.b();}}return c();};',
-            // Reference Case 6: a normal arm exports an updated binding.
-            'export default (b,f)=>{let a=0;if(b){a=a+2;}return f(a);};',
             // Reference Case 7: a returning path bypasses the joined value.
             'export default (a,f,c)=>{let z=0;if(a){const x=f();if(x.a()){return x.b();}z=z+x.c();}return c(z+5);};',
             // The task owner's nested example.
             'export default (a,m,f,g)=>{if(a){const x=f();m=x.a;if(x.b){return x.c;}}return g(m);};',
         ]) {
-            assertError(syntax(source))
+            assertOk(syntax(source))
             assertError(parse(path)(source))
         }
     },
