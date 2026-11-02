@@ -62,20 +62,26 @@ fn a_nested_function_return_keeps_its_owner() {
 }
 
 #[test]
-fn an_early_return_keeps_the_preceding_required_read() {
-    assert_eq!(
-        run::<Naive>(
-            mixed_if::module,
-            "requiredRead",
-            Action::Call([true.to_any()].to_array())
-        ),
-        Ok("1".into())
-    );
+fn a_required_read_precedes_normal_or_early_completion() {
+    for (enter, valid, stop, expected) in [
+        (false, false, true, "0"),
+        (true, true, false, "7"),
+        (true, true, true, "1"),
+    ] {
+        assert_eq!(
+            run::<Naive>(
+                mixed_if::module,
+                "requiredRead",
+                Action::Call([enter.to_any(), valid.to_any(), stop.to_any()].to_array())
+            ),
+            Ok(expected.into())
+        );
+    }
     assert!(matches!(
         run::<Naive>(
             mixed_if::module,
             "requiredRead",
-            Action::Call([false.to_any()].to_array())
+            Action::Call([true.to_any(), false.to_any(), true.to_any()].to_array())
         ),
         Err(RunError::Thrown(_))
     ));

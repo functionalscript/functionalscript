@@ -53,15 +53,15 @@ export const localOwner = condition => {
     return a + 1;
 };
 
-/** @type {(valid: boolean) => number} */
-export const requiredRead = valid => {
+/** @type {(enter: boolean, valid: boolean, stop: boolean) => number} */
+export const requiredRead = (enter, valid, stop) => {
     let m = 0;
-    if (true) {
+    if (enter) {
         // A null is intentional failing data: the required read cannot vanish
         // just because this branch then returns a constant from its owner.
         const x = /** @type {{readonly a: number}} */ (/** @type {unknown} */ (valid ? { a: 7 } : null));
         m = x.a;
-        if (true) { return 1; }
+        if (stop) { return 1; }
     }
     return m;
 };
@@ -70,7 +70,7 @@ export const requiredRead = valid => {
 export const tail = (n, a) => {
     let next = a;
     if (n > 0) {
-        const packet = /** @type {const} */ ([n - 1, a + 1]);
+        const packet = /** @type {const} */ ([n - 1, next + 1]);
         if (n === 1) { return packet[1]; }
         next = packet[1];
     } else {
@@ -83,5 +83,7 @@ export default [
     partial(false, false), partial(true, false), partial(true, true),
     parameterized(false, false), parameterized(true, false), parameterized(true, true),
     snapshotObservation(false), snapshotObservation(true), nested(true, true),
-    localOwner(false), localOwner(true), requiredRead(true), tail(3, 7),
+    localOwner(false), localOwner(true),
+    requiredRead(false, false, true), requiredRead(true, true, false), requiredRead(true, true, true),
+    tail(3, 7),
 ];
