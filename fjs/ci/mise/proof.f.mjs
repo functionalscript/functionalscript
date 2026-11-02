@@ -14,7 +14,7 @@ const source = {
         { uses: 'actions/cache@v1' },
         { uses: 'actions/checkout@v1' },
         { run: 'env cargo test' },
-        { run: 'test "$(env wasmtime --version)" = "wasmtime 50.0.0"' },
+        { run: 'test "$(env wasmtime --version)" = "wasmtime 50.0.1"' },
         { run: 'test "$(env js --version)" = "JavaScript-C140.17.0"' },
         { run: 'env npm run sm t' },
         { run: 'test "$(node --version)" = "v26.13.0"' },

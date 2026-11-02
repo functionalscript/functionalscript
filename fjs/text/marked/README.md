@@ -500,9 +500,11 @@ points, as the tokenizer's are).
   text.** A WASM demo page fetches each sample's WAT; the publisher writes
   `functionsMarked` as `toTagged`, `<sample>.wat.marked`, and the page reads
   it back with `fromTagged` and draws it with `render`. Each sample's Rust
-  takes the same path: generation writes `toRustMarked` as
-  `gen.samples/<name>.rs.marked` beside the `.rs` that `cargo` builds, so the
-  page draws the Rust coloured too. Tagged text is the
+  takes the same path: the site's build compiles each sample again and
+  writes its marked Rust as `<name>.rs.marked` beside the WAT, so the page
+  draws the Rust coloured too. Generation commits only the `.rs` that
+  `cargo` builds: a file only the page reads is a build asset, not
+  source. Tagged text is the
   encoding §4 already defines, and the page builds its nodes from the runs,
   never inserting fetched HTML.
 - **No command-line option** ([§10](#10-the-command-line)).
