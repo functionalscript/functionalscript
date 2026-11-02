@@ -153,7 +153,7 @@ const localizedTask = (source, definition, deferred, origin) => call(() => {
     const index = source.statements.findIndex(statement => statement !== definition && freeBindings({ statements: [statement], exit: ['yield', []] }).includes(definition[1]))
     const branch = source.statements[index]
     if (branch === undefined || branch[0] !== 'if' || origin >= index) { return done(null) }
-    const outside = { ...source, statements: source.statements.filter(statement => statement !== definition && statement !== branch) }
+    const outside = /** @type {Block} */ ({ ...source, statements: source.statements.filter(statement => statement !== definition && statement !== branch) })
     if (references(outside, definition[1], deferred) || references({ statements: [], exit: ['yield', [branch[2]]] }, definition[1], deferred)) { return done(null) }
     const left = references(branch[3], definition[1], deferred)
     const right = references(branch[4], definition[1], deferred)
