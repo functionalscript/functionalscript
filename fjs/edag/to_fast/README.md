@@ -165,9 +165,16 @@ After tail-control placement, [`join`](join/module.f.mjs) recovers normal
 statement results selected by the same established test. A residual value, or
 shared selected recipe first demanded by following work, becomes an explicit
 result of that statement conditional. Terminal arms keep their transfers and
-the following continuation remains one computation. A deferred recipe used
-only within one resulting arm becomes required at its first proven demand;
-the shared graph demand query checks calls, lookups, spreads and lazy barriers.
+the following continuation remains one computation. The same recovery handles
+a conditional value first demanded by an immediately following required
+initializer. The ordered-demand and scope checks keep earlier work and
+branch results in place; a decision that rebinds its own test cannot establish
+the later condition's value. Moved arms and recipes retain their original
+lexical dependencies, including deferred captures. Each normal arm yields an
+immutable joined value.
+A deferred recipe used only within one resulting arm becomes required at its
+first proven demand; the shared graph demand query checks calls, lookups,
+spreads and lazy barriers.
 Earlier work and recipes with other uses keep their original evaluation owner.
 Demand checks expand visible deferred initializer graphs without evaluating them,
 so transitive closure captures retain their first-read order. Ordinary function
@@ -175,6 +182,7 @@ bodies remain opaque. A closure first demanded after the control join is
 constructed there once, with the selected immutable capture values.
 Deferred declarations depending on a recovered result follow its conditional
 in their original dependency order; their evaluation still waits for first use.
+Only newly recovered results can change where those declarations belong.
 
 ## Invocation construction
 

@@ -129,496 +129,497 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 '_loop210: loop {
                     let _b251902_74: Any<A> = _b1388616.clone();
                     let _b166: Any<A> = (Any::dot((Any::dot(_b251902_74.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let _b1388618 = std::cell::RefCell::new(None::<Any<A>>);
-                    let _b171: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                        if let Some(value) = _b1388618.borrow().as_ref() { return Ok(value.clone()); }
-                        let value: Any<A> = { (Any::call(A::frame(_self)[0].clone(), [_b251902_74.clone()].to_array().to_any()))? };
-                        *_b1388618.borrow_mut() = Some(value.clone());
-                        Ok(value)
-                    };
+                    let mut _b1388618: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b166.clone()) {
-
-                    } else { if Any::<A>::to_boolean((strict_ne((Any::dot((_b171())?, f64_any(0x0000000000000000)).end())?, string_any("normal")))?) {
-                        let _b1388620: Any<A> = (_b171())?;
-                        _b1388617 = _b1388620.clone();
-                        break '_loop210;
+                        let _b1388619: Any<A> = [(Any::dot((Any::dot(_b251902_74.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b251902_74.clone()].to_array().to_any();
+                        _b1388618 = _b1388619.clone();
                     } else {
-
-                    } }
-                    let _b177: Any<A> = if Any::<A>::to_boolean(_b166.clone()) { [(Any::dot((Any::dot(_b251902_74.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b251902_74.clone()].to_array().to_any() } else { [(Any::dot((Any::dot((_b171())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot((_b171())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any() };
-                    let _b178: Any<A> = (Any::dot(_b177.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b1388590_82: Any<A> = _b178.clone();
-                    let _b179: Any<A> = (Any::dot(_b177.clone(), f64_any(0x3ff0000000000000)).end())?;
-                    let _b181: Any<A> = (Any::dot((Any::dot(_b179.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let mut _b1388621: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean(_b181.clone()) {
-                        let _b1388622: Any<A> = [(Any::dot((Any::dot(_b179.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b179.clone()].to_array().to_any();
-                        _b1388621 = _b1388622.clone();
-                    } else {
-                        let _b185: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b179.clone()].to_array().to_any()))?;
-                        if Any::<A>::to_boolean((strict_ne((Any::dot(_b185.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) {
-                            let _b1388623: Any<A> = _b185.clone();
-                            _b1388617 = _b1388623.clone();
+                        let _b171: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b251902_74.clone()].to_array().to_any()))?;
+                        if Any::<A>::to_boolean((strict_ne((Any::dot(_b171.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) {
+                            let _b1388620: Any<A> = _b171.clone();
+                            _b1388617 = _b1388620.clone();
                             break '_loop210;
                         } else {
 
                         }
-                        let _b1388624: Any<A> = [(Any::dot((Any::dot(_b185.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b185.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                        _b1388621 = _b1388624.clone();
+                        let _b1388621: Any<A> = [(Any::dot((Any::dot(_b171.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b171.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388618 = _b1388621.clone();
                     }
-                    let _b191: Any<A> = _b1388621.clone();
+                    let _b0_81: Any<A> = _b1388618.clone();
+                    let _b177: Any<A> = _b0_81.clone();
+                    let _b178: Any<A> = (Any::dot(_b177.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b1388590_84: Any<A> = _b178.clone();
+                    let _b179: Any<A> = (Any::dot(_b177.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b181: Any<A> = (Any::dot((Any::dot(_b179.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                    let mut _b1388622: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean(_b181.clone()) {
+                        let _b1388623: Any<A> = [(Any::dot((Any::dot(_b179.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b179.clone()].to_array().to_any();
+                        _b1388622 = _b1388623.clone();
+                    } else {
+                        let _b185: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b179.clone()].to_array().to_any()))?;
+                        if Any::<A>::to_boolean((strict_ne((Any::dot(_b185.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) {
+                            let _b1388624: Any<A> = _b185.clone();
+                            _b1388617 = _b1388624.clone();
+                            break '_loop210;
+                        } else {
+
+                        }
+                        let _b1388625: Any<A> = [(Any::dot((Any::dot(_b185.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b185.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388622 = _b1388625.clone();
+                    }
+                    let _b191: Any<A> = _b1388622.clone();
                     let _b192: Any<A> = (Any::dot(_b191.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b1388590_92: Any<A> = _b192.clone();
+                    let _b1388590_94: Any<A> = _b192.clone();
                     let _b193: Any<A> = [_b178.clone(), _b192.clone()].to_array().to_any();
-                    let _b1388625: Any<A> = [string_any("normal"), [_b193.clone(), [(Any::dot((Any::dot(_b191.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, [true.to_any(), _b193.clone()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                    _b1388617 = _b1388625.clone();
+                    let _b1388626: Any<A> = [string_any("normal"), [_b193.clone(), [(Any::dot((Any::dot(_b191.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, [true.to_any(), _b193.clone()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                    _b1388617 = _b1388626.clone();
                     break '_loop210;
                 }
                 let _b251921: Any<A> = _b1388617.clone();
                 Ok(_b251921.clone())
-            }, 1, [_b163.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0][0];const $7=(()=>{let $8,$9=false;return()=>{if(!$9){$8=$0($5);$9=true;}return $8;};})();if($6){}else{if($7()[0]!==\"normal\"){const $10=$7();$4=$10;break L0;}}const $11=$6?[$5[0][1],$5]:[$7()[1][0],$7()[1][1]];const $12=$11[0];const $13=$12;const $14=$11[1];const $15=$14[0][0];let $16=undefined;if($15){const $17=[$14[0][1],$14];$16=$17;}else{const $18=$0($14);if($18[0]!==\"normal\"){const $19=$18;$4=$19;break L0;}const $20=[$18[1][0],$18[1][1]];$16=$20;}const $21=$16;const $22=$21[0];const $23=$22;const $24=[$12,$22];const $25=[\"normal\",[$24,[$21[1][0],[true,$24]]]];$4=$25;break L0;}const $26=$4;return $26;}")).to_any();
+            }, 1, [_b163.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0][0];let $7=undefined;if($6){const $8=[$5[0][1],$5];$7=$8;}else{const $9=$0($5);if($9[0]!==\"normal\"){const $10=$9;$4=$10;break L0;}const $11=[$9[1][0],$9[1][1]];$7=$11;}const $12=$7;const $13=$12;const $14=$13[0];const $15=$14;const $16=$13[1];const $17=$16[0][0];let $18=undefined;if($17){const $19=[$16[0][1],$16];$18=$19;}else{const $20=$0($16);if($20[0]!==\"normal\"){const $21=$20;$4=$21;break L0;}const $22=[$20[1][0],$20[1][1]];$18=$22;}const $23=$18;const $24=$23[0];const $25=$24;const $26=[$14,$24];const $27=[\"normal\",[$26,[$23[1][0],[true,$26]]]];$4=$27;break L0;}const $28=$4;return $28;}")).to_any();
             let _b249: Any<A> = A::static_function(|_self, _args| {
-                let _b298468_99: Any<A> = _args.argument(0);
-                let _b1388590_100: Any<A> = (Any::dot(_b298468_99.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b213: Any<A> = (Any::dot(_b298468_99.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b298468_101: Any<A> = _args.argument(0);
+                let _b1388590_102: Any<A> = (Any::dot(_b298468_101.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b213: Any<A> = (Any::dot(_b298468_101.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b215: Any<A> = (Any::dot((Any::dot(_b213.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_103: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b215.clone()) { return Any::call(_b0_103.clone(), [[(Any::dot((Any::dot(_b213.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b213.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_105: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b215.clone()) { return Any::call(_b0_105.clone(), [[(Any::dot((Any::dot(_b213.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b213.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b220: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b213.clone()].to_array().to_any()))?;
                 if Any::<A>::to_boolean((strict_ne((Any::dot(_b220.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b220.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) { return Ok([[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((spread_array([spread_item((Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_103.clone(), [[(Any::dot((Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_105.clone(), [[(Any::dot((Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b220.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b210.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[1][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[1][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){return [[\"continue\",0,[[...$8[1]][0]]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b258: Any<A> = (Any::dot((Any::call(_b249.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any(), [false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b258.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b258.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388626: Any<A> = (Any::dot((Any::dot(_b258.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388614 = _b1388626.clone();
+                let _b1388627: Any<A> = (Any::dot((Any::dot(_b258.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388614 = _b1388627.clone();
                 break '_loop271;
             } else {
-                let _b1388627: Any<A> = (Any::dot((Any::dot(_b258.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388613 = _b1388627.clone();
+                let _b1388628: Any<A> = (Any::dot((Any::dot(_b258.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388613 = _b1388628.clone();
                 continue '_loop271;
             }
         }
         let _b324755: Any<A> = _b1388614.clone();
         Ok(_b324755.clone())
-    }, 1, Array::default(), Some("($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4===0?[\"return\",7]:[\"tail\",[$4-1]];const $7=($8)=>{const $9=$8;let $10=$9;let $11=undefined;L1:while(true){const $12=$10;const $13=$12[0][0];const $14=(()=>{let $15,$16=false;return()=>{if(!$16){$15=$5($12);$16=true;}return $15;};})();if($13){}else{if($14()[0]!==\"normal\"){const $17=$14();$11=$17;break L1;}}const $18=$13?[$12[0][1],$12]:[$14()[1][0],$14()[1][1]];const $19=$18[0];const $20=$19;const $21=$18[1];const $22=$21[0][0];let $23=undefined;if($22){const $24=[$21[0][1],$21];$23=$24;}else{const $25=$5($21);if($25[0]!==\"normal\"){const $26=$25;$11=$26;break L1;}const $27=[$25[1][0],$25[1][1]];$23=$27;}const $28=$23;const $29=$28[0];const $30=$29;const $31=[$19,$29];const $32=[\"normal\",[$31,[$28[1][0],[true,$31]]]];$11=$32;break L1;}const $33=$11;return $33;};const $34=($35)=>{const $36=$35;const $37=$36[0];const $38=$36[1];const $39=$38[1][0];const $40=($41)=>[[\"break\",0,[$41[0]]]];if($39){return $40([$38[1][1],$38]);}const $42=$7($38);if($42[0]!==\"normal\"){if($42[0]===\"tail\"){return [[\"continue\",0,[[...$42[1]][0]]]];}else{return [[\"break\",0,[$42[1]]]];}}return $40([$42[1][0],$42[1][1]]);};const $43=$34([[],[[false,undefined],[false,undefined]]])[0];if($43[0]===\"break\"?$43[1]===0:false){const $44=$43[2][0];$3=$44;break L0;}else{const $45=$43[2][0];$2=$45;continue L0;}}const $46=$3;return $46;}")).to_any();
+    }, 1, Array::default(), Some("($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4===0?[\"return\",7]:[\"tail\",[$4-1]];const $7=($8)=>{const $9=$8;let $10=$9;let $11=undefined;L1:while(true){const $12=$10;const $13=$12[0][0];let $14=undefined;if($13){const $15=[$12[0][1],$12];$14=$15;}else{const $16=$5($12);if($16[0]!==\"normal\"){const $17=$16;$11=$17;break L1;}const $18=[$16[1][0],$16[1][1]];$14=$18;}const $19=$14;const $20=$19;const $21=$20[0];const $22=$21;const $23=$20[1];const $24=$23[0][0];let $25=undefined;if($24){const $26=[$23[0][1],$23];$25=$26;}else{const $27=$5($23);if($27[0]!==\"normal\"){const $28=$27;$11=$28;break L1;}const $29=[$27[1][0],$27[1][1]];$25=$29;}const $30=$25;const $31=$30[0];const $32=$31;const $33=[$21,$31];const $34=[\"normal\",[$33,[$30[1][0],[true,$33]]]];$11=$34;break L1;}const $35=$11;return $35;};const $36=($37)=>{const $38=$37;const $39=$38[0];const $40=$38[1];const $41=$40[1][0];const $42=($43)=>[[\"break\",0,[$43[0]]]];if($41){return $42([$40[1][1],$40]);}const $44=$7($40);if($44[0]!==\"normal\"){if($44[0]===\"tail\"){return [[\"continue\",0,[[...$44[1]][0]]]];}else{return [[\"break\",0,[$44[1]]]];}}return $42([$44[1][0],$44[1][1]]);};const $45=$36([[],[[false,undefined],[false,undefined]]])[0];if($45[0]===\"break\"?$45[1]===0:false){const $46=$45[2][0];$3=$46;break L0;}else{const $47=$45[2][0];$2=$47;continue L0;}}const $48=$3;return $48;}")).to_any();
     let _b339: Any<A> = A::static_function(|_self, _args| {
-        let _b1388628: Any<A> = _args.argument(0);
-        let mut _b1388629: Any<A> = _b1388628.clone();
-        let mut _b1388630: Any<A> = Nullish::Undefined.to_any();
+        let _b1388629: Any<A> = _args.argument(0);
+        let mut _b1388630: Any<A> = _b1388629.clone();
+        let mut _b1388631: Any<A> = Nullish::Undefined.to_any();
         '_loop339: loop {
-            let _b405928_115: Any<A> = _b1388629.clone();
-            let _b280: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b405928_115.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1]]")).to_any();
+            let _b405928_117: Any<A> = _b1388630.clone();
+            let _b280: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b405928_117.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1]]")).to_any();
             let _b319: Any<A> = A::static_function(|_self, _args| {
-                let _b382048_122: Any<A> = _args.argument(0);
-                let _b1388590_123: Any<A> = (Any::dot(_b382048_122.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b283: Any<A> = (Any::dot(_b382048_122.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b382048_124: Any<A> = _args.argument(0);
+                let _b1388590_125: Any<A> = (Any::dot(_b382048_124.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b283: Any<A> = (Any::dot(_b382048_124.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b285: Any<A> = (Any::dot((Any::dot(_b283.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_126: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b285.clone()) { return Any::call(_b0_126.clone(), [[(Any::dot((Any::dot(_b283.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b283.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_128: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b285.clone()) { return Any::call(_b0_128.clone(), [[(Any::dot((Any::dot(_b283.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b283.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b290: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b283.clone()].to_array().to_any()))?;
                 if Any::<A>::to_boolean((strict_ne((Any::dot(_b290.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b290.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) { return Ok([[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((spread_array([spread_item((Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_126.clone(), [[(Any::dot((Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_128.clone(), [[(Any::dot((Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b290.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b280.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[0][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[0][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){return [[\"continue\",0,[[...$8[1]][0]]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b326: Any<A> = (Any::dot((Any::call(_b319.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b326.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b326.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388631: Any<A> = (Any::dot((Any::dot(_b326.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388630 = _b1388631.clone();
+                let _b1388632: Any<A> = (Any::dot((Any::dot(_b326.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388631 = _b1388632.clone();
                 break '_loop339;
             } else {
-                let _b1388632: Any<A> = (Any::dot((Any::dot(_b326.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388629 = _b1388632.clone();
+                let _b1388633: Any<A> = (Any::dot((Any::dot(_b326.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388630 = _b1388633.clone();
                 continue '_loop339;
             }
         }
-        let _b405947: Any<A> = _b1388630.clone();
+        let _b405947: Any<A> = _b1388631.clone();
         Ok(_b405947.clone())
     }, 1, Array::default(), Some("($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4===0?[\"return\",7]:[\"tail\",[$4-1]];const $7=($8)=>{const $9=$8;const $10=$9[0];const $11=$9[1];const $12=$11[0][0];const $13=($14)=>[[\"break\",0,[$14[0]]]];if($12){return $13([$11[0][1],$11]);}const $15=$5($11);if($15[0]!==\"normal\"){if($15[0]===\"tail\"){return [[\"continue\",0,[[...$15[1]][0]]]];}else{return [[\"break\",0,[$15[1]]]];}}return $13([$15[1][0],$15[1][1]]);};const $16=$7([[],[[false,undefined]]])[0];if($16[0]===\"break\"?$16[1]===0:false){const $17=$16[2][0];$3=$17;break L0;}else{const $18=$16[2][0];$2=$18;continue L0;}}const $19=$3;return $19;}")).to_any();
     let _b407: Any<A> = A::static_function(|_self, _args| {
-        let _b1388633: Any<A> = _args.argument(0);
-        let mut _b1388634: Any<A> = _b1388633.clone();
-        let mut _b1388635: Any<A> = Nullish::Undefined.to_any();
+        let _b1388634: Any<A> = _args.argument(0);
+        let mut _b1388635: Any<A> = _b1388634.clone();
+        let mut _b1388636: Any<A> = Nullish::Undefined.to_any();
         '_loop407: loop {
-            let _b487120_138: Any<A> = _b1388634.clone();
-            let _b348: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b487120_138.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1]]")).to_any();
+            let _b487120_140: Any<A> = _b1388635.clone();
+            let _b348: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b487120_140.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1]]")).to_any();
             let _b387: Any<A> = A::static_function(|_self, _args| {
-                let _b463240_145: Any<A> = _args.argument(0);
-                let _b1388590_146: Any<A> = (Any::dot(_b463240_145.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b351: Any<A> = (Any::dot(_b463240_145.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b463240_147: Any<A> = _args.argument(0);
+                let _b1388590_148: Any<A> = (Any::dot(_b463240_147.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b351: Any<A> = (Any::dot(_b463240_147.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b353: Any<A> = (Any::dot((Any::dot(_b351.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_149: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b353.clone()) { return Any::call(_b0_149.clone(), [[(Any::dot((Any::dot(_b351.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b351.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_151: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b353.clone()) { return Any::call(_b0_151.clone(), [[(Any::dot((Any::dot(_b351.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b351.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b358: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b351.clone()].to_array().to_any()))?;
                 if Any::<A>::to_boolean((strict_ne((Any::dot(_b358.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b358.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) { return Ok([[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((spread_array([spread_item((Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_149.clone(), [[(Any::dot((Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_151.clone(), [[(Any::dot((Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b358.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b348.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[0][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[0][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){return [[\"continue\",0,[[...$8[1]][0]]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b394: Any<A> = (Any::dot((Any::call(_b387.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b394.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b394.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388636: Any<A> = (Any::dot((Any::dot(_b394.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388635 = _b1388636.clone();
+                let _b1388637: Any<A> = (Any::dot((Any::dot(_b394.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388636 = _b1388637.clone();
                 break '_loop407;
             } else {
-                let _b1388637: Any<A> = (Any::dot((Any::dot(_b394.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388634 = _b1388637.clone();
+                let _b1388638: Any<A> = (Any::dot((Any::dot(_b394.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388635 = _b1388638.clone();
                 continue '_loop407;
             }
         }
-        let _b487139: Any<A> = _b1388635.clone();
+        let _b487139: Any<A> = _b1388636.clone();
         Ok(_b487139.clone())
     }, 1, Array::default(), Some("($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4===0?[\"return\",7]:[\"tail\",[$4-1]];const $7=($8)=>{const $9=$8;const $10=$9[0];const $11=$9[1];const $12=$11[0][0];const $13=($14)=>[[\"break\",0,[$14[0]]]];if($12){return $13([$11[0][1],$11]);}const $15=$5($11);if($15[0]!==\"normal\"){if($15[0]===\"tail\"){return [[\"continue\",0,[[...$15[1]][0]]]];}else{return [[\"break\",0,[$15[1]]]];}}return $13([$15[1][0],$15[1][1]]);};const $16=$7([[],[[false,undefined]]])[0];if($16[0]===\"break\"?$16[1]===0:false){const $17=$16[2][0];$3=$17;break L0;}else{const $18=$16[2][0];$2=$18;continue L0;}}const $19=$3;return $19;}")).to_any();
     let _b492: Any<A> = A::static_function(|_self, _args| {
-        let _b1388638: Any<A> = _args.argument(0);
-        let _b1388639: Any<A> = _args.argument(1);
-        let _b1388640: Any<A> = _args.argument(2);
-        let mut _b1388641: Any<A> = _b1388638.clone();
+        let _b1388639: Any<A> = _args.argument(0);
+        let _b1388640: Any<A> = _args.argument(1);
+        let _b1388641: Any<A> = _args.argument(2);
         let mut _b1388642: Any<A> = _b1388639.clone();
         let mut _b1388643: Any<A> = _b1388640.clone();
-        let mut _b1388644: Any<A> = Nullish::Undefined.to_any();
+        let mut _b1388644: Any<A> = _b1388641.clone();
+        let mut _b1388645: Any<A> = Nullish::Undefined.to_any();
         '_loop492: loop {
-            let _b588610_167: Any<A> = _b1388641.clone();
-            let _b588611_168: Any<A> = _b1388642.clone();
-            let _b588612_169: Any<A> = _b1388643.clone();
+            let _b588610_169: Any<A> = _b1388642.clone();
+            let _b588611_170: Any<A> = _b1388643.clone();
+            let _b588612_171: Any<A> = _b1388644.clone();
             let _b427: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), [A::frame(_self)[1].clone(), A::frame(_self)[2].clone()].to_array().to_any()].to_array().to_any()) } else {
-                let _b1388590_175: Any<A> = (A::frame(_self)[0].clone() + f64_any(0x0000000000000000))?;
+                let _b1388590_177: Any<A> = (A::frame(_self)[0].clone() + f64_any(0x0000000000000000))?;
                 let _b419: Any<A> = [A::frame(_self)[1].clone(), A::frame(_self)[2].clone()].to_array().to_any();
                 Ok([string_any("tail"), (spread_array([spread_item([(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?, (Any::dot(_b419.clone(), f64_any(0x3ff0000000000000)).end())?, (Any::dot(_b419.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any())?, value_item(f64_any(0x4014000000000000))]))?].to_array().to_any())
-            } }, 1, [_b588610_167.clone(), _b588611_168.clone(), _b588612_169.clone()].to_array(), Some("($3)=>$0===0?[\"return\",[$1,$2]]:(()=>{const $4=$0+0;const $5=[$1,$2];return [\"tail\",[...[$0-1,$5[1],$5[0]],5]];})()")).to_any();
+            } }, 1, [_b588610_169.clone(), _b588611_170.clone(), _b588612_171.clone()].to_array(), Some("($3)=>$0===0?[\"return\",[$1,$2]]:(()=>{const $4=$0+0;const $5=[$1,$2];return [\"tail\",[...[$0-1,$5[1],$5[0]],5]];})()")).to_any();
             let _b468: Any<A> = A::static_function(|_self, _args| {
-                let _b1388645: Any<A> = _args.argument(0);
-                let _b1388646: Any<A> = _b1388645.clone();
-                let mut _b1388647: Any<A> = Nullish::Undefined.to_any();
+                let _b1388646: Any<A> = _args.argument(0);
+                let _b1388647: Any<A> = _b1388646.clone();
+                let mut _b1388648: Any<A> = Nullish::Undefined.to_any();
                 '_loop468: loop {
-                    let _b559954_183: Any<A> = _b1388646.clone();
-                    let _b1388590_184: Any<A> = (Any::dot(_b559954_183.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b430: Any<A> = (Any::dot(_b559954_183.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b559954_185: Any<A> = _b1388647.clone();
+                    let _b1388590_186: Any<A> = (Any::dot(_b559954_185.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b430: Any<A> = (Any::dot(_b559954_185.clone(), f64_any(0x3ff0000000000000)).end())?;
                     let _b432: Any<A> = (Any::dot((Any::dot(_b430.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let mut _b1388648: Any<A> = Nullish::Undefined.to_any();
+                    let mut _b1388649: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b432.clone()) {
-                        let _b1388649: Any<A> = [(Any::dot((Any::dot(_b430.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b430.clone()].to_array().to_any();
-                        _b1388648 = _b1388649.clone();
+                        let _b1388650: Any<A> = [(Any::dot((Any::dot(_b430.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b430.clone()].to_array().to_any();
+                        _b1388649 = _b1388650.clone();
                     } else {
                         let _b437: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b430.clone()].to_array().to_any()))?;
                         if Any::<A>::to_boolean((strict_ne((Any::dot(_b437.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b437.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                            let _b1388650: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                            let _b1388651: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                 let _b453: Any<A> = (spread_array([spread_item((Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                 [(Any::dot(_b453.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b453.clone(), f64_any(0x3ff0000000000000)).end())?, (Any::dot(_b453.clone(), f64_any(0x4000000000000000)).end())?].to_array().to_any()
                             }].to_array().to_any()].to_array().to_any();
-                            _b1388647 = _b1388650.clone();
+                            _b1388648 = _b1388651.clone();
                             break '_loop468;
                         } else {
-                            let _b1388651: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                            _b1388647 = _b1388651.clone();
+                            let _b1388652: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388648 = _b1388652.clone();
                             break '_loop468;
                         } } else {
 
                         }
-                        let _b1388652: Any<A> = [(Any::dot((Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                        _b1388648 = _b1388652.clone();
+                        let _b1388653: Any<A> = [(Any::dot((Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b437.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388649 = _b1388653.clone();
                     }
-                    let _b0_194: Any<A> = _b1388648.clone();
-                    let _b1388653: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_194.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                    _b1388647 = _b1388653.clone();
+                    let _b0_196: Any<A> = _b1388649.clone();
+                    let _b1388654: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_196.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                    _b1388648 = _b1388654.clone();
                     break '_loop468;
                 }
-                let _b559973: Any<A> = _b1388647.clone();
+                let _b559973: Any<A> = _b1388648.clone();
                 Ok(_b559973.clone())
             }, 1, [_b427.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0];const $7=$5[1];const $8=$7[0][0];let $9=undefined;if($8){const $10=[$7[0][1],$7];$9=$10;}else{const $11=$0($7);if($11[0]!==\"normal\"){if($11[0]===\"tail\"){const $12=[[\"continue\",0,(()=>{const $13=[...$11[1]];return [$13[0],$13[1],$13[2]];})()]];$4=$12;break L0;}else{const $14=[[\"break\",0,[$11[1]]]];$4=$14;break L0;}}const $15=[$11[1][0],$11[1][1]];$9=$15;}const $16=$9;const $17=[[\"break\",0,[$16[0]]]];$4=$17;break L0;}const $18=$4;return $18;}")).to_any();
             let _b475: Any<A> = (Any::dot((Any::call(_b468.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b475.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b475.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388654: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388644 = _b1388654.clone();
+                let _b1388655: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388645 = _b1388655.clone();
                 break '_loop492;
             } else {
-                let _b1388655: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b1388656: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
-                let _b1388657: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?;
-                _b1388641 = _b1388655.clone();
+                let _b1388656: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                let _b1388657: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
+                let _b1388658: Any<A> = (Any::dot((Any::dot(_b475.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?;
                 _b1388642 = _b1388656.clone();
                 _b1388643 = _b1388657.clone();
+                _b1388644 = _b1388658.clone();
                 continue '_loop492;
             }
         }
-        let _b588629: Any<A> = _b1388644.clone();
+        let _b588629: Any<A> = _b1388645.clone();
         Ok(_b588629.clone())
     }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=($14)=>$10===0?[\"return\",[$11,$12]]:(()=>{const $15=$10+0;const $16=[$11,$12];return [\"tail\",[...[$10-1,$16[1],$16[0]],5]];})();const $17=($18)=>{const $19=$18;let $20=$19;let $21=undefined;L1:while(true){const $22=$20;const $23=$22[0];const $24=$22[1];const $25=$24[0][0];let $26=undefined;if($25){const $27=[$24[0][1],$24];$26=$27;}else{const $28=$13($24);if($28[0]!==\"normal\"){if($28[0]===\"tail\"){const $29=[[\"continue\",0,(()=>{const $30=[...$28[1]];return [$30[0],$30[1],$30[2]];})()]];$21=$29;break L1;}else{const $31=[[\"break\",0,[$28[1]]]];$21=$31;break L1;}}const $32=[$28[1][0],$28[1][1]];$26=$32;}const $33=$26;const $34=[[\"break\",0,[$33[0]]]];$21=$34;break L1;}const $35=$21;return $35;};const $36=$17([[],[[false,undefined]]])[0];if($36[0]===\"break\"?$36[1]===0:false){const $37=$36[2][0];$9=$37;break L0;}else{const $38=$36[2][0];const $39=$36[2][1];const $40=$36[2][2];$6=$38;$7=$39;$8=$40;continue L0;}}const $41=$9;return $41;}")).to_any();
     let _b571: Any<A> = A::static_function(|_self, _args| {
-        let _b1388658: Any<A> = _args.argument(0);
-        let _b1388659: Any<A> = _args.argument(1);
-        let mut _b1388660: Any<A> = _b1388658.clone();
+        let _b1388659: Any<A> = _args.argument(0);
+        let _b1388660: Any<A> = _args.argument(1);
         let mut _b1388661: Any<A> = _b1388659.clone();
-        let mut _b1388662: Any<A> = Nullish::Undefined.to_any();
+        let mut _b1388662: Any<A> = _b1388660.clone();
+        let mut _b1388663: Any<A> = Nullish::Undefined.to_any();
         '_loop571: loop {
-            let _b682936_211: Any<A> = _b1388660.clone();
-            let _b682937_212: Any<A> = _b1388661.clone();
+            let _b682936_213: Any<A> = _b1388661.clone();
+            let _b682937_214: Any<A> = _b1388662.clone();
             let _b509: Any<A> = A::static_function(|_self, _args| {
                 let _b496: Any<A> = [A::frame(_self)[0].clone()].to_array().to_any();
                 if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), [_b496.clone(), (Any::call(A::frame(_self)[1].clone(), Array::default().to_any()))?].to_array().to_any()].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?, A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_b496.clone()].to_array(), Some("()=>$0")).to_any()].to_array().to_any()].to_array().to_any()) }
-            }, 1, [_b682936_211.clone(), _b682937_212.clone()].to_array(), Some("($2)=>{const $3=[$0];return $0===0?[\"return\",[$3,$1()]]:[\"tail\",[$0-1,()=>$3]];}")).to_any();
+            }, 1, [_b682936_213.clone(), _b682937_214.clone()].to_array(), Some("($2)=>{const $3=[$0];return $0===0?[\"return\",[$3,$1()]]:[\"tail\",[$0-1,()=>$3]];}")).to_any();
             let _b549: Any<A> = A::static_function(|_self, _args| {
-                let _b1388663: Any<A> = _args.argument(0);
-                let _b1388664: Any<A> = _b1388663.clone();
-                let mut _b1388665: Any<A> = Nullish::Undefined.to_any();
+                let _b1388664: Any<A> = _args.argument(0);
+                let _b1388665: Any<A> = _b1388664.clone();
+                let mut _b1388666: Any<A> = Nullish::Undefined.to_any();
                 '_loop549: loop {
-                    let _b656668_225: Any<A> = _b1388664.clone();
-                    let _b1388590_226: Any<A> = (Any::dot(_b656668_225.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b512: Any<A> = (Any::dot(_b656668_225.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b656668_227: Any<A> = _b1388665.clone();
+                    let _b1388590_228: Any<A> = (Any::dot(_b656668_227.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b512: Any<A> = (Any::dot(_b656668_227.clone(), f64_any(0x3ff0000000000000)).end())?;
                     let _b514: Any<A> = (Any::dot((Any::dot(_b512.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let mut _b1388666: Any<A> = Nullish::Undefined.to_any();
+                    let mut _b1388667: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b514.clone()) {
-                        let _b1388667: Any<A> = [(Any::dot((Any::dot(_b512.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b512.clone()].to_array().to_any();
-                        _b1388666 = _b1388667.clone();
+                        let _b1388668: Any<A> = [(Any::dot((Any::dot(_b512.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b512.clone()].to_array().to_any();
+                        _b1388667 = _b1388668.clone();
                     } else {
                         let _b519: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b512.clone()].to_array().to_any()))?;
                         if Any::<A>::to_boolean((strict_ne((Any::dot(_b519.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b519.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                            let _b1388668: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                            let _b1388669: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                 let _b535: Any<A> = (spread_array([spread_item((Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                 [(Any::dot(_b535.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b535.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()
                             }].to_array().to_any()].to_array().to_any();
-                            _b1388665 = _b1388668.clone();
+                            _b1388666 = _b1388669.clone();
                             break '_loop549;
                         } else {
-                            let _b1388669: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                            _b1388665 = _b1388669.clone();
+                            let _b1388670: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388666 = _b1388670.clone();
                             break '_loop549;
                         } } else {
 
                         }
-                        let _b1388670: Any<A> = [(Any::dot((Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                        _b1388666 = _b1388670.clone();
+                        let _b1388671: Any<A> = [(Any::dot((Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b519.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388667 = _b1388671.clone();
                     }
-                    let _b0_236: Any<A> = _b1388666.clone();
-                    let _b1388671: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_236.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                    _b1388665 = _b1388671.clone();
+                    let _b0_238: Any<A> = _b1388667.clone();
+                    let _b1388672: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_238.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                    _b1388666 = _b1388672.clone();
                     break '_loop549;
                 }
-                let _b656687: Any<A> = _b1388665.clone();
+                let _b656687: Any<A> = _b1388666.clone();
                 Ok(_b656687.clone())
             }, 1, [_b509.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0];const $7=$5[1];const $8=$7[0][0];let $9=undefined;if($8){const $10=[$7[0][1],$7];$9=$10;}else{const $11=$0($7);if($11[0]!==\"normal\"){if($11[0]===\"tail\"){const $12=[[\"continue\",0,(()=>{const $13=[...$11[1]];return [$13[0],$13[1]];})()]];$4=$12;break L0;}else{const $14=[[\"break\",0,[$11[1]]]];$4=$14;break L0;}}const $15=[$11[1][0],$11[1][1]];$9=$15;}const $16=$9;const $17=[[\"break\",0,[$16[0]]]];$4=$17;break L0;}const $18=$4;return $18;}")).to_any();
             let _b556: Any<A> = (Any::dot((Any::call(_b549.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b556.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b556.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388672: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388662 = _b1388672.clone();
+                let _b1388673: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388663 = _b1388673.clone();
                 break '_loop571;
             } else {
-                let _b1388673: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b1388674: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
-                _b1388660 = _b1388673.clone();
+                let _b1388674: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                let _b1388675: Any<A> = (Any::dot((Any::dot(_b556.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
                 _b1388661 = _b1388674.clone();
+                _b1388662 = _b1388675.clone();
                 continue '_loop571;
             }
         }
-        let _b682955: Any<A> = _b1388662.clone();
+        let _b682955: Any<A> = _b1388663.clone();
         Ok(_b682955.clone())
     }, 2, Array::default(), Some("($0,$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;const $9=($10)=>{const $11=[$7];return $7===0?[\"return\",[$11,$8()]]:[\"tail\",[$7-1,()=>$11]];};const $12=($13)=>{const $14=$13;let $15=$14;let $16=undefined;L1:while(true){const $17=$15;const $18=$17[0];const $19=$17[1];const $20=$19[0][0];let $21=undefined;if($20){const $22=[$19[0][1],$19];$21=$22;}else{const $23=$9($19);if($23[0]!==\"normal\"){if($23[0]===\"tail\"){const $24=[[\"continue\",0,(()=>{const $25=[...$23[1]];return [$25[0],$25[1]];})()]];$16=$24;break L1;}else{const $26=[[\"break\",0,[$23[1]]]];$16=$26;break L1;}}const $27=[$23[1][0],$23[1][1]];$21=$27;}const $28=$21;const $29=[[\"break\",0,[$28[0]]]];$16=$29;break L1;}const $30=$16;return $30;};const $31=$12([[],[[false,undefined]]])[0];if($31[0]===\"break\"?$31[1]===0:false){const $32=$31[2][0];$6=$32;break L0;}else{const $33=$31[2][0];const $34=$31[2][1];$4=$33;$5=$34;continue L0;}}const $35=$6;return $35;}")).to_any();
     let _b653: Any<A> = A::static_function(|_self, _args| {
-        let _b1388675: Any<A> = _args.argument(0);
-        let _b1388676: Any<A> = _args.argument(1);
-        let mut _b1388677: Any<A> = _b1388675.clone();
+        let _b1388676: Any<A> = _args.argument(0);
+        let _b1388677: Any<A> = _args.argument(1);
         let mut _b1388678: Any<A> = _b1388676.clone();
-        let mut _b1388679: Any<A> = Nullish::Undefined.to_any();
+        let mut _b1388679: Any<A> = _b1388677.clone();
+        let mut _b1388680: Any<A> = Nullish::Undefined.to_any();
         '_loop653: loop {
-            let _b780844_252: Any<A> = _b1388677.clone();
-            let _b780845_253: Any<A> = _b1388678.clone();
-            let _b585: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?, A::frame(_self)[1].clone(), if Any::<A>::to_boolean(A::frame(_self)[1].clone()) { (bigint_any(1) + f64_any(0x3ff0000000000000))? } else { Nullish::Undefined.to_any() }].to_array().to_any()].to_array().to_any()) } }, 1, [_b780844_252.clone(), _b780845_253.clone()].to_array(), Some("($2)=>$0===0?[\"return\",7]:[\"tail\",[$0-1,$1,$1?1n+1:undefined]]")).to_any();
+            let _b780844_254: Any<A> = _b1388678.clone();
+            let _b780845_255: Any<A> = _b1388679.clone();
+            let _b585: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?, A::frame(_self)[1].clone(), if Any::<A>::to_boolean(A::frame(_self)[1].clone()) { (bigint_any(1) + f64_any(0x3ff0000000000000))? } else { Nullish::Undefined.to_any() }].to_array().to_any()].to_array().to_any()) } }, 1, [_b780844_254.clone(), _b780845_255.clone()].to_array(), Some("($2)=>$0===0?[\"return\",7]:[\"tail\",[$0-1,$1,$1?1n+1:undefined]]")).to_any();
             let _b631: Any<A> = A::static_function(|_self, _args| {
-                let _b1388680: Any<A> = _args.argument(0);
-                let _b1388681: Any<A> = _b1388680.clone();
-                let mut _b1388682: Any<A> = Nullish::Undefined.to_any();
+                let _b1388681: Any<A> = _args.argument(0);
+                let _b1388682: Any<A> = _b1388681.clone();
+                let mut _b1388683: Any<A> = Nullish::Undefined.to_any();
                 '_loop631: loop {
-                    let _b754576_265: Any<A> = _b1388681.clone();
-                    let _b1388590_266: Any<A> = (Any::dot(_b754576_265.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b588: Any<A> = (Any::dot(_b754576_265.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b754576_267: Any<A> = _b1388682.clone();
+                    let _b1388590_268: Any<A> = (Any::dot(_b754576_267.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b588: Any<A> = (Any::dot(_b754576_267.clone(), f64_any(0x3ff0000000000000)).end())?;
                     if Any::<A>::to_boolean((Any::lt(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) {
-                        let _b1388683: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [f64_any(0x4022000000000000)].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                        _b1388682 = _b1388683.clone();
+                        let _b1388684: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [f64_any(0x4022000000000000)].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                        _b1388683 = _b1388684.clone();
                         break '_loop631;
                     } else {
                         let _b595: Any<A> = (Any::dot((Any::dot(_b588.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                        let mut _b1388684: Any<A> = Nullish::Undefined.to_any();
+                        let mut _b1388685: Any<A> = Nullish::Undefined.to_any();
                         if Any::<A>::to_boolean(_b595.clone()) {
-                            let _b1388685: Any<A> = [(Any::dot((Any::dot(_b588.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b588.clone()].to_array().to_any();
-                            _b1388684 = _b1388685.clone();
+                            let _b1388686: Any<A> = [(Any::dot((Any::dot(_b588.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b588.clone()].to_array().to_any();
+                            _b1388685 = _b1388686.clone();
                         } else {
                             let _b600: Any<A> = (Any::call(A::frame(_self)[1].clone(), [_b588.clone()].to_array().to_any()))?;
                             if Any::<A>::to_boolean((strict_ne((Any::dot(_b600.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b600.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                                let _b1388686: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                                let _b1388687: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                     let _b616: Any<A> = (spread_array([spread_item((Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                     [(Any::dot(_b616.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b616.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()
                                 }].to_array().to_any()].to_array().to_any();
-                                _b1388682 = _b1388686.clone();
+                                _b1388683 = _b1388687.clone();
                                 break '_loop631;
                             } else {
-                                let _b1388687: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                                _b1388682 = _b1388687.clone();
+                                let _b1388688: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                                _b1388683 = _b1388688.clone();
                                 break '_loop631;
                             } } else {
 
                             }
-                            let _b1388688: Any<A> = [(Any::dot((Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                            _b1388684 = _b1388688.clone();
+                            let _b1388689: Any<A> = [(Any::dot((Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b600.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                            _b1388685 = _b1388689.clone();
                         }
-                        let _b0_277: Any<A> = _b1388684.clone();
-                        let _b1388689: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_277.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                        _b1388682 = _b1388689.clone();
+                        let _b0_279: Any<A> = _b1388685.clone();
+                        let _b1388690: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_279.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                        _b1388683 = _b1388690.clone();
                         break '_loop631;
                     }
                 }
-                let _b754595: Any<A> = _b1388682.clone();
+                let _b754595: Any<A> = _b1388683.clone();
                 Ok(_b754595.clone())
-            }, 1, [_b780844_252.clone(), _b585.clone()].to_array(), Some("($2)=>{const $3=$2;let $4=$3;let $5=undefined;L0:while(true){const $6=$4;const $7=$6[0];const $8=$6[1];if($0<0){const $9=[[\"break\",0,[9]]];$5=$9;break L0;}else{const $10=$8[0][0];let $11=undefined;if($10){const $12=[$8[0][1],$8];$11=$12;}else{const $13=$1($8);if($13[0]!==\"normal\"){if($13[0]===\"tail\"){const $14=[[\"continue\",0,(()=>{const $15=[...$13[1]];return [$15[0],$15[1]];})()]];$5=$14;break L0;}else{const $16=[[\"break\",0,[$13[1]]]];$5=$16;break L0;}}const $17=[$13[1][0],$13[1][1]];$11=$17;}const $18=$11;const $19=[[\"break\",0,[$18[0]]]];$5=$19;break L0;}}const $20=$5;return $20;}")).to_any();
+            }, 1, [_b780844_254.clone(), _b585.clone()].to_array(), Some("($2)=>{const $3=$2;let $4=$3;let $5=undefined;L0:while(true){const $6=$4;const $7=$6[0];const $8=$6[1];if($0<0){const $9=[[\"break\",0,[9]]];$5=$9;break L0;}else{const $10=$8[0][0];let $11=undefined;if($10){const $12=[$8[0][1],$8];$11=$12;}else{const $13=$1($8);if($13[0]!==\"normal\"){if($13[0]===\"tail\"){const $14=[[\"continue\",0,(()=>{const $15=[...$13[1]];return [$15[0],$15[1]];})()]];$5=$14;break L0;}else{const $16=[[\"break\",0,[$13[1]]]];$5=$16;break L0;}}const $17=[$13[1][0],$13[1][1]];$11=$17;}const $18=$11;const $19=[[\"break\",0,[$18[0]]]];$5=$19;break L0;}}const $20=$5;return $20;}")).to_any();
             let _b638: Any<A> = (Any::dot((Any::call(_b631.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b638.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b638.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388690: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388679 = _b1388690.clone();
+                let _b1388691: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388680 = _b1388691.clone();
                 break '_loop653;
             } else {
-                let _b1388691: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b1388692: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
-                _b1388677 = _b1388691.clone();
+                let _b1388692: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                let _b1388693: Any<A> = (Any::dot((Any::dot(_b638.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
                 _b1388678 = _b1388692.clone();
+                _b1388679 = _b1388693.clone();
                 continue '_loop653;
             }
         }
-        let _b780863: Any<A> = _b1388679.clone();
+        let _b780863: Any<A> = _b1388680.clone();
         Ok(_b780863.clone())
     }, 2, Array::default(), Some("($0,$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;const $9=($10)=>$7===0?[\"return\",7]:[\"tail\",[$7-1,$8,$8?1n+1:undefined]];const $11=($12)=>{const $13=$12;let $14=$13;let $15=undefined;L1:while(true){const $16=$14;const $17=$16[0];const $18=$16[1];if($7<0){const $19=[[\"break\",0,[9]]];$15=$19;break L1;}else{const $20=$18[0][0];let $21=undefined;if($20){const $22=[$18[0][1],$18];$21=$22;}else{const $23=$9($18);if($23[0]!==\"normal\"){if($23[0]===\"tail\"){const $24=[[\"continue\",0,(()=>{const $25=[...$23[1]];return [$25[0],$25[1]];})()]];$15=$24;break L1;}else{const $26=[[\"break\",0,[$23[1]]]];$15=$26;break L1;}}const $27=[$23[1][0],$23[1][1]];$21=$27;}const $28=$21;const $29=[[\"break\",0,[$28[0]]]];$15=$29;break L1;}}const $30=$15;return $30;};const $31=$11([[],[[false,undefined]]])[0];if($31[0]===\"break\"?$31[1]===0:false){const $32=$31[2][0];$6=$32;break L0;}else{const $33=$31[2][0];const $34=$31[2][1];$4=$33;$5=$34;continue L0;}}const $35=$6;return $35;}")).to_any();
     let _b722: Any<A> = A::static_function(|_self, _args| {
-        let _b1388693: Any<A> = _args.argument(0);
-        let mut _b1388694: Any<A> = _b1388693.clone();
-        let mut _b1388695: Any<A> = Nullish::Undefined.to_any();
+        let _b1388694: Any<A> = _args.argument(0);
+        let mut _b1388695: Any<A> = _b1388694.clone();
+        let mut _b1388696: Any<A> = Nullish::Undefined.to_any();
         '_loop722: loop {
-            let _b863230_290: Any<A> = _b1388694.clone();
-            let _b663: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), (spread_array([value_item((A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?), spread_item(Nullish::Undefined.to_any())?]))?].to_array().to_any()) } }, 1, [_b863230_290.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1,...undefined]]")).to_any();
+            let _b863230_292: Any<A> = _b1388695.clone();
+            let _b663: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x401c000000000000)].to_array().to_any()) } else { Ok([string_any("tail"), (spread_array([value_item((A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?), spread_item(Nullish::Undefined.to_any())?]))?].to_array().to_any()) } }, 1, [_b863230_292.clone()].to_array(), Some("($1)=>$0===0?[\"return\",7]:[\"tail\",[$0-1,...undefined]]")).to_any();
             let _b702: Any<A> = A::static_function(|_self, _args| {
-                let _b839350_297: Any<A> = _args.argument(0);
-                let _b1388590_298: Any<A> = (Any::dot(_b839350_297.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b666: Any<A> = (Any::dot(_b839350_297.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b839350_299: Any<A> = _args.argument(0);
+                let _b1388590_300: Any<A> = (Any::dot(_b839350_299.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b666: Any<A> = (Any::dot(_b839350_299.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b668: Any<A> = (Any::dot((Any::dot(_b666.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_301: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b668.clone()) { return Any::call(_b0_301.clone(), [[(Any::dot((Any::dot(_b666.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b666.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_303: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b668.clone()) { return Any::call(_b0_303.clone(), [[(Any::dot((Any::dot(_b666.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b666.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b673: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b666.clone()].to_array().to_any()))?;
                 if Any::<A>::to_boolean((strict_ne((Any::dot(_b673.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b673.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) { return Ok([[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((spread_array([spread_item((Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_301.clone(), [[(Any::dot((Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_303.clone(), [[(Any::dot((Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b673.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b663.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[0][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[0][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){return [[\"continue\",0,[[...$8[1]][0]]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b709: Any<A> = (Any::dot((Any::call(_b702.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b709.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b709.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388696: Any<A> = (Any::dot((Any::dot(_b709.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388695 = _b1388696.clone();
+                let _b1388697: Any<A> = (Any::dot((Any::dot(_b709.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388696 = _b1388697.clone();
                 break '_loop722;
             } else {
-                let _b1388697: Any<A> = (Any::dot((Any::dot(_b709.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388694 = _b1388697.clone();
+                let _b1388698: Any<A> = (Any::dot((Any::dot(_b709.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388695 = _b1388698.clone();
                 continue '_loop722;
             }
         }
-        let _b863249: Any<A> = _b1388695.clone();
+        let _b863249: Any<A> = _b1388696.clone();
         Ok(_b863249.clone())
     }, 1, Array::default(), Some("($0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4===0?[\"return\",7]:[\"tail\",[$4-1,...undefined]];const $7=($8)=>{const $9=$8;const $10=$9[0];const $11=$9[1];const $12=$11[0][0];const $13=($14)=>[[\"break\",0,[$14[0]]]];if($12){return $13([$11[0][1],$11]);}const $15=$5($11);if($15[0]!==\"normal\"){if($15[0]===\"tail\"){return [[\"continue\",0,[[...$15[1]][0]]]];}else{return [[\"break\",0,[$15[1]]]];}}return $13([$15[1][0],$15[1][1]]);};const $16=$7([[],[[false,undefined]]])[0];if($16[0]===\"break\"?$16[1]===0:false){const $17=$16[2][0];$3=$17;break L0;}else{const $18=$16[2][0];$2=$18;continue L0;}}const $19=$3;return $19;}")).to_any();
     let _b807: Any<A> = A::static_function(|_self, _args| {
         let _b964736: Any<A> = _args.rest(2).to_any();
-        let _b1388698: Any<A> = _args.argument(0);
-        let _b1388699: Any<A> = _args.argument(1);
-        let _b1388700: Any<A> = _b964736.clone();
-        let mut _b1388701: Any<A> = _b1388698.clone();
+        let _b1388699: Any<A> = _args.argument(0);
+        let _b1388700: Any<A> = _args.argument(1);
+        let _b1388701: Any<A> = _b964736.clone();
         let mut _b1388702: Any<A> = _b1388699.clone();
         let mut _b1388703: Any<A> = _b1388700.clone();
-        let mut _b1388704: Any<A> = Nullish::Undefined.to_any();
+        let mut _b1388704: Any<A> = _b1388701.clone();
+        let mut _b1388705: Any<A> = Nullish::Undefined.to_any();
         '_loop807: loop {
-            let _b964720_319: Any<A> = _b1388701.clone();
-            let _b964721_320: Any<A> = _b1388702.clone();
-            let _b964736_321: Any<A> = _b1388703.clone();
-            let _b741: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), [(Any::call(A::frame(_self)[1].clone(), Array::default().to_any()))?, A::frame(_self)[2].clone(), A::frame(_self)[2].clone(), A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[2].clone()].to_array(), Some("()=>$0")).to_any()].to_array().to_any()].to_array().to_any()) } else { Ok([string_any("tail"), (spread_array([value_item((A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?), value_item(A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[2].clone()].to_array(), Some("()=>$0")).to_any()), spread_item(A::frame(_self)[2].clone())?]))?].to_array().to_any()) } }, 1, [_b964720_319.clone(), _b964721_320.clone(), _b964736_321.clone()].to_array(), Some("($3)=>$0===0?[\"return\",[$1(),$2,$2,()=>$2]]:[\"tail\",[$0-1,()=>$2,...$2]]")).to_any();
+            let _b964720_321: Any<A> = _b1388702.clone();
+            let _b964721_322: Any<A> = _b1388703.clone();
+            let _b964736_323: Any<A> = _b1388704.clone();
+            let _b741: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), [(Any::call(A::frame(_self)[1].clone(), Array::default().to_any()))?, A::frame(_self)[2].clone(), A::frame(_self)[2].clone(), A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[2].clone()].to_array(), Some("()=>$0")).to_any()].to_array().to_any()].to_array().to_any()) } else { Ok([string_any("tail"), (spread_array([value_item((A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?), value_item(A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [A::frame(_self)[2].clone()].to_array(), Some("()=>$0")).to_any()), spread_item(A::frame(_self)[2].clone())?]))?].to_array().to_any()) } }, 1, [_b964720_321.clone(), _b964721_322.clone(), _b964736_323.clone()].to_array(), Some("($3)=>$0===0?[\"return\",[$1(),$2,$2,()=>$2]]:[\"tail\",[$0-1,()=>$2,...$2]]")).to_any();
             let _b783: Any<A> = A::static_function(|_self, _args| {
-                let _b1388705: Any<A> = _args.argument(0);
-                let _b1388706: Any<A> = _b1388705.clone();
-                let mut _b1388707: Any<A> = Nullish::Undefined.to_any();
+                let _b1388706: Any<A> = _args.argument(0);
+                let _b1388707: Any<A> = _b1388706.clone();
+                let mut _b1388708: Any<A> = Nullish::Undefined.to_any();
                 '_loop783: loop {
-                    let _b936064_335: Any<A> = _b1388706.clone();
-                    let _b1388590_336: Any<A> = (Any::dot(_b936064_335.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b744: Any<A> = (Any::dot(_b936064_335.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b936064_337: Any<A> = _b1388707.clone();
+                    let _b1388590_338: Any<A> = (Any::dot(_b936064_337.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b744: Any<A> = (Any::dot(_b936064_337.clone(), f64_any(0x3ff0000000000000)).end())?;
                     let _b746: Any<A> = (Any::dot((Any::dot(_b744.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let mut _b1388708: Any<A> = Nullish::Undefined.to_any();
+                    let mut _b1388709: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b746.clone()) {
-                        let _b1388709: Any<A> = [(Any::dot((Any::dot(_b744.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b744.clone()].to_array().to_any();
-                        _b1388708 = _b1388709.clone();
+                        let _b1388710: Any<A> = [(Any::dot((Any::dot(_b744.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b744.clone()].to_array().to_any();
+                        _b1388709 = _b1388710.clone();
                     } else {
                         let _b751: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b744.clone()].to_array().to_any()))?;
                         if Any::<A>::to_boolean((strict_ne((Any::dot(_b751.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b751.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
                             let _b770: Any<A> = A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any();
-                            let _b1388710: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                            let _b1388711: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                 let _b767: Any<A> = (spread_array([spread_item((Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                 [(Any::dot(_b767.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b767.clone(), f64_any(0x3ff0000000000000)).end())?, (Any::call(_b770.clone(), [_b767.clone(), f64_any(0x4000000000000000)].to_array().to_any()))?].to_array().to_any()
                             }].to_array().to_any()].to_array().to_any();
-                            _b1388707 = _b1388710.clone();
+                            _b1388708 = _b1388711.clone();
                             break '_loop783;
                         } else {
-                            let _b1388711: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                            _b1388707 = _b1388711.clone();
+                            let _b1388712: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388708 = _b1388712.clone();
                             break '_loop783;
                         } } else {
 
                         }
-                        let _b1388712: Any<A> = [(Any::dot((Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                        _b1388708 = _b1388712.clone();
+                        let _b1388713: Any<A> = [(Any::dot((Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b751.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388709 = _b1388713.clone();
                     }
-                    let _b0_347: Any<A> = _b1388708.clone();
-                    let _b1388713: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_347.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                    _b1388707 = _b1388713.clone();
+                    let _b0_349: Any<A> = _b1388709.clone();
+                    let _b1388714: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_349.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                    _b1388708 = _b1388714.clone();
                     break '_loop783;
                 }
-                let _b936083: Any<A> = _b1388707.clone();
+                let _b936083: Any<A> = _b1388708.clone();
                 Ok(_b936083.clone())
             }, 1, [_b741.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0];const $7=$5[1];const $8=$7[0][0];let $9=undefined;if($8){const $10=[$7[0][1],$7];$9=$10;}else{const $11=$0($7);if($11[0]!==\"normal\"){if($11[0]===\"tail\"){const $12=($13,$14,$15)=>$13.slice($14,$15);const $16=[[\"continue\",0,(()=>{const $17=[...$11[1]];return [$17[0],$17[1],$12($17,2)];})()]];$4=$16;break L0;}else{const $18=[[\"break\",0,[$11[1]]]];$4=$18;break L0;}}const $19=[$11[1][0],$11[1][1]];$9=$19;}const $20=$9;const $21=[[\"break\",0,[$20[0]]]];$4=$21;break L0;}const $22=$4;return $22;}")).to_any();
             let _b790: Any<A> = (Any::dot((Any::call(_b783.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b790.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b790.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388714: Any<A> = (Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388704 = _b1388714.clone();
+                let _b1388715: Any<A> = (Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388705 = _b1388715.clone();
                 break '_loop807;
             } else {
-                let _b807_352: Any<A> = (spread_array([value_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?), value_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?), spread_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?)?]))?;
-                let _b1388715: Any<A> = (Any::dot(_b807_352.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b1388716: Any<A> = (Any::dot(_b807_352.clone(), f64_any(0x3ff0000000000000)).end())?;
-                let _b1388717: Any<A> = (Any::call(A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any(), [_b807_352.clone(), f64_any(0x4000000000000000)].to_array().to_any()))?;
-                _b1388701 = _b1388715.clone();
+                let _b807_354: Any<A> = (spread_array([value_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?), value_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?), spread_item((Any::dot((Any::dot(_b790.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?)?]))?;
+                let _b1388716: Any<A> = (Any::dot(_b807_354.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b1388717: Any<A> = (Any::dot(_b807_354.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b1388718: Any<A> = (Any::call(A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any(), [_b807_354.clone(), f64_any(0x4000000000000000)].to_array().to_any()))?;
                 _b1388702 = _b1388716.clone();
                 _b1388703 = _b1388717.clone();
+                _b1388704 = _b1388718.clone();
                 continue '_loop807;
             }
         }
-        let _b964739: Any<A> = _b1388704.clone();
+        let _b964739: Any<A> = _b1388705.clone();
         Ok(_b964739.clone())
     }, 2, Array::default(), Some("($0,$1,...$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=($14)=>$10===0?[\"return\",[$11(),$12,$12,()=>$12]]:[\"tail\",[$10-1,()=>$12,...$12]];const $15=($16)=>{const $17=$16;let $18=$17;let $19=undefined;L1:while(true){const $20=$18;const $21=$20[0];const $22=$20[1];const $23=$22[0][0];let $24=undefined;if($23){const $25=[$22[0][1],$22];$24=$25;}else{const $26=$13($22);if($26[0]!==\"normal\"){if($26[0]===\"tail\"){const $27=($28,$29,$30)=>$28.slice($29,$30);const $31=[[\"continue\",0,(()=>{const $32=[...$26[1]];return [$32[0],$32[1],$27($32,2)];})()]];$19=$31;break L1;}else{const $33=[[\"break\",0,[$26[1]]]];$19=$33;break L1;}}const $34=[$26[1][0],$26[1][1]];$24=$34;}const $35=$24;const $36=[[\"break\",0,[$35[0]]]];$19=$36;break L1;}const $37=$19;return $37;};const $38=$15([[],[[false,undefined]]])[0];if($38[0]===\"break\"?$38[1]===0:false){const $39=$38[2][0];$9=$39;break L0;}else{const $40=[$38[2][0],$38[2][1],...$38[2][2]];const $41=$40[0];const $42=$40[1];const $43=(($44,$45,$46)=>$44.slice($45,$46))($40,2);$6=$41;$7=$42;$8=$43;continue L0;}}const $47=$9;return $47;}")).to_any();
     let _b881: Any<A> = A::static_function(|_self, _args| {
         let _b1053092: Any<A> = _args.rest(0).to_any();
-        let _b1388718: Any<A> = _b1053092.clone();
-        let mut _b1388719: Any<A> = _b1388718.clone();
-        let mut _b1388720: Any<A> = Nullish::Undefined.to_any();
+        let _b1388719: Any<A> = _b1053092.clone();
+        let mut _b1388720: Any<A> = _b1388719.clone();
+        let mut _b1388721: Any<A> = Nullish::Undefined.to_any();
         '_loop881: loop {
-            let _b1053092_362: Any<A> = _b1388719.clone();
-            let _b821: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)))?) { Ok([string_any("return"), (Any::dot(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()) } else { Ok([string_any("tail"), [((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())? - f64_any(0x3ff0000000000000))?, ((Any::dot(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)).end())? + f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b1053092_362.clone()].to_array(), Some("($1)=>$0[0]===0?[\"return\",$0[1]]:[\"tail\",[$0[0]-1,$0[1]+1]]")).to_any();
+            let _b1053092_364: Any<A> = _b1388720.clone();
+            let _b821: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)))?) { Ok([string_any("return"), (Any::dot(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()) } else { Ok([string_any("tail"), [((Any::dot(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)).end())? - f64_any(0x3ff0000000000000))?, ((Any::dot(A::frame(_self)[0].clone(), f64_any(0x3ff0000000000000)).end())? + f64_any(0x3ff0000000000000))?].to_array().to_any()].to_array().to_any()) } }, 1, [_b1053092_364.clone()].to_array(), Some("($1)=>$0[0]===0?[\"return\",$0[1]]:[\"tail\",[$0[0]-1,$0[1]+1]]")).to_any();
             let _b861: Any<A> = A::static_function(|_self, _args| {
-                let _b1029196_369: Any<A> = _args.argument(0);
-                let _b1388590_370: Any<A> = (Any::dot(_b1029196_369.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b824: Any<A> = (Any::dot(_b1029196_369.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b1029196_371: Any<A> = _args.argument(0);
+                let _b1388590_372: Any<A> = (Any::dot(_b1029196_371.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b824: Any<A> = (Any::dot(_b1029196_371.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b826: Any<A> = (Any::dot((Any::dot(_b824.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_373: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b826.clone()) { return Any::call(_b0_373.clone(), [[(Any::dot((Any::dot(_b824.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b824.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_375: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b826.clone()) { return Any::call(_b0_375.clone(), [[(Any::dot((Any::dot(_b824.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b824.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b831: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b824.clone()].to_array().to_any()))?;
@@ -628,243 +629,250 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b831.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_373.clone(), [[(Any::dot((Any::dot(_b831.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b831.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_375.clone(), [[(Any::dot((Any::dot(_b831.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b831.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b821.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[0][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[0][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){const $9=($10,$11,$12)=>$10.slice($11,$12);return [[\"continue\",0,[$9([...$8[1]],0)]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b868: Any<A> = (Any::dot((Any::call(_b861.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b868.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b868.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388721: Any<A> = (Any::dot((Any::dot(_b868.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388720 = _b1388721.clone();
+                let _b1388722: Any<A> = (Any::dot((Any::dot(_b868.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388721 = _b1388722.clone();
                 break '_loop881;
             } else {
-                let _b881_379: Any<A> = (spread_array([spread_item((Any::dot((Any::dot(_b868.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?)?]))?;
-                let _b1388722: Any<A> = (Any::call(A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any(), [_b881_379.clone(), f64_any(0x0000000000000000)].to_array().to_any()))?;
-                _b1388719 = _b1388722.clone();
+                let _b881_381: Any<A> = (spread_array([spread_item((Any::dot((Any::dot(_b868.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?)?]))?;
+                let _b1388723: Any<A> = (Any::call(A::static_function(|_self, _args| Any::dot(_args.argument(0), string_any("slice")).end_call_native(|| Ok([_args.argument(1), _args.argument(2)].to_array().to_any())), 3, Array::default(), Some("($0,$1,$2)=>$0.slice($1,$2)")).to_any(), [_b881_381.clone(), f64_any(0x0000000000000000)].to_array().to_any()))?;
+                _b1388720 = _b1388723.clone();
                 continue '_loop881;
             }
         }
-        let _b1053095: Any<A> = _b1388720.clone();
+        let _b1053095: Any<A> = _b1388721.clone();
         Ok(_b1053095.clone())
     }, 0, Array::default(), Some("(...$0)=>{const $1=$0;let $2=$1;let $3=undefined;L0:while(true){const $4=$2;const $5=($6)=>$4[0]===0?[\"return\",$4[1]]:[\"tail\",[$4[0]-1,$4[1]+1]];const $7=($8)=>{const $9=$8;const $10=$9[0];const $11=$9[1];const $12=$11[0][0];const $13=($14)=>[[\"break\",0,[$14[0]]]];if($12){return $13([$11[0][1],$11]);}const $15=$5($11);if($15[0]!==\"normal\"){if($15[0]===\"tail\"){const $16=($17,$18,$19)=>$17.slice($18,$19);return [[\"continue\",0,[$16([...$15[1]],0)]]];}else{return [[\"break\",0,[$15[1]]]];}}return $13([$15[1][0],$15[1][1]]);};const $20=$7([[],[[false,undefined]]])[0];if($20[0]===\"break\"?$20[1]===0:false){const $21=$20[2][0];$3=$21;break L0;}else{const $22=[...$20[2][0]];const $23=(($24,$25,$26)=>$24.slice($25,$26))($22,0);$2=$23;continue L0;}}const $27=$3;return $27;}")).to_any();
     let _b1001: Any<A> = A::static_function(|_self, _args| {
-        let _b1388723: Any<A> = _args.argument(0);
-        let _b1388724: Any<A> = _args.argument(1);
-        let _b1388725: Any<A> = _args.argument(2);
-        let mut _b1388726: Any<A> = _b1388723.clone();
+        let _b1388724: Any<A> = _args.argument(0);
+        let _b1388725: Any<A> = _args.argument(1);
+        let _b1388726: Any<A> = _args.argument(2);
         let mut _b1388727: Any<A> = _b1388724.clone();
         let mut _b1388728: Any<A> = _b1388725.clone();
-        let mut _b1388729: Any<A> = Nullish::Undefined.to_any();
+        let mut _b1388729: Any<A> = _b1388726.clone();
+        let mut _b1388730: Any<A> = Nullish::Undefined.to_any();
         '_loop1001: loop {
-            let _b1196356_393: Any<A> = _b1388726.clone();
-            let _b1196357_394: Any<A> = _b1388727.clone();
-            let _b1196358_395: Any<A> = _b1388728.clone();
+            let _b1196356_395: Any<A> = _b1388727.clone();
+            let _b1196357_396: Any<A> = _b1388728.clone();
+            let _b1196358_397: Any<A> = _b1388729.clone();
             let _b900: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean(if Any::<A>::to_boolean(A::frame(_self)[0].clone()) { (Any::gt(A::frame(_self)[1].clone(), f64_any(0x0000000000000000)))? } else { false.to_any() }) { Ok([string_any("tail"), [(A::frame(_self)[1].clone() - f64_any(0x3ff0000000000000))?, A::frame(_self)[0].clone(), A::frame(_self)[2].clone()].to_array().to_any()].to_array().to_any()) } else { Ok([string_any("normal"), {
                 let _b894: Any<A> = [A::frame(_self)[2].clone(), [A::frame(_self)[1].clone()].to_array().to_any()].to_array().to_any();
                 [_b894.clone(), [[true.to_any(), _b894.clone()].to_array().to_any()].to_array().to_any()].to_array().to_any()
-            }].to_array().to_any()) } }, 1, [_b1196357_394.clone(), _b1196356_393.clone(), _b1196358_395.clone()].to_array(), Some("($3)=>($0?$1>0:false)?[\"tail\",[$1-1,$0,$2]]:[\"normal\",(()=>{const $4=[$2,[$1]];return [$4,[[true,$4]]];})()]")).to_any();
+            }].to_array().to_any()) } }, 1, [_b1196357_396.clone(), _b1196356_395.clone(), _b1196358_397.clone()].to_array(), Some("($3)=>($0?$1>0:false)?[\"tail\",[$1-1,$0,$2]]:[\"normal\",(()=>{const $4=[$2,[$1]];return [$4,[[true,$4]]];})()]")).to_any();
             let _b977: Any<A> = A::static_function(|_self, _args| {
-                let _b1388730: Any<A> = _args.argument(0);
-                let _b1388731: Any<A> = _b1388730.clone();
-                let mut _b1388732: Any<A> = Nullish::Undefined.to_any();
+                let _b1388731: Any<A> = _args.argument(0);
+                let _b1388732: Any<A> = _b1388731.clone();
+                let mut _b1388733: Any<A> = Nullish::Undefined.to_any();
                 '_loop977: loop {
-                    let _b1167700_408: Any<A> = _b1388731.clone();
-                    let _b1388590_409: Any<A> = (Any::dot(_b1167700_408.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b903: Any<A> = (Any::dot(_b1167700_408.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b1167700_410: Any<A> = _b1388732.clone();
+                    let _b1388590_411: Any<A> = (Any::dot(_b1167700_410.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b903: Any<A> = (Any::dot(_b1167700_410.clone(), f64_any(0x3ff0000000000000)).end())?;
                     let _b905: Any<A> = (Any::dot((Any::dot(_b903.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                    let mut _b1388733: Any<A> = Nullish::Undefined.to_any();
+                    let mut _b1388734: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b905.clone()) {
-                        let _b1388734: Any<A> = [(Any::dot((Any::dot(_b903.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b903.clone()].to_array().to_any();
-                        _b1388733 = _b1388734.clone();
+                        let _b1388735: Any<A> = [(Any::dot((Any::dot(_b903.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b903.clone()].to_array().to_any();
+                        _b1388734 = _b1388735.clone();
                     } else {
                         let _b910: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b903.clone()].to_array().to_any()))?;
                         if Any::<A>::to_boolean((strict_ne((Any::dot(_b910.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b910.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                            let _b1388735: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                            let _b1388736: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                 let _b962: Any<A> = (spread_array([spread_item((Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                 [(Any::dot(_b962.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b962.clone(), f64_any(0x3ff0000000000000)).end())?, (Any::dot(_b962.clone(), f64_any(0x4000000000000000)).end())?].to_array().to_any()
                             }].to_array().to_any()].to_array().to_any();
-                            _b1388732 = _b1388735.clone();
+                            _b1388733 = _b1388736.clone();
                             break '_loop977;
                         } else {
-                            let _b1388736: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                            _b1388732 = _b1388736.clone();
+                            let _b1388737: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388733 = _b1388737.clone();
                             break '_loop977;
                         } } else {
 
                         }
-                        let _b1388737: Any<A> = [(Any::dot((Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                        _b1388733 = _b1388737.clone();
+                        let _b1388738: Any<A> = [(Any::dot((Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b910.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388734 = _b1388738.clone();
                     }
-                    let _b916: Any<A> = _b1388733.clone();
-                    let _b1388738 = std::cell::RefCell::new(None::<Any<A>>);
+                    let _b916: Any<A> = _b1388734.clone();
+                    let _b1388739 = std::cell::RefCell::new(None::<Any<A>>);
                     let _b918: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                        if let Some(value) = _b1388738.borrow().as_ref() { return Ok(value.clone()); }
+                        if let Some(value) = _b1388739.borrow().as_ref() { return Ok(value.clone()); }
                         let value: Any<A> = { (Any::dot(_b916.clone(), f64_any(0x3ff0000000000000)).end())? };
-                        *_b1388738.borrow_mut() = Some(value.clone());
+                        *_b1388739.borrow_mut() = Some(value.clone());
                         Ok(value)
                     };
-                    let _b1388740 = std::cell::RefCell::new(None::<Any<A>>);
+                    let _b1388741 = std::cell::RefCell::new(None::<Any<A>>);
                     let _b924: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                        if let Some(value) = _b1388740.borrow().as_ref() { return Ok(value.clone()); }
+                        if let Some(value) = _b1388741.borrow().as_ref() { return Ok(value.clone()); }
                         let value: Any<A> = { (Any::call(A::frame(_self)[0].clone(), [(_b918())?].to_array().to_any()))? };
-                        *_b1388740.borrow_mut() = Some(value.clone());
+                        *_b1388741.borrow_mut() = Some(value.clone());
                         Ok(value)
                     };
-                    let _b1388742 = std::cell::RefCell::new(None::<Any<A>>);
+                    let _b1388743 = std::cell::RefCell::new(None::<Any<A>>);
                     let _b942: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                        if let Some(value) = _b1388742.borrow().as_ref() { return Ok(value.clone()); }
+                        if let Some(value) = _b1388743.borrow().as_ref() { return Ok(value.clone()); }
                         let value: Any<A> = { (spread_array([spread_item((Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?)?]))? };
-                        *_b1388742.borrow_mut() = Some(value.clone());
+                        *_b1388743.borrow_mut() = Some(value.clone());
                         Ok(value)
                     };
                     let _b917: Any<A> = (Any::dot(_b916.clone(), f64_any(0x0000000000000000)).end())?;
-                    let _b1388590_430: Any<A> = _b917.clone();
+                    let _b1388590_432: Any<A> = _b917.clone();
                     let _b920: Any<A> = (Any::dot((Any::dot((_b918())?, f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                    let mut _b1388745: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean(_b920.clone()) {
-
-                    } else { if Any::<A>::to_boolean((strict_ne((Any::dot((_b924())?, f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot((_b924())?, f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                        let _b1388744: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((_b942())?, f64_any(0x0000000000000000)).end())?, (Any::dot((_b942())?, f64_any(0x3ff0000000000000)).end())?, (Any::dot((_b942())?, f64_any(0x4000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                        _b1388732 = _b1388744.clone();
-                        break '_loop977;
+                        let _b1388746: Any<A> = [(Any::dot((Any::dot((_b918())?, f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, (_b918())?].to_array().to_any();
+                        _b1388745 = _b1388746.clone();
                     } else {
-                        let _b1388745: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                        _b1388732 = _b1388745.clone();
-                        break '_loop977;
-                    } } else {
+                        if Any::<A>::to_boolean((strict_ne((Any::dot((_b924())?, f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot((_b924())?, f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
+                            let _b1388747: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((_b942())?, f64_any(0x0000000000000000)).end())?, (Any::dot((_b942())?, f64_any(0x3ff0000000000000)).end())?, (Any::dot((_b942())?, f64_any(0x4000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388733 = _b1388747.clone();
+                            break '_loop977;
+                        } else {
+                            let _b1388748: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                            _b1388733 = _b1388748.clone();
+                            break '_loop977;
+                        } } else {
 
-                    } }
-                    let _b931: Any<A> = (Any::dot(if Any::<A>::to_boolean(_b920.clone()) { [(Any::dot((Any::dot((_b918())?, f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, (_b918())?].to_array().to_any() } else { [(Any::dot((Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any() }, f64_any(0x0000000000000000)).end())?;
-                    let _b1388590_435: Any<A> = _b931.clone();
-                    let _b1388746: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [[_b917.clone(), _b931.clone()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                    _b1388732 = _b1388746.clone();
+                        }
+                        let _b1388749: Any<A> = [(Any::dot((Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot((_b924())?, f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                        _b1388745 = _b1388749.clone();
+                    }
+                    let _b0_439: Any<A> = _b1388745.clone();
+                    let _b931: Any<A> = (Any::dot(_b0_439.clone(), f64_any(0x0000000000000000)).end())?;
+                    let _b1388590_441: Any<A> = _b931.clone();
+                    let _b1388750: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [[_b917.clone(), _b931.clone()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                    _b1388733 = _b1388750.clone();
                     break '_loop977;
                 }
-                let _b1167719: Any<A> = _b1388732.clone();
+                let _b1167719: Any<A> = _b1388733.clone();
                 Ok(_b1167719.clone())
-            }, 1, [_b900.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0];const $7=$5[1];const $8=$7[0][0];let $9=undefined;if($8){const $10=[$7[0][1],$7];$9=$10;}else{const $11=$0($7);if($11[0]!==\"normal\"){if($11[0]===\"tail\"){const $12=[[\"continue\",0,(()=>{const $13=[...$11[1]];return [$13[0],$13[1],$13[2]];})()]];$4=$12;break L0;}else{const $14=[[\"break\",0,[$11[1]]]];$4=$14;break L0;}}const $15=[$11[1][0],$11[1][1]];$9=$15;}const $16=$9;const $17=(()=>{let $18,$19=false;return()=>{if(!$19){$18=$16[1];$19=true;}return $18;};})();const $20=(()=>{let $21,$22=false;return()=>{if(!$22){$21=$0($17());$22=true;}return $21;};})();const $23=(()=>{let $24,$25=false;return()=>{if(!$25){$24=[...$20()[1]];$25=true;}return $24;};})();const $26=$16[0];const $27=$26;const $28=$17()[0][0];if($28){}else{if($20()[0]!==\"normal\"){if($20()[0]===\"tail\"){const $29=[[\"continue\",0,[$23()[0],$23()[1],$23()[2]]]];$4=$29;break L0;}else{const $30=[[\"break\",0,[$20()[1]]]];$4=$30;break L0;}}}const $31=($28?[$17()[0][1],$17()]:[$20()[1][0],$20()[1][1]])[0];const $32=$31;const $33=[[\"break\",0,[[$26,$31]]]];$4=$33;break L0;}const $34=$4;return $34;}")).to_any();
+            }, 1, [_b900.clone()].to_array(), Some("($1)=>{const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=$5[0];const $7=$5[1];const $8=$7[0][0];let $9=undefined;if($8){const $10=[$7[0][1],$7];$9=$10;}else{const $11=$0($7);if($11[0]!==\"normal\"){if($11[0]===\"tail\"){const $12=[[\"continue\",0,(()=>{const $13=[...$11[1]];return [$13[0],$13[1],$13[2]];})()]];$4=$12;break L0;}else{const $14=[[\"break\",0,[$11[1]]]];$4=$14;break L0;}}const $15=[$11[1][0],$11[1][1]];$9=$15;}const $16=$9;const $17=(()=>{let $18,$19=false;return()=>{if(!$19){$18=$16[1];$19=true;}return $18;};})();const $20=(()=>{let $21,$22=false;return()=>{if(!$22){$21=$0($17());$22=true;}return $21;};})();const $23=(()=>{let $24,$25=false;return()=>{if(!$25){$24=[...$20()[1]];$25=true;}return $24;};})();const $26=$16[0];const $27=$26;const $28=$17()[0][0];let $29=undefined;if($28){const $30=[$17()[0][1],$17()];$29=$30;}else{if($20()[0]!==\"normal\"){if($20()[0]===\"tail\"){const $31=[[\"continue\",0,[$23()[0],$23()[1],$23()[2]]]];$4=$31;break L0;}else{const $32=[[\"break\",0,[$20()[1]]]];$4=$32;break L0;}}const $33=[$20()[1][0],$20()[1][1]];$29=$33;}const $34=$29;const $35=$34[0];const $36=$35;const $37=[[\"break\",0,[[$26,$35]]]];$4=$37;break L0;}const $38=$4;return $38;}")).to_any();
             let _b984: Any<A> = (Any::dot((Any::call(_b977.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b984.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b984.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388747: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388729 = _b1388747.clone();
+                let _b1388751: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388730 = _b1388751.clone();
                 break '_loop1001;
             } else {
-                let _b1388748: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b1388749: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
-                let _b1388750: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?;
-                _b1388726 = _b1388748.clone();
-                _b1388727 = _b1388749.clone();
-                _b1388728 = _b1388750.clone();
+                let _b1388752: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                let _b1388753: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
+                let _b1388754: Any<A> = (Any::dot((Any::dot(_b984.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x4000000000000000)).end())?;
+                _b1388727 = _b1388752.clone();
+                _b1388728 = _b1388753.clone();
+                _b1388729 = _b1388754.clone();
                 continue '_loop1001;
             }
         }
-        let _b1196375: Any<A> = _b1388729.clone();
+        let _b1196375: Any<A> = _b1388730.clone();
         Ok(_b1196375.clone())
-    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=($14)=>($11?$10>0:false)?[\"tail\",[$10-1,$11,$12]]:[\"normal\",(()=>{const $15=[$12,[$10]];return [$15,[[true,$15]]];})()];const $16=($17)=>{const $18=$17;let $19=$18;let $20=undefined;L1:while(true){const $21=$19;const $22=$21[0];const $23=$21[1];const $24=$23[0][0];let $25=undefined;if($24){const $26=[$23[0][1],$23];$25=$26;}else{const $27=$13($23);if($27[0]!==\"normal\"){if($27[0]===\"tail\"){const $28=[[\"continue\",0,(()=>{const $29=[...$27[1]];return [$29[0],$29[1],$29[2]];})()]];$20=$28;break L1;}else{const $30=[[\"break\",0,[$27[1]]]];$20=$30;break L1;}}const $31=[$27[1][0],$27[1][1]];$25=$31;}const $32=$25;const $33=(()=>{let $34,$35=false;return()=>{if(!$35){$34=$32[1];$35=true;}return $34;};})();const $36=(()=>{let $37,$38=false;return()=>{if(!$38){$37=$13($33());$38=true;}return $37;};})();const $39=(()=>{let $40,$41=false;return()=>{if(!$41){$40=[...$36()[1]];$41=true;}return $40;};})();const $42=$32[0];const $43=$42;const $44=$33()[0][0];if($44){}else{if($36()[0]!==\"normal\"){if($36()[0]===\"tail\"){const $45=[[\"continue\",0,[$39()[0],$39()[1],$39()[2]]]];$20=$45;break L1;}else{const $46=[[\"break\",0,[$36()[1]]]];$20=$46;break L1;}}}const $47=($44?[$33()[0][1],$33()]:[$36()[1][0],$36()[1][1]])[0];const $48=$47;const $49=[[\"break\",0,[[$42,$47]]]];$20=$49;break L1;}const $50=$20;return $50;};const $51=$16([[],[[false,undefined]]])[0];if($51[0]===\"break\"?$51[1]===0:false){const $52=$51[2][0];$9=$52;break L0;}else{const $53=$51[2][0];const $54=$51[2][1];const $55=$51[2][2];$6=$53;$7=$54;$8=$55;continue L0;}}const $56=$9;return $56;}")).to_any();
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=($14)=>($11?$10>0:false)?[\"tail\",[$10-1,$11,$12]]:[\"normal\",(()=>{const $15=[$12,[$10]];return [$15,[[true,$15]]];})()];const $16=($17)=>{const $18=$17;let $19=$18;let $20=undefined;L1:while(true){const $21=$19;const $22=$21[0];const $23=$21[1];const $24=$23[0][0];let $25=undefined;if($24){const $26=[$23[0][1],$23];$25=$26;}else{const $27=$13($23);if($27[0]!==\"normal\"){if($27[0]===\"tail\"){const $28=[[\"continue\",0,(()=>{const $29=[...$27[1]];return [$29[0],$29[1],$29[2]];})()]];$20=$28;break L1;}else{const $30=[[\"break\",0,[$27[1]]]];$20=$30;break L1;}}const $31=[$27[1][0],$27[1][1]];$25=$31;}const $32=$25;const $33=(()=>{let $34,$35=false;return()=>{if(!$35){$34=$32[1];$35=true;}return $34;};})();const $36=(()=>{let $37,$38=false;return()=>{if(!$38){$37=$13($33());$38=true;}return $37;};})();const $39=(()=>{let $40,$41=false;return()=>{if(!$41){$40=[...$36()[1]];$41=true;}return $40;};})();const $42=$32[0];const $43=$42;const $44=$33()[0][0];let $45=undefined;if($44){const $46=[$33()[0][1],$33()];$45=$46;}else{if($36()[0]!==\"normal\"){if($36()[0]===\"tail\"){const $47=[[\"continue\",0,[$39()[0],$39()[1],$39()[2]]]];$20=$47;break L1;}else{const $48=[[\"break\",0,[$36()[1]]]];$20=$48;break L1;}}const $49=[$36()[1][0],$36()[1][1]];$45=$49;}const $50=$45;const $51=$50[0];const $52=$51;const $53=[[\"break\",0,[[$42,$51]]]];$20=$53;break L1;}const $54=$20;return $54;};const $55=$16([[],[[false,undefined]]])[0];if($55[0]===\"break\"?$55[1]===0:false){const $56=$55[2][0];$9=$56;break L0;}else{const $57=$55[2][0];const $58=$55[2][1];const $59=$55[2][2];$6=$57;$7=$58;$8=$59;continue L0;}}const $60=$9;return $60;}")).to_any();
     let _b1071: Any<A> = A::static_function(|_self, _args| {
-        let _b1388751: Any<A> = _args.argument(0);
-        let mut _b1388752: Any<A> = _b1388751.clone();
-        let mut _b1388753: Any<A> = Nullish::Undefined.to_any();
+        let _b1388755: Any<A> = _args.argument(0);
+        let mut _b1388756: Any<A> = _b1388755.clone();
+        let mut _b1388757: Any<A> = Nullish::Undefined.to_any();
         '_loop1071: loop {
-            let _b1279936_450: Any<A> = _b1388752.clone();
-            let _b1013: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x0000000000000000)].to_array().to_any()) } else { Ok([string_any("return"), ((Any::call(A::frame(_self)[1].clone(), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()))? + f64_any(0x3ff0000000000000))?].to_array().to_any()) } }, 1, [_b1279936_450.clone(), Function::new(_self.clone()).to_any()].to_array(), Some("($2)=>$0===0?[\"return\",0]:[\"return\",$1($0-1)+1]")).to_any();
+            let _b1279936_456: Any<A> = _b1388756.clone();
+            let _b1013: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), f64_any(0x0000000000000000)].to_array().to_any()) } else { Ok([string_any("return"), ((Any::call(A::frame(_self)[1].clone(), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?].to_array().to_any()))? + f64_any(0x3ff0000000000000))?].to_array().to_any()) } }, 1, [_b1279936_456.clone(), Function::new(_self.clone()).to_any()].to_array(), Some("($2)=>$0===0?[\"return\",0]:[\"return\",$1($0-1)+1]")).to_any();
             let _b1052: Any<A> = A::static_function(|_self, _args| {
-                let _b1257250_458: Any<A> = _args.argument(0);
-                let _b1388590_459: Any<A> = (Any::dot(_b1257250_458.clone(), f64_any(0x0000000000000000)).end())?;
-                let _b1016: Any<A> = (Any::dot(_b1257250_458.clone(), f64_any(0x3ff0000000000000)).end())?;
+                let _b1257250_464: Any<A> = _args.argument(0);
+                let _b1388590_465: Any<A> = (Any::dot(_b1257250_464.clone(), f64_any(0x0000000000000000)).end())?;
+                let _b1016: Any<A> = (Any::dot(_b1257250_464.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b1018: Any<A> = (Any::dot((Any::dot(_b1016.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b0_462: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
-                if Any::<A>::to_boolean(_b1018.clone()) { return Any::call(_b0_462.clone(), [[(Any::dot((Any::dot(_b1016.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b1016.clone()].to_array().to_any()].to_array().to_any()); } else {
+                let _b0_468: Any<A> = A::static_function(|_self, _args| { Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_args.argument(0), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()) }, 1, Array::default(), Some("($0)=>[[\"break\",0,[$0[0]]]]")).to_any();
+                if Any::<A>::to_boolean(_b1018.clone()) { return Any::call(_b0_468.clone(), [[(Any::dot((Any::dot(_b1016.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b1016.clone()].to_array().to_any()].to_array().to_any()); } else {
 
                 }
                 let _b1023: Any<A> = (Any::call(A::frame(_self)[0].clone(), [_b1016.clone()].to_array().to_any()))?;
                 if Any::<A>::to_boolean((strict_ne((Any::dot(_b1023.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b1023.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) { return Ok([[string_any("continue"), f64_any(0x0000000000000000), [(Any::dot((spread_array([spread_item((Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?, f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } else { return Ok([[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any()); } } else {
 
                 }
-                Any::call(_b0_462.clone(), [[(Any::dot((Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
+                Any::call(_b0_468.clone(), [[(Any::dot((Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b1023.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any())
             }, 1, [_b1013.clone()].to_array(), Some("($1)=>{const $2=$1;const $3=$2[0];const $4=$2[1];const $5=$4[0][0];const $6=($7)=>[[\"break\",0,[$7[0]]]];if($5){return $6([$4[0][1],$4]);}const $8=$0($4);if($8[0]!==\"normal\"){if($8[0]===\"tail\"){return [[\"continue\",0,[[...$8[1]][0]]]];}else{return [[\"break\",0,[$8[1]]]];}}return $6([$8[1][0],$8[1][1]]);}")).to_any();
             let _b1059: Any<A> = (Any::dot((Any::call(_b1052.clone(), [[Array::default().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b1059.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b1059.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388754: Any<A> = (Any::dot((Any::dot(_b1059.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388753 = _b1388754.clone();
+                let _b1388758: Any<A> = (Any::dot((Any::dot(_b1059.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388757 = _b1388758.clone();
                 break '_loop1071;
             } else {
-                let _b1388755: Any<A> = (Any::dot((Any::dot(_b1059.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388752 = _b1388755.clone();
+                let _b1388759: Any<A> = (Any::dot((Any::dot(_b1059.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388756 = _b1388759.clone();
                 continue '_loop1071;
             }
         }
-        let _b1279955: Any<A> = _b1388753.clone();
+        let _b1279955: Any<A> = _b1388757.clone();
         Ok(_b1279955.clone())
     }, 1, Array::default(), Some("(function $0($1){const $2=$1;let $3=$2;let $4=undefined;L0:while(true){const $5=$3;const $6=($7)=>$5===0?[\"return\",0]:[\"return\",$0($5-1)+1];const $8=($9)=>{const $10=$9;const $11=$10[0];const $12=$10[1];const $13=$12[0][0];const $14=($15)=>[[\"break\",0,[$15[0]]]];if($13){return $14([$12[0][1],$12]);}const $16=$6($12);if($16[0]!==\"normal\"){if($16[0]===\"tail\"){return [[\"continue\",0,[[...$16[1]][0]]]];}else{return [[\"break\",0,[$16[1]]]];}}return $14([$16[1][0],$16[1][1]]);};const $17=$8([[],[[false,undefined]]])[0];if($17[0]===\"break\"?$17[1]===0:false){const $18=$17[2][0];$4=$18;break L0;}else{const $19=$17[2][0];$3=$19;continue L0;}}const $20=$4;return $20;})")).to_any();
     let _b1160: Any<A> = A::static_function(|_self, _args| {
-        let _b1388756: Any<A> = _args.argument(0);
-        let _b1388757: Any<A> = _args.argument(1);
-        let mut _b1388758: Any<A> = _b1388756.clone();
-        let mut _b1388759: Any<A> = _b1388757.clone();
-        let mut _b1388760: Any<A> = Nullish::Undefined.to_any();
+        let _b1388760: Any<A> = _args.argument(0);
+        let _b1388761: Any<A> = _args.argument(1);
+        let mut _b1388762: Any<A> = _b1388760.clone();
+        let mut _b1388763: Any<A> = _b1388761.clone();
+        let mut _b1388764: Any<A> = Nullish::Undefined.to_any();
         '_loop1160: loop {
-            let _b1386202_477: Any<A> = _b1388758.clone();
-            let _b1386203_478: Any<A> = _b1388759.clone();
+            let _b1386202_483: Any<A> = _b1388762.clone();
+            let _b1386203_484: Any<A> = _b1388763.clone();
             let _b1138: Any<A> = A::static_function(|_self, _args| {
-                let _b1388761: Any<A> = _args.argument(0);
-                let mut _b1388762: Any<A> = _b1388761.clone();
-                let mut _b1388763: Any<A> = Nullish::Undefined.to_any();
+                let _b1388765: Any<A> = _args.argument(0);
+                let mut _b1388766: Any<A> = _b1388765.clone();
+                let mut _b1388767: Any<A> = Nullish::Undefined.to_any();
                 '_loop1138: loop {
-                    let _b1359934_486: Any<A> = _b1388762.clone();
-                    let _b1075: Any<A> = (Any::dot(_b1359934_486.clone(), f64_any(0x3ff0000000000000)).end())?;
-                    let _b1077: Any<A> = (Any::dot((Any::dot(_b1359934_486.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                    let _b1359934_492: Any<A> = _b1388766.clone();
+                    let _b1075: Any<A> = (Any::dot(_b1359934_492.clone(), f64_any(0x3ff0000000000000)).end())?;
+                    let _b1077: Any<A> = (Any::dot((Any::dot(_b1359934_492.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
                     if Any::<A>::to_boolean((Any::lt(_b1077.clone(), f64_any(0x4000000000000000)))?) {
-                        let _b1388764: Any<A> = [[(_b1077.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any(), _b1075.clone()].to_array().to_any();
-                        _b1388762 = _b1388764.clone();
+                        let _b1388768: Any<A> = [[(_b1077.clone() + f64_any(0x3ff0000000000000))?].to_array().to_any(), _b1075.clone()].to_array().to_any();
+                        _b1388766 = _b1388768.clone();
                         continue '_loop1138;
                     } else {
                         let _b1086: Any<A> = [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any();
                         let _b1100: Any<A> = A::static_function(|_self, _args| { if Any::<A>::to_boolean((strict_eq(A::frame(_self)[0].clone(), f64_any(0x0000000000000000)))?) { Ok([string_any("return"), (A::frame(_self)[1].clone() + A::frame(_self)[2].clone())?].to_array().to_any()) } else { Ok([string_any("tail"), [(A::frame(_self)[0].clone() - f64_any(0x3ff0000000000000))?, (A::frame(_self)[1].clone() + A::frame(_self)[2].clone())?].to_array().to_any()].to_array().to_any()) } }, 1, [A::frame(_self)[0].clone(), A::frame(_self)[1].clone(), _b1077.clone()].to_array(), Some("($3)=>$0===0?[\"return\",$1+$2]:[\"tail\",[$0-1,$1+$2]]")).to_any();
                         let _b1102: Any<A> = (Any::dot((Any::dot(_b1086.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                        let mut _b1388765: Any<A> = Nullish::Undefined.to_any();
+                        let mut _b1388769: Any<A> = Nullish::Undefined.to_any();
                         if Any::<A>::to_boolean(_b1102.clone()) {
-                            let _b1388766: Any<A> = [(Any::dot((Any::dot(_b1086.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b1086.clone()].to_array().to_any();
-                            _b1388765 = _b1388766.clone();
+                            let _b1388770: Any<A> = [(Any::dot((Any::dot(_b1086.clone(), f64_any(0x0000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?, _b1086.clone()].to_array().to_any();
+                            _b1388769 = _b1388770.clone();
                         } else {
                             let _b1106: Any<A> = (Any::call(_b1100.clone(), [_b1086.clone()].to_array().to_any()))?;
                             if Any::<A>::to_boolean((strict_ne((Any::dot(_b1106.clone(), f64_any(0x0000000000000000)).end())?, string_any("normal")))?) { if Any::<A>::to_boolean((strict_eq((Any::dot(_b1106.clone(), f64_any(0x0000000000000000)).end())?, string_any("tail")))?) {
-                                let _b1388767: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
+                                let _b1388771: Any<A> = [[string_any("continue"), f64_any(0x0000000000000000), {
                                     let _b1122: Any<A> = (spread_array([spread_item((Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?)?]))?;
                                     [(Any::dot(_b1122.clone(), f64_any(0x0000000000000000)).end())?, (Any::dot(_b1122.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()
                                 }].to_array().to_any()].to_array().to_any();
-                                _b1388763 = _b1388767.clone();
+                                _b1388767 = _b1388771.clone();
                                 break '_loop1138;
                             } else {
-                                let _b1388768: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                                _b1388763 = _b1388768.clone();
+                                let _b1388772: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                                _b1388767 = _b1388772.clone();
                                 break '_loop1138;
                             } } else {
 
                             }
-                            let _b1388769: Any<A> = [(Any::dot((Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
-                            _b1388765 = _b1388769.clone();
+                            let _b1388773: Any<A> = [(Any::dot((Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)).end())?, (Any::dot((Any::dot(_b1106.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?].to_array().to_any();
+                            _b1388769 = _b1388773.clone();
                         }
-                        let _b0_504: Any<A> = _b1388765.clone();
-                        let _b1388770: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_504.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
-                        _b1388763 = _b1388770.clone();
+                        let _b0_510: Any<A> = _b1388769.clone();
+                        let _b1388774: Any<A> = [[string_any("break"), f64_any(0x0000000000000000), [(Any::dot(_b0_510.clone(), f64_any(0x0000000000000000)).end())?].to_array().to_any()].to_array().to_any()].to_array().to_any();
+                        _b1388767 = _b1388774.clone();
                         break '_loop1138;
                     }
                 }
-                let _b1359953: Any<A> = _b1388763.clone();
+                let _b1359953: Any<A> = _b1388767.clone();
                 Ok(_b1359953.clone())
-            }, 1, [_b1386202_477.clone(), _b1386203_478.clone()].to_array(), Some("($2)=>{const $3=$2;let $4=$3;let $5=undefined;L0:while(true){const $6=$4;const $7=$6[1];const $8=$6[0][0];if($8<2){const $9=[[$8+1],$7];$4=$9;continue L0;}else{const $10=[[false,undefined]];const $11=($12)=>$0===0?[\"return\",$1+$8]:[\"tail\",[$0-1,$1+$8]];const $13=$10[0][0];let $14=undefined;if($13){const $15=[$10[0][1],$10];$14=$15;}else{const $16=$11($10);if($16[0]!==\"normal\"){if($16[0]===\"tail\"){const $17=[[\"continue\",0,(()=>{const $18=[...$16[1]];return [$18[0],$18[1]];})()]];$5=$17;break L0;}else{const $19=[[\"break\",0,[$16[1]]]];$5=$19;break L0;}}const $20=[$16[1][0],$16[1][1]];$14=$20;}const $21=$14;const $22=[[\"break\",0,[$21[0]]]];$5=$22;break L0;}}const $23=$5;return $23;}")).to_any();
+            }, 1, [_b1386202_483.clone(), _b1386203_484.clone()].to_array(), Some("($2)=>{const $3=$2;let $4=$3;let $5=undefined;L0:while(true){const $6=$4;const $7=$6[1];const $8=$6[0][0];if($8<2){const $9=[[$8+1],$7];$4=$9;continue L0;}else{const $10=[[false,undefined]];const $11=($12)=>$0===0?[\"return\",$1+$8]:[\"tail\",[$0-1,$1+$8]];const $13=$10[0][0];let $14=undefined;if($13){const $15=[$10[0][1],$10];$14=$15;}else{const $16=$11($10);if($16[0]!==\"normal\"){if($16[0]===\"tail\"){const $17=[[\"continue\",0,(()=>{const $18=[...$16[1]];return [$18[0],$18[1]];})()]];$5=$17;break L0;}else{const $19=[[\"break\",0,[$16[1]]]];$5=$19;break L0;}}const $20=[$16[1][0],$16[1][1]];$14=$20;}const $21=$14;const $22=[[\"break\",0,[$21[0]]]];$5=$22;break L0;}}const $23=$5;return $23;}")).to_any();
             let _b1145: Any<A> = (Any::dot((Any::call(_b1138.clone(), [[[f64_any(0x0000000000000000)].to_array().to_any(), [[false.to_any(), Nullish::Undefined.to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()].to_array().to_any()))?, f64_any(0x0000000000000000)).end())?;
             if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq((Any::dot(_b1145.clone(), f64_any(0x0000000000000000)).end())?, string_any("break")))?) { (strict_eq((Any::dot(_b1145.clone(), f64_any(0x3ff0000000000000)).end())?, f64_any(0x0000000000000000)))? } else { false.to_any() }) {
-                let _b1388771: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                _b1388760 = _b1388771.clone();
+                let _b1388775: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                _b1388764 = _b1388775.clone();
                 break '_loop1160;
             } else {
-                let _b1388772: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
-                let _b1388773: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
-                _b1388758 = _b1388772.clone();
-                _b1388759 = _b1388773.clone();
+                let _b1388776: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x0000000000000000)).end())?;
+                let _b1388777: Any<A> = (Any::dot((Any::dot(_b1145.clone(), f64_any(0x4000000000000000)).end())?, f64_any(0x3ff0000000000000)).end())?;
+                _b1388762 = _b1388776.clone();
+                _b1388763 = _b1388777.clone();
                 continue '_loop1160;
             }
         }
-        let _b1386221: Any<A> = _b1388760.clone();
+        let _b1386221: Any<A> = _b1388764.clone();
         Ok(_b1386221.clone())
     }, 2, Array::default(), Some("($0,$1)=>{const $2=$0;const $3=$1;let $4=$2;let $5=$3;let $6=undefined;L0:while(true){const $7=$4;const $8=$5;const $9=($10)=>{const $11=$10;let $12=$11;let $13=undefined;L1:while(true){const $14=$12;const $15=$14[1];const $16=$14[0][0];if($16<2){const $17=[[$16+1],$15];$12=$17;continue L1;}else{const $18=[[false,undefined]];const $19=($20)=>$7===0?[\"return\",$8+$16]:[\"tail\",[$7-1,$8+$16]];const $21=$18[0][0];let $22=undefined;if($21){const $23=[$18[0][1],$18];$22=$23;}else{const $24=$19($18);if($24[0]!==\"normal\"){if($24[0]===\"tail\"){const $25=[[\"continue\",0,(()=>{const $26=[...$24[1]];return [$26[0],$26[1]];})()]];$13=$25;break L1;}else{const $27=[[\"break\",0,[$24[1]]]];$13=$27;break L1;}}const $28=[$24[1][0],$24[1][1]];$22=$28;}const $29=$22;const $30=[[\"break\",0,[$29[0]]]];$13=$30;break L1;}}const $31=$13;return $31;};const $32=$9([[0],[[false,undefined]]])[0];if($32[0]===\"break\"?$32[1]===0:false){const $33=$32[2][0];$6=$33;break L0;}else{const $34=$32[2][0];const $35=$32[2][1];$4=$34;$5=$35;continue L0;}}const $36=$6;return $36;}")).to_any();
     Ok([(string_key("terminal"), _b67.clone()), (string_key("ordinary"), _b154.clone()), (string_key("nestedRecipe"), _b271.clone()), (string_key("insideAlias"), _b339.clone()), (string_key("outsideAlias"), _b407.clone()), (string_key("tailValues"), _b492.clone()), (string_key("captures"), _b571.clone()), (string_key("extraArguments"), _b653.clone()), (string_key("failedSpread"), _b722.clone()), (string_key("rest"), _b807.clone()), (string_key("restOnly"), _b881.clone()), (string_key("normalPayload"), _b1001.clone()), (string_key("nonTail"), _b1071.clone()), (string_key("localReset"), _b1160.clone())].to_object().to_any())
