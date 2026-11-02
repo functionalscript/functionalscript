@@ -1,7 +1,31 @@
 ## Definite assignment
 
 **Priority:** P5
-**Status:** open
+**Status:** wip — revised to JavaScript-compatible initialization
+
+### Revised scope and approval
+
+Admit a named `let x;` by initializing `x` to the primitive `undefined` when
+execution reaches the declaration, as JavaScript does. Preserve the omitted
+initializer and source location in the generic AST, then reuse the existing
+initialized-binding lowering. Reads after the declaration and before a later
+assignment return `undefined`; access before the declaration retains the
+existing refusal. No definite-assignment analysis or new FAST/EDAG operation
+is needed. `const` and destructuring declarations still require initializers.
+
+This replaces the definite-assignment proposal below. The benefit is familiar
+JavaScript behavior and broader module parsing with a small desugaring; the
+cost is accepting an omitted value where explicit initialization previously
+made it visible.
+
+The language designer `sergey-shandar` explicitly requested this parsing,
+admission and desugaring in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+approving this revised scope under
+[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
+
+The previous proposal is retained below only until the implementation and its
+canonical specification replace this issue.
 
 ```js
 export default cond => {
