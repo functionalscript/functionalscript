@@ -83,11 +83,11 @@ const tsContextual = (word, next) => {
 const kindOf = contextual => (token, next) => {
     const { kind } = token
     switch (kind) {
-        case 'id': return contextual(token.value, next) ? 'keyword' : 'identifier'
-        case 'string': return 'string'
-        case 'number': case 'bigint': return 'number'
-        case '//': case '/*': return 'comment'
-        default: return literalWords.some(word => word === kind) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined
+        case 'id': { return contextual(token.value, next) ? 'keyword' : 'identifier' }
+        case 'string': { return 'string' }
+        case 'number': case 'bigint': { return 'number' }
+        case '//': case '/*': { return 'comment' }
+        default: { return literalWords.some(word => word === kind) ? 'literal' : isKeyword(kind) ? 'keyword' : undefined }
     }
 }
 

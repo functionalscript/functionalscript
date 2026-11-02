@@ -294,8 +294,9 @@ const stringDecodeScan = (cp, state) => {
                 ? [[fixedHexValue(digits)], { kind: 'normal' }]
                 : [null, { kind: state.kind, digits }]
         }
-        default:
+        default: {
             return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
+        }
     }
 }
 

@@ -199,10 +199,10 @@ const initial = {
 /** @type {(magic: _MagicState, utf8: _Utf8Detect) => boolean} */
 const isSettled = (magic, utf8) => {
     switch (magic.tag) {
-        case 'matched': return true
-        case 'dead': return !utf8.valid || !utf8.text
+        case 'matched': { return true }
+        case 'dead': { return !utf8.valid || !utf8.text }
         // `'scan'`, the one tag left: every magic state is built in this module
-        default: return false
+        default: { return false }
     }
 }
 
