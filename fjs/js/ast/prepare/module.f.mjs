@@ -28,7 +28,6 @@ import { branchingPlainLoopOf, plainLoopOf } from '../loop/plain/module.f.mjs'
 import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
-import { iterable } from '../../../types/list/iterable/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
 import { _immutableJoin } from './joins/module.f.mjs'
@@ -176,7 +175,7 @@ const flows = (root, known = new Map()) => {
         results = { first: flow, tail: results }
         entries = { first: [node[1], flow], tail: entries }
     }
-    return new Map(iterable(entries))
+    return new Map(toArray(entries))
 }
 
 /** @type {(next: number, count: number) => readonly BindingId[]} */
