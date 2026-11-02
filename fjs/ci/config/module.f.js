@@ -20,8 +20,6 @@ export const images = /** @type {const} */({
     }
 })
 
-export const functionalscript = /** @type {const} */ '0.58.0'
-
 export const bun = '1.4.4'
 
 export const deno = '2.9.8'
