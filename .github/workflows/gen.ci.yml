@@ -1072,6 +1072,10 @@
           "continue-on-error": true
         },
         {
+          "run": "mise exec -- npm start deps",
+          "shell": "bash"
+        },
+        {
           "run": "mise exec -- npm start compile",
           "shell": "bash",
           "if": "steps.init.outputs.hit-compile != 'true'"

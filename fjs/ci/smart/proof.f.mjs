@@ -36,6 +36,7 @@ const tscVersion = /** @type {const} */ ({ run: 'test "$(mise exec -- tsc --vers
 const install = /** @type {const} */ ({ run: 'mise exec -- npm ci' })
 const suite = /** @type {const} */ ({ run: 'mise exec -- node --test ./fjs/emergent_testing/js-only.mjs' })
 const compile = /** @type {const} */ ({ run: 'mise exec -- npm start compile' })
+const deps = /** @type {const} */ ({ run: 'mise exec -- npm start deps', shell: 'bash' })
 const tsc = /** @type {const} */ ({ run: 'mise exec -- tsc' })
 const coverage = /** @type {const} */ ({ run: 'mise exec -- npm run cov' })
 const pack = /** @type {const} */ ({ run: 'mise exec -- npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
@@ -137,6 +138,20 @@ export const proof = /** @type {const} */ ({
         assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
         assert(checks('node26', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
         assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report package').length, 1)
+    },
+    dependencyAstCheckStaysUncached: () => {
+        const steps = /** @type {const} */ ([mise, nodeVersion, suite, deps])
+        const source = cached(steps)
+        const check = stepWith(source, deps.run)
+        assertEq(check.if, undefined)
+        assertEq(check['continue-on-error'], undefined)
+        assertEq(check['working-directory'], undefined)
+        assertEq(stepWith(source, nodeVersion.run).if, undefined)
+        assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
+        assertStructurallySame(checks('node26', job(steps)), checks('node26', job([mise, nodeVersion, suite])))
+        assertStructurallySame(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).map(step => step.run), [
+            'mise exec -- npm start ci report suite',
+        ])
     },
     /** Uncached generator and injected demo work still gets its mise environment. */
     uncachedShell: () => {
