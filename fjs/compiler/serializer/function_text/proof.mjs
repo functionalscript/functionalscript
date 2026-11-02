@@ -186,15 +186,15 @@ export const proof = {
         throws(() => selected(1, true))
         assertEq(selected(100_001, false), 7)
 
-        // These wider recipes are admitted by function text while the public
-        // source writer retains its explicit admission boundary.
+        // Dependent recipes now also cross public source admission.
         const nestedGraph = graphOf(fixtures.nestedRecipe)
-        assertError(tryStringify(nestedGraph))
+        assertOk(parse('/dependent-function-text.f.mjs')(assertOk(tryStringify(nestedGraph))))
         const nested = compileWhile(nestedGraph)
         assertEq(nested.length, 1)
         assertEq(nested(0), 7)
         assertEq(nested(100_001), 7)
 
+        // Normal memo payloads retain their wider function-text profile.
         const payloadGraph = graphOf(fixtures.normalPayload)
         assertError(tryStringify(payloadGraph))
         const payload = compileWhile(payloadGraph)

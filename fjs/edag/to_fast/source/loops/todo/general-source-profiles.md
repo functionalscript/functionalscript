@@ -88,9 +88,10 @@ identity, stable hash or graph/text fixed-point guarantee. The established
 canonical profile contracts remain unchanged.
 
 The [deferred-tail fixtures](../../../../from_fast/deferred_tail_calls/fixtures.f.mjs)
-also retain two existing public-source limits: `nestedRecipe` and `normalPayload`.
-Their general JavaScript and Rust output executes deep owning tail transitions,
-but source output still refuses their remaining lazy placement. The
+retain the public-source limit `normalPayload`; JavaScript and Rust execute its
+deep owning tail transitions, but source output refuses its remaining lazy
+placement. The dependent `nestedRecipe` now reaches source through the bounded
+result join described below. The
 [native proof](../../../../../compiler/serializer/value/deferred_tail_calls.proof.mjs)
 records that current admission boundary without requiring a particular error
 payload. Supporting these source profiles is separate from carrying tail
@@ -155,6 +156,35 @@ An outer deferred binding is not an established input merely because it is in
 scope. Remaining lazy definitions continue through their existing admission
 checks.
 
+### Dependent recipe joins
+
+The bounded dependent profile is the existing deferred-tail `nestedRecipe` graph.
+One lazy recipe depends on another recipe whose reached completion returns to
+the owning function. Its generated helper result is shared by a conditional
+test and following work; an already completed path skips that helper call.
+Constructing the dependent array must not intercept an owning return or force
+an unselected prerequisite.
+
+Common result recovery may join a value conditional in an immediately following
+required initializer into the preceding statement decision when both read the
+same established test, without rebinding that test as a decision result. The
+existing ordered-demand proof must establish that the conditional is the
+initializer's first reached work. Normally completing arms yield an immutable
+result; abrupt arms retain their exact return or loop owner.
+The initializer and its following continuation remain one computation, using
+that joined result. A shared helper call stays inside its selected arm and runs
+once on first demand. Every binding moved into an arm must already be in scope
+there, and an arm's locals must not capture its earlier outer dependencies.
+Deferred declarations retain those dependencies transitively and cannot
+silently become forward references.
+
+Source output must parse and reserialize through the unchanged front end and
+execute the original graph at input `100_001` using `while`. Companion cases
+must verify skipped throwing work, reached failures, one shared normal result
+and owning early returns. Remaining genuine lazy source profiles keep their
+existing admission boundary. This is a semantic reconstruction contract, without
+a general graph/hash fixed-point requirement.
+
 ### Other profile boundaries
 
 The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
@@ -190,6 +220,9 @@ fallback; non-reifiable forms retain the explicit `Result` error
 - [x] Establish inert shared snapshot constructions as immutable invocation
       bindings; prove conditional-demand boundaries, capture and allocation
       lifetimes, source readback and deep loop execution under the contract above.
+- [x] Reconstruct the dependent `nestedRecipe` graph with an immutable
+      first-demand result join; preserve conditional work, sharing and owning
+      returns through source readback, reserialization and deep execution.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner
