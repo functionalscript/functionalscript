@@ -119,15 +119,6 @@ concern and adds no synthetic source reads.
 
 [`./grammar`](./grammar/module.f.mjs) holds it:
 
-The syntax layer also represents braced `for…of` declaration loops, including
-binding patterns, independently of FunctionalScript admission. Its distinct
-`for-of` node retains the declaration, iterable expression and body.
-`parseFromTokens` explicitly refuses that node at the `for` token, including
-at module level or inside nested bodies. No iterable is evaluated and no FAST
-or EDAG lowering is defined by this syntax support. Classic `for` retains its
-existing syntax representation and admission. `of` remains an ordinary name
-outside the header separator, as in `for (const of of of)`.
-
 ```
 module ::= import* moduleStatement* last eof
 moduleStatement ::= const | let | while | forStatement | bodyNameStatement
@@ -218,6 +209,15 @@ entry  ::= '...' value | member
 member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
+
+The syntax layer also represents braced `for…of` declaration loops, including
+binding patterns, independently of FunctionalScript admission. Its distinct
+`for-of` node retains the declaration, iterable expression and body.
+`parseFromTokens` explicitly refuses that node at the `for` token, including
+at module level or inside nested bodies. No iterable is evaluated and no FAST
+or EDAG lowering is defined by this syntax support. Classic `for` retains its
+existing syntax representation and admission. `of` remains an ordinary name
+outside the header separator, as in `for (const of of of)`.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
