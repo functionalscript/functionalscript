@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'of' | 'typeof' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'of' | 'typeof' | 'new' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -63,7 +63,7 @@ export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
 export type InfixTag = BinaryTag | 'instanceof' | 'in'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
-type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof'> | 'id' | 'keyword'>>
+type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof' | 'new'> | 'id' | 'keyword'>>
 
 /**
  * A token name the grammar can name as a terminal: every `ModuleToken` kind
@@ -88,9 +88,9 @@ type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _O
 // added to either variant, breaks the build here rather than going
 // unrepresented on the other side.
 type _ValueKindsArePrimitive = Assert<Equal<keyof typeof primitive, (typeof _valueKinds)[number]>>
-// `typeof` is the one framing keyword a name may be and a reference may not,
+// `typeof` and `new` are framing keywords a name may be and a reference may not,
 // which `_framingKeywords`'s own comment explains.
-type _ValueKindsAreNames = Assert<Equal<Exclude<keyof typeof identifierName, keyof typeof identifier | 'typeof'>, (typeof literalWords)[number]>>
+type _ValueKindsAreNames = Assert<Equal<Exclude<keyof typeof identifierName, keyof typeof identifier | 'typeof' | 'new'>, (typeof literalWords)[number]>>
 
 // `eof` is not a member of the alphabet, so a second end marker cannot be
 // encoded rather than merely going unused — and `encode` would reject the name
@@ -174,6 +174,22 @@ export type Access = {
     readonly optional: readonly [number, OptionalStep]
 }
 
+/** Member-only continuation before a constructor's required argument list. */
+export type MemberAccess = Pick<Access, 'property' | 'index'>
+
+/** A name, group or nested construction, with only member steps after it. */
+export type ConstructorCallee = () => readonly ['const', {
+    readonly name: readonly [typeof identifier, RepeatFrom<0, MemberAccess>]
+    readonly group: readonly [number, Value, CommaOperands, number, RepeatFrom<0, MemberAccess>]
+    readonly construct: readonly [NewExpression, RepeatFrom<0, MemberAccess>]
+}]
+
+/** Generic construction syntax with an explicit, possibly empty, argument list. */
+export type NewExpression = () => readonly ['const', readonly [number, ConstructorCallee, number, Option<Items<Item>>, number]]
+
+/** A constructor expression statement preserves its ordinary trailing steps. */
+export type NewExpressionStatement = readonly [NewExpression, RepeatFrom<0, Access>, End]
+
 /**
  * What follows `?.`: {@link Access}'s three steps less the `.` a property's
  * spelling begins with, which the `?.` has — a property by its name alone,
@@ -216,6 +232,7 @@ export type Unary = () => readonly ['const', PrefixBranches<readonly []> & {
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>], PowTail]
+    readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
 
@@ -233,6 +250,7 @@ export type UnaryOperand = () => readonly ['const', PrefixBranches<readonly []> 
     readonly ref: readonly [readonly [typeof identifier, RepeatFrom<0, Access>]]
     readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>]]
     readonly object: readonly [readonly [Container<Entry>, RepeatFrom<0, Access>]]
+    readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>]]
     readonly group: ParenGroupOperand
 }]
 
@@ -349,6 +367,7 @@ export type ValueBranches = PrefixBranches<Tail> & {
     readonly template: readonly [readonly [Template, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly name: readonly [typeof identifier, ArrowOrRest]
     readonly array: readonly [readonly [ArrayLiteral, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly construct: readonly [readonly [NewExpression, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
 }
 
@@ -483,6 +502,7 @@ export type Block = readonly [number, BlockContents, number]
 /** Non-loop body statements before a terminal or candidate terminal loop. */
 export type SimpleStatement = () => readonly ['const', {
     readonly const: ConstStatement
+    readonly construct: NewExpressionStatement
     readonly if: IfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement
@@ -496,6 +516,7 @@ export type BlockContents = () => readonly ['const', readonly [
 
 /** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
+    readonly construct: NewExpressionStatement
     readonly const: ConstStatement
     readonly if: IfStatement
     readonly let: LetStatement
@@ -532,6 +553,7 @@ export type BodyNameStatement = readonly [...NameExpression, End]
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
     readonly const: ConstStatement
+    readonly construct: NewExpressionStatement
     readonly let: LetStatement
     readonly while: WhileStatement
     readonly for: ForStatement
@@ -568,6 +590,7 @@ export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 export type LoopStatement = () => readonly ['const', {
     readonly break: readonly [number, End]
     readonly const: ConstStatement
+    readonly construct: NewExpressionStatement
     readonly continue: readonly [number, End]
     readonly if: LoopIfStatement
     readonly let: LetStatement

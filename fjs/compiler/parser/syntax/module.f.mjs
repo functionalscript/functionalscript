@@ -37,7 +37,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ForClassicTail, ForStatement, NameExpression } from '../grammar/types.ts'
+ * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ForClassicTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
@@ -53,7 +53,7 @@ import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
+    afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -743,6 +743,35 @@ const accessed = closed => (base, round) => {
  */
 const steps = (base, accesses, closed) => accesses.reduce((node, round, i) => accessed(closed && i === 0)(node, round), base)
 
+/** A callee's member steps stop before the construction's argument list. @type {(node: Children<ConstructorCallee, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toConstructorCallee = ([tag, branch]) => {
+    if (tag === 'group') {
+        const [open, v, more, , accesses] = unmapped(branch)
+        const first = tokenAt(open)
+        return symbol({ id: 'value', node: steps(grouped(v, more), unmapped(accesses), true), first, target: invalid(first) })
+    }
+    if (tag === 'name') {
+        const [id, accesses] = unmapped(branch)
+        const first = tokenAt(unmapped(id)[1])
+        return symbol({ id: 'value', node: steps(['ref', first], unmapped(accesses), false), first, target: invalid(first) })
+    }
+    const [constructed, accesses] = unmapped(branch)
+    const first = firstAt(constructed)
+    return symbol({ id: 'value', node: steps(nodeAt(constructed), unmapped(accesses), false), first, target: invalid(first) })
+}
+
+/** Construction is retained independently from ordinary calls and has its own source token. @type {(node: Children<NewExpression, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpression = ([keyword, callee, , args]) => {
+    const first = tokenAt(keyword)
+    return symbol({ id: 'value', node: ['new', nodeAt(callee), toArray(valueItems(args)), first], first, target: invalid(first) })
+}
+
+/** A constructor statement uses the existing discard record and retains its starting token. @type {(node: Children<NewExpressionStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpressionStatement = ([constructed, accesses, end]) => {
+    const start = firstAt(constructed)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: steps(nodeAt(constructed), unmapped(accesses), false) } })
+}
+
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
  * group is raised to a power: the operand at the second position of `'**'
@@ -897,7 +926,7 @@ export const _baseOf = ([tag, branch]) => {
             const p = unmapped(x)[0]
             return ['primitive', _primitiveOf(unmapped(p))]
         }
-        case 'template': {
+        case 'template': case 'construct': {
             const x = unmapped(branch)[0]
             return nodeAt(unmapped(x)[0])
         }
@@ -937,9 +966,9 @@ const firstAt = node => {
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
- * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => ModuleTokenWithMetadata}
+ * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -1411,6 +1440,7 @@ const toLoopElse = ([kind, branch]) => {
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
+        case 'construct': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
         default: { return symbol({ id: 'statement', statement: ordinaryIf(normalIfAt(branch)) }) }
@@ -1430,6 +1460,7 @@ const discarded = (name, rest, semicolon) =>
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'construct') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
     if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
     if (kind === 'name') {
@@ -1473,6 +1504,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'construct') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
     if (kind === 'break' || kind === 'continue') {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
@@ -1822,6 +1854,9 @@ const toParenItems = ([tag, branch]) => {
  * @type {RewriteSet<ModuleTokenWithMetadata, Out>}
  */
 export const mappings = [
+    map(constructorCallee, toConstructorCallee),
+    map(newExpression, toNewExpression),
+    map(newExpressionStatement, toNewExpressionStatement),
     map(template, toTemplate),
     map(value, toNode),
     map(body, toNode),

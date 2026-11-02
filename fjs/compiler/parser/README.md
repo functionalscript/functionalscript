@@ -121,7 +121,7 @@ concern and adds no synthetic source reads.
 
 ```
 module ::= import* moduleStatement* last eof
-moduleStatement ::= const | let | while | forStatement | bodyNameStatement
+moduleStatement ::= const | let | while | forStatement | bodyNameStatement | newExpressionStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
@@ -135,27 +135,32 @@ end    ::= [ ';' ]
 while  ::= 'while' '(' value ')' loopBlock
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array | object) access* powTail tail
+         | (primitive | template | array | object | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue)
 body   ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array) access* powTail tail
+         | (primitive | template | array | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue) | block
 unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access* powTail
+         | (primitive | template | id | array | object | newExpression) access* powTail
          | '(' group
 unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access*
+         | (primitive | template | id | array | object | newExpression) access*
          | '(' groupOperand
+newExpression ::= 'new' constructorCallee '(' [ callArguments ] ')'
+newExpressionStatement ::= newExpression access* end
+constructorCallee ::= ( id | '(' value { ',' value } ')' | newExpression ) memberAccess*
+memberAccess ::= '.' id | '[' value ']'
+callArguments ::= ( value | '...' value ) [ ',' [ callArguments ] ]
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
 statement ::= const | ifStatement | let
-            | whileStatement | forStatement | bodyNameStatement
+            | whileStatement | forStatement | bodyNameStatement | newExpressionStatement
 ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
 branchBlock ::= '{' statement* [ terminator ] '}'
 branchElse ::= branchBlock | ifStatement
@@ -165,7 +170,7 @@ caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | let | bodyNameStatement | whileStatement | forStatement
+loopStatement ::= const | let | bodyNameStatement | newExpressionStatement | whileStatement | forStatement
                 | loopIfStatement | 'break' end | 'continue' end
                 | 'return' value end | 'throw' value end | loopSwitch
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
@@ -218,6 +223,21 @@ at module level or inside nested bodies. No iterable is evaluated and no FAST
 or EDAG lowering is defined by this syntax support. Classic `for` retains its
 existing syntax representation and admission. `of` remains an ordinary name
 outside the header separator, as in `for (const of of of)`.
+
+Constructor expressions with an argument list, `new Callee(arguments)`, also
+form a generic AST before admission. The `new` node retains the constructor
+expression, ordered arguments and original token. Constructor member access,
+grouped or nested constructors, and following member/call continuations keep
+JavaScript's precedence: `new ns.C()` constructs `ns.C`, while `new C().m()`
+calls a member of the constructed value. Argument parentheses are required in
+this syntax increment; `new C`, `new.target` and unparenthesized optional-chain
+constructor targets remain unsupported. FunctionalScript compilation refuses
+the node at `new`, without resolving or evaluating its constructor or arguments.
+This defines no constructor behavior or FAST/EDAG operation.
+Standalone expressions beginning with `new` also form syntax statements at
+module level and inside function or loop bodies. They retain the original
+`new` token and use the existing discarded-value statement shape, including
+following member and call steps, before the same admission refusal.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
@@ -359,10 +379,12 @@ the fold's:
   a key or the name after `.` may be one, so `const if = 1;` and
   `export default class;` are the fold's to refuse and `{ if: 1 }` is a
   member: a broken JavaScript program is a broken FunctionalScript program.
-  `typeof` opens a value, so the grammar keeps it out of `identifier`, the
-  reference rule, where it would conflict with its own prefix branch; a
+  `typeof` and `new` open values, so the grammar keeps them out of
+  `identifier`, the reference rule, where they would conflict with their
+  expression branches; a
   binding takes the wider `identifierName`, so `const typeof = 1;` still
-  reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
+  reaches the fold, and `{ typeof: 1 }`, `{ new: 1 }`, `a.typeof` and `a.new`
+  stay members;
 - a reserved conversion global, `Number` or `String`, bound or referenced
   anywhere but as the callee of `Number(x)` or `String(x)`
   ([spec: number conversion](../../../spec/conversions/number/README.md),

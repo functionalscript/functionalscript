@@ -73,6 +73,16 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
         assertEq(state.stderr, '')
     },
+    constructorsDoNotRequireResolutionOrExecution: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('export default new Missing(null.x);')],
+            nested: { 'module.f.js': [utf8('const value=new absent.Constructor(...unresolved);export default value;')] },
+            imported: { 'module.f.mjs': [utf8('import Constructor from "./absent.f.js";export default new Constructor(missing());')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stderr, '')
+    },
     failuresContinue: () => {
         const [state, result] = execute({
             invalid: { 'module.f.mjs': [utf8('export default ;')] },

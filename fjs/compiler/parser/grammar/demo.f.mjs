@@ -34,7 +34,7 @@
 
 import {
     _ordinaryTokenNames, access, afterValue, array, arrowOrRest, attribute, bindingTarget, block, blockContents, branchBlock, branchContents, branchElse, ifStatement, simpleStatement, body, callArguments,
-    circuitTail, conditionalTail, constStatement, module, eagerTail, elements, end, entries, entry, forClassicTail, forDeclarationTail, forHeader, forStatement, func, group, groupOperand,
+    circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess, module, eagerTail, elements, end, entries, entry, forClassicTail, forDeclarationTail, forHeader, forStatement, func, group, groupOperand,
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, afterCase, caseTail, template, terminator, unary, unaryOperand,
@@ -116,6 +116,10 @@ export const diagrams = [
     ['circuitTail', circuitTail],
     ['conditionalTail', conditionalTail],
     ['access', access],
+    ['newExpression', newExpression],
+    ['newExpressionStatement', newExpressionStatement],
+    ['constructorCallee', constructorCallee],
+    ['memberAccess', memberAccess],
     ['optionalStep', optionalStep],
     ['callArguments', callArguments],
     ['template', template],
