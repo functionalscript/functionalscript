@@ -92,13 +92,19 @@ const launch = profile => new Promise((ready, fail) => {
  * A DevTools protocol session over `socket`: a command answers its result,
  * and an event can be waited for.
  *
+ * **A closed socket fails everything waiting on it**, and every command sent
+ * after: a browser that crashes mid-run answers nothing more, and a wait it
+ * left pending would otherwise hold the step until the job's timeout.
+ *
  * @type {(socket: WebSocket) => { readonly send: (method: string, params?: object, sessionId?: string) => Promise<any>, readonly next: (method: string, sessionId: string) => Promise<any> }}
  */
 const devtools = socket => {
     /** @type {Map<number, { resolve: (result: any) => void, reject: (e: Error) => void }>} */
     const pending = new Map()
-    /** @type {{ method: string, sessionId: string, resolve: (params: any) => void }[]} */
-    const waiting = []
+    /** @type {{ method: string, sessionId: string, resolve: (params: any) => void, reject: (e: Error) => void }[]} */
+    let waiting = []
+    /** @type {Error | null} */
+    let closed = null
     let id = 0
     socket.addEventListener('message', ({ data }) => {
         const message = JSON.parse(String(data))
@@ -111,13 +117,25 @@ const devtools = socket => {
         const i = waiting.findIndex(w => w.method === message.method && w.sessionId === message.sessionId)
         if (i >= 0) { waiting.splice(i, 1)[0].resolve(message.params) }
     })
+    socket.addEventListener('close', () => {
+        const error = new Error('the browser closed the DevTools connection')
+        closed = error
+        pending.forEach(command => command.reject(error))
+        pending.clear()
+        waiting.forEach(w => w.reject(error))
+        waiting = []
+    })
     return {
         send: (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+            if (closed !== null) { reject(closed); return }
             id += 1
             pending.set(id, { resolve, reject })
             socket.send(JSON.stringify({ id, method, params, sessionId }))
         }),
-        next: (method, sessionId) => new Promise(resolve => { waiting.push({ method, sessionId, resolve }) }),
+        next: (method, sessionId) => new Promise((resolve, reject) => {
+            if (closed !== null) { reject(closed); return }
+            waiting.push({ method, sessionId, resolve, reject })
+        }),
     }
 }
 
@@ -156,9 +174,12 @@ const shoot = async (url, origin, cards) => {
             await send('Emulation.setDeviceMetricsOverride', { ...cardSize, deviceScaleFactor: 1, mobile: false }, sessionId)
             await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
             for (const path of queue) {
-                const loaded = next('Page.loadEventFired', sessionId)
+                // Parsed, not loaded: the load event waits for every image,
+                // where `cardReady` waits for each five seconds at most. The
+                // card's script, after its stylesheet, has run by now.
+                const parsed = next('Page.domContentEventFired', sessionId)
                 await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
-                await loaded
+                await parsed
                 const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
                 if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
                 const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
@@ -192,7 +213,9 @@ const main = async () => {
                 await browser.stop()
             }
         } finally {
-            await rm(profile, { recursive: true, force: true })
+            // A killed browser's helpers can still be writing here for a
+            // moment, so the removal retries rather than fail the step.
+            await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
         }
     } finally {
         server.close()
