@@ -171,7 +171,8 @@ loopStatement ::= const | let | bodyNameStatement | whileStatement | forStatemen
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
 loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
-forStatement ::= 'for' '(' [ forInitializer ] ';' [ value ] ';' [ nameExpression ] ')' loopBlock
+forStatement ::= 'for' '(' ( [ forInitializer ] ';' [ value ] ';' [ nameExpression ]
+                         | ( 'const' | 'let' ) target 'of' value ) ')' loopBlock
 forInitializer ::= ( 'const' | 'let' ) target '=' value | nameExpression
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
@@ -208,6 +209,15 @@ entry  ::= '...' value | member
 member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
+
+The syntax layer also represents braced `for…of` declaration loops, including
+binding patterns, independently of FunctionalScript admission. Its distinct
+`for-of` node retains the declaration, iterable expression and body.
+`parseFromTokens` explicitly refuses that node at the `for` token, including
+at module level or inside nested bodies. No iterable is evaluated and no FAST
+or EDAG lowering is defined by this syntax support. Classic `for` retains its
+existing syntax representation and admission. `of` remains an ordinary name
+outside the header separator, as in `for (const of of of)`.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.

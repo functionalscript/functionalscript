@@ -40,7 +40,7 @@ import type {
  * The words a rule requires in some position — six framing a module,
  * `return` and `throw` ending a function's block body, `throw` a module
  * too, `if` opening a guard in one, `else` an alternate, `let` and `while` a loop,
- * `break` and `continue` its transfers, `switch` and `case` a switch, `as` an import alias, and `typeof` a prefix
+ * `break` and `continue` its transfers, `switch` and `case` a switch, `as` an import alias, `of` an iteration header, and `typeof` a prefix
  * opening a value — which the
  * grammar has to tell apart from an ordinary identifier.
  *
@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'typeof' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'of' | 'typeof' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -538,15 +538,25 @@ export type ModuleStatement = {
 /** The plain loop form shared by module and function statements. */
 export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
 
-/** The initialized declaration or named expression before a classic `for` test. */
-export type ForInitializer = {
-    readonly const: readonly [number, BindingTarget, number, Value]
-    readonly let: readonly [number, BindingTarget, number, Value]
-    readonly name: NameExpression
+/** A classic loop's condition and step, separated by an explicit semicolon. */
+export type ForClassicTail = readonly [Option<Value>, number, Option<NameExpression>]
+
+/** A declaration's binding target is shared before `=` or the contextual `of`. */
+export type ForDeclarationTail = {
+    readonly classic: readonly [number, Value, number, ForClassicTail]
+    readonly of: readonly [number, Value]
 }
 
-/** Explicit separators distinguish empty clauses without automatic semicolons. */
-export type ForStatement = readonly [number, number, Option<ForInitializer>, number, Option<Value>, number, Option<NameExpression>, number, LoopBlock]
+/** Distinct first tokens select a declaration, named classic initializer or empty classic initializer. */
+export type ForHeader = {
+    readonly const: readonly [number, BindingTarget, ForDeclarationTail]
+    readonly let: readonly [number, BindingTarget, ForDeclarationTail]
+    readonly name: readonly [NameExpression, number, ForClassicTail]
+    readonly empty: readonly [number, ForClassicTail]
+}
+
+/** A single `for` prefix keeps classic and declaration-based `for...of` headers LL(1). */
+export type ForStatement = readonly [number, number, ForHeader, number, LoopBlock]
 
 /** `{`, a loop's statements, and `}`: no terminator, since the `}` continues the loop. */
 export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]

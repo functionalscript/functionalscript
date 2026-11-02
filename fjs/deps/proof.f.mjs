@@ -54,6 +54,16 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0, state.stderr)
         assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
     },
+    forOfSyntaxDoesNotRequireCompilationOrExecution: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('for(const item of notDefined){throw "must not execute";}export default 0;')],
+            nested: { 'module.f.js': [utf8('export default ()=>{for(let [key,value] of missing){continue;}return 0;};')] },
+            imported: { 'module.f.mjs': [utf8('import {of} from "./absent.f.mjs";export default ()=>{for(const {value} of of){return value;}return undefined;};')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stderr, '')
+    },
     failuresContinue: () => {
         const [state, result] = execute({
             invalid: { 'module.f.mjs': [utf8('export default ;')] },

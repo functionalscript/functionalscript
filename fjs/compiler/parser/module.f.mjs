@@ -14,7 +14,7 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, If, Import, Item, Key, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -60,6 +60,9 @@ const duplicateId = foldError('duplicate id')
 
 /** A braced switch arm must leave the arm rather than fall into the next one. */
 const unterminatedCase = foldError('switch case does not terminate')
+
+/** Generic syntax retains for-of; iteration remains outside FJS admission. */
+const unsupportedForOf = foldError('for-of is not admitted')
 
 /** Explicit throw in the ordinary join profile remains separate admission work. */
 const throwingArm = foldError('ordinary conditional arms do not admit explicit throw')
@@ -217,7 +220,7 @@ const brokenLine = statement => statement.first.newline
  * asked; nor is a guard or a switch, which ends at its `}` and takes no
  * `;`, so the statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | If | NormalIf | Switch | LoopSwitch | While | null, next: Statement | If | NormalIf | Switch | LoopSwitch | While) => boolean}
+ * @type {(previous: Statement | If | NormalIf | Switch | LoopSwitch | While | ForOf | null, next: Statement | If | NormalIf | Switch | LoopSwitch | While | ForOf) => boolean}
  */
 const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
 
@@ -1099,6 +1102,7 @@ const bodyRound = (stack, scope, frame) => {
     const { statements, first, index } = frame
     if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
     const [kind, statement] = statements[index]
+    if (kind === 'for-of' || kind === 'terminal-for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
     // the statement's own beginning before either half of it: the one
     // before it, written without its `;`, ends at a newline or not at all
     if (unterminated(index === first ? null : statements[index - 1][1], statement)) {
@@ -1678,7 +1682,7 @@ const returned = (stack, scope, frame, value) => {
         }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
-        assert(kind !== 'while' && kind !== 'for' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        assert(kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
@@ -1939,6 +1943,7 @@ const loopRound = (stack, scope, frame) => {
             return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
+        if (kind === 'for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
@@ -2212,6 +2217,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
+        if (statement[0] === 'for-of') { return error(unsupportedForOf(statement[1].start)) }
         if (statement[0] === 'while' || statement[0] === 'for') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }

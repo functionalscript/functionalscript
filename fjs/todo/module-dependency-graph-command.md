@@ -56,6 +56,8 @@ in the epic.
         `module.f.mjs` files using the current parser.
   - [ ] Ensure a generic AST can be formed for every `.f.mjs` file in the repository,
         including files the current compiler cannot parse or lower into FAST or EDAG.
+    - [x] Parse braced declaration `for…of` loops as syntax, while retaining FJS
+          compilation refusal; tracked in [remaining for forms](../../spec/todo/3270-for.md#generic-forof-syntax).
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
