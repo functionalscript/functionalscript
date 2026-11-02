@@ -5,6 +5,18 @@
 ([functions](../functions/README.md)); the language-design approval is still
 to be recorded, and pattern defaults remain
 
+### Pattern-default implementation approval
+
+The language designer `sergey-shandar` requested pattern-default desugaring in
+the [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+after confirming that `({ a = 5 }) => a` has `length === 1` and tests the
+property value against `undefined`. This approves the pattern-default increment
+for declarations and parameter patterns described below: read once, evaluate
+the fallback only for `undefined`, preserve binding order and existing scope
+checks, and reuse the current FAST/EDAG operations. A default inside a pattern
+does not make the whole parameter optional or reduce function arity. Broader
+parameter-scope changes remain separate work.
+
 ```js
 const x = {}
 const f = (a, b = x, ...r) => [a, b, r]
