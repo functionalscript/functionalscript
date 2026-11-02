@@ -137,6 +137,8 @@ The approval and rationale are part of the
           retaining syntax omission and supplying primitive `undefined` at admission.
     - [x] Replace nine Number counter `++` uses in loop completions and Markdown
           with explicit reads and `+= 1`, preserving the old index and update order.
+    - [x] Wrap single-return/throw switch case and default bodies in eight
+          implementation modules with braces, preserving dispatch and completion.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

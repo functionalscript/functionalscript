@@ -246,14 +246,14 @@ const check = expression => {
         return null
     }
     switch (expression[0]) {
-        case 'ref': return checkReference(expression)
-        case 'set': return checkSet(expression)
-        case 'list': return checkList(expression)
-        case 'apply': return checkApplication(expression)
-        case 'lambda': return checkLambda(expression)
-        case 'let': return checkLet(expression)
-        case 'indented-string': return checkIndentedString(expression)
-        default: return `not an expression: ${quoted(`${expression[0]}`)}`
+        case 'ref': { return checkReference(expression) }
+        case 'set': { return checkSet(expression) }
+        case 'list': { return checkList(expression) }
+        case 'apply': { return checkApplication(expression) }
+        case 'lambda': { return checkLambda(expression) }
+        case 'let': { return checkLet(expression) }
+        case 'indented-string': { return checkIndentedString(expression) }
+        default: { return `not an expression: ${quoted(`${expression[0]}`)}` }
     }
 }
 
@@ -386,14 +386,14 @@ const serialize = level => expression => {
         return [quoted(expression)]
     }
     switch (expression[0]) {
-        case 'ref': return [serializeReference(expression)]
-        case 'set': return serializeSet(level)(expression)
-        case 'list': return serializeList(expression)
-        case 'apply': return serializeApplication(level)(expression)
-        case 'lambda': return serializeLambda(level)(expression)
-        case 'let': return serializeLet(level)(expression)
+        case 'ref': { return [serializeReference(expression)] }
+        case 'set': { return serializeSet(level)(expression) }
+        case 'list': { return serializeList(expression) }
+        case 'apply': { return serializeApplication(level)(expression) }
+        case 'lambda': { return serializeLambda(level)(expression) }
+        case 'let': { return serializeLet(level)(expression) }
         // `'indented-string'`, the one tag left: `check` refuses any other
-        default: return serializeIndentedString(level)(expression)
+        default: { return serializeIndentedString(level)(expression) }
     }
 }
 

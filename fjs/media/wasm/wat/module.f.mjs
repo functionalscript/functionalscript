@@ -349,48 +349,69 @@ const operands = (c, x) => {
     /** @type {(index: number) => string} */
     const memory = index => index === 0 ? '' : ref('memory', index)
     switch (x[0]) {
-        case 'block': case 'loop': case 'if':
+        case 'block': case 'loop': case 'if': {
             return `${blockType(c, x[1])} ${comment(`;; label = @${c.depth + 1}`)}`
-        case 'br': case 'br_if':
+        }
+        case 'br': case 'br_if': {
             return label(c, x[1])
-        case 'br_table':
+        }
+        case 'br_table': {
             return [...x[1], x[2]].map(d => label(c, d)).join('')
-        case 'call': case 'ref.func':
+        }
+        case 'call': case 'ref.func': {
             return ref('func', x[1])
-        case 'call_indirect':
+        }
+        case 'call_indirect': {
             return `${x[2] === 0 ? '' : ref('table', x[2])} ${typeUseRef(c, x[1])}`
-        case 'local.get': case 'local.set': case 'local.tee':
+        }
+        case 'local.get': case 'local.set': case 'local.tee': {
             return ` ${reference(c.locals, x[1])}`
-        case 'global.get': case 'global.set':
+        }
+        case 'global.get': case 'global.set': {
             return ref('global', x[1])
-        case 'table.get': case 'table.set': case 'table.grow': case 'table.size': case 'table.fill':
+        }
+        case 'table.get': case 'table.set': case 'table.grow': case 'table.size': case 'table.fill': {
             return ref('table', x[1])
-        case 'memory.size': case 'memory.grow': case 'memory.fill':
+        }
+        case 'memory.size': case 'memory.grow': case 'memory.fill': {
             return memory(x[1])
-        case 'memory.init':
+        }
+        case 'memory.init': {
             return `${memory(x[2])}${ref('data', x[1])}`
-        case 'memory.copy':
+        }
+        case 'memory.copy': {
             return x[1] === 0 && x[2] === 0 ? '' : `${ref('memory', x[1])}${ref('memory', x[2])}`
-        case 'data.drop':
+        }
+        case 'data.drop': {
             return ref('data', x[1])
-        case 'table.init':
+        }
+        case 'table.init': {
             return `${x[2] === 0 ? '' : ref('table', x[2])}${ref('elem', x[1])}`
-        case 'elem.drop':
+        }
+        case 'elem.drop': {
             return ref('elem', x[1])
-        case 'table.copy':
+        }
+        case 'table.copy': {
             return x[1] === 0 && x[2] === 0 ? '' : `${ref('table', x[1])}${ref('table', x[2])}`
-        case 'select':
+        }
+        case 'select': {
             return x.length === 1 ? '' : ` (${kw('result')}${x[1].map(t => ` ${kw(t)}`).join('')})`
-        case 'i32.const': case 'i64.const':
+        }
+        case 'i32.const': case 'i64.const': {
             return ` ${num(`${x[1]}`)}`
-        case 'f32.const':
+        }
+        case 'f32.const': {
             return ` ${float(32, BigInt(x[1]))}`
-        case 'f64.const':
+        }
+        case 'f64.const': {
             return ` ${float(64, x[1])}`
-        case 'ref.null':
+        }
+        case 'ref.null': {
             return ` ${heapType(x[1])}`
-        default:
+        }
+        default: {
             return x.length === 2 ? memarg(x[0], x[1]) : ''
+        }
     }
 }
 
