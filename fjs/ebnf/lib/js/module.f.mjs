@@ -22,8 +22,9 @@
  *   followed by the identifier `abc`, and the layer above the tokens
  *   refuses the two for standing side by side, as that record says.
  *
- * A string is JSON's, or JSON's spelled between single quotes
- * ({@link string}). Decimal and hexadecimal digits reuse JSON's rules;
+ * A double-quoted string is JSON's; single quotes also admit delimiter,
+ * vertical-tab and two-digit hexadecimal escapes ({@link string}). Decimal
+ * and hexadecimal digits reuse JSON's rules;
  * JavaScript's digit runs add optional separators between digits. A
  * line comment stops before its newline, which is the next token; the
  * classical grammar swallowed it and split it back out below the
@@ -100,16 +101,16 @@ const idChar = /**@type {const}*/({ ...idStart, digit })
 const [backslash, { c: simple, u: unicode }] = escape
 
 /**
- * An escape inside a single-quoted string: JSON's, whose simple escapes
- * gain `\'` — the one character the delimiter makes necessary to escape,
- * as `\"` is inside `"…"`. The rest of JavaScript's escapes are not
- * FunctionalScript's (`spec/todo/2460-js-string-literals.md`).
+ * An escape inside a single-quoted string: JSON's, plus the delimiter
+ * `\'`, the vertical tab `\v`, and exactly two hexadecimal digits
+ * after `\x`. Other JavaScript escapes remain separate proposals
+ * (`spec/todo/2460-js-string-literals.md`).
  */
-const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'")), u: unicode }])
+const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'v")), u: unicode, x: ['x', hex, hex] }])
 
 /**
- * A string between single quotes: JSON's string with the delimiters
- * swapped, so a `"` stands for itself and a `'` is escaped.
+ * A string between single quotes: a `"` stands for itself and a `'` is
+ * escaped, with the escapes described by `singleQuoteEscape`.
  */
 const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
     c: remove(range(` ${unicodeMax}`), set("'\\")),
@@ -117,8 +118,8 @@ const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
 }), "'"])
 
 /**
- * A string: JSON's, between double quotes, or the same between single
- * quotes. Both denote the value their characters and escapes spell; which
+ * A string: JSON's between double quotes, or `singleQuoted`. Both denote
+ * the value their characters and escapes spell; which
  * quote was used is a spelling, and the token does not keep it.
  */
 export const string = /**@type {const}*/({ double: jsonString, single: singleQuoted })

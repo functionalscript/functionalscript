@@ -2,7 +2,8 @@
 
 **Status:** implemented
 
-A string is JSON's, between double quotes or between single quotes:
+A double-quoted string is JSON's. A single-quoted string also accepts an
+escaped apostrophe, `\xHH` and `\v`:
 
 ```js
 export default ["hello!", 'hello!'];

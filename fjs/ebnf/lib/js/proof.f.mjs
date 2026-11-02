@@ -107,6 +107,9 @@ export const proof = {
             assertStructurallySame(read('"é😀"'), ['string', '"é😀"', 4])
             assertStructurallySame(read("'a\\'\"b'x"), ['string', "'a\\'\"b'", 7])
             assertStructurallySame(read("''"), ['string', "''", 2])
+            const escaped = /** @type {const} */ ("'\\x00\\xFf\\v'")
+            assertStructurallySame(read(escaped), ['string', escaped, escaped.length])
+            assertStructurallySame(read("'\\x411'next"), ['string', "'\\x411'", 7])
         },
         template: () => {
             assertStructurallySame(read('``x'), ['template', '``', 2])
@@ -213,7 +216,15 @@ export const proof = {
         assertStructurallySame(parseToken(cps('"\\x"')), ['error', 2])
         // `\'` is the single-quoted string's, not JSON's
         assertStructurallySame(parseToken(cps('"\\\'"')), ['error', 2])
-        assertStructurallySame(parseToken(cps("'\\x'")), ['error', 2])
+        assertStructurallySame(parseToken(cps('"\\x41"')), ['error', 2])
+        assertStructurallySame(parseToken(cps('"\\v"')), ['error', 2])
+        assertStructurallySame(parseToken(cps("'\\x'")), ['error', 3])
+        assertStructurallySame(parseToken(cps("'\\x0'")), ['error', 4])
+        assertStructurallySame(parseToken(cps("'\\xG1'")), ['error', 3])
+        assertStructurallySame(parseToken(cps("'\\x1G'")), ['error', 4])
+        assertStructurallySame(parseToken(cps("'\\x41")), ['error', 5])
+        assertStructurallySame(parseToken(cps("'\\X41'")), ['error', 2])
+        assertStructurallySame(parseToken(cps("'\\V'")), ['error', 2])
         assertStructurallySame(parseToken(cps("'abc")), ['error', 4])
     },
     throw: {
