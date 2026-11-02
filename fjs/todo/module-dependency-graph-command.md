@@ -135,7 +135,7 @@ The approval and rationale are part of the
           preserving JavaScript behavior and the existing FJS syntax policy.
     - [x] Parse and admit [named `let` declarations without initializers](#named-let-declarations-without-initializers),
           retaining syntax omission and supplying primitive `undefined` at admission.
-    - [ ] Replace nine Number counter `++` uses in loop completions and Markdown
+    - [x] Replace nine Number counter `++` uses in loop completions and Markdown
           with explicit reads and `+= 1`, preserving the old index and update order.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
