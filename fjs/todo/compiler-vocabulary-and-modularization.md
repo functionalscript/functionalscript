@@ -1066,6 +1066,8 @@ parts do not delay the epic's foundation gate:
 - [x] Reconcile completed output profiles with the central control-flow audit
       and remaining tasks. Prepare the explicit-return ownership contract for
       review and define the next ordinary-if admission boundary.
+- [ ] Admit the approved case 6 ordinary-function conditional using existing
+      immutable joins, retaining explicit final returns and source binding checks.
 - [ ] Extend common `while` and source plans for explicitly refused backedge
       profiles, preserving the current refusal until a bounded plan is proven.
       Cover deep execution, argument snapshots and invocation-local lifetimes.
