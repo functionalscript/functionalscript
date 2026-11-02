@@ -83,7 +83,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    than `built-in` admits it, since admitting a name a module may already
    have bound is a breaking change, so the list may land a name at a time
    (its file says P3, not this list's P2),
-6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+6. [x] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 7. [x] computed property key from an expression — `{ [name]: 0 }`
    ([property keys](../values/objects/README.md#property-keys)).
 8. [x] [the `in` operator](../operators/in/README.md) — with a

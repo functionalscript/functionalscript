@@ -211,7 +211,7 @@ optionalStep ::= id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member
-member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
+member ::= id [ ':' value ] | string ':' value | number ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
 
@@ -238,6 +238,12 @@ Standalone expressions beginning with `new` also form syntax statements at
 module level and inside function or loop bodies. They retain the original
 `new` token and use the existing discarded-value statement shape, including
 following member and call steps, before the same admission refusal.
+
+Number literal object keys retain their numeric token, value and source
+location in the syntax AST. Admission routes `{ 0x70: value }` through the
+existing computed-key path for `{ [0x70]: value }`, yielding the same numeric
+key operand in FAST. Number literal keys in binding patterns similarly reuse
+the existing constant-key read. This adds no FAST/EDAG operation or runtime rule.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.

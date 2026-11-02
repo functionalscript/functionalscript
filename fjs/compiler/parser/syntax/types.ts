@@ -322,8 +322,8 @@ export type Entry = Member | readonly ['...', Node]
  * A member of an object, `key: value`: the token its key begins with,
  * which anchors the error a plain `__proto__` earns, the key by its
  * spelling, and the value. A constant key is the name its token spells,
- * {@link ConstantMember}; a computed key, `[k]`, is the node between the
- * brackets, {@link ComputedMember}, evaluated before the value as
+ * {@link ConstantMember}; a computed key, `[k]`, or a Number literal key
+ * retains its expression node, {@link ComputedMember}, evaluated before the value as
  * JavaScript evaluates the two. The spelling matters for `__proto__`
  * alone: the computed and the shorthand spellings denote an own property,
  * the other two a prototype.
@@ -343,13 +343,14 @@ export type ConstantMember = {
 }
 
 /**
- * A member whose key is computed, `[k]: v`: the node between the brackets,
- * any value — `["a"]` is the constant `"a"` by another spelling, and `[a]`
- * a key read at run time.
+ * A member whose key is a value: a bracketed expression, `[k]: v`, or a
+ * Number literal, `0x70: v`. Their spelling stays distinct while both retain
+ * the key's value node — `["a"]` is the constant `"a"` by another spelling,
+ * and `[a]` a key read at run time.
  */
 export type ComputedMember = {
     readonly key: ModuleTokenWithMetadata
-    readonly spelling: 'computed'
+    readonly spelling: 'computed' | 'number'
     readonly node: Node
     readonly value: Node
 }

@@ -99,7 +99,6 @@ describes:
 | `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard; page: [A Guarded Namespace Is Refused](../built-ins/static-functions/guarded/README.md)) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key); page: [A `__proto__:` Key Is Refused](../values/objects/proto-key/README.md)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
-| `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md); page: [Binding a Literal Word Is Refused](../bindings/literal-words/README.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value; page: [Binding a Built-in's Name Is Refused](../bindings/intrinsic-names/README.md)) |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |

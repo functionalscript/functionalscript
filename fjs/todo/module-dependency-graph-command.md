@@ -72,9 +72,10 @@ This records no approval of FunctionalScript constructor semantics.
 
 ### Numeric object keys
 
-Admit Number literal property names such as `{ 0x70: 'a' }` in the generic AST
-and FunctionalScript, including the equivalent literal keys in binding patterns.
-Retain the original numeric token, value and source location, then reuse the
+Number literal property names such as `{ 0x70: 'a' }` are admitted in the
+generic AST and FunctionalScript, including the equivalent literal keys in
+binding patterns. The syntax retains the original numeric token, value and
+source location, then reuses the
 existing computed-key lowering for `{ [0x70]: 'a' }`. FAST already represents
 this as `['object', [[':', 112, 'a']]]`; the current object-construction path
 converts the numeric key to its property name. Preserve member evaluation order
@@ -105,7 +106,7 @@ for this numeric-key increment.
           [default parameters and patterns](../../spec/todo/3125-default-parameters.md).
     - [x] Parse the bounded [constructor-expression syntax](#constructor-expression-syntax)
           while retaining explicit FunctionalScript refusal.
-    - [ ] Parse and admit [numeric object keys](#numeric-object-keys), reusing
+    - [x] Parse and admit [numeric object keys](#numeric-object-keys), reusing
           computed-key desugaring and existing execution semantics.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
