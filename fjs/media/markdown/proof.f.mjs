@@ -120,6 +120,34 @@ export const proof = {
         strongLinkLabels: () => assertStructurallySame(spans(`**[${tick}a${tick} b](u) [${tick}c${tick}](v)**`), [
             ['strong', [['link', [['code', 'a'], ['text', ' b']], 'u'], ['text', ' '], ['link', [['code', 'c']], 'v']]],
         ]),
+        // Bold holds emphasis between its runs, or right before it closes;
+        // the emphasis holds what a body holds.
+        strongEm: () => assertStructurallySame(spans('**a *b* c *d* e**'),
+            [['strong', [['text', 'a '], ['em', [['text', 'b']]], ['text', ' c '], ['em', [['text', 'd']]], ['text', ' e']]]]),
+        strongEmClosing: () => assertStructurallySame(spans('**a *b***'),
+            [['strong', [['text', 'a '], ['em', [['text', 'b']]]]]]),
+        strongEmSpans: () => assertStructurallySame(spans(`**a *${tick}b${tick} [c](u)* d**`),
+            [['strong', [['text', 'a '], ['em', [['code', 'b'], ['text', ' '], ['link', [['text', 'c']], 'u']]], ['text', ' d']]]]),
+        // Emphasis inside bold is checked as emphasis is, and against the
+        // spans beside it in the bold.
+        strongEmRefusals: () => {
+            const flanking = 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside'
+            assertEq(tryParseEntry('**a * b* c**')[1], 'bold or emphasis padded with a space')
+            assertEq(tryParseEntry('**a*(b)* c**')[1], flanking)
+            assertEq(tryParseEntry('**a *(b)*c**')[1], flanking)
+            // The bold's own closing run sees the emphasis's asterisk inside it.
+            assertEq(tryParseEntry('**a *b***c')[1], flanking)
+            assertEq(tryParseEntry('**a *<https://e.x>* c**')[1], 'an autolink inside bold or emphasis')
+            assertEq(tryParseEntry('**a *~b~* c**')[1], 'a tilde pair in a span body, which GitHub may read as strikethrough')
+            // Strikethrough may cross the emphasis.
+            assertEq(tryParseEntry('**~a *b* c~**')[1], 'a tilde pair in a span body, which GitHub may read as strikethrough')
+            assertStructurallySame(tryParseEntry('**a *![b](u)* c**'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('**a *b* ![c](u)**'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('**![a](u) *b***'), error('an image inside bold or emphasis'))
+            // Bold inside emphasis is no nesting this reads: the grammar
+            // matches three emphasis spans side by side, which are refused.
+            assertEq(tryParseEntry('*a**b**c*')[1], 'bold or emphasis side by side, which GitHub reads otherwise')
+        },
         // Two backticks open a span that may hold one, and the one space
         // each end carries is stripped, as CommonMark strips it.
         doubleCode: () => assertStructurallySame(spans(`a ${tick}${tick} f${tick}x${tick} ${tick}${tick}`),
@@ -322,6 +350,7 @@ export const proof = {
             targetInsideStrong: () => assertStructurallySame(tryParseEntry('**[a](&amp;)**'), error('an entity in a link target')),
             // After an `!`, GitHub reads an image, which bold does not hold here.
             imageInsideStrong: () => assertStructurallySame(tryParseEntry('**a ![b](u)**'), error('an image inside bold or emphasis')),
+            imageInsideEm: () => assertStructurallySame(tryParseEntry('*a ![b](u)*'), error('an image inside bold or emphasis')),
             labelWithCode: () => assertStructurallySame(
                 spans(`[the ${tick}a${tick} file](u)`),
                 [['link', [['text', 'the '], ['code', 'a'], ['text', ' file']], 'u']]),

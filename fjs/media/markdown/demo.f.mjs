@@ -23,7 +23,7 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../html/types.ts'
- * @import { Emphasised, Entry, Inline, LinkLabel } from './types.ts'
+ * @import { Bolded, Entry, Inline, LinkLabel } from './types.ts'
  */
 
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
@@ -31,11 +31,15 @@ import { tryParse } from './module.f.mjs'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
- * A label's or a body's span as a node: code, a link, or its words.
+ * A label's or a body's span as a node: code, a link, emphasis inside bold,
+ * or its words.
  *
- * @type {(l: LinkLabel | Emphasised) => Node}
+ * @type {(l: LinkLabel | Bolded) => Node}
  */
-const labelNode = l => l[0] === 'code' ? ['code', l[1]] : l[0] === 'link' ? ['a', { href: l[2] }, ...l[1].map(labelNode)] : l[1]
+const labelNode = l => l[0] === 'code' ? ['code', l[1]]
+    : l[0] === 'link' ? ['a', { href: l[2] }, ...l[1].map(labelNode)]
+    : l[0] === 'em' ? ['em', ...l[1].map(labelNode)]
+    : l[1]
 
 /**
  * One span: the name the parser gave it, then the span rendered as itself.
@@ -67,6 +71,8 @@ export const proof = /** @type {const} */ ({
     // A link inside bold is drawn as a link.
     strongLink: () => assertStructurallySame(spanView(['strong', [['text', 'see '], ['link', [['code', 'a']], 'u']]]),
         ['li', ['code', 'strong'], ' ', ['strong', 'see ', ['a', { href: 'u' }, ['code', 'a']]]]),
+    strongEm: () => assertStructurallySame(spanView(['strong', [['text', 'a '], ['em', [['text', 'b']]]]]),
+        ['li', ['code', 'strong'], ' ', ['strong', 'a ', ['em', 'b']]]),
 })
 
 /**
