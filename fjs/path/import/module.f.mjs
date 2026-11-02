@@ -41,9 +41,9 @@ const importSegment = segment => {
  */
 const importSegmentKind = segment => {
     switch (segment.toLowerCase()) {
-        case '.': case '%2e': return 'skip'
-        case '..': case '.%2e': case '%2e.': case '%2e%2e': return 'up'
-        default: return 'keep'
+        case '.': case '%2e': { return 'skip' }
+        case '..': case '.%2e': case '%2e.': case '%2e%2e': { return 'up' }
+        default: { return 'keep' }
     }
 }
 

@@ -105,10 +105,12 @@ const measure = d => {
     switch (d[0]) {
         case 'terminal':
         case 'category':
-        case 'nonTerminal':
+        case 'nonTerminal': {
             return { width: labelWidth(d[1]), up: boxHalf, down: boxHalf }
-        case 'skip':
+        }
+        case 'skip': {
             return { width: 0, up: 0, down: 0 }
+        }
         case 'sequence': {
             const sizes = d[1].map(measure)
             return {
@@ -182,14 +184,18 @@ const padded = (inner, backward) => d => (x, y) => {
  */
 const draw = backward => d => (x, y) => {
     switch (d[0]) {
-        case 'terminal':
+        case 'terminal': {
             return terminalBox(d[1])(x, y)
-        case 'category':
+        }
+        case 'category': {
             return categoryBox(d[1])(x, y)
-        case 'nonTerminal':
+        }
+        case 'nonTerminal': {
             return [['a', { href: `#${anchor(d[1])}` }, ...nonTerminalBox(d[1])(x, y)]]
-        case 'skip':
+        }
+        case 'skip': {
             return []
+        }
         case 'sequence': {
             const items = backward ? d[1].toReversed() : d[1]
             /** @type {readonly number[]} */
