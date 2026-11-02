@@ -26,7 +26,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { extname, join, resolve, sep } from 'node:path'
 import { cardPagePath, cardSize, cardsPath } from './card/module.f.mjs'
-import { cardImageName } from './page/module.f.mjs'
+import { cardImageName, urlPath } from './page/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.js'
 
 /** @type {Readonly<Record<string, string>>} */
@@ -167,7 +167,7 @@ const shoot = async (url, origin, cards) => {
             // Handled at once: should the navigation fail first, its
             // rejection is the error, and this one is not left unhandled.
             parsed.catch(() => undefined)
-            await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
+            await send('Page.navigate', { url: `${origin}/${urlPath(cardPagePath(path))}` }, sessionId)
             await parsed
             const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
             if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }

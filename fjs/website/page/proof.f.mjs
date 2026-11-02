@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
 import { origin, productionOrigin } from '../origin/module.f.js'
 
 /** @type {(dir: Dir) => string} */
@@ -183,6 +183,7 @@ export const proof = {
      * root itself rather than under `./`. Neither is encoded: a path to
      * write is not a URL.
      */
+    urlPath: () => assertEq(urlPath('fjs/a#b/c?d/100%/%20/é x/_card.html'), 'fjs/a%23b/c%3Fd/100%25/%2520/%C3%A9%20x/_card.html'),
     pagePath: {
         root: () => assertEq(pagePath('.'), 'index.html'),
         nested: () => assertEq(pagePath('fjs/types/list'), 'fjs/types/list/index.html'),
