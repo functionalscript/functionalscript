@@ -20,7 +20,7 @@ export const images = /** @type {const} */({
     }
 })
 
-export const functionalscript = /** @type {const} */ '0.57.0'
+export const functionalscript = /** @type {const} */ '0.58.0'
 
 export const bun = '1.4.4'
 
@@ -36,7 +36,7 @@ export const rust = '1.99.1'
 
 export const jobTimeout = /** @type {const} */ (30)
 
-export const wasmtime = '50.0.0'
+export const wasmtime = '50.0.1'
 
 export const wasmer = '7.5.0'
 

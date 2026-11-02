@@ -197,7 +197,7 @@
           "if": "steps.init.outputs.hit-rust != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-spidermonkey-compile != 'true' || steps.init.outputs.hit-spidermonkey-suite != 'true'"
         },
         {
-          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.0\"",
+          "run": "test \"$(mise exec -- wasmtime --version | cut -d' ' -f1,2)\" = \"wasmtime 50.0.1\"",
           "shell": "bash",
           "if": "steps.init.outputs.hit-rust != 'true'"
         },

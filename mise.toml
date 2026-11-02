@@ -25,15 +25,15 @@ windows-x64 = { asset_pattern = "deno-x86_64-pc-windows-msvc.zip" }
 windows-arm64 = { asset_pattern = "deno-aarch64-pc-windows-msvc.zip" }
 
 [tools."github:bytecodealliance/wasmtime"]
-version = "50.0.0"
+version = "50.0.1"
 
 [tools."github:bytecodealliance/wasmtime".platforms]
-linux-x64 = { asset_pattern = "wasmtime-v50.0.0-x86_64-linux.tar.xz" }
-linux-arm64 = { asset_pattern = "wasmtime-v50.0.0-aarch64-linux.tar.xz" }
-macos-x64 = { asset_pattern = "wasmtime-v50.0.0-x86_64-macos.tar.xz" }
-macos-arm64 = { asset_pattern = "wasmtime-v50.0.0-aarch64-macos.tar.xz" }
-windows-x64 = { asset_pattern = "wasmtime-v50.0.0-x86_64-windows.zip" }
-windows-arm64 = { asset_pattern = "wasmtime-v50.0.0-aarch64-windows.zip" }
+linux-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-linux.tar.xz" }
+linux-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-linux.tar.xz" }
+macos-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-macos.tar.xz" }
+macos-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-macos.tar.xz" }
+windows-x64 = { asset_pattern = "wasmtime-v50.0.1-x86_64-windows.zip" }
+windows-arm64 = { asset_pattern = "wasmtime-v50.0.1-aarch64-windows.zip" }
 
 [tools."github:wasmerio/wasmer"]
 version = "7.5.0"
