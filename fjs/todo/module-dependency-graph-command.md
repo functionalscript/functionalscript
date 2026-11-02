@@ -143,8 +143,9 @@ The approval and rationale are part of the
           in emergent testing and the byte grammar without extending the parser.
     - [x] Replace simple destructuring assignments in SUL, BigInt combinations
           and inflate with ordered ordinary assignments, preserving old values.
-    - [ ] Add braces around the four remaining single-statement UTF-8 guards,
+    - [x] Add braces around the four remaining single-statement UTF-8 guards,
           preserving behavior and reporting the next unsupported construct.
+          UTF-8 next refuses `[x] = state` in `utf8StateToError`.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
