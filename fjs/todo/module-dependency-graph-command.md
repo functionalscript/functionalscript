@@ -150,6 +150,8 @@ The approval and rationale are part of the
     - [x] Replace the website demo's control re-export with aliased imports and
           declaration exports, tracking automatic desugaring in
           [export lists](../../spec/todo/export-lists.md).
+    - [ ] Evaluate replacing host-iterable consumers with `alt.toArray`, checking
+          bounded traversal and measuring representative performance.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
