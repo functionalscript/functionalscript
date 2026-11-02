@@ -1070,6 +1070,9 @@ parts do not delay the epic's foundation gate:
       review and define the next ordinary-if admission boundary.
 - [x] Admit the approved case 6 ordinary-function conditional using existing
       immutable joins, retaining explicit final returns and source binding checks.
+- [ ] Admit partly returning ordinary conditionals for cases 4 and 7, including
+      the nested `m` example. Preserve owning returns and one normal continuation
+      with zero or one joined outer binding; keep explicit function terminators.
 - [ ] Extend common `while` and source plans for explicitly refused backedge
       profiles, preserving the current refusal until a bounded plan is proven.
       Cover deep execution, argument snapshots and invocation-local lifetimes.
