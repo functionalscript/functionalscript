@@ -13,6 +13,8 @@
  * step adds no npm dependency. `CHROME_PATH` names the browser, and
  * `google-chrome`, which GitHub's Ubuntu runners carry, is the default.
  *
+ * **Several tabs at once**, each taking the next card from one queue.
+ *
  * **The site is served while it is taken**, from the built tree on a local
  * port, because a card page links the site's stylesheet root-relatively, as
  * every page does.
@@ -145,6 +147,14 @@ const connect = url => new Promise((ready, fail) => {
 })
 
 /**
+ * How many cards are taken at once, each in a tab of its own: GitHub's
+ * standard Linux runner has four cores. `CARD_TABS` overrides it.
+ *
+ * @type {number}
+ */
+const tabs = Number(process.env.CARD_TABS ?? 4)
+
+/**
  * Screenshots each card in `cards`, served at `origin`, through the browser
  * whose DevTools endpoint is `url`.
  *
@@ -154,26 +164,31 @@ const shoot = async (url, origin, cards) => {
     const socket = await connect(url)
     try {
         const { send, next } = devtools(socket)
-        const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
-        const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
-        await send('Page.enable', {}, sessionId)
-        await send('Emulation.setDeviceMetricsOverride', { ...cardSize, deviceScaleFactor: 1, mobile: false }, sessionId)
-        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
-        for (const path of cards) {
-            // Parsed, not loaded: the load event waits for every image,
-            // where `cardReady` waits for each five seconds at most. The
-            // card's script, after its stylesheet, has run by now.
-            const parsed = next('Page.domContentEventFired', sessionId)
-            // Handled at once: should the navigation fail first, its
-            // rejection is the error, and this one is not left unhandled.
-            parsed.catch(() => undefined)
-            await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
-            await parsed
-            const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
-            if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
-            const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
-            await writeFile(pathConcat(path)(cardImageName), Buffer.from(data, 'base64'))
-        }
+        // Every tab takes the next card from one shared queue, so a card
+        // waiting on a slow image holds up its own tab and no other.
+        const queue = cards.values()
+        await Promise.all(Array.from({ length: tabs }, async () => {
+            const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
+            const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
+            await send('Page.enable', {}, sessionId)
+            await send('Emulation.setDeviceMetricsOverride', { ...cardSize, deviceScaleFactor: 1, mobile: false }, sessionId)
+            await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
+            for (const path of queue) {
+                // Parsed, not loaded: the load event waits for every image,
+                // where `cardReady` waits for each five seconds at most. The
+                // card's script, after its stylesheet, has run by now.
+                const parsed = next('Page.domContentEventFired', sessionId)
+                // Handled at once: should the navigation fail first, its
+                // rejection is the error, and this one is not left unhandled.
+                parsed.catch(() => undefined)
+                await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
+                await parsed
+                const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
+                if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
+                const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
+                await writeFile(pathConcat(path)(cardImageName), Buffer.from(data, 'base64'))
+            }
+        }))
     } finally {
         socket.close()
     }
