@@ -573,10 +573,21 @@ export type ForDeclarationTail = {
     readonly of: readonly [number, Value]
 }
 
+/** Only a named `let` can omit its classic initializer; its semicolon remains explicit. */
+export type ForNamedLetTail = ForDeclarationTail & {
+    readonly uninitialized: readonly [number, ForClassicTail]
+}
+
+/** Named and pattern declarations share `of`, while a pattern's classic initializer is required. */
+export type ForLetBinding = {
+    readonly name: readonly [typeof identifierName, ForNamedLetTail]
+    readonly pattern: readonly [Pick<BindingTarget, 'array' | 'object'>, ForDeclarationTail]
+}
+
 /** Distinct first tokens select a declaration, named classic initializer or empty classic initializer. */
 export type ForHeader = {
     readonly const: readonly [number, BindingTarget, ForDeclarationTail]
-    readonly let: readonly [number, BindingTarget, ForDeclarationTail]
+    readonly let: readonly [number, ForLetBinding]
     readonly name: readonly [NameExpression, number, ForClassicTail]
     readonly empty: readonly [number, ForClassicTail]
 }
@@ -637,8 +648,17 @@ export type BindingTarget = {
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
 export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
 
-/** A `let` statement: `let`, what it binds, `=`, the value, and {@link End} — the {@link ConstStatement} under the other keyword, its initializer required as a `const`'s is. */
-export type LetStatement = readonly [number, BindingTarget, number, Value, End]
+/** A declaration initializer, with its explicit equals token. */
+export type DeclarationInitializer = readonly [number, Value]
+
+/** Only a named `let` may omit its initializer; array and object patterns require one. */
+export type LetBinding = {
+    readonly name: readonly [typeof identifierName, Option<DeclarationInitializer>]
+    readonly pattern: readonly [Pick<BindingTarget, 'array' | 'object'>, DeclarationInitializer]
+}
+
+/** A `let` statement retains an optional named initializer and its statement ending. */
+export type LetStatement = readonly [number, LetBinding, End]
 
 /**
  * The statement a block ends with: `return` or `throw`, its value, and

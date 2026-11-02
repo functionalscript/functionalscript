@@ -53,11 +53,13 @@
  * branchElse ::= branchBlock | ifStatement
  * while  ::= 'while' '(' value ')' loopBlock
  * for    ::= 'for' '(' forHeader ')' loopBlock
- * forHeader ::= ('const' | 'let') bindingTarget forDeclarationTail
+ * forHeader ::= 'const' bindingTarget forDeclarationTail
+ *             | 'let' (name forNamedLetTail | bindingPattern forDeclarationTail)
  *             | nameExpression ';' forClassicTail | ';' forClassicTail
  * forDeclarationTail ::= '=' value ';' forClassicTail | 'of' value
+ * forNamedLetTail ::= forDeclarationTail | ';' forClassicTail
  * forClassicTail ::= [value] ';' [nameExpression]
- * let    ::= 'let' bindingTarget '=' value end
+ * let    ::= 'let' (name ['=' value] | bindingPattern '=' value) end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
@@ -167,7 +169,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ForClassicTail, ForDeclarationTail, ForHeader, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -1135,6 +1137,8 @@ export const object = /** @type {const} */ ([sym('{'), option(entries), sym('}')
  */
 export const end = option([sym(';')])
 
+const bindingPattern = /** @type {const} */ ({ array, object })
+
 /**
  * What a `const` or a fixed parameter after the first binds: a name, or a
  * binding pattern — an array or an object, {@link array} and
@@ -1151,7 +1155,7 @@ export const end = option([sym(';')])
  *
  * @type {BindingTarget}
  */
-export const bindingTarget = { name: identifierName, array, object }
+export const bindingTarget = { name: identifierName, ...bindingPattern }
 
 /**
  * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
@@ -1274,18 +1278,23 @@ export const simpleStatement = () => ['const', {
 /** A body statement, with ordinary loops allowed before later statements. @type {Statement} */
 export const statement = () => ['const', { ...simpleStatement()[1], while: whileStatement, for: forStatement }]
 
+/** An explicit initializer is shared by named and pattern declarations. @type {DeclarationInitializer} */
+const declarationInitializer = [sym('='), value]
+
 /**
- * A `let` statement: `let`, what it binds, {@link bindingTarget}, `=`, the
- * value, and its {@link end} — the {@link constStatement} under the other
- * keyword, which declares a variable: a name an assignment,
- * {@link bodyNameStatement}, may rebind. The initializer is required, as a
- * `const`'s is: JavaScript's `let x;` is refused at the `;`, by design — a
- * variable names its value where it is declared
+ * A `let` declares a variable a later assignment may rebind. A named
+ * declaration may omit its initializer; array and object patterns still
+ * require `=` and a value. The syntax reader preserves that omission,
+ * and source admission gives the variable JavaScript's initial undefined
+ * value at the declaration
  * ([spec: variables](../../../../spec/bindings/variables/README.md)).
  *
  * @type {LetStatement}
  */
-export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
+export const letStatement = [sym('let'), {
+    name: [identifierName, option(declarationInitializer)],
+    pattern: [bindingPattern, declarationInitializer],
+}, end]
 
 /**
  * The words a statement may begin with where it is no keyword's: `id`, and
@@ -1390,10 +1399,16 @@ export const forDeclarationTail = {
     of: [sym('of'), value],
 }
 
+/** A named `let` also permits an omitted initializer before the explicit separator. @type {ForNamedLetTail} */
+const forNamedLetTail = { ...forDeclarationTail, uninitialized: [sym(';'), forClassicTail] }
+
 /** Declaration-based `for...of` and all existing classic headers share one prefix. @type {ForHeader} */
 export const forHeader = {
     const: [sym('const'), bindingTarget, forDeclarationTail],
-    let: [sym('let'), bindingTarget, forDeclarationTail],
+    let: [sym('let'), {
+        name: [identifierName, forNamedLetTail],
+        pattern: [bindingPattern, forDeclarationTail],
+    }],
     name: [nameExpression, sym(';'), forClassicTail],
     empty: [sym(';'), forClassicTail],
 }

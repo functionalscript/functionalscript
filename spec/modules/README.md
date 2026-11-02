@@ -56,7 +56,7 @@ so every DataJS document parses here.
 |combined imports|`import value, { name } from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
-|variable|`let name = expression;`|
+|variable|`let name = expression;` or `let name;` (initially `undefined`)|
 |assignment|`name = expression;`|
 |call statement|`name(expression);`|
 |loop|`while (condition) { statements }`|

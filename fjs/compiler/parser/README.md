@@ -34,6 +34,11 @@ sugar intersects those events with established bindings and the shared
 `isMutable` facts. Loop-local names remain separate resolved identities.
 Classic `for` header declarations are resolved in a scope surrounding the
 condition, step and body; the step is outside the body's nested lexical scope.
+The syntax AST retains an omitted named `let` initializer. Source admission
+supplies primitive `undefined` at that declaration's initialization point,
+using the existing binding plan. Reads after the declaration and before any
+later assignment see that value; reads before the declaration retain their
+existing refusal. `const` and destructuring declarations require initializers.
 `scope` records initialization, reads, writes,
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
@@ -127,7 +132,8 @@ clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
-let    ::= 'let' target '=' value end
+let    ::= 'let' letBinding end
+letBinding ::= id [ '=' value ] | ( array | object ) '=' value
 target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
          | 'throw' value end
@@ -178,7 +184,7 @@ loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
 forStatement ::= 'for' '(' ( [ forInitializer ] ';' [ value ] ';' [ nameExpression ]
                          | ( 'const' | 'let' ) target 'of' value ) ')' loopBlock
-forInitializer ::= ( 'const' | 'let' ) target '=' value | nameExpression
+forInitializer ::= 'const' target '=' value | 'let' letBinding | nameExpression
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
 nameExpression ::= id ( assignmentOperator value | <the rest of the value the name begins> )

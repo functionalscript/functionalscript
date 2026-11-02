@@ -78,6 +78,10 @@ constructs and token locations. Name resolution and source admission produce
 assignments retain their target identity, and functions and loops remain
 structured. Complete initialization/read/write facts accompany the module;
 ordinary functions establish capture boundaries and lexical regions do not.
+A named `let` without an initializer retains that absence in the syntax AST;
+source admission supplies primitive `undefined` when the declaration is
+reached. It reuses initialized-binding lowering with no definite-assignment
+analysis ([variables](../../spec/bindings/variables/README.md#declarations-without-initializers)).
 Classic `for (init; condition; step)` statements retain a loop-local header
 scope and lower to `while`, running the step on normal body completion and
 owning continues. Empty clauses are allowed, with an omitted condition meaning

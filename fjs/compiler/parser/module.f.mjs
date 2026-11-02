@@ -14,7 +14,7 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
@@ -1190,12 +1190,16 @@ const bodyRound = (stack, scope, frame) => {
             ? [stack, scope, error(unexpectedToken(statement.first))]
             : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
     }
-    const { target, value } = statement
+    const { target } = statement
+    const value = declarationValue(statement)
     const namespace = namespaceOf(target, value)
     const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
     if (tag === 'error') { return [stack, scope, error(plan)] }
     return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
 }
+
+/** An omitted let initializer is the existing primitive undefined at its declaration point. @type {(declaration: Const | Let) => Node} */
+const declarationValue = ({ value }) => value === null ? ['primitive', undefined] : value
 
 /**
  * What a declaration resolves before its names land: its value — a function
@@ -2043,7 +2047,8 @@ const loopRound = (stack, scope, frame) => {
             if (tag === 'error') { return [stack, scope, error(target)] }
             return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
         }
-        const { target, value } = statement
+        const { target } = statement
+        const value = declarationValue(statement)
         const namespace = namespaceOf(target, value)
         const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
         if (tag === 'error') { return [stack, scope, error(plan)] }
@@ -2316,7 +2321,8 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
             continue
         }
         const [kind, { declaration, exported: named }] = statement
-        const { target, value: node } = declaration
+        const { target } = declaration
+        const node = declarationValue(declaration)
         // the statement's beginning first, then the names, then the value: a
         // statement wrong in more than one answers for what a reader meets
         // first
