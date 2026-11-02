@@ -3,6 +3,9 @@
  * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): each sample's
  * `sample.f.js` compiled through the compiler's Rust output into
  * `nanvm/demos/gen.samples/<name>.rs`, and `gen.samples/mod.rs` naming each.
+ * Beside each `.rs` is `<name>.rs.marked`, the same Rust with each word's
+ * kind in a tag ([`text/marked`](../../text/marked/README.md)'s `toTagged`),
+ * which the sample's page reads to draw the Rust coloured.
  * The `nanvm-demos` crate reaches the set through one `#[path]` to that
  * `mod.rs`.
  *
@@ -35,13 +38,14 @@
  */
 
 import { rust } from '../../ci/config/module.f.js'
-import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
-import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
+import { _compileMarked, noRuntime } from '../../compiler/module.f.mjs'
+import { forEachStep, ioError, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.js'
-import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
+import { toTagged, toText } from '../../text/marked/module.f.mjs'
+import { buildDirectory, rustDirectory, rustMarkedPath, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -172,6 +176,19 @@ node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildD
 `
 
 /**
+ * Compiles one sample into its Rust, once: written plain for `cargo`, and
+ * tagged for its page; or the compiler's refusal, as `fjs compile` reports
+ * it, and nothing written.
+ *
+ * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
+ */
+const compileSample = ({ name, directory }) => step(
+    _compileMarked(noRuntime)(samplePath(directory), rustPath(name)),
+    ([tag, value]) => tag === 'error'
+        ? pureError(ioError({ message: value }))
+        : writeFiles([[rustPath(name), toText(value)], [rustMarkedPath(name), toTagged(value)]]))
+
+/**
  * Compiles every sample into its `.rs`, in order, stopping at the first the
  * compiler refuses, then writes `mod.rs` naming them all and the script that
  * builds them for the pages.
@@ -179,7 +196,7 @@ node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildD
  * @type {(places: readonly (Place | FunctionPlace)[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = places => step(
-    forEachStep(pureOk(places), ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))),
+    forEachStep(pureOk(places), compileSample),
     () => writeFiles([[modulesPath, modules(places)], [buildScriptPath, buildScript(places)]]))
 
 /** @type {NodeProgram} */
