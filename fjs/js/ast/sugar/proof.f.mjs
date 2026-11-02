@@ -33,6 +33,21 @@ const fn = source => {
 }
 
 export const proof = {
+    patternDefaultsSelectOnceBeforeNestedReads: () => {
+        const cases = /** @type {const} */ ([
+            ['const {a=5,b=a+1}={};export default [a,b];', [5, 6]],
+            ['const {a=5,b=6}={a:null,b:0};export default [a,b];', [null, 0]],
+            ['const [{a=5}={},[b=6]=[]]=[];export default [a,b];', [5, 6]],
+            ['const {a:nullValue=null.x}={a:7};export default nullValue;', 7],
+            ['let value=0;const {a=(()=>{value+=1;return value;})(),b=value}={};export default [a,b,value];', [1, 1, 1]],
+            ['let value=0;const {a=(()=>{value+=1;return value;})(),b=value}={a:7};export default [a,b,value];', [7, 0, 0]],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        const normalized = fn('export default ({a=5})=>a;')
+        assertEq(normalized.parameters.length, 1)
+        assertEq(normalized.body.statements.filter(statement => statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === '.' && statement[2][2] === 'a').length, 1)
+        assertError(memo(assertOk(analysis(graph('const {a=null.x}={};export default 0;'))))({ args: [] }))
+    },
     forUpdatesRunAtNormalCompletionAndOwningContinues: () => {
         const cases = /** @type {const} */ ([
             ['let sum=0;for(let i=0;i<4;i+=1){if(i===1){continue;}sum+=i;}export default sum;', 5],

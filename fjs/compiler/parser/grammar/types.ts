@@ -138,11 +138,14 @@ export type Template = () => readonly ['const', {
     readonly substitution: readonly [number, Value, RepeatFrom<0, readonly [number, Value]>, number]
 }]
 
-/** A member of an object, by its key's spelling: a bare identifier and, optionally, `:` and a value, or a string literal or a computed `[k]`, any value in brackets, each with its `:` and value. */
+/** An object member by key spelling, retaining shorthand or nested-target defaults for binding patterns. */
 export type Member = {
-    readonly plain: readonly [typeof identifierName, Option<readonly [number, Value]>]
-    readonly string: readonly [number, number, Value]
-    readonly computed: readonly [number, Value, number, number, Value]
+    readonly plain: readonly [typeof identifierName, Option<{
+        readonly valued: readonly [number, Value, Option<readonly [number, Value]>]
+        readonly default: readonly [number, Value]
+    }>]
+    readonly string: readonly [number, number, Value, Option<readonly [number, Value]>]
+    readonly computed: readonly [number, Value, number, number, Value, Option<readonly [number, Value]>]
 }
 
 /** An entry of an object: `...` and a value, or a member. */
@@ -151,10 +154,10 @@ export type Entry = {
     readonly member: Member
 }
 
-/** An item of an array or of a call's arguments: a value, or `...` and a value. */
+/** A value with an optional binding default, or a spread with no default. */
 export type Item = {
     readonly spread: readonly [number, Value]
-    readonly value: Value
+    readonly value: readonly [Value, Option<readonly [number, Value]>]
 }
 
 /**

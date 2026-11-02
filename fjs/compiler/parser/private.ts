@@ -8,7 +8,7 @@ import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { BindingEvent, BindingId, FunctionTarget, LoopTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Unary, _InstanceOf, _In, _Comma, _Array, _Object } from '../../js/ast/types.ts'
-import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
+import type { ExpansionPlan, SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
 import type { PatternPlan } from '../../js/ast/sugar/pattern/types.ts'
 import type { StaticId, IntrinsicId } from '../../edag/types.ts'
 import type { BinaryTag, UnaryTag } from '../ast/types.ts'
@@ -95,6 +95,18 @@ export type _Bound = {
     readonly initialized: readonly BindingId[]
 }
 export type _LateFrame = { readonly late: readonly _Late[]; readonly index: number; readonly body: Node }
+/** A pattern's reads resolve defaults and introduce their original bindings in order. */
+export type _PatternFrame = {
+    readonly pattern: _Plan
+    readonly index: number
+    readonly reads: readonly ExpansionPlan['reads'][number][]
+    readonly kind: _DeclarationKind
+    readonly continuation:
+        | { readonly body: _BodyFrame; readonly value: SourceValue }
+        | { readonly loop: _LoopBodyFrame; readonly value: SourceValue }
+        | { readonly parameter: _LateFrame; readonly value: SourceParameter['default'] }
+        | { readonly module: SourceValue }
+}
 /** What declares a name: a `const`, a `let` or a parameter list — the two variables' kinds, and the one an assignment refuses. */
 export type _DeclarationKind = 'const' | 'let' | 'parameter'
 /** The statement being read: a declaration's plan, or an assignment's resolved target. */
@@ -141,7 +153,7 @@ export type _BinaryLeftFrame = { readonly tag: BinaryTag; readonly right: Node }
 export type _BinaryRightFrame = { readonly tag: BinaryTag; readonly left: SourceValue }
 export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: readonly ['?:', Node, Node, Node] }
 export type _CommaFrame = _Counted<SourceValue> & { readonly comma: readonly Node[] }
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _BodyFrame | _GuardFrame | _NormalIfFrame | _SwitchFrame | _LoopFrame | _ForFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _PatternFrame | _BodyFrame | _GuardFrame | _NormalIfFrame | _SwitchFrame | _LoopFrame | _ForFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]

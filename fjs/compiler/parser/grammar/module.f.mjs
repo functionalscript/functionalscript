@@ -91,10 +91,11 @@
  * optionalStep ::= id | '[' value ']' | '(' [ items(item) ] ')'
  * array  ::= '[' [ elements ] ']'
  * elements ::= ',' [ elements ] | item [ ',' [ elements ] ]
- * item   ::= '...' value | value
+ * item   ::= '...' value | value [ '=' value ]
  * object ::= '{' [ items(entry) ] '}'
  * entry  ::= '...' value | member
- * member ::= id [ ':' value ] | string ':' value | '[' value ']' ':' value
+ * member ::= id [ ':' value [ '=' value ] | '=' value ]
+ *          | string ':' value [ '=' value ] | '[' value ']' ':' value [ '=' value ]
  * items(x) ::= x [ ',' [ items(x) ] ]
  * ```
  *
@@ -997,8 +998,8 @@ export const groupOperand = [value, commaOperands, sym(')'), accesses]
  */
 export const parenGroupOperand = [sym('('), groupOperand]
 
-/** What follows a key: `:` and the value. */
-const valued = /** @type {const} */ ([sym(':'), value])
+/** What follows a key: `:` and the value, with a binding default retained by the cover. */
+const valued = /** @type {const} */ ([sym(':'), value, option([sym('='), value])])
 
 /**
  * A member of an object, `key: value`, by the key's spelling: a bare
@@ -1009,11 +1010,13 @@ const valued = /** @type {const} */ ([sym(':'), value])
  * bare one alone may stand without a value, `{ a }`, the shorthand
  * JavaScript reads as `a: a`: the name is a reference as well as a key,
  * which a string or a bracket spells no more than a string does after `.`.
+ * Shorthand `= value` and a default after a colon's target are retained for
+ * binding patterns. They remain explicit cover syntax in a value position.
  *
  * @type {Member}
  */
 export const member = /** @type {const} */ ({
-    plain: [identifierName, option(valued)],
+    plain: [identifierName, option({ valued, default: [sym('='), value] })],
     string: [sym('string'), ...valued],
     computed: [sym('['), value, sym(']'), ...valued],
 })
@@ -1037,10 +1040,12 @@ export const entries = items(entry)
  * `SpreadElement` takes an `AssignmentExpression`. `...` begins no value,
  * so one symbol decides; and a rest parameter's `...` is never read here,
  * since a parameter list is read by its own rule, after a value's `(`.
+ * An optional `= value` after a non-spread item retains array binding
+ * defaults in this shared cover. Values retain an explicit refusal marker.
  *
  * @type {Item}
  */
-export const item = { spread: [sym('...'), value], value }
+export const item = { spread: [sym('...'), value], value: [value, option([sym('='), value])] }
 
 /**
  * The items of a call's arguments, {@link item}s with no elision between

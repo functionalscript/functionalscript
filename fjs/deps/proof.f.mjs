@@ -64,6 +64,15 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
+    patternDefaultsDoNotResolveOrExecuteInitializers: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('const { value = missing() } = {}; export default value;')],
+            nested: { 'module.f.js': [utf8('export default ({ source: [value = null.x] = [] } = {}) => value;')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stderr, '')
+    },
     failuresContinue: () => {
         const [state, result] = execute({
             invalid: { 'module.f.mjs': [utf8('export default ;')] },

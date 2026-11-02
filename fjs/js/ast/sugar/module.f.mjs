@@ -175,14 +175,24 @@ const establish = (environment, id, value, alias) => {
     return { environment: [...environment, [id, reference(version)]], statements: [['define', version, value, value instanceof Array && value[0] === 'ref' ? 'lazy' : 'required']] }
 }
 
-/** The single owner of checked pattern expansion. @type {(plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean) => Established} */
-const expanded = (plan, value, environment, alias) => {
+/** The single owner of checked pattern expansion. @type {(plan: ExpansionPlan, value: Value, environment: Environment, alias: boolean, context: Context) => Established} */
+const expanded = (plan, value, environment, alias, context) => {
     let inner = environment
     /** @type {readonly Statement[]} */
     let statements = []
-    for (const [index, { source, spread }] of plan.reads.entries()) {
+    for (const [index, { source, spread, default: fallback }] of plan.reads.entries()) {
         const read = source === null ? value : source.length === 1 ? source : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
-        const made = establish(inner, plan.ids[index], spread ? ['array', [['...', read]]] : read, !spread && source === null && alias)
+        let selected = read
+        if (fallback !== undefined) {
+            const raw = binding(index)
+            const retained = reference(raw)
+            statements = [...statements, ['define', raw, read, 'required']]
+            const chosen = conditionalValue(unchangedValue(['===', retained, undefined], inner), normalizedState(inner, context)(fallback.value), unchangedValue(retained, inner), context)
+            selected = chosen.value
+            inner = chosen.environment
+            statements = [...statements, ...chosen.statements]
+        }
+        const made = establish(inner, plan.ids[index], spread ? ['array', [['...', selected]]] : selected, fallback === undefined && !spread && source === null && alias)
         inner = made.environment
         statements = [...statements, ...made.statements]
     }
@@ -277,14 +287,14 @@ const functionValue = (source, environment, context) => {
         if (index >= source.length) { prefix = [...prefix, ['define', rawBinding, read, 'required']] }
         const selected = parameter.default === null ? unchangedValue(raw, inner)
             : conditionalValue(unchangedValue(['===', raw, undefined], inner), normalizedState(inner, context)(parameter.default.value), unchangedValue(raw, inner), context)
-        const made = expanded(parameter.plan, selected.value, selected.environment, parameter.default === null)
+        const made = expanded(parameter.plan, selected.value, selected.environment, parameter.default === null, context)
         inner = made.environment
         prefix = [...prefix, ...selected.statements, ...made.statements]
     }
     if (source.rest !== null) {
         const late = source.parameters.length - source.length
         const value = late === 0 ? reference(rest) : /** @type {Value} */ (['()', ['.', reference(rest), 'slice'], [late]])
-        const made = expanded(source.rest, value, inner, late === 0)
+        const made = expanded(source.rest, value, inner, late === 0, context)
         inner = made.environment
         prefix = [...prefix, ...made.statements]
     }
@@ -323,7 +333,7 @@ const leaf = (environment, context, value) => {
         const fn = functionValue(source, environment, context)
         const scanned = fn.body.exit[0] === 'loop' ? fn.body : { ...fn.body, exit: /** @type {const} */ (['yield', exitValues(fn.body.exit)]) }
         if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', scanned], fn.target)) {
-            const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true).environment
+            const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true, context).environment
             return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null, breakRegion: null })] }
         }
         return { value: ['()', ['function', fn], []] }
@@ -775,7 +785,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             const value = normalizedState(inner, context)(statement[2])
             statements = [...statements, ...value.statements]
             if (!value.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: value.environment, normal: false, hasLoopExit, hasFunctionExit } }
-            const made = expanded(statement[1], value.value, value.environment, false)
+            const made = expanded(statement[1], value.value, value.environment, false, context)
             inner = made.environment
             statements = [...statements, ...made.statements]
             continue

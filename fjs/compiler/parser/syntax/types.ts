@@ -87,6 +87,9 @@ export type Node =
     // hold what no comma has — a default, a rest or a trailing comma,
     // which only a parameter list may — or `null`
     | readonly [',', readonly Node[], ModuleTokenWithMetadata | null]
+    // A binding default retained by the array/object cover grammar. It is
+    // not an admitted assignment expression in a value position.
+    | readonly ['binding-default', Node, ModuleTokenWithMetadata, Node]
     | readonly ['=>', ParameterList, Node]
     | Block
     | Container
@@ -184,7 +187,7 @@ export type For = {
 export type ForOf = {
     readonly start: ModuleTokenWithMetadata
     readonly kind: 'const' | 'let'
-    readonly target: BindingTarget
+    readonly target: PlainBindingTarget
     readonly iterable: Node
     readonly block: LoopBlock
 }
@@ -387,7 +390,7 @@ export type ImportBinding = {
  * the `export` before one a module exports.
  */
 export type Const = Statement & {
-    readonly target: BindingTarget | Discard
+    readonly target: PlainBindingTarget | Discard
     readonly value: Node
 }
 
@@ -412,9 +415,13 @@ export type Discard = readonly ['discard', ModuleTokenWithMetadata]
  * recorded as `invalid`, at the token it begins with, for the fold to
  * refuse: a literal, an access, a call, an operator, a function, or a
  * group, `[(a)]`, which JavaScript refuses in a binding pattern though it
- * admits it in an assignment.
+ * admits it in an assignment. A default wrapper retains the original target,
+ * its `=` token and its initializer, including defaults inside nested patterns.
  */
-export type BindingTarget =
+export type BindingTarget = PlainBindingTarget | readonly ['=', PlainBindingTarget, ModuleTokenWithMetadata, Node]
+
+/** A target before its optional default; nested children may themselves default. */
+export type PlainBindingTarget =
     | readonly ['name', ModuleTokenWithMetadata]
     | readonly ['array', ModuleTokenWithMetadata, readonly BindingElement[]]
     | readonly ['object', ModuleTokenWithMetadata, readonly BindingProperty[]]
@@ -426,7 +433,7 @@ export type BindingTarget =
  * `...target`, by its `...` — JavaScript's, which the fold refuses for now
  * ([destructuring](../../../../spec/todo/2450-destructuring.md)).
  */
-export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, BindingTarget]
+export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
 
 /**
  * A property of an object pattern: its key, as an access's — the token a
@@ -436,7 +443,7 @@ export type BindingElement = BindingTarget | Elision | readonly ['...', ModuleTo
  */
 export type BindingProperty =
     | { readonly key: Key, readonly target: BindingTarget }
-    | readonly ['...', ModuleTokenWithMetadata, BindingTarget]
+    | readonly ['...', ModuleTokenWithMetadata, PlainBindingTarget]
 
 /**
  * A statement that is a value: a block's `return` or `throw`, and a
@@ -501,7 +508,7 @@ export type Parameters = {
  * is anchored at, and the value as written
  * ([default parameters](../../../../spec/todo/3125-default-parameters.md)).
  */
-export type Parameter = BindingTarget | readonly ['=', BindingTarget, ModuleTokenWithMetadata, Node]
+export type Parameter = BindingTarget
 
 /**
  * The output alphabet: what the mappings return, each tagged by the rule it
@@ -526,7 +533,7 @@ export type Parameter = BindingTarget | readonly ['=', BindingTarget, ModuleToke
  * through its own mapping.
  */
 export type Out =
-    | { readonly id: 'value', readonly node: Node, readonly first: ModuleTokenWithMetadata, readonly target: BindingTarget }
+    | { readonly id: 'value', readonly node: Node, readonly first: ModuleTokenWithMetadata, readonly target: PlainBindingTarget }
     | { readonly id: 'paren', readonly node: Node, readonly first: ModuleTokenWithMetadata }
     | { readonly id: 'parameters', readonly fixed: List<Parameter>, readonly rest: ModuleTokenWithMetadata | null }
     // what follows `(` value `,`, read both ways until the `)` decides:
