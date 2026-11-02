@@ -456,9 +456,9 @@ export const proof = {
             assert(html.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
             const summary = html.slice(html.indexOf('<summary>'), html.indexOf('</summary>'))
-            assert(summary.includes('data-copy-demo=""'), html)
+            assert(summary.includes('<a href="#demo" aria-label="Link to Demo" data-heading-anchor="">'), html)
+            assert(!summary.includes('<button'), html)
             assert(summary.includes('data-demo-link-status=""'), html)
-            assertEq(occurrences('data-copy-demo=""')(html), 1)
         },
         scopedControlsBeforeScripts: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p',

@@ -1,4 +1,4 @@
-/** URL/history and clipboard effects for the pure demo sharing contract.
+/** URL/history effects for the pure demo sharing contract.
  * @module
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { DemoController } from './demo/sharing/types.ts'
@@ -6,25 +6,23 @@
 
 import { decodeQuery, encodeQuery, restoreInputs } from './demo/sharing/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
-import { copy } from './copy-runtime.mjs'
 import { revealFragment } from './fragment-runtime.mjs'
 import { scopeMarker } from './demo/control_ids/module.f.mjs'
 import { demoMarker } from './style/module.f.js'
 
-/** Bind the controls outside the patchable root. A root without these
- * controls does not consume navigation; a demo with no inputs copies its target.
- * The heading's own anchor is native and needs no binding.
+/** Keep the address bar on the demo's inputs. A root without its section's
+ * status slot does not consume navigation. The heading's own anchor is native
+ * and needs no binding: the address bar is the link to share.
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>, controller: DemoController, startupEdited: boolean) => void}
  */
 export const startDemoSharing = (root, demo, controller, startupEdited) => {
     const section = root.parentElement
-    const button = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo]'))
+    const status = /** @type {HTMLElement | null | undefined} */ (section?.querySelector(':scope > summary > [data-demo-link-status]'))
     const view = root.ownerDocument.defaultView
-    if (!button || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
+    if (!status || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
     started.add(root)
-    const status = /** @type {HTMLElement | null} */ (section?.querySelector(':scope > summary > [data-demo-link-status]') ?? null)
     /** @type {(message: string) => void} */
-    const report = message => { if (status) { status.textContent = message; status.hidden = message === '' } }
+    const report = message => { status.textContent = message; status.hidden = message === '' }
     const sharing = demo.sharing ?? { fields: {}, examples: [], read: () => ({}), restore: () => demo.init }
     let request = 0
     const restore = (initial = false) => {
@@ -87,19 +85,6 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         view.addEventListener('hashchange', navigate)
         if (search !== '' || view.location.hash === '#demo') { restore(true) }
     }
-    button.disabled = definedEntries(sharing.fields).length === 0
-    if (button.disabled) { button.title = 'This demo has no inputs' }
-    button.addEventListener('click', event => {
-        event.preventDefault()
-        event.stopPropagation()
-        if (controller.busy()) { report('Wait for the demo inputs to finish updating, then copy the link.'); return }
-        const encoded = encodeQuery(sharing, sharing.read(controller.read()))
-        if (encoded[0] === 'error') { report(encoded[1]); return }
-        report('')
-        const url = `${view.location.origin}${view.location.pathname}${encoded[1]}`
-        void copy(button, url)
-    })
-    button.hidden = false
 }
 /** @type {WeakSet<Element>} */
 const started = new WeakSet()

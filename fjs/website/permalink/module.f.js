@@ -1,5 +1,5 @@
 /**
- * Shared heading anchors and the demo's input-link control. README headings
+ * Shared heading anchors. README headings
  * avoid the identifiers reserved by page sections and the directory drawer.
  * @module
  * @import { Element, Node } from '../../media/html/types.ts'
@@ -17,16 +17,10 @@ const linkIcon = ['svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentC
 /** A native anchor, as on GitHub: it sits in the heading's left margin and
  * shows on hover or focus. A click scrolls to the heading and puts its
  * fragment in the address bar; copying the link is the browser's own menu.
- * A demo heading adds **Copy with inputs**, shown once the runtime binds.
- * @type {(id: string, label: string, demo?: boolean) => Element}
+ * @type {(id: string, label: string) => Element}
  */
-export const permalink = (id, label, demo = false) => ['span', { 'data-permalink': '' },
+export const permalink = (id, label) => ['span', { 'data-permalink': '' },
     ['a', { href: `#${id}`, 'aria-label': `Link to ${label}`, 'data-heading-anchor': '' }, linkIcon],
-    ...(demo ? [/** @type {Element} */ (['button', { type: 'button', hidden: '', 'data-copy-demo': '', 'aria-label': 'Copy with inputs', title: 'Copy link with inputs' },
-        linkIcon,
-        ['span', { 'data-input-link-label': '' }, 'Copy with inputs'],
-        ['span', { 'data-copy-status': '', 'aria-live': 'polite' }],
-    ])] : []),
 ]
 
 /** Keep the controls beside the heading, outside its accessible name.

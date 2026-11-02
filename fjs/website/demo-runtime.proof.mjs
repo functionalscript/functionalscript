@@ -560,10 +560,9 @@ const shared = (d, hash = '#documentation') => {
     } }
     doc.getElementById = () => null
     const status = { textContent: '' }
-    const button = { hidden: true, addEventListener() {} }
     d.root.parentElement = {
         querySelector: (/** @type {string} */ selector) => selector === ':scope > [data-demo]' ? d.root
-            : selector.includes('button[data-copy-demo]') ? button : status,
+            : selector.includes('[data-demo-link-status]') ? status : null,
     }
     return { status, pushed, navigate: next => { const url = new URL(next, 'https://example.com/demo/'); view.location.search = url.search; view.location.hash = url.hash; listeners.forEach(f => f()) } }
 }
