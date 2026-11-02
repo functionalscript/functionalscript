@@ -69,17 +69,19 @@ Bob's key is `B`.
 Charlie's key is `C`.
 
 A card for Bob: Public information:
-    1. Alice publishes: `X^A^B^C ^Ai = X^C^B`.
-       - Bob knows `X^C`.
-    2. Charlie publishes: `X^B^C ^Ci = X^B`.
-       - Bob knows `X`.
+
+1. Alice publishes: `X^A^B^C ^Ai = X^C^B`.
+   - Bob knows `X^C`.
+2. Charlie publishes: `X^B^C ^Ci = X^B`.
+   - Bob knows `X`.
+
 A card for Alice:
-    `Y^A^B^C^Bi^Ci = Y^A`.
+`Y^A^B^C^Bi^Ci = Y^A`.
 
 `W^A^B^C` and `V^A^B^C` are cards that left.
 
-Then Alice creates a new deck of cards, excludes `Y` and publishes shuffled [`X^A`, `V^A`, `W^A`].
-Since Alice knows `X^B` she publishes `X^B^A` for Bob. Then, Bob creates [`X^A^B`, `V^A^B`, `W^A^B`], find and excludes `X^A^B` and publish shuffled [`V^A^B`, `W^A^B`].
+Then Alice creates a new deck of cards, excludes `Y` and publishes shuffled `[X^A, V^A, W^A]`.
+Since Alice knows `X^B` she publishes `X^B^A` for Bob. Then, Bob creates `[X^A^B, V^A^B, W^A^B]`, find and excludes `X^A^B` and publish shuffled `[V^A^B, W^A^B]`.
 
 Notes:
 - there is no reason to shuffle it differently compare to previous shuffle.
@@ -133,7 +135,7 @@ Opening for Bob:
 |k = rnd(q)        |         |                     |
 |H = G^k           |  - H -> | H                   |
 |c                 | <- c -  | c = rnd(q)          |
-|s = (a*c + k) % q |  - s -> | check G^s = X^c * H |
+|`s = (a*c + k) % q` |  - s -> | check `G^s = X^c * H` |
 
 `G^s = G^(ac + k) = (G^a)^c * G^k = X^c * H`
 
@@ -143,10 +145,13 @@ o -> oA -> oAB -> oABC
 
 ---
 
+```text
 | c0, c1, ...     |                 |                   |                |           |
 | c0a = c0^a, ... |  - cIa , ... -> | cIa, ...          |                |           |
 |                 |                 | cJab = cJa^b, ... | - cJab, ... -> | cJab, ... |
+```
 
+```text
 o
 |A
 v
@@ -160,9 +165,11 @@ oabc                              oabd D(remember)
 |D                                ^
 v                                 |C
 oabcd
+```
 
 ----
 
+```text
 o
 | A
 v
@@ -176,8 +183,10 @@ oabc
 | D
 v
 oabcd
+```
 
 Open for A:
+
 1. D decode an item from `oabc` and publish.
 2. C decode an item from `oab` and publish.
 3. B decode an item from `oa` and publish.
@@ -196,16 +205,21 @@ Open for B:
 
 Circle
 
+```text
 o -A-> oa --B-> oab --C-> oabc --D-> oabcd
        ob <-A-/           |          |
        oc <-A-- oac <-B---/          |
        od <-A-- oad <-B-- oabd <-C---/
+```
 
+```text
 0 -1- 01 -2- 012 -3- 0123 -4- 01234
       02 -1-
       03 -4- 034 -1- 0134 -2-
       04 -3-
+```
 
+```text
 0 -1- 01 -2- 012 -3- 0123 -4- 01234 -5- 012345 -6- 0123456 -7- 01234567 -8- 012345678
       02 -1-
       03 -4- 034 -1- 0134 -2-
@@ -214,16 +228,21 @@ o -A-> oa --B-> oab --C-> oabc --D-> oabcd
       06 -5-
       07 -8- 078 -5- 0578 -6-
       08 -7-
+```
 
+```text
 () - (0) - (01) - (012)
      (1)   (12)
      (2)   (02)
+```
 
+```text
 []
 [0] [1] [2] [3]
 [01] [02] [03] [12] [13] [23]
 [012] [013] [023] [123]
 [0123]
+```
 
 14641
 
@@ -231,6 +250,7 @@ o -A-> oa --B-> oab --C-> oabc --D-> oabcd
 
 A number of decks required to handle folds.
 
+```text
  0:    1: 1
  1:    2: 1  1
  2:    4: 1  2  1
@@ -243,33 +263,34 @@ A number of decks required to handle folds.
  9:  512: 1  9 36  84 126 126  84  36   9  1
 10: 1024: 1 10 45 120 210 252 210 120  45 10  1
 11: 2048: 1 11 55 165 330 462 462 330 165 55 11 1
+```
 
 |  |0  |1  |2  |3  |
 |--|---|---|---|---|
-|[]|[0]|[1]|[2]|[3]|
+|`[]`|`[0]`|`[1]`|`[2]`|`[3]`|
 
 |   |0   |1   |2   |3   |
 |---|----|----|----|----|
-|[0]|    |[01]|[02]|[03]|
-|[1]|[10]|    |[12]|[13]|
-|[2]|[20]|[21]|    |[23]|
-|[3]|[30]|[31]|[32]|    |
+|`[0]`|    |`[01]`|`[02]`|`[03]`|
+|`[1]`|`[10]`|    |`[12]`|`[13]`|
+|`[2]`|`[20]`|`[21]`|    |`[23]`|
+|`[3]`|`[30]`|`[31]`|`[32]`|    |
 
 |    |0    |1    |2    |3    |
 |----|-----|-----|-----|-----|
-|[01]|     |     |[012]|[013]|
-|[02]|     |[021]|     |[023]|
-|[03]|     |[031]|[032]|     |
-|[12]|[120]|     |     |[123]|
-|[13]|[130]|     |[132]|     |
-|[23]|[230]|[231]|     |     |
+|`[01]`|     |     |`[012]`|`[013]`|
+|`[02]`|     |`[021]`|     |`[023]`|
+|`[03]`|     |`[031]`|`[032]`|     |
+|`[12]`|`[120]`|     |     |`[123]`|
+|`[13]`|`[130]`|     |`[132]`|     |
+|`[23]`|`[230]`|`[231]`|     |     |
 
 |     |0     |1     |2     |3     |
 |-----|------|------|------|------|
-|[012]|      |      |      |[0123]|
-|[013]|      |      |[0132]|      |
-|[023]|      |[0231]|      |      |
-|[123]|[1230]|      |      |      |
+|`[012]`|      |      |      |`[0123]`|
+|`[013]`|      |      |`[0132]`|      |
+|`[023]`|      |`[0231]`|      |      |
+|`[123]`|`[1230]`|      |      |      |
 
 For 10 players we have 10^n = 1024 decks
 
@@ -277,18 +298,18 @@ For 10 players we have 10^n = 1024 decks
 
 |   |0   |1   |2   |3   |
 |---|----|----|----|----|
-|[0]|    |[01]|[02]|[03]|
+|`[0]`|    |`[01]`|`[02]`|`[03]`|
 
 |    |0    |1    |2    |3    |
 |----|-----|-----|-----|-----|
-|[01]|     |     |[012]|[013]|
-|[02]|     |[021]|     |[023]|
-|[03]|     |[031]|[032]|     |
+|`[01]`|     |     |`[012]`|`[013]`|
+|`[02]`|     |`[021]`|     |`[023]`|
+|`[03]`|     |`[031]`|`[032]`|     |
 
 |     |0     |1     |2     |3     |
 |-----|------|------|------|------|
-|[012]|      |      |      |[0123]|
-|[013]|      |      |[0132]|      |
-|[023]|      |[0231]|      |      |
+|`[012]`|      |      |      |`[0123]`|
+|`[013]`|      |      |`[0132]`|      |
+|`[023]`|      |`[0231]`|      |      |
 
 ---

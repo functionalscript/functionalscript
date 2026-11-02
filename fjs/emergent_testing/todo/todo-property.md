@@ -56,7 +56,7 @@ Everything follows from these two:
 | derived        | formula            | drives                                                                        |
 |----------------|--------------------|-------------------------------------------------------------------------------|
 | `expectFailure`| `throws !== todo`  | result inversion; the `expectFailure` bit passed to external runners          |
-| `leafOnly`     | `throws \|\| todo` | skip the return-value walk; don't register subtests; no ` ...` star suffix     |
+| `leafOnly`     | `throws \|\| todo` | skip the return-value walk; don't register subtests; no `...` star suffix      |
 
 `throw` already sets both (`expectFailure` when `throws && !todo`, `leafOnly`
 when `throws`); `todo` simply adds the second bit.
@@ -181,7 +181,7 @@ docs, mirroring the existing `throws` plumbing:
 - **`runModule`** — skip the return-value walk when `leafOnly` (instead of
   `throws`).
 - **`registerModule`** — register with `expectFailure`; skip subtest
-  registration when `leafOnly`; drop the ` ...` star suffix when `leafOnly`.
+  registration when `leafOnly`; drop the `...` star suffix when `leafOnly`.
 - **Reporter** — give `Reporter.result` the entry flags (pass the `TestEntry`
   instead of a bare `throws` boolean) so `defaultReporter` can annotate a passing
   leaf with `# TODO` when `todo` is set, otherwise keep `# EXPECTED TO THROW`.

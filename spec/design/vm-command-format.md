@@ -15,7 +15,7 @@ only on previous commands.
 |      |true          |          |
 |      |number        |u64       |
 |      |string        |String    |
-|      |array         |Array<Any>|
+|      |array         |`Array<Any>`|
 |      |object        |Object    |
 
 ## DJS commands
@@ -23,8 +23,8 @@ only on previous commands.
 |format|any                     |          |Notes                                           |
 |------|------------------------|----------|------------------------------------------------|
 |DJS   |const_ref               |u32       |[const](../bindings/constants/README.md)                       |
-|      |bigint_plus             |Array<u64>|[bigint](../values/README.md)                     |
-|      |bigint_minus            |Array<u64>|[bigint](../values/README.md)                     |
+|      |bigint_plus             |`Array<u64>`|[bigint](../values/README.md)                     |
+|      |bigint_minus            |`Array<u64>`|[bigint](../values/README.md)                     |
 |      |undefined               |          |[undefined](../values/README.md)               |
 |      |own_property            |          |[property-accessor](../todo/2330-property-accessor.md)|
 |      |instance_property       |          |[property-accessor](../todo/2330-property-accessor.md)|

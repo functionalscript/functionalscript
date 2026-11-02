@@ -120,7 +120,7 @@ executor answers `function entries() { [native code] }`: what ECMA-262
 requires of a built-in function
 ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
 a string with the syntax of a NativeFunction whose name is the built-in's
-[[InitialName]], `entries`. The grammar admits parameters; the text has
+`[[InitialName]]`, `entries`. The grammar admits parameters; the text has
 none, as most engines print it, V8's text exactly. The interpreter spells
 it, `staticText` in `fjs/edag`, from the static node, and NaNVM forms the
 same text from the built-in's name, `Function::text`. A text keeps
