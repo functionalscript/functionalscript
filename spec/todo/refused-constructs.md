@@ -111,7 +111,7 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `st.guard` | `else`, an unbraced `if`, a guard block that does not terminate (in `return`, `throw`, or a switch with a `default`), a guard at module level | planned ([functions](../functions/README.md): follow-ups, each additive) |
+| `st.guard` | an unbraced `if`, an `if` at module level, ordinary conditionals outside the terminating-guard or normal-arm one-outer-binding profiles | planned ([bodies and guards](../control-flow/guards/README.md#normally-completing-conditionals); broader completion and join profiles in [reachable block ends](./3210-reachable-block-end.md)) |
 | `st.for` | `for (const x of values) { }`, `for (const key in value) { }` | open ([remaining for iteration forms](./3270-for.md)) |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
 | `st.do-while` | `do { } while (c)` | open |

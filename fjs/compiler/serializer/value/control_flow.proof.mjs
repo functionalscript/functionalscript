@@ -124,6 +124,78 @@ export const proof = /** @type {const} */ ({
             ), 13)
         }
     },
+    referenceNormalConditionalJoins: async () => {
+        for (const [source, otherwise] of /** @type {const} */ ([
+            ['export default (b,f)=>{let a=0;if(b){a+=2;}return f(a);};', 0],
+            ['export default (b,f)=>{let a=0;if(b){a+=2;}else{a+=5;}return f(a);};', 5],
+        ])) {
+            const graph = sourceGraph(source)
+            const first = assertOk(tryStringify(graph))
+            const second = assertOk(tryStringify(sourceGraph(first)))
+            for (const text of [...graphOutputs(graph), second]) {
+                const apply = await load(text)
+                for (const [condition, expected] of /** @type {const} */ ([[true, 2], [false, otherwise]])) {
+                    let calls = 0
+                    const result = apply(condition, /** @param {number} value */ value => {
+                        calls += 1
+                        return sharedAllocationPair(value)
+                    })
+                    assertEq(calls, 1)
+                    assertStructurallySame(result, [[expected], [expected]])
+                    assertEq(result[0], result[1])
+                }
+            }
+        }
+    },
+    normalConditionalReadbackKeepsBranchSnapshots: async () => {
+        const source = /** @type {const} */ (`export default (choose,left,right)=>{
+            let packet=left;
+            if(choose){const selected=right();packet=[selected,()=>selected];}
+            else{const selected=left;packet=[selected,()=>selected];}
+            const snapshot=packet;
+            return [snapshot,snapshot,()=>snapshot];
+        };`)
+        const graph = sourceGraph(source)
+        const first = assertOk(tryStringify(graph))
+        const second = assertOk(tryStringify(sourceGraph(first)))
+        for (const text of [...graphOutputs(graph), second]) {
+            const choose = await load(text)
+            const incoming = /** @type {const} */ ([3])
+            const selected = /** @type {const} */ ([7])
+            const changed = choose(true, incoming, () => selected)
+            const kept = choose(false, incoming, unselected)
+            assertEq(changed[0], changed[1])
+            assertEq(changed[2](), changed[0])
+            assertEq(changed[0][0], selected)
+            assertEq(changed[0][1](), selected)
+            assertEq(kept[0][0], incoming)
+            assertEq(kept[0][1](), incoming)
+            assert(changed[0] !== kept[0])
+            assertEq(changed[0][1](), selected)
+        }
+        for (const text of outputs('export default selected=>{let a=0;if(selected){const required=1n/0n;a=1;}return a;};')) {
+            const apply = await load(text)
+            assertEq(apply(false), 0)
+            throws(() => apply(true))
+        }
+    },
+    normalConditionalKeepsDeepTailLoops: async () => {
+        const source = /** @type {const} */ (`const count=(n,a)=>{
+            if(n===0){return a;}
+            let next=a;
+            if(n>0){next+=1;}
+            return count(n-1,next);
+        };export default count;`)
+        const graph = sourceGraph(source)
+        const first = assertOk(tryStringify(graph))
+        const second = assertOk(tryStringify(sourceGraph(first)))
+        for (const text of [...graphOutputs(graph), second]) {
+            assert(text.includes('while'))
+            const count = await load(text)
+            assertEq(count(0, 7), 7)
+            assertEq(count(100_001, 7), 100_008)
+        }
+    },
     referenceBreakIncludesPrecedingUpdate: async () => {
         const source = /** @type {const} */ ('export default (x,c)=>{let a=0;let b=1;while(true){if(x(b)){b+=1;break;}if(x(a)){a+=2;continue;}a+=b;b+=1;}return c(b,a);};')
         for (const text of outputs(source)) {

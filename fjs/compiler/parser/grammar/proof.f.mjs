@@ -18,7 +18,7 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
+    _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
@@ -84,6 +84,21 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = {
+    ordinaryIfArmsMayCompleteNormallyWithoutImplicitFunctionReturns: () => {
+        for (const source of [
+            'export default b=>{let a=0;if(b){a+=2;}return a;};',
+            'export default b=>{let a=0;if(b){a=1;}else{a=2;}return a;};',
+            'export default (a,b)=>{if(a){}else if(b){}else{}return 0;};',
+            // Syntax formation keeps partly returning arms for separate admission.
+            'export default (a,b)=>{if(a){if(b){return 1;}}return 0;};',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const source of [
+            'export default b=>{if(b){}};',
+            'export default b=>{if(b){return 1;}else{return 2;}};',
+            'export default b=>{if(b)a=1;return 0;};',
+            'export default b=>{if(b){};return 0;};',
+        ]) { assertEq(read(source)[0], 'error') }
+    },
     classicForClausesHaveExplicitSeparators: () => {
         for (const source of [
             'for(;;){}export default 0;',
@@ -175,6 +190,10 @@ export const proof = {
         circuitTail: () => { parser(/** @type {Rule} */ (circuitTail)) },
         conditionalTail: () => { parser(/** @type {Rule} */ (conditionalTail)) },
         block: () => { parser(/** @type {Rule} */ (block)) },
+        branchBlock: () => { parser(/** @type {Rule} */ (branchBlock)) },
+        branchContents: () => { parser(/** @type {Rule} */ (branchContents)) },
+        branchElse: () => { parser(/** @type {Rule} */ (branchElse)) },
+        ifStatement: () => { parser(/** @type {Rule} */ (ifStatement)) },
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         whileStatement: () => { parser(/** @type {Rule} */ (whileStatement)) },
         forStatement: () => { parser(/** @type {Rule} */ (forStatement)) },
@@ -477,13 +496,10 @@ export const proof = {
         assertStructurallySame(read('throw;'), ['error', ';'])
         assertStructurallySame(read('throw 1; export default 2;'), ['error', 'export'])
         assertStructurallySame(read('export default 2; throw 1;'), ['error', 'throw'])
-        // a guard, `if ( value ) block`, stands where a `const` may, any
-        // number of times before the terminator; its block is the block
-        // rule itself, so it ends in `return` or `throw` and may hold
-        // `const`s and guards of its own. No `;` follows its `}`: one there
-        // is the empty statement, refused as `;;` is. The bare consequent,
-        // `else`, a block that does not terminate, and a guard at module
-        // level are outside the grammar.
+        // Braced conditionals retain terminal guards, normal arms and
+        // alternates. The outer function still has an explicit ending.
+        // No `;` follows the `}`: one there is an empty statement. Bare
+        // consequents and module-level conditionals remain outside the grammar.
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2 };'), ['ok'])
         assertStructurallySame(read('export default (...a) => {if(a){return 1}return 2};'), ['ok'])
@@ -492,9 +508,9 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { if (a) { if (a) { return 1; } return 2; } return 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } if (a) { return 2; } throw 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; return 2; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', 'else'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; }; return 2; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if a { return 1; } return 2; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; };'), ['error', 'return'])

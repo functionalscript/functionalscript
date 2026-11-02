@@ -58,11 +58,13 @@ declaration, such as `[a, b] = values;`, remains a separate language extension.
   establishes a fresh immutable value, and a read is a read of the latest;
   no node of the graph holds a variable, so the graph outputs write the
   values: `let r = 0; r = r + n; return r;` is the graph `n + 0` is. A
-  guard's block ends in a terminator ([bodies and guards](../../control-flow/guards/README.md)),
-  so the assignments in it are that block's own, and the statements after
-  the guard read the values the body established before it — the one way
-  two branches rejoin is the loop ([loops](../../control-flow/loops/README.md)),
-  which carries the variables its condition and body read or assign.
+  terminating guard never rejoins its returning arm. A
+  [normally completing conditional](../../control-flow/guards/README.md#normally-completing-conditionals)
+  may assign one outer binding across its arms: following statements read
+  the selected arm's latest version, or the incoming version when that arm
+  leaves it unchanged. Branch-local declarations stay local. A loop
+  ([loops](../../control-flow/loops/README.md)) can carry several variables
+  read or assigned by its condition and body.
 - **A reassigned variable is captured by no function held as a value.** A
   function nested in the variable's scope — a `const`, an item, an
   argument, a value returned, a condition — may not read or assign a

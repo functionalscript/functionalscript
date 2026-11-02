@@ -35,6 +35,7 @@ pub mod named_imports;
 pub mod named_imports_math;
 pub mod named_imports_throws;
 pub mod nested;
+pub mod normal_if;
 pub mod not_a_function;
 pub mod nullish;
 pub mod number;

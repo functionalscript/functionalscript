@@ -36,9 +36,9 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BindingElement, BindingProperty, BindingTarget, Block, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
  * @import { ForStatement, NameExpression } from '../grammar/types.ts'
- * @import { BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
+ * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -53,7 +53,7 @@ import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    afterCase, binaryOpTag, blockContents, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
+    afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -1169,6 +1169,68 @@ const toBlockContents = ([statements, ending]) => {
         : [...prefix, ['while', read], ...blockContentsAt(following)] })
 }
 
+/** @type {(node: _Leaf) => BranchBlock} */
+const branchContentsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'branchContents')
+    return out.block
+}
+
+/** @type {(node: Children<BranchBlockRule, ModuleTokenWithMetadata, Out>) => BranchBlock} */
+const branchBlockOf = ([, contents]) => branchContentsAt(contents)
+
+/** Branches have the existing body endings or a normal closing brace. @type {(node: Children<BranchContents, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toBranchContents = ([statements, ending]) => {
+    const prefix = unmapped(statements).map(statementAt)
+    const tail = unmapped(ending)[0]
+    if (tail === undefined) { return symbol({ id: 'branchContents', block: ['branch', prefix, null] }) }
+    const [kind, branch] = unmapped(tail)
+    if (kind === 'end') {
+        const end = endAt(branch)
+        // The grammar's variadic tuple ends in BlockEnd; indexed access and
+        // slice cannot retain that tuple-position evidence in their types.
+        const last = /** @type {BlockEnd} */ (end[end.length - 1])
+        const prior = /** @type {readonly BlockStatement[]} */ (end.slice(0, -1))
+        return symbol({ id: 'branchContents', block: ['branch', [...prefix, ...prior], last] })
+    }
+    const following = branchContentsAt(unmapped(branch)[1])
+    if (kind === 'for') {
+        const read = forAt(unmapped(branch)[0])
+        return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
+            ? ['branch', prefix, ['terminal-for', read]]
+            : ['branch', [...prefix, ['for', read], ...following[1]], following[2]] })
+    }
+    const read = loopConditionAt(unmapped(branch)[0])
+    return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
+        ? ['branch', prefix, ['terminal-while', read]]
+        : ['branch', [...prefix, ['while', read], ...following[1]], following[2]] })
+}
+
+/** @type {(node: _Leaf) => BranchBlock} */
+const branchElseAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'branchElse')
+    return out.block
+}
+
+/** @type {(node: Ast<IfStatement, ModuleTokenWithMetadata, Out>) => NormalIf} */
+const normalIfAt = node => {
+    const [first, , condition, , block, tail] = unmapped(node)
+    const alternate = unmapped(tail)[0]
+    return { start: tokenAt(first), condition: nodeAt(condition), block: branchBlockOf(unmapped(block)),
+        otherwise: alternate === undefined ? null : branchElseAt(unmapped(alternate)[1]) }
+}
+
+/** Preserve explicit terminating/no-else guards; final-loop completion needs resolved owners. @type {(statement: NormalIf) => BlockStatement} */
+const ordinaryIf = statement => statement.otherwise === null && statement.block[2] !== null
+    && statement.block[2][0] !== 'terminal-while' && statement.block[2][0] !== 'terminal-for'
+    ? ['if', { start: statement.start, condition: statement.condition, block: ['block', [...statement.block[1], statement.block[2]]] }]
+    : ['normal-if', statement]
+
+/** Chained conditionals remain lexical conditional arms. @type {(node: Children<BranchElse, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toBranchElse = ([kind, branch]) => symbol({ id: 'branchElse', block: kind === 'block'
+    ? branchBlockOf(unmapped(branch)) : ['branch', [ordinaryIf(normalIfAt(branch))], null] })
+
 /**
  * What ends a block, from the terminator's children: the `return` or
  * `throw`, tagged by its keyword, one statement; or the switch — the
@@ -1322,8 +1384,8 @@ const toLoopElse = ([kind, branch]) => {
 /**
  * A block's statement, tagged by its keyword: a `const` or a `let`, its
  * record; what begins with a name, an assignment or a call statement,
- * {@link toBodyNameStatement}; a guard, `if ( condition ) block` — the `if`
- * it begins at, its condition, and its block read as a body's is. Loops
+ * {@link toBodyNameStatement}; a conditional, retaining normal arms or the
+ * established terminating/no-else guard representation. Loops
  * are read by `toBlockContents`, which also retains final-loop candidates.
  *
  * @type {(node: Children<SimpleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>}
@@ -1332,11 +1394,7 @@ const toStatement = ([kind, branch]) => {
     switch (kind) {
         case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
-        default: {
-            const [first, , condition, , blk] = unmapped(branch)
-            const [block] = blockOf(unmapped(blk))
-            return symbol({ id: 'statement', statement: ['if', { start: tokenAt(first), condition: nodeAt(condition), block }] })
-        }
+        default: { return symbol({ id: 'statement', statement: ordinaryIf(normalIfAt(branch)) }) }
     }
 }
 
@@ -1771,6 +1829,8 @@ export const mappings = [
     map(moduleStatement, toModuleStatement),
     map(simpleStatement, toStatement),
     map(blockContents, toBlockContents),
+    map(branchContents, toBranchContents),
+    map(branchElse, toBranchElse),
     map(terminator, toEnd),
     map(caseTail, toCaseTail),
     map(afterCase, toAfterCase),

@@ -1,9 +1,11 @@
 # Control Flow
 
-Function bodies support terminating `if` guards, `return`, `throw`, `while`
-loops and terminating switches. Loops retain multiple state values and may
-contain nested loops, conditional arms, `break`, `continue`, owning-function
-returns, throws and switches with braced cases.
+Function bodies support terminating `if` guards, normally completing
+conditionals with at most one assigned outer binding, `return`, `throw`,
+`while` loops and terminating switches. Functions still state their result
+with an explicit terminator. Loops retain multiple state values and may contain
+nested loops, conditional arms, `break`, `continue`, owning-function returns,
+throws and switches with braced cases.
 
 ## Pages
 

@@ -480,7 +480,7 @@ export type Block = readonly [number, BlockContents, number]
 /** Non-loop body statements before a terminal or candidate terminal loop. */
 export type SimpleStatement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly if: readonly [number, number, Value, number, Block]
+    readonly if: IfStatement
     readonly let: LetStatement
     readonly name: BodyNameStatement
 }]
@@ -491,14 +491,32 @@ export type BlockContents = () => readonly ['const', readonly [
     { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>]; readonly for: readonly [ForStatement, Option<BlockContents>] },
 ]]
 
-/** A block's statement before its terminator: a `const`, a guard whose block is a {@link Block}, a `let`, a loop, `while` over a {@link LoopBlock}, or what begins with a name, an assignment or a call statement, {@link BodyNameStatement}. A thunk, as {@link Value} is, since it names itself through the block. */
+/** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly const: ConstStatement
-    readonly if: readonly [number, number, Value, number, Block]
+    readonly if: IfStatement
     readonly let: LetStatement
     readonly while: WhileStatement
     readonly for: ForStatement
     readonly name: BodyNameStatement
+}]
+
+/** An ordinary conditional retains normal arms and the existing terminating guards. */
+export type IfStatement = readonly [number, number, Value, number, BranchBlock, Option<readonly [number, BranchElse]>]
+
+/** Ordinary conditional arms can finish normally; function bodies still require their explicit end. */
+export type BranchBlock = readonly [number, BranchContents, number]
+
+/** The same statements and endings as a function block, with an optional ending for a normal arm. */
+export type BranchContents = () => readonly ['const', readonly [
+    RepeatFrom<0, SimpleStatement>,
+    Option<{ readonly end: Terminator; readonly loop: readonly [WhileStatement, BranchContents]; readonly for: readonly [ForStatement, BranchContents] }>,
+]]
+
+/** A braced alternate or another ordinary conditional. */
+export type BranchElse = () => readonly ['const', {
+    readonly block: BranchBlock
+    readonly if: IfStatement
 }]
 
 /** Plain and compound assignment spellings read as one token. */

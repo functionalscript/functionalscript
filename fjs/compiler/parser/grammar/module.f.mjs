@@ -36,8 +36,12 @@
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
  * blockContents ::= simpleStatement* (terminator | (while | for) [blockContents])
- * statement ::= const | 'if' '(' value ')' block | let
+ * statement ::= const | ifStatement | let
  *             | while | for | bodyNameStatement
+ * ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
+ * branchBlock ::= '{' branchContents '}'
+ * branchContents ::= simpleStatement* [terminator | (while | for) branchContents]
+ * branchElse ::= branchBlock | ifStatement
  * while  ::= 'while' '(' value ')' loopBlock
  * for    ::= 'for' '(' [forInitializer] ';' [value] ';' [nameExpression] ')' loopBlock
  * forInitializer ::= ('const' | 'let') bindingTarget '=' value | nameExpression
@@ -152,7 +156,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { AssignmentOperator, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
+ * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -1182,19 +1186,13 @@ export const terminator = /** @type {const} */ ({
 })
 
 /**
- * A statement of a function's block body before its {@link terminator}: a
- * `const`, or a guard, `if (condition) block` — its block this same
- * {@link block}, so the branch always ends in a terminator, and the
- * statements after the guard are what runs when the condition is falsy
- * ([spec: functions](../../../../spec/functions/README.md)). No {@link end}
- * follows the guard's `}`: a block statement takes no `;` in JavaScript,
- * and one written there is the empty statement the language refuses, as
- * `;;` is. `const` and `if` decide the two in one symbol. A thunk, since
- * the block holds this rule and this rule holds the block.
- *
- * The bare consequent, `if (c) return v;`, and `else` are not read: the
- * guard admits one form, and the others are follow-ups
- * ([spec: functions](../../../../spec/functions/README.md)).
+ * A function body's non-loop statements: declarations, named statements and
+ * braced conditionals. Conditional arms may complete normally or retain an
+ * explicit ending; source admission decides the supported completion profile.
+ * A function body itself still requires its ordinary terminator or candidate
+ * final loop. No {@link end} follows a conditional's `}`: a written `;` would
+ * be an empty statement, which this grammar refuses. Bare consequents remain
+ * outside the syntax profile.
  *
  * A `let` is a declaration as a `const` is, {@link letStatement}, and a
  * loop is `while (condition) loopBlock`. Both stand where a `const` may,
@@ -1213,7 +1211,7 @@ export const terminator = /** @type {const} */ ({
  */
 export const simpleStatement = () => ['const', {
     const: constStatement,
-    if: [sym('if'), sym('('), value, sym(')'), block],
+    if: ifStatement,
     let: letStatement,
     name: bodyNameStatement,
 }]
@@ -1380,6 +1378,20 @@ export const blockContents = () => ['const', [repeatFrom0(simpleStatement), {
  * @type {Block}
  */
 export const block = /** @type {const} */ ([sym('{'), blockContents, sym('}')])
+
+/** Ordinary arms reuse body statements but may reach their closing brace normally. @type {BranchContents} */
+export const branchContents = () => ['const', [repeatFrom0(simpleStatement), option({
+    end: terminator, loop: [whileStatement, branchContents], for: [forStatement, branchContents],
+})]]
+
+/** A braced conditional arm; its optional ending does not relax a function body. @type {BranchBlock} */
+export const branchBlock = [sym('{'), branchContents, sym('}')]
+
+/** Braces distinguish an alternate arm from a chained conditional. @type {BranchElse} */
+export const branchElse = () => ['const', { block: branchBlock, if: ifStatement }]
+
+/** Ordinary conditionals retain terminating guards and normally completing arms. @type {IfStatement} */
+export const ifStatement = [sym('if'), sym('('), value, sym(')'), branchBlock, option([sym('else'), branchElse])]
 
 /**
  * An import's attribute, `with { type: "json" }` as JavaScript spells the

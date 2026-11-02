@@ -3,8 +3,8 @@
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
 migration, named control-flow conformance profiles and output recovery are
-implemented; contract agreement and ordinary-function conditional admission
-remain open, followed by lexical/specification alignment
+implemented, including the approved first ordinary-function conditional
+increment; broader admission and lexical/specification alignment remain
 
 ### Problem
 
@@ -18,9 +18,9 @@ suggest different responsibilities to different contributors.
 The shared FAST foundation and writer migration are implemented:
 [compiler architecture](../compiler/architecture.md) records the current owners.
 Graph-to-FAST conversion and common preparation own sharing, placement and
-transfers; JS and Rust writers consume their decisions. The remaining review
-must confirm the documented completion and ownership contract and its
-implemented limits before extending ordinary-function conditional admission.
+transfers; JS and Rust writers consume their decisions. The approved completion
+and ownership contract guides ordinary-function conditional admission, with
+each increment preserving the documented source and output limits.
 
 The specification has the same gap from the reader's side. A page says what
 a feature accepts and, for sugar, what it lowers to — a pattern "is sugar
@@ -383,18 +383,17 @@ where it satisfies that contract; existing special cases do not constrain
 the model.
 [PR #3511](https://github.com/functionalscript/functionalscript/pull/3511) and
 [PR #3512](https://github.com/functionalscript/functionalscript/pull/3512) are
-paused drafts while this contract is reviewed. Their tests and source-output
+paused drafts. Their tests and source-output
 investigation remain evidence; the reconstruction recipe in #3512 is a
 prototype finding, not an agreed implementation requirement.
 
-The [conversion audit's review summary](../compiler/control-flow.md#contract-prepared-for-review)
+The [approved contract summary](../compiler/control-flow.md#approved-control-flow-contract)
 records the implemented normalization and named output profiles. Those output
-profiles do not admit new source syntax, and contract agreement remains open.
+profiles do not themselves admit new source syntax.
 Review the paused drafts against this foundation before resuming admission
 work; their earlier experiments are not a plan to reapply unchanged.
 
-The review must settle these rules before ordinary-function conditional
-admission is extended:
+The agreed rules for ordinary-function conditional admission are:
 
 - Sequential composition resumes following statements only on normal
   completion. A conditional evaluates its test once and selects one arm;
@@ -417,9 +416,9 @@ admission is extended:
   accepted shapes do not define all valid terminal control flow. Decide any
   compatibility canonicalization and its graph-identity effects explicitly.
 
-##### Next admission boundary for review
+##### First approved admission boundary
 
-After contract agreement, the proposed first increment is reference case 6:
+The first increment is reference case 6:
 an ordinary function's normally completing `if`, with or without `else`,
 joins one outer binding's versions before one following computation and an
 explicit function return. Branch-local declarations stay local; an absent
@@ -432,7 +431,10 @@ an IIFE or a conditional-expression rewrite. Its cost is a wider admission
 profile whose binding and completion checks must remain consistent with loop
 branches; it adds no new control-flow construct to FAST.
 
-This is a proposal for owner review, not an approved admission change. The
+**Approval:** language designer `sergey-shandar` approved this control-flow
+contract and case 6 implementation in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+replying “do it” to the proposal to implement it on top of #3552. The
 partly returning cases 4 and 7, including the nested example below, remain a
 separate increment with owning-return proofs. Implicit-return desugaring stays
 later. Keep generic AST formation, FJS admission and FAST conversion separately
@@ -993,7 +995,7 @@ documentation and run the affected checks with each implementation increment.
 The remaining architecture alignment accompanies relevant moves; unrelated
 parts do not delay the epic's foundation gate:
 
-- [ ] Agree the [control-flow vocabulary](#control-flow-vocabulary) and
+- [x] Agree the [control-flow vocabulary](#control-flow-vocabulary) and
       [control-flow model and completion/ownership contract](#control-flow-contract-review)
       before resuming the conditional-admission drafts. Assume explicit
       function returns; implicit-return desugaring comes afterward. Audit
@@ -1066,7 +1068,7 @@ parts do not delay the epic's foundation gate:
 - [x] Reconcile completed output profiles with the central control-flow audit
       and remaining tasks. Prepare the explicit-return ownership contract for
       review and define the next ordinary-if admission boundary.
-- [ ] Admit the approved case 6 ordinary-function conditional using existing
+- [x] Admit the approved case 6 ordinary-function conditional using existing
       immutable joins, retaining explicit final returns and source binding checks.
 - [ ] Extend common `while` and source plans for explicitly refused backedge
       profiles, preserving the current refusal until a bounded plan is proven.
