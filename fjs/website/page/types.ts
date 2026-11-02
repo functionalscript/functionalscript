@@ -140,6 +140,20 @@ export type Head = {
     readonly title: string
     /** One paragraph on what the page is about, for a card or a search result. */
     readonly description: string
+    /**
+     * The page's own card image, as a root-relative URL; absent where the
+     * page has none, and shows the root page's.
+     */
+    readonly card?: string
+}
+
+/**
+ * A card image as a page names it: where it is, as a root-relative URL, and
+ * the text that stands in for it.
+ */
+export type Card = {
+    readonly href: string
+    readonly alt: string
 }
 
 /**
