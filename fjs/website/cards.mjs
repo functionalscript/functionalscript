@@ -150,17 +150,25 @@ const connect = url => new Promise((ready, fail) => {
  * How many cards are taken at once, each in a tab of its own: GitHub's
  * standard Linux runner has four cores. `CARD_TABS` overrides it.
  *
- * @type {number}
+ * **Anything but a positive integer is refused**, because zero tabs would
+ * take no card at all, and the step would pass with every image missing.
+ *
+ * @type {(value: string | undefined) => number}
  */
-const tabs = Number(process.env.CARD_TABS ?? 4)
+const tabsOf = value => {
+    if (value === undefined) { return 4 }
+    const tabs = Number(value)
+    if (!Number.isInteger(tabs) || tabs < 1) { throw new Error(`CARD_TABS must be a positive integer, not '${value}'`) }
+    return tabs
+}
 
 /**
  * Screenshots each card in `cards`, served at `origin`, through the browser
- * whose DevTools endpoint is `url`.
+ * whose DevTools endpoint is `url`, in `tabs` tabs.
  *
- * @type {(url: string, origin: string, cards: readonly string[]) => Promise<void>}
+ * @type {(url: string, origin: string, cards: readonly string[], tabs: number) => Promise<void>}
  */
-const shoot = async (url, origin, cards) => {
+const shoot = async (url, origin, cards, tabs) => {
     const socket = await connect(url)
     try {
         const { send, next } = devtools(socket)
@@ -203,6 +211,7 @@ const shoot = async (url, origin, cards) => {
  * @type {() => Promise<void>}
  */
 const main = async () => {
+    const tabs = tabsOf(process.env.CARD_TABS)
     /** @type {readonly string[]} */
     const cards = JSON.parse(await readFile(cardsPath, 'utf8'))
     const server = await serve(process.cwd())
@@ -211,7 +220,7 @@ const main = async () => {
         try {
             const browser = await launch(profile)
             try {
-                await shoot(browser.url, server.origin, cards)
+                await shoot(browser.url, server.origin, cards, tabs)
             } finally {
                 await browser.stop()
             }
