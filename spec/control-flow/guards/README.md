@@ -136,7 +136,7 @@
   body's own terminator, are what runs when the condition is falsy. The
   condition is any expression, evaluated where the statement stands and
   tested as `?:` tests its condition. This terminating-guard form requires
-  braces and has no `else`; normally completing conditionals are described
+  braces and has no `else`; conditional joins and early returns are described
   below. An unbraced consequent, `if (c) return v;`, and an `if` at module
   level remain outside admission. No `;` follows the `}`, as
   in JavaScript: one there is the empty statement the language refuses
@@ -190,9 +190,9 @@
 
 ## Normally completing conditionals
 
-An ordinary function also admits a braced `if` whose selected arm finishes
-normally, with an optional braced `else`. The function still has its own
-explicit terminator:
+An ordinary function also admits a braced `if` whose selected arm can finish
+normally, with an optional braced `else`. A path may instead return from the
+owning function. The function still has its own explicit terminator:
 
 ```js
 export default (condition, f) => {
@@ -214,18 +214,41 @@ Each arm has its own lexical scope. Its declarations and snapshots stay
 local, while an assignment to an outer variable establishes the version
 used after the `if`. Assignments to branch-local variables do not count as
 outer writes. The usual declaration, `const` and capture checks still apply,
-including to unselected syntax.
+including to unselected syntax. The one-outer-binding limit counts writes on
+returning paths too.
 
-This first ordinary-function profile requires normal arm completion. Nested
-normal conditionals and loops may occur in the arm; their own loop-local
-`break` and `continue` retain their targets. An owning-function `return` or
-explicit `throw` inside these arms, including inside their loops, remains
-outside this profile. A nested ordinary function keeps its own return owner.
-Selected expressions can still fail, and an unselected arm performs none of
-its work. Conditionals mixing a return with normal continuation and joins
-assigning several outer bindings remain follow-ups in
+A partly returning arm bypasses the normal join and the following work. For
+example:
+
+```js
+export default (a, m, f, g) => {
+    if (a) {
+        const x = f();
+        m = x.a;
+        if (x.b) { return x.c; }
+    }
+    return g(m);
+};
+```
+
+When `a` is false, `g` receives the incoming `m`. When `a` is true and
+`x.b` is false, it receives `x.a`. When both tests are true, the function
+returns `x.c` and skips `g`. The read of `x.a` remains required even on
+that returning path. Only normal paths supply the joined binding version
+and reach the one following `g` call.
+
+Nested conditionals and loops keep their lexical scopes. Loop-local `break`
+and `continue` retain their targets; an owning return bypasses those loops
+and finishes its original function. A nested ordinary function keeps its own
+return owner and does not return from the surrounding function.
+
+This mixed-arm profile does not admit explicit throws within its arms,
+including nested guards and loops. Standalone terminating throw guards keep
+their existing admission. Selected expressions can still fail, and an
+unselected arm performs none of its work. Joins assigning several outer
+bindings remain a follow-up in
 [reachable block ends](../../todo/3210-reachable-block-end.md). The syntax AST
-can retain these broader forms even when FJS admission refuses them.
+already retains those broader forms even when FJS admission refuses them.
 
 ## Examples
 

@@ -54,16 +54,22 @@ They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
 
-Ordinary conditionals may also finish normally, with an optional `else`.
+Ordinary conditionals may finish normally or return from their owning function,
+with an optional `else`.
 Their lexical arms retain declarations, assignments and complete source
 evidence; the first admitted profile joins at most one outer binding.
 Branch-local writes do not count toward that limit. The condition establishes
 its versions before either arm; sugar supplies unchanged versions for an
-absent `else` and resumes following work once. Partly returning arms and
-explicit throws in this normal-arm profile remain refused, while existing
+absent `else` and resumes following work once on normal paths. An early return
+in a lexical arm retains its function target as a source statement, including
+through nested guards and switches. It supplies no normal join result and
+skips the following computation. An ordinary nested function keeps its own
+return owner. This statement-return context is separate from permission for
+an arm's final loop to complete normally; switch cases still require an exit.
+Explicit throws in this branch profile remain refused, while existing
 terminating guards keep their behavior. Generic branch syntax forms an AST
-before those admission checks; ordinary function bodies still require an
-explicit terminator.
+before admission checks; ordinary function bodies still require an explicit
+terminator.
 
 Loop bodies and their conditional arms retain valued `return` and `throw` as
 source statements, including all syntax after them. A return names its owning

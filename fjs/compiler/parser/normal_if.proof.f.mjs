@@ -104,15 +104,11 @@ export const proof = /** @type {const} */ ({
             'export default b=>{let x=0;let y=0;if(b){const ignored=(()=>{x=1;y=2;return 0;})();}return x+y;};',
         ]) { refused(source, 'ordinary conditional joins at most one outer binding') }
     },
-    partlyReturningArmsRetainTheirAdmissionBoundary: () => {
+    explicitThrowsRetainTheirAdmissionBoundary: () => {
         for (const source of [
-            'export default (a,f,c)=>{if(a){const x=f();if(x.a()){return x.b();}}return c();};',
-            'export default (a,f,c)=>{let z=0;if(a){const x=f();if(x.a()){return x.b();}z+=x.c();}return c(z+5);};',
-            'export default b=>{if(b){while(b){return 1;}}return 2;};',
             'export default b=>{if(b){while(b){throw 1;}}return 2;};',
-            'export default b=>{let n=0;if(b){n=1;}else{return 2;}return n;};',
             'export default b=>{let n=0;if(b){n=1;}else{throw 2;}return n;};',
-        ]) { refused(source, 'ordinary conditional arms must complete normally') }
+        ]) { refused(source, 'ordinary conditional arms do not admit explicit throw') }
     },
     finalArmLoopsRetainTheirNormalAndTerminalMeanings: () => {
         assertStructurallySame(evaluated(`

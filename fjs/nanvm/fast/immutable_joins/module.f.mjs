@@ -113,7 +113,7 @@ export const generate = () => {
         '#[rustfmt::skip]',
         '#[allow(clippy::if_same_then_else)]',
         'pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {',
-        ...lines.map(line => line.trimEnd()).map(line => line === '' ? '' : `${indent}${line}`),
+        ...lines.map(line => `${indent}${line}`.trimEnd()),
         '}',
         '',
     ].join('\n')

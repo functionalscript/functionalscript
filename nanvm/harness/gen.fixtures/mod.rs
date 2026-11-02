@@ -30,6 +30,7 @@ pub mod lazy;
 pub mod length;
 pub mod method;
 pub mod missing;
+pub mod mixed_if;
 pub mod named;
 pub mod named_imports;
 pub mod named_imports_math;

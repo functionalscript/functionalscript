@@ -3,8 +3,8 @@
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
 migration, named control-flow conformance profiles and output recovery are
-implemented, including the approved first ordinary-function conditional
-increment; broader admission and lexical/specification alignment remain
+implemented, including normal and partly returning ordinary-function
+conditionals; broader joins and lexical/specification alignment remain
 
 ### Problem
 
@@ -434,11 +434,33 @@ branches; it adds no new control-flow construct to FAST.
 **Approval:** language designer `sergey-shandar` approved this control-flow
 contract and case 6 implementation in the
 [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
-replying “do it” to the proposal to implement it on top of #3552. The
-partly returning cases 4 and 7, including the nested example below, remain a
-separate increment with owning-return proofs. Implicit-return desugaring stays
-later. Keep generic AST formation, FJS admission and FAST conversion separately
-reported: the [module dependency command](module-dependency-graph-command.md)
+replying “do it” to the proposal to implement it on top of #3552.
+
+##### Partly returning admission boundary
+
+Cases 4 and 7, including the nested example below, extend that profile to
+branches that either return from their owning function or complete normally.
+Only normal paths supply the zero-or-one outer result and reach the shared
+following computation. Source resolution preserves branch returns as targeted
+statements through nested guards and switches; the existing FAST normalization
+keeps them abrupt. Function and eligible IIFE terminal results retain their
+existing normalization role. An IIFE whose internal returns require its
+invocation boundary cannot gain permission to write enclosing variables.
+
+The benefit is familiar JavaScript early-return control flow without duplicating
+the continuation. The cost is preserving completion ownership through source
+regions that previously held only terminal results. No new FAST construct or
+EDAG operation is needed. The one-outer-binding admission limit, explicit
+function terminators and existing explicit-throw restriction remain.
+
+**Approval:** language designer `sergey-shandar` approved cases 4 and 7 and the
+nested `m` example in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+replying “do it” to the proposal for the PR stacked on #3554.
+
+Implicit-return desugaring stays later. Keep generic AST formation, FJS
+admission and FAST conversion separately reported: the
+[module dependency command](module-dependency-graph-command.md)
 needs an AST even for modules that cannot yet pass the later stages.
 
 For the task owner's example, inside an ordinary function `F`:
@@ -1070,6 +1092,9 @@ parts do not delay the epic's foundation gate:
       review and define the next ordinary-if admission boundary.
 - [x] Admit the approved case 6 ordinary-function conditional using existing
       immutable joins, retaining explicit final returns and source binding checks.
+- [x] Admit partly returning ordinary conditionals for cases 4 and 7, including
+      the nested `m` example. Preserve owning returns and one normal continuation
+      with zero or one joined outer binding; keep explicit function terminators.
 - [ ] Extend common `while` and source plans for explicitly refused backedge
       profiles, preserving the current refusal until a bounded plan is proven.
       Cover deep execution, argument snapshots and invocation-local lifetimes.

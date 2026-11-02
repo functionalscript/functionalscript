@@ -25,6 +25,7 @@ pub mod lazy;
 pub mod length;
 pub mod method;
 pub mod missing;
+pub mod mixed_if;
 pub mod named;
 pub mod named_imports;
 pub mod named_imports_throws;
@@ -94,6 +95,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
     crate::Case { name: "missing", fixture: crate::fixtures::missing::module::<Naive>, expected: missing::module::<Naive>, json: missing::JSON, throws: missing::THROWS },
+    crate::Case { name: "mixed_if", fixture: crate::fixtures::mixed_if::module::<Naive>, expected: mixed_if::module::<Naive>, json: mixed_if::JSON, throws: mixed_if::THROWS },
     crate::Case { name: "named", fixture: crate::fixtures::named::module::<Naive>, expected: named::module::<Naive>, json: named::JSON, throws: named::THROWS },
     crate::Case { name: "named_imports", fixture: crate::fixtures::named_imports::module::<Naive>, expected: named_imports::module::<Naive>, json: named_imports::JSON, throws: named_imports::THROWS },
     crate::Case { name: "named_imports_throws", fixture: crate::fixtures::named_imports_throws::module::<Naive>, expected: named_imports_throws::module::<Naive>, json: named_imports_throws::JSON, throws: named_imports_throws::THROWS },

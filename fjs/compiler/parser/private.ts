@@ -104,6 +104,10 @@ export type _BodyFrame = _Counted<SourceStatement> & _Declaring & {
     readonly first: number
     /** A final loop candidate may complete normally in a conditional arm. */
     readonly branch?: boolean
+    /** A lexical arm's return exits its owning invocation, not the arm. */
+    readonly targetedReturn?: boolean
+    /** Switch admission retains only events from its own discriminant onward. */
+    readonly switchFirstEvent?: number
 }
 export type _LoopFrame = { readonly loop: While | For; readonly target: LoopTarget; readonly body: _BodyFrame | _LoopBodyFrame | null; readonly condition: readonly [SourceValue] | null; readonly step: SourceBlock | null; readonly terminal: boolean }
 /** The initializer's lexical scope surrounds the condition, step and body only. */
@@ -125,7 +129,7 @@ export type _NormalIfFrame = {
     readonly firstEvent: number
     readonly firstOrigin: number
 }
-export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
+export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly target: LoopTarget; readonly firstEvent: number; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 export type _LoopSwitchFrame = { readonly loopSwitch: LoopSwitch; readonly body: _LoopBodyFrame; readonly target: LoopTarget; readonly discriminant: readonly [SourceValue] | null; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 /** A possible normal path and the shared continuation each nested switch break reaches. */
 export type _CasePath = { readonly statements: readonly SourceStatement[]; readonly index: number; readonly next: _CasePath | null; readonly breaks: readonly (readonly [LoopTarget, _CasePath])[] }

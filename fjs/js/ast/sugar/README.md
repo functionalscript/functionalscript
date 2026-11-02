@@ -42,9 +42,10 @@ so a body-local shadow cannot change the step's target. Sugar inserts the
 resolved step before each owning `continue` and after normal body completion.
 Breaks, returns and throws skip it; nested loops keep their own transfers.
 
-Terminal guards and switches become yielding value regions. They introduce no
-invocation or capture boundary. A block normalized as a value — a source block
-or a direct immediate call admitted as a block — returns its expression value
+Guards and switches in the function's terminal result position become yielding
+value regions. They introduce no invocation or capture boundary. A block
+normalized as a value — a source block or a direct immediate call admitted as
+a block — returns its expression value
 and the latest immutable versions of any changed outer bindings together.
 Following source reads use those results. Block-local declarations remain local.
 Terminal arms transport only versions retained by their enclosing value region;
@@ -77,9 +78,10 @@ directly with the loop exit. That exit has no normal successor and introduces
 no synthetic throw or implicit undefined result.
 
 A conditional statement keeps the surrounding statement continuation. The
-admitted ordinary-function profile has normally completing arms and at most one
-assigned outer binding; loop conditionals retain their broader existing
-profile. Both use this same normalization from the preceding immutable mapping.
+admitted ordinary-function profile has at most one assigned outer binding;
+normal paths rejoin and returning paths leave their owning function. Loop
+conditionals retain their broader existing profile. Both use this same
+normalization from the preceding immutable mapping.
 The union of the normally completing arms' assigned outer bindings becomes
 explicit FAST branch results in binding-introduction order. Each normal arm yields its latest immutable versions,
 retaining preceding versions for names it does not write. An omitted `else`
@@ -91,6 +93,13 @@ nested conditionals use the same rule without a function boundary.
 An abrupt arm retains its targeted transfer and supplies no normal results.
 When both arms exit, the surrounding block has no normal continuation and
 following statements are not normalized into executed work.
+
+Returns crossing an ordinary conditional's normal join arrive as targeted
+source statements, including returns in its nested lexical guards and switches.
+They remain abrupt FAST returns. A function's terminal source result retains
+its separate yield-and-return restoration path; lexical branch entry cannot
+turn an owning return into a local yield. An IIFE with internal owning returns
+keeps its invocation, and those returns still target the IIFE.
 
 A switch statement inside a loop establishes its discriminant once, then tests
 labels lazily in source order. Stacked labels use the same short-circuit join as
@@ -106,8 +115,10 @@ completion machinery rather than adding a switch operation. The nearest break
 region and nearest repeated loop are independent: a switch changes only the
 break owner, so `continue` retains the enclosing loop, runs any `for` step and
 retests its condition. A nested loop owns both transfers. Returns and throws
-keep their source owners. An all-terminal switch has no normal continuation,
-and its following computations are not normalized. Only actual transfers out of the repeated loop
+keep their source owners. An all-terminal switch has no normal continuation;
+its FAST loop occupies the block's terminal exit with no result bindings, and
+its following computations are not normalized. This also preserves its abrupt
+completion inside an enclosing result-bearing join. Only actual transfers out of the repeated loop
 count toward that loop's literal-true normalization; a switch-local break does
 not. Every normalized loop root still ends in an explicit transfer. A switch's
 unreachable root traps if a case ever falls through; it introduces no state
