@@ -100,7 +100,7 @@ export const proof = {
     paths: () => {
         assertEq(samplePath('spec/operators/comma'), 'spec/operators/comma/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
-        assertEq(rustMarkedPath('hello'), 'nanvm/demos/gen.samples/hello.rs.marked')
+        assertEq(rustMarkedPath('hello'), 'nanvm/demos/wasm/hello.rs.marked')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)
     },

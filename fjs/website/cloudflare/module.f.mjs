@@ -67,8 +67,8 @@ export const buildPath = `${generatedDirectory}/build.sh`
  * pinned toolchain, and no edit to a shell profile nothing would read: the
  * script puts the new `cargo` on its own `PATH` instead.
  *
- * Builds the WASM demo module and each sample's WAT before the site reads
- * them. These are ignored build artifacts in `nanvm/demos/wasm/`.
+ * Builds the WASM demo module, and each sample's WAT and marked Rust, before
+ * the site reads them. These are ignored build artifacts in `nanvm/demos/wasm/`.
  *
  * **Then the site's bars, `cargo doc`, and the site** — the order
  * [`../README.md`](../README.md#the-rust-api-reference) gives.
