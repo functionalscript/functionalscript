@@ -2,10 +2,11 @@
  * Direct FAST retains deferred owning returns absent from the current source
  * subset. These host proofs import both emitted JavaScript profiles and invoke
  * them deeply; pure represented evaluation cannot establish bounded native stack
- * use. Admitted public source output is reparsed before execution; the two
- * wider profiles retain their current source admission limit.
+ * use. Admitted public source output is reparsed before execution; dependent
+ * recipes also cross a second source generation. The remaining wider memo
+ * profile retains its current source admission limit.
  *
- * @import { Function as FastFunction } from '../../../js/ast/types.ts'
+ * @import { BindingId, Block, Function as FastFunction, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../../edag/types.ts'
  */
 
@@ -19,8 +20,13 @@ import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs'
+import { tokenize } from '../../../js/tokenizer/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { toArray } from '../../../types/list/alt/module.f.js'
+import { toText } from '../../../text/marked/module.f.mjs'
+import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
-import { tryStringify } from '../module.f.mjs'
+import { tryMarked, tryStringify } from '../module.f.mjs'
 
 /** @type {(fn: FastFunction) => Exp} */
 const graphOf = fn => fromFast({ statements: [], exit: ['yield', [['function', fn]]] })
@@ -36,13 +42,37 @@ const outputs = fn => {
     return [codeOnly(graph), text]
 }
 
-/** These wider memo profiles exceed current public source admission.
+/** This wider memo profile exceeds current public source admission.
  * @type {(fn: FastFunction) => string}
  */
 const codeOnlyWithSourceRefusal = fn => {
     const graph = graphOf(fn)
     assertError(tryStringify(graph))
     return codeOnly(graph)
+}
+
+/** @type {(source: string) => Exp} */
+const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/emitted-dependent-tail.f.mjs')(source))).edag)
+
+/** Each generation parses under the unchanged grammar and shares marked text.
+ * @type {(fn: FastFunction) => readonly string[]}
+ */
+const sourceGenerations = fn => {
+    const graph = graphOf(fn)
+    const first = assertOk(tryStringify(graph))
+    assertEq(toText(assertOk(tryMarked(graph))), first)
+    const next = sourceGraph(first)
+    const second = assertOk(tryStringify(next))
+    assertEq(toText(assertOk(tryMarked(next))), second)
+    sourceGraph(second)
+    return [first, second]
+}
+
+/** @type {(source: string) => void} */
+const hasWhile = source => {
+    const tokens = toArray(tokenize(stringToCodePointList(source))(''))
+    assert(tokens.every(({ token }) => token.kind !== 'error'), source)
+    assert(tokens.some(({ token }) => token.kind === 'while'), source)
 }
 
 /** @type {(source: string) => Promise<any>} */
@@ -60,9 +90,57 @@ export const proof = /** @type {const} */ ({
                 assertEq(apply(100_001), 7)
             }
         }
-        const nested = await load(codeOnlyWithSourceRefusal(fixtures.nestedRecipe))
+        const nested = await load(codeOnly(graphOf(fixtures.nestedRecipe)))
         assertEq(nested(0), 7)
         assertEq(nested(100_001), 7)
+    },
+    dependentRecipesKeepOwningReturnsAcrossSourceGenerations: async () => {
+        for (const source of sourceGenerations(_fixtures().nestedRecipe)) {
+            hasWhile(source)
+            const apply = await load(source)
+            assertEq(apply.length, 1)
+            for (const count of [0, 1, 3, 100_001]) { assertEq(apply(count), 7) }
+        }
+    },
+    conditionalFirstDemandsKeepSkippedCallsSharedValuesAndOwningReturns: async () => {
+        const target = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const ready = { index: 0 }, callback = { index: 0 }, previous = { index: 0 }
+        const shared = { index: 0 }, chosen = { index: 0 }
+        /** @type {(binding: BindingId) => Value} */
+        const ref = binding => ['ref', binding]
+        /** @type {(value: Value) => Block} */
+        const yielded = value => ({ statements: [], exit: ['yield', [value]] })
+        const empty = /** @type {const} */ ({ statements: [], exit: ['yield', []] })
+        /** @type {FastFunction} */
+        const fn = { target, parameters: [ready, callback, previous], self: null, rest: null, captures: [], body: {
+            statements: [
+                ['define', shared, ['()', ref(callback), []], 'lazy'],
+                ['if', [], ref(ready), empty, { statements: [
+                    ['if', [], ['.', ref(shared), 0], { statements: [], exit: ['return', target, 'early'] }, empty],
+                ], exit: ['yield', []] }],
+                ['define', chosen, ['if', ref(ready), yielded(ref(previous)), yielded(ref(shared))], 'required'],
+            ], exit: ['return', target, ['array', [ref(chosen), ref(chosen)]]],
+        } }
+        for (const text of [codeOnly(graphOf(fn)), ...sourceGenerations(fn)]) {
+            const apply = await load(text)
+            assertEq(apply.length, 3)
+            const old = /** @type {const} */ (['old'])
+            const skipped = apply(true, () => { throw 7 }, old)
+            assertEq(skipped[0], old)
+            assertEq(skipped[0], skipped[1])
+            let calls = 0
+            const fresh = () => { calls += 1; return [false, {}] }
+            const first = apply(false, fresh, old)
+            assertEq(calls, 1)
+            assertEq(first[0], first[1])
+            const second = apply(false, fresh, old)
+            assertEq(calls, 2)
+            assertEq(second[0], second[1])
+            assert(first !== second)
+            assert(first[0] !== second[0])
+            assertEq(apply(false, () => [true], old), 'early')
+            throws(() => apply(false, () => { throw 7 }, old), value => value === 7)
+        }
     },
     selectedTailValuesKeepBlocksCommasSpreadsAndArgumentSnapshots: async () => {
         for (const text of outputs(_fixtures().tailValues)) {
