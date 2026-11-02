@@ -73,11 +73,13 @@ Each step ends in a discussion before the next one starts.
 | Date | Decision |
 | --- | --- |
 | 2026-11-02 | The boundary has a separate L1 layer for the JavaScript operations, between the core and the stock runtime. |
+| 2026-11-02 | L0 does not choose a boxing: a value is an opaque `any`, unpacked once into typed values where the compiler knows the type ([l0-core.md](./l0-core.md#values)). |
 
 ## Open questions
 
-1. Should the ABI fix how numbers, booleans and nullish values are encoded,
-   or keep every value opaque? See [l0-core.md](./l0-core.md#values).
+1. Is the WASM type of `any` fixed by the ABI, or chosen per target
+   runtime when code is generated? See
+   [l0-core.md](./l0-core.md#the-wasm-type-of-any).
 2. Are UTF-16 strings acceptable in L0, or should strings be opaque, with
    every string operation in L1? See [l0-core.md](./l0-core.md#allocation).
 3. Is reference counting, with borrowed arguments and owned results, the

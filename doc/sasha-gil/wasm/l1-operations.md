@@ -40,9 +40,9 @@ C applies that to all of L1.
 
 ## Consequences
 
-- **Fast paths depend on the value encoding.** If L0 fixes how a number is
-  encoded, a program can inline `f64 + f64` and import the `+` operation only
-  for the slow path. With opaque values, every `+` is a call across modules.
+- **Fast paths come from types, not encodings.** L0 keeps `any` opaque,
+  so a program inlines `f64 + f64` only where it has unpacked both operands,
+  and calls the `+` operation otherwise.
 - **L1 is narrower than `Any`.** The spread helpers and `property_item`
   exist to shorten printed Rust. They become sequences of L0 builder calls,
   so the list stays short.

@@ -24,26 +24,53 @@ Sources: [`vm/internal`](../../../nanvm/lib/src/vm/internal/mod.rs),
 
 ## Values
 
-One value crosses the boundary as one WASM value.
+**Decided (2026-11-02):** L0 does not choose a boxing. A value at the
+boundary is an opaque `any`, and the runtime alone knows its encoding.
+Programs work with typed, unpacked values wherever the compiler knows the
+type.
 
-| Option | For | Against |
-| --- | --- | --- |
-| An `i64` word: immediates fixed, references opaque | Numbers, booleans and nullish values cross with no allocation. Generated code can inline `f64` fast paths later. Matches NaN-boxing. | Fixes part of the encoding in the ABI. A WasmGC runtime needs a side table for references. |
-| An `i32` handle for every value | Fully opaque: a runtime can do anything. | Every number is a handle, and arithmetic becomes a call plus an allocation. |
-| `externref` or WasmGC `anyref` | The host GC manages memory, and host interop is natural. | Numbers must be boxed (only `i31ref` is free). Ties every runtime to WasmGC, which `fjs/media/wasm` does not cover. |
+- **Opaque `any`.** NaN-boxing, handles, WasmGC references and hashes are
+  all legal encodings. The choice belongs to the runtime, so NaNVM's
+  NaN-boxing stays NaNVM's.
+- **Typed values.** `kind(any)` answers the kind. `to_f64`, `to_bool` and
+  their inverses `from_f64`, `from_bool` convert between `any` and a plain
+  WASM value. A string, a bigint, an array, an object or a function stays an
+  opaque reference, but one whose kind is known, so later operations on it
+  skip the dispatch.
+- **Unpack once.** Values are immutable, so a value's kind never changes.
+  The compiler unpacks a value once and keeps the typed form in a local for
+  as long as the value is in scope. The EDAG already shares nodes, which is
+  where "once" comes from.
 
-**Proposed:** an `i64` word. The ABI fixes the encoding of a number, a
-boolean, `undefined` and `null`. The payload of a reference is opaque: the
-runtime decides whether it is a pointer, a table index or a hash.
+### Costs
 
-`i64` is preferred to `f64` for the bits of a boxed reference, which are a
-NaN payload. WASM keeps those bits through locals, memory, calls and
-`reinterpret`, but not through arithmetic: an `f64` operation that returns a
-NaN may return any NaN. A JavaScript host is looser still: when an `f64`
-crosses to JavaScript as a `Number`, the engine need not keep the payload,
-so a runtime written in JavaScript could lose a reference. As an `i64`, the
-word crosses as a `BigInt`, exact but slower. The cost of `i64` inside WASM
-is one `reinterpret` before and after each number operation, which is free.
+1. **Repacking where a value escapes.** Arguments, array items, object
+   properties and results are `any`. Within one function, tail loops
+   included, values stay typed; across a call they are packed and the callee
+   unpacks again.
+2. **Packing may allocate.** `from_f64` is free for a NaN-boxing runtime and
+   an allocation plus a later `drop` for a handle runtime. The program cannot
+   tell which.
+3. **Calls across modules.** Without type knowledge, `a + b` is two unpacks,
+   an add and a pack, and engines do not reliably inline calls between
+   modules. The first code generator can work this way. An unboxing pass over
+   the EDAG, which infers which values are numbers, removes most of the cost
+   later without changing the ABI.
+
+### The WASM type of `any`
+
+A signature still needs a WASM type for `any`.
+
+| Option | Fits |
+| --- | --- |
+| `i64` | NaN-boxing, pointers, table indices. Its bits survive everywhere, unlike a NaN payload in an `f64`, which WASM arithmetic and a JavaScript host need not keep. Crosses to JavaScript as a `BigInt`. |
+| `i32` | Handles and pointers into one linear memory. |
+| `externref` or WasmGC `anyref` | A JavaScript host or a WasmGC runtime. Outside what `fjs/media/wasm` covers today. |
+
+**Open:** whether the ABI fixes one, or whether it is a parameter of code
+generation chosen per target runtime. We generate the program, so the
+parameter costs little; the price is one compiled program per family of
+runtimes.
 
 ## Allocation
 
@@ -77,7 +104,7 @@ Reference counting is therefore sound without a cycle collector.
 | --- | --- | --- |
 | Reference counting: `dup` and `drop`, arguments borrowed, results owned | Frees memory, as NaNVM's `Rc` does today | Emits `drop` at last use, which the prepare pass already tracks as invocation lifetimes |
 | An arena per run, where `drop` does nothing | Trivial | Same code as the row above |
-| WasmGC | Nothing to do | No `dup` or `drop`, but rules out the `i64` word |
+| WasmGC | Nothing to do | No `dup` or `drop`; needs `any` to be a reference type |
 
 **Proposed:** `dup` and `drop` in the ABI, with borrowed arguments and owned
 results. An arena runtime is then a legal runtime whose `drop` does nothing,
@@ -110,8 +137,8 @@ by code index.
 
 | Option | Notes |
 | --- | --- |
-| A multi-value result, an `i32` status and an `i64` value | WASM 2.0, which the existing writer supports. It is `Result<Any, Any>` spelled out, at the cost of one branch after each call. |
-| A reserved error bit in the word | Saves a result, but every check of a value has to mask it. |
+| A multi-value result, an `i32` status and an `any` | WASM 2.0, which the existing writer supports. It is `Result<Any, Any>` spelled out, at the cost of one branch after each call. |
+| A reserved error bit in `any` | Saves a result, but takes a bit of every runtime's encoding, which L0 no longer chooses. |
 | WASM exception handling, `try_table` and tags | No branch on success, but WASM 3.0, outside the scope of `fjs/media/wasm`, and Rust supports it only behind a flag. |
 
 **Proposed:** the multi-value result now. Exception handling can come later
