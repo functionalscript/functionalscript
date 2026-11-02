@@ -19,6 +19,9 @@ by the rule above — reserved, refused twice, exported as `then`, or
 shadowing a capture, it is refused as a name alone is — and it names the
 part of the value its path reads, as in JavaScript. The initializer is
 evaluated once, however many names read it.
+Every destructuring declaration, including a `let` pattern, requires an
+initializer; only a [named `let`](../variables/README.md#declarations-without-initializers)
+may omit one.
 
 A pattern is sugar over reads the language has, and that is its whole
 semantics: the graph outputs write the reads, `const [c, d] = v;` as

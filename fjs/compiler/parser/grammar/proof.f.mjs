@@ -84,6 +84,34 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    namedLetInitializersMayBeOmitted: () => {
+        for (const source of [
+            'let value;export default value;',
+            'let value\nexport default value;',
+            'let value\n=1;export default value;',
+            'export default ()=>{let value;return value;};',
+            'export default a=>{if(a){let value;}return 0;};',
+            'while(false){let value;}export default 0;',
+            'while(false){switch(0){case 0:{let value;break;}}}export default 0;',
+            'for(let value;;){break;}export default 0;',
+            'for(let of;false;){}export default 0;',
+            'for(let [value]=[0];false;){}export default 0;',
+            'for(let {value}={value:0};false;){}export default 0;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'const value;export default value;',
+            'let [value];export default value;',
+            'let {value};export default value;',
+            'export default ()=>{let {value};return value;};',
+            'for(let [value];false;){}export default 0;',
+            'for(let {value};false;){}export default 0;',
+            'for(const value;false;){}export default 0;',
+            'for(let value\nfalse;){}export default 0;',
+            'for(let value=0 of values){}export default 0;',
+            'let first,second;export default first;',
+            'export let value;export default value;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
     numericObjectKeysUseNumberLiteralSpelling: () => {
         for (const source of [
             'export default {1:2};',
@@ -161,6 +189,7 @@ export const proof = /** @type {const} */ ({
         for (const source of [
             'for(;;){}export default 0;',
             'for(let i=0;i<3;i+=1){}export default 0;',
+            'for(let i;i<3;i+=1){}export default 0;',
             'for(const [i]=[0];false;){}export default 0;',
             'let i=0;for(i=1;i<3;i=i+1){}export default i;',
             'for(start();ready();advance()){}export default 0;',
@@ -172,7 +201,9 @@ export const proof = /** @type {const} */ ({
         for (const source of [
             'for(let i=0\ni<3;i+=1){}export default 0;',
             'for(let i=0;i<3\ni+=1){}export default 0;',
-            'for(let i;i<3;i+=1){}export default 0;',
+            'for(const i;i<3;i+=1){}export default 0;',
+            'for(let [i];i<3;i+=1){}export default 0;',
+            'for(let {i};i<3;i+=1){}export default 0;',
             'for(let i=0;i<3;i++){}export default 0;',
             'for(const i in {}){}export default 0;',
             'for(;;)break;export default 0;',
@@ -633,8 +664,8 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
-        // a `let` takes its initializer as a `const` does: `let x;` is refused
-        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['error', ';'])
+        // A named `let` may omit its initializer; a pattern still requires one.
+        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let [r]; while (r) { } return r; };'), ['error', ';'])
         // a name in the block begins the assignment or a call statement,
         // and `=` after any other value is no assignment
