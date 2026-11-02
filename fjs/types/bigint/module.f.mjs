@@ -242,7 +242,10 @@ export const combination = (...k) => {
     for (let i of k) {
         s += i
         if (i >= m) {
-            [i, m] = [m, i]
+            const oldM = m
+            const oldI = i
+            i = oldM
+            m = oldI
         }
         p *= factorial(i)
     }
