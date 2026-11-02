@@ -541,9 +541,10 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
        it out to the left, so it keeps the row's baseline. */
     [data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
     /* A section's summary is one line of text, the disclosure triangle first;
-       its anchor is pinned to the left of that first line. */
+       its anchor is pinned to the left of that first line, the same gap from
+       it as a README heading's, so every anchor on a page lines up. */
     [data-section] > summary:has(> [data-permalink]) { position: relative }
-    [data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: 100%; top: 0; height: 1.5rem }
+    [data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: calc(100% + .35rem); top: 0; height: 1.5rem }
     [data-section] > summary > [data-permalink] { margin-left: 0 }
     /* The directory layout's gap holds the anchor clear of the catalogue's
        divider: the anchor's 2.1rem, and room on either side of it. */
