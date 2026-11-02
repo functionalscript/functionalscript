@@ -916,7 +916,7 @@ const readBlocks = (base, container) => lines => {
         // underline, which the paragraph refuses; here, a block starts.
         if (isThematicBreak(line)) {
             out = [...out, [['rule'], i, i]]
-            i++
+            i += 1
             continue
         }
         const marker = listMarker(line)
