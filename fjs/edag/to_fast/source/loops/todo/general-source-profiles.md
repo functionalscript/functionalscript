@@ -6,10 +6,11 @@
 ### Problem
 
 Source output remains partial for canonical FAST/EDAG invocation graphs outside
-the admitted [source loop profiles](../README.md). Existing recursive fallbacks
-and explicit refusals preserve correctness, but some eligible tail evaluations
-do not obtain bounded-stack source output. Code-only JavaScript/function text
-and Rust already consume their general common-preparation plan.
+the supported [source loop profiles](../README.md). The coordinator retains
+supported loop plans, then refuses possible owning backedges before inverse
+reconstruction; one-pass fallback remains available. Extending the refused
+layouts requires bounded-stack source output. Code-only JavaScript/function
+text and Rust already consume their general common-preparation plan.
 
 These profiles are supplied graphs. Duplicate calls or allocations written in
 source have distinct identities; they are not examples of a shared graph node.
@@ -259,8 +260,10 @@ routes and the existing one-pass source reconstruction evidence.
 `sourceLoopRetentionChecksLexicalTransferRegions` also records the existing
 boundary for statement blocks, outer-loop transfers and returns or loop transfers
 escaping value regions. Broader source spelling must preserve exact owners and
-normal continuations through those regions. Reifiable forms keep their recursive
-fallback; non-reifiable forms retain the explicit `Result` error
+normal continuations through those regions. Outside retained loop plans, a
+possible owning `continue` receives the explicit backedge refusal above;
+one-pass forms may use inverse reconstruction. Non-reifiable forms retain the
+explicit `Result` error
 `a factored terminal continuation outside the source loop profile`.
 
 ### Tasks
