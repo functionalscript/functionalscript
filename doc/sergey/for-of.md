@@ -3,27 +3,27 @@
 The `for(...of...)` can be converted into this function call:
 
 ```ts
-type IterationResult = readonly[break: boolean, result: unknown]
+type IterationResult = readonly[stop: boolean, result: unknown]
 
 const tryFold = (
     it: unknown,
     f: (i: unknown, state: unknown) => IterationResult,
     state: unknown
 ): unknown => {
-    if (typeof it !== 'string' || !(it instanceof Array)) {
+    if (typeof it !== 'string' && !(it instanceof Array)) {
         throw 'Type Error'
     }
     const { length } = it
     let i = 0
     while (i < length) {
-        const [break, result] = f(it[Number(i)], state)
-        state = result
-        if (break) {
-            break
+        const r = f(it[Number(i)], state)
+        if (r.stop) {
+            return r
         }
+        state = r.state
         i += 1
     }
-    return state
+    return [false, state]
 }
 ```
 
