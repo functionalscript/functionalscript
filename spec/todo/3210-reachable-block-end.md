@@ -2,16 +2,17 @@
 
 **Priority:** P2
 **Status:** wip — generic branch syntax and the approved one-outer-binding
-normal-completion profile are implemented; broader conditional completion and
-joins remain open, while function bodies still need explicit terminators
+profile with normal arms and owning returns are implemented; broader completion
+and joins remain open, while function bodies still need explicit terminators
 
 ### Problem
 
 A FunctionalScript function body ends in an explicit terminating statement,
 while a normally completing conditional branch continues after its `if`
 ([bodies and guards](../control-flow/guards/README.md)). The first admitted
-ordinary-function branch profile joins at most one assigned outer binding;
-the broader mixed-return and multi-binding forms remain open. JavaScript also
+ordinary-function branch profile joins at most one assigned outer binding,
+with returning paths bypassing that join. Broader completion and multi-binding
+forms remain open. JavaScript also
 lets a function run off its end and return `undefined`; FunctionalScript keeps
 that case separate and refuses it. This issue tracks the branch extensions
 and source rewrites needed by function bodies without explicit terminators.
@@ -89,7 +90,7 @@ fall-through paths in `fjs/cli`'s `dispatchCommands` and
 `fjs/compiler/edag`'s `_moduleExports` must still reach their following
 return or throw.
 
-The generic syntax AST now represents these ordinary conditional branches
+The generic syntax AST already represents these ordinary conditional branches
 independently of FunctionalScript admission and FAST or EDAG compilation.
 This lets the module dependency check parse the source without requiring it
 to compile. The first FJS admission increment uses the existing FAST branch
@@ -98,18 +99,29 @@ binding, with an omitted `else` retaining its incoming value. Branch-local
 writes do not count toward that bound. The surrounding function keeps its
 explicit terminator.
 
-Nested normal conditionals and loops retain their lexical scopes and local
-loop transfers. An owning-function return or explicit throw inside a normal
-arm, including in its loops, remains refused; a nested ordinary function has
-its own return owner. Broader joins and partly returning arms are separate
-increments under the
+The subsequent increment admits the partly returning cases 4 and 7 and
+the nested assignment/return example in the
+[control-flow audit](../../fjs/compiler/control-flow.md).
+Only normally completing paths supply their selected values to the following
+continuation. A return retains its original ordinary-function owner and skips
+that continuation, including when nested inside a branch or loop. The limit
+still counts writes to at most one outer binding across all arms, including
+returning paths; branch-local writes are excluded.
+
+Nested conditionals and loops retain their lexical scopes and local loop
+transfers. A nested ordinary function has its own return owner. Explicit
+throws within these mixed/normal arms, including nested guards and loops,
+remain refused; existing standalone terminating throw guards keep their
+admission. Broader joins and completion profiles are separate increments under the
 [control-flow contract](../../fjs/todo/compiler-vocabulary-and-modularization.md#control-flow-contract-review).
 
 The language designer `sergey-shandar` approved the contract and this bounded
 case 6 increment in the
 [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
-by instructing implementation after the case 6 proposal. This records approval
-for that increment, not for every form described by the general model.
+by instructing implementation after the case 6 proposal. In the same session,
+the designer subsequently approved the partly returning case 4/case 7 increment,
+including the nested assignment example. These approvals cover those bounded
+increments, not every form described by the general model.
 
 **A `switch`:** [3230](./3230-switch.md)'s follow-ups. A `switch` with no
 `default` is the function-body shape once more, rewritten the same way: the
@@ -195,9 +207,11 @@ of repeating that code in the arm.
       exits under the
       [variable contract](../bindings/variables/README.md#normalization).
       Update the guard page and [refused constructs](./refused-constructs.md).
-- [ ] Extend ordinary-function admission to partly returning branches and
-      broader joins under the completion and ownership contract, preserving
-      one shared normal continuation and explicit function terminators.
+- [x] Admit the approved partly returning cases 4 and 7 and the nested
+      assignment/return example, preserving return ownership, one normal
+      continuation and the zero/one-outer-binding bound.
+- [ ] Extend broader joins and remaining completion profiles under the
+      completion and ownership contract, keeping explicit function terminators.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
 ### Related

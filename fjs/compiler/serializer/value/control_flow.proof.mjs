@@ -68,7 +68,7 @@ const timesTen = value => value * 10
 /** Keep the break result's argument order. @type {(b: number, a: number) => readonly [number, number]} */
 const breakPair = (b, a) => [b, a]
 
-/** One fresh allocation is shared by both returned positions. @param {number} value */
+/** One fresh allocation is shared by both returned positions. @param {unknown} value */
 const sharedAllocationPair = value => {
     const allocation = /** @type {const} */ ([value])
     return /** @type {const} */ ([allocation, allocation])
@@ -193,6 +193,104 @@ export const proof = /** @type {const} */ ({
             assert(text.includes('while'))
             const count = await load(text)
             assertEq(count(0, 7), 7)
+            assertEq(count(100_001, 7), 100_008)
+        }
+    },
+    referencePartlyReturningConditionalsKeepTheirContinuation: async () => {
+        for (const [source, otherwise, joined] of /** @type {const} */ ([
+            ['export default (a,f,c)=>{if(a){const x=f();if(x.a()){return x.b();}}return c();};', 0, 0],
+            ['export default (a,f,c)=>{let z=0;if(a){const x=f();if(x.a()){return x.b();}z+=x.c();}return c(z+5);};', 5, 8],
+        ])) {
+            const graph = sourceGraph(source)
+            const first = assertOk(tryStringify(graph))
+            const second = assertOk(tryStringify(sourceGraph(first)))
+            for (const text of [...graphOutputs(graph), second]) {
+                const apply = await load(text)
+                const early = /** @type {const} */ ([7])
+                assertEq(apply(false, unselected, /** @param {number | undefined} value */ value => value ?? 0), otherwise)
+                for (const stop of /** @type {const} */ ([false, true])) {
+                    let calls = 0
+                    let following = 0
+                    const result = apply(true, () => {
+                        calls += 1
+                        return /** @type {const} */ ({ a: () => stop, b: () => early, c: () => 3 })
+                    }, /** @param {number | undefined} value */ value => {
+                        following += 1
+                        return value ?? 0
+                    })
+                    assertEq(calls, 1)
+                    assertEq(following, stop ? 0 : 1)
+                    assertEq(result, stop ? early : joined)
+                }
+            }
+        }
+        for (const text of outputs('export default b=>{let a=0;if(b){const local=()=>{if(b){return 7;}return 8;};a=local();}return a+1;};')) {
+            const apply = await load(text)
+            assertEq(apply(true), 8)
+            assertEq(apply(false), 1)
+        }
+    },
+    sourceNestedConditionalKeepsEarlyOwnerAndSharedValues: async () => {
+        const source = /** @type {const} */ ('export default (a,m,f,g)=>{if(a){const x=f();m=x.a;if(x.b){return x.c;}}return g(m);};')
+        const graph = sourceGraph(source)
+        const first = assertOk(tryStringify(graph))
+        const second = assertOk(tryStringify(sourceGraph(first)))
+        for (const text of [...graphOutputs(graph), second]) {
+            const apply = await load(text)
+            const incoming = /** @type {const} */ ([5])
+            const changed = /** @type {const} */ ([7])
+            const early = /** @type {const} */ ([99])
+            let calls = 0
+            let following = 0
+            const keep = apply(false, incoming, unselected, sharedAllocationPair)
+            assertEq(keep[0], keep[1])
+            assertEq(keep[0][0], incoming)
+            const join = apply(true, incoming, () => {
+                calls += 1
+                return /** @type {const} */ ({ a: changed, b: false, c: early })
+            }, /** @param {unknown} value */ value => {
+                following += 1
+                return sharedAllocationPair(value)
+            })
+            assertEq(calls, 1)
+            assertEq(following, 1)
+            assertEq(join[0], join[1])
+            assertEq(join[0][0], changed)
+            assert(join[0] !== keep[0])
+            const exit = apply(true, incoming, () => {
+                calls += 1
+                return /** @type {const} */ ({ a: changed, b: true, c: early })
+            }, unselected)
+            assertEq(calls, 2)
+            assertEq(exit, early)
+            assertEq(keep[0][0], incoming)
+        }
+        // An ordinary FJS null makes the required member read fail even when
+        // the following guard would otherwise return that null successfully.
+        for (const text of outputs('export default (a,m,f,g)=>{if(a){const x=f();m=x.a;if(true){return x;}}return g(m);};')) {
+            const apply = await load(text)
+            throws(() => apply(true, 0, () => null, unselected))
+            assertEq(apply(true, 0, () => /** @type {const} */ ({ a: 7 }), unselected).a, 7)
+        }
+    },
+    mixedConditionalKeepsDeepTailLoops: async () => {
+        const source = /** @type {const} */ (`const count=(n,a)=>{
+            let next=a;
+            if(n>0){
+                const packet=[n-1,a+1];
+                if(n===1){return packet[1];}
+                next=packet[1];
+            }else{return a;}
+            return count(n-1,next);
+        };export default count;`)
+        const graph = sourceGraph(source)
+        const first = assertOk(tryStringify(graph))
+        const second = assertOk(tryStringify(sourceGraph(first)))
+        for (const text of [...graphOutputs(graph), second]) {
+            assert(text.includes('while'))
+            const count = await load(text)
+            assertEq(count(0, 7), 7)
+            assertEq(count(1, 7), 8)
             assertEq(count(100_001, 7), 100_008)
         }
     },

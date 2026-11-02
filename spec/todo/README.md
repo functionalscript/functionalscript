@@ -161,10 +161,11 @@ information — see [serialization](../design/serialization.md) and
 
 1. [x] `if` — the terminating guard, `if (c) { … return v; }` or a `throw`,
    before the body's own terminator; surface syntax over `?:`, no new EDAG
-   node ([functions](../functions/README.md)). Normally completing braced
-   branches, with or without `else`, now join at most one assigned outer
-   binding before an explicit function terminator. Partly returning arms,
-   broader joins ([3210](./3210-reachable-block-end.md)), the bare consequent
+   node ([functions](../functions/README.md)). Braced branches, with or
+   without `else`, now join at most one assigned outer binding on normal
+   paths before an explicit function terminator; owning returns bypass
+   that normal continuation. Broader joins and explicit throws in mixed arms
+   ([3210](./3210-reachable-block-end.md)), the bare consequent
    and the module-level guard remain follow-ups.
 2. [x] [Variables](../bindings/variables/README.md) — initialized `let`, local
    and parameter reassignment, module variables and write-based capture rules.
