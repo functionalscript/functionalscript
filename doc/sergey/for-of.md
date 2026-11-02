@@ -8,6 +8,7 @@ type IterationResult = readonly[stop: boolean, result: unknown]
 const tryFold = (
     it: unknown,
     f: (i: unknown, state: unknown) => IterationResult,
+    c: (result: unknown) => unknown
     state: unknown
 ): unknown => {
     if (typeof it !== 'string' && !(it instanceof Array)) {
@@ -17,13 +18,13 @@ const tryFold = (
     let i = 0
     while (i < length) {
         const r = f(it[Number(i)], state)
-        if (r.stop) {
+        if (r[0]) {
             return r
         }
-        state = r.state
+        state = r[1]
         i += 1
     }
-    return [false, state]
+    return c(state)
 }
 ```
 
