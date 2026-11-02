@@ -60,12 +60,13 @@ export const proof = {
         assertStructurallySame(websiteJob.permissions, { contents: 'read', 'pull-requests': 'write' })
         assertEq(generated.jobs.website?.needs, undefined)
         assertEq(generated.jobs.website?.if, undefined)
-        assertStructurallySame(websiteJob.steps.slice(2, 7).map(step => step.run), [
+        assertStructurallySame(websiteJob.steps.slice(2, 8).map(step => step.run), [
             'mise exec -- npm ci',
             'mise exec -- sh ./nanvm/demos/gen.build.sh',
             'mise exec -- npm run rustdoc-bars',
             'mise exec -- cargo doc --no-deps --workspace',
             'mise exec -- npm run website',
+            'mise exec -- node ./fjs/website/cards.mjs',
         ])
         assertEq(websiteJob.steps[1]?.with?.install_args, '--locked')
         assertEq(websiteJob.steps[5]?.env?.RUSTDOCFLAGS, '--html-in-header ${{ github.workspace }}/_rustdoc-head.html --html-before-content ${{ github.workspace }}/_rustdoc-header.html --html-after-content ${{ github.workspace }}/_rustdoc-footer.html --extend-css ${{ github.workspace }}/_rustdoc.css')
@@ -74,7 +75,7 @@ export const proof = {
             WORKERS_CI_BRANCH: '${{ github.head_ref || github.ref_name }}',
         })
         assertStructurallySame(websiteJob.steps[4]?.env, websiteJob.steps[6]?.env)
-        assert(websiteJob.steps.slice(0, 7).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
+        assert(websiteJob.steps.slice(0, 8).every(step => step.if === undefined && !JSON.stringify(step).includes('secrets.')))
         assert(!workflowOf(builtIn()).includes('sh ./nanvm/demos/gen.build.sh'))
     },
     production: () => {
@@ -83,16 +84,16 @@ export const proof = {
             group: '${{ github.workflow }}-${{ github.ref }}',
             'cancel-in-progress': "${{ github.event_name != 'push' }}",
         })
-        const production = generated.jobs.website?.steps[8]
+        const production = generated.jobs.website?.steps[9]
         assertEq(production?.if, "github.event_name == 'push' && github.ref == 'refs/heads/main'")
         assertEq(production?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs production')
         assertStructurallySame(production?.env, { CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}' })
     },
     deploymentGates: () => {
-        const preview = websiteJob.steps[7]
+        const preview = websiteJob.steps[8]
         assertEq(preview?.if, "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository")
         assertEq(preview?.run, 'mise exec -- node ./fjs/website/github-deploy.mjs preview')
-        assertEq(websiteJob.steps.length, 9)
+        assertEq(websiteJob.steps.length, 10)
         assertStructurallySame(preview?.env, {
             CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
             WORKERS_CI_BRANCH: '${{ github.head_ref }}',
