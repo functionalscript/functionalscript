@@ -119,30 +119,6 @@ concern and adds no synthetic source reads.
 
 [`./grammar`](./grammar/module.f.mjs) holds it:
 
-The syntax layer also represents braced `for…of` declaration loops, including
-binding patterns, independently of FunctionalScript admission. Its distinct
-`for-of` node retains the declaration, iterable expression and body.
-`parseFromTokens` explicitly refuses that node at the `for` token, including
-at module level or inside nested bodies. No iterable is evaluated and no FAST
-or EDAG lowering is defined by this syntax support. Classic `for` retains its
-existing syntax representation and admission. `of` remains an ordinary name
-outside the header separator, as in `for (const of of of)`.
-
-Constructor expressions with an argument list, `new Callee(arguments)`, also
-form a generic AST before admission. The `new` node retains the constructor
-expression, ordered arguments and original token. Constructor member access,
-grouped or nested constructors, and following member/call continuations keep
-JavaScript's precedence: `new ns.C()` constructs `ns.C`, while `new C().m()`
-calls a member of the constructed value. Argument parentheses are required in
-this syntax increment; `new C`, `new.target` and unparenthesized optional-chain
-constructor targets remain unsupported. FunctionalScript compilation refuses
-the node at `new`, without resolving or evaluating its constructor or arguments.
-This defines no constructor behavior or FAST/EDAG operation.
-Standalone expressions beginning with `new` also form syntax statements at
-module level and inside function or loop bodies. They retain the original
-`new` token and use the existing discarded-value statement shape, including
-following member and call steps, before the same admission refusal.
-
 ```
 module ::= import* moduleStatement* last eof
 moduleStatement ::= const | let | while | forStatement | bodyNameStatement | newExpressionStatement
@@ -238,6 +214,30 @@ entry  ::= '...' value | member
 member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
+
+The syntax layer also represents braced `for…of` declaration loops, including
+binding patterns, independently of FunctionalScript admission. Its distinct
+`for-of` node retains the declaration, iterable expression and body.
+`parseFromTokens` explicitly refuses that node at the `for` token, including
+at module level or inside nested bodies. No iterable is evaluated and no FAST
+or EDAG lowering is defined by this syntax support. Classic `for` retains its
+existing syntax representation and admission. `of` remains an ordinary name
+outside the header separator, as in `for (const of of of)`.
+
+Constructor expressions with an argument list, `new Callee(arguments)`, also
+form a generic AST before admission. The `new` node retains the constructor
+expression, ordered arguments and original token. Constructor member access,
+grouped or nested constructors, and following member/call continuations keep
+JavaScript's precedence: `new ns.C()` constructs `ns.C`, while `new C().m()`
+calls a member of the constructed value. Argument parentheses are required in
+this syntax increment; `new C`, `new.target` and unparenthesized optional-chain
+constructor targets remain unsupported. FunctionalScript compilation refuses
+the node at `new`, without resolving or evaluating its constructor or arguments.
+This defines no constructor behavior or FAST/EDAG operation.
+Standalone expressions beginning with `new` also form syntax statements at
+module level and inside function or loop bodies. They retain the original
+`new` token and use the existing discarded-value statement shape, including
+following member and call steps, before the same admission refusal.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
