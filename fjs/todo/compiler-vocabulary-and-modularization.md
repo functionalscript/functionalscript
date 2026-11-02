@@ -1030,6 +1030,9 @@ parts do not delay the epic's foundation gate:
 - [x] Reconstruct the lazy `normalPayload` profile as public FJS source.
       Preserve normal shared values, conditional demand and owning returns;
       verify opaque tags, fresh allocations, source readback and deep loops.
+- [ ] Establish the source fallback's stack-safety boundary with concrete
+      accepted and refused witnesses. Preserve loops and one-pass recovery;
+      verify source readback and deep execution for supported backedges.
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes. Independent shared
