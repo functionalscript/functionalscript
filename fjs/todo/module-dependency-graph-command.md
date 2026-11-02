@@ -141,6 +141,8 @@ The approval and rationale are part of the
           implementation modules with braces, preserving dispatch and completion.
     - [x] Normalize the remaining dev loop body and explicit fallback/void returns
           in emergent testing and the byte grammar without extending the parser.
+    - [x] Replace simple destructuring assignments in SUL, BigInt combinations
+          and inflate with ordered ordinary assignments, preserving old values.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
