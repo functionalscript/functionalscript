@@ -11,7 +11,7 @@ their first user, and none of them depends on it.
 | [`instruction`](./instruction/module.f.js) | The opcode table every module below reads |
 | [`binary/parse`](./binary/parse/module.f.mjs) | Bytes to the AST, or an error naming the byte |
 | [`binary/write`](./binary/write/module.f.mjs) | The AST to bytes |
-| [`wat`](./wat/module.f.mjs) | The AST to text, laid out as `wasmprinter` lays it out |
+| [`wat`](./wat/module.f.mjs) | The AST to text, laid out as `wasmprinter` lays it out, and its functions as marked text, each word with its kind |
 
 ## Scope
 

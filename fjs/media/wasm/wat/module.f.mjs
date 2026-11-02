@@ -18,13 +18,15 @@
  *
  * {@link functions} answers each defined function on its own, for a reader
  * that wants some of them: the WASM demo pages show only the functions
- * compiled from a sample.
+ * compiled from a sample. {@link functionsMarked} answers them as marked
+ * text, each word with its kind, which the pages draw coloured.
  *
  * @module
  *
  * @import { BlockType, Bytes, Custom, Data, Element, Export, Expr, FuncType, Global, GlobalType, ImportDesc, Instruction, Limits, Locals, MemArg, Module, NameMap, NameSubsection, RefType, SectionName, TableType, ValType } from '../types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { _Context, _Names, _Naming } from './private.ts'
+ * @import { Marked } from '../../../text/marked/types.ts'
  */
 
 import { reverse } from '../../../types/list/module.f.js'
@@ -34,6 +36,18 @@ import { abs } from '../../../types/number/abs/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
+import { fromTagged, tagged, untagged } from '../../../text/marked/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.js'
+
+// kinds: each word is tagged with its kind as it is written, and the tags
+// are resolved at the module's boundary, `text/marked`'s idiom for a writer
+// built from templates
+
+const kw = tagged('keyword')
+const num = tagged('number')
+const comment = tagged('comment')
+const id = tagged('identifier')
+const string = tagged('string')
 
 // strings
 
@@ -59,12 +73,12 @@ const strContents = text => [...text].map(c => {
 }).join('')
 
 /** @type {(text: string) => string} */
-const str = text => `"${strContents(text)}"`
+const str = text => string(`"${strContents(text)}"`)
 
 /** Bytes as a string literal, printable ASCII as itself and the rest as `\hh`. @type {(bytes: Bytes) => string} */
-const bytesLiteral = bytes => `"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 0x22 && b !== 0x5c
+const bytesLiteral = bytes => string(`"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 0x22 && b !== 0x5c
     ? String.fromCharCode(b)
-    : `\\${b.toString(16).padStart(2, '0')}`).join('')}"`
+    : `\\${b.toString(16).padStart(2, '0')}`).join('')}"`)
 
 // names
 
@@ -90,9 +104,9 @@ const namings = group => map => {
 
 /** @type {(naming: _Naming) => string} */
 const identifier = naming =>
-    naming.prefix !== null ? `$"${naming.prefix} ${strContents(naming.name)}"`
+    id(naming.prefix !== null ? `$"${naming.prefix} ${strContents(naming.name)}"`
     : naming.quoted ? `$"${strContents(naming.name)}"`
-    : `$${naming.name}`
+    : `$${naming.name}`)
 
 /**
  * An item where it is defined: its name, if it has one, then its index.
@@ -101,9 +115,10 @@ const identifier = naming =>
  */
 const declaration = (names, index) => {
     const naming = names.get(index)
-    return naming === undefined ? `(;${index};)`
-        : naming.prefix !== null ? `${identifier(naming)} (@name ${str(naming.name)}) (;${index};)`
-        : `${identifier(naming)} (;${index};)`
+    const at = comment(`(;${index};)`)
+    return naming === undefined ? at
+        : naming.prefix !== null ? `${identifier(naming)} (${kw('@name')} ${str(naming.name)}) ${at}`
+        : `${identifier(naming)} ${at}`
 }
 
 /**
@@ -113,7 +128,7 @@ const declaration = (names, index) => {
  */
 const reference = (names, index) => {
     const naming = names.get(index)
-    return naming === undefined ? `${index}` : identifier(naming)
+    return naming === undefined ? num(`${index}`) : identifier(naming)
 }
 
 /** The empty naming of a kind the name section does not name. */
@@ -146,7 +161,7 @@ const namesOf = customs => {
 // types
 
 /** @type {(l: Limits) => string} */
-const limits = ({ min, max }) => max === null ? `${min}` : `${min} ${max}`
+const limits = ({ min, max }) => max === null ? num(`${min}`) : `${num(`${min}`)} ${num(`${max}`)}`
 
 /**
  * A run of parameters or locals: unnamed ones of a run in one group, each
@@ -162,20 +177,20 @@ const namedGroups = (group, names, first, types) => {
     return starts.map((start, j) => {
         const naming = names.get(first + start)
         return naming === undefined
-            ? `(${group} ${types.slice(start, starts[Number(j + 1)] ?? types.length).join(' ')})`
-            : `(${group} ${identifier(naming)} ${types[Number(start)]})`
+            ? `(${kw(group)} ${types.slice(start, starts[Number(j + 1)] ?? types.length).map(kw).join(' ')})`
+            : `(${kw(group)} ${identifier(naming)} ${kw(types[Number(start)])})`
     }).join(' ')
 }
 
 /** @type {(t: FuncType, params: string) => string} */
 const signature = ({ results }, params) =>
-    `${params === '' ? '' : ` ${params}`}${results.length === 0 ? '' : ` (result ${results.join(' ')})`}`
+    `${params === '' ? '' : ` ${params}`}${results.length === 0 ? '' : ` (${kw('result')} ${results.map(kw).join(' ')})`}`
 
 /** @type {(t: TableType) => string} */
-const tableType = ({ element, limits: l }) => `${limits(l)} ${element}`
+const tableType = ({ element, limits: l }) => `${limits(l)} ${kw(element)}`
 
 /** @type {(t: GlobalType) => string} */
-const globalType = ({ type, mutable }) => mutable ? `(mut ${type})` : type
+const globalType = ({ type, mutable }) => mutable ? `(${kw('mut')} ${kw(type)})` : kw(type)
 
 // floats
 
@@ -254,18 +269,20 @@ const float = (width, bits) => {
         ? display(value, y => Math.fround(y) === value)
         : display(value, y => y === value)
     const sign = (bits & signBit) !== 0n ? '-' : ''
+    /** @type {(spelled: string) => string} */
+    const shown = spelled => `${num(spelled)} ${comment(`(;=${decimal};)`)}`
     if (biased === (1n << expWidth) - 1n) {
         const nan = fraction === 1n << (mantissaWidth - 1n) ? 'nan' : `nan:0x${fraction.toString(16)}`
-        return `${sign}${fraction === 0n ? 'inf' : nan} (;=${decimal};)`
+        return shown(`${sign}${fraction === 0n ? 'inf' : nan}`)
     }
-    if (abs === 0n) { return `${sign}0x0p+0 (;=${decimal};)` }
+    if (abs === 0n) { return shown(`${sign}0x0p+0`) }
     const aligned = fraction << (w - mantissaWidth)
     // A subnormal's leading one is its fraction's first set bit, shifted out.
     const leading = w - BigInt(aligned.toString(2).length)
     const [digits, exponent] = biased !== 0n ? [aligned, biased - bias]
         : [(aligned << (leading + 1n)) & ((1n << w) - 1n), -bias - leading]
     const point = fraction === 0n ? '' : `.${nibbles(w, digits)}`
-    return `${sign}0x1${point}p${exponent < 0n ? '' : '+'}${exponent} (;=${decimal};)`
+    return shown(`${sign}0x1${point}p${exponent < 0n ? '' : '+'}${exponent}`)
 }
 
 // instructions
@@ -273,7 +290,7 @@ const float = (width, bits) => {
 /** The `(type N)` of a function type, with its parameters and results. @type {(c: _Context, index: number, params: string) => string} */
 const typeUse = (c, index, params) => {
     const type = c.module.types[Number(index)]
-    return `(type ${reference(c.names.type, index)})${type === undefined ? '' : signature(type, params)}`
+    return `(${kw('type')} ${reference(c.names.type, index)})${type === undefined ? '' : signature(type, params)}`
 }
 
 /** @type {(c: _Context, index: number) => string} */
@@ -286,7 +303,7 @@ const plainTypeUse = (c, index) => {
 const blockType = (c, t) =>
     t === null ? ''
     : typeof t === 'number' ? ` ${plainTypeUse(c, t)}`
-    : ` (result ${t})`
+    : ` (${kw('result')} ${kw(t)})`
 
 /**
  * A branch target: its relative depth, and the label it reaches as `(;@N;)`
@@ -296,7 +313,8 @@ const blockType = (c, t) =>
  */
 const label = (c, depth) => {
     const target = c.depth - depth
-    return target < 0 ? ` ${depth} (; INVALID ;)` : target === 0 ? ` ${depth}` : ` ${depth} (;@${target};)`
+    const at = num(`${depth}`)
+    return target < 0 ? ` ${at} ${comment('(; INVALID ;)')}` : target === 0 ? ` ${at}` : ` ${at} ${comment(`(;@${target};)`)}`
 }
 
 /** The alignment a load or store has unless it says otherwise, as a power of two. @type {(mnemonic: string) => number} */
@@ -311,13 +329,13 @@ const naturalAlign = mnemonic => {
 
 /** @type {(mnemonic: string, m: MemArg) => string} */
 const memarg = (mnemonic, { align, offset }) =>
-    `${offset === 0 ? '' : ` offset=${offset}`}${align === naturalAlign(mnemonic) ? '' : ` align=${2 ** align}`}`
+    `${offset === 0 ? '' : ` ${kw(`offset=${offset}`)}`}${align === naturalAlign(mnemonic) ? '' : ` ${kw(`align=${2 ** align}`)}`}`
 
 /** A `call_indirect`'s type: the reference alone, without its signature. @type {(c: _Context, index: number) => string} */
-const typeUseRef = (c, index) => `(type ${reference(c.names.type, index)})`
+const typeUseRef = (c, index) => `(${kw('type')} ${reference(c.names.type, index)})`
 
 /** @type {(t: RefType) => string} */
-const heapType = t => t === 'funcref' ? 'func' : 'extern'
+const heapType = t => kw(t === 'funcref' ? 'func' : 'extern')
 
 /**
  * An instruction's text after its mnemonic.
@@ -332,7 +350,7 @@ const operands = (c, x) => {
     const memory = index => index === 0 ? '' : ref('memory', index)
     switch (x[0]) {
         case 'block': case 'loop': case 'if':
-            return `${blockType(c, x[1])} ;; label = @${c.depth + 1}`
+            return `${blockType(c, x[1])} ${comment(`;; label = @${c.depth + 1}`)}`
         case 'br': case 'br_if':
             return label(c, x[1])
         case 'br_table':
@@ -362,9 +380,9 @@ const operands = (c, x) => {
         case 'table.copy':
             return x[1] === 0 && x[2] === 0 ? '' : `${ref('table', x[1])}${ref('table', x[2])}`
         case 'select':
-            return x.length === 1 ? '' : ` (result${x[1].map(t => ` ${t}`).join('')})`
+            return x.length === 1 ? '' : ` (${kw('result')}${x[1].map(t => ` ${kw(t)}`).join('')})`
         case 'i32.const': case 'i64.const':
-            return ` ${x[1]}`
+            return ` ${num(`${x[1]}`)}`
         case 'f32.const':
             return ` ${float(32, BigInt(x[1]))}`
         case 'f64.const':
@@ -377,7 +395,7 @@ const operands = (c, x) => {
 }
 
 /** @type {(c: _Context, x: Instruction) => string} */
-const instruction = (c, x) => `${x[0]}${operands(c, x)}`
+const instruction = (c, x) => `${kw(x[0])}${operands(c, x)}`
 
 /**
  * An expression's instructions on one line each, indented from `nesting` by
@@ -422,7 +440,7 @@ const constExpr = (c, e) => e.map(x => instruction(c, x)).join(' ')
  *
  * @type {(c: _Context, keyword: string, e: Expr) => string}
  */
-const sugar = (c, keyword, e) => e.length === 1 ? `(${constExpr(c, e)})` : `(${keyword} ${constExpr(c, e)})`
+const sugar = (c, keyword, e) => e.length === 1 ? `(${constExpr(c, e)})` : `(${kw(keyword)} ${constExpr(c, e)})`
 
 // the module
 
@@ -450,7 +468,7 @@ const place = (m, after) => {
     ]
     const upTo = after === null ? [] : present.slice(0, present.findIndex(([name]) => name === after) + 1)
     const last = upTo.filter(([, has]) => has).at(-1)
-    return last === undefined ? 'before first' : `after ${last[0]}`
+    return last === undefined ? `${kw('before')} ${kw('first')}` : `${kw('after')} ${kw(last[0])}`
 }
 
 /** How many of each kind the imports hold. @type {(m: Module, kind: ImportDesc[0]) => number} */
@@ -458,7 +476,7 @@ const imported = (m, kind) => m.imports.filter(({ desc }) => desc[0] === kind).l
 
 /** @type {(c: _Context) => readonly string[]} */
 const types = c => c.module.types.map((t, k) =>
-    `(type ${declaration(c.names.type, k)} (func${signature(t, namedGroups('param', none, 0, t.params))}))`)
+    `(${kw('type')} ${declaration(c.names.type, k)} (${kw('func')}${signature(t, namedGroups('param', none, 0, t.params))}))`)
 
 /** @type {(c: _Context) => readonly string[]} */
 const imports = c => {
@@ -469,12 +487,12 @@ const imports = c => {
         const d = desc[0] === 'func' ? (() => {
             const i = index('func', k)
             const params = c.module.types[Number(desc[1])]?.params ?? []
-            return `func ${declaration(names.func, i)} ${typeUse(c, desc[1], namedGroups('param', names.local.get(i) ?? none, 0, params))}`
+            return `${kw('func')} ${declaration(names.func, i)} ${typeUse(c, desc[1], namedGroups('param', names.local.get(i) ?? none, 0, params))}`
         })()
-            : desc[0] === 'table' ? `table ${declaration(names.table, index('table', k))} ${tableType(desc[1])}`
-            : desc[0] === 'memory' ? `memory ${declaration(names.memory, index('memory', k))} ${limits(desc[1])}`
-            : `global ${declaration(names.global, index('global', k))} ${globalType(desc[1])}`
-        return `(import ${str(module)} ${str(name)} (${d}))`
+            : desc[0] === 'table' ? `${kw('table')} ${declaration(names.table, index('table', k))} ${tableType(desc[1])}`
+            : desc[0] === 'memory' ? `${kw('memory')} ${declaration(names.memory, index('memory', k))} ${limits(desc[1])}`
+            : `${kw('global')} ${declaration(names.global, index('global', k))} ${globalType(desc[1])}`
+        return `(${kw('import')} ${str(module)} ${str(name)} (${d}))`
     })
 }
 
@@ -490,7 +508,7 @@ const func = (c, k) => {
     const index = imported(m, 'func') + k
     const localNames = names.local.get(index) ?? none
     const params = m.types[Number(type)]?.params ?? []
-    const header = `  (func ${declaration(names.func, index)} ${typeUse(c, type, namedGroups('param', localNames, 0, params))}`
+    const header = `  (${kw('func')} ${declaration(names.func, index)} ${typeUse(c, type, namedGroups('param', localNames, 0, params))}`
     /** @type {readonly ValType[]} */
     const flat = locals.flatMap(([count, t]) => generate(count, () => t))
     const inner = [
@@ -504,23 +522,29 @@ const func = (c, k) => {
 const element = (c, { mode, init }, k) => {
     const implicit = mode[0] === 'active' && mode[1] === 0 && (init[0] === 'func' || init[1] === 'funcref')
     const modeText = mode[0] === 'passive' ? ''
-        : mode[0] === 'declarative' ? ' declare'
-        : `${implicit ? '' : ` (table ${reference(c.names.table, mode[1])})`} ${sugar(c, 'offset', mode[2])}`
+        : mode[0] === 'declarative' ? ` ${kw('declare')}`
+        : `${implicit ? '' : ` (${kw('table')} ${reference(c.names.table, mode[1])})`} ${sugar(c, 'offset', mode[2])}`
     const items = init[0] === 'func'
-        ? ['func', ...init[1].map(i => reference(c.names.func, i))].join(' ')
-        : [init[1], ...init[2].map(e => sugar(c, 'item', e))].join(' ')
-    return `(elem ${declaration(c.names.elem, k)}${modeText} ${items})`
+        ? [kw('func'), ...init[1].map(i => reference(c.names.func, i))].join(' ')
+        : [kw(init[1]), ...init[2].map(e => sugar(c, 'item', e))].join(' ')
+    return `(${kw('elem')} ${declaration(c.names.elem, k)}${modeText} ${items})`
 }
 
 /** @type {(c: _Context, d: Data, k: number) => string} */
 const data = (c, { mode, bytes }, k) => {
     const modeText = mode[0] === 'passive' ? ''
-        : `${mode[1] === 0 ? '' : `(memory ${reference(c.names.memory, mode[1])}) `}${sugar(c, 'offset', mode[2])} `
-    return `(data ${declaration(c.names.data, k)} ${modeText}${bytesLiteral(bytes)})`
+        : `${mode[1] === 0 ? '' : `(${kw('memory')} ${reference(c.names.memory, mode[1])}) `}${sugar(c, 'offset', mode[2])} `
+    return `(${kw('data')} ${declaration(c.names.data, k)} ${modeText}${bytesLiteral(bytes)})`
 }
 
 /** @type {(m: Module) => _Context} */
 const context = m => ({ module: m, names: namesOf(m.customs), locals: none, depth: 0 })
+
+/** Each defined function's lines, tagged. @type {(module: Module) => readonly string[]} */
+const functionsTagged = m => {
+    const c = context(m)
+    return m.functions.map((_, k) => func(c, k).map(line => `${line}\n`).join(''))
+}
 
 /**
  * The WAT of each function the module defines, in order: the lines from its
@@ -529,10 +553,17 @@ const context = m => ({ module: m, names: namesOf(m.customs), locals: none, dept
  *
  * @type {(module: Module) => readonly string[]}
  */
-export const functions = m => {
-    const c = context(m)
-    return m.functions.map((_, k) => func(c, k).map(line => `${line}\n`).join(''))
-}
+export const functions = m => functionsTagged(m).map(untagged)
+
+/**
+ * {@link functions} as marked text: each word with its kind, a `keyword`, an
+ * `identifier`, a `number`, a `string` or a `comment`, and the parentheses and
+ * blanks between them plain. The runs' texts, joined, are {@link functions}'
+ * text, so a page that draws them shows the same WAT, coloured.
+ *
+ * @type {(module: Module) => readonly Marked[]}
+ */
+export const functionsMarked = m => functionsTagged(m).map(text => unwrap(fromTagged(text)))
 
 /**
  * The module's WAT: its sections in the order the binary has them, each
@@ -547,7 +578,7 @@ export const wat = m => {
     const globalsBase = imported(m, 'global')
     /** @type {(after: SectionName | null) => readonly string[]} */
     const customs = after => m.customs.flatMap(({ after: a, content }) => a !== after || content[0] === 'name' ? []
-        : [`  (@custom ${str(content[1])} (${place(m, a)}) ${bytesLiteral(content[2])})`])
+        : [`  (${kw('@custom')} ${str(content[1])} (${place(m, a)}) ${bytesLiteral(content[2])})`])
     /** @type {(text: SectionName, items: readonly string[]) => readonly string[]} */
     const section = (text, items) => [...items.map(item => `  ${item}`), ...customs(text)]
     const tablesBase = imported(m, 'table')
@@ -557,19 +588,19 @@ export const wat = m => {
         ...section('type', types(c)),
         ...section('import', imports(c)),
         ...customs('func'),
-        ...section('table', m.tables.map((t, k) => `(table ${declaration(names.table, tablesBase + k)} ${tableType(t)})`)),
-        ...section('memory', m.memories.map((l, k) => `(memory ${declaration(names.memory, memoriesBase + k)} ${limits(l)})`)),
+        ...section('table', m.tables.map((t, k) => `(${kw('table')} ${declaration(names.table, tablesBase + k)} ${tableType(t)})`)),
+        ...section('memory', m.memories.map((l, k) => `(${kw('memory')} ${declaration(names.memory, memoriesBase + k)} ${limits(l)})`)),
         ...section('global', m.globals.map(({ type, init }, k) =>
-            `(global ${declaration(names.global, globalsBase + k)} ${globalType(type)} ${constExpr(c, init)})`)),
+            `(${kw('global')} ${declaration(names.global, globalsBase + k)} ${globalType(type)} ${constExpr(c, init)})`)),
         ...section('export', m.exports.map(({ name, kind, index }) =>
-            `(export ${str(name)} (${kind} ${reference(assertNotNullish(entry(names, kind)), index)}))`)),
-        ...section('start', m.start === null ? [] : [`(start ${reference(names.func, m.start)})`]),
+            `(${kw('export')} ${str(name)} (${kw(kind)} ${reference(assertNotNullish(entry(names, kind)), index)}))`)),
+        ...section('start', m.start === null ? [] : [`(${kw('start')} ${reference(names.func, m.start)})`]),
         ...section('elem', m.elements.map((e, k) => element(c, e, k))),
         ...customs('datacount'),
         ...m.functions.flatMap((_, k) => func(c, k)),
         ...customs('code'),
         ...section('data', m.data.map((d, k) => data(c, d, k))),
     ]
-    const header = `(module${names.module === null ? '' : ` ${identifier(names.module)}`}`
-    return body.length === 0 ? `${header})\n` : [header, ...body, ')'].map(line => `${line}\n`).join('')
+    const header = `(${kw('module')}${names.module === null ? '' : ` ${identifier(names.module)}`}`
+    return untagged(body.length === 0 ? `${header})\n` : [header, ...body, ')'].map(line => `${line}\n`).join(''))
 }

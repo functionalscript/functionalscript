@@ -37,6 +37,7 @@
  * @import { MemOperationMap } from '../../../effects/mock/types.ts'
  * @import { Demo, DemoEvent } from '../../../website/demo/types.ts'
  * @import { JsHeap, JsRun, Loaded, Place, Run, Runs, Sample, State, WasmRun } from './types.ts'
+ * @import { Marked } from '../../../text/marked/types.ts'
  */
 
 import { sandbox } from '../../../effects/common/module.f.mjs'
@@ -48,7 +49,8 @@ import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
-import { highlight } from '../../../website/demo/highlight/module.f.mjs'
+import { highlight, render } from '../../../website/demo/highlight/module.f.mjs'
+import { fromTagged } from '../../../text/marked/module.f.mjs'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
@@ -75,13 +77,21 @@ export const wasmPath = `${buildDirectory}/nanvm_demos.wasm`
  *
  * @type {(name: string) => string}
  */
-export const watPath = name => `${buildDirectory}/${name}.wat`
+export const watPath = name => `${buildDirectory}/${name}.wat.marked`
 
 /** @type {State} */
 export const init = { source: ['loading'], rust: ['loading'], wat: ['loading'], wasm: ['loading'], runs: null }
 
 /** @type {<T>(r: Result<T, IoChannel>) => Result<T, string>} */
 const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
+
+/**
+ * A tagged file's runs, or why there are none: the file did not arrive, or
+ * it is no tagged text.
+ *
+ * @type {(r: Result<string, IoChannel>) => Result<Marked, string>}
+ */
+const loadedMarked = ([tag, value]) => tag === 'ok' ? fromTagged(value) : error(errorMessage(value))
 
 /**
  * Fetches the source, the Rust, the disassembly and the module, each in
@@ -92,7 +102,7 @@ const loaded = r => r[0] === 'ok' ? r : error(errorMessage(r[1]))
 export const load = ({ name, directory }) => {
     const source = resultStep(fetchText(`/${samplePath(directory)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
     const rust = step(source, state => resultStep(fetchText(`/${rustPath(name)}`), r => pureOk({ ...state, rust: loaded(r) })))
-    const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loaded(r) })))
+    const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loadedMarked(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
 }
 
@@ -364,7 +374,7 @@ export const filesView = (state, afterSource) => [
     caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
     ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
     caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
+    ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
 ]
 
