@@ -66,6 +66,12 @@ no type for (TextMate and Tree-sitter keep that distinction too).
 | `operator` | an operator | none | none | none |
 | `identifier` | a name, whatever it names | the name of a shared node's `const`, `$0` | every name: a parameter or binding, `$0`, a property after `.` (even `x.true`), a global such as `Array` | every other word: crate, module, type, function and method names, `Ok`, `c0` |
 
+The WAT writer (`fjs/media/wasm/wat`) marks every word it writes: a
+mnemonic, a section or field word and a value type `keyword`, as `func`,
+`i32.add`, `offset=8` and `@name`; a `$` name `identifier`; an index, a
+limit, a constant and a branch depth `number`; a string `string`; and
+`(;N;)`, `(;@N;)`, `;; label = @N` and a float's `(;=…;)` `comment`.
+
 The TypeScript printer (`fjs/rtti/ts`) marks `type`, `readonly`, `in` and the
 primitive type names — `string`, `number`, `bigint`, `boolean`, `unknown`,
 `never`, `undefined` — `keyword`, as TypeScript spells them; `null`, `true` and
@@ -195,6 +201,7 @@ text is an addition beside it. The `_`-prefixed functions are linkage, not API.
 | `.js` writer (`fjs/compiler/serializer`) | `tryStringify`, `tryModuleStringify`, `trySerialize`, `tryModuleSerialize` | `tryMarked`, `tryModuleMarked` | `_trySerialize`, `_tryModuleSerialize` |
 | Rust (`fjs/compiler/rust`) | `toRust`, `generate` | `toRustMarked` | `scopeTagged`, `useLinesTagged` in `fjs/edag/rust` |
 | TypeScript types (`fjs/rtti/ts`) | `dataToTs`, `printer` | `dataToTsMarked` | `_taggedPrinter`, `_taggedPrimitive`, `_taggedUnion` in `fjs/types/ts` |
+| WAT (`fjs/media/wasm/wat`) | `wat`, `functions` | `functionsMarked` | its own templates tag each word |
 | The compiler (`fjs/compiler`) | the file `compileFile(load)` writes | `_outputMarked(load)(input, output)`, `_compileMarked(load)(input, output)` | — |
 
 `_outputMarked` is `compile` without its tail, creating the output's
@@ -277,13 +284,6 @@ and the website's `highlight(text)` draws them:
   `type` stays an `identifier`. The primitive type names stay `identifier`s:
   one is a keyword only where a type stands, which a token's neighbours cannot
   tell. A README's `ts` fence is drawn this way.
-- WebAssembly text has a fallback of its own,
-  [`media/wasm/wat/marked`](../../media/wasm/wat/marked/module.f.js)'s
-  `spansOf`, over the text format's tokens: a `$` word an `identifier`, a
-  lower-case one or an annotation a `keyword`, numbers, strings and both
-  comment forms, and no spans for text that does not tokenize.
-  `watHighlight(text)` draws it: the WAT a WASM demo page fetches, and a
-  README's `wat`, `wast` or `wasm` fence.
 
 The fallback is also the **oracle** a producer is held to
 ([§9](#9-proving-a-producer)): `disagreement(marked)`, in `js/marked`, answers where a
@@ -496,6 +496,12 @@ points, as the tokenizer's are).
   directory and the write. Both run the same output route to the same point,
   and the proof runs the whole of `compile` and holds each pane to the file
   written, so a pane cannot drift from the command line.
+- **Where a page reads a file a build wrote, the runs cross it as tagged
+  text.** A WASM demo page fetches each sample's WAT; the publisher writes
+  `functionsMarked` as `toTagged` beside the plain `.wat`, and the page reads
+  it back with `fromTagged` and draws it with `render`. Tagged text is the
+  encoding §4 already defines, and the page builds its nodes from the runs,
+  never inserting fetched HTML.
 - **No command-line option** ([§10](#10-the-command-line)).
 
 ### How it was built

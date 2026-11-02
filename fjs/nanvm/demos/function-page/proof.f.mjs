@@ -14,6 +14,7 @@
  * @import { Call, Calls, FunctionSample, State } from './types.ts'
  */
 
+import { tagged } from '../../../text/marked/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
@@ -75,7 +76,7 @@ const perform = map => effect => {
 
 const source = 'export default (...a) => (a[0], a[0] + 2);'
 
-const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustPath('plus2')}`]: 'pub fn module() {}', [`/${watPath('plus2')}`]: '(module)' }
+const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustPath('plus2')}`]: 'pub fn module() {}', [`/${watPath('plus2')}`]: `(${tagged('keyword')('module')})` }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance()))(load(plus2.place))
@@ -95,7 +96,7 @@ export const proof = {
     load: () => {
         assertStructurallySame(ready.source, ok(source))
         assertStructurallySame(ready.rust, ok('pub fn module() {}'))
-        assertStructurallySame(ready.wat, ok('(module)'))
+        assertStructurallySame(ready.wat, ok([['('], ['module', 'keyword'], [')']]))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.calls, null)
         // The graph is drawn once, as the source arrives.

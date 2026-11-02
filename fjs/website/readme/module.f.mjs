@@ -47,7 +47,7 @@ import { basename, concat as pathConcat, escapes, normalize, parent } from '../.
 import { error, ok } from '../../types/result/module.f.js'
 import { linkedHeading, reservedIds } from '../permalink/module.f.js'
 import { fileHref, pageHref } from '../page/module.f.mjs'
-import { highlight, tsHighlight, watHighlight } from '../demo/highlight/module.f.mjs'
+import { highlight, tsHighlight } from '../demo/highlight/module.f.mjs'
 import { flowchartSvg } from '../mermaid/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
 import { at } from '../../types/object/module.f.mjs'
@@ -213,15 +213,14 @@ export const anchors = blocks => {
 /**
  * How a fence is coloured, by the name GitHub reads its language under:
  * JavaScript and JSON by the JavaScript tokenizer, TypeScript by the same
- * tokenizer with TypeScript's own keywords, and WebAssembly text by its own.
- * GitHub matches the name in any case.
+ * tokenizer with TypeScript's own keywords. GitHub matches the name in any
+ * case.
  *
  * @type {StringMap<(text: string) => readonly Node[]>}
  */
 const highlighters = {
     js: highlight, javascript: highlight, json: highlight, jsonc: highlight,
     ts: tsHighlight, typescript: tsHighlight,
-    wat: watHighlight, wast: watHighlight, wasm: watHighlight,
 }
 
 /**
