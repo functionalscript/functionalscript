@@ -1033,6 +1033,9 @@ parts do not delay the epic's foundation gate:
 - [x] Establish the source fallback's stack-safety boundary with concrete
       accepted and refused witnesses. Preserve loops and one-pass recovery;
       verify source readback and deep execution for supported backedges.
+- [ ] Reconcile completed output profiles with the central control-flow audit
+      and remaining tasks. Prepare the explicit-return ownership contract for
+      review and define the next ordinary-if admission boundary.
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes. Independent shared
