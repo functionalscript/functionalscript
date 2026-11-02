@@ -43,8 +43,11 @@
  * branchContents ::= simpleStatement* [terminator | (while | for) branchContents]
  * branchElse ::= branchBlock | ifStatement
  * while  ::= 'while' '(' value ')' loopBlock
- * for    ::= 'for' '(' [forInitializer] ';' [value] ';' [nameExpression] ')' loopBlock
- * forInitializer ::= ('const' | 'let') bindingTarget '=' value | nameExpression
+ * for    ::= 'for' '(' forHeader ')' loopBlock
+ * forHeader ::= ('const' | 'let') bindingTarget forDeclarationTail
+ *             | nameExpression ';' forClassicTail | ';' forClassicTail
+ * forDeclarationTail ::= '=' value ';' forClassicTail | 'of' value
+ * forClassicTail ::= [value] ';' [nameExpression]
  * let    ::= 'let' bindingTarget '=' value end
  * terminator ::= 'return' value end | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
@@ -154,7 +157,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, ForClassicTail, ForDeclarationTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -194,14 +197,15 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * not merely encode them. Six frame a module, `return` and `throw` end a
  * function's block body — `throw` a module too — `if` opens a guard in
  * one, `else` an alternate, `let` and `while` a loop, `break` and `continue`
- * its transfers, `switch` and `case` a switch, and `as` introduces an import alias.
+ * its transfers, `switch` and `case` a switch, `as` an import alias and `of`
+ * an iteration header. Contextual words retain their ordinary identifier uses.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
  * symbol rejects every one of them, which is what {@link identifier} is
  * for: the union of `id` and the framing keywords. Which words a position may
  * hold is the fold's to say, since it is a property of the word — JavaScript
- * reserves its keywords while `from` and `as` are ordinary, and it lets every reserved
+ * reserves its keywords while `from`, `as` and `of` are ordinary, and it lets every reserved
  * word stand as a key or after `.`, so `{ default: 3 }`, `{ return: 3 }`
  * and `a.with` parse and `const export = 1;` is refused by the fold, as
  * `const if = 1;` is.
@@ -216,7 +220,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'typeof', 'instanceof', 'in', 'else', 'break', 'continue'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'of', 'typeof', 'instanceof', 'in', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -285,6 +289,7 @@ export const identifier = /** @type {const} */ ({
     switch: sym('switch'),
     case: sym('case'),
     as: sym('as'),
+    of: sym('of'),
     // required only where a tail continues, after an operand, where no
     // reference may stand — so unlike `typeof` it opens no second branch
     // on one symbol here, and reaches the fold as `if` does
@@ -1234,14 +1239,13 @@ export const letStatement = [sym('let'), bindingTarget, sym('='), value, end]
 
 /**
  * The words a statement may begin with where it is no keyword's: `id`, and
- * the two framing keywords JavaScript leaves ordinary, `from` and `as` —
+ * the framing words JavaScript leaves ordinary, `from`, `as` and `of` —
  * the words an assignment may rebind, and the words that may begin a
  * reference where a statement starts. Not {@link identifier}: every other word with
  * a symbol of its own opens a statement of its own, `const` or `if`, or is
- * reserved, and the reserved words among these three are refused by the
- * fold wherever they are bound.
+ * reserved. Declaration and reference legality remains the fold's decision.
  */
-export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as') })
+export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from'), as: sym('as'), of: sym('of') })
 
 /**
  * A body's statement that begins with a name: the assignment, `name =
@@ -1326,12 +1330,25 @@ export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock,
 /** The plain loop statement shared by module and function bodies. @type {WhileStatement} */
 export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
 
-/** Classic `for` headers have explicit separators; clauses do not use ASI. @type {ForStatement} */
-export const forStatement = [sym('for'), sym('('), option({
-    const: [sym('const'), bindingTarget, sym('='), value],
-    let: [sym('let'), bindingTarget, sym('='), value],
-    name: nameExpression,
-}), sym(';'), option(value), sym(';'), option(nameExpression), sym(')'), loopBlock]
+/** Classic clauses keep their explicit separators; neither separator uses ASI. @type {ForClassicTail} */
+export const forClassicTail = [option(value), sym(';'), option(nameExpression)]
+
+/** A declaration's target precedes the one-token choice between classic and `of` syntax. @type {ForDeclarationTail} */
+export const forDeclarationTail = {
+    classic: [sym('='), value, sym(';'), forClassicTail],
+    of: [sym('of'), value],
+}
+
+/** Declaration-based `for...of` and all existing classic headers share one prefix. @type {ForHeader} */
+export const forHeader = {
+    const: [sym('const'), bindingTarget, forDeclarationTail],
+    let: [sym('let'), bindingTarget, forDeclarationTail],
+    name: [nameExpression, sym(';'), forClassicTail],
+    empty: [sym(';'), forClassicTail],
+}
+
+/** The braced body is retained syntactically; `for...of` admission is a later boundary. @type {ForStatement} */
+export const forStatement = [sym('for'), sym('('), forHeader, sym(')'), loopBlock]
 
 /**
  * A body has non-loop statements followed by a terminator or a loop. The

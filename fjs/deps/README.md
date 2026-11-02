@@ -17,6 +17,9 @@ to report their unsupported source forms. Parser extensions are a later step.
 Source files are read as UTF-8 without importing or executing them. The check
 does not resolve imports or source bindings, apply FunctionalScript admission,
 or lower to FAST or EDAG.
+Its syntax AST can represent forms that FJS compilation still refuses,
+including braced `for (const item of items)` and `for (let item of items)`
+declaration loops. Recognizing that syntax does not select iteration semantics.
 Each read or syntax failure is reported with its source location when known;
 the remaining files are still checked. A summary reports parsed, failed and
 total files. Any failed file or discovery error exits with code 1; a successful

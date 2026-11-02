@@ -36,8 +36,8 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ForStatement, NameExpression } from '../grammar/types.ts'
+ * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ForClassicTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
@@ -1160,8 +1160,8 @@ const toBlockContents = ([statements, ending]) => {
     if (kind === 'for') {
         const read = forAt(unmapped(branch)[0])
         return symbol({ id: 'blockContents', statements: following === undefined
-            ? [...prefix, ['terminal-for', read]]
-            : [...prefix, ['for', read], ...blockContentsAt(following)] })
+            ? [...prefix, read[0] === 'for' ? ['terminal-for', read[1]] : ['terminal-for-of', read[1]]]
+            : [...prefix, read, ...blockContentsAt(following)] })
     }
     const read = loopConditionAt(unmapped(branch)[0])
     return symbol({ id: 'blockContents', statements: following === undefined
@@ -1197,8 +1197,8 @@ const toBranchContents = ([statements, ending]) => {
     if (kind === 'for') {
         const read = forAt(unmapped(branch)[0])
         return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
-            ? ['branch', prefix, ['terminal-for', read]]
-            : ['branch', [...prefix, ['for', read], ...following[1]], following[2]] })
+            ? ['branch', prefix, read[0] === 'for' ? ['terminal-for', read[1]] : ['terminal-for-of', read[1]]]
+            : ['branch', [...prefix, read, ...following[1]], following[2]] })
     }
     const read = loopConditionAt(unmapped(branch)[0])
     return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
@@ -1224,6 +1224,7 @@ const normalIfAt = node => {
 /** Preserve explicit terminating/no-else guards; final-loop completion needs resolved owners. @type {(statement: NormalIf) => BlockStatement} */
 const ordinaryIf = statement => statement.otherwise === null && statement.block[2] !== null
     && statement.block[2][0] !== 'terminal-while' && statement.block[2][0] !== 'terminal-for'
+    && statement.block[2][0] !== 'terminal-for-of'
     ? ['if', { start: statement.start, condition: statement.condition, block: ['block', [...statement.block[1], statement.block[2]]] }]
     : ['normal-if', statement]
 
@@ -1339,26 +1340,37 @@ const loopConditionAt = node => {
     return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
 }
 
-/** Retain each clause, using literal true only when the test is omitted. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => For} */
+/** Keep `for...of` distinct while classic clauses retain their existing AST. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => readonly ['for', For] | readonly ['for-of', ForOf]} */
 const forAt = node => {
-    const [first, , initial, , condition, , step, , block] = unmapped(node)
-    const initializer = unmapped(initial)[0]
+    const [first, , header, , block] = unmapped(node)
+    const [kind, branch] = unmapped(header)
     /** @type {For['initializer']} */
     let declaration = null
-    if (initializer !== undefined) {
-        const [kind, branch] = unmapped(initializer)
-        if (kind === 'name') { declaration = namedExpressionOf(unmapped(branch), true) }
-        else {
-            const [first, target, , value] = unmapped(branch)
-            declaration = [kind, { start: tokenAt(first), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
+    /** @type {Ast<ForClassicTail, ModuleTokenWithMetadata, Out> | null} */
+    let classic = null
+    if (kind === 'empty') { classic = unmapped(branch)[1] }
+    else if (kind === 'name') {
+        const [initial, , tail] = unmapped(branch)
+        declaration = namedExpressionOf(unmapped(initial), true)
+        classic = tail
+    } else {
+        const [keyword, target, continuation] = unmapped(branch)
+        const [form, following] = unmapped(continuation)
+        if (form === 'of') {
+            return ['for-of', { start: tokenAt(first), kind, target: targetOf(unmapped(target)),
+                iterable: nodeAt(unmapped(following)[1]), block: loopBlockOf(unmapped(block)) }]
         }
+        const [, value, , tail] = unmapped(following)
+        declaration = [kind, { start: tokenAt(keyword), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
+        classic = tail
     }
+    const [condition, , step] = unmapped(classic)
     const test = unmapped(condition)[0]
     const update = unmapped(step)[0]
-    return { start: tokenAt(first), initializer: declaration,
+    return ['for', { start: tokenAt(first), initializer: declaration,
         condition: test === undefined ? ['primitive', true] : nodeAt(test),
         step: update === undefined ? null : namedExpressionOf(unmapped(update), true),
-        block: loopBlockOf(unmapped(block)) }
+        block: loopBlockOf(unmapped(block)) }]
 }
 
 /** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
@@ -1412,7 +1424,7 @@ const discarded = (name, rest, semicolon) =>
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
@@ -1462,7 +1474,7 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: forAt(branch) }) }
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
     return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
 }

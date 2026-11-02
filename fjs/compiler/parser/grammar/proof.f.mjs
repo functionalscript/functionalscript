@@ -83,7 +83,7 @@ const categoryNames = /** @type {const} */ ([
     'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
 ])
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     ordinaryIfArmsMayCompleteNormallyWithoutImplicitFunctionReturns: () => {
         for (const source of [
             'export default b=>{let a=0;if(b){a+=2;}return a;};',
@@ -116,7 +116,6 @@ export const proof = {
             'for(let i=0;i<3\ni+=1){}export default 0;',
             'for(let i;i<3;i+=1){}export default 0;',
             'for(let i=0;i<3;i++){}export default 0;',
-            'for(const i of []){}export default 0;',
             'for(const i in {}){}export default 0;',
             'for(;;)break;export default 0;',
             'for(;;){};export default 0;',
@@ -938,4 +937,4 @@ export const proof = {
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
     },
-}
+})
