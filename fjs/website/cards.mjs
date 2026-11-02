@@ -164,6 +164,9 @@ const shoot = async (url, origin, cards) => {
             // where `cardReady` waits for each five seconds at most. The
             // card's script, after its stylesheet, has run by now.
             const parsed = next('Page.domContentEventFired', sessionId)
+            // Handled at once: should the navigation fail first, its
+            // rejection is the error, and this one is not left unhandled.
+            parsed.catch(() => undefined)
             await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
             await parsed
             const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
