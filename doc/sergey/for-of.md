@@ -8,12 +8,10 @@ type IterationResult = readonly[stop: boolean, result: unknown]
 const tryFold = (
     f: (i: unknown, state: unknown) => IterationResult,
     c: (result: unknown) => unknown,
-    it: unknown,
+    it0: unknown,
     state: unknown
 ): unknown => {
-    if (typeof it !== 'string' && !(it instanceof Array)) {
-        throw 'Type Error'
-    }
+    const it = [...it0]
     const { length } = it
     let i = 0
     while (i < length) {
