@@ -17,6 +17,7 @@ export const alternate = condition => {
 
 /** @type {(condition: boolean, left: readonly number[], right: readonly number[]) => readonly any[]} */
 const snapshot = (condition, left, right) => {
+    // FJS requires an explicit initializer even when both arms replace it.
     /** @type {readonly any[]} */
     let packet = left;
     if (condition) {
@@ -47,6 +48,7 @@ export const snapshotObservation = condition => {
 export const selectedFailure = condition => {
     let a = 0;
     if (condition) {
+        // This unused initializer must still fail when its arm is selected.
         const required = 1n / 0n;
         a = 1;
     }

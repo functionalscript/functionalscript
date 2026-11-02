@@ -20,7 +20,7 @@ const statements = source => {
     return body[1]
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     normalArmsRetainAssignmentsAndDistinctMissingAlternates: () => {
         const arm = statements('export default b=>{let a=0;if(b){const x=2;a+=x;}return a;};')[1]
         assert(arm[0] === 'normal-if')
@@ -80,4 +80,4 @@ export const proof = {
             assertStructurallySame(ended[1].block[1].map(statement => statement[0]), [tag, 'return'])
         }
     },
-}
+})
