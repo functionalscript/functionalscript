@@ -614,9 +614,11 @@ const patternRound = (stack, scope, frame) => {
         scope = selected[0]
         frame = selected[1]
     }
+    /** @type {ExpansionPlan} */
     const plan = { reads: frame.reads, ids: frame.pattern.ids }
     const continuation = frame.continuation
     if ('parameter' in continuation) {
+        /** @type {_Scope} */
         const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
         return lateRound(stack, next, { ...continuation.parameter, index: continuation.parameter.index + 1 })
     }
