@@ -24,7 +24,9 @@ case's block, inside another loop or conditional arm, or after another loop.
 Module loops run in initialization order,
 including between named exports; earlier exported constants retain their
 declared values ([modules](../../modules/README.md)). Its body holds `const`s
-and initialized `let`s, call statements, assignments and conditional blocks.
+and `let`s, call statements, assignments and conditional blocks. A named
+`let` without an initializer starts at `undefined` on each reached iteration
+([variables](../../bindings/variables/README.md#declarations-without-initializers)).
 It may assign zero, one or several outer variables, including parameters.
 Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
@@ -45,10 +47,12 @@ for (let i = 0; i < count; i += 1) {
 }
 ```
 
-The initializer may be one initialized `let` or `const` declaration, an
+The initializer may be one `let` or initialized `const` declaration, an
 assignment, a call statement, or empty. The step may be an assignment, a call
 statement, or empty. Existing pattern, assignment and call restrictions apply
-to those clauses. `++`, `--`, `for…of` and `for…in` remain separate features.
+to those clauses. A named `let` may omit its initializer, starting at
+`undefined` before the first condition test; a pattern still requires one.
+`++`, `--`, `for…of` and `for…in` remain separate features.
 The condition is an ordinary expression. Computed property keys still require
 their explicit conversion, as `Number(first + i)` does above.
 

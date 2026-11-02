@@ -28,6 +28,9 @@ still explicitly refuses construction at `new`.
 Number literal object keys such as `{ 0x70: value }` also form syntax ASTs.
 Their FunctionalScript admission reuses the existing computed-key lowering;
 the dependency check still performs only syntax parsing.
+Named `let` declarations can omit their initializer. The syntax AST preserves
+that absence; compilation separately supplies primitive `undefined` at the
+declaration point. `const` and destructuring declarations require initializers.
 Each read or syntax failure is reported with its source location when known;
 the remaining files are still checked. A summary reports parsed, failed and
 total files. Any failed file or discovery error exits with code 1; a successful

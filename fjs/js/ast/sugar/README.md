@@ -19,6 +19,9 @@ identities, including writes and references in nested or unreachable regions.
 `normalize(resolved, imports)` consumes that admitted record and its shared
 facts. It expands pattern reads and defaults, chooses invocation parameters and
 rest layout, and maps every source declaration to its current immutable value.
+Source admission supplies primitive `undefined` for an omitted named `let`
+initializer, so normalization uses the existing initialization path without
+definite-assignment analysis or a new FAST operation.
 Used aliases retain an established value and their lexical order, so generated
 helper capture signatures survive source round trips. These retained reads add no
 evaluation demand to their already established value. Unused aliases of already

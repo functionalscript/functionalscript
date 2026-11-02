@@ -114,7 +114,7 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
 export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For] | readonly ['terminal-for-of', ForOf]
 
 /** A block's statement before the one that ends it: a declaration, assignment, terminating guard or normal conditional, loop, or switch without a `default`. The following statements run when such a switch has no matching label. */
-export type BlockStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]
+export type BlockStatement = readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]
 
 /** A conditional arm keeps its ordinary statements and explicit ending, if present. */
 export type BranchBlock = readonly ['branch', readonly BlockStatement[], BlockEnd | null]
@@ -179,7 +179,7 @@ export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
 /** A classic `for` keeps its lexical initializer and step until normalization. */
 export type For = {
     readonly start: ModuleTokenWithMetadata
-    readonly initializer: NamedStatement | readonly ['let' | 'const', Const] | null
+    readonly initializer: NamedStatement | readonly ['let', Let] | null
     readonly condition: Node
     readonly step: NamedStatement | null
     readonly block: LoopBlock
@@ -211,7 +211,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Const] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -397,6 +397,12 @@ export type Const = Statement & {
     readonly value: Node
 }
 
+/** A `let` retains an omitted initializer as `null`; explicit `undefined` is still a value node. */
+export type Let = Statement & {
+    readonly target: PlainBindingTarget
+    readonly value: Node | null
+}
+
 /**
  * What a call statement binds: nothing, the value discarded, by the name
  * it begins with — `assert(a);` is `const _ = assert(a);` where `_` is a
@@ -465,8 +471,14 @@ export type ModuleConst = {
     readonly exported: boolean
 }
 
+/** A module `let` keeps the declaration's omitted initializer and cannot be exported. */
+export type ModuleLet = {
+    readonly declaration: Let
+    readonly exported: false
+}
+
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleConst] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
+export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an
@@ -554,6 +566,7 @@ export type Out =
     | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
+    | { readonly id: 'let', readonly statement: Let }
     | { readonly id: 'named', readonly statement: NamedStatement }
     | { readonly id: 'statement', readonly statement: BlockStatement }
     | { readonly id: 'end', readonly end: Block[1] }

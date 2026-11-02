@@ -102,6 +102,18 @@ strings retain JSON's escape rules, and template admission is unchanged.
 The approval, rationale and remaining string spellings are tracked in
 [JS string literals](../../spec/todo/2460-js-string-literals.md#single-quoted-hexadecimal-and-vertical-tab-escapes).
 
+### Named `let` declarations without initializers
+
+The generic AST retains the omitted initializer in `let name;`, including a
+classic `for` header declaration. FunctionalScript admission initializes the
+binding to primitive `undefined` at the declaration point, with JavaScript's
+reads before any later assignment. It reuses initialized-binding lowering
+without definite-assignment analysis or a new FAST/EDAG operation. `const`
+and destructuring declarations still require initializers. `for…of` remains
+syntax-only and is refused by FunctionalScript admission.
+The approval and rationale are part of the
+[variables specification](../../spec/bindings/variables/README.md#design-approval).
+
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
@@ -121,6 +133,8 @@ The approval, rationale and remaining string spellings are tracked in
           preserving the double-quoted JSON and template boundaries.
     - [x] Remove five redundant empty statements from implementation modules,
           preserving JavaScript behavior and the existing FJS syntax policy.
+    - [x] Parse and admit [named `let` declarations without initializers](#named-let-declarations-without-initializers),
+          retaining syntax omission and supplying primitive `undefined` at admission.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
