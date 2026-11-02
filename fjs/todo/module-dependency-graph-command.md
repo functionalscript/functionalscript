@@ -150,8 +150,14 @@ The approval and rationale are part of the
     - [x] Replace the website demo's control re-export with aliased imports and
           declaration exports, tracking automatic desugaring in
           [export lists](../../spec/todo/export-lists.md).
-    - [ ] Evaluate replacing host-iterable consumers with `alt.toArray`, checking
+    - [x] Evaluate replacing host-iterable consumers with `alt.toArray`, checking
           bounded traversal and measuring representative performance.
+          Object entry construction and compiler summary maps use `alt.toArray`;
+          byte conversion and streamed MIME detection use `next` directly to
+          preserve size bounds and early exits. Materialization performance
+          depends on list shape; the
+          [consumer measurements](https://github.com/functionalscript/functionalscript/pull/3584)
+          record both gains and slowdowns.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

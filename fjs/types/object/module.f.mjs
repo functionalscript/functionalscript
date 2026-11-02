@@ -14,7 +14,7 @@
  */
 
 import { isArray } from '../array/module.f.mjs'
-import { iterable } from '../list/iterable/module.f.mjs'
+import { toArray } from '../list/alt/module.f.js'
 import { fromUndefined } from '../nullable/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.js'
 import { structurallySame as importedStructurallySame } from './structurally_same/module.f.js'
@@ -38,7 +38,7 @@ export const at = name => object => {
 export const sort = e => mapEntries(mapFromEntries(e))
 
 /** @type {<T>(e: List<Entry<T>>) => StringMap<T>} */
-export const fromEntries = e => objectFromEntries(iterable(e))
+export const fromEntries = e => objectFromEntries(toArray(e))
 
 /** @type {<T>(m: OrderedMap<T>) => StringMap<T>} */
 export const fromMap = m => fromEntries(mapEntries(m))
