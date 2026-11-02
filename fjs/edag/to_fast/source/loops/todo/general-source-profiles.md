@@ -215,6 +215,35 @@ allocations, conditional failures, lexical captures and both source generations.
 This is a semantic source-readback contract, without a general graph/hash
 fixed-point guarantee or admission of arbitrary lazy storage.
 
+### Stack-safe fallback boundary
+
+The source coordinator first retains the established scalar, plain, terminal
+and lexically local loop plans. Its remaining inverse reconstruction must not
+turn a possible invocation backedge into a recursive JavaScript call. A
+`continue` to that exact invocation loop target is a potential backedge;
+`break` alone is not. Target matching follows object identity through value
+regions, nested loops and construction captures. Ordinary nested function bodies
+have their own transfer owners and remain opaque to this query.
+
+Outside the retained profiles, a possible owning backedge is an explicit
+unsupported result before inverse reconstruction. This is a structural limit:
+an unreachable but still present `continue` can also be refused. A loop without
+that owning continuation can retain the existing one-pass reconstruction,
+including owning value returns and ordinary self values or calls.
+
+The [shared fallback fixture](../fixtures.f.js) has an owning return in a required value prefix,
+followed by a result-bearing terminal decision and a genuine backedge. Before
+the guard, direct coordination reconstructs recursive JavaScript that returns
+`7` shallowly and overflows at input `100_001`; its raw spelling also fails FJS
+parsing. The public graph route already normalizes the same input back to a
+valid `while`. This is evidence for the coordinator boundary, not a confirmed
+public-output regression.
+
+Proofs must preserve the shared transfer query's default behavior, distinguish
+breaks from continues and exact target identities, retain valid one-pass forms,
+and refuse the low-level witness. The public graph must still parse, reserialize
+and execute deeply through two source generations using its existing loop plan.
+
 ### Other profile boundaries
 
 The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
@@ -256,6 +285,9 @@ fallback; non-reifiable forms retain the explicit `Result` error
 - [x] Reconstruct the shared normal `normalPayload` result with immutable
       first-demand dependencies; preserve opaque values, conditional work,
       allocation identity and owning returns through deep source readback.
+- [x] Guard inverse source reconstruction against possible owning backedges;
+      preserve retained loops and one-pass forms, with concrete lower-level
+      refusal and public deep-readback witnesses.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner

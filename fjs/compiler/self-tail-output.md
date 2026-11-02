@@ -98,14 +98,20 @@ reached mixed-number operation still fails. Other genuine lazy source profiles
 retain their admission checks. See
 [general source profiles](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 
-The source coordinator's
+The source coordinator
 [`recursiveFunction` / `resultBlock`](../edag/to_fast/source/loops/module.f.mjs)
-can reconstruct a canonical invocation as a recursive function outside retained
-loop profiles. Non-reifiable layouts return an explicit error. Existing fallback
-proofs include one-pass owning-value returns; they do not establish a deep
-recursive final-output witness. This audit found no independently confirmed
-accepted recursive public-source example and makes no universal bounded-stack
-claim for that fallback.
+retains the existing loop profiles, then refuses a possible `continue` to the
+invocation's exact loop target before inverse reconstruction. Break-only and
+other one-pass wrappers retain their owning value returns and ordinary self
+uses. The query is structural and can also refuse an unreachable backedge.
+
+The concrete lower-level witness previously reconstructed recursive JavaScript
+and overflowed at input 100,001. Its raw spelling also failed FJS parsing. The
+public graph route already normalized it back to `while`; no accepted public
+recursive-output regression was established. The guard now refuses that direct
+coordinator input, while native proofs retain public source readback and deep
+execution through two generations. See the
+[fallback boundary contract](../edag/to_fast/source/loops/todo/general-source-profiles.md#stack-safe-fallback-boundary).
 
 ### Direct FAST preparation
 
