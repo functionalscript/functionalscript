@@ -119,6 +119,8 @@ The approval, rationale and remaining string spellings are tracked in
           computed-key desugaring and existing execution semantics.
     - [x] Parse and admit [single-quoted `\xHH` and `\v`](#single-quoted-hexadecimal-and-vertical-tab-escapes),
           preserving the double-quoted JSON and template boundaries.
+    - [x] Remove five redundant empty statements from implementation modules,
+          preserving JavaScript behavior and the existing FJS syntax policy.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

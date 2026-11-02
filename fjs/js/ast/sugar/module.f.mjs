@@ -122,7 +122,7 @@ const references = root => {
         }
         const { value } = task
         if (value === null || typeof value !== 'object') { pending = rest; continue }
-        if (value[0] === 'ref') { if (!found.includes(value[1])) { found = [...found, value[1]] }; pending = rest; continue }
+        if (value[0] === 'ref') { if (!found.includes(value[1])) { found = [...found, value[1]] } pending = rest; continue }
         if (value[0] === 'function') { pending = [...value[1].captures.map(capture => valueTask(capture.value)), ...rest]; continue }
         if (value[0] === 'block') { pending = [blockTask(value[1]), ...rest]; continue }
         if (value[0] === 'if') { pending = [valueTask(value[1]), blockTask(value[2]), blockTask(value[3]), ...rest]; continue }
