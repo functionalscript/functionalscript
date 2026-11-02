@@ -71,9 +71,18 @@ through two source generations, including 100,001 transfers, opaque arguments,
 fresh result arrays and skipped/reached failures. These are semantic readback
 guarantees, without a graph/hash fixed-point requirement.
 
-The snapshot graph retains genuine lazy placement and its explicit source
-refusal. Arbitrary statement blocks and broader nonlocal source profiles remain
-outside the forwarding rule.
+The snapshot graph also reaches public source after common tail planning
+establishes inert prefix allocations as immutable invocation bindings. Its array
+and reader closure remain inside each loop iteration, so escaped readers retain
+their creating snapshot. The native proof checks sharing, fresh arrays and
+readers across invocations, and retained readers after later public calls through
+two source generations at input 100,001. Marked and plain source agree.
+
+Only primitives and established reads can supply these prefix constructions.
+Calls, lookups, coercions, spreads and outer deferred values retain their demand
+owners. The remaining genuine lazy profiles below still have their explicit
+source refusals. Arbitrary statement blocks and broader nonlocal source profiles
+remain outside the forwarding rule.
 
 ## Remaining boundaries
 

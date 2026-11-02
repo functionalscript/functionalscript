@@ -218,73 +218,61 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b8438_114: Any<A> = _b8530.clone();
             let _b8439_115: Any<A> = _b8531.clone();
             let _b8440_116: Any<A> = _b8532.clone();
-            let _b8534 = std::cell::RefCell::new(None::<Any<A>>);
-            let _b61: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                if let Some(value) = _b8534.borrow().as_ref() { return Ok(value.clone()); }
-                let value: Any<A> = { [_b8438_114.clone()].to_array().to_any() };
-                *_b8534.borrow_mut() = Some(value.clone());
-                Ok(value)
-            };
-            let _b8536 = std::cell::RefCell::new(None::<Any<A>>);
-            let _b63: &dyn Fn() -> Result<Any<A>, Any<A>> = &|| -> Result<Any<A>, Any<A>> {
-                if let Some(value) = _b8536.borrow().as_ref() { return Ok(value.clone()); }
-                let value: Any<A> = { A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [(_b61())?].to_array(), Some("()=>$0")).to_any() };
-                *_b8536.borrow_mut() = Some(value.clone());
-                Ok(value)
-            };
+            let _b61: Any<A> = [_b8438_114.clone()].to_array().to_any();
+            let _b63: Any<A> = A::static_function(|_self, _args| { Ok(A::frame(_self)[0].clone()) }, 0, [_b61.clone()].to_array(), Some("()=>$0")).to_any();
             if Any::<A>::to_boolean((Any::gt(_b8438_114.clone(), f64_any(0x0000000000000000)))?) {
-                let mut _b8538: Any<A> = Nullish::Undefined.to_any();
+                let mut _b8534: Any<A> = Nullish::Undefined.to_any();
                 if Any::<A>::to_boolean(_b8439_115.clone()) {
-                    let mut _b8539: Any<A> = Nullish::Undefined.to_any();
+                    let mut _b8535: Any<A> = Nullish::Undefined.to_any();
                     if Any::<A>::to_boolean((_b8438_114.clone() % f64_any(0x4000000000000000))?) {
+                        let _b8536: Any<A> = f64_any(0x0000000000000000);
+                        _b8535 = _b8536.clone();
+                    } else {
+                        let _b8537: Any<A> = f64_any(0x3ff0000000000000);
+                        _b8535 = _b8537.clone();
+                    }
+                    let _b76_124: Any<A> = _b8535.clone();
+                    let _b8538: Any<A> = _b76_124.clone();
+                    _b8534 = _b8538.clone();
+                } else {
+                    let mut _b8539: Any<A> = Nullish::Undefined.to_any();
+                    if Any::<A>::to_boolean((_b8438_114.clone() % f64_any(0x4008000000000000))?) {
                         let _b8540: Any<A> = f64_any(0x0000000000000000);
                         _b8539 = _b8540.clone();
                     } else {
                         let _b8541: Any<A> = f64_any(0x3ff0000000000000);
                         _b8539 = _b8541.clone();
                     }
-                    let _b76_128: Any<A> = _b8539.clone();
-                    let _b8542: Any<A> = _b76_128.clone();
-                    _b8538 = _b8542.clone();
-                } else {
-                    let mut _b8543: Any<A> = Nullish::Undefined.to_any();
-                    if Any::<A>::to_boolean((_b8438_114.clone() % f64_any(0x4008000000000000))?) {
-                        let _b8544: Any<A> = f64_any(0x0000000000000000);
-                        _b8543 = _b8544.clone();
-                    } else {
-                        let _b8545: Any<A> = f64_any(0x3ff0000000000000);
-                        _b8543 = _b8545.clone();
-                    }
-                    let _b76_133: Any<A> = _b8543.clone();
-                    let _b8546: Any<A> = _b76_133.clone();
-                    _b8538 = _b8546.clone();
+                    let _b76_129: Any<A> = _b8539.clone();
+                    let _b8542: Any<A> = _b76_129.clone();
+                    _b8534 = _b8542.clone();
                 }
-                let _b76_135: Any<A> = _b8538.clone();
-                if Any::<A>::to_boolean((strict_eq(_b76_135.clone(), f64_any(0x0000000000000000)))?) {
-                    let _b8547: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8548: Any<A> = false.to_any();
-                    let _b8549: Any<A> = (_b63())?;
-                    _b8530 = _b8547.clone();
-                    _b8531 = _b8548.clone();
-                    _b8532 = _b8549.clone();
+                let _b76_131: Any<A> = _b8534.clone();
+                if Any::<A>::to_boolean((strict_eq(_b76_131.clone(), f64_any(0x0000000000000000)))?) {
+                    let _b8543: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8544: Any<A> = false.to_any();
+                    let _b8545: Any<A> = _b63.clone();
+                    _b8530 = _b8543.clone();
+                    _b8531 = _b8544.clone();
+                    _b8532 = _b8545.clone();
                     continue '_loop76;
                 } else {
-                    let _b8550: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
-                    let _b8551: Any<A> = true.to_any();
-                    let _b8552: Any<A> = (_b63())?;
-                    _b8530 = _b8550.clone();
-                    _b8531 = _b8551.clone();
-                    _b8532 = _b8552.clone();
+                    let _b8546: Any<A> = (_b8438_114.clone() - f64_any(0x3ff0000000000000))?;
+                    let _b8547: Any<A> = true.to_any();
+                    let _b8548: Any<A> = _b63.clone();
+                    _b8530 = _b8546.clone();
+                    _b8531 = _b8547.clone();
+                    _b8532 = _b8548.clone();
                     continue '_loop76;
                 }
             } else {
-                let _b8553: Any<A> = [(_b61())?, (_b61())?, (_b63())?, (Any::call(_b8440_116.clone(), Array::default().to_any()))?].to_array().to_any();
-                _b8533 = _b8553.clone();
+                let _b8549: Any<A> = [_b61.clone(), _b61.clone(), _b63.clone(), (Any::call(_b8440_116.clone(), Array::default().to_any()))?].to_array().to_any();
+                _b8533 = _b8549.clone();
                 break '_loop76;
             }
         }
         let _b8457: Any<A> = _b8533.clone();
         Ok(_b8457.clone())
-    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=(()=>{let $14,$15=false;return()=>{if(!$15){$14=[$10];$15=true;}return $14;};})();const $16=(()=>{let $17,$18=false;return()=>{if(!$18){$17=(($19)=>(()=>$19))($13());$18=true;}return $17;};})();if($10>0){let $20=undefined;if($11){let $21=undefined;if($10%2){const $22=0;$21=$22;}else{const $23=1;$21=$23;}const $24=$21;const $25=$24;$20=$25;}else{let $26=undefined;if($10%3){const $27=0;$26=$27;}else{const $28=1;$26=$28;}const $29=$26;const $30=$29;$20=$30;}const $31=$20;if($31===0){const $32=$10-1;const $33=false;const $34=$16();$6=$32;$7=$33;$8=$34;continue L0;}else{const $35=$10-1;const $36=true;const $37=$16();$6=$35;$7=$36;$8=$37;continue L0;}}else{const $38=[$13(),$13(),$16(),$12()];$9=$38;break L0;}}const $39=$9;return $39;}")).to_any();
+    }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;let $6=$3;let $7=$4;let $8=$5;let $9=undefined;L0:while(true){const $10=$6;const $11=$7;const $12=$8;const $13=[$10];const $14=()=>$13;if($10>0){let $15=undefined;if($11){let $16=undefined;if($10%2){const $17=0;$16=$17;}else{const $18=1;$16=$18;}const $19=$16;const $20=$19;$15=$20;}else{let $21=undefined;if($10%3){const $22=0;$21=$22;}else{const $23=1;$21=$23;}const $24=$21;const $25=$24;$15=$25;}const $26=$15;if($26===0){const $27=$10-1;const $28=false;const $29=$14;$6=$27;$7=$28;$8=$29;continue L0;}else{const $30=$10-1;const $31=true;const $32=$14;$6=$30;$7=$31;$8=$32;continue L0;}}else{const $33=[$13,$13,$14,$12()];$9=$33;break L0;}}const $34=$9;return $34;}")).to_any();
     Ok([(string_key("scalar"), _b15.clone()), (string_key("vectors"), _b34.clone()), (string_key("selectedFailure"), _b54.clone()), (string_key("snapshots"), _b76.clone())].to_object().to_any())
 }

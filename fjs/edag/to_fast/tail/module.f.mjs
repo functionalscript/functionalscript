@@ -10,7 +10,7 @@
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
-import { operatorOperands } from '../../../js/ast/module.f.mjs'
+import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
 import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
@@ -18,6 +18,33 @@ import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
 /** @type {(block: Block, owner: BindingId | null, tail: boolean) => _UseTask} */
 const blockTask = (block, owner, tail) => ({ kind: 'block', block, owner, tail })
+
+/**
+ * Inert prefix constructions need no first-demand storage. Only values already
+ * established in this invocation may be captured; an outer lazy owner is not
+ * established merely because its binding is visible. Ordinary computations and
+ * definitions after control statements retain their existing placement.
+ * @type {(block: Block, inputs: readonly BindingId[]) => Block}
+ */
+const snapshots = (block, inputs) => {
+    let established = inputs
+    /** @type {readonly Statement[]} */
+    let statements = []
+    for (const statement of block.statements) {
+        if (statement[0] !== 'define') { return { ...block, statements: [...statements, ...block.statements.slice(statements.length)] } }
+        /** @type {(value: Value) => boolean} */
+        const stable = value => !(value instanceof Array) || value[0] === 'ref' && established.includes(value[1])
+        const value = statement[2]
+        const inert = stable(value) || value instanceof Array && (
+            value[0] === 'array' && value[1].every(item => !isSpread(item) && stable(item))
+            || value[0] === 'object' && value[1].every(entry => entry[0] === ':' && !(entry[1] instanceof Array) && stable(entry[2]))
+            || value[0] === 'function' && value[1].captures.every(capture => stable(capture.value)))
+        const required = statement[3] === 'required' || inert
+        if (required) { established = [...established, statement[1]] }
+        statements = [...statements, statement[3] === 'lazy' && inert ? ['define', statement[1], value, 'required'] : statement]
+    }
+    return { ...block, statements }
+}
 
 /** Terminal uses retain their lazy recipe owner until that recipe is selected. @type {(source: Block) => readonly _Use[]} */
 const recipeUses = source => {
@@ -195,5 +222,5 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
         })))
     })
     const result = run(blockTask(source))
-    return result.changed ? result.block : null
+    return result.changed ? snapshots(result.block, [...parameters, self, ...rest === null ? [] : [rest]]) : null
 }

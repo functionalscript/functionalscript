@@ -122,9 +122,38 @@ FAST definition that remains in the placed source plan is still refused by
 different boundaries.
 
 Required-prefix terminal recognition cannot simply accept every lazy definition.
-An unselected initializer must remain unevaluated, the first reached demand must
-retain its order relative to calls and failures, and later demands must read the
-same invocation-local value. Loop re-entry must recreate iteration-local storage.
+An unselected initializer's observable work must remain unevaluated, the first
+reached demand must retain its order relative to calls and failures, and later
+demands must read the same invocation-local value. Loop re-entry must recreate
+iteration-local storage.
+
+### Immutable invocation snapshots
+
+The bounded target is `_independentTailRecipes().snapshots`: each invocation
+constructs one `current = [n]` array and one reader closing over that array.
+Tail transitions pass the reader to the next invocation. Completion returns
+the current array twice, its reader, and the previous invocation's array.
+The same allocation must satisfy all reads in its creating invocation; escaped
+readers must keep that snapshot after later iterations and public calls.
+
+Common tail planning may establish an inert prefix array, object or closure
+construction as an immutable binding when all of its evaluated inputs are
+invocation inputs or earlier established prefix values. Advancing only these
+total constructions performs no observable call, lookup, coercion, spread or
+failure. It must not advance a dependency that still requires first-demand
+evaluation. Conditional work and failures retain their reached order, and an
+unselected initializer with such work remains unevaluated. Ordinary nested
+function bodies are not evaluated when constructing their closures.
+
+The declaration stays inside its creating invocation's loop body. Public source
+must retain explicit returns and a real `while`, parse through the unchanged
+front end, and execute correctly after reserialization at input `100_001`.
+Repeated reads share identity, later invocations allocate fresh arrays and
+readers, and marked output has the same text as plain output. This is a semantic
+source-readback contract, without a general graph/hash fixed-point guarantee.
+An outer deferred binding is not an established input merely because it is in
+scope. Remaining lazy definitions continue through their existing admission
+checks.
 
 ### Other profile boundaries
 
@@ -132,9 +161,9 @@ The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
 now use bounded common loop planning for general JS/function text and Rust.
 Shared result forwarding now exposes their scalar, vector and selected-failure
 selectors as existing source conditionals. Those profiles pass parser readback,
-deep native execution and reserialization. The snapshot graph retains genuine
-lazy placement and its explicit refusal. General statement blocks and nonlocal
-profiles keep their existing restrictions. The
+deep native execution and reserialization. The snapshot graph now also uses
+immutable prefix bindings under the bounded contract above. General statement
+blocks and nonlocal profiles keep their existing restrictions. The
 [output audit](../../../../../compiler/self-tail-output.md) distinguishes these
 routes and the existing one-pass source reconstruction evidence.
 
@@ -158,6 +187,9 @@ fallback; non-reifiable forms retain the explicit `Result` error
 - [x] Reuse shared normal-result forwarding to emit canonical independent-recipe
       selectors through existing source loop syntax; prove readback and deep
       execution while retaining genuine-lazy refusals.
+- [x] Establish inert shared snapshot constructions as immutable invocation
+      bindings; prove conditional-demand boundaries, capture and allocation
+      lifetimes, source readback and deep loop execution under the contract above.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner

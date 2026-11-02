@@ -1021,6 +1021,9 @@ parts do not delay the epic's foundation gate:
 - [x] Share the mixed tail/non-tail/self-as-value fixture across JavaScript
       function text and native Rust. Verify deep transfers, ordinary following
       work, retained function identity, captures, sharing and fresh allocations.
+- [x] Reconstruct the shared snapshot recipe as public FJS source with immutable
+      invocation snapshots. Preserve first demand, escaped readers and allocation
+      identity; verify source readback, reserialization and deep `while` execution.
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes. Independent shared
