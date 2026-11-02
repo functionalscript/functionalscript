@@ -34,8 +34,16 @@ One value crosses the boundary as one WASM value.
 
 **Proposed:** an `i64` word. The ABI fixes the encoding of a number, a
 boolean, `undefined` and `null`. The payload of a reference is opaque: the
-runtime decides whether it is a pointer, a table index or a hash. `i64` is
-preferred to `f64` because WASM never rewrites the bits of an integer.
+runtime decides whether it is a pointer, a table index or a hash.
+
+`i64` is preferred to `f64` for the bits of a boxed reference, which are a
+NaN payload. WASM keeps those bits through locals, memory, calls and
+`reinterpret`, but not through arithmetic: an `f64` operation that returns a
+NaN may return any NaN. A JavaScript host is looser still: when an `f64`
+crosses to JavaScript as a `Number`, the engine need not keep the payload,
+so a runtime written in JavaScript could lose a reference. As an `i64`, the
+word crosses as a `BigInt`, exact but slower. The cost of `i64` inside WASM
+is one `reinterpret` before and after each number operation, which is free.
 
 ## Allocation
 
