@@ -18,7 +18,7 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement,
+    _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
@@ -84,6 +84,34 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    constructorsHaveArgumentListsAndMemberPrecedence: () => {
+        for (const source of [
+            'export default new Map();',
+            'export default new ns.C(1,...items,).value;',
+            'export default new ns[member](a,b)();',
+            'export default new (factory())(value);',
+            'export default new (A,B)();',
+            'export default new new C()();',
+            'export default new new C().D();',
+            'export default new (source?.C).D();',
+            'export default new C()?.value;',
+            'export default typeof new C();',
+            'export default -new C();',
+            'export default 1+new C()**2;',
+            'export default x=>new factory.new({new:x});',
+            'new C();export default 0;',
+            'export default ()=>{new C().m();return 0;};',
+            'while(false){new C()();}export default 0;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'export default new C;',
+            'export default new (C);',
+            'export default new.target;',
+            'export default new C?.();',
+            'export default new C?.member();',
+            'export default -new C()**2;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
     bindingDefaultsShareTheLiteralCover: () => {
         for (const source of [
             'export default ({a=5})=>a;',
@@ -191,6 +219,10 @@ export const proof = /** @type {const} */ ({
         template: () => { parser(/** @type {Rule} */ (template)) },
         member: () => { parser(/** @type {Rule} */ (member)) },
         access: () => { parser(access) },
+        memberAccess: () => { parser(/** @type {Rule} */ (memberAccess)) },
+        constructorCallee: () => { parser(/** @type {Rule} */ (constructorCallee)) },
+        newExpression: () => { parser(/** @type {Rule} */ (newExpression)) },
+        newExpressionStatement: () => { parser(/** @type {Rule} */ (newExpressionStatement)) },
         entry: () => { parser(/** @type {Rule} */ (entry)) },
         value: () => { parser(/** @type {Rule} */ (value)) },
         array: () => { parser(/** @type {Rule} */ (array)) },

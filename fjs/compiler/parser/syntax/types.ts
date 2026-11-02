@@ -63,6 +63,8 @@ export type Node =
     | readonly ['ref', ModuleTokenWithMetadata]
     | readonly ['.', Node, Key]
     | readonly ['()', Node, readonly Item[]]
+    /** Syntax only: callee, ordered arguments and the original `new` token. */
+    | readonly ['new', Node, readonly Item[], ModuleTokenWithMetadata]
     | Chain
     | readonly ['-', Node]
     | readonly ['~', Node]

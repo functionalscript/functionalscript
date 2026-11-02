@@ -64,6 +64,9 @@ const unterminatedCase = foldError('switch case does not terminate')
 /** Generic syntax retains for-of; iteration remains outside FJS admission. */
 const unsupportedForOf = foldError('for-of is not admitted')
 
+/** Generic construction syntax does not admit constructor execution. */
+const unsupportedNew = foldError('new is not admitted')
+
 /** Explicit throw in the ordinary join profile remains separate admission work. */
 const throwingArm = foldError('ordinary conditional arms do not admit explicit throw')
 const multipleJoinBindings = foldError('ordinary conditional joins at most one outer binding')
@@ -518,11 +521,18 @@ const isCall = node => {
  * call, {@link isCall}, and any other is refused at the name — an
  * operator's result discarded is almost always a mistake, and a conversion
  * is an operator ([spec: call statements](../../../spec/functions/call-statements/README.md)).
+ * Generic constructor statements retain their source `new`, where they are
+ * refused before applying the named-call policy.
  *
  * @type {(check: (name: ModuleTokenWithMetadata) => Result<string, ParseError>) => (target: BindingTarget | Discard, value: Node, namespace: ModuleTokenWithMetadata | null) => Result<_Plan, ParseError>}
  */
-const constPlan = check => (target, value, namespace) =>
-    target[0] === 'discard' && !isCall(value) ? error(unexpectedToken(target[1])) : planned(check)(target, namespace)
+const constPlan = check => (target, value, namespace) => {
+    if (target[0] === 'discard') {
+        if (nameOf(target[1]) === 'new') { return error(unsupportedNew(target[1])) }
+        if (!isCall(value)) { return error(unexpectedToken(target[1])) }
+    }
+    return planned(check)(target, namespace)
+}
 
 /**
  * Source declaration and key policy for the sugar-owned structural pattern
@@ -1221,6 +1231,7 @@ const enter = (stack, scope, node) => {
     if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
     if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
+        case 'new': { return [stack, scope, error(unsupportedNew(node[3]))] }
         case 'binding-default': { return [stack, scope, error(unexpectedToken(node[2]))] }
         // a template without substitutions is its text, as a literal is
         case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }

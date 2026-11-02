@@ -4,7 +4,7 @@
  *
  * ```text
  * module ::= import* moduleStatement* last eof
- * moduleStatement ::= const | let | while | for | bodyNameStatement
+ * moduleStatement ::= const | let | while | for | bodyNameStatement | newExpressionStatement
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
@@ -19,24 +19,33 @@
  *          | (primitive | template | array | object) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue)
+ *          | newExpression access* powTail tail
  * body   ::= '-' unaryOperand tail | '~' unaryOperand tail
  *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
  *          | (primitive | template | array) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue) | block
+ *          | newExpression access* powTail tail
  * unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
  *          | (primitive | template | id | array | object) access* powTail
  *          | '(' group
+ *          | newExpression access* powTail
  * unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
  *          | (primitive | template | id | array | object) access*
  *          | '(' groupOperand
+ *          | newExpression access*
+ * newExpression ::= 'new' constructorCallee '(' [ items(item) ] ')'
+ * constructorCallee ::= id memberAccess* | '(' value { ',' value } ')' memberAccess*
+ *                     | newExpression memberAccess*
+ * memberAccess ::= '.' id | '[' value ']'
+ * newExpressionStatement ::= newExpression access* end
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
  * blockContents ::= simpleStatement* (terminator | (while | for) [blockContents])
- * statement ::= const | ifStatement | let
+ * statement ::= const | ifStatement | let | newExpressionStatement
  *             | while | for | bodyNameStatement
  * ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
  * branchBlock ::= '{' branchContents '}'
@@ -57,7 +66,7 @@
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | let | loopIfStatement | whileStatement | forStatement
  *                 | 'break' end | 'continue' end | 'return' value end
- *                 | 'throw' value end | loopSwitch | bodyNameStatement
+ *                 | 'throw' value end | loopSwitch | bodyNameStatement | newExpressionStatement
  * loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
  * loopCase ::= ( 'case' value ':' )+ loopBlock
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
@@ -158,7 +167,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, ForClassicTail, ForDeclarationTail, ForHeader, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ForClassicTail, ForDeclarationTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -211,17 +220,16 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and `a.with` parse and `const export = 1;` is refused by the fold, as
  * `const if = 1;` is.
  *
- * Giving a word its own symbol narrows where it is *required*, never where
- * it is *allowed* — with one exception. `typeof` is required where a value
- * begins, as the prefix of {@link unary}, so it alone is kept out of
- * {@link identifier}: a rule admitting it as a reference there would open
+ * Giving a word its own symbol narrows where it is *required*. Expression
+ * introducers `typeof` and `new` are kept out of {@link identifier}:
+ * a rule admitting either as a reference would open
  * two branches on one symbol, which `fjs/ebnf/ll1` refuses, and a
  * reference cannot be a reserved word anyway. {@link identifierName} still
- * admits it, so `{ typeof: 1 }` and `a.typeof` are members as in JavaScript,
+ * admits both, so `{ new: 1 }` and `a.typeof` are members as in JavaScript,
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'of', 'typeof', 'instanceof', 'in', 'else', 'break', 'continue'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'of', 'typeof', 'new', 'instanceof', 'in', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -319,8 +327,8 @@ export const _valueKinds = /** @type {const} */ ([...literalWords, 'number', 'st
  * ECMAScript draws the same line and this follows it: a property is named
  * by an `IdentifierName`, which admits every reserved word, so `{ NaN: 1 }`
  * and `a.NaN` are JavaScript and mean the string `"NaN"`, while a reference
- * is an `IdentifierReference`, which admits none of them — `typeof` among
- * them, the one framing keyword {@link identifier} lacks, for the reason
+ * is an `IdentifierReference`, which admits none of them — `typeof` and
+ * `new` among them, the framing keywords {@link identifier} lacks, for the reason
  * its list gives. A binding is an
  * ECMAScript `BindingIdentifier`, narrower still; it takes this wider rule
  * here so that `const NaN = 1;` reaches the fold and is refused as a
@@ -330,6 +338,7 @@ export const _valueKinds = /** @type {const} */ ([...literalWords, 'number', 'st
 export const identifierName = /** @type {const} */ ({
     ...identifier,
     typeof: sym('typeof'),
+    new: sym('new'),
     null: sym('null'),
     true: sym('true'),
     false: sym('false'),
@@ -454,6 +463,34 @@ export const access = /** @type {Access} */ ({
     call: [sym('('), option(callArguments), sym(')')],
     optional: [sym('?.'), optionalStep],
 })
+
+/** A constructor callee takes members before its argument list, never ordinary calls. @type {MemberAccess} */
+export const memberAccess = {
+    property: access.property,
+    index: access.index,
+}
+
+/**
+ * The callee of `new C(args)`: a name, a grouped expression or another
+ * construction, followed by members. Calls belong inside a group or after the
+ * completed construction, so `new C()()` calls the constructed result.
+ *
+ * @type {ConstructorCallee}
+ */
+export const constructorCallee = () => ['const', {
+    name: [identifier, repeatFrom0(memberAccess)],
+    group: [sym('('), value, commaOperands, sym(')'), repeatFrom0(memberAccess)],
+    construct: [newExpression, repeatFrom0(memberAccess)],
+}]
+
+/**
+ * The generic syntax subset requires an explicit argument list. Nested `new`
+ * and grouped callees preserve JavaScript precedence without construction
+ * semantics or optional-chain constructor syntax.
+ *
+ * @type {NewExpression}
+ */
+export const newExpression = () => ['const', [sym('new'), constructorCallee, sym('('), option(callArguments), sym(')')]]
 
 /** The accesses after a value, `a.b[0]`, none or more. */
 const accesses = repeatFrom0(access)
@@ -622,6 +659,7 @@ export const unary = () => ['const', {
     ref: [reference, powTail],
     array: [[array, accesses], powTail],
     object: [[object, accesses], powTail],
+    construct: [[newExpression, accesses], powTail],
     group: parenGroup,
 }]
 
@@ -673,6 +711,7 @@ export const unaryOperand = () => ['const', {
     ref: [reference],
     array: [[array, accesses]],
     object: [[object, accesses]],
+    construct: [[newExpression, accesses]],
     group: parenGroupOperand,
 }]
 
@@ -789,6 +828,7 @@ const valueBranches = () => ({
     template: [templateValue, powTail, ...tail],
     name: [identifier, arrowOrRest],
     array: [[array, accesses], powTail, ...tail],
+    construct: [[newExpression, accesses], powTail, ...tail],
     paren,
 })
 
@@ -1126,6 +1166,9 @@ export const bindingTarget = { name: identifierName, array, object }
  */
 export const constStatement = [sym('const'), bindingTarget, sym('='), value, end]
 
+/** Bare construction and its ordinary member/call continuations. @type {NewExpressionStatement} */
+export const newExpressionStatement = [newExpression, accesses, end]
+
 /**
  * What follows a case's label: another label, `case`, a value, `:` and
  * this rule again — so a case stacks any number of labels over its one
@@ -1221,6 +1264,7 @@ export const terminator = /** @type {const} */ ({
  */
 export const simpleStatement = () => ['const', {
     const: constStatement,
+    construct: newExpressionStatement,
     if: ifStatement,
     let: letStatement,
     name: bodyNameStatement,
@@ -1296,6 +1340,7 @@ export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
 export const loopStatement = () => ['const', {
     break: [sym('break'), end],
     const: constStatement,
+    construct: newExpressionStatement,
     continue: [sym('continue'), end],
     if: loopIfStatement,
     let: letStatement,
@@ -1460,7 +1505,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

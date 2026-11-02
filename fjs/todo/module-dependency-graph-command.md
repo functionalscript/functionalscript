@@ -51,10 +51,12 @@ in the epic.
 
 ### Constructor-expression syntax
 
-The next syntax increment retains `new Callee(arguments)` as a distinct AST
+The constructor syntax increment retains `new Callee(arguments)` as a distinct AST
 node, with its constructor expression, ordered arguments (including spreads)
 and original `new` token. Member access, grouping, nested construction and
-following calls keep JavaScript's precedence. This increment requires the
+following calls keep JavaScript's precedence. Standalone expressions beginning
+with `new` retain that syntax in module, function and loop statement positions.
+This increment requires the
 argument parentheses; omitted argument lists, `new.target` and optional-chain
 constructor targets remain separate syntax work.
 
@@ -79,7 +81,7 @@ This records no approval of FunctionalScript constructor semantics.
           compilation refusal; tracked in [remaining for forms](../../spec/todo/3270-for.md#generic-forof-syntax).
     - [x] Parse defaults inside object and array binding patterns; tracked in
           [default parameters and patterns](../../spec/todo/3125-default-parameters.md).
-    - [ ] Parse the bounded [constructor-expression syntax](#constructor-expression-syntax)
+    - [x] Parse the bounded [constructor-expression syntax](#constructor-expression-syntax)
           while retaining explicit FunctionalScript refusal.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
