@@ -61,6 +61,8 @@ export const websiteJob = {
             shell: 'bash',
             env: buildMetadata,
         },
+        // The card images the pages name, screenshot by the runner's Chrome.
+        { run: miseDevelop('node ./fjs/website/cards.mjs'), shell: 'bash' },
         {
             if: "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository",
             run: miseDevelop('node ./fjs/website/github-deploy.mjs preview'),

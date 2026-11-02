@@ -56,7 +56,7 @@ export const proof = /** @type {const} */ ({
             'changelog/next.txt', 'doc/diagram.svg', '.claude/settings.json',
             '.devcontainer/Dockerfile', '.assetsignore', '.github/FUNDING.yml',
             '.github/dependabot.yml', 'LICENSE', 'favicon.ico', 'funding.json',
-            'wrangler.jsonc', 'fjs/website/favicon.svg', 'fjs/website/preview.png']) {
+            'wrangler.jsonc', 'fjs/website/favicon.svg']) {
             assertStructurallySame(select(path), [])
         }
     },
