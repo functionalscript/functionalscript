@@ -84,6 +84,23 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    bindingDefaultsShareTheLiteralCover: () => {
+        for (const source of [
+            'export default ({a=5})=>a;',
+            'export default ({a=5}={})=>a;',
+            'const {a=1,b:c=2,"d":d=3,["e"]:e=4,nested:{f=5}={}}=source;export default a;',
+            'const [a=1,[b=2]=[],{c=3}={}]=source;export default a;',
+            'export default (x,[a=1],{b=2},...rest)=>a;',
+            // The cover retains these for explicit value-position refusal.
+            'export default [a=1,{b=2,c:d=3}];',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const source of [
+            'const [...a=[]]=source;export default a;',
+            'const {...a={}}=source;export default a;',
+            'const [a=1=2]=source;export default a;',
+            'export default (...a=[])=>a;',
+        ]) { assertStructurallySame(read(source), ['error', '=']) }
+    },
     ordinaryIfArmsMayCompleteNormallyWithoutImplicitFunctionReturns: () => {
         for (const source of [
             'export default b=>{let a=0;if(b){a+=2;}return a;};',

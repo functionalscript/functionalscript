@@ -759,8 +759,8 @@ Where the original implementation placed a feature, and its intended owner:
 
 | Feature | Original placement | Layer |
 | --- | --- | --- |
-| Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
-| Default parameters | The fold: `functionScope` and `lateRound`, one conditional entry reading the rest array twice | Desugaring, two fresh entries |
+| Destructuring, a `const`'s or a parameter's | `compiler/parser` checks and resolves the pattern plan; `js/ast/sugar` expands it | Desugaring |
+| Parameter and pattern defaults | `compiler/parser` resolves initializers in binding order; `js/ast/sugar` establishes a read and a selected value | Desugaring, two fresh entries |
 | Guards, `if` | The fold: `bodyRound` | Desugaring |
 | The `let`/`while` loop | The fold: `loopRound`, to self recursion | Graph construction: FAST keeps the loop and `from_fast` lowers it to a tail call; `to_fast` rebuilding one for output is no second owner |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
@@ -771,32 +771,25 @@ Where the original implementation placed a feature, and its intended owner:
 | Writes and captures | The fold | Shared binding analysis after pattern expansion; admission applies the source policy before normalization |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
-**Destructuring is the fold's today and belongs to desugaring.** The syntax
-tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
-`BindingTarget`, is the last representation that holds a pattern: the fold
-in [`parser`](../compiler/parser/module.f.mjs) writes the reads the pattern
-is sugar for while it resolves names, and `AstModule` has no node for it
-([spec: destructuring](../../spec/bindings/destructuring/README.md)). The same fold
-owns every other sugar the language has, the table's rows above, so there is
-no desugaring stage to point a page at: the AST of the vocabulary is that
-syntax tree, and the compiler's `AstModule` is nearer FAST, its names
-already indices. Under the vocabulary, binding checks the words a pattern
-binds, admission its keys, and `desugar` writes the reads after both, the
-[example below](#examples-the-design-must-explain); the fold keeps what
-reads a word or a line.
+**Destructuring belongs to desugaring.** The syntax tree,
+[`parser/syntax`](../compiler/parser/syntax/types.ts)'s `BindingTarget`,
+retains the source pattern. Binding and admission in
+[`parser`](../compiler/parser/module.f.mjs) check its names and keys and
+resolve initializer references while their source evidence remains available.
+The resulting plan retains original binding identities and ordered reads;
+[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) expands it into explicit FAST
+bindings ([spec: destructuring](../../spec/bindings/destructuring/README.md)).
 
-**A default parameter is the fold's today and desugars to two entries.**
-`functionScope` reads a parameter from the first default on from the rest
-array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
-conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
-which is the form the outputs write
-([spec: parameters](../../spec/functions/parameters/README.md)). Desugaring writes
-it as two fresh bindings of the body, the read once, the
-[example below](#examples-the-design-must-explain): the initializer is
-evaluated once, nothing after desugaring knows a default was written, and
-the function's `length` still stops at the first default. A default inside
-a pattern, `{ a = 1 }`, refused today, is the same two entries over the
-pattern's read, so it lands in desugaring with the rest.
+**Parameter and pattern defaults desugar to a read and a selected value.**
+The read is established once, and the selected binding is
+`read === undefined ? fallback : read`. The fallback stays in the selected
+arm, while the selected binding remains a required initializer. Source
+resolution follows binding order before sugar erases the default spelling.
+Parameters from the first whole-parameter default on read the invocation's
+rest array, preserving `length`; a default inside a pattern keeps that
+pattern's fixed-parameter count
+([spec: parameters](../../spec/functions/parameters/README.md)). Neither
+default form introduces an EDAG operation.
 
 **A module becomes a function in two places and belongs to one.**
 [Spec: modules](../../spec/modules/README.md#a-module-is-a-function) says a

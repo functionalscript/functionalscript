@@ -58,6 +58,8 @@ in the epic.
         including files the current compiler cannot parse or lower into FAST or EDAG.
     - [x] Parse braced declaration `for…of` loops as syntax, while retaining FJS
           compilation refusal; tracked in [remaining for forms](../../spec/todo/3270-for.md#generic-forof-syntax).
+    - [x] Parse defaults inside object and array binding patterns; tracked in
+          [default parameters and patterns](../../spec/todo/3125-default-parameters.md).
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

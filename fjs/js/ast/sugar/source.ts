@@ -21,12 +21,14 @@ export interface _SourceBinary<V> extends Readonly<[BinaryTag, V, V]> {}
 export type SourceOperator<V> = Operator<V> | _SourceBinary<V>
 
 /** Checked pattern reads retain their source identities until expansion. */
-export type ExpansionPlan = {
+export type ExpansionPlan<V = SourceValue> = {
     readonly reads: readonly {
         /** The initializer, an earlier pattern read, or a namespace member. */
         readonly source: null | readonly [number, string | number] | readonly [StaticId]
         /** Array patterns copy the iterable before reading its elements. */
         readonly spread: boolean
+        /** Test the established read before any iterable copy or nested reads. */
+        readonly default?: { readonly value: V }
     }[]
     readonly ids: readonly BindingId[]
 }

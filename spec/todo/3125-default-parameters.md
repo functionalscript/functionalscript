@@ -1,21 +1,10 @@
 ## Default parameters
 
 **Priority:** P2
-**Status:** wip — parameter defaults implemented
-([functions](../functions/README.md)); the language-design approval is still
-to be recorded, and pattern defaults remain
-
-### Pattern-default implementation approval
-
-The language designer `sergey-shandar` requested pattern-default desugaring in
-the [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
-after confirming that `({ a = 5 }) => a` has `length === 1` and tests the
-property value against `undefined`. This approves the pattern-default increment
-for declarations and parameter patterns described below: read once, evaluate
-the fallback only for `undefined`, preserve binding order and existing scope
-checks, and reuse the current FAST/EDAG operations. A default inside a pattern
-does not make the whole parameter optional or reduce function arity. Broader
-parameter-scope changes remain separate work.
+**Status:** wip — parameter and pattern defaults implemented
+([parameters](../functions/parameters/README.md),
+[destructuring](../bindings/destructuring/README.md)); the earlier parameter
+proposal's approval record and the separate parameter-scope follow-up remain
 
 ```js
 const x = {}
@@ -32,9 +21,8 @@ is read from the rest array, which keeps the function's `length`.
 
 ### Problem
 
-The compiler refused `(a = 1) => a`, and refuses `{ a = 1 }`
-([refused constructs](./refused-constructs.md): `decl.pattern-default`). The
-refusal protects nothing: a default is a
+The compiler formerly refused `(a = 1) => a` and `{ a = 1 }`. The
+refusal protected nothing: a default is a
 familiar JavaScript convention with a lowering to a conditional and reads
 the language already performs, so keeping it out is the kind of
 restriction [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
@@ -60,6 +48,20 @@ unnecessary; what keeps a proof `proof.f.mjs` now is its functions ending
 without a `return`, and its `for` loops ([`fjs/compiler`](../../fjs/compiler/README.md)).
 
 ### Proposal
+
+#### Pattern-default implementation approval
+
+The language designer `sergey-shandar` requested pattern-default desugaring in
+the [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+after confirming that `({ a = 5 }) => a` has `length === 1` and tests the
+property value against `undefined`. This approves the pattern-default increment
+for declarations and parameter patterns described below: read once, evaluate
+the fallback only for `undefined`, preserve binding order and existing scope
+checks, and reuse the current FAST/EDAG operations. A default inside a pattern
+does not make the whole parameter optional or reduce function arity. Broader
+parameter-scope changes remain separate work. This records approval of that
+increment; it does not supply the earlier parameter proposal's missing approval
+record.
 
 #### Syntax
 
@@ -156,9 +158,14 @@ sentence that says so:
 - **A pattern default reads once and tests once.** `{ a = 1 }` of a source
   `s` reads `s.a` into a hidden `const`, as the pattern does without a
   default, and binds `a` to the test of it; `[a = 1]` does the same with
-  the spread array's element. A pattern default in a `const` sees the
-  names before that `const`, and a later name of the same pattern,
-  `const { a = b, b } = o;`, is refused as a parameter's is.
+  the spread array's element. A property that is absent and one whose value
+  is explicitly `undefined` both take the default; `null` and other falsy
+  values do not. Defaults are resolved in binding order, so
+  `const { a = 1, b = a } = o;` may read the earlier selected `a`. A read
+  of the binding itself or a later binding in the pattern,
+  `const { a = b, b } = o;`, is refused as a parameter's is, including
+  where an outer scope has a binding with that name. A selected default
+  remains a required initializer even when its bound name is unused.
 - **Captures are unchanged.** Every name a default reads is a capture or
   a parameter by the existing rules; the function's `['=>', length, slots,
   body]` holds them as it holds the body's.
@@ -242,7 +249,8 @@ default reads — each a refusal rather than another value.
 ### Tasks
 
 - [ ] Language-design approval of the syntax, the lowering, the scope rules,
-      the limit and the stage boundary above, recorded here with its link,
+      the limit and the stage boundary for the earlier parameter proposal,
+      recorded here with its link,
       as [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
       asks.
 - [x] Parameter defaults: syntax tree, grammar, binding, proofs, the
@@ -253,7 +261,9 @@ default reads — each a refusal rather than another value.
       before its body, so the existing `const not found` and `capture
       shadowed` refusals are the ones a later parameter, the parameter
       itself and a shadowing body `const` meet.
-- [ ] Pattern defaults, in `const` and parameter patterns, over the same
+- [x] Record the language designer's approval of the bounded pattern-default
+      increment, with its working-session link above.
+- [x] Pattern defaults, in `const` and parameter patterns, over the same
       test: the specification's [destructuring](../bindings/destructuring/README.md)
       section, and the `decl.pattern-default` row deleted.
 - [x] Convert `fjs/website/demo/code` to `.f.js`, and rerun the

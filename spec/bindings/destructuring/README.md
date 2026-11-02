@@ -53,6 +53,19 @@ its conditional ([functions](../../functions/README.md)).
   failure, as the empty pattern below does. It is a pattern's alone: in a
   value the same comma is a hole, which no array of this language has,
   refused by design (`array hole`, [arrays](../../values/arrays/README.md)).
+- A **default**, `= value`, may follow a name or nested target inside a
+  pattern: `{ a = 5 }`, `{ key: a = 5 }`, `[a = 5]`, or
+  `{ item: { a } = { a: 5 } }`. The source property or element is read
+  once into a hidden binding, then the selected value is
+  `read === undefined ? value : read`. An absent property and an explicitly
+  `undefined` value both take the default; `null`, `false`, `0` and `''`
+  keep their value. The fallback is evaluated only when selected. Its
+  initialization remains required even when the bound name is unused.
+  Bindings are resolved in order: `const { a = 5, b = a } = {};` binds
+  both names to `5`. A default that reads itself or a later binding is
+  refused, including where an enclosing scope binds the same name. Existing
+  capture and declaration checks still apply
+  ([defaults](../../todo/3125-default-parameters.md)).
 - Every read is established whether or not a name reads it, as every
   `const` is ([shared values](../constants/README.md)):
   `const { a: { b } } = {};` throws at load, as it throws in JavaScript.
@@ -103,11 +116,16 @@ its conditional ([functions](../../functions/README.md)).
   value inside the head's pattern is refused where it stands, as in a
   `const`.
 
+A default inside a parameter pattern does not default the argument itself:
+`const f = ({ a = 5 }) => a;` has `f.length === 1`, answers `5` for
+`f({})` or `f({ a: undefined })`, and throws for `f()` or `f(null)`.
+Adding a default to the whole parameter, `({ a = 5 } = {}) => a`, permits
+the omitted argument and has `length === 0`. In either form a `null`
+argument still throws.
+
 Refused, each by name, and open in
 [destructuring](../../todo/2450-destructuring.md): a **rest element**,
-`[a, ...r]` or `{ a, ...r }` (`rest element not supported`); a
-**default**, `{ a = 1 }` or `[a = 1]`, which is no literal and stops at
-its `=`; and a **computed key**
+`[a, ...r]` or `{ a, ...r }` (`rest element not supported`); and a **computed key**
 beyond a constant — a string or a number literal alone in the brackets,
 `{ ["a"]: t }` or `{ [3]: t }`, is the constant key an access admits in
 brackets ([property access](../../property-access/README.md)), read by the literal's

@@ -15,7 +15,7 @@
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Declaring, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -549,8 +549,11 @@ const namespaceMember = (namespace, key) => {
     return tag === 'error' ? error(named) : error(reservedWord(namespace))
 }
 
-/** Public plans contain resolved reads, with no source tokens or names. @type {(plan: _Plan) => ExpansionPlan} */
-const expansion = ({ reads, ids }) => ({ reads, ids })
+/** A plan with no defaults needs no source-value resolution. @type {(plan: _Plan) => ExpansionPlan} */
+const expansion = ({ reads, ids }) => ({ reads: reads.map(({ source, spread }) => ({ source, spread })), ids })
+
+/** @type {(plan: _Plan) => boolean} */
+const hasPatternDefault = plan => plan.reads.some(read => read.default !== undefined)
 
 /** @type {(scope: _Scope, plan: _Plan, assignable: boolean) => _Scope} */
 const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: plan.names.reduce((names, [token, i]) => extended(names)(nameOf(token), { id: plan.ids[i], kind: 'own', assignable }), scope.names) }, plan)
@@ -564,12 +567,62 @@ const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: pl
  */
 const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
 
-/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {<F extends _Counted<SourceStatement> & _Declaring>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, kind: 'const' | 'let', value: SourceValue) => _State} */
+/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {<F extends _BodyFrame | _LoopBodyFrame>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, kind: 'const' | 'let', value: SourceValue) => _State} */
 const landed = (round, stack, scope, frame, kind, value) => {
     const plan = assertNotNullish(frame.plan, 'a declaration with no plan')
     const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
     if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    if (hasPatternDefault(plan)) {
+        /** @type {_BodyFrame | _LoopBodyFrame} */
+        const source = frame
+        /** @type {_PatternFrame['continuation']} */
+        const continuation = 'block' in source ? { loop: source, value } : { body: source, value }
+        return patternRound(stack, scope, { pattern: plan, index: 0, reads: [], kind, continuation })
+    }
     return round(stack, boundPlan(scope, plan, isVariable(kind)), advanced(frame, [['initialize', expansion(plan), value]]))
+}
+
+/**
+ * A selected pattern read becomes available before the next initializer. The
+ * resolver retains each original identity; sugar emits the read and fallback.
+ *
+ * @type {(scope: _Scope, frame: _PatternFrame, fallback: { readonly value: SourceValue } | null) => Result<readonly [_Scope, _PatternFrame], ParseError>}
+ */
+const patternSelected = (scope, frame, fallback) => {
+    const { pattern, index } = frame
+    const named = pattern.names.find(([, position]) => position === index)
+    if (named !== undefined) {
+        const [token] = named
+        const word = nameOf(token)
+        if (at(word)(scope.names) !== null) { return error(captureShadowed(token)) }
+        scope = { ...scope, names: extended(scope.names)(word, { id: pattern.ids[index], kind: 'own', assignable: isVariable(frame.kind) }),
+            origins: setReplace(word)(pattern.ids[index])(scope.origins) }
+    }
+    scope = traced(scope, [['initialize', pattern.ids[index]]])
+    const { source, spread } = pattern.reads[index]
+    const read = fallback === null ? { source, spread } : { source, spread, default: fallback }
+    return ok([scope, { ...frame, index: index + 1, reads: [...frame.reads, read] }])
+}
+
+/** Resolve the next default on the shared worklist, keeping source depth off the host stack. @type {(stack: _Stack, scope: _Scope, frame: _PatternFrame) => _State} */
+const patternRound = (stack, scope, frame) => {
+    while (frame.index < frame.pattern.reads.length) {
+        const fallback = frame.pattern.reads[frame.index].default
+        if (fallback !== undefined) { return [{ top: frame, rest: stack }, scope, ['enter', fallback.value]] }
+        const [tag, selected] = patternSelected(scope, frame, null)
+        if (tag === 'error') { return [stack, scope, error(selected)] }
+        scope = selected[0]
+        frame = selected[1]
+    }
+    const plan = { reads: frame.reads, ids: frame.pattern.ids }
+    const continuation = frame.continuation
+    if ('parameter' in continuation) {
+        const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
+        return lateRound(stack, next, { ...continuation.parameter, index: continuation.parameter.index + 1 })
+    }
+    if ('loop' in continuation) { return loopRound(stack, scope, advanced(continuation.loop, [['initialize', plan, continuation.value]])) }
+    if ('body' in continuation) { return bodyRound(stack, scope, advanced(continuation.body, [['initialize', plan, continuation.value]])) }
+    return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
 }
 
 /**
@@ -1043,9 +1096,10 @@ const functionScope = list => {
         if (i === maxLength) { return error(tooManyParameters(target[1])) }
         const [tag, plan] = planned(bindable(seen))(target, null)
         if (tag === 'error') { return error(plan) }
-        bound = parameterBindings(bound, plan, i < count)
+        const deferred = i >= count || bound.late.length !== 0 || hasPatternDefault(plan)
+        bound = parameterBindings(bound, plan, !deferred)
         seen = plan.names.reduce(/** @type {(env: _Env, name: readonly [ModuleTokenWithMetadata, number]) => _Env} */ ((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own', assignable: true })), seen)
-        if (i >= count) {
+        if (deferred) {
             bound = { ...bound, late: [...bound.late, { plan, init: parameter[0] === '=' ? parameter[3] : null, rest: false }] }
         } else {
             bound = { ...bound, parameters: [...bound.parameters, { plan: expansion(plan), default: null }], names: plan.names.reduce((env, [name, index]) => extended(env)(nameOf(name), { id: plan.ids[index], kind: 'own', assignable: true }), bound.names) }
@@ -1165,6 +1219,7 @@ const enter = (stack, scope, node) => {
     if (isBinary(node)) { return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]] }
     if (isUnary(node)) { return [{ top: { unary: node[0] }, rest: stack }, scope, ['enter', node[1]]] }
     switch (node[0]) {
+        case 'binding-default': { return [stack, scope, error(unexpectedToken(node[2]))] }
         // a template without substitutions is its text, as a literal is
         case 'primitive': case 'template': { return [stack, scope, ok(node[1])] }
         case 'ref': {
@@ -1561,6 +1616,9 @@ const lateLanded = (stack, scope, frame, value) => {
     const { plan, rest } = frame.late[frame.index]
     const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
     if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+    if (hasPatternDefault(plan)) {
+        return patternRound(stack, scope, { pattern: plan, index: 0, reads: [], kind: 'parameter', continuation: { parameter: frame, value } })
+    }
     const initialized = boundPlan(scope, plan, true)
     return lateRound(stack, rest ? initialized : { ...initialized, parameters: [...initialized.parameters, { plan: expansion(plan), default: value }] }, { ...frame, index: frame.index + 1 })
 }
@@ -1573,6 +1631,10 @@ const lateLanded = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: SourceValue) => _State}
  */
 const returned = (stack, scope, frame, value) => {
+    if (hasEntry(frame, 'pattern')) {
+        const [tag, selected] = patternSelected(scope, frame, { value })
+        return tag === 'error' ? [stack, scope, error(selected)] : patternRound(stack, selected[0], selected[1])
+    }
     if (hasEntry(frame, 'container')) { return containerReturned(stack, scope, frame, value) }
     if (hasEntry(frame, 'call')) { return callRound(stack, scope, advanced(frame, [callValue(frame.call, frame.index, value)])) }
     if (hasEntry(frame, 'conditional')) { return conditionalRound(stack, scope, advanced(frame, [value])) }
@@ -2259,9 +2321,16 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         scope = declared(scope, plan, kind)
         const [resolved, evaluated] = namespace !== null ? ok({ value: undefined, scope }) : evaluate(scope, target[0] === 'name' ? [nameOf(target[1]), plan.ids[0], isVariable(kind)] : null)(node)
         if (resolved === 'error') { return error(evaluated) }
-        scope = boundPlan(evaluated.scope, plan, isVariable(kind))
+        if (hasPatternDefault(plan)) {
+            const [tag, selected] = evaluateState(patternRound(null, evaluated.scope, { pattern: plan, index: 0, reads: [], kind, continuation: { module: evaluated.value } }))
+            if (tag === 'error') { return error(selected) }
+            scope = selected.scope
+            body = [...body, ...regionBlock(selected.value).statements]
+        } else {
+            scope = boundPlan(evaluated.scope, plan, isVariable(kind))
+            body = [...body, ['initialize', expansion(plan), evaluated.value]]
+        }
         if (named) { exports = [...exports, ...plan.names.map(([token, i]) => /** @type {const} */ ([nameOf(token), ['ref', plan.ids[i]]]))] }
-        body = [...body, ['initialize', expansion(plan), evaluated.value]]
     }
     if (failing !== null) {
         if (unterminated(previous, failing)) { return error(unexpectedToken(failing.start)) }
