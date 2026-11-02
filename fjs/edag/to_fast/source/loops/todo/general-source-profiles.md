@@ -88,14 +88,13 @@ identity, stable hash or graph/text fixed-point guarantee. The established
 canonical profile contracts remain unchanged.
 
 The [deferred-tail fixtures](../../../../from_fast/deferred_tail_calls/fixtures.f.mjs)
-retain the public-source limit `normalPayload`; JavaScript and Rust execute its
-deep owning tail transitions, but source output refuses its remaining lazy
-placement. The dependent `nestedRecipe` now reaches source through the bounded
-result join described below. The
+include `nestedRecipe` and `normalPayload`, which now reach public source through
+the bounded immutable result recovery described below. JavaScript and Rust also
+execute their deep owning tail transitions. The
 [native proof](../../../../../compiler/serializer/value/deferred_tail_calls.proof.mjs)
-records that current admission boundary without requiring a particular error
-payload. Supporting these source profiles is separate from carrying tail
-completions through memo getters.
+checks both source generations, conditional work, sharing and opaque normal
+payloads. These source profiles retain the common owning-completion contract
+through memo getters.
 
 ### A demanded lazy terminal prefix
 
@@ -185,6 +184,37 @@ and owning early returns. Remaining genuine lazy source profiles keep their
 existing admission boundary. This is a semantic reconstruction contract, without
 a general graph/hash fixed-point requirement.
 
+### Shared normal recipe results
+
+The bounded target is the existing deferred-tail `normalPayload` graph. Its
+initializer can either complete normally with `[tag, [n]]` or return through
+the owning function's tail transition. A normal value is read twice: both
+reads must share one allocation, while later invocations create fresh payload
+and inner arrays. Tags such as `tail`, `return` and `normal`, and opaque input
+values, remain ordinary payload data.
+
+After a normal-result join, first-demand recovery must distinguish a deferred
+declaration from an executed demand. It works from later dependencies toward
+their prerequisites. A definition can move into its first referencing
+conditional only when the test, other arm and following continuation do not
+use it. Recovery can descend further into that sole demanding arm until the
+existing ordered-demand proof establishes its first executed use. Each move
+retains the initializer's dependencies, its own binding identity and declaration
+order; it cannot cross a rebinding or change a captured value. A deferred
+declaration alone does not prove that its initializer is demanded. Required
+calls, lookups and expansions retain their order relative to the first demand,
+and unselected work remains unevaluated. Ordinary nested function bodies and
+loop boundaries remain opaque to this conditional descent.
+
+Normal completion must preserve one immutable shared value; owning returns
+retain their function target and bypass following normal-result construction.
+Source must parse and reserialize through the unchanged front end, retain
+explicit returns and `while` for self-tail transitions, and execute correctly
+at input `100_001`. Proofs must include opaque packet-like tags, shared and fresh
+allocations, conditional failures, lexical captures and both source generations.
+This is a semantic source-readback contract, without a general graph/hash
+fixed-point guarantee or admission of arbitrary lazy storage.
+
 ### Other profile boundaries
 
 The [independent terminal-recipe graphs](../../../tail/fixtures.f.js)
@@ -223,6 +253,9 @@ fallback; non-reifiable forms retain the explicit `Result` error
 - [x] Reconstruct the dependent `nestedRecipe` graph with an immutable
       first-demand result join; preserve conditional work, sharing and owning
       returns through source readback, reserialization and deep execution.
+- [x] Reconstruct the shared normal `normalPayload` result with immutable
+      first-demand dependencies; preserve opaque values, conditional work,
+      allocation identity and owning returns through deep source readback.
 - [ ] Extend remaining genuine lazy source plans only with a contract preserving
       conditional demand, memo identity, captures and per-invocation lifetime.
 - [ ] Extend additional structured or nonlocal profiles only with explicit owner

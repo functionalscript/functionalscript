@@ -8,7 +8,7 @@
 
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
@@ -194,9 +194,9 @@ export const proof = {
         assertEq(nested(0), 7)
         assertEq(nested(100_001), 7)
 
-        // Normal memo payloads retain their wider function-text profile.
+        // Normal memo payloads also cross public source admission.
         const payloadGraph = graphOf(fixtures.normalPayload)
-        assertError(tryStringify(payloadGraph))
+        assertOk(parse('/normal-payload-function-text.f.mjs')(assertOk(tryStringify(payloadGraph))))
         const payload = compileWhile(payloadGraph)
         assertEq(payload.length, 3)
         const reached = payload(100_001, true, 'tail')

@@ -40,7 +40,7 @@ for the named profiles, not portable maximums for ordinary recursion.
 | Direct and conditional tails; final sequence work | [Function text](serializer/function_text/proof.mjs), `loops`, `tailArgumentCounts`, `spreadTailArguments`; [graph proofs](../edag/to_fast/tail_calls/proof.f.mjs), `finalCommaPrefixesRunAtTheirOriginalIterations`. Reached arguments and failures finish before simultaneous updates. |
 | Owning returns across real loop helpers | [Native JS](serializer/value/owning_tail_calls.proof.mjs), `terminalLoopTailReturnsSwapOneInvocationSnapshot`, `ordinaryLoopTailReturnsRestartLocalsAndRetainEscapedSnapshots`, `nestedLoopsKeepInnerBreakAndContinueTargets`; [function text](serializer/function_text/proof.mjs), `generatedLoopHelpersKeepDeepFunctionTextExecution`; [Rust owning tests](../../nanvm/harness/tests/owning_self_tail_calls.rs). Local state restarts and exact return/loop owners survive. |
 | Immutable aliases of owning self | [Native JS](serializer/value/owning_tail_calls.proof.mjs), `immutableSelfAliasesRetainTailOwnershipAcrossLoopHelpers`; [deferred JS](serializer/value/deferred_tail_calls.proof.mjs), `owningTailsSurviveDirectNestedAndAliasedDeferredRecipes`; [Rust deferred tests](../../nanvm/harness/tests/deferred_owning_tail_calls.rs), `deferred_owning_returns_run_deeply_through_loops_and_aliases`. |
-| Memo getters and deferred owning tails | [Native JS](serializer/value/deferred_tail_calls.proof.mjs) and [function text](serializer/function_text/proof.mjs), `deferredOwningReturnsKeepTheirFunctionTextTailTransfers`, execute the existing deferred fixtures. `nestedRecipe` also crosses public source readback; `normalPayload` retains its source refusal. Completion forwarding keeps the owning transition outside the getter; required/skipped argument work, captures and opaque normal payloads retain their meaning. |
+| Memo getters and deferred owning tails | [Native JS](serializer/value/deferred_tail_calls.proof.mjs) and [function text](serializer/function_text/proof.mjs), `deferredOwningReturnsKeepTheirFunctionTextTailTransfers`, execute the existing deferred fixtures. Both `nestedRecipe` and `normalPayload` cross public source readback. Completion forwarding keeps the owning transition outside the getter; required/skipped argument work, captures and opaque normal payloads retain their meaning. |
 | Rest, captures and allocation lifetime | [Function text](serializer/function_text/proof.mjs), `restTailInvocations`, `defaultAndDestructuringTailSetup`; [Rust deferred tests](../../nanvm/harness/tests/deferred_owning_tail_calls.rs), `rest_snapshots_stay_shared_within_one_invocation`, `captures_keep_their_creating_invocation`. Repeated reads share one invocation's allocation; new invocations and rest slices remain fresh. |
 | Mixed tail/non-tail uses and self as a value | [Graph proofs](../edag/to_fast/tail_calls/proof.f.mjs), `nonTailSelfValuesAndCallsRetainTheirFunctionBinding`, `restTailLoopsKeepRemainingSelfIdentityAndNonTailCalls`; [function-text corpus](serializer/function_text/proof.mjs), `mixedSelfUsesKeepExternalCapturesAndFollowingOrdinaryWork`; [native Rust](../../nanvm/harness/tests/mixed_self_uses.rs). The shared graph keeps ordinary-call work and public function identity alongside deep tail transfers. |
 | Immutable continuations | [Source readback](serializer/value/immutable_source_joins.proof.mjs), [graph output](../edag/to_fast/immutable_invocation.proof.mjs). These acyclic helpers preserve owning returns, sharing and captures; they are not recursive-loop witnesses. |
@@ -88,12 +88,14 @@ remain outside the forwarding rule.
 
 ### Source refusals and recursive reconstruction
 
-The dependent `nestedRecipe` fixture reaches public source through a shared
-first-demand result join: normal decision arms yield an immutable result, while
-owning returns retain their target. Its existing graph parses, reserializes and
-executes deeply with `while` output. The deferred `normalPayload` fixture still
-has an explicit public-source refusal because genuine lazy placement remains;
-general JS and Rust execute its owning tails deeply. See
+The dependent `nestedRecipe` and shared `normalPayload` fixtures reach public
+source through immutable first-demand recovery. Conditional descent processes
+later dependencies before their prerequisites, retaining declaration scopes and
+owning returns. Both existing graphs parse, reserialize and execute deeply with
+`while` output. Normal payloads retain opaque tags, allocation sharing and fresh
+invocation values; a skipped bigint transition remains ordinary data, while a
+reached mixed-number operation still fails. Other genuine lazy source profiles
+retain their admission checks. See
 [general source profiles](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 
 The source coordinator's

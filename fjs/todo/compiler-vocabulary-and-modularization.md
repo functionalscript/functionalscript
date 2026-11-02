@@ -1027,7 +1027,7 @@ parts do not delay the epic's foundation gate:
 - [x] Reconstruct dependent lazy `nestedRecipe` as public FJS source using
       an immutable first-demand join. Preserve skipped work, shared results
       and owning returns; verify readback, reserialization and deep loops.
-- [ ] Reconstruct the lazy `normalPayload` profile as public FJS source.
+- [x] Reconstruct the lazy `normalPayload` profile as public FJS source.
       Preserve normal shared values, conditional demand and owning returns;
       verify opaque tags, fresh allocations, source readback and deep loops.
 - [ ] Replace fallbacks that retain self tail calls with common
