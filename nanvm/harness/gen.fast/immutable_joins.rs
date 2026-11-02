@@ -9,12 +9,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("parameterizedJoin"), A::static_function(|_self, _args| {
         let _b0_3: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [(_args.argument(0) + f64_any(0x4014000000000000))?].to_array().to_any()) }, 1, [_args.argument(2)].to_array(), Some("($1)=>$0($1+5)")).to_any();
         if Any::<A>::to_boolean(_args.argument(0)) {
-            if Any::<A>::to_boolean(_args.argument(1)) { return Ok(f64_any(0x4045000000000000)); } else {
-
-            }
+            if Any::<A>::to_boolean(_args.argument(1)) { return Ok(f64_any(0x4045000000000000)); }
             return Any::call(_b0_3.clone(), [f64_any(0x4008000000000000)].to_array().to_any());
-        } else {
-
         }
         Any::call(_b0_3.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
     }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=($4)=>$2($4+5);if($0){if($1){return 42;}return $3(3);}return $3(0);}")).to_any()), (string_key("nested"), A::static_function(|_self, _args| {
@@ -22,12 +18,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         if Any::<A>::to_boolean(_args.argument(0)) {
             let _b0_11: Any<A> = (Any::call(_args.argument(2), Array::default().to_any()))?;
             let _b0_12: Any<A> = (Any::dot(_b0_11.clone(), string_any("a")).end())?;
-            if Any::<A>::to_boolean((Any::dot(_b0_11.clone(), string_any("b")).end())?) { return Any::dot(_b0_11.clone(), string_any("c")).end(); } else {
-
-            }
+            if Any::<A>::to_boolean((Any::dot(_b0_11.clone(), string_any("b")).end())?) { return Any::dot(_b0_11.clone(), string_any("c")).end(); }
             return Any::call(_b0_9.clone(), [_b0_12.clone()].to_array().to_any());
-        } else {
-
         }
         Any::call(_b0_9.clone(), [_args.argument(1)].to_array().to_any())
     }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=($5)=>$3($5);if($0){const $6=$2();const $7=$6.a;if($6.b){return $6.c;}return $4($7);}return $4($1);}")).to_any()), (string_key("graphParameterizedJoin"), {
@@ -37,12 +29,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             let _b339_19: Any<A> = _args.argument(2);
             let _b0_20: Any<A> = A::static_function(|_self, _args| { Any::call(A::frame(_self)[0].clone(), [(_args.argument(0) + f64_any(0x4014000000000000))?].to_array().to_any()) }, 1, [_b339_19.clone()].to_array(), Some("($1)=>$0($1+5)")).to_any();
             if Any::<A>::to_boolean(_b337_17.clone()) {
-                if Any::<A>::to_boolean(_b338_18.clone()) { return Ok(f64_any(0x4045000000000000)); } else {
-
-                }
+                if Any::<A>::to_boolean(_b338_18.clone()) { return Ok(f64_any(0x4045000000000000)); }
                 return Any::call(_b0_20.clone(), [f64_any(0x4008000000000000)].to_array().to_any());
-            } else {
-
             }
             Any::call(_b0_20.clone(), [f64_any(0x0000000000000000)].to_array().to_any())
         }, 3, Array::default(), Some("($0,$1,$2)=>{const $3=$0;const $4=$1;const $5=$2;const $6=($7)=>$5($7+5);if($3){if($4){return 42;}return $6(3);}return $6(0);}")).to_any();
@@ -58,12 +46,8 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 let _b2: Any<A> = (Any::call(_b614_29.clone(), Array::default().to_any()))?;
                 let _b3: Any<A> = (Any::dot(_b2.clone(), string_any("a")).end())?;
                 let _b658: Any<A> = _b3.clone();
-                if Any::<A>::to_boolean((Any::dot(_b2.clone(), string_any("b")).end())?) { return Any::dot(_b2.clone(), string_any("c")).end(); } else {
-
-                }
+                if Any::<A>::to_boolean((Any::dot(_b2.clone(), string_any("b")).end())?) { return Any::dot(_b2.clone(), string_any("c")).end(); }
                 return Any::call(_b0_31.clone(), [_b3.clone()].to_array().to_any());
-            } else {
-
             }
             Any::call(_b0_31.clone(), [_b613_28.clone()].to_array().to_any())
         }, 4, Array::default(), Some("($0,$1,$2,$3)=>{const $4=$0;const $5=$1;const $6=$2;const $7=$3;const $8=($9)=>$7($9);if($4){const $10=$6();const $11=$10.a;const $12=$11;if($10.b){return $10.c;}return $8($11);}return $8($5);}")).to_any();

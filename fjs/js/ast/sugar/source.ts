@@ -82,7 +82,7 @@ export type SourceStatement =
     | readonly ['write', BindingId, SourceValue]
     /** The implicit target read precedes the operand; sugar chooses any conditional write. */
     | readonly ['compound-write', BindingId, BinaryTag, SourceValue]
-    /** Both normal arms precede the next statement; an omitted else is empty. */
+    /** Only normally completing arms resume the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
     | readonly ['switch', SourceSwitch]

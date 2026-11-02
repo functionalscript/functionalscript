@@ -26,7 +26,7 @@ const evaluated = source => {
 }
 
 export const proof = /** @type {const} */ ({
-    partlyReturningConditionalsStillNeedAdmission: () => {
+    partlyReturningConditionalsHaveSyntaxAndAdmission: () => {
         for (const source of [
             // Reference Case 4: the outer arm can complete normally.
             'export default (a,f,c)=>{if(a){const x=f();if(x.a()){return x.b();}}return c();};',
@@ -36,7 +36,7 @@ export const proof = /** @type {const} */ ({
             'export default (a,m,f,g)=>{if(a){const x=f();m=x.a;if(x.b){return x.c;}}return g(m);};',
         ]) {
             assertOk(syntax(source))
-            assertError(parse(path)(source))
+            assertOk(parse(path)(source))
         }
     },
     caseFallthroughHasSyntaxButRemainsOutsideAdmission: () => {

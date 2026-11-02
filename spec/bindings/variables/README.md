@@ -59,10 +59,13 @@ declaration, such as `[a, b] = values;`, remains a separate language extension.
   no node of the graph holds a variable, so the graph outputs write the
   values: `let r = 0; r = r + n; return r;` is the graph `n + 0` is. A
   terminating guard never rejoins its returning arm. A
-  [normally completing conditional](../../control-flow/guards/README.md#normally-completing-conditionals)
+  [conditional join](../../control-flow/guards/README.md#normally-completing-conditionals)
   may assign one outer binding across its arms: following statements read
   the selected arm's latest version, or the incoming version when that arm
-  leaves it unchanged. Branch-local declarations stay local. A loop
+  leaves it unchanged. A returning path supplies no normal result and skips
+  the following continuation, preserving its original function owner. The
+  one-outer-binding limit counts writes on returning paths too. Branch-local
+  declarations stay local. A loop
   ([loops](../../control-flow/loops/README.md)) can carry several variables
   read or assigned by its condition and body.
 - **A reassigned variable is captured by no function held as a value.** A
@@ -232,6 +235,12 @@ in AST-to-FAST normalization, before graph construction, and introduces no
 shared mutable cell in FAST or EDAG.
 
 ## Design approval
+
+`sergey-shandar` approved the bounded ordinary conditional joins and partly
+returning branches in the
+[design session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+The [reachable-block-end issue](../../todo/3210-reachable-block-end.md)
+records the separately approved increments and remaining admission limits.
 
 `sergey-shandar` approved assignments in expression blocks and serialization to
 that spelling in the

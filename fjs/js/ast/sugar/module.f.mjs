@@ -595,6 +595,8 @@ const normalizedExit = (exit, environment, context, retained) => {
 /**
  * A switch is a one-pass transfer region. Its breaks supply normal state;
  * continues retain the enclosing loop and returns retain their function.
+ * With no normal successor, its loop is the block exit and supplies no results
+ * to an enclosing join.
  * @type {(source: SourceSwitch, environment: Environment, context: Context) => Normalized}
  */
 const normalizedSwitch = (source, environment, context) => {
@@ -603,7 +605,6 @@ const normalizedSwitch = (source, environment, context) => {
         return statefulSwitch(source, environment, context)
     }
     const sources = loopSources(eventFacts(source.events).writes, environment, context)
-    const results = sources.map(source => binding(source.index))
     /** @type {Context} */
     const inner = { ...context, breakRegion: { target: source.target, sources } }
     /** @type {readonly Normalized[]} */
@@ -620,11 +621,17 @@ const normalizedSwitch = (source, environment, context) => {
     // Every case transfers, including the unmatched arm. Keep the unreachable
     // root terminal without inventing state reads or helper captures.
     body = { ...body, exit: ['throw', 'a normalized switch case fell through'] }
+    const normal = alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target))
+    const results = normal ? sources.map(source => binding(source.index)) : []
+    /** @type {Loop} */
+    const loop = { target: source.target, parameters: [], initial: [], results, body }
+    /** @type {readonly Statement[]} */
+    const statements = [['define', discriminant, value(source.discriminant), 'required']]
     return {
-        block: { statements: [['define', discriminant, value(source.discriminant), 'required'],
-            ['loop', { target: source.target, parameters: [], initial: [], results, body }]], exit: ['yield', []] },
-        environment: [...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))],
-        normal: alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target)),
+        block: normal ? { statements: [...statements, ['loop', loop]], exit: ['yield', []] }
+            : { statements, exit: ['loop', loop] },
+        environment: normal ? [...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))] : environment,
+        normal,
         hasLoopExit: alternatives.some(made => made.hasLoopExit),
         hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
     }
@@ -635,7 +642,6 @@ const statefulSwitch = (source, environment, context) => {
     const selected = normalizedState(environment, context)(source.discriminant)
     if (!selected.normal) { return { block: evaluatedBlock(selected), environment: selected.environment, normal: false, hasLoopExit: false, hasFunctionExit: false } }
     const sources = loopSources(eventFacts(source.events).writes, selected.environment, context)
-    const results = sources.map(source => binding(source.index))
     const discriminant = binding(0)
     const local = { ...context, breakRegion: { target: source.target, sources } }
     /** @type {(made: Normalized) => Block} */
@@ -656,12 +662,18 @@ const statefulSwitch = (source, environment, context) => {
         }))
     })
     const { block: body, alternatives } = run(each(0, selected.environment))
+    const normal = alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target))
+    const results = normal ? sources.map(source => binding(source.index)) : []
+    /** @type {Loop} */
+    const loop = { target: source.target, parameters: [], initial: [], results,
+        body: { ...body, exit: ['throw', 'a normalized switch case fell through'] } }
+    /** @type {readonly Statement[]} */
+    const statements = [...selected.statements, ['define', discriminant, selected.value, 'required']]
     return {
-        block: { statements: [...selected.statements, ['define', discriminant, selected.value, 'required'],
-            ['loop', { target: source.target, parameters: [], initial: [], results,
-                body: { ...body, exit: ['throw', 'a normalized switch case fell through'] } }]], exit: ['yield', []] },
-        environment: [...selected.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))],
-        normal: alternatives.some(made => made.normal || hasLoopTransfer(made.block, source.target)),
+        block: normal ? { statements: [...statements, ['loop', loop]], exit: ['yield', []] }
+            : { statements, exit: ['loop', loop] },
+        environment: normal ? [...selected.environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(results[index])]))] : selected.environment,
+        normal,
         hasLoopExit: alternatives.some(made => made.hasLoopExit), hasFunctionExit: alternatives.some(made => made.hasFunctionExit),
     }
 }
@@ -829,7 +841,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             statements = [...statements, ...made.block.statements]
             hasLoopExit = hasLoopExit || made.hasLoopExit
             hasFunctionExit = hasFunctionExit || made.hasFunctionExit
-            if (!made.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
+            if (!made.normal) { return { block: pruneAliases({ statements, exit: made.block.exit }, []), environment: inner, normal: false, hasLoopExit, hasFunctionExit } }
             inner = made.environment
             continue
         }

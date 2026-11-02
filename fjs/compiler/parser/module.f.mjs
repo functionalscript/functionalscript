@@ -61,8 +61,8 @@ const duplicateId = foldError('duplicate id')
 /** A braced switch arm must leave the arm rather than fall into the next one. */
 const unterminatedCase = foldError('switch case does not terminate')
 
-/** The first ordinary join profile admits normal arms and one outer result. */
-const nonNormalArm = foldError('ordinary conditional arms must complete normally')
+/** Explicit throw in the ordinary join profile remains separate admission work. */
+const throwingArm = foldError('ordinary conditional arms do not admit explicit throw')
 const multipleJoinBindings = foldError('ordinary conditional joins at most one outer binding')
 
 /**
@@ -1105,7 +1105,7 @@ const bodyRound = (stack, scope, frame) => {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'if' || kind === 'normal-if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
-    if (kind === 'switch') { return [{ top: frame, rest: stack }, scope, ['enter', statement.discriminant]] }
+    if (kind === 'switch') { return [{ top: { ...frame, switchFirstEvent: scope.trace.count }, rest: stack }, scope, ['enter', statement.discriminant]] }
     // A loop's condition and block are source regions. Their complete
     // evidence reaches sugar before mutable loop inputs are selected.
     if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
@@ -1706,7 +1706,12 @@ const returned = (stack, scope, frame, value) => {
             }, statement.block)
         }
         if (kind === 'switch') {
-            return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value, index: 0, label: 0, labels: [], arms: null })
+            return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value,
+                target: { kind: 'loop', index: scope.trace.count + 1 }, firstEvent: assertNotNullish(frame.switchFirstEvent, 'a switch without entry events'),
+                index: 0, label: 0, labels: [], arms: null })
+        }
+        if (kind === 'return' && frame.targetedReturn) {
+            return closed(stack, scope, { statements: [...toArray(frame.done), ['return', scope.trace.target, value]], exit: ['yield', undefined] })
         }
         return closed(stack, scope, { statements: toArray(frame.done), exit: kind === 'throw' ? ['throw', value] : ['return', scope.trace.target, value] })
     }
@@ -1718,21 +1723,24 @@ const returned = (stack, scope, frame, value) => {
     }
     if (hasEntry(frame, 'guard')) {
         const block = regionBlock(value)
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }) }
+        if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, frame.body.branch) }
+        if (frame.body.targetedReturn) {
+            return closed(stack, scope, { statements: [...toArray(frame.body.done), ['if', frame.condition, frame.then, block]], exit: ['yield', undefined] })
+        }
         return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['if', frame.condition, frame.then, block] })
     }
     if (hasEntry(frame, 'normalIf')) {
         const block = regionBlock(value)
         if (frame.then === null && frame.normalIf.otherwise === null && block.exit[0] === 'terminal-loop') {
             return arm(stack, scope, { guard: true, body: frame.body, condition: frame.condition, then: block },
-                frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing })
+                frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, frame.body.branch)
         }
         if (frame.then === null && frame.normalIf.otherwise !== null) {
             return normalArm(stack, scope, { ...frame, then: block }, frame.normalIf.otherwise)
         }
         const then = frame.then ?? block
         const otherwise = frame.then === null ? { statements: [], exit: /** @type {const} */ (['yield', undefined]) } : block
-        if (!normalArms([then, otherwise])) { return [stack, scope, error(nonNormalArm(frame.normalIf.start))] }
+        if (hasArmThrow([then, otherwise])) { return [stack, scope, error(throwingArm(frame.normalIf.start))] }
         if (outerArmWrites(scope, frame) > 1) { return [stack, scope, error(multipleJoinBindings(frame.normalIf.start))] }
         return bodyRound(stack, scope, advanced(frame.body, [['if', frame.condition, then, otherwise]]))
     }
@@ -1745,31 +1753,34 @@ const returned = (stack, scope, frame, value) => {
  * continuing the current block retains its duplicate and capture-shadow checks.
  * Regions preserve the owning source function target and add no invocation.
  *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame | _SwitchFrame, statements: _BodyFrame['statements'], first: number, enclosing: List<_Env>) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame | _SwitchFrame, statements: _BodyFrame['statements'], first: number, enclosing: List<_Env>, branch?: boolean) => _State}
  */
-const arm = (stack, scope, frame, statements, first, enclosing) =>
-    bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, enclosing), { statements, first, index: first, plan: null, assigned: null, done: null })
+const arm = (stack, scope, frame, statements, first, enclosing, branch = false) =>
+    bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, enclosing), {
+        statements, first, index: first, plan: null, assigned: null, done: null, branch, targetedReturn: frame.body.targetedReturn ?? false,
+    })
 
-/** Normal arms have no required source terminator and keep fresh lexical names. @type {(stack: _Stack, scope: _Scope, frame: _NormalIfFrame, block: BranchBlock) => _State} */
+/** Ordinary arms may complete normally or return, and keep fresh lexical names. @type {(stack: _Stack, scope: _Scope, frame: _NormalIfFrame, block: BranchBlock) => _State} */
 const normalArm = (stack, scope, frame, block) => bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
-    statements: block[2] === null ? block[1] : [...block[1], block[2]], first: 0, index: 0, plan: null, assigned: null, done: null, branch: true,
+    statements: block[2] === null ? block[1] : [...block[1], block[2]], first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
 })
 
-/** Source functions own their returns; lexical branches and loops remain visible. @type {(arms: readonly SourceBlock[]) => boolean} */
-const normalArms = arms => {
+/** Explicit throw stays refused in lexical arms; ordinary functions own theirs. @type {(arms: readonly SourceBlock[]) => boolean} */
+const hasArmThrow = arms => {
     let pending = arms
     while (pending.length !== 0) {
         const [block, ...rest] = pending
-        if (block.exit[0] !== 'yield') { return false }
+        if (block.exit[0] === 'throw') { return true }
         pending = rest
+        if (block.exit[0] === 'terminal-loop') { pending = [...pending, block.exit[1].body] }
         for (const statement of block.statements) {
-            if (statement[0] === 'return' || statement[0] === 'throw') { return false }
+            if (statement[0] === 'throw') { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
             if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
     }
-    return true
+    return false
 }
 
 /** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: _NormalIfFrame) => number} */
@@ -1806,7 +1817,7 @@ const switchRound = (stack, scope, frame) => {
     }
     return fallback !== null
         ? arm(stack, scope, frame, fallback[1], 0, null)
-        : arm(stack, scope, frame, body.statements, body.index + 1, { first: scope.names, tail: scope.enclosing })
+        : arm(stack, scope, frame, body.statements, body.index + 1, { first: scope.names, tail: scope.enclosing }, body.branch)
 }
 
 /** Preserve source cases; sugar selects the discriminant and tests each label. @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame, value: SourceValue) => _State} */
@@ -1819,6 +1830,11 @@ const switchReturned = (stack, scope, frame, value) => {
     const body = regionBlock(value)
     if (index < cases.length) {
         return switchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
+    }
+    if (frame.body.targetedReturn) {
+        const region = /** @type {SourceSwitch} */ ({ target: frame.target, events: completedTrace(scope).events.slice(frame.firstEvent),
+            discriminant: frame.discriminant, cases: toArray(reverse(frame.arms)), otherwise: body })
+        return closed(stack, scope, { statements: [...toArray(frame.body.done), ['switch', region]], exit: ['yield', undefined] })
     }
     return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['switch', frame.discriminant, toArray(reverse(frame.arms)), body] })
 }
