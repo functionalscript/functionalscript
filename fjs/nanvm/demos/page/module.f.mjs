@@ -50,7 +50,7 @@ import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
 import { highlight, render } from '../../../website/demo/highlight/module.f.mjs'
-import { fromTagged } from '../../../text/marked/module.f.mjs'
+import { fromTagged, toText } from '../../../text/marked/module.f.mjs'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
@@ -61,6 +61,14 @@ export const rustDirectory = 'nanvm/demos/gen.samples'
 
 /** The Rust `fjs compile` writes for a sample, committed. @type {(name: string) => string} */
 export const rustPath = name => `${rustDirectory}/${name}.rs`
+
+/**
+ * A sample's Rust with each word's kind in a tag, which the page draws
+ * coloured: written beside {@link rustPath} by the same generation.
+ *
+ * @type {(name: string) => string}
+ */
+export const rustMarkedPath = name => `${rustPath(name)}.marked`
 
 /**
  * Where the website build writes the module and its disassembly. These are
@@ -101,7 +109,7 @@ const loadedMarked = ([tag, value]) => tag === 'ok' ? fromTagged(value) : error(
  */
 export const load = ({ name, directory }) => {
     const source = resultStep(fetchText(`/${samplePath(directory)}`), r => pureOk(/** @type {State} */ ({ ...init, source: loaded(r) })))
-    const rust = step(source, state => resultStep(fetchText(`/${rustPath(name)}`), r => pureOk({ ...state, rust: loaded(r) })))
+    const rust = step(source, state => resultStep(fetchText(`/${rustMarkedPath(name)}`), r => pureOk({ ...state, rust: loadedMarked(r) })))
     const wat = step(rust, state => resultStep(fetchText(`/${watPath(name)}`), r => pureOk({ ...state, wat: loadedMarked(r) })))
     return step(wat, state => resultStep(instantiate(`/${wasmPath}`), r => pureOk({ ...state, wasm: loaded(r) })))
 }
@@ -372,7 +380,7 @@ export const filesView = (state, afterSource) => [
     caption('FunctionalScript source:'),
     ...loadedView(state.source, text => [codeBlock(text, 'Copy the source', highlight(text)), ...afterSource(text)]),
     caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
-    ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
+    ...loadedView(state.rust, marked => [codeBlock(toText(marked), 'Copy the Rust', render(marked))]),
     caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
     ...loadedView(state.wat, marked => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...render(marked)]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
