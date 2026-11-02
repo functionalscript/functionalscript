@@ -141,13 +141,13 @@ export const parseTestSet = (throws, x) => {
                 const fn = /** @type {TestFn} */ (x)
                 return { fn, throws: throws || fn.name === 'throw' }
             }
-            break
+            return []
         }
         case 'object': {
             if (x !== null) {
                 return Object.entries(x)
             }
-            break
+            return []
         }
     }
     return []

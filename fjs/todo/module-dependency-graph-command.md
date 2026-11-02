@@ -139,7 +139,7 @@ The approval and rationale are part of the
           with explicit reads and `+= 1`, preserving the old index and update order.
     - [x] Wrap single-return/throw switch case and default bodies in eight
           implementation modules with braces, preserving dispatch and completion.
-    - [ ] Normalize the remaining dev loop body and explicit fallback/void returns
+    - [x] Normalize the remaining dev loop body and explicit fallback/void returns
           in emergent testing and the byte grammar without extending the parser.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
