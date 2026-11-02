@@ -193,7 +193,7 @@ const codePointToUtf8 = input => {
         if ((input & errorLead4ContFlag) !== 0) {
             return seqLead4Cont(input)
         }
-        if ((input & errorByteFlag) !== 0) return [input & 0b1111_1111]
+        if ((input & errorByteFlag) !== 0) { return [input & 0b1111_1111] }
     }
     return [errorMask]
 }
@@ -264,7 +264,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
     if (!isByte(byte)) {
         return [[errorMask], state]
     }
-    if (state === null) return restartUtf8([])(byte)
+    if (state === null) { return restartUtf8([])(byte) }
     if (byte >= contTag && byte < lead2Tag) {
         switch (state.length) {
             case 1: {
@@ -278,7 +278,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
                     // must be >= 0x90 (Unicode Table 3-7).
                     const overlong = s0 === lead3Tag && byte < 0b1010_0000 ||
                         s0 === lead4Tag && byte < 0b1001_0000
-                    if (!overlong) return [[], [s0, byte]]
+                    if (!overlong) { return [[], [s0, byte]] }
                 }
                 break
             }
@@ -287,7 +287,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
                 if (s0 < lead4Tag) {
                     return [[lead3Payload([s0, s1, byte])], null]
                 }
-                if (s0 < 0b1111_1000) return [[], [s0, s1, byte]]
+                if (s0 < 0b1111_1000) { return [[], [s0, s1, byte]] }
                 break
             }
             case 3: {
