@@ -10,7 +10,7 @@ const tryFold = (
     f: (i: unknown, ...result: readonly unknown[]) => IterationResult,
     r: readonly unknown
 ): readonly unknown[] => {
-    if (typeof it !== 'string' || it instanceof Array) {
+    if (typeof it !== 'string' || !(it instanceof Array)) {
         throw 'Type Error'
     }
     const { length } = it
