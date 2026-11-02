@@ -38,6 +38,13 @@ export const proof = {
             assertEq(toTagged(marked), `${tagged('keyword')('let')} x = ${tagged('number')('1')};`)
             assertEq(JSON.stringify(unwrap(fromTagged(toTagged(marked)))), JSON.stringify(marked))
         },
+        // A marker in a plain run would read back as a tag, so it is refused.
+        toTaggedRefusesAMarker: {
+            throw: {
+                open: () => toTagged([['\u0001kx']]),
+                close: () => toTagged([['x\u0002']]),
+            },
+        },
         everyKind: () => {
             for (const kind of /** @type {const} */ (['keyword', 'literal', 'string', 'number', 'comment', 'operator', 'identifier'])) {
                 assertEq(JSON.stringify(unwrap(fromTagged(tagged(kind)('x')))), `[["x","${kind}"]]`)

@@ -225,12 +225,17 @@ export const untagged = text => toText(unwrap(fromTagged(text)))
  * Marked text as tagged text: each run with a kind in its tag, each without
  * one as it is. It is how runs cross a file, which carries text: a writer
  * stores what a producer's marked entry point answers, and a reader turns it
- * back with {@link fromTagged}. A run's text may hold neither marker, as
- * {@link tagged} asserts.
+ * back with {@link fromTagged}. A run's text may hold neither marker, a
+ * plain run's no more than a tagged one's, as {@link tagged} asserts: a
+ * marker there would read back as a tag.
  *
  * @type {(marked: Marked) => string}
  */
-export const toTagged = marked => marked.map(([text, kind]) => kind === undefined ? text : tagged(kind)(text)).join('')
+export const toTagged = marked => marked.map(([text, kind]) => {
+    if (kind !== undefined) { return tagged(kind)(text) }
+    assert(!text.includes(open) && !text.includes(close), ['a tagged text holding a marker', text])
+    return text
+}).join('')
 
 /**
  * A text with spans beside it, as runs: the spans' text with their kind, the
