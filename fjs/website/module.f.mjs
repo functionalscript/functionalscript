@@ -73,6 +73,7 @@ import { readmeName, readmeNodes, readmeSection, resolveHref } from './readme/mo
 import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
+import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
 import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
@@ -884,6 +885,11 @@ const readReadme = commit => isPage => dir => {
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
+ * **A card page beside each page that has a card** — its README, and the
+ * root's always ([`./card`](./card/module.f.mjs)) — and the list of them in
+ * `_cards.json`, which the screenshot step ([`./cards.mjs`](./cards.mjs))
+ * turns into the images the pages name.
+ *
  * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
 const writePages = build => tree => crates => proofs => demos => step(readIssues(tree), issues => {
@@ -894,13 +900,21 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
         .reduce(/** @type {(set: StringSet, path: string) => StringSet} */((set, path) => addPath(path)(set)), noPaths)
     /** @type {(path: string) => boolean} */
     const isPage = path => contains(path)(pages)
+    /** @type {(dir: Dir) => (cards: readonly string[]) => Effect<ReadFile | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>} */
+    const writeDir = dir => cards => step(readReadme(build.commit)(isPage)(dir), readme => {
+        const written = writeUtf8File(
+            pagePath(dir.path),
+            dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme }))
+        const content = cardContent(dir.path)(readme)
+        return content === null
+            ? mapStep(written, () => cards)
+            : step(written, () => mapStep(writeUtf8File(cardPagePath(dir.path), cardPage(content)), () => [...cards, dir.path]))
+    })
     return step(
-        forEachStep(pureOk(dirs), dir => step(
-            readReadme(build.commit)(isPage)(dir),
-            readme => writeUtf8File(
-                pagePath(dir.path),
-                dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme })))),
-        () => log(`directory pages: ${dirs.length}, issues: ${issues.length}`))
+        foldStep(pureOk(dirs), /** @type {readonly string[]} */([]), writeDir),
+        cards => step(
+            writeUtf8File(cardsPath, JSON.stringify(cards)),
+            () => log(`directory pages: ${dirs.length}, cards: ${cards.length}, issues: ${issues.length}`)))
 })
 
 /**
