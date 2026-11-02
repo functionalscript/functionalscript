@@ -70,6 +70,28 @@ The language designer `sergey-shandar` requested this syntax-only implementation
 in the [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
 This records no approval of FunctionalScript constructor semantics.
 
+### Numeric object keys
+
+Admit Number literal property names such as `{ 0x70: 'a' }` in the generic AST
+and FunctionalScript, including the equivalent literal keys in binding patterns.
+Retain the original numeric token, value and source location, then reuse the
+existing computed-key lowering for `{ [0x70]: 'a' }`. FAST already represents
+this as `['object', [[':', 112, 'a']]]`; the current object-construction path
+converts the numeric key to its property name. Preserve member evaluation order
+and the existing rule that a later duplicate key wins.
+
+The benefit is familiar JavaScript syntax and broader module AST coverage using
+existing execution semantics. The cost is one grammar alternative and proofs
+for literal spellings, binding patterns, duplicate keys and output readback.
+This adds no FAST/EDAG operation or runtime behavior. BigInt literal property
+names and additional numeric spellings not yet tokenized remain separate work.
+
+The language designer `sergey-shandar` requested parsing, admission and
+desugaring together in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+after confirming the existing computed-key representation. This is the approval
+for this numeric-key increment.
+
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
@@ -83,6 +105,8 @@ This records no approval of FunctionalScript constructor semantics.
           [default parameters and patterns](../../spec/todo/3125-default-parameters.md).
     - [x] Parse the bounded [constructor-expression syntax](#constructor-expression-syntax)
           while retaining explicit FunctionalScript refusal.
+    - [ ] Parse and admit [numeric object keys](#numeric-object-keys), reusing
+          computed-key desugaring and existing execution semantics.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
