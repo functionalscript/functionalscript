@@ -20,7 +20,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { codePoints } from '../../../text/ascii/module.f.js'
-import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
+import { samplePath, wasmPath, watPath } from '../page/module.f.mjs'
 import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
 import { spell } from '../spell/module.f.mjs'
 
@@ -76,7 +76,7 @@ const perform = map => effect => {
 
 const source = 'export default (...a) => (a[0], a[0] + 2);'
 
-const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustMarkedPath('plus2')}`]: `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module() {}`, [`/${watPath('plus2')}`]: `(${tagged('keyword')('module')})` }
+const files = { [`/${samplePath(plus2.place.directory)}`]: source, '/nanvm/demos/wasm/plus2.rs.marked': `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module() {}`, [`/${watPath('plus2')}`]: `(${tagged('keyword')('module')})` }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance()))(load(plus2.place))

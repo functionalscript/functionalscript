@@ -88,7 +88,7 @@ const perform = map => effect => {
     return result[1]
 }
 
-const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', [`/${rustMarkedPath('hi')}`]: `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module() {}`, [`/${watPath('hi')}`]: `(${tagged('keyword')('module')})` }
+const files = { '/fjs/nanvm/demos/hi/sample.f.js': 'export default 1', '/nanvm/demos/wasm/hi.rs.marked': `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module() {}`, [`/${watPath('hi')}`]: `(${tagged('keyword')('module')})` }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance([0x68, 0x69])))(load(hi.place))
@@ -100,7 +100,7 @@ export const proof = {
     paths: () => {
         assertEq(samplePath('spec/operators/comma'), 'spec/operators/comma/sample.f.js')
         assertEq(rustPath('hello'), 'nanvm/demos/gen.samples/hello.rs')
-        assertEq(rustMarkedPath('hello'), 'nanvm/demos/gen.samples/hello.rs.marked')
+        assertEq(rustMarkedPath('hello'), 'nanvm/demos/wasm/hello.rs.marked')
         assertEq(wasmPath, `${buildDirectory}/nanvm_demos.wasm`)
         assertEq(watPath('hello'), `${buildDirectory}/hello.wat.marked`)
     },

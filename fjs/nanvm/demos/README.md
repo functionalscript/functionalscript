@@ -38,8 +38,10 @@ are on the [Undecided](../../../spec/undecided/README.md) page.
   committed, with a Rust test per listed call, so the two runs a page
   compares are tested before it is deployed.
 - `nanvm/demos/gen.build.sh`, which `npm run gen` writes, builds the
-  `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/` and prints each
-  sample's WAT beside it. Both are ignored build artifacts. Cloudflare builds
-  them before generating the website.
+  `nanvm-demos` crate for `wasm32` into `nanvm/demos/wasm/`, prints each
+  sample's marked WAT beside it, and compiles each sample again to marked
+  Rust for its page. The module, `<name>.wat.marked` and `<name>.rs.marked`
+  are ignored build artifacts. Cloudflare builds them before generating the
+  website; only the plain Rust Cargo builds is committed.
   For a local website build, first run
   `./dev.sh sh ./nanvm/demos/gen.build.sh`, then `npm run website`.

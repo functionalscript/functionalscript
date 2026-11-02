@@ -1,10 +1,10 @@
 /**
  * Puts the WASM demo pages' module where the site serves it
  * ([`todo/wasm-demos.md`](../../../../todo/wasm-demos.md)), with each
- * sample's disassembly. The deployment build runs it after building
+ * sample's disassembly and marked Rust. The deployment build runs it after building
  * `nanvm-demos` for `wasm32`: `cargo` writes the module under `target/`,
  * which the site does not serve, and this copies it out, making the
- * directory first, and writes each sample's WAT beside it.
+ * directory first, and writes each sample's WAT and Rust beside it.
  *
  * **The module is copied as it was built**, its bytes unchanged: the page
  * instantiates what `cargo` wrote, not what [`binary/write`](../../../media/wasm/binary/write/module.f.mjs)
@@ -21,27 +21,33 @@
  * `toTagged`), which the demo page reads to draw the WAT coloured. No plain
  * `.wat` is written, as nothing reads one; `untagged` gives it.
  *
- * Nothing is written until every sample has its WAT: an input that is no
- * module, or a sample with no functions, fails the run with the files as they
- * were. Then each `.wat.marked` in the directory that names no listed sample
- * is removed, so a sample removed or renamed leaves no disassembly behind; any
- * other file there is kept.
+ * Each sample's Rust is compiled through the same marked output route as the
+ * committed `.rs` Cargo builds, then written as `<sample>.rs.marked` beside
+ * the WAT. Neither marked asset is committed.
  *
- * `fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...`
+ * Nothing is written until every sample has its WAT and Rust: an input that
+ * is no module, a sample with no functions, or a refused compile fails the
+ * run with the files as they were. Then each `.wat.marked` or `.rs.marked`
+ * in the directory that names no listed sample is removed, so a sample
+ * removed or renamed leaves no marked assets behind; other files are kept.
+ *
+ * `fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <asset directory> <sample>...`
  *
  * @module
  *
- * @import { NodeProgram, Mkdir, Readdir, ReadWhole, Rm, WriteBytes, WriteFile } from '../../../effects/node/types.ts'
+ * @import { NodeProgram, Mkdir, Readdir, ReadWhole, ResolveFileModule, Rm, WriteBytes, WriteFile } from '../../../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { Write } from '../../../effects/common/types.ts'
  * @import { Module } from '../../../media/wasm/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Marked } from '../../../text/marked/types.ts'
  * @import { _Checked } from './private.ts'
+ * @import { Place } from '../page/types.ts'
  */
 
+import { _compileMarked, noRuntime } from '../../../compiler/module.f.mjs'
 import { errorExit } from '../../../effects/common/module.f.mjs'
-import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.mjs'
+import { foldStep, forEachStep, history, historyStep, ioError, mapStep, pureError, pureOk, step } from '../../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
@@ -50,6 +56,8 @@ import { demangle } from '../../../rust/demangle/module.f.mjs'
 import { toTagged } from '../../../text/marked/module.f.mjs'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
+import { rustPath, samplePath } from '../page/module.f.mjs'
+import { samples as knownSamples } from '../samples/module.f.js'
 
 /**
  * `module` with every function name in its name section demangled.
@@ -92,64 +100,92 @@ export const sampleWats = (m, samples) => {
 /** The file extension of a published sample's WAT. */
 const watExtension = '.wat.marked'
 
+/** The file extension of a published sample's Rust. */
+const rustExtension = '.rs.marked'
+
 /**
- * Removes each `.wat.marked` in `directory` that names none of `samples`.
+ * Removes each marked WAT or Rust file in `directory` that names none of
+ * `samples`.
  *
  * @type {(directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
  */
 const removeStale = (directory, samples) => step(
     readdir(directory, {}),
     entries => forEachStep(
-        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > watExtension.length && name.endsWith(watExtension)
-            && !samples.includes(name.slice(0, -watExtension.length)))),
+        pureOk(entries.filter(({ name, isFile }) => isFile && [watExtension, rustExtension].some(extension =>
+            name.length > extension.length && name.endsWith(extension) && !samples.includes(name.slice(0, -extension.length))))),
         ({ name }) => rm(`${directory}/${name}`)))
 
 /**
- * The module at `from`, read and parsed, with each sample's WAT, or why
- * there is none, naming `from`.
+ * Each sample's Rust, compiled against the committed output's path so its
+ * generated text is exactly what the plain sample generator writes.
  *
- * @type {(from: string, samples: readonly string[]) => Effect<ReadWhole, _Checked, IoChannel>}
+ * @type {(samples: readonly Place[]) => Effect<ReadWhole | ResolveFileModule, readonly (readonly [string, Marked])[], IoChannel>}
  */
-const check = (from, samples) => step(readWhole(from), chunks => {
-    const parsed = parse(chunks.flatMap(u8ArrayMsb))
-    const wats = parsed[0] === 'error' ? parsed : sampleWats(parsed[1], samples)
-    return wats[0] === 'error'
-        ? pureError(ioError({ message: `${from}: ${wats[1]}` }))
-        : pureOk({ chunks, wats: wats[1] })
-})
+const sampleRusts = samples => foldStep(
+    pureOk(samples),
+    /** @type {readonly (readonly [string, Marked])[]} */ ([]),
+    ({ name, directory }) => rusts => step(
+        _compileMarked(noRuntime)(samplePath(directory), rustPath(name)),
+        ([tag, value]) => tag === 'error'
+            ? pureError(ioError({ message: value }))
+            : pureOk([...rusts, [name, value]])))
 
 /**
- * Writes what {@link check} read: the module's chunks to `to` and each
- * sample's WAT to `watDirectory`, making each directory first, then removes
- * any other WAT there.
+ * The module at `from`, read and parsed, with each sample's WAT and compiled
+ * Rust, or why there is none, naming the input that was refused.
  *
- * @type {(to: string, watDirectory: string, samples: readonly string[]) => (checked: _Checked) => Effect<Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
+ * @type {(from: string, samples: readonly Place[]) => Effect<ReadWhole | ResolveFileModule, _Checked, IoChannel>}
  */
-const save = (to, watDirectory, samples) => ({ chunks, wats }) => {
-    const madeTo = mkdir(parent(to), { recursive: true })
-    const copied = step(madeTo, () => writeChunks(to, chunks))
-    const madeWat = step(copied, () => mkdir(watDirectory, { recursive: true }))
-    const written = step(madeWat, () => writeFiles(wats.map(([sample, marked]) => [`${watDirectory}/${sample}${watExtension}`, toTagged(marked)])))
-    return step(written, () => removeStale(watDirectory, samples))
+const check = (from, samples) => {
+    const wat = step(readWhole(from), chunks => {
+        const parsed = parse(chunks.flatMap(u8ArrayMsb))
+        const wats = parsed[0] === 'error' ? parsed : sampleWats(parsed[1], samples.map(({ name }) => name))
+        return wats[0] === 'error'
+            ? pureError(ioError({ message: `${from}: ${wats[1]}` }))
+            : pureOk({ chunks, wats: wats[1] })
+    })
+    const rust = historyStep(history(wat), () => sampleRusts(samples))
+    return mapStep(rust, ([rusts, checked]) => ({ ...checked, rusts }))
 }
 
 /**
- * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat.marked`
- * in `watDirectory`, making each directory first, then removes any other WAT
- * there.
+ * Writes what {@link check} read: the module's chunks to `to` and each
+ * sample's WAT and Rust to `directory`, making each directory first, then
+ * removes any other marked WAT or Rust there.
  *
- * @type {(from: string, to: string, watDirectory: string, samples: readonly string[]) => Effect<ReadWhole | Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
+ * @type {(to: string, directory: string, samples: readonly Place[]) => (checked: _Checked) => Effect<Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
  */
-export const publish = (from, to, watDirectory, samples) =>
-    step(check(from, samples), save(to, watDirectory, samples))
+const save = (to, directory, samples) => ({ chunks, wats, rusts }) => {
+    const madeTo = mkdir(parent(to), { recursive: true })
+    const copied = step(madeTo, () => writeChunks(to, chunks))
+    const madeAssets = step(copied, () => mkdir(directory, { recursive: true }))
+    const written = step(madeAssets, () => writeFiles([
+        ...wats.map(([sample, marked]) => /** @type {const} */ ([`${directory}/${sample}${watExtension}`, toTagged(marked)])),
+        ...rusts.map(([sample, marked]) => /** @type {const} */ ([`${directory}/${sample}${rustExtension}`, toTagged(marked)])),
+    ]))
+    return step(written, () => removeStale(directory, samples.map(({ name }) => name)))
+}
+
+/**
+ * Copies `from` to `to`, and writes each sample's WAT and compiled Rust to
+ * `<sample>.wat.marked` and `<sample>.rs.marked` in `directory`, making each
+ * directory first, then removes marked assets of any other sample there.
+ *
+ * @type {(from: string, to: string, directory: string, samples: readonly Place[]) => Effect<ReadWhole | ResolveFileModule | Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
+ */
+export const publish = (from, to, directory, samples) =>
+    step(check(from, samples), save(to, directory, samples))
 
 /** The command line, when it has too few arguments. */
-export const usage = 'usage: fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...'
+export const usage = 'usage: fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <asset directory> <sample>...'
 
 /** @type {NodeProgram} */
 export const main = ({ args }) => {
-    const [from, to, watDirectory, ...samples] = args
-    return from === undefined || to === undefined || watDirectory === undefined
-        ? errorExit(usage)
-        : exitStep(publish(from, to, watDirectory, samples))
+    const [from, to, directory, ...names] = args
+    if (from === undefined || to === undefined || directory === undefined) { return errorExit(usage) }
+    const unknown = names.find(name => !knownSamples.some(sample => sample.name === name))
+    return unknown !== undefined
+        ? errorExit(`unknown sample \`${unknown}\``)
+        : exitStep(publish(from, to, directory, names.flatMap(name => knownSamples.filter(sample => sample.name === name))))
 }
