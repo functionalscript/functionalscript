@@ -1024,6 +1024,9 @@ parts do not delay the epic's foundation gate:
 - [x] Reconstruct the shared snapshot recipe as public FJS source with immutable
       invocation snapshots. Preserve first demand, escaped readers and allocation
       identity; verify source readback, reserialization and deep `while` execution.
+- [ ] Reconstruct dependent lazy `nestedRecipe` as public FJS source using
+      an immutable first-demand join. Preserve skipped work, shared results
+      and owning returns; verify readback, reserialization and deep loops.
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes. Independent shared
