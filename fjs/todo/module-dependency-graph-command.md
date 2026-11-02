@@ -93,6 +93,15 @@ desugaring together in the
 after confirming the existing computed-key representation. This is the approval
 for this numeric-key increment.
 
+### Single-quoted hexadecimal and vertical-tab escapes
+
+Single-quoted strings admit `\xHH` and `\v`, which occur in implementation
+modules and previously stopped source AST formation. Both decode to existing
+string values, with no new FAST, EDAG or runtime operation. Double-quoted
+strings retain JSON's escape rules, and template admission is unchanged.
+The approval, rationale and remaining string spellings are tracked in
+[JS string literals](../../spec/todo/2460-js-string-literals.md#single-quoted-hexadecimal-and-vertical-tab-escapes).
+
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
@@ -108,6 +117,8 @@ for this numeric-key increment.
           while retaining explicit FunctionalScript refusal.
     - [x] Parse and admit [numeric object keys](#numeric-object-keys), reusing
           computed-key desugaring and existing execution semantics.
+    - [x] Parse and admit [single-quoted `\xHH` and `\v`](#single-quoted-hexadecimal-and-vertical-tab-escapes),
+          preserving the double-quoted JSON and template boundaries.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

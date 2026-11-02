@@ -754,12 +754,11 @@ export const proof = {
             }
             assertEq(compiled("import m from './m.f.js'; export default [m];"), compiled('import m from "./m.f.js"; export default [m];'))
         },
-        // what JSON refuses stays refused: `\'` is not JSON's, so a
-        // double-quoted string may not hold it, and JavaScript's other
-        // escapes are not this language's in either quote
+        // Double-quoted strings keep JSON's escape set; malformed
+        // single-quoted hexadecimal escapes remain lexical errors.
         refused: () => {
             assertEq(moduleRefused('export default "\\\'";'), 'input.f.js:1:16-21 - error: unexpected token')
-            assertEq(moduleRefused("export default '\\x41';"), 'input.f.js:1:16-23 - error: unexpected token')
+            assertEq(moduleRefused("export default '\\x4Z';"), 'input.f.js:1:16-23 - error: unexpected token')
         },
     },
     // Spread in an array literal and in a call's arguments

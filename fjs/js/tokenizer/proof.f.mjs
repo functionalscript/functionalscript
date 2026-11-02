@@ -182,7 +182,7 @@ export const proof = {
             assertEq(tokenizeString('`\\u12`'), 'error')
             assertEq(tokenizeString('`\\x1`'), 'error')
             assertEq(tokenizeString('`\\'), 'error')
-            // Ordinary quoted strings retain their existing escape subset.
+            // Double-quoted strings retain JSON's escape subset.
             assertEq(tokenizeString('"\\x41"'), 'error')
         },
     },
@@ -589,10 +589,8 @@ export const proof = {
             assertEq(result, 'error')
         },
     ],
-    // A string between single quotes is JSON's with the delimiters swapped
-    // (`spec/todo/2460-js-string-literals.md`): the same value as its
-    // double-quoted spelling, a `"` standing for itself, `\'` the one escape
-    // it adds, and everything else JSON refuses still refused.
+    // Single quotes admit JSON's escapes plus the delimiter, vertical tab
+    // and two-digit hexadecimal escapes. Double quotes retain JSON's rules.
     singleQuoted: {
         sameValue: () => {
             assertStructurallySame(tokenizeString("'value'"), tokenizeString('"value"'))
@@ -619,13 +617,48 @@ export const proof = {
         escapedQuote: () => {
             assertStructurallySame(tokenizeString("'can\\'t'"), [{ kind: 'string', value: 'can\'t' }, { kind: 'eof' }])
         },
+        byteEscapes: () => {
+            assertStructurallySame(tokenizeString("'\\x00\\x07\\x0b\\x41\\x7f\\x80\\xfF'"), [
+                { kind: 'string', value: '\u0000\u0007\u000bA\u007f\u0080\u00ff' },
+                { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString("'\\v'"), [{ kind: 'string', value: '\u000b' }, { kind: 'eof' }])
+        },
+        fixedWidth: () => {
+            assertStructurallySame(tokenizeString("'\\x123\\x000\\v0'"), [
+                { kind: 'string', value: '\u00123\u00000\u000b0' },
+                { kind: 'eof' },
+            ])
+            // Decoded characters never become source to scan again.
+            assertStructurallySame(tokenizeString("'\\x5cn'"), [{ kind: 'string', value: '\\n' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString("'\\\\x41'"), [{ kind: 'string', value: '\\x41' }, { kind: 'eof' }])
+            assertStructurallySame(tokenizeString("'\\x27\\x22'"), [{ kind: 'string', value: '\'"' }, { kind: 'eof' }])
+        },
+        mixedEscapes: () => {
+            assertStructurallySame(tokenizeString("'\\u0041\\x42\\vC\\n\\x44\\uD83D\\uDE00\\uD800'"), [
+                { kind: 'string', value: 'AB\u000bC\nD😀\ud800' },
+                { kind: 'eof' },
+            ])
+        },
+        malformedByteEscapes: () => {
+            assertEq(tokenizeString("'\\x'"), 'error')
+            assertEq(tokenizeString("'\\x0'"), 'error')
+            assertEq(tokenizeString("'\\xG1'"), 'error')
+            assertEq(tokenizeString("'\\x1G'"), 'error')
+            assertEq(tokenizeString("'\\x41"), 'error')
+            assertEq(tokenizeString("'\\X41'"), 'error')
+            assertEq(tokenizeString("'\\V'"), 'error')
+        },
         refused: () => {
             // `\'` is not JSON's, so a double-quoted string keeps refusing it
             assertEq(tokenizeString('"\\\'"'), 'error')
-            // JavaScript's other escapes are not FunctionalScript's
-            assertEq(tokenizeString("'\\x41'"), 'error')
-            assertEq(tokenizeString("'\\v'"), 'error')
+            assertEq(tokenizeString('"\\x41"'), 'error')
+            assertEq(tokenizeString('"\\v"'), 'error')
+            // Other JavaScript escapes remain outside this subset.
             assertEq(tokenizeString("'\\0'"), 'error')
+            assertEq(tokenizeString("'\\1'"), 'error')
+            assertEq(tokenizeString("'\\u{41}'"), 'error')
+            assertEq(tokenizeString("'\\\n'"), 'error')
             // no raw control character, no line terminator, no end
             assertEq(tokenizeString("'\t'"), 'error')
             assertEq(tokenizeString("'a\nb'"), 'error')

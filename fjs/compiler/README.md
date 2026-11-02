@@ -435,7 +435,9 @@ first/follow check, found three of the eight.
 Optional, for fun, syntax sugar:
 
 - [x] comments. Ignore them. Not an error.
-- [x] double/single quote strings
+- [x] double/single quote strings: double quotes keep JSON's escapes; single
+      quotes also accept `\'`, `\xHH` and `\v`, as specified in
+      [string escapes](../../spec/lexical/string-escapes/README.md).
 
 ## Decidable Language
 

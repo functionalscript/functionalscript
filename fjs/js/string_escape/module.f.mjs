@@ -2,20 +2,19 @@
  * The string escapes — one source of truth — and the one writer of a quoted
  * string built on them.
  *
- * `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`: the simple escapes, every
- * escape sequence whose meaning is one fixed code point. `\uXXXX` is not one
- * of them — its meaning is computed from the digits that follow rather than
- * looked up — and neither are JavaScript's `\0`, `\v`, `\xXX`, or a line
- * continuation, which FunctionalScript does not accept.
+ * `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`: JSON's simple escapes,
+ * whose meaning is one fixed code point. `\uXXXX` is not one of them — its
+ * meaning is computed from the digits that follow rather than looked up.
  *
  * The set is JSON's `char` production's, so everything that reads or writes
  * one derives its view from this one list rather than keeping a copy: the
  * JSON grammar (`../../ebnf/lib/json`) admits its letters, the JSON reader
  * and the JavaScript tokenizer decode through it, and {@link stringLiteral}
  * encodes through it, so none of them can drift apart. A
- * single-quoted string adds `\'`, which is not JSON's, so the JavaScript
- * tokenizer decodes it above this table: a row here would make the encode
- * view write `\'` into JSON.
+ * single-quoted string adds `\'`, `\v` and `\xHH`, which are not JSON's,
+ * so the JavaScript tokenizer decodes them above this table: rows here would
+ * make the encode view write non-JSON escapes into JSON. `\0` and line
+ * continuations remain outside FunctionalScript's string subset.
  *
  * `stringLiteral` writes a string as a double-quoted literal, which is JSON
  * and JavaScript alike. Every writer of a quoted string in source text — the
