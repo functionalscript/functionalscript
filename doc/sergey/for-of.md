@@ -9,7 +9,7 @@ const tryFold = (
     it: unknown,
     f: (i: unknown, state: unknown) => IterationResult,
     state: unknown
-): readonly unknown[] => {
+): unknown => {
     if (typeof it !== 'string' || !(it instanceof Array)) {
         throw 'Type Error'
     }
