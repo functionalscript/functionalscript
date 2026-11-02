@@ -2,9 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
-migration are implemented; the control-flow conversion audit and conformance
-corpus are in progress before further conditional admission work;
-lexical/specification alignment remains
+migration, named control-flow conformance profiles and output recovery are
+implemented; contract agreement and ordinary-function conditional admission
+remain open, followed by lexical/specification alignment
 
 ### Problem
 
@@ -19,8 +19,8 @@ The shared FAST foundation and writer migration are implemented:
 [compiler architecture](../compiler/architecture.md) records the current owners.
 Graph-to-FAST conversion and common preparation own sharing, placement and
 transfers; JS and Rust writers consume their decisions. The remaining review
-must make source completion, normalization and source reconstruction use one
-control-flow contract, before extending conditional admission further.
+must confirm the documented completion and ownership contract and its
+implemented limits before extending ordinary-function conditional admission.
 
 The specification has the same gap from the reader's side. A page says what
 a feature accepts and, for sugar, what it lowers to — a pattern "is sugar
@@ -387,7 +387,14 @@ paused drafts while this contract is reviewed. Their tests and source-output
 investigation remain evidence; the reconstruction recipe in #3512 is a
 prototype finding, not an agreed implementation requirement.
 
-The review must settle these rules before resuming implementation:
+The [conversion audit's review summary](../compiler/control-flow.md#contract-prepared-for-review)
+records the implemented normalization and named output profiles. Those output
+profiles do not admit new source syntax, and contract agreement remains open.
+Review the paused drafts against this foundation before resuming admission
+work; their earlier experiments are not a plan to reapply unchanged.
+
+The review must settle these rules before ordinary-function conditional
+admission is extended:
 
 - Sequential composition resumes following statements only on normal
   completion. A conditional evaluates its test once and selects one arm;
@@ -409,6 +416,28 @@ The review must settle these rules before resuming implementation:
   implement or recognize a stated profile of this contract. A recognizer's
   accepted shapes do not define all valid terminal control flow. Decide any
   compatibility canonicalization and its graph-identity effects explicitly.
+
+##### Next admission boundary for review
+
+After contract agreement, the proposed first increment is reference case 6:
+an ordinary function's normally completing `if`, with or without `else`,
+joins one outer binding's versions before one following computation and an
+explicit function return. Branch-local declarations stay local; an absent
+`else` supplies the incoming versions. Reuse the existing join representation and
+preserve scope, `const`, capture and required-evaluation checks before
+desugaring erases their evidence.
+
+This restores familiar JavaScript conditional assignment without requiring
+an IIFE or a conditional-expression rewrite. Its cost is a wider admission
+profile whose binding and completion checks must remain consistent with loop
+branches; it adds no new control-flow construct to FAST.
+
+This is a proposal for owner review, not an approved admission change. The
+partly returning cases 4 and 7, including the nested example below, remain a
+separate increment with owning-return proofs. Implicit-return desugaring stays
+later. Keep generic AST formation, FJS admission and FAST conversion separately
+reported: the [module dependency command](module-dependency-graph-command.md)
+needs an AST even for modules that cannot yet pass the later stages.
 
 For the task owner's example, inside an ordinary function `F`:
 
@@ -530,10 +559,13 @@ graph/text round trips remain separately named guarantees for supported
 canonical profiles; they are not a gate on general serialization.
 
 This is the target contract, not a claim that all current output profiles
-meet it. The current source coordinator retains recursive fallbacks for some
-profiles; the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
-records those implementation gaps. Audit those paths against the `while`
-requirement instead of preserving their recursive spelling for compatibility.
+meet it. After retaining supported loop plans, the source coordinator refuses
+possible owning backedges before inverse reconstruction; one-pass fallback
+remains available. The [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+records the unsupported layouts, and the
+[self-tail audit](../compiler/self-tail-output.md#direct-fast-preparation)
+separately records the direct raw FAST planning boundary. Extending those
+profiles must satisfy the `while` requirement.
 
 ##### Switch selection and execution
 
@@ -1000,18 +1032,16 @@ parts do not delay the epic's foundation gate:
       source. Forward the redundant result wrapper through its conditional,
       preserve branch scopes and transfer owners, and verify parser readback,
       reserialization and deep execution without widening source grammar.
-- [ ] Rework structured source reconstruction against that contract, using
-      common preparation. Allow helper functions and enclosing-variable writes
-      from IIFEs; preserve completion owners and semantics without requiring
-      general exact-graph round trips. Use parameters/immutable bindings for
-      non-loop continuations in the baseline; broader mutable output variables
-      belong to optional future optimization rather than the core model.
-      Remove redundant control-flow bridges
-      with their consumers once the corpus demonstrates the replacement.
-      The direct, default graph-route and public source `parameterizedJoin`
-      profiles are implemented above. Broader source reconstruction keeps
-      the owning early return outside the private continuation and uses the
-      existing nested `m` and `K(z)` semantic corpus.
+- [ ] Extend structured source reconstruction to the remaining statement and
+      nonlocal profiles recorded in the
+      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md),
+      using common preparation. Preserve completion owners and semantics
+      without requiring general exact-graph round trips. Helper functions and
+      IIFEs are allowed; parameters/immutable bindings remain the non-loop
+      baseline, with broader mutable storage an optional future optimization.
+      Retire redundant control-flow bridges with their consumers when the
+      corpus proves the replacement. The named immutable-join and lazy-recipe
+      profiles listed here remain implemented evidence.
 - [x] Audit current self-tail output profiles through final functions and
       generated helpers in public source, code-only JavaScript/function text
       and Rust. Reuse existing witnesses, add missing conformance tests, and
@@ -1033,15 +1063,20 @@ parts do not delay the epic's foundation gate:
 - [x] Establish the source fallback's stack-safety boundary with concrete
       accepted and refused witnesses. Preserve loops and one-pass recovery;
       verify source readback and deep execution for supported backedges.
-- [ ] Replace fallbacks that retain self tail calls with common
-      `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
-      argument snapshots and invocation-local lifetimes. Independent shared
-      terminal recipes now have [common loop planning](../compiler/self-tail-output.md#independent-shared-terminal-recipes)
-      and native JavaScript/Rust conformance witnesses.
-      Source inverse reconstruction now refuses possible owning backedges
-      outside retained loop profiles before introducing recursive calls.
-      Track broader source admission in the
-      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
+- [x] Reconcile completed output profiles with the central control-flow audit
+      and remaining tasks. Prepare the explicit-return ownership contract for
+      review and define the next ordinary-if admission boundary.
+- [ ] Extend common `while` and source plans for explicitly refused backedge
+      profiles, preserving the current refusal until a bounded plan is proven.
+      Cover deep execution, argument snapshots and invocation-local lifetimes.
+      Independent shared terminal recipes already have
+      [common loop planning](../compiler/self-tail-output.md#independent-shared-terminal-recipes)
+      and native JavaScript/Rust witnesses; mixed-self-use witnesses separately
+      cover retained self identity and following work. Keep the
+      [direct raw FAST planning boundary](../compiler/self-tail-output.md#direct-fast-preparation)
+      distinct from public graph output. Track broader source reconstruction
+      in the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md);
+      it does not itself widen source admission.
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.
 - [ ] Name each specification feature's implementing layer. Update affected
       pages with their code moves, then finish the remaining vocabulary alignment.
