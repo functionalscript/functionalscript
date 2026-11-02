@@ -192,7 +192,7 @@ const writes = (block, id) => {
         work = work.tail
         for (const statement of current.statements) {
             switch (statement[0]) {
-                case 'write': { if (statement[1] === id) { return true }; break }
+                case 'write': { if (statement[1] === id) { return true } break }
                 case 'block': { work = { first: statement[1], tail: work }; break }
                 case 'if': { work = prepend([statement[2], statement[3]], work); break }
                 case 'loop': { work = { first: statement[2], tail: work }; break }
