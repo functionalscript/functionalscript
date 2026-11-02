@@ -34,17 +34,15 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { _CompileOp } from '../../compiler/types.ts'
  * @import { FunctionPlace, ListedCall, Place } from './page/types.ts'
- * @import { Marked } from '../../text/marked/types.ts'
  */
 
 import { rust } from '../../ci/config/module.f.js'
-import { _compileMarked, noRuntime } from '../../compiler/module.f.mjs'
-import { forEachStep, ioError, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { compileFile, noRuntime } from '../../compiler/module.f.mjs'
+import { forEachStep, pureOk, step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.js'
-import { toText } from '../../text/marked/module.f.mjs'
 import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
@@ -181,15 +179,12 @@ node ./fjs/module.mjs run ./${markedPath}
 `
 
 /**
- * One sample compiled into its Rust, each word marked with its kind: the
- * runs whose text is the `.rs` written for `cargo`; or the compiler's
- * refusal, as `fjs compile` reports it.
+ * Compiles one sample into the Rust `cargo` builds, as `fjs compile` does,
+ * or reports the compiler's refusal and writes nothing.
  *
- * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, Marked, IoChannel>}
+ * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
  */
-export const compileSample = ({ name, directory }) => step(
-    _compileMarked(noRuntime)(samplePath(directory), rustPath(name)),
-    ([tag, value]) => tag === 'error' ? pureError(ioError({ message: value })) : pureOk(value))
+const compileSample = ({ name, directory }) => compileFile(noRuntime)(samplePath(directory), rustPath(name))
 
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the
@@ -199,7 +194,7 @@ export const compileSample = ({ name, directory }) => step(
  * @type {(places: readonly (Place | FunctionPlace)[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = places => step(
-    forEachStep(pureOk(places), place => step(compileSample(place), marked => writeFiles([[rustPath(place.name), toText(marked)]]))),
+    forEachStep(pureOk(places), compileSample),
     () => writeFiles([[modulesPath, modules(places)], [buildScriptPath, buildScript(places)]]))
 
 /** @type {NodeProgram} */

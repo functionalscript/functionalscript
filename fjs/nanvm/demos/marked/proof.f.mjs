@@ -45,10 +45,14 @@ export const proof = {
         const [, entries] = virtual(state)(readdir('nanvm/demos/wasm', {}))
         assertEq(assertOk(entries).map(({ name }) => name).toSorted().join(), 'a.rs.marked,b.rs.marked,dir.rs.marked,gone.wat.marked')
     },
-    // A sample the compiler refuses fails the run before its file is written.
+    // A sample the compiler refuses fails the run before any file is
+    // written, the samples before it included.
     refused: () => {
-        const broken = { 'fjs': { 'nanvm': { 'demos': { 'a': { 'sample.f.js': [utf8('export default (')] } } } } }
-        const [state, result] = virtualAt(broken)(writeMarked([places[0]]))
+        const broken = { 'fjs': { 'nanvm': { 'demos': {
+            'a': { 'sample.f.js': [utf8('export default () => 1;')] },
+            'b': { 'sample.f.js': [utf8('export default (')] },
+        } } } }
+        const [state, result] = virtualAt(broken)(writeMarked(places))
         assertEq(result[0], 'error')
         assertEq(virtual(state)(readUtf8File(rustMarkedPath('a')))[1][0], 'error')
     },
