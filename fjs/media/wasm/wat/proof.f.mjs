@@ -209,8 +209,6 @@ export const proof = /** @type {const} */ ({
         texts.forEach(text => assertEq(everythingWat.includes(text), true))
         assertEq(texts[1], everythingWat.split('\n').at(-6) + '\n')
     },
-    // An `end` or `else` with no block open, which no binary holds: at the
-    // body's own indentation, as `wasmprinter` puts it.
     // The marked text is the text, each word with its kind: a page that draws
     // it shows the same WAT, coloured.
     functionsMarked: () => {
@@ -225,6 +223,8 @@ export const proof = /** @type {const} */ ({
         // parentheses and blanks.
         assertEq(marked.every(m => m.every(([text, k]) => k !== undefined || [...text].every(c => '() \n'.includes(c)))), true)
     },
+    // An `end` or `else` with no block open, which no binary holds: at the
+    // body's own indentation, as `wasmprinter` puts it.
     unbalanced: () => assertEq(
         functions({ ...emptyModule, types: [{ params: [], results: [] }], functions: [{ type: 0, locals: [], body: [['end'], ['else']] }] })[0],
         '  (func (;0;) (type 0)\n    end\n    else\n  )\n'),
