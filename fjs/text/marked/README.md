@@ -498,7 +498,7 @@ points, as the tokenizer's are).
   written, so a pane cannot drift from the command line.
 - **Where a page reads a file a build wrote, the runs cross it as tagged
   text.** A WASM demo page fetches each sample's WAT; the publisher writes
-  `functionsMarked` as `toTagged` beside the plain `.wat`, and the page reads
+  `functionsMarked` as `toTagged`, `<sample>.wat.marked`, and the page reads
   it back with `fromTagged` and draws it with `render`. Tagged text is the
   encoding §4 already defines, and the page builds its nodes from the runs,
   never inserting fetched HTML.

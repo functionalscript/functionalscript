@@ -65,22 +65,19 @@ export const proof = {
         // A module with no names has no sample.
         assertEq(assertError(sampleWats({ ...module, customs: [] }, ['hello'])), 'no functions of the sample `hello`')
     },
-    // The bytes copied as they were, the sample's WAT written plain and
-    // tagged, a removed sample's WAT removed in both, and everything else in
-    // the directory kept.
+    // The bytes copied as they were, the sample's WAT written tagged, a
+    // removed sample's WAT removed, and everything else in the directory kept.
     publish: () => {
-        const root = tree({ 'b': { 'gone.wat': [utf8('')], 'gone.wat.marked': [utf8('')], 'notes.txt': [utf8('')], 'dir.wat': {}, '.wat': [utf8('')], '.wat.marked': [utf8('')] } })
+        const root = tree({ 'b': { 'gone.wat.marked': [utf8('')], 'notes.txt': [utf8('')], 'dir.wat.marked': {}, '.wat.marked': [utf8('')] } })
         const [state, result] = virtualAt(root)(publish('built.wasm', 'a/published.wasm', 'b', ['hello']))
         assertOk(result)
         assertStructurallySame(toArray(assertOk(virtual(state)(readWholeBytes('a/published.wasm'))[1])), bytes)
-        assertEq(assertOk(virtual(state)(readUtf8File('b/hello.wat'))[1]), helloWat)
         assertEq(untagged(assertOk(virtual(state)(readUtf8File('b/hello.wat.marked'))[1])), helloWat)
-        assertEq(virtual(state)(readUtf8File('b/gone.wat'))[1][0], 'error')
+        assertEq(virtual(state)(readUtf8File('b/hello.wat'))[1][0], 'error')
         assertEq(virtual(state)(readUtf8File('b/gone.wat.marked'))[1][0], 'error')
-        assertOk(virtual(state)(readUtf8File('b/.wat.marked'))[1])
         assertOk(virtual(state)(readUtf8File('b/notes.txt'))[1])
-        assertOk(virtual(state)(readUtf8File('b/.wat'))[1])
-        assert(state.root['b'] !== undefined && 'dir.wat' in state.root['b'])
+        assertOk(virtual(state)(readUtf8File('b/.wat.marked'))[1])
+        assert(state.root['b'] !== undefined && 'dir.wat.marked' in state.root['b'])
     },
     // An input that is no module, or a sample with no functions, is reported
     // with the input's path, before anything is written.

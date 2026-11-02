@@ -16,15 +16,15 @@
  * does: NaNVM and `std` are most of the module and the same for every
  * sample. Each function is printed as [`wat`](../../../media/wasm/wat/module.f.mjs)
  * prints it in the whole module, so a fragment is not a module of its own.
- * Each sample's WAT is written twice: as `<sample>.wat`, and as
- * `<sample>.wat.marked`, the same text with each word's kind in a tag
- * ([`text/marked`](../../../text/marked/README.md)'s `toTagged`), which the
- * demo page reads to draw the WAT coloured.
+ * Each sample's WAT is written as `<sample>.wat.marked`: the text with each
+ * word's kind in a tag ([`text/marked`](../../../text/marked/README.md)'s
+ * `toTagged`), which the demo page reads to draw the WAT coloured. No plain
+ * `.wat` is written, as nothing reads one; `untagged` gives it.
  *
  * Nothing is written until every sample has its WAT: an input that is no
  * module, or a sample with no functions, fails the run with the files as they
- * were. Then each `.wat` and `.wat.marked` in the directory that names no
- * listed sample is removed, so a sample removed or renamed leaves no disassembly behind; any
+ * were. Then each `.wat.marked` in the directory that names no listed sample
+ * is removed, so a sample removed or renamed leaves no disassembly behind; any
  * other file there is kept.
  *
  * `fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...`
@@ -47,7 +47,7 @@ import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
 import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
 import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.mjs'
-import { toTagged, toText } from '../../../text/marked/module.f.mjs'
+import { toTagged } from '../../../text/marked/module.f.mjs'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 
@@ -89,30 +89,19 @@ export const sampleWats = (m, samples) => {
     return missing === undefined ? ok(wats) : error(`no functions of the sample \`${missing[0]}\``)
 }
 
-/**
- * The sample a published WAT file is of, or `null` for a file this does not
- * write: `<sample>.wat` and `<sample>.wat.marked`.
- *
- * @type {(name: string) => string | null}
- */
-const watSample = name =>
-    name.endsWith('.wat') && name.length > 4 ? name.slice(0, -4)
-    : name.endsWith('.wat.marked') && name.length > 11 ? name.slice(0, -11)
-    : null
+/** The file extension of a published sample's WAT. */
+const watExtension = '.wat.marked'
 
 /**
- * Removes each `.wat` and `.wat.marked` in `directory` that names none of
- * `samples`.
+ * Removes each `.wat.marked` in `directory` that names none of `samples`.
  *
  * @type {(directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
  */
 const removeStale = (directory, samples) => step(
     readdir(directory, {}),
     entries => forEachStep(
-        pureOk(entries.filter(({ name, isFile }) => {
-            const sample = watSample(name)
-            return isFile && sample !== null && !samples.includes(sample)
-        })),
+        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > watExtension.length && name.endsWith(watExtension)
+            && !samples.includes(name.slice(0, -watExtension.length)))),
         ({ name }) => rm(`${directory}/${name}`)))
 
 /**
@@ -140,16 +129,13 @@ const save = (to, watDirectory, samples) => ({ chunks, wats }) => {
     const madeTo = mkdir(parent(to), { recursive: true })
     const copied = step(madeTo, () => writeChunks(to, chunks))
     const madeWat = step(copied, () => mkdir(watDirectory, { recursive: true }))
-    const written = step(madeWat, () => writeFiles(wats.flatMap(([sample, marked]) => [
-        /** @type {const} */ ([`${watDirectory}/${sample}.wat`, toText(marked)]),
-        /** @type {const} */ ([`${watDirectory}/${sample}.wat.marked`, toTagged(marked)]),
-    ])))
+    const written = step(madeWat, () => writeFiles(wats.map(([sample, marked]) => [`${watDirectory}/${sample}${watExtension}`, toTagged(marked)])))
     return step(written, () => removeStale(watDirectory, samples))
 }
 
 /**
- * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat` and
- * `<sample>.wat.marked` in `watDirectory`, making each directory first, then removes any other WAT
+ * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat.marked`
+ * in `watDirectory`, making each directory first, then removes any other WAT
  * there.
  *
  * @type {(from: string, to: string, watDirectory: string, samples: readonly string[]) => Effect<ReadWhole | Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}
