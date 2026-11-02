@@ -158,6 +158,8 @@ The approval and rationale are part of the
           depends on list shape; the
           [consumer measurements](https://github.com/functionalscript/functionalscript/pull/3584)
           record both gains and slowdowns.
+    - [ ] Rename the host iterable adapter and its proof to native JavaScript
+          once production consumers no longer depend on it.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
