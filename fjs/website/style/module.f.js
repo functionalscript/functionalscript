@@ -523,7 +523,10 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
-/* Heading links preserve native anchors until clipboard controls are bound. */
+/* A heading's anchor sits in its left margin, as on GitHub, and shows while
+   the heading is hovered or the anchor focused. It is positioned against the
+   heading's box, so the heading text keeps the body's left edge. Where there is
+   no hover or no margin to hold it, it follows the heading, always shown. */
 [data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
 [data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
 [data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
@@ -531,10 +534,21 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 [data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
 [data-permalink] > button:hover, [data-permalink] > a:hover { color: var(--text) }
 [data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+@media (hover: hover) and (min-width: 70rem) {
+    [data-permalink] > [data-heading-anchor] { opacity: 0; box-sizing: border-box; width: 1.75rem; padding: .25rem }
+    :is([data-linked-heading], [data-section] > summary):hover [data-heading-anchor], [data-heading-anchor]:focus-visible { opacity: 1 }
+    /* A README heading's anchor leads the row and its negative margin takes
+       it out to the left, so it keeps the row's baseline. */
+    [data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
+    /* A section's summary is one line of text, the disclosure triangle first;
+       its anchor is pinned to the left of that first line. */
+    [data-section] > summary:has(> [data-permalink]) { position: relative }
+    [data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: 100%; top: 0; height: 1.5rem }
+    [data-section] > summary > [data-permalink]:not(:has(> button)) { margin-left: 0 }
+}
 [data-permalink] [hidden] { display: none }
 [data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
 [data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
-[data-permalink]:has(> [data-copy-demo-section]) { gap: .25rem }
 [data-permalink] > button[data-copy-demo] { width: auto; gap: .375rem; white-space: nowrap }
 [data-permalink] > button[data-copy-demo] > svg { flex-shrink: 0 }
 [data-permalink] > button:disabled { opacity: .45; cursor: default }

@@ -196,8 +196,7 @@ Tree presets append an ID as their fifth tuple entry,
 option metadata. Labels and the events demos receive stay unchanged.
 
 Stable IDs are used by [shareable demo inputs](./sharing/README.md).
-The plain chain beside Demo copies the section link without input parameters.
-The chain labeled **Copy with inputs** copies `#demo` for defaults, a matching
+The heading's anchor links to the section; the chain labeled **Copy with inputs** copies `#demo` for defaults, a matching
 example query or the complete custom input set as individual query parameters. Every new demo with editable inputs must declare the
 [sharing contract](./sharing/README.md#authoring); `textDemo` does this
 automatically. A demo without editable inputs may omit it and copies `#demo`.

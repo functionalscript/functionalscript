@@ -62,13 +62,12 @@ restores defaults.
 
 ## Copy controls
 
-The plain chain beside Demo, **Copy section link**, copies the section target
-without input parameters, including while inputs update or exceed the sharing
-limit. The chain labeled **Copy with inputs** copies the current inputs using
-the query contract above. Its accessible name matches the visible label, and
-this action is disabled for demos without inputs. Each button has its own
-clipboard feedback, visible even with Demo folded. Without JavaScript, the
-native section anchor remains available.
+The Demo heading's anchor is a native link to `#demo`, like every other
+[section link](../../README.md#section-links): it navigates rather than copies.
+The chain labeled **Copy with inputs** copies the current inputs using the
+query contract above. Its accessible name matches the visible label, and this
+action is disabled for demos without inputs. It has its own clipboard feedback,
+visible even with Demo folded.
 
 ## Authoring
 

@@ -379,7 +379,7 @@ export const proof = {
             // Folded: the suite is asked for, not what a reader came for.
             assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
-            assert(html.includes('data-copy-fragment="emergent-testing"'), html)
+            assert(html.includes('<a href="#emergent-testing" aria-label="Link to Emergent Testing" data-heading-anchor="">'), html)
             assert(html.includes('<span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
             // reports no tests.

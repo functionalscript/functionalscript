@@ -13,14 +13,14 @@ import { demoMarker } from './style/module.f.js'
 
 /** Bind the controls outside the patchable root. A root without these
  * controls does not consume navigation; a demo with no inputs copies its target.
+ * The heading's own anchor is native and needs no binding.
  * @type {(root: Element, demo: Demo<any, DemoEvent, never>, controller: DemoController, startupEdited: boolean) => void}
  */
 export const startDemoSharing = (root, demo, controller, startupEdited) => {
     const section = root.parentElement
     const button = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo]'))
-    const sectionButton = /** @type {HTMLButtonElement | null | undefined} */ (section?.querySelector(':scope > summary button[data-copy-demo-section]'))
     const view = root.ownerDocument.defaultView
-    if (!button || !sectionButton || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
+    if (!button || section?.querySelector(':scope > [data-demo]') !== root || !view || started.has(root)) { return }
     started.add(root)
     const status = /** @type {HTMLElement | null} */ (section?.querySelector(':scope > summary > [data-demo-link-status]') ?? null)
     /** @type {(message: string) => void} */
@@ -87,13 +87,6 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         view.addEventListener('hashchange', navigate)
         if (search !== '' || view.location.hash === '#demo') { restore(true) }
     }
-    sectionButton.addEventListener('click', event => {
-        event.preventDefault()
-        event.stopPropagation()
-        report('')
-        const hash = encodeURIComponent(sectionButton.getAttribute('data-copy-demo-section') ?? 'demo')
-        void copy(sectionButton, `${view.location.origin}${view.location.pathname}#${hash}`)
-    })
     button.disabled = definedEntries(sharing.fields).length === 0
     if (button.disabled) { button.title = 'This demo has no inputs' }
     button.addEventListener('click', event => {
@@ -106,10 +99,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         const url = `${view.location.origin}${view.location.pathname}${encoded[1]}`
         void copy(button, url)
     })
-    sectionButton.hidden = false
     button.hidden = false
-    const fallback = button.parentElement?.querySelector('a')
-    if (fallback) { /** @type {HTMLAnchorElement} */ (fallback).hidden = true }
 }
 /** @type {WeakSet<Element>} */
 const started = new WeakSet()
