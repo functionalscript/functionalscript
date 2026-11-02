@@ -145,8 +145,7 @@ The approval and rationale are part of the
           and inflate with ordered ordinary assignments, preserving old values.
     - [x] Add braces around the four remaining single-statement UTF-8 guards,
           preserving behavior and reporting the next unsupported construct.
-          UTF-8 next refuses `[x] = state` in `utf8StateToError`.
-    - [ ] Normalize the remaining UTF-8 tuple assignment and switch completions
+    - [x] Normalize the remaining UTF-8 tuple assignment and switch completions
           so the whole module forms a generic AST, preserving decoder behavior.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
