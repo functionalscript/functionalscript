@@ -10,6 +10,7 @@ The `lock-update` script used to call `npx npm-check-updates -u` to bump depende
 Introduce a `ci-lock.json` file in each repo root that pins all CI tool versions (Node, Deno, Bun, TSGO, Wasmtime, Wasmer, runner images, GitHub Action versions). This replaces the hardcoded `fjs/ci/config/module.f.js` inside the FunctionalScript package, giving every repo that uses `fjs ci` its own updatable lock file for CI tooling — analogous to `package-lock.json` for npm deps.
 
 The internal update script would:
+
 1. Fetch latest versions of npm devDependencies from the registry → write `package.json` + `package-lock.json`.
 2. Fetch latest versions of CI tools (Deno, Bun, Node LTS, TSGO, etc.) from their respective registries/APIs → write `ci-lock.json`.
 3. Run `npm run lock-update` to propagate everything.

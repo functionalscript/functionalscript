@@ -340,7 +340,7 @@ fixed-point requirement. Explicit function returns remain required.
 
 ### First immutable join profile
 
-The existing [_controlFlowFunctions.parameterizedJoin](../edag/from_fast/control_flow.proof.f.mjs)
+The existing [`_controlFlowFunctions.parameterizedJoin`](../edag/from_fast/control_flow.proof.f.mjs)
 is a concrete supplied normalized FAST input to `prepareFunction`:
 
 ```text

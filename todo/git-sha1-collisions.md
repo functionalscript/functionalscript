@@ -73,6 +73,7 @@ covers.
      lands, and a precedent and possibly an implementation to reuse; it
      costs a walk, since an object's name depends on the names of what it
      points to.
+
    Which one DISOT wants is open; the second closes the hole in the first
    and is what Git itself will publish. Either way, what is open is who
    vouches for the table:

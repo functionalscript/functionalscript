@@ -140,6 +140,7 @@ Measured at `191e3bc` with the Weblings compiler that
   - `uextend` to `i16`: `u16::from(u8)` and `b'0' as u16`.
   - `ireduce` from `i16` to `i8`: `c as u8` on a `u16`, and
     `u8::try_from(u16)`.
+
   The workarounds were about twenty lines across `string_coercion`,
   `member_access`, `bigint/radix`, `string/building`, `string/debug` and
   `string/patterns`. The clean fix is in clif2wasm, upstream.

@@ -19,7 +19,7 @@ reads more, and strips more:
 - leading and trailing characters Git calls crud — whitespace, `.`, `,`,
   `:`, `;`, `"`, `'`, `\` — which `fmt_ident` strips from the name and the
   email, so a quoted `user.name = " A "` commits as `A` under Git and as
-  ` A ` here.
+  `" A "`, both spaces kept, here.
 
 Each is a commit by a different author than `git commit` would write from
 the same configuration, or a refusal where `git commit` would commit.

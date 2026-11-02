@@ -333,7 +333,7 @@ this proposal does not take.
       the spec, the docs that say the language enumerates no keys, and a
       harness fixture.
 - [x] Give every runtime function the text ECMA-262 requires of a
-      built-in, a NativeFunction naming its [[InitialName]] with no
+      built-in, a NativeFunction naming its `[[InitialName]]` with no
       parameters — `function is() { [native code] }`,
       `function isInteger() { [native code] }` — as `Object.entries`
       answers `function entries() { [native code] }`, in place of its

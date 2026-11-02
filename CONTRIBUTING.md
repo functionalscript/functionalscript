@@ -341,8 +341,8 @@ messages are not working notes: write each one for a reader who meets it on
   (`types/bit_vec`, `compiler/tokenizer`) or an area (`ci`, `docs`, `changelog`,
   `AGENTS.md`), the same topic the CHANGELOG entry starts with; the
   description is imperative, lower-case after the colon, and has no trailing
-  period. Keep it within 72 characters **including** the ` (#NNN)` GitHub
-  appends, and never write a `(#NNN)` of your own. A release's bump pull
+  period. Keep it within 72 characters **including** the space and
+  `(#NNN)` GitHub appends, and never write a `(#NNN)` of your own. A release's bump pull
   request is titled `Release X.Y.Z`, and its notes pull request
   `changelog: write the X.Y.Z notes`.
 - **Description.** Free prose — motivation, design, measurements, alternatives
