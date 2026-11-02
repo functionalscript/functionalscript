@@ -3,17 +3,16 @@
  * ([`todo/wasm-demos.md`](../../../todo/wasm-demos.md)): each sample's
  * `sample.f.js` compiled through the compiler's Rust output into
  * `nanvm/demos/gen.samples/<name>.rs`, and `gen.samples/mod.rs` naming each.
- * Beside each `.rs` is `<name>.rs.marked`, the same Rust with each word's
- * kind in a tag ([`text/marked`](../../text/marked/README.md)'s `toTagged`),
- * which the sample's page reads to draw the Rust coloured.
  * The `nanvm-demos` crate reaches the set through one `#[path]` to that
  * `mod.rs`.
  *
  * **And the script that builds the module the pages load**,
  * `nanvm/demos/gen.build.sh`: `nanvm-demos` built for `wasm32`, and
  * [`publish`](./publish/module.f.mjs) copying it into `nanvm/demos/wasm/`
- * with each sample's WAT beside it. The website deploy builds these ignored assets
- * before generating pages. The script
+ * with each sample's WAT beside it, then [`marked`](./marked/module.f.mjs)
+ * writing each sample's Rust there with each word's kind in a tag, which the
+ * sample's page reads to draw the Rust coloured. The website deploy builds
+ * these ignored assets before generating pages. The script
  * requires the pinned Rust so local builds use the same compiler as deploys.
  *
  * Invoked from `gen`, so the drift check fails when a committed `.rs` is
@@ -35,6 +34,7 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { _CompileOp } from '../../compiler/types.ts'
  * @import { FunctionPlace, ListedCall, Place } from './page/types.ts'
+ * @import { Marked } from '../../text/marked/types.ts'
  */
 
 import { rust } from '../../ci/config/module.f.js'
@@ -44,8 +44,8 @@ import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { generatedHeader } from '../../media/rust/item/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { cmp } from '../../types/string/module.f.js'
-import { toTagged, toText } from '../../text/marked/module.f.mjs'
-import { buildDirectory, rustDirectory, rustMarkedPath, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
+import { toText } from '../../text/marked/module.f.mjs'
+import { buildDirectory, rustDirectory, rustPath as pageRustPath, samplePath as pageSamplePath, wasmPath } from './page/module.f.mjs'
 import { samples as importedSamples } from './samples/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -150,6 +150,9 @@ export const builtWasmPath = `target/${wasmTarget}/release/nanvm_demos.wasm`
 /** The program that publishes the module and its disassembly. */
 export const publishPath = 'fjs/nanvm/demos/publish/module.f.mjs'
 
+/** The program that writes each sample's marked Rust beside them. */
+export const markedPath = 'fjs/nanvm/demos/marked/module.f.mjs'
+
 /**
  * The script that builds the module and its disassembly: a `gen.` name, run
  * through `sh` as `sh ./nanvm/demos/gen.build.sh`, since a regenerated file
@@ -159,7 +162,8 @@ export const buildScriptPath = 'nanvm/demos/gen.build.sh'
 
 /**
  * The script's text: the pinned Rust checked first, then the module built and
- * published with the WAT of each of `places`. Run in the shared shell, which
+ * published with the WAT of each of `places`, then every sample's marked
+ * Rust written beside them. Run in the shared shell, which
  * carries that Rust and the `wasm32` target: `./dev.sh sh
  * ./nanvm/demos/gen.build.sh`.
  *
@@ -173,20 +177,19 @@ case "$(rustc --version)" in
 esac
 cargo build -p nanvm-demos --release --target ${wasmTarget}
 node ./fjs/module.mjs run ./${publishPath} ${builtWasmPath} ${wasmPath} ${buildDirectory} ${places.map(({ name }) => name).join(' ')}
+node ./fjs/module.mjs run ./${markedPath}
 `
 
 /**
- * Compiles one sample into its Rust, once: written plain for `cargo`, and
- * tagged for its page; or the compiler's refusal, as `fjs compile` reports
- * it, and nothing written.
+ * One sample compiled into its Rust, each word marked with its kind: the
+ * runs whose text is the `.rs` written for `cargo`; or the compiler's
+ * refusal, as `fjs compile` reports it.
  *
- * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, void, IoChannel>}
+ * @type {(place: Place | FunctionPlace) => Effect<_CompileOp, Marked, IoChannel>}
  */
-const compileSample = ({ name, directory }) => step(
+export const compileSample = ({ name, directory }) => step(
     _compileMarked(noRuntime)(samplePath(directory), rustPath(name)),
-    ([tag, value]) => tag === 'error'
-        ? pureError(ioError({ message: value }))
-        : writeFiles([[rustPath(name), toText(value)], [rustMarkedPath(name), toTagged(value)]]))
+    ([tag, value]) => tag === 'error' ? pureError(ioError({ message: value })) : pureOk(value))
 
 /**
  * Compiles every sample into its `.rs`, in order, stopping at the first the
@@ -196,7 +199,7 @@ const compileSample = ({ name, directory }) => step(
  * @type {(places: readonly (Place | FunctionPlace)[]) => Effect<_CompileOp, void, IoChannel>}
  */
 export const generate = places => step(
-    forEachStep(pureOk(places), compileSample),
+    forEachStep(pureOk(places), place => step(compileSample(place), marked => writeFiles([[rustPath(place.name), toText(marked)]]))),
     () => writeFiles([[modulesPath, modules(places)], [buildScriptPath, buildScript(places)]]))
 
 /** @type {NodeProgram} */

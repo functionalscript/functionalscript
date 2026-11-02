@@ -93,15 +93,16 @@ export const sampleWats = (m, samples) => {
 const watExtension = '.wat.marked'
 
 /**
- * Removes each `.wat.marked` in `directory` that names none of `samples`.
+ * Removes each file in `directory` named `<sample><extension>` for a sample
+ * none of `samples` names: what a sample removed or renamed left behind.
  *
- * @type {(directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
+ * @type {(extension: string) => (directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
  */
-const removeStale = (directory, samples) => step(
+export const removeStale = extension => (directory, samples) => step(
     readdir(directory, {}),
     entries => forEachStep(
-        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > watExtension.length && name.endsWith(watExtension)
-            && !samples.includes(name.slice(0, -watExtension.length)))),
+        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > extension.length && name.endsWith(extension)
+            && !samples.includes(name.slice(0, -extension.length)))),
         ({ name }) => rm(`${directory}/${name}`)))
 
 /**
@@ -130,7 +131,7 @@ const save = (to, watDirectory, samples) => ({ chunks, wats }) => {
     const copied = step(madeTo, () => writeChunks(to, chunks))
     const madeWat = step(copied, () => mkdir(watDirectory, { recursive: true }))
     const written = step(madeWat, () => writeFiles(wats.map(([sample, marked]) => [`${watDirectory}/${sample}${watExtension}`, toTagged(marked)])))
-    return step(written, () => removeStale(watDirectory, samples))
+    return step(written, () => removeStale(watExtension)(watDirectory, samples))
 }
 
 /**
