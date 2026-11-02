@@ -152,6 +152,12 @@ export const proof = /** @type {const} */ ({
                     ['span', { 'data-token': 'identifier' }, 'type'], ': ',
                     ['span', { 'data-token': 'number' }, '1'], ' }']),
             ])),
+            // WebAssembly text by its own tokenizer, under GitHub's names for it.
+            wat: () => assertStructurallySame(readmeNodes(href)([['code', 'wat', '(module $m)\n']]), ok([
+                fence('(module $m)', ['code', { class: 'language-wat' },
+                    '(', ['span', { 'data-token': 'keyword' }, 'module'], ' ',
+                    ['span', { 'data-token': 'identifier' }, '$m'], ')\n']),
+            ])),
             // A flowchart is drawn; a Mermaid fence the site cannot draw
             // stays its source.
             mermaid: () => {

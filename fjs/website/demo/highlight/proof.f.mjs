@@ -1,4 +1,4 @@
-import { codeOutput, highlight, render, tsHighlight } from './module.f.mjs'
+import { codeOutput, highlight, render, tsHighlight, watHighlight } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -73,6 +73,15 @@ export const proof = {
     },
     refused: () => assertEq(highlight('1 @ 2').join('|'), '1 @ 2'),
     // TypeScript's own words are keywords; the text is kept.
+    // WebAssembly text by its own tokens; the text is kept.
+    wat: () => {
+        const h = htmlToString(['pre', ...watHighlight('(func $f ;; c\n  i32.const 1)')])
+        assert(h.includes('<span data-token="keyword">func</span>'), h)
+        assert(h.includes('<span data-token="identifier">$f</span>'), h)
+        assert(h.includes('<span data-token="comment">;; c</span>'), h)
+        assert(h.includes('<span data-token="number">1</span>'), h)
+        assertEq(text(watHighlight('(func $f)')), '(func $f)')
+    },
     typeScript: () => {
         const h = htmlToString(['pre', ...tsHighlight('type A = 1\n')])
         assert(h.includes('<span data-token="keyword">type</span>'), h)

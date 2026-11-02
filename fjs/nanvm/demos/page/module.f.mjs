@@ -48,7 +48,7 @@ import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { caption, refusal } from '../../../website/demo/module.f.mjs'
 import { codeBlock } from '../../../website/demo/code/module.f.js'
-import { highlight } from '../../../website/demo/highlight/module.f.mjs'
+import { highlight, watHighlight } from '../../../website/demo/highlight/module.f.mjs'
 import { codeMarker, listingMarker } from '../../../website/style/module.f.js'
 
 /** A sample's source, repository-relative, from its directory. @type {(directory: string) => string} */
@@ -364,7 +364,7 @@ export const filesView = (state, afterSource) => [
     caption('Rust that fjs compile writes from it, on the NaNVM runtime:'),
     ...loadedView(state.rust, text => [codeBlock(text, 'Copy the Rust')]),
     caption('WebAssembly text (WAT) of the functions compiled from this source, without the NaNVM runtime:'),
-    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', text]]]),
+    ...loadedView(state.wat, text => [['div', { [codeMarker]: '', [listingMarker]: '' }, ['pre', ...watHighlight(text)]]]),
     ['p', {}, ['button', { type: 'button', name: 'run' }, 'Run']],
 ]
 

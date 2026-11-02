@@ -183,7 +183,8 @@ export const proof = {
         assert(shown.includes('<svg') || shown.includes('"svg"'))
         assert(shown.includes('.edag.data.js'))
         assert(shown.includes('pub fn module() {}'))
-        assert(shown.includes('(module)'))
+        // The WAT is coloured: `module` is a keyword.
+        assert(shown.includes('"(",["span",{"data-token":"keyword"},"module"],")"'))
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))
         assert(shown.includes('default(-1)'))
         // What JavaScript threw, spelled: a string, quoted.

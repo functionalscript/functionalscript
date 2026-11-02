@@ -2,9 +2,9 @@
  * Syntax highlighting for the code a demo prints: marked text as HTML nodes,
  * each run with a kind wrapped in a `span` marked `data-token`, every other
  * run left as plain text. {@link render} draws runs a producer supplied;
- * {@link highlight} and {@link tsHighlight} draw a text with no producer
- * behind it, by the runs [`js/marked`](../../../js/marked/module.f.mjs) finds
- * in it. {@link codeOutput} is the view a demo that prints code ends in: the
+ * {@link highlight}, {@link tsHighlight} and {@link watHighlight} draw a text
+ * with no producer behind it, by the runs [`js/marked`](../../../js/marked/module.f.mjs)
+ * or [`wat/marked`](../../../media/wasm/wat/marked/module.f.js) finds in it. {@link codeOutput} is the view a demo that prints code ends in: the
  * drawn runs in a copyable block, or the producer's refusal.
  *
  * What marked text is, and why: [`fjs/text/marked`](../../../text/marked/README.md).
@@ -26,6 +26,7 @@
  */
 
 import { spansOf, tsSpansOf } from '../../../js/marked/module.f.mjs'
+import { spansOf as watSpansOf } from '../../../media/wasm/wat/marked/module.f.js'
 import { fromSpans, toText } from '../../../text/marked/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
 import { codeBlock } from '../code/module.f.js'
@@ -68,3 +69,11 @@ export const highlight = highlightWith(spansOf)
  * @type {(text: string) => readonly Node[]}
  */
 export const tsHighlight = highlightWith(tsSpansOf)
+
+/**
+ * WebAssembly text as nodes, by the spans
+ * [`wat/marked`](../../../media/wasm/wat/marked/module.f.js) finds in it.
+ *
+ * @type {(text: string) => readonly Node[]}
+ */
+export const watHighlight = highlightWith(watSpansOf)

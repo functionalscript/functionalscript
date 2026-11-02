@@ -277,6 +277,13 @@ and the website's `highlight(text)` draws them:
   `type` stays an `identifier`. The primitive type names stay `identifier`s:
   one is a keyword only where a type stands, which a token's neighbours cannot
   tell. A README's `ts` fence is drawn this way.
+- WebAssembly text has a fallback of its own,
+  [`media/wasm/wat/marked`](../../media/wasm/wat/marked/module.f.js)'s
+  `spansOf`, over the text format's tokens: a `$` word an `identifier`, a
+  lower-case one or an annotation a `keyword`, numbers, strings and both
+  comment forms, and no spans for text that does not tokenize.
+  `watHighlight(text)` draws it: the WAT a WASM demo page fetches, and a
+  README's `wat`, `wast` or `wasm` fence.
 
 The fallback is also the **oracle** a producer is held to
 ([§9](#9-proving-a-producer)): `disagreement(marked)`, in `js/marked`, answers where a
