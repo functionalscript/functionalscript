@@ -49,6 +49,25 @@ Arguments, dependency extraction and the graph output destination are later
 steps. Website rendering and build-cache integration are tracked separately
 in the epic.
 
+### Constructor-expression syntax
+
+The next syntax increment retains `new Callee(arguments)` as a distinct AST
+node, with its constructor expression, ordered arguments (including spreads)
+and original `new` token. Member access, grouping, nested construction and
+following calls keep JavaScript's precedence. This increment requires the
+argument parentheses; omitted argument lists, `new.target` and optional-chain
+constructor targets remain separate syntax work.
+
+This lets dependency analysis read modules using `new Map(...)`, `new Set(...)`
+and `new Error(...)` without executing or resolving those constructors. The
+cost is another syntax node and precedence rules to prove. FunctionalScript
+admission still explicitly refuses construction at `new`; constructor behavior,
+mutability, FAST and EDAG remain outside this increment.
+
+The language designer `sergey-shandar` requested this syntax-only implementation
+in the [working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+This records no approval of FunctionalScript constructor semantics.
+
 ### Tasks
 
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
@@ -60,6 +79,8 @@ in the epic.
           compilation refusal; tracked in [remaining for forms](../../spec/todo/3270-for.md#generic-forof-syntax).
     - [x] Parse defaults inside object and array binding patterns; tracked in
           [default parameters and patterns](../../spec/todo/3125-default-parameters.md).
+    - [ ] Parse the bounded [constructor-expression syntax](#constructor-expression-syntax)
+          while retaining explicit FunctionalScript refusal.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.
