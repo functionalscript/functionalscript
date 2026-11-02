@@ -20,7 +20,7 @@ import { ioError, notImplemented } from '../../../effects/module.f.mjs'
 import { run } from '../../../effects/mock/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { codePoints } from '../../../text/ascii/module.f.js'
-import { rustPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
+import { rustMarkedPath, samplePath, wasmPath, watPath } from '../page/module.f.mjs'
 import { agreement, callJs, edagView, functionDemo, init, load, microseconds, notLoaded, outcomeText, repeat, repetitions, runCalls, update, view, wasmCaller, wasmOutcome } from './module.f.mjs'
 import { spell } from '../spell/module.f.mjs'
 
@@ -76,7 +76,7 @@ const perform = map => effect => {
 
 const source = 'export default (...a) => (a[0], a[0] + 2);'
 
-const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustPath('plus2')}`]: 'pub fn module() {}', [`/${watPath('plus2')}`]: `(${tagged('keyword')('module')})` }
+const files = { [`/${samplePath(plus2.place.directory)}`]: source, [`/${rustMarkedPath('plus2')}`]: `${tagged('keyword')('pub')} ${tagged('keyword')('fn')} module() {}`, [`/${watPath('plus2')}`]: `(${tagged('keyword')('module')})` }
 
 /** Every loaded state. @type {State} */
 const ready = perform(page(files, instance()))(load(plus2.place))
@@ -95,7 +95,7 @@ const made = outcome => ok({ outcome, time: outcome[0] === 'threw' ? 1000 : 1000
 export const proof = {
     load: () => {
         assertStructurallySame(ready.source, ok(source))
-        assertStructurallySame(ready.rust, ok('pub fn module() {}'))
+        assertStructurallySame(ready.rust, ok([['pub', 'keyword'], [' '], ['fn', 'keyword'], [' module() {}']]))
         assertStructurallySame(ready.wat, ok([['('], ['module', 'keyword'], [')']]))
         assertEq(ready.wasm[0], 'ok')
         assertEq(ready.calls, null)
@@ -184,6 +184,8 @@ export const proof = {
         assert(shown.includes('<svg') || shown.includes('"svg"'))
         assert(shown.includes('.edag.data.js'))
         assert(shown.includes('pub fn module() {}'))
+        // The Rust is coloured, and its copy is the plain text.
+        assert(shown.includes('["span",{"data-token":"keyword"},"pub"]'))
         // The WAT is coloured: `module` is a keyword.
         assert(shown.includes('"(",["span",{"data-token":"keyword"},"module"],")"'))
         assert(shown.includes('WebAssembly startup (fetch, compile and instantiate): 2.0 ms'))

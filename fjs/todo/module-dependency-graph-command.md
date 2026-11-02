@@ -147,7 +147,7 @@ The approval and rationale are part of the
           preserving behavior and reporting the next unsupported construct.
     - [x] Normalize the remaining UTF-8 tuple assignment and switch completions
           so the whole module forms a generic AST, preserving decoder behavior.
-    - [ ] Replace the website demo's control re-export with aliased imports and
+    - [x] Replace the website demo's control re-export with aliased imports and
           declaration exports, tracking automatic desugaring in
           [export lists](../../spec/todo/export-lists.md).
 - [ ] Define the command interface and input/output behavior.
