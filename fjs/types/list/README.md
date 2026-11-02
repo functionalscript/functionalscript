@@ -52,7 +52,7 @@ Every function is curried, and its configuration comes first, so
 Leaving the list is two modules of its own. [`alt`](./alt/module.f.js)'s
 `toArray` collects a list into an array with nothing but array spreads, which
 is what the FunctionalScript VM can run, so it is the one to import.
-[`iterable`](./iterable/module.f.mjs) turns a list into a host iterable, for a
+[`iterable`](./iterable/module.mjs) turns a list into a host iterable, for a
 host API that expects one, and has a `toArray` through that iterator; both
 need the host's iteration protocol, which the VM does not have yet.
 
