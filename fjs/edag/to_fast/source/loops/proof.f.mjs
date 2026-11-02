@@ -1,6 +1,6 @@
 /**
- * Plain loops use admitted source while statements; other tail loops retain
- * recursive spelling. Both paths preserve execution and stable round trips.
+ * Admitted invocation loops keep while statements; one-pass roots can recover
+ * nonrecursive source. Unsupported potential backedges retain explicit refusals.
  *
  * @import { Block, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
  * @import { Exp } from '../../../types.ts'
@@ -16,6 +16,7 @@ import { identityAnalysis } from '../../../analysis/module.f.mjs'
 import { evaluate, failure } from '../../../from_fast/member_returns/proof.f.mjs'
 import { _tailFunction } from '../../tail_calls/proof.f.mjs'
 import { _sourceLoops } from './module.f.mjs'
+import { _valueReturnFunction as valueReturnFunction } from './fixtures.f.js'
 
 /** @type {(source: string) => Exp} */
 export const _sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/tail.f.js')(source))).edag)
@@ -43,28 +44,6 @@ const lazyPrefixFunction = () => {
             statements: [['define', lazyBinding, ['array', [['ref', statement[1].parameters[0]]]], 'lazy'],
                 ...statement[1].body.statements.slice(0, -1), ['if', terminal[1], ['>', ['.', ['ref', lazyBinding], 0], 0], terminal[3], normal]],
         } }]],
-    } }
-}
-
-/** An owning value return removes a one-pass wrapper, without a recursive call. @returns {FastFunction} */
-const valueReturnFunction = () => {
-    const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
-    const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
-    const input = /** @type {const} */ ({ index: 0 })
-    const state = /** @type {const} */ ({ index: 0 })
-    const result = /** @type {const} */ ({ index: 0 })
-    const unused = /** @type {const} */ ({ index: 0 })
-    return { target: owner, parameters: [input], rest: null, self: null, captures: [], body: {
-        statements: [['loop', { target, parameters: [state], initial: [['ref', input]], results: [result], body: {
-            statements: [
-                ['define', unused, ['if', ['===', ['ref', state], 0],
-                    { statements: [], exit: ['return', owner, 7] }, { statements: [], exit: ['yield', [['ref', state]]] }], 'required'],
-                ['if', [], ['>', ['ref', state], 0], { statements: [], exit: ['break', target, [['ref', state]]] },
-                    { statements: [], exit: ['throw', 'negative input'] }],
-            ],
-            exit: ['yield', []],
-        } }]],
-        exit: ['return', owner, ['ref', result]],
     } }
 }
 
@@ -335,15 +314,10 @@ export const proof = /** @type {const} */ ({
             body: { statements: [], exit: ['return', owner, 7] },
         }] })
         assertEq(assertOk(_sourceLoops(terminal)), terminal)
-        /** @type {readonly Block[]} */
-        const refused = [
-            { statements: [['define', first, ['block', { statements: [], exit: ['return', owner, 1] }], 'required']], exit: ['break', target, [1]] },
-            { statements: [['define', first, ['block', { statements: [], exit: ['continue', target, [['ref', state]]] }], 'required']], exit: ['break', target, [1]] },
-        ]
-        for (const body of refused) {
-            const source = module(body)
-            assert(assertOk(_sourceLoops(source)) !== source)
-        }
+        const returned = module({ statements: [['define', first, ['block', { statements: [], exit: ['return', owner, 1] }], 'required']], exit: ['break', target, [1]] })
+        assert(assertOk(_sourceLoops(returned)) !== returned)
+        const backedge = module({ statements: [['define', first, ['block', { statements: [], exit: ['continue', target, [['ref', state]]] }], 'required']], exit: ['break', target, [1]] })
+        assertEq(assertError(_sourceLoops(backedge)), 'an invocation backedge outside the source loop profile')
         for (const body of /** @type {readonly Block[]} */ ([
             { statements: [['block', [], { statements: [], exit: ['yield', []] }]], exit: ['break', target, [1]] },
             { statements: [['loop', { target: nested, parameters: [], initial: [], results: [], body: { statements: [], exit: ['break', target, [1]] } }]], exit: ['break', target, [1]] },

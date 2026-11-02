@@ -1030,11 +1030,16 @@ parts do not delay the epic's foundation gate:
 - [x] Reconstruct the lazy `normalPayload` profile as public FJS source.
       Preserve normal shared values, conditional demand and owning returns;
       verify opaque tags, fresh allocations, source readback and deep loops.
+- [x] Establish the source fallback's stack-safety boundary with concrete
+      accepted and refused witnesses. Preserve loops and one-pass recovery;
+      verify source readback and deep execution for supported backedges.
 - [ ] Replace fallbacks that retain self tail calls with common
       `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
       argument snapshots and invocation-local lifetimes. Independent shared
       terminal recipes now have [common loop planning](../compiler/self-tail-output.md#independent-shared-terminal-recipes)
       and native JavaScript/Rust conformance witnesses.
+      Source inverse reconstruction now refuses possible owning backedges
+      outside retained loop profiles before introducing recursive calls.
       Track broader source admission in the
       [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.

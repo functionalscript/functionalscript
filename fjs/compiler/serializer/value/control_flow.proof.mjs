@@ -16,11 +16,13 @@ import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { _controlFlowFunctions } from '../../../edag/from_fast/control_flow.proof.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { fromAnalysis } from '../../../edag/to_fast/module.f.mjs'
+import { _fallbackFunction } from '../../../edag/to_fast/source/loops/fixtures.f.js'
 import { prepare } from '../../../js/ast/prepare/module.f.mjs'
 import { stringify as javascript } from '../../../js/ast/serializer/module.f.mjs'
+import { toText } from '../../../text/marked/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
-import { tryModuleStringify, tryStringify } from '../module.f.mjs'
+import { tryMarked, tryModuleStringify, tryStringify } from '../module.f.mjs'
 
 /** @type {(source: string) => Exp} */
 const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/control-flow.f.mjs')(source))).edag)
@@ -296,6 +298,23 @@ export const proof = /** @type {const} */ ({
             assert(text.includes('while('), text)
             const apply = await load(text)
             assertEq(apply(100_000), 4_999_950_000)
+        }
+    },
+    suppliedFallbackBackedgeKeepsDeepPublicLoopsAfterReadback: async () => {
+        let graph = fromFast({ statements: [], exit: ['yield', [['function', _fallbackFunction()]]] })
+        for (let generation = 0; generation < 2; generation += 1) {
+            const source = assertOk(tryStringify(graph))
+            assertEq(toText(assertOk(tryMarked(graph))), source)
+            const restored = sourceGraph(source)
+            for (const text of [codeOnly(graph), source]) {
+                assert(text.includes('while('), text)
+                const apply = await load(text)
+                assertEq(apply.length, 1)
+                for (const [input, expected] of /** @type {const} */ ([[-1, -7], [0, 7], [3, 7], [100_001, 7]])) {
+                    assertEq(apply(input), expected)
+                }
+            }
+            graph = restored
         }
     },
     suppliedSharedTailProfileUsesDeepLoops: async () => {
