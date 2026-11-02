@@ -13,6 +13,8 @@
  * step adds no npm dependency. `CHROME_PATH` names the browser, and
  * `google-chrome`, which GitHub's Ubuntu runners carry, is the default.
  *
+ * **Several tabs at once**, each taking the next card from one queue.
+ *
  * **The site is served while it is taken**, from the built tree on a local
  * port, because a card page links the site's stylesheet root-relatively, as
  * every page does.
@@ -123,6 +125,14 @@ const connect = url => new Promise((ready, fail) => {
     socket.addEventListener('error', () => fail(new Error(`cannot connect to ${url}`)))
 })
 
+/**
+ * How many cards are taken at once, each in a tab of its own: GitHub's
+ * standard Linux runner has four cores. `CARD_TABS` overrides it.
+ *
+ * @type {number}
+ */
+const tabs = Number(process.env.CARD_TABS ?? 4)
+
 /** @type {() => Promise<void>} */
 const main = async () => {
     const root = process.cwd()
@@ -134,20 +144,25 @@ const main = async () => {
     const socket = await connect(browser.url)
     const { send, next } = devtools(socket)
     try {
-        const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
-        const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
-        await send('Page.enable', {}, sessionId)
-        await send('Emulation.setDeviceMetricsOverride', { ...cardSize, deviceScaleFactor: 1, mobile: false }, sessionId)
-        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
-        for (const path of cards) {
-            const loaded = next('Page.loadEventFired', sessionId)
-            await send('Page.navigate', { url: `${server.origin}/${cardPagePath(path)}` }, sessionId)
-            await loaded
-            const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
-            if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
-            const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
-            await writeFile(pathConcat(path)(cardImageName), Buffer.from(data, 'base64'))
-        }
+        // Every tab takes the next card from one shared queue, so a card
+        // waiting on a slow image holds up its own tab and no other.
+        const queue = cards.values()
+        await Promise.all(Array.from({ length: tabs }, async () => {
+            const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
+            const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
+            await send('Page.enable', {}, sessionId)
+            await send('Emulation.setDeviceMetricsOverride', { ...cardSize, deviceScaleFactor: 1, mobile: false }, sessionId)
+            await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
+            for (const path of queue) {
+                const loaded = next('Page.loadEventFired', sessionId)
+                await send('Page.navigate', { url: `${server.origin}/${cardPagePath(path)}` }, sessionId)
+                await loaded
+                const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
+                if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
+                const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
+                await writeFile(pathConcat(path)(cardImageName), Buffer.from(data, 'base64'))
+            }
+        }))
         console.log(`cards: ${cards.length}`)
     } finally {
         await send('Browser.close').catch(() => undefined)
