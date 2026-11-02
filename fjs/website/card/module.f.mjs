@@ -69,11 +69,16 @@ const style = `body { margin: 0 }
  * Waits for every image, five seconds at most, and removes one that did not
  * load; then for the fonts.
  *
+ * **A removed image's request is cancelled first**, by clearing its source.
+ * Removing the element alone leaves the request open, which keeps the
+ * document from finishing, and `document.fonts.ready` waits for the
+ * document: a badge server that never answers would hold the card forever.
+ *
  * @type {string}
  */
 const script = `window.cardReady = Promise.all([...document.images].map(image =>
     Promise.race([image.decode(), new Promise((_, reject) => setTimeout(reject, 5000))])
-        .catch(() => image.remove())))
+        .catch(() => { image.removeAttribute('src'); image.remove() })))
     .then(() => document.fonts.ready)`
 
 /**
