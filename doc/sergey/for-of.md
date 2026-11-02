@@ -6,9 +6,9 @@ The `for(...of...)` can be converted into this function call:
 type IterationResult = readonly[stop: boolean, result: unknown]
 
 const tryFold = (
-    it: unknown,
     f: (i: unknown, state: unknown) => IterationResult,
-    c: (result: unknown) => unknown
+    c: (result: unknown) => unknown,
+    it: unknown,
     state: unknown
 ): unknown => {
     if (typeof it !== 'string' && !(it instanceof Array)) {
