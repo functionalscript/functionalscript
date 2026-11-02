@@ -100,6 +100,9 @@ const appendScope = (branch, left, right, deferred) => !usesResults(branch[1], l
 const sameScope = (branch, selected, deferred) => !branch[1].includes(/** @type {readonly ['ref', BindingId]} */ (branch[2])[1])
     && appendScope(branch, selected.then, selected.otherwise, deferred)
 
+/** Moving a recipe must preserve both its inputs and which declaration later reads name. @type {(definition: Definition) => Block} */
+const recipeScope = definition => ({ statements: [], exit: ['yield', [definition[2], ['ref', definition[1]]]] })
+
 /** Only move a recipe to its first reached demand without crossing a dependency's shadow. @type {(body: Block, definition: Definition, deferred: readonly Definition[], start?: number) => Block | null} */
 const localized = (body, definition, deferred, start = 0) => {
     let index = 0
@@ -113,7 +116,7 @@ const localized = (body, definition, deferred, start = 0) => {
             : statement[0] === 'loop' ? /** @type {Value} */ (['array', statement[1].initial]) : null
     const visible = /** @type {readonly Definition[]} */ ([...deferred, ...body.statements.slice(0, index).flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
     if (value === null || !firstDemand(value, definition[1], visible)) { return null }
-    if (shadows({ statements: body.statements.slice(start, index), exit: ['yield', []] }, { statements: [], exit: ['yield', [definition[2]]] }, deferred)) { return null }
+    if (shadows({ statements: body.statements.slice(start, index), exit: ['yield', []] }, recipeScope(definition), deferred)) { return null }
     return { ...body, statements: [...body.statements.slice(0, index), ['define', definition[1], definition[2], 'required'], ...body.statements.slice(index)] }
 }
 
@@ -134,33 +137,42 @@ const followingScope = (block, branch, definition, deferred) => {
         if (statement[0] !== 'define' || statement[3] !== 'lazy') { return true }
         const value = /** @type {Block} */ ({ statements: [], exit: ['yield', [statement[2]]] })
         return statement !== definition && !references(value, definition[1], deferred) || index >= origin
-            && !shadows({ statements: [...before.slice(index + 1), branch], exit: ['yield', []] }, value, deferred)
+            && !shadows({ statements: [...before.slice(index + 1), branch], exit: ['yield', []] }, recipeScope(statement), deferred)
     })
 }
+
+/**
+ * Descend through exclusive statement arms before placing the first demand.
+ * Dependents move first, so a prerequisite never passes their declarations.
+ * Tests, following uses and loop boundaries keep their original lazy owner.
+ * @type {(source: Block, definition: Definition, deferred: readonly Definition[], origin: number) => Task<Block | null>}
+ */
+const localizedTask = (source, definition, deferred, origin) => call(() => {
+    const following = localized({ ...source, statements: source.statements.filter(statement => statement !== definition) }, definition, deferred, Math.max(0, origin))
+    if (following !== null) { return done(following) }
+    const index = source.statements.findIndex(statement => statement !== definition && freeBindings({ statements: [statement], exit: ['yield', []] }).includes(definition[1]))
+    const branch = source.statements[index]
+    if (branch === undefined || branch[0] !== 'if' || origin >= index) { return done(null) }
+    const outside = /** @type {Block} */ ({ ...source, statements: source.statements.filter(statement => statement !== definition && statement !== branch) })
+    if (references(outside, definition[1], deferred) || references({ statements: [], exit: ['yield', [branch[2]]] }, definition[1], deferred)) { return done(null) }
+    const left = references(branch[3], definition[1], deferred)
+    const right = references(branch[4], definition[1], deferred)
+    if (left === right || shadows({ statements: source.statements.slice(origin + 1, index), exit: ['yield', []] }, recipeScope(definition), deferred)) { return done(null) }
+    return bind(localizedTask(branch[left ? 3 : 4], definition, deferred, -1), body => done(body === null ? null : {
+        ...source, statements: source.statements.filter(statement => statement !== definition).map(statement => statement === branch
+            ? /** @type {Statement} */ (['if', branch[1], branch[2], left ? body : branch[3], right ? body : branch[4]]) : statement),
+    }))
+})
 
 /** Selected arms and the following normal continuation retain one first-demand owner. @type {(block: Block, selected: Extract<Statement, readonly ['if', ...unknown[]]>, inherited: readonly Definition[], result: BindingId) => Block} */
 const localRecipes = (block, selected, inherited, result) => {
     const visible = /** @type {readonly Definition[]} */ ([...inherited, ...block.statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
     let statements = followingRecipes(block, selected, visible, result)
-    let branch = selected
     for (const definition of statements.toReversed()) {
         if (definition[0] !== 'define' || definition[3] !== 'lazy') { continue }
         const deferred = /** @type {readonly Definition[]} */ ([...inherited, ...statements.flatMap(statement => statement[0] === 'define' && statement[3] === 'lazy' ? [statement] : [])])
-        const origin = statements.indexOf(definition)
-        const following = localized({ ...block, statements: statements.filter(statement => statement !== definition) }, definition, deferred, origin)
-        if (following !== null) { statements = following.statements; continue }
-        const outside = /** @type {Block} */ ({ statements: statements.filter(statement => statement !== definition && statement !== branch), exit: block.exit })
-        if (freeBindings(outside).includes(definition[1]) || freeBindings({ statements: [], exit: ['yield', [branch[2]]] }).includes(definition[1])) { continue }
-        const left = freeBindings(branch[3]).includes(definition[1])
-        const right = freeBindings(branch[4]).includes(definition[1])
-        if (left === right) { continue }
-        const decision = statements.indexOf(branch)
-        if (origin >= decision || shadows({ statements: statements.slice(origin + 1, decision), exit: ['yield', []] }, { statements: [], exit: ['yield', [definition[2]]] }, deferred)) { continue }
-        const body = localized(branch[left ? 3 : 4], definition, deferred)
-        if (body === null) { continue }
-        const previous = branch
-        branch = ['if', branch[1], branch[2], left ? body : branch[3], right ? body : branch[4]]
-        statements = statements.filter(statement => statement !== definition).map(statement => statement === previous ? branch : statement)
+        const following = run(localizedTask({ ...block, statements }, definition, deferred, statements.indexOf(definition)))
+        if (following !== null) { statements = following.statements }
     }
     return { ...block, statements }
 }

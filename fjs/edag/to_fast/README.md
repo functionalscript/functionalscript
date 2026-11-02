@@ -183,6 +183,14 @@ constructed there once, with the selected immutable capture values.
 Deferred declarations depending on a recovered result follow its conditional
 in their original dependency order; their evaluation still waits for first use.
 Only newly recovered results can change where those declarations belong.
+First-demand recovery can descend through a definition's first referencing
+statement conditional when only one arm uses it and the test and following
+continuation do not. Later dependent definitions are considered first, so their
+prerequisites retain their declaration order. Each move preserves both its
+initializer's dependencies and its own binding identity across intervening
+declarations. The existing ordered-demand proof chooses the executed use;
+deferred declarations, ordinary function bodies and loop boundaries do not
+authorize moving evaluation.
 
 ## Invocation construction
 

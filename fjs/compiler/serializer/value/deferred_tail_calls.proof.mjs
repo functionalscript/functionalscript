@@ -3,8 +3,7 @@
  * subset. These host proofs import both emitted JavaScript profiles and invoke
  * them deeply; pure represented evaluation cannot establish bounded native stack
  * use. Admitted public source output is reparsed before execution; dependent
- * recipes also cross a second source generation. The remaining wider memo
- * profile retains its current source admission limit.
+ * recipes and shared normal payloads also cross a second source generation.
  *
  * @import { BindingId, Block, Function as FastFunction, Value } from '../../../js/ast/types.ts'
  * @import { Exp } from '../../../edag/types.ts'
@@ -13,7 +12,7 @@
 import { Buffer } from 'node:buffer'
 import { throws } from 'node:assert/strict'
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.mjs'
@@ -42,15 +41,6 @@ const outputs = fn => {
     return [codeOnly(graph), text]
 }
 
-/** This wider memo profile exceeds current public source admission.
- * @type {(fn: FastFunction) => string}
- */
-const codeOnlyWithSourceRefusal = fn => {
-    const graph = graphOf(fn)
-    assertError(tryStringify(graph))
-    return codeOnly(graph)
-}
-
 /** @type {(source: string) => Exp} */
 const sourceGraph = source => _defaultExport(unresolved(assertOk(parse('/emitted-dependent-tail.f.mjs')(source))).edag)
 
@@ -77,6 +67,19 @@ const hasWhile = source => {
 
 /** @type {(source: string) => Promise<any>} */
 const load = async source => (await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)).default
+
+/** Opaque payload tags are data, and both result reads share one normal value.
+ * @type {(value: any, tag: unknown, count: number | bigint) => void}
+ */
+const normalPayloadResult = (value, tag, count) => {
+    const [left, right] = value
+    const [observedTag, items] = left
+    assertEq(value.length, 2)
+    assertEq(left.length, 2)
+    assertEq(left, right)
+    assertEq(observedTag, tag)
+    assertStructurallySame(items, [count])
+}
 
 export const proof = /** @type {const} */ ({
     owningTailsSurviveDirectNestedAndAliasedDeferredRecipes: async () => {
@@ -210,19 +213,44 @@ export const proof = /** @type {const} */ ({
         }
     },
     normalMemoValuesResemblingPacketsRemainSharedOpaqueData: async () => {
-        const apply = await load(codeOnlyWithSourceRefusal(_fixtures().normalPayload))
-        for (const tag of ['tail', 'return', 'normal']) {
-            const reached = apply(3, true, tag)
-            const normal = apply(3, false, tag)
-            assertStructurallySame(reached, [[tag, [0]], [tag, [0]]])
-            assertStructurallySame(normal, [[tag, [3]], [tag, [3]]])
-            assertEq(reached[0], reached[1])
-            assertEq(normal[0], normal[1])
-            assert(reached[0] !== normal[0])
+        const fn = _fixtures().normalPayload
+        for (const text of [codeOnly(graphOf(fn)), ...sourceGenerations(fn)]) {
+            hasWhile(text)
+            const apply = await load(text)
+            assertEq(apply.length, 3)
+            const packet = /** @type {const} */ (['return', [7]])
+            const object = /** @type {const} */ ({ kind: 'normal' })
+            for (const tag of ['tail', 'return', 'normal', packet, object]) {
+                const runs = [
+                    { value: apply(3, true, tag), count: 0 },
+                    { value: apply(3, false, tag), count: 3 },
+                    { value: apply(3, false, tag), count: 3 },
+                    { value: apply(3, true, tag), count: 0 },
+                    { value: apply(0, true, tag), count: 0 },
+                ]
+                for (const [index, { value, count }] of runs.entries()) {
+                    normalPayloadResult(value, tag, count)
+                    for (const { value: earlier } of runs.slice(0, index)) {
+                        assert(value !== earlier)
+                        assert(value[0] !== earlier[0])
+                        assert(value[0][1] !== earlier[0][1])
+                    }
+                }
+            }
+            for (const tag of ['tail', 'return', 'normal']) {
+                const deep = apply(100_001, true, tag)
+                normalPayloadResult(deep, tag, 0)
+                const later = apply(2, false, tag)
+                normalPayloadResult(later, tag, 2)
+                normalPayloadResult(deep, tag, 0)
+                assert(deep !== later)
+                assert(deep[0] !== later[0])
+                assert(deep[0][1] !== later[0][1])
+            }
+            normalPayloadResult(apply(1n, false, 'tail'), 'tail', 1n)
+            normalPayloadResult(apply(0n, true, 'return'), 'return', 0n)
+            throws(() => apply(1n, true, 'normal'))
         }
-        const deep = apply(100_001, true, 'tail')
-        assertStructurallySame(deep, [['tail', [0]], ['tail', [0]]])
-        assertEq(deep[0], deep[1])
     },
     nonTailSelfCallsRetainTheirFollowingComputation: async () => {
         for (const text of outputs(_fixtures().nonTail)) {
