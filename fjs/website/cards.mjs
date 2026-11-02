@@ -63,9 +63,10 @@ const serve = root => new Promise(ready => {
 })
 
 /**
- * Starts the browser and answers the address of its DevTools endpoint.
+ * Starts the browser and answers the address of its DevTools endpoint, and
+ * how to stop it, which waits until it has exited.
  *
- * @type {(profile: string) => Promise<{ readonly url: string, readonly exited: Promise<void> }>}
+ * @type {(profile: string) => Promise<{ readonly url: string, readonly stop: () => Promise<void> }>}
  */
 const launch = profile => new Promise((ready, fail) => {
     const browser = spawn(process.env.CHROME_PATH ?? 'google-chrome', [
@@ -78,7 +79,9 @@ const launch = profile => new Promise((ready, fail) => {
     browser.stderr.setEncoding('utf8').on('data', chunk => {
         output += chunk
         const line = output.split('\n').find(l => l.startsWith('DevTools listening on '))
-        if (line !== undefined) { ready({ url: line.slice('DevTools listening on '.length).trim(), exited }) }
+        if (line !== undefined) {
+            ready({ url: line.slice('DevTools listening on '.length).trim(), stop: () => { browser.kill(); return exited } })
+        }
     })
     exited.then(() => fail(new Error(`the browser exited before it listened:\n${output}`)))
 })
@@ -123,17 +126,16 @@ const connect = url => new Promise((ready, fail) => {
     socket.addEventListener('error', () => fail(new Error(`cannot connect to ${url}`)))
 })
 
-/** @type {() => Promise<void>} */
-const main = async () => {
-    const root = process.cwd()
-    /** @type {readonly string[]} */
-    const cards = JSON.parse(await readFile(cardsPath, 'utf8'))
-    const server = await serve(root)
-    const profile = await mkdtemp(join(tmpdir(), 'cards-'))
-    const browser = await launch(profile)
-    const socket = await connect(browser.url)
-    const { send, next } = devtools(socket)
+/**
+ * Screenshots each card in `cards`, served at `origin`, through the browser
+ * whose DevTools endpoint is `url`.
+ *
+ * @type {(url: string, origin: string, cards: readonly string[]) => Promise<void>}
+ */
+const shoot = async (url, origin, cards) => {
+    const socket = await connect(url)
     try {
+        const { send, next } = devtools(socket)
         const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
         const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
         await send('Page.enable', {}, sessionId)
@@ -141,21 +143,46 @@ const main = async () => {
         await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }, sessionId)
         for (const path of cards) {
             const loaded = next('Page.loadEventFired', sessionId)
-            await send('Page.navigate', { url: `${server.origin}/${cardPagePath(path)}` }, sessionId)
+            await send('Page.navigate', { url: `${origin}/${cardPagePath(path)}` }, sessionId)
             await loaded
             const ready = await send('Runtime.evaluate', { expression: 'window.cardReady.then(() => true)', awaitPromise: true }, sessionId)
             if (ready.exceptionDetails !== undefined) { throw new Error(`${path}: ${ready.exceptionDetails.text}`) }
             const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId)
             await writeFile(pathConcat(path)(cardImageName), Buffer.from(data, 'base64'))
         }
-        console.log(`cards: ${cards.length}`)
     } finally {
-        await send('Browser.close').catch(() => undefined)
         socket.close()
-        await browser.exited
-        server.close()
-        await rm(profile, { recursive: true, force: true })
     }
+}
+
+/**
+ * The whole step. Each resource is released by its own `finally`, as soon
+ * as it is acquired, so a browser that fails to start or to connect still
+ * leaves no server holding the process open, no browser running and no
+ * profile behind: the step fails at once rather than at the job's timeout.
+ *
+ * @type {() => Promise<void>}
+ */
+const main = async () => {
+    /** @type {readonly string[]} */
+    const cards = JSON.parse(await readFile(cardsPath, 'utf8'))
+    const server = await serve(process.cwd())
+    try {
+        const profile = await mkdtemp(join(tmpdir(), 'cards-'))
+        try {
+            const browser = await launch(profile)
+            try {
+                await shoot(browser.url, server.origin, cards)
+            } finally {
+                await browser.stop()
+            }
+        } finally {
+            await rm(profile, { recursive: true, force: true })
+        }
+    } finally {
+        server.close()
+    }
+    console.log(`cards: ${cards.length}`)
 }
 
 try {
