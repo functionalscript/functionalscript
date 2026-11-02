@@ -162,7 +162,8 @@ The approval and rationale are part of the
           once production consumers no longer depend on it.
     - [x] Form a generic AST for every authored `module.f.js` and `module.f.mjs`
           selected by `fjs deps`, without requiring FAST or EDAG admission.
-    - [ ] Enforce implementation-module AST readiness in CI with `npm start deps`.
+    - [x] Enforce implementation-module AST readiness in CI with `npm start deps`.
+          The canonical Node job runs it uncached and fails on AST errors.
 - [ ] Define the command interface and input/output behavior.
 - [ ] Connect the command to AST-based dependency extraction and graph construction.
 - [ ] Emit the module-to-dependencies record as `.data.js`.

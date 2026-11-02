@@ -60,7 +60,7 @@ export const proof = {
         assert(has(gha, 'ubuntu-arm', 'cargo fmt -- --check'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm c'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
-        for (const command of ['tsc', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
+        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
         assert(has(gha, 'deno', 'deno test -A ./fjs/emergent_testing/fjs-only.mjs'))
         assert(has(gha, 'bun', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'))
     },
