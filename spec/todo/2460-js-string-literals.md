@@ -46,6 +46,27 @@ it follows is its own decision, which the deferral note below calls
 
 ### Deferred: the other spellings
 
+### Single-quoted hexadecimal and vertical-tab escapes
+
+The next increment admits `\xHH` (exactly two hexadecimal digits) and `\v`
+in single-quoted strings. Double-quoted strings remain exactly JSON strings,
+and template admission remains unchanged. Both spellings decode to the existing
+string value: for example, `'\x1b'` equals `'\u001b'` and `'\v'` equals
+`'\u000b'`. No FAST, EDAG or runtime operation is needed.
+
+These spellings currently block source AST formation in the Git alternates,
+Rust demangler and SGR implementation modules. The benefit is admitting familiar
+JavaScript spellings used by actual modules; the cost is an additional grammar
+alternative, decoder handling and proofs of the quote-specific boundary.
+Other JavaScript string spellings remain separate work.
+
+The language designer `sergey-shandar` explicitly requested this parsing and
+admission increment in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+This records approval under [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
+
+### Deferred: the remaining spellings
+
 The extra escapes, raw control characters and line continuations stay deferred.
 They are alternative spellings of values JSON already expresses. The NUL escape
 has a repository use case described below; the other spellings remain at the
@@ -99,6 +120,8 @@ See
 
 ### Tasks
 
+- [ ] Admit single-quoted `\xHH` and `\v`, preserving the double-quoted JSON
+      contract and existing template admission.
 - [x] Normalize actual `\0` escapes in `module.f.mjs` sources to `\u0000`,
       preserving NUL values and literal backslash-zero output.
 - [ ] Obtain language-design approval and implement `\0` admission for quoted
