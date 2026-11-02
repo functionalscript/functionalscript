@@ -100,10 +100,15 @@ export const proof = {
         // a name in bold as `` **`Object` is reserved** ``.
         codeInsideStrong: () => accepts(`**a ${tick}b${tick} c**`),
         codeInsideEm: () => accepts(`*${tick}b${tick}*`),
-        // Emphasis inside emphasis is what CommonMark nests and this
-        // refuses: reading its delimiters as text would give one source two
-        // answers. Supporting it is `todo/commonmark-constructs.md`.
-        emphasisInsideStrong: () => refuses(`**a *b* c**`),
+        // Bold holds emphasis, between runs or right before it closes.
+        emphasisInsideStrong: () => accepts(`**a *b* c *d* e**`),
+        emphasisClosingStrong: () => accepts(`**a *b***`),
+        emphasisWithSpansInsideStrong: () => accepts(`**a *${tick}b${tick} [c](u)* d**`),
+        // Any other nesting CommonMark reads is refused: reading its
+        // delimiters as text would give one source two answers.
+        emphasisOpeningStrong: () => refuses(`***a* b**`),
+        emphasisBesideEmphasisInsideStrong: () => refuses(`**a *b**c* d**`),
+        strongInsideEmphasisInsideStrong: () => refuses(`**a *b **c** d* e**`),
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.
         loneBracketInsideStrong: () => refuses(`**a [ b**`),
