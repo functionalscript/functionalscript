@@ -59,9 +59,11 @@ functions were added for this.
 
 ### 4. Member calls go through `runtime.dot`
 
-- **Pick:** L1's `callMember(self, key, args)` calls the FunctionalScript
-  `runtime.dot(self, key)` and then calls what it answers. It throws when
-  the answer is `undefined`, unless the call is optional.
+- **Pick:** L1's `resolveMember(self, key)` calls the FunctionalScript
+  `runtime.dot(self, key)` and answers the callee. The program then
+  evaluates the arguments and calls it through L1 `call`, which throws for
+  `undefined`. For an optional call the program tests the callee first
+  ([L1 design](./l1-design.md#the-operations)).
 - **Why:** dispatch depends on the receiver, so it is dynamic, and `dot`
   already writes the order once: own property, then member body, then
   `undefined`.
