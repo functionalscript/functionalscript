@@ -94,6 +94,12 @@ L1 is called only where it does not.
 - **Needs:** the compiler must compile a top-level function that captures
   nothing as a direct WASM function with one parameter per argument, besides
   the general `(self, args)` code that every function value has.
+- **Variadic operations:** an operation that takes any number of
+  arguments, such as the body of `String.fromCharCode`, has one parameter,
+  the arguments as an array: `(any args) -> (i32, any)`. Its function value
+  passes the `args` of its `(self, args)` code straight through. A direct
+  call such as `String.fromCharCode(a, b)` builds the array with L0's
+  builder, as a spread does.
 
 ### 6. Errors are FunctionalScript throws
 

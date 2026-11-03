@@ -85,10 +85,11 @@ Each choice gives the pick first, then the alternatives and the reason.
   both to the runtime and to the program. The program's data and element
   segments go at offsets given by imported globals, `data_base` and
   `table_base`. The program's region also holds the scratch space that
-  `read_units` and `read_words` write into. The runtime owns everything
-  outside that region. The stock module of [L1](./l1-design.md) and
-  [L2](./l2-design.md) is compiled the same way, so it gets a region of its
-  own: the loader reserves one region for each compiled module.
+  `read_units` and `read_words` write into. The stock module of
+  [L1](./l1-design.md) and [L2](./l2-design.md) is compiled the same way,
+  so it gets a region of its own: the loader reserves one region for each
+  compiled module. The runtime owns everything outside those regions, and
+  never allocates into any of them.
 - **Alternatives:** the runtime exports its memory and the program imports
   it; multi-memory (WASM 3.0); no shared memory, with a string passed one unit
   per call.
