@@ -216,6 +216,13 @@ fn strings() {
 }
 
 #[test]
+fn joins() {
+    assert_eq!(join(&array([]), &s(",")), s(""));
+    assert_eq!(join(&array([s("a")]), &s(",")), s("a"));
+    assert_eq!(join(&array([s("a"), s(""), s("b")]), &s(", ")), s("a, , b"));
+}
+
+#[test]
 fn bytes() {
     let x = make_string::<A>(&units("h\u{e9}\u{1F600}"));
     assert_eq!(x, s("h\u{e9}\u{1F600}"));
@@ -408,6 +415,24 @@ mod traps {
     #[should_panic(expected = "l0.substring: not an index")]
     fn substring_backwards() {
         substring(&s("ab"), 2, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.join: not an array")]
+    fn join_not_array() {
+        join(&s("ab"), &s(","));
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.join: not a string")]
+    fn join_part() {
+        join(&array([s("a"), n(1.0)]), &s(","));
+    }
+
+    #[test]
+    #[should_panic(expected = "l0.join: not a string")]
+    fn join_separator() {
+        join(&array([s("a")]), &n(0.0));
     }
 
     #[test]

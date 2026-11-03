@@ -251,6 +251,26 @@ pub fn substring<A: IVm>(s: &Any<A>, start: u32, end: u32) -> Any<A> {
     (start..end).map(|i| s[i]).to_string().to_any()
 }
 
+/// L0 `join`: the strings of an array joined, with `separator` between two
+/// of them ([`l0-design.md` §22](../../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)).
+/// Each item and the separator must be strings.
+pub fn join<A: IVm>(parts: &Any<A>, separator: &Any<A>) -> Any<A> {
+    let parts = as_array("join", parts);
+    let separator = as_string("join", separator);
+    let parts: Vec<String<A>> = parts.index_iter().map(|p| as_string("join", &p)).collect();
+    let len = parts.iter().map(|p| u64::from(p.length())).sum::<u64>()
+        + u64::from(separator.length()) * parts.len().saturating_sub(1) as u64;
+    fits("join", len);
+    let mut units: Vec<u16> = Vec::with_capacity(len as usize);
+    for (i, p) in parts.into_iter().enumerate() {
+        if i > 0 {
+            units.extend(separator.clone().index_iter());
+        }
+        units.extend(p.index_iter());
+    }
+    units.to_string().to_any()
+}
+
 // Containers.
 
 /// An open container: what L0's `begin_array` and `begin_object` answer,
