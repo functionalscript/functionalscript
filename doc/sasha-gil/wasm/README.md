@@ -121,3 +121,6 @@ until the owner decides them.
 6. How small and how simple must an inline fragment be, and how does a
    specialized program name the runtime it was built for? See
    [inline-fragments.md](./inline-fragments.md#open).
+7. How does NaNVM, built from Rust, return L0's two-value results? See
+   [nanvm-multivalue.md](./nanvm-multivalue.md). Suggested: the two
+   functions in WASM assembly inside the crate, on nightly Rust.
