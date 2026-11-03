@@ -69,7 +69,24 @@ that end after assertion calls without an explicit return; the current block
 syntax still requires a terminal form. Many first diagnostics occur at closing
 blocks, while other files expose additional syntax gaps. Each diagnostic names
 only the first unsupported form in that file. The unchecked generic-AST task
-below remains the next work; this increment changes discovery and diagnostics.
+below remains open. Syntax-only implicit function endings are the first parser
+follow-up: the same scan now reports 1,100 parsed and 97 failed out of 1,197
+visits, including the new syntax proof and the JSON dependency. The first five
+previously reported proof files now parse without edits to their source.
+
+### Function bodies ending normally
+
+The task owner requested accepting functions without a final `return undefined`
+at the syntax-AST level in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+The generic AST retains this omission as an `implicit-return` ending with the closing-brace token instead of
+inventing an explicit return statement. Empty bodies and bodies ending after
+ordinary statements can therefore participate in dependency scans.
+
+This preserves familiar JavaScript source and removes a common proof-parsing
+blocker. The cost is an optional grammar ending and a distinct AST marker.
+FunctionalScript admission still refuses implicit return; no runtime, FAST or
+EDAG semantics change. Final-loop candidates retain their existing shape and
+admission checks. Bare `return` and `throw` remain separate syntax work.
 
 ### Constructor-expression syntax
 
@@ -142,6 +159,8 @@ The approval and rationale are part of the
       demos, helpers and standalone samples, using the test runner's authored-source
       predicate. Preserve syntax diagnostics and avoid publishing partial graphs.
 
+- [x] Accept function-body fallthrough in the syntax AST, retaining its closing
+      token and preserving explicit FJS admission refusal.
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
   - [x] Add `fjs deps` to report AST parsing failures for `module.f.js` and
         `module.f.mjs` files using the current parser.

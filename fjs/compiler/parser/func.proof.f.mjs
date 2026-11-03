@@ -169,9 +169,9 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('export default (a) => { if (a) return 1; return 2; };', 'unexpected token', 1, 32)
-            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'unexpected token', 1, 65)
+            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'implicit return is not admitted', 1, 65)
             expect('export default (a) => { if (a) { return 1; }; return 2; };', 'unexpected token', 1, 45)
-            expect('export default (a) => { if (a) { return 1; } };', 'unexpected token', 1, 46)
+            expect('export default (a) => { if (a) { return 1; } };', 'implicit return is not admitted', 1, 46)
             expect('if (1) { throw 1; } export default 2;', 'unexpected token', 1, 1)
             expect('export default (a) => { if (a) { return 1; } const a = 2; return a; };', 'duplicate id', 1, 52)
             expect('export default (a) => { const b = 1; if (a) { return 1; } const b = 2; return b; };', 'duplicate id', 1, 65)

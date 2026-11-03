@@ -1185,7 +1185,14 @@ const operandToNode = node => {
  *
  * @type {(node: Children<BlockRule, ModuleTokenWithMetadata, Out>) => readonly [Block, ModuleTokenWithMetadata]}
  */
-const blockOf = ([open, contents]) => [['block', blockContentsAt(contents)], tokenAt(open)]
+const blockOf = ([open, contents, close]) => {
+    const statements = blockContentsAt(contents)
+    const last = statements[statements.length - 1]
+    if (last[0] !== 'implicit-return') { return [['block', statements], tokenAt(open)] }
+    /** The source tuple guarantees that only its final element is a BlockEnd. @type {readonly BlockStatement[]} */
+    const prefix = /** @type {readonly BlockStatement[]} */ (statements.slice(0, -1))
+    return [['block', [...prefix, ['implicit-return', tokenAt(close)]]], tokenAt(open)]
+}
 
 /** @type {(node: _Leaf) => Block[1]} */
 const blockContentsAt = node => {
@@ -1197,19 +1204,22 @@ const blockContentsAt = node => {
 /** @type {(node: Children<BlockContents, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toBlockContents = ([statements, ending]) => {
     const prefix = unmapped(statements).map(statementAt)
-    const [kind, branch] = unmapped(ending)
+    const tail = unmapped(ending)[0]
+    if (tail === undefined) { return symbol({ id: 'blockContents', statements: [...prefix, ['implicit-return', null]] }) }
+    const [kind, branch] = unmapped(tail)
     if (kind === 'end') { return symbol({ id: 'blockContents', statements: [...prefix, ...endAt(branch)] }) }
-    const following = unmapped(unmapped(branch)[1])[0]
+    const following = blockContentsAt(unmapped(branch)[1])
+    const final = following.length === 1 && following[0][0] === 'implicit-return'
     if (kind === 'for') {
         const read = forAt(unmapped(branch)[0])
-        return symbol({ id: 'blockContents', statements: following === undefined
+        return symbol({ id: 'blockContents', statements: final
             ? [...prefix, read[0] === 'for' ? ['terminal-for', read[1]] : ['terminal-for-of', read[1]]]
-            : [...prefix, read, ...blockContentsAt(following)] })
+            : [...prefix, read, ...following] })
     }
     const read = loopConditionAt(unmapped(branch)[0])
-    return symbol({ id: 'blockContents', statements: following === undefined
+    return symbol({ id: 'blockContents', statements: final
         ? [...prefix, ['terminal-while', read]]
-        : [...prefix, ['while', read], ...blockContentsAt(following)] })
+        : [...prefix, ['while', read], ...following] })
 }
 
 /** @type {(node: _Leaf) => BranchBlock} */
@@ -1234,7 +1244,7 @@ const toBranchContents = ([statements, ending]) => {
         // slice cannot retain that tuple-position evidence in their types.
         const last = /** @type {BlockEnd} */ (end[end.length - 1])
         const prior = /** @type {readonly BlockStatement[]} */ (end.slice(0, -1))
-        return symbol({ id: 'branchContents', block: ['branch', [...prefix, ...prior], last] })
+        return symbol({ id: 'branchContents', block: ['branch', [...prefix, ...prior], last[0] === 'implicit-return' ? null : last] })
     }
     const following = branchContentsAt(unmapped(branch)[1])
     if (kind === 'for') {

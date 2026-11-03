@@ -44,7 +44,7 @@
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
- * blockContents ::= simpleStatement* (terminator | (while | for) [blockContents])
+ * blockContents ::= simpleStatement* [terminator | (while | for) blockContents]
  * statement ::= const | ifStatement | let | newExpressionStatement
  *             | while | for | bodyNameStatement
  * ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
@@ -1417,20 +1417,21 @@ export const forHeader = {
 export const forStatement = [sym('for'), sym('('), forHeader, sym(')'), loopBlock]
 
 /**
- * A body has non-loop statements followed by a terminator or a loop. The
+ * A body has non-loop statements and an optional terminator or loop. The
  * loop may be final; otherwise the remaining body uses the same rule.
  * This left-factors each loop token instead of adding it to two LL(1) branches.
  * Source admission decides whether a final loop really cannot fall through.
  * @type {BlockContents}
  */
-export const blockContents = () => ['const', [repeatFrom0(simpleStatement), {
-    end: terminator, loop: [whileStatement, option(blockContents)], for: [forStatement, option(blockContents)],
-}]]
+export const blockContents = () => ['const', [repeatFrom0(simpleStatement), option({
+    end: terminator, loop: [whileStatement, blockContents], for: [forStatement, blockContents],
+})]]
 
 /**
  * A function's block body: `{ const x = 1; return value; }` — its
  * {@link blockContents}, ending in an ordinary terminator or a candidate
- * terminal loop. Source admission checks the candidate's literal condition
+ * terminal loop, or a normal closing brace retained as implicit-return syntax.
+ * Source admission checks the candidate's literal condition
  * and transfer targets. A switch holds the rest of the body where it has no
  * `default`
  * ([spec: functions](../../../../spec/functions/README.md)).

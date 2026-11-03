@@ -227,7 +227,6 @@ export const proof = {
         },
         syntaxRefusals: () => {
             for (const source of [
-                'export default () => {};',
                 'export default () => { return; };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',

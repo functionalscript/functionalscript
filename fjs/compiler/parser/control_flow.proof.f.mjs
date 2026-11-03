@@ -60,8 +60,8 @@ export const proof = /** @type {const} */ ({
             'export default ()=>{const x=1;};',
             'export default a=>{if(a){return 1;}};',
         ]) {
-            assertError(syntax(source))
-            assertError(parse(path)(source))
+            assertOk(syntax(source))
+            assertEq(assertError(parse(path)(source)).message, 'implicit return is not admitted')
         }
         // An explicit throw or an admitted non-returning terminal loop has no
         // successful function-end fallthrough; neither gains an implicit return.

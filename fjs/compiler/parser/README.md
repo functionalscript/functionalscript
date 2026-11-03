@@ -164,7 +164,9 @@ memberAccess ::= '.' id | '[' value ']'
 callArguments ::= ( value | '...' value ) [ ',' [ callArguments ] ]
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
-block  ::= '{' statement* terminator '}'
+block  ::= '{' blockContents '}'
+blockContents ::= simpleStatement* [ terminator | (whileStatement | forStatement) blockContents ]
+simpleStatement ::= const | ifStatement | let | bodyNameStatement | newExpressionStatement
 statement ::= const | ifStatement | let
             | whileStatement | forStatement | bodyNameStatement | newExpressionStatement
 ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
@@ -547,6 +549,7 @@ recursive call.
 The common sugar pass expands these records into normalized FAST regions,
 immutable definitions and explicit loop transfers. The grammar still requires
 function-body statements followed by a terminating `return`, `throw` or switch,
+or an `implicit-return` marker for normal fallthrough,
 and a module ends in exports or a throw. Source admission and ASI rules remain
 the same.
 
@@ -657,3 +660,13 @@ is what the port removed. Every other expectation of the parser's proof —
 values, positions, the order errors are reported in, the syntax failure found
 before the unresolved name — was met unchanged, with the `;` added to its
 inputs.
+
+### Syntax-only implicit function returns
+
+The generic AST accepts empty function bodies and bodies that end after ordinary
+statements without a final `return undefined`. It retains the omission as an
+`implicit-return` ending with the closing-brace token, distinct from an explicit
+return statement. FunctionalScript admission still refuses this ending with
+`implicit return is not admitted`; no implicit return is lowered to FAST or EDAG.
+Final-loop candidates keep their existing representation and admission checks.
+Bare `return` and `throw` remain unsupported syntax.

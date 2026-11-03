@@ -215,6 +215,18 @@ export const proof = /** @type {const} */ ({
         assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
+    proofDependenciesAllowImplicitFunctionEnds: () => {
+        const [state, result] = execute({
+            'module.f.js': [utf8('export default 0;')],
+            'proof.f.mjs': [utf8('import value from "./module.f.js"; export const proof=()=>{value();};')],
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertStructurallySame(JSON.parse(assertOk(written)), {
+            'module.f.js': [],
+            'proof.f.mjs': ['module.f.js'],
+        })
+    },
     malformedProofPreservesPreviousGraph: () => {
         const [state, result] = execute({
             'module.f.js': [utf8('export default 1;')],

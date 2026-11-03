@@ -32,6 +32,10 @@ shared import-attribute reader and filesystem resolver. It does not validate
 selected exports or source bindings, apply FunctionalScript admission, or lower
 to FAST or EDAG. JSDoc type imports are not runtime dependencies.
 
+Function bodies may end normally without an explicit `return undefined` at the
+syntax-AST level. The AST preserves an implicit-return marker; compilation still
+requires an admitted terminal form.
+
 Its syntax AST can represent forms that FJS compilation still refuses,
 including braced `for (const item of items)` and `for (let item of items)`
 declaration loops. Recognizing that syntax does not select iteration semantics.

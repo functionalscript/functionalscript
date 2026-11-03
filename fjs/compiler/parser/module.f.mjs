@@ -1166,9 +1166,15 @@ const bodyRound = (stack, scope, frame) => {
     const { statements, first, index } = frame
     if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
     const [kind, statement] = statements[index]
+    if (kind === 'implicit-return') {
+        const ending = assertNotNullish(statement)
+        return [stack, scope, error(foldError('implicit return is not admitted')(ending))]
+    }
     // the statement's own beginning before either half of it: the one
     // before it, written without its `;`, ends at a newline or not at all
-    if (unterminated(index === first ? null : statements[index - 1][1], statement)) {
+    // The implicit ending is final, so it cannot precede another statement.
+    const previous = /** @type {Parameters<typeof unterminated>[0]} */ (index === first ? null : statements[index - 1][1])
+    if (unterminated(previous, statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
     if (kind === 'if' || kind === 'normal-if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
