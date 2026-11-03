@@ -34,7 +34,8 @@ type.
   NaN-boxing stays NaNVM's.
 - **Typed values.** `kind(any)` answers the kind. `to_f64`, `to_bool` and
   their inverses `from_f64`, `from_bool` convert between `any` and a plain
-  WASM value. A string, a bigint, an array, an object or a function stays an
+  WASM value. `undefined()` and `null()` answer those two values, since only
+  the runtime knows their encoding. A string, a bigint, an array, an object or a function stays an
   opaque reference, but one whose kind is known, so later operations on it
   skip the dispatch.
 - **Unpack once.** Values are immutable, so a value's kind never changes.
@@ -86,8 +87,9 @@ Values are immutable, so allocation and initialisation can be one step.
   the value. After `seal` the value never changes. This matches
   `IContainer::new` taking an iterator, and the local-mutation stage of
   [mutability.md](../../../spec/design/mutability.md).
-- **Reads.** `kind(v)`, `length(v)`, `item(v, i)`, and for an object
-  `key(v, i)`. Bytes are copied out with `read_units(v, start, len, ptr)`.
+- **Reads.** `kind(v)`, `length(v)`, `item(v, i)`, for an object
+  `key(v, i)`, and for a bigint `sign(v)`, the header `make_bigint` took.
+  Bytes are copied out with `read_units(v, start, len, ptr)`.
 
 **Open:** a string of UTF-16 units could count as JavaScript-specific. The
 proposal keeps it in L0 because `length`, indexing and `charCodeAt` are
