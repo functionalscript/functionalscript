@@ -10,12 +10,12 @@ import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
-import { forClassicTail, forDeclarationTail, forHeader, module, symbolOf } from './module.f.mjs'
+import { forClassicTail, forDeclarationTail, forHeader, module, symbolsOf } from './module.f.mjs'
 
 const parseModule = parser(/** @type {Rule} */ (module))
 
 /** @type {(source: string) => 'ok' | 'error'} */
-const read = source => parseModule(toArray(tokenize(stringToList(source))('for-of.f.js')).slice(0, -1).map(symbolOf))[0]
+const read = source => parseModule(symbolsOf(toArray(tokenize(stringToList(source))('for-of.f.js')).slice(0, -1)))[0]
 
 export const proof = /** @type {const} */ ({
     declarationHeadersKeepTheirBindingPatternAndBracedBody: () => {

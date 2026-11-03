@@ -63,12 +63,13 @@ export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
 export type InfixTag = BinaryTag | 'instanceof' | 'in'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
-type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof' | 'new'> | 'id' | 'keyword'>>
+type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_FramingKeyword, 'typeof' | 'new'> | 'id' | 'keyword' | 'bareReturn'>>
 
 /**
  * A token name the grammar can name as a terminal: every `ModuleToken` kind
  * except `eof`, plus the keywords with symbols of their own, and `keyword`,
- * the symbol of every other reserved word.
+ * the symbol of every other reserved word, plus the lookahead-classified
+ * `bare-return` spelling of a return with no operand.
  *
  * `eof` is excluded because the backend synthesizes its own logical
  * end-of-input; the tokenizer's physical `eof` token is split off the stream
@@ -77,7 +78,7 @@ type _IdentifiersAreComplete = Assert<Equal<keyof typeof identifier, Exclude<_Fr
  * The kinds are derived from `ModuleToken` rather than listed, so a token kind
  * added there cannot silently go unrepresented at the parser layer.
  */
-export type _OrdinaryTokenName = Exclude<ModuleToken['kind'], 'eof'> | _FramingKeyword | 'keyword'
+export type _OrdinaryTokenName = Exclude<ModuleToken['kind'], 'eof'> | _FramingKeyword | 'keyword' | 'bare-return'
 
 type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<ModuleToken['kind'], 'eof'>>>
 type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>
@@ -612,6 +613,7 @@ export type LoopStatement = () => readonly ['const', {
     readonly let: LetStatement
     readonly name: BodyNameStatement
     readonly return: Terminator['return']
+    readonly bareReturn: Terminator['bareReturn']
     readonly switch: LoopSwitch
     readonly throw: Terminator['throw']
     readonly while: WhileStatement
@@ -672,6 +674,7 @@ export type LetStatement = readonly [number, LetBinding, End]
  */
 export type Terminator = {
     readonly return: readonly [number, Value, End]
+    readonly bareReturn: readonly [number, End]
     readonly throw: readonly [number, Value, End]
     readonly switch: readonly [number, number, Value, number, number, number, Value, number, CaseTail]
 }

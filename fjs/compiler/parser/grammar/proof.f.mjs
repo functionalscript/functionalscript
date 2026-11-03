@@ -20,7 +20,7 @@ import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
-    afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
+    afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, symbolsOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -37,7 +37,7 @@ const symbols = s => {
     const all = toArray(tokenize(stringToList(s))('a.js'))
     const last = all[all.length - 1]
     // a lexical failure is the stream's one token, an error and no `eof`
-    return (last !== undefined && last.token.kind === 'eof' ? all.slice(0, -1) : all).map(symbolOf)
+    return symbolsOf(last !== undefined && last.token.kind === 'eof' ? all.slice(0, -1) : all)
 }
 
 /**
@@ -249,7 +249,7 @@ export const proof = /** @type {const} */ ({
         ]) {
             assertStructurallySame(read(source), ['ok'])
         }
-        assertStructurallySame(read('while(false){return;}export default 0;'), ['error', ';'])
+        assertStructurallySame(read('while(false){return;}export default 0;'), ['ok'])
         assertStructurallySame(read('while(false){throw;}export default 0;'), ['error', ';'])
         assertStructurallySame(read('return 1;export default 0;'), ['error', 'return'])
         assertStructurallySame(read('export default ()=>{return 1;throw 2;};'), ['error', 'throw'])
@@ -560,7 +560,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => { [a].at(0); return a; };'), ['error', '['])
         assertStructurallySame(read('export default (...a) => { !a(1); return a; };'), ['error', '!'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { return; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { return; };'), ['ok'])
         // the line terminator JavaScript forbids between `return` and the
         // value is the reader's to see, as the one before `=>` is: the
         // grammar reads the value on the next line, and the reader refuses

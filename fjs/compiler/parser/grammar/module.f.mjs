@@ -60,7 +60,8 @@
  * forNamedLetTail ::= forDeclarationTail | ';' forClassicTail
  * forClassicTail ::= [value] ';' [nameExpression]
  * let    ::= 'let' (name ['=' value] | bindingPattern '=' value) end
- * terminator ::= 'return' value end | 'throw' value end
+ * bareReturn ::= bare-return end
+ * terminator ::= 'return' value end | bareReturn | 'throw' value end
  *            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
  * caseTail ::= 'case' value ':' caseTail | block afterCase
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
@@ -238,9 +239,11 @@ export const _framingKeywords = /** @type {const} */ (['import', 'const', 'expor
  * one per keyword above, plus `keyword`, the one symbol of every other
  * word `fjs/js/keywords` reserves, {@link symbolOf}. No keyword collides
  * with a kind, so the lists concatenate without a name being registered
- * twice — which `encoding` would reject anyway.
+ * twice — which `encoding` would reject anyway. The appended `bare-return`
+ * symbol lets `symbolsOf` distinguish an omitted return operand without
+ * changing any existing symbol number.
  */
-export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords, /** @type {const} */ ('keyword')]
+export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords, /** @type {const} */ ('keyword'), /** @type {const} */ ('bare-return')]
 
 const alphabet = encoding(_ordinaryTokenNames)
 
@@ -274,6 +277,20 @@ export const symbolOf = t => {
 }
 
 /**
+ * Encode a complete token stream with one token of lookahead for bare return.
+ * Its distinct symbol avoids an optional operand's first/follow ambiguity in
+ * loop bodies. Identifier positions admit both return symbols, preserving
+ * properties, shorthand keys and binding diagnostics without rewriting tokens.
+ * @type {(tokens: readonly ModuleTokenWithMetadata[]) => readonly Meta<ModuleTokenWithMetadata>[]}
+ */
+export const symbolsOf = tokens => tokens.map((token, index) => {
+    const encoded = symbolOf(token)
+    const next = tokens[index + 1]?.token.kind
+    return encoded.symbol === sym('return') && (next === ';' || next === '}')
+        ? { ...encoded, symbol: sym('bare-return') } : encoded
+})
+
+/**
  * Every word that may stand where an identifier is expected: `id`, and the
  * keywords with symbols of their own, which arrive as `id` tokens too.
  * Whether the word is reserved there is the fold's to check, as it is for
@@ -289,6 +306,7 @@ export const identifier = /** @type {const} */ ({
     from: sym('from'),
     with: sym('with'),
     return: sym('return'),
+    bareReturn: sym('bare-return'),
     throw: sym('throw'),
     if: sym('if'),
     else: sym('else'),
@@ -1218,7 +1236,8 @@ export const afterCase = () => ['const', {
 }]
 
 /**
- * The statement a block ends with, {@link terminator}: `return value`, or
+ * The statement a block ends with, {@link terminator}: `return value`, a
+ * bare `return` classified by `symbolsOf`, or
  * `throw value` — the function fails with the value, the language's one way
  * to fail on purpose ([spec: functions](../../../../spec/functions/README.md))
  * — or a switch, `switch (value) { case value: …`, its first case begun
@@ -1239,6 +1258,7 @@ export const afterCase = () => ['const', {
  */
 export const terminator = /** @type {const} */ ({
     return: [sym('return'), value, end],
+    bareReturn: [sym('bare-return'), end],
     throw: [sym('throw'), value, end],
     switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
 })
@@ -1358,6 +1378,7 @@ export const loopStatement = () => ['const', {
     let: letStatement,
     name: bodyNameStatement,
     return: terminator.return,
+    bareReturn: terminator.bareReturn,
     switch: loopSwitch,
     throw: terminator.throw,
     while: whileStatement,

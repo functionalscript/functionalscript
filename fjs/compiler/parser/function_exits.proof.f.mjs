@@ -129,7 +129,6 @@ export const proof = /** @type {const} */ ({
             'const f=()=>{while(false){throw\n1;}return 0;};export default f;',
             'const f=()=>{while(false){return 1 return 2;}return 0;};export default f;',
             'const f=()=>{while(false){throw 1 const next=2;}return 0;};export default f;',
-            'const f=()=>{while(false){return;}return 0;};export default f;',
             'const f=()=>{while(false){throw;}return 0;};export default f;',
         ]) {
             assertEq(assertError(parseFromTokens(tokenizeString(source))).message, 'unexpected token', source)
