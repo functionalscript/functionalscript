@@ -31,8 +31,8 @@
 
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asArray, asBoolean, asFunction, asNumber, asObject, asString, concat, find, fromUnit, item, kind, length,
-    same, substring, text, unit,
+    asArray, asBoolean, asFunction, asNumber, asObject, asString, buildArray, buildObject, concat, find,
+    fromUnit, item, join, kind, length, same, substring, text, unit,
 } from '../l0/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
@@ -206,15 +206,11 @@ export const toString = v => {
     if (k === BIGINT) { return bigintToString(v) }
     if (k === FUNCTION) { return functionText(text(v)) }
     if (k === OBJECT) { return toString(objectToPrimitive(v, true)) }
-    const n = length(v)
-    let s = { i: 0, text: '' }
-    while (s.i < n) {
-        const x = item(v, s.i)
+    return join(buildArray(length(v), 0, i => i + 1, i => {
+        const x = item(v, i)
         const kx = kind(x)
-        const t = kx === UNDEFINED || kx === NULL ? '' : toString(x)
-        s = { i: s.i + 1, text: s.i === 0 ? t : concat(concat(s.text, ','), t) }
-    }
-    return s.text
+        return kx === UNDEFINED || kx === NULL ? '' : toString(x)
+    }), ',')
 }
 
 /**
@@ -493,12 +489,21 @@ export const call = (f, args) => {
 const inRange = (u, low, high) => u >= low && u <= high
 
 /**
+ * The end of the code point that starts at unit `o` of string `s` of `n`
+ * units: a surrogate pair is two units, anything else one.
+ *
+ * @type {(s: unknown, n: number, o: number) => number}
+ */
+const pointEnd = (s, n, o) =>
+    o + 1 < n && inRange(unit(s, o), 0xd800, 0xdbff) && inRange(unit(s, o + 1), 0xdc00, 0xdfff) ? o + 2 : o + 1
+
+/**
  * `GetIterator` of a value of unknown type, as the array it walks: an
  * array as it is, and a string as its code points, a surrogate pair as one
  * string and a lone surrogate as itself. Any other value throws NaNVM's
  * `TypeError`. Spread, `for...of` and array destructuring walk the answer
- * with L0 `length` and `item`. A string costs one copy per code point, as
- * a reference body may.
+ * with L0 `length` and `item`. A string takes two passes: one counts its
+ * code points, and one builds the array.
  *
  * @type {(v: unknown) => readonly unknown[]}
  */
@@ -507,21 +512,18 @@ export const toIterable = v => {
     if (k === ARRAY) { return asArray(v) }
     if (k !== STRING) { throw 'TypeError: value is not iterable' }
     const n = length(v)
-    let r = { i: 0, points: /** @type {readonly unknown[]} */ ([]) }
-    while (r.i < n) {
-        const pair = r.i + 1 < n && inRange(unit(v, r.i), 0xd800, 0xdbff) && inRange(unit(v, r.i + 1), 0xdc00, 0xdfff)
-        const end = pair ? r.i + 2 : r.i + 1
-        r = { i: end, points: [...asArray(r.points), substring(v, r.i, end)] }
+    let r = { o: 0, count: 0 }
+    while (r.o < n) {
+        r = { o: pointEnd(v, n, r.o), count: r.count + 1 }
     }
-    return r.points
+    return buildArray(r.count, 0, o => pointEnd(v, n, o), o => substring(v, o, pointEnd(v, n, o)))
 }
 
 /**
  * The properties `{ ...v }` copies from a value of unknown type, as an
  * object: an object's own properties, an array's items and a string's
  * units under their index keys, and nothing from any other value,
- * `undefined` and `null` included. One copy per property, as a reference
- * body may.
+ * `undefined` and `null` included, built in one pass.
  *
  * @type {(v: unknown) => { readonly [k in string]: unknown }}
  */
@@ -529,11 +531,5 @@ export const objectSpread = v => {
     const k = kind(v)
     if (k === OBJECT) { return asObject(v) }
     if (k !== ARRAY && k !== STRING) { return {} }
-    const n = length(v)
-    let r = { i: 0, o: {} }
-    while (r.i < n) {
-        const x = k === ARRAY ? item(v, r.i) : fromUnit(unit(v, r.i))
-        r = { i: r.i + 1, o: { ...asObject(r.o), [numberToString(r.i)]: x } }
-    }
-    return r.o
+    return buildObject(length(v), 0, i => i + 1, i => numberToString(i), i => k === ARRAY ? item(v, i) : fromUnit(unit(v, i)))
 }

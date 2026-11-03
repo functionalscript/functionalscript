@@ -24,6 +24,7 @@ values are reference counted, and a call returns a status and a value.
 | | `sign`, `read_words` | `(b) -> i32`, `(b, start, len, ptr)` |
 | Strings | `unit`, `from_unit` | `(s, i) -> i32`, `(i32) -> any` |
 | | `concat`, `substring` | `(a, b) -> any`, `(s, start, end) -> any` |
+| | `join` | `(parts, separator) -> any` |
 | Containers | `begin_array`, `begin_object` | `(len) -> builder` |
 | | `push`, `push_property` | `(builder, v)`, `(builder, key, v)` |
 | | `seal` | `(builder) -> any` |
@@ -223,20 +224,20 @@ are written in FunctionalScript.
 
 - **Pick:** a module of intrinsics, `fjs/wasm/runtime/l0`, names the L0
   functions that FunctionalScript code may call: `kind`, `length`, `item`,
-  `key`, `find`, `same`, `text` and the four string functions, plus the kind tags
-  as constants. It also has casts: `asNumber`, `asBoolean`, `asString`,
+  `key`, `find`, `same`, `text`, the four string functions and `join`, plus
+  the kind tags as constants, and the builders `buildArray` and
+  `buildObject` (§22). It also has casts: `asNumber`, `asBoolean`, `asString`,
   `asBigInt`, `asArray`, `asObject` and `asFunction`. The compiler
   recognises each function by its body, as it does `fjs/js/intrinsic`
   today, and lowers it to the L0 import. A cast lowers to `to_f64`,
   `to_bool` or nothing, and gives the result a known type.
-- **Not in the view:** allocation, `dup`, `drop`, the builders and memory.
-  The compiler emits those from literals, from its ownership pass, and from
-  spread over a value of known type. A body builds a container of dynamic
-  size by spreading a cast value, as in `[...asArray(acc), x]` or
-  `{ ...asObject(o), [asString(k)]: v }`. Spread of a known array or object
-  lowers to builder calls over `length`, `item` and `key`, not to L1, so
-  the closure rule allows it. Grown one item at a time, this is quadratic,
-  which is acceptable for a reference body.
+- **Not in the view:** allocation, `dup`, `drop` and memory. The compiler
+  emits those from literals, from its ownership pass, and from spread over
+  a value of known type. Spread of a known array or object lowers to
+  builder calls over `length`, `item` and `key`, not to L1, so the closure
+  rule allows it. A container of computed size is built in one pass by
+  `buildArray` or `buildObject` (§22), not grown by spread, which would be
+  quadratic.
 - **Calls:** a call of a cast function, `asFunction(f)(...xs)`, lowers to
   L0 `call`, with the arguments built by the builder, or passed as they are
   when `xs` is a known array.
@@ -299,6 +300,35 @@ object, L1 reads its `length` property through `find`.
 - **Why:** NaNVM's effect loop already works this way over `Any`
   ([`effects-node`](../../../nanvm/effects-node/src/native.rs)), so no new
   import is needed.
+
+### 22. Building in one pass
+
+Added 2026-11-03, after the first L1 bodies grew arrays, objects and
+strings one item at a time, which is quadratic.
+
+- **Pick:** the view has two builders. `buildArray(n, s, next, at)` builds
+  `n` items, and `buildObject(n, s, next, keyAt, valueAt)` builds `n`
+  properties. Each walks `n` states: state 0 is `s`, and each next state is
+  `next` of the one before, called only between two items. Item `i` is `at`
+  of state `i`, and property `i` is `keyAt` and `valueAt` of it. A key must
+  be a string. A call whose functions are arrow literals lowers to
+  `begin_array(n)` or `begin_object(n)`, one loop that keeps the state in a
+  local and `push`es each item, and `seal`. No closure is allocated, and
+  the ABI does not change.
+- **Pick:** L0 gets one new function, `join(parts, separator)`: the strings
+  of an array joined with the separator between two of them. With it, a
+  string of computed parts is a `buildArray` and one `join`.
+- **Alternative:** a state of `[item, next]` pairs, one function instead of
+  two. Each step would then allocate a pair, unless the compiler removed it.
+- **Alternative:** divide-and-conquer bodies over `concat` and spread. They
+  cost O(n log n) and need no change, but every body that builds would
+  have to be written that way.
+- **Alternative:** a string builder, `begin_string` and `push_unit`. Like
+  §16, it would be a pair of imports FunctionalScript cannot name, where
+  `join` is one that it can.
+- **Why:** the state lets a body build what it cannot index directly, such
+  as the code points of a string, which `toIterable` finds by walking unit
+  offsets. Every runtime has `join` natively already.
 
 ## Where this draft is least sure
 

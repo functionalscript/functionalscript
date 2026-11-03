@@ -19,8 +19,11 @@
  * it. The interpreter and the Rust backend never see it, and
  * [`fjs/js/runtime`](../../../js/runtime/module.f.js) stays as it is.
  *
- * Allocation, `dup`, `drop`, the builders and memory are not in the view:
- * the compiler emits them from literals, spreads and its ownership pass.
+ * Allocation, `dup`, `drop` and memory are not in the view: the compiler
+ * emits them from literals, spreads and its ownership pass. The builders
+ * are in it once each, as {@link buildArray} and {@link buildObject}, so a
+ * body builds a container of computed size in one pass
+ * ([`l0-design.md` §22](../../../../doc/sasha-gil/wasm/l0-design.md#22-building-in-one-pass)).
  *
  * @module
  *
@@ -313,3 +316,78 @@ export const substring = (s, start, end) => {
     const e = index('substring', end, t.length + 1)
     return slice(t, index('substring', start, e + 1), e)
 }
+
+/**
+ * L0 `join`: the strings of an array joined, with `separator` between two
+ * of them. Each item and the separator must be strings.
+ *
+ * @type {(parts: unknown, separator: unknown) => string}
+ */
+export const join = (parts, separator) => {
+    const p = asArray(parts)
+    if (typeof separator !== 'string') { throw 'l0.join: not a string' }
+    if (!p.every(x => typeof x === 'string')) { throw 'l0.join: not a string' }
+    return p.join(separator)
+}
+
+/**
+ * The `n` states a builder visits, from `s`, each next one `next` of the
+ * one before: `next` is called `n - 1` times, never after the last. `n`
+ * is a count an `i32` holds. The array grows one state at a time, which is
+ * quadratic, but only on a JavaScript host: the WASM backend lowers a
+ * builder to one loop.
+ *
+ * @template S
+ * @param {string} name
+ * @param {unknown} n
+ * @param {S} s
+ * @param {(s: S) => S} next
+ * @returns {readonly S[]}
+ */
+const states = (name, n, s, next) => {
+    const c = index(name, n, 0x8000_0000)
+    /** @type {{ readonly i: number, readonly s: S, readonly out: readonly S[] }} */
+    let r = { i: 0, s, out: [] }
+    while (r.i < c) {
+        const i = r.i + 1
+        r = { i, s: i < c ? next(r.s) : r.s, out: [...r.out, r.s] }
+    }
+    return r.out
+}
+
+/**
+ * An array of `n` items built in one pass: item `i` is `at` of state `i`,
+ * where state `0` is `s` and each next state is `next` of the one before.
+ * The WASM backend lowers a call whose `next` and `at` are arrow literals
+ * to L0 `begin_array(n)`, a loop that keeps the state in a local and
+ * `push`es each item, and `seal`, with no closure allocated.
+ *
+ * @template S
+ * @param {unknown} n
+ * @param {S} s
+ * @param {(s: S) => S} next
+ * @param {(s: S) => unknown} at
+ * @returns {L0Array}
+ */
+export const buildArray = (n, s, next, at) => states('buildArray', n, s, next).map(x => at(x))
+
+/**
+ * An object of `n` properties built in one pass, as {@link buildArray}
+ * builds an array: property `i` has the key `keyAt` and the value
+ * `valueAt` of state `i`. Each key must be a string. Of two equal keys the
+ * first keeps its position and the last its value, as L0 `seal` does. The
+ * call lowers to `begin_object(n)`, `push_property` and `seal`.
+ *
+ * @template S
+ * @param {unknown} n
+ * @param {S} s
+ * @param {(s: S) => S} next
+ * @param {(s: S) => unknown} keyAt
+ * @param {(s: S) => unknown} valueAt
+ * @returns {L0Object}
+ */
+export const buildObject = (n, s, next, keyAt, valueAt) => Object.fromEntries(states('buildObject', n, s, next).map(x => {
+    const k = keyAt(x)
+    if (typeof k !== 'string') { throw 'l0.buildObject: not a string' }
+    return [k, valueAt(x)]
+}))
