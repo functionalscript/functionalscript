@@ -43,8 +43,9 @@ It answers `undefined`. The answer is the same; now it is written.
 
 ## A Better Message
 
-Today `fjs compile` prints `unexpected token` at the refused token. The demo
-proposes what it should print instead: the reason at the same token, what
+Today `fjs compile` prints `implicit return is not admitted` at the closing
+brace. The syntax AST retains the implicit ending; FunctionalScript admission
+refuses it. The demo proposes a richer explanation at the same token: what
 JavaScript does there, and the allowed spelling, the line
 `alternative.f.js` writes, as `help`. The page compiles the alternative
 too, so the suggestion is one the compiler accepts.
