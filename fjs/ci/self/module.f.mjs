@@ -194,13 +194,15 @@ export const personalNotesJob = {
 /**
  * Approves pull requests that change only their author's personal notes.
  * It runs on `pull_request_target`, so the workflow is always the base
- * branch's: a pull request cannot change what approves it.
+ * branch's: a pull request cannot change what approves it. It runs again on
+ * `edited`, since a new base branch changes the files a pull request carries
+ * without a new commit.
  *
  * @type {GitHubAction}
  */
 export const personalNotesWorkflow = {
     name: 'Personal notes',
-    on: { pull_request_target: {} },
+    on: { pull_request_target: { types: ['opened', 'synchronize', 'reopened', 'edited'] } },
     concurrency: {
         group: '${{ github.workflow }}-${{ github.event.pull_request.number }}',
         'cancel-in-progress': true,

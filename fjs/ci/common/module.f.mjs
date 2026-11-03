@@ -94,7 +94,9 @@ export const gitHubActionSchema = /** @type {const} */ ({
         // Runs the workflow as the base branch defines it, never as the pull
         // request does: the personal-notes approval relies on it, since a
         // workflow a pull request could rewrite could approve itself.
-        pull_request_target: or(option, {}),
+        // `edited` is named because a changed base branch changes the files
+        // a pull request carries without a new commit.
+        pull_request_target: or(option, { types: array(string) }),
         merge_group: or(option, {}),
         push: or(option, { branches: array(string) })
     },

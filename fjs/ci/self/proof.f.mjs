@@ -40,7 +40,7 @@ export const proof = {
         assertEq(personalNotesPath, '.github/workflows/gen.personal-notes.yml')
         assertStructurallySame(generated, personalNotesWorkflow)
         // The base branch's workflow, never the pull request's.
-        assertStructurallySame(generated.on, { pull_request_target: {} })
+        assertStructurallySame(generated.on, { pull_request_target: { types: ['opened', 'synchronize', 'reopened', 'edited'] } })
         const steps = generated.jobs.approve?.steps ?? []
         // Nothing from the pull request is checked out or run.
         assert(steps.every(step => step.uses === undefined))
