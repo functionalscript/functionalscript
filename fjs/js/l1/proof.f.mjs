@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import {
+    call, get, objectSpread, toIterable,
     add, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
@@ -49,6 +50,20 @@ const stringy = v => typeof toPrimitive(v, false) === 'string'
 const mixed = (x, y) => (typeof x === 'bigint') !== (typeof y === 'bigint')
 
 /** JavaScript's own operator, an expected value. @typedef {(x: any, y: any) => unknown} Op */
+
+/** Receivers of every kind but the nullish ones, for the member read. */
+const receivers = ['ab', '', '\u{1F600}', [10, 20], [], { a: 1, 0: 'z', '1.5': 'f', length: 3, '1e+21': 'e' }, {}, f, 5, true, 1n]
+
+/** Number and string keys, indexes and not. */
+const keys = [0, 1, 2, -0, -1, 1.5, NaN, Infinity, 1e21, 0xffff_ffff, 0x1_0000_0000, '0', '1', '2', '01', '-0', '1.5', ' 1', '', 'a', 'length', '4294967295', '4294967296', '99999999999']
+
+/**
+ * JavaScript's own property of a receiver under a key, with no prototype:
+ * NaNVM's member read.
+ *
+ * @type {(r: unknown, k: unknown) => unknown}
+ */
+const own = (r, k) => Object.getOwnPropertyDescriptor(Object(r), String(k))?.value
 
 /** The strings of {@link values}. */
 const strings = values.filter(v => typeof v === 'string')
@@ -163,8 +178,50 @@ export const proof = {
             ops.forEach(([op, js]) => assertEq(op(x, y), js(x, y), `${String(x)} ${String(y)}`))
         })
     },
+    // `get` reads a receiver's own members only, as NaNVM does, on every
+    // receiver and key: an index by number or canonical string, `length`,
+    // and an object's property, a number key by its string.
+    get: () => {
+        receivers.forEach(r => keys.forEach(k => assertEq(get(r, k), own(r, k), `${String(r)}[${String(k)}]`)))
+        assertEq(get('ab', 1), 'b')
+        assertEq(get('\u{1F600}', 1), '\ude00')
+        assertEq(get([10, 20], '1'), 20)
+        assertEq(get(f, 'length'), 1)
+        assertEq(get({ a: 1 }, 'a'), 1)
+        // a prototype member, or a key of another type, is no member
+        assertEq(get('ab', 'slice'), undefined)
+        assertEq(get(f, 'name'), undefined)
+        assertEq(get({ true: 1 }, true), undefined)
+    },
+    // `call` passes the arguments as they are.
+    call: () => {
+        assertEq(JSON.stringify(call((/** @type {unknown[]} */ ...xs) => xs, [1, 'a'])), '[1,"a"]')
+        assertEq(call(f, ['x']), 'x')
+    },
+    // `toIterable` is what spread iterates: an array itself, a string's
+    // code points, a lone surrogate as itself.
+    toIterable: () => {
+        assert(toIterable(a) === a)
+        ;['', 'ab', '\u{1F600}x', '\ud83d', 'a\ude00\ud83d\ude00\ud83d'].forEach(v => {
+            assertEq(JSON.stringify(toIterable(v)), JSON.stringify([...v]))
+        })
+    },
+    // `objectSpread` is what `{ ...v }` copies, for every kind.
+    objectSpread: () => {
+        ;[...values, 'a\u{1F600}', [1, [2]]].forEach(v => {
+            assertEq(JSON.stringify(Object.entries(objectSpread(v))), JSON.stringify(Object.entries({ .../** @type {object} */ (v) })), String(v))
+        })
+    },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {
+        // a nullish receiver has no member, whatever the key
+        getUndefined: () => { get(undefined, 'a') },
+        getNull: () => { get(null, true) },
+        // only a function can be called
+        call: () => { call({}, []) },
+        // only an array and a string are iterable
+        toIterableNumber: () => { toIterable(1) },
+        toIterableObject: () => { toIterable({}) },
         // a bigint and a number do not mix
         addMixed: () => { add(1n, 1) },
         subtractMixed: () => { subtract(1, 1n) },
