@@ -4,17 +4,17 @@ import { stringEquals, stringLess, strictEquals, toBoolean, typeOf } from './mod
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
 
-const a = [1]
-const o = { a: 1 }
+const a = /** @type {const} */ ([1])
+const o = /** @type {const} */ ({ a: 1 })
 
 /** Values of every kind, with the edge cases of each operation. */
-const values = [
+const values = /** @type {readonly unknown[]} */ ([
     undefined, null, true, false,
     0, -0, NaN, 1, -1.5, Infinity, -Infinity,
     '', 'a', 'ab', 'b', 'B', '\u{1F600}', '\uffff', '0', 'false',
     0n, 1n, -1n, 0x1_0000_0000_0000_0000n,
     a, [1], [], o, { a: 1 }, {}, f, () => 0,
-]
+])
 
 /** The strings of {@link values}. */
 const strings = values.filter(v => typeof v === 'string')
@@ -49,5 +49,12 @@ export const proof = {
             assertEq(stringLess(x, y), x < y, `${x} ${y}`)
         })
         assert(stringLess('\u{1F600}', '\uffff'))
+    },
+    throw: {
+        // both operands of a string comparison must be strings
+        stringEqualsFirst: () => { stringEquals([], []) },
+        stringEqualsSecond: () => { stringEquals('', []) },
+        stringLessFirst: () => { stringLess([], '') },
+        stringLessSecond: () => { stringLess('', [1]) },
     },
 }

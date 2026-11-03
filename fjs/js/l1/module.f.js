@@ -22,12 +22,12 @@
 
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NUMBER, OBJECT, STRING,
-    asBoolean, asNumber, kind, length, same, unit,
+    asBoolean, asNumber, asString, kind, length, same, unit,
 } from '../l0/module.f.js'
 import { bigintEquals } from './native/module.f.js'
 
 /** The answer of `typeof` for each kind tag, in tag order. */
-const typeNames = ['undefined', 'object', 'boolean', 'number', 'string', 'bigint', 'object', 'object', 'function']
+const typeNames = /** @type {const} */ (['undefined', 'object', 'boolean', 'number', 'string', 'bigint', 'object', 'object', 'function'])
 
 /**
  * The `typeof` operator: the name of a value's type, `'object'` for `null`
@@ -58,12 +58,15 @@ export const toBoolean = v => {
 }
 
 /**
- * Whether two strings hold the same units: `===` on two strings.
+ * Whether two strings hold the same units: `===` on two strings. Each
+ * operand must be a string, as for `unit`: `length` alone would answer for
+ * two arrays too.
  *
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const stringEquals = (a, b) => {
-    const n = length(a)
+    const n = length(asString(a))
+    asString(b)
     if (n !== length(b)) { return false }
     let i = 0
     while (i < n && unit(a, i) === unit(b, i)) {
@@ -74,13 +77,13 @@ export const stringEquals = (a, b) => {
 
 /**
  * Whether string `a` sorts before string `b`: `<` on two strings, unit by
- * unit, a proper prefix first.
+ * unit, a proper prefix first. Each operand must be a string.
  *
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const stringLess = (a, b) => {
-    const na = length(a)
-    const nb = length(b)
+    const na = length(asString(a))
+    const nb = length(asString(b))
     let i = 0
     while (i < na && i < nb && unit(a, i) === unit(b, i)) {
         i = i + 1
