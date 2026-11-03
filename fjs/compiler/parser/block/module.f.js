@@ -44,4 +44,3 @@ export const _hasArmThrow = arms => {
     }
     return false
 }
-
