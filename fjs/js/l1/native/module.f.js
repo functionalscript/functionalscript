@@ -15,7 +15,7 @@
  * @module
  */
 
-import { asBigInt } from '../../l0/module.f.js'
+import { asBigInt, asNumber, asString } from '../../l0/module.f.js'
 
 /**
  * Whether two bigints are equal, the bigint case of `===`.
@@ -23,3 +23,27 @@ import { asBigInt } from '../../l0/module.f.js'
  * @type {(a: unknown, b: unknown) => boolean}
  */
 export const bigintEquals = (a, b) => asBigInt(a) === asBigInt(b)
+
+/**
+ * [`Number::toString`](https://tc39.es/ecma262/#sec-numeric-types-number-tostring)
+ * in radix 10: the shortest text that reads back as the same number.
+ *
+ * @type {(n: unknown) => string}
+ */
+export const numberToString = n => String(asNumber(n))
+
+/**
+ * [`StringToNumber`](https://tc39.es/ecma262/#sec-stringtonumber): the
+ * number a string's text spells, `NaN` where it spells none.
+ *
+ * @type {(s: unknown) => number}
+ */
+export const stringToNumber = s => Number(asString(s))
+
+/**
+ * [`BigInt::toString`](https://tc39.es/ecma262/#sec-numeric-types-bigint-tostring)
+ * in radix 10.
+ *
+ * @type {(b: unknown) => string}
+ */
+export const bigintToString = b => String(asBigInt(b))
