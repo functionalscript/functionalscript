@@ -59,6 +59,20 @@ steps that need them. Both Rustdoc and website generation receive the same
 commit and branch metadata. No additional settings or third-party actions are
 required; see [deployment](../website/README.md#github-actions-deployment).
 
+The generated `gen.personal-notes.yml` workflow approves a pull request that
+changes only its author's personal notes, the files under
+`doc/<author's login>/`, when the author has write access
+([`personal-notes`](./personal-notes/module.f.mjs)). It runs on
+`pull_request_target`, also when a pull request is edited, since a new base
+branch changes its files. The workflow and the code it runs are the base
+branch's, so a pull request cannot change what approves it, and the pull
+request itself is read through the API, never checked out. Once a file outside
+the notes changes, it dismisses the approval it gave. It needs two repository
+settings: "Allow GitHub Actions to create and approve pull requests", and an
+Actions policy that lets `pull_request_target` run, since GitHub's default
+policy for public repositories can block that event. Without the second, the
+workflow never starts and every pull request waits for a person.
+
 ## Usage
 
 Run `./dev.sh npm run gen` after changing a generator or input. Commit generated
