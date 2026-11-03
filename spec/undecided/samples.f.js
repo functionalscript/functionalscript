@@ -45,7 +45,6 @@ export const samples = {
     'mod.side-effect-import': 'import "./a.f.js";\nexport default 1;\n',
     'mod.string-import-name': 'import { "x" as y } from "./a.f.js";\nexport default y;\n',
     'mod.top-level-await': 'export default await 1;\n',
-    'lit.octal': 'export default 0o7;\n',
     'lit.trailing-dot': 'export default 5.;\n',
     'lit.string-escape': 'export default "\\x41";\n',
     'lit.string-continuation': 'export default "a\\\nb";\n',
