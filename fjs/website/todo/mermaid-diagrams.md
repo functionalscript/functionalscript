@@ -20,7 +20,7 @@ it would hide every other paragraph of the README to avoid a difference that
 misleads no one.
 
 At `92d8e4a1`, two rendered READMEs hold Mermaid fences:
-`doc/sergey/disot/README.md` holds eight flowcharts, and
+`doc/sergey-shandar/disot/README.md` holds eight flowcharts, and
 `fjs/js/runtime/README.md` holds a flowchart and a sequence diagram.
 
 ### Proposal
@@ -64,7 +64,7 @@ sideways: its picture changes direction, not its content.
 - [x] Draw a node's label of several lines: the reader reads Mermaid's
       `<br>`, `<br/>` and `<br />` as `\n`, and `demo/graph` stacks a
       label's lines. A `\n` written in a label is no line break Mermaid
-      documents, so the reader refuses one; `doc/sergey/disot`'s labels
+      documents, so the reader refuses one; `doc/sergey-shandar/disot`'s labels
       spell their breaks `<br/>`, and every one of its flowcharts draws. An arrow
       with no label beside labelled ones is a row naming its target, as the
       renderer draws one; an arrow label of several lines is refused, as a

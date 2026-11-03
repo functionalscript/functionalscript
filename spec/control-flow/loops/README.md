@@ -115,7 +115,7 @@ Assignment-target headers, `for…in`, `for await…of` and unbraced bodies rema
 outside the admitted forms. The contextual separator `of` is an ordinary
 identifier elsewhere.
 
-Normalization implements the [fold proposal](../../../doc/sergey/for-of.md)
+Normalization implements the [fold proposal](../../../doc/sergey-shandar/for-of.md)
 through the existing structured loop inputs, results and scoped completion
 transport. An internal cursor advances on both fallthrough and owning
 continue and is omitted from the normal result signature. The source binding
