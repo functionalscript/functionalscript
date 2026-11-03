@@ -152,6 +152,7 @@ pub fn from_bool<A: IVm>(b: bool) -> Any<A> {
 
 /// L0 `make_string`: a string of UTF-16 units.
 pub fn make_string<A: IVm>(units: &[u16]) -> Any<A> {
+    fits("make_string", units.len() as u64);
     units.iter().copied().to_string().to_any()
 }
 
@@ -214,6 +215,14 @@ fn range(name: &str, start: u32, len: usize, n: u32) -> core::ops::Range<u32> {
 
 // Strings.
 
+/// A string's length is a `u32`: a longer one traps, as running out of
+/// memory does, rather than wrap.
+fn fits(name: &str, len: u64) {
+    if len > u64::from(u32::MAX) {
+        trap(name, "too long")
+    }
+}
+
 /// L0 `unit`: the UTF-16 unit `i` of a string.
 pub fn unit<A: IVm>(s: &Any<A>, i: u32) -> u16 {
     let s = as_string("unit", s);
@@ -229,6 +238,7 @@ pub fn from_unit<A: IVm>(u: u16) -> Any<A> {
 pub fn concat<A: IVm>(a: &Any<A>, b: &Any<A>) -> Any<A> {
     let a = as_string("concat", a);
     let b = as_string("concat", b);
+    fits("concat", u64::from(a.length()) + u64::from(b.length()));
     a.index_iter().chain(b.index_iter()).to_string().to_any()
 }
 
