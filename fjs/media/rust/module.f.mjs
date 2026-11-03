@@ -37,10 +37,10 @@
 import { error, ok } from '../../types/result/module.f.js'
 import { map } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { isWellFormed, stringToList } from '../../text/utf16/module.f.mjs'
+import { isWellFormed, stringToList } from '../../text/utf16/module.f.js'
 import { isNegativeZero } from '../../types/number/is_negative_zero/module.f.js'
 import { bigint } from '../../types/bigint/from_number/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control
@@ -111,6 +111,14 @@ const u64Hex = hexLiteral(16)
 const sliceLiteral = items => `&[${items.join(', ')}]`
 
 /**
+ * The code units of `v`, each as the hex literal `utf16Literal` lists: its
+ * items, for a printer that marks each one.
+ *
+ * @type {(v: string) => readonly string[]}
+ */
+export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
+
+/**
  * A string's UTF-16 code units as a Rust `&[u16]` slice literal,
  * `&[0xd800, 0x0061]`: the spelling for a string {@link stringLiteral}
  * refuses, since a code unit array holds a lone surrogate where a `&str`
@@ -119,14 +127,6 @@ const sliceLiteral = items => `&[${items.join(', ')}]`
  * @type {(v: string) => string}
  */
 export const utf16Literal = v => sliceLiteral(utf16Units(v))
-
-/**
- * The code units of `v`, each as the hex literal `utf16Literal` lists: its
- * items, for a printer that marks each one.
- *
- * @type {(v: string) => readonly string[]}
- */
-export const utf16Units = v => toArray(map(u16Hex)(stringToList(v)))
 
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,

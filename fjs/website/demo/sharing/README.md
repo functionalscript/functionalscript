@@ -1,7 +1,7 @@
 # Shareable demo inputs
 
 A demo link identifies a module by its page path and restores a complete input
-set through individual query parameters. The shared runtime owns navigation, clipboard access,
+set through individual query parameters. The shared runtime owns navigation, the address bar
 and feedback; demo code remains pure. A restore validates everything first and
 constructs one state, without replaying input events or action buttons.
 
@@ -30,23 +30,34 @@ it. Missing values otherwise use declared defaults. A declared input named
 a known example ID selects the preset, while an allowed custom selection such
 as an empty tree ID remains valid. No declared input is silently discarded.
 
-Copy uses `#demo` for defaults and `?example=ID#demo` for a complete example
+A link uses `#demo` for defaults and `?example=ID#demo` for a complete example
 match. Other inputs are exported in sorted parameter-name order as a complete
-input set. Outputs, action history and generated results are excluded. Copied
-links preserve origin/path and replace the old query; copying never changes the
-address bar.
+input set. Outputs, action history and generated results are excluded. A link
+preserves origin/path and replaces the old query.
 
 ## Address bar
 
-Editing the page's primary Demo keeps the address bar on the current inputs.
-Each time the demo's update queue drains after a reader edit, the runtime
-encodes the inputs with the same rules as **Copy with inputs** and, when the
-query differs, pushes a history entry with it. The heading fragment is left as
-it is, so editing never scrolls; a default input set drops the query. Back and
-forward then walk the edits through the ordinary query navigation below.
-Restores, action buttons and automatic work push nothing, nor do embedded
-instances or demos without inputs. Inputs over the sharing limit push nothing
-and say so; the next edit within the limit clears that notice.
+The address bar always holds the page's primary Demo's current inputs, so it is
+the link to share. Once the demo's update queue has drained and stayed quiet
+for **400 ms**, the runtime encodes the inputs with the rules above and, when
+the query differs, writes it:
+
+- **A reader edit pushes** a history entry. Typing faster than the pause is
+  one entry, not one per key, so Back and forward walk the edits through the
+  ordinary query navigation below.
+- **An action button or automatic work replaces** the current entry. An action
+  that changes an input, such as the proof-of-work demo's **Try next nonce**,
+  keeps the address bar current without adding history. A pause that holds
+  both kinds pushes.
+
+The heading fragment is left as it is, so editing never scrolls; a default input
+set drops the query. A pending write is made at once when the reader follows a
+link or leaves the page, and dropped when they go Back or forward. Browsers
+rate-limit history writes, Safari and Firefox by throwing: the pause keeps
+typing under those limits, and a refused write only leaves the address bar
+behind, never the demo; the next write retries. Restores write nothing, nor do
+embedded instances or demos without inputs. Inputs over the sharing limit write
+nothing and say so; the next write within the limit clears that notice.
 
 The limit is **16,384 ASCII characters for the encoded query plus `#demo`**,
 including `?` and parameter names. Oversized incoming queries are refused before
@@ -60,15 +71,13 @@ Syntax independently. Changing only the heading fragment preserves current
 edits. Browser back/forward restores changed queries, and removing a query
 restores defaults.
 
-## Copy controls
+## Sharing a link
 
-The plain chain beside Demo, **Copy section link**, copies the section target
-without input parameters, including while inputs update or exceed the sharing
-limit. The chain labeled **Copy with inputs** copies the current inputs using
-the query contract above. Its accessible name matches the visible label, and
-this action is disabled for demos without inputs. Each button has its own
-clipboard feedback, visible even with Demo folded. Without JavaScript, the
-native section anchor remains available.
+There is no copy button: the address bar is the link, and the reader copies it
+there. The Demo heading's anchor is a native link to `#demo`, like every other
+[section link](../../README.md#section-links): it navigates rather than copies,
+and keeps the current query. Feedback — a refused link or an oversized input
+set — is shown beside the heading, visible even with Demo folded.
 
 ## Authoring
 
@@ -126,8 +135,8 @@ The existing action buttons remain explicit.
 Initial load and query changes on browser back/forward use the same decoder
 and validator. After restoration, the runtime reveals the actual fragment
 target again, allowing for the restored view's layout. Heading-only navigation
-leaves current demo state alone. Additional embedded instances may copy their
-inputs to the page's primary Demo target; only that target consumes navigation.
+leaves current demo state alone. Only the page's primary Demo target consumes
+navigation and writes the address bar; additional embedded instances do neither.
 
 A small head script records input events before the demo's module graph has
 loaded. Existing native edits are also checked at takeover. If there were
@@ -135,7 +144,3 @@ startup edits, the runtime preserves them, reports that the link was not
 applied, and continues the ordinary startup edit flow. Explicit later query
 navigation can still restore a link. Edits made after restoration was queued
 cancel it before the replacement is committed, preserving the reader's work.
-
-Copy is refused while input updates are pending, so it never silently copies
-an older state. Clipboard success, failure and unavailability use the shared
-clipboard helper. The controls remain hidden without JavaScript.

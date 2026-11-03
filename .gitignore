@@ -150,3 +150,6 @@ index.html
 # Opt-in development environment trial
 /.mise/*
 !/.mise/locks/
+
+# Local dependency graph exported by fjs deps
+_deps.json

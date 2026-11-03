@@ -9,14 +9,15 @@
 import { conditional } from '../../../edag/testlib.f.js'
 import { throws } from 'node:assert/strict'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { tryFunctionText, tryStringify } from '../module.f.mjs'
 import { parse } from '../../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
-import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.mjs'
+import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
 import { _mixedSelfUses } from '../../../edag/to_fast/tail/fixtures.f.js'
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
-import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */
@@ -46,7 +47,85 @@ const graphOf = fn => {
 /** @type {(body: Exp) => unknown} */
 const run = body => compile(['=>', 0, [], body])()
 
+/** @type {(source: string) => FunctionExp} */
+const graphOfSource = source => {
+    const graph = _defaultExport(unresolved(assertOk(parse('/for-of-output.f.js')(source))).edag)
+    assert(graph instanceof Array && graph[0] === '=>')
+    return graph
+}
+
+/** Run both public JavaScript outputs before and after canonical source readback.
+ * @type {(source: string) => Promise<readonly ((...args: readonly unknown[]) => any)[]>}
+ */
+const forOfOutputs = async source => {
+    const graph = graphOfSource(source)
+    const text = assertOk(tryStringify(graph))
+    const restored = graphOfSource(text)
+    const canonical = assertOk(tryStringify(restored))
+    const reread = graphOfSource(canonical)
+    assertEq(assertOk(tryStringify(reread)), canonical)
+    assertStructurallySame(assertOk(identityAnalysis(reread)), assertOk(identityAnalysis(restored)))
+    const originalModule = await import(`data:text/javascript,${encodeURIComponent(text)}`)
+    const canonicalModule = await import(`data:text/javascript,${encodeURIComponent(canonical)}`)
+    return [compileWhile(graph), originalModule.default, compileWhile(restored), canonicalModule.default]
+}
+
 export const proof = {
+    forOfTransfersKeepDeepExecutionAndCanonicalReadback: async () => {
+        const source = 'export default items=>{let sum=0;let count=0;for(const item of items){count+=1;if(item%2===0){continue;}sum+=item;if(item===100_001){break;}}return [sum,count];};'
+        const items = Array.from({ length: 100_003 }, (_, index) => index + 1)
+        for (const fn of await forOfOutputs(source)) {
+            assertStructurallySame(fn([]), [0, 0])
+            assertStructurallySame(fn([0, 1, 2, 3]), [4, 4])
+            assertStructurallySame(fn(items), [2_500_100_001, 100_001])
+        }
+    },
+    forOfCursorIsIndependentOfZeroAndManyNormalResults: async () => {
+        const zeroState = 'export default items=>{for(const item of items){if(item===0){continue;}if(item===2){break;}if(item<0){throw 7;}}return 9;};'
+        const items = [...Array.from({ length: 100_001 }, () => 0), 2, -1]
+        for (const fn of await forOfOutputs(zeroState)) {
+            assertEq(fn([]), 9)
+            assertEq(fn(items), 9)
+            throws(() => fn([0, -1]))
+        }
+        const names = Array.from({ length: 18 }, (_, index) => `state${index}`)
+        const manyState = `export default items=>{${names.map(name => `let ${name}=0;`).join('')}for(const item of items){${names.map((name, index) => `${name}+=item+${index};`).join('')}if(item===2){continue;}if(item===3){break;}}return [${names.join(',')}];};`
+        for (const fn of await forOfOutputs(manyState)) {
+            assertStructurallySame(fn([]), names.map(() => 0))
+            assertStructurallySame(fn([1, 2, 3, 4]), names.map((_, index) => 6 + 3 * index))
+        }
+    },
+    forOfNestedReturnsBypassFollowingWorkWithBoundedStack: async () => {
+        const source = 'export default (outer,inner)=>{let visits=0;for(const value of outer){for(const item of inner){visits+=1;if(item===0){continue;}if(item<0||value===100_001&&item===1){return [value,item,visits];}if(item===2){break;}}visits+=10;}return [null,null,visits];};'
+        const outer = Array.from({ length: 100_001 }, (_, index) => index + 1)
+        for (const fn of await forOfOutputs(source)) {
+            assertStructurallySame(fn([], [0, -1]), [null, null, 0])
+            assertStructurallySame(fn([7, 8], [0, -1, 9]), [7, -1, 2])
+            assertStructurallySame(fn([7, 8], [0, 1, 2, -1]), [null, null, 26])
+            assertStructurallySame(fn(outer, [0, 1]), [100_001, 1, 1_200_002])
+        }
+    },
+    forOfStringsKeepCodePointsLoneSurrogatesAndArrayIdentity: async () => {
+        const source = 'export default input=>{let items=[];for(const item of input){items=[...items,item];}return items;};'
+        const element = Object.freeze({ value: 7 })
+        for (const fn of await forOfOutputs(source)) {
+            assertStructurallySame(fn(''), [])
+            assertStructurallySame(fn('a😀\ud800x\udc00𝄞b'), ['a', '😀', '\ud800', 'x', '\udc00', '𝄞', 'b'])
+            const [first, second] = fn([element, element])
+            assertEq(first, element)
+            assertEq(second, element)
+            throws(() => fn(null))
+            throws(() => fn({ 0: 'x', length: 1 }))
+        }
+    },
+    forOfEmptyInputsRetainSourceWritesAndIterationDefaults: async () => {
+        const source = 'export default input=>{let state=0;for(const [item=state] of (()=>{state+=1;return input;})()){state+=item+1;}return state;};'
+        for (const fn of await forOfOutputs(source)) {
+            assertEq(fn([]), 1)
+            assertEq(fn([[], []]), 7)
+            assertEq(fn([[2], [3]]), 8)
+        }
+    },
     forLoopTransfersUseWhile: async () => {
         const source = 'export default (test,body,step)=>{for(let i=0;test(i);i=step(i)){if(i===1){continue;}if(i===3){break;}body(i);}return 9;};'
         const graph = _defaultExport(unresolved(assertOk(parse('/for-transfers.f.js')(source))).edag)

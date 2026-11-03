@@ -119,7 +119,7 @@ why `fjs/git` wants it and what it does until then.
 - [alternates-line-quirks.md](../alternates/todo/alternates-line-quirks.md) — carries this as one
   of the two lines where that reader and Git look in different directories, and
   the `NUL` as the shape that was a third until it was cut.
-- [`fjs/git/alternates`](../alternates/module.f.mjs) — `alternatesIn`, which
+- [`fjs/git/alternates`](../alternates/module.f.js) — `alternatesIn`, which
   reads such a line as an ordinary path.
 - [Paths as bytes](../../effects/node/todo/byte-paths.md) — the effects change
   this waits on.

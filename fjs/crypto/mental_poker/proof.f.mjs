@@ -6,7 +6,7 @@ import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStruct
 import { runPure } from '../../effects/module.f.mjs'
 import { curve, eq, secp256k1 } from '../secp/module.f.js'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
-import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.mjs'
+import { cardBits, lockAndShuffle, maxDeckSize, mentalPoker, shuffle, unlockAll } from './module.f.js'
 import { cardName, demo, setup, transition } from './demo.f.mjs'
 
 const { deck, key, open } = mentalPoker(secp256k1)

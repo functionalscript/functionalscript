@@ -9,13 +9,13 @@
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { BindingEvent, BindingId, BindingScope, LoopTarget } from '../../js/ast/types.ts'
- * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
+ * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch, SourceForOf } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -33,6 +33,7 @@ import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -60,9 +61,6 @@ const duplicateId = foldError('duplicate id')
 
 /** A braced switch arm must leave the arm rather than fall into the next one. */
 const unterminatedCase = foldError('switch case does not terminate')
-
-/** Generic syntax retains for-of; iteration remains outside FJS admission. */
-const unsupportedForOf = foldError('for-of is not admitted')
 
 /** Generic construction syntax does not admit constructor execution. */
 const unsupportedNew = foldError('new is not admitted')
@@ -231,55 +229,6 @@ const unterminated = (previous, next) => previous !== null && hasEntry(previous,
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
 
 
-/** Source identity is independent of the value its initialization computes. @type {(index: number) => BindingId} */
-const sourceBinding = index => ({ index })
-
-/** @type {(scope: _Scope, events: readonly BindingEvent[]) => _Scope} */
-const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: concat(scope.trace.events)(events), count: scope.trace.count + events.length } })
-
-/** Materialize ordered evidence once at a source function or region boundary. @type {(scope: _Scope) => BindingScope} */
-const completedTrace = scope => ({ target: scope.trace.target, bindings: scope.trace.bindings, events: toArray(scope.trace.events) })
-
-/** @type {(plan: _Plan, kind: _DeclarationKind) => readonly BindingOrigin[]} */
-const planOrigins = (plan, kind) => {
-    /** @type {List<BindingOrigin>} */
-    let origins = null
-    let named = 0
-    // Names follow their read indices, so each name and hidden read is visited once.
-    for (let index = 0; index < plan.ids.length; index += 1) {
-        const entry = plan.names[named]
-        const name = entry !== undefined && entry[1] === index ? entry[0] : undefined
-        if (name !== undefined) { named += 1 }
-        origins = { first: { id: plan.ids[index], name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }, tail: origins }
-    }
-    return toArray(reverse(origins))
-}
-
-/** Declare before initialization without making the name readable in its TDZ. @type {(scope: _Scope, plan: _Plan, kind: _DeclarationKind) => _Scope} */
-const declared = (scope, plan, kind) => ({ ...scope, trace: { ...scope.trace, bindings: [...scope.trace.bindings, ...plan.ids] }, sourceOrigins: [...scope.sourceOrigins, ...planOrigins(plan, kind)] })
-
-/** Whether a declaration's names are variables, which an assignment may rebind: a `let`'s and a parameter's. @type {(kind: _DeclarationKind) => boolean} */
-const isVariable = kind => kind !== 'const'
-
-/** Initialize each expanded identity once; aliases retain separate source IDs. @type {(scope: _Scope, plan: _Plan) => _Scope} */
-const initialized = (scope, plan) => traced({
-    ...scope,
-    origins: plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[index])(origins), scope.origins),
-}, plan.ids.map(id => ['initialize', id]))
-
-/** @type {() => _Scope} */
-const moduleScope = () => ({
-    names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, selfVariable: false, captures: [], region: false, inFunction: false, blockCall: false,
-    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
-})
-
-/** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
-const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true, inFunction: outer.inFunction, blockCall: false,
-    trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
-})
-
 /**
  * The word an identifier token spells where JavaScript wants an identifier
  * — a name bound or referenced — refusing every keyword: the tokenizer
@@ -332,7 +281,7 @@ const unknownType = foldError('unknown import type')
  *
  * @type {(statement: Import) => Result<Omit<AstImport, 'name'>, ParseError>}
  */
-const imported = ({ module, attribute }) => {
+export const _readImport = ({ module, attribute }) => {
     if (attribute === null) { return ok({ specifier: module, json: false }) }
     const [key, value] = attribute
     if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
@@ -632,6 +581,7 @@ const patternRound = (stack, scope, frame) => {
         const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
         return lateRound(stack, next, { ...continuation.parameter, index: continuation.parameter.index + 1 })
     }
+    if ('forOf' in continuation) { return forOfBody(stack, scope, continuation.forOf, plan) }
     if ('loop' in continuation) { return loopRound(stack, scope, advanced(continuation.loop, [['initialize', plan, continuation.value]])) }
     if ('body' in continuation) { return bodyRound(stack, scope, advanced(continuation.body, [['initialize', plan, continuation.value]])) }
     return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
@@ -1138,7 +1088,7 @@ const hasTargetBreak = (root, target) => {
         for (const statement of block.statements) {
             if (statement[0] === 'break' && statement[1] === target) { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
     }
@@ -1157,6 +1107,54 @@ const enterFor = (stack, scope, loop, body, terminal = false) => {
     })
 }
 
+/** Resolve the iterable once, before initializing a fresh iteration binding.
+ * @type {(stack: _Stack, scope: _Scope, loop: ForOf, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State}
+ */
+const enterForOf = (stack, scope, loop, body, terminal = false) => {
+    const inner = regionScope(scope, empty, null)
+    const [kind, plan] = planned(bodyBindable(inner))(loop.target, null)
+    if (kind === 'error') { return [stack, scope, error(plan)] }
+    /** @type {_ForOfFrame} */
+    const frame = { forOf: loop, body, target: { kind: 'loop', index: scope.trace.count + 1 }, item: sourceBinding(0), plan, source: null, initial: [], terminal }
+    return [{ top: frame, rest: stack }, inner, ['enter', loop.iterable]]
+}
+
+/** The body owns a lexical scope inside the per-iteration declaration scope.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, plan: ExpansionPlan) => _State}
+ */
+const forOfBody = (stack, scope, frame, plan) => loopRound({
+    top: { ...frame, initial: [['initialize', plan, ['ref', frame.item]]] }, rest: stack,
+}, regionScope(scope, empty, null), {
+    block: frame.forOf.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+})
+
+/** Keep iterable effects outside iteration events, and retain original transfer owners.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, value: SourceValue) => _State}
+ */
+const forOfReturned = (stack, scope, frame, value) => {
+    if (frame.source === null) {
+        const shadowed = frame.plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+        if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+        /** @type {_ForOfFrame} */
+        const next = { ...frame, source: [value] }
+        const inner = declared(regionScope(scope, empty, null), frame.plan, frame.forOf.kind)
+        return hasPatternDefault(frame.plan)
+            ? patternRound(stack, inner, { pattern: frame.plan, index: 0, reads: [], kind: frame.forOf.kind, continuation: { forOf: next } })
+            : forOfBody(stack, boundPlan(inner, frame.plan, isVariable(frame.forOf.kind)), next, expansion(frame.plan))
+    }
+    const body = regionBlock(value)
+    /** @type {SourceForOf} */
+    const loop = { target: frame.target, events: completedTrace(scope).events, source: frame.source[0], item: frame.item,
+        body: { ...body, statements: [...frame.initial, ...body.statements] } }
+    const outer = restoredScope(restoredScope(scope, false), false)
+    /** @type {SourceStatement} */
+    const statement = ['for-of', loop]
+    if (frame.body === null) { return [stack, outer, ok(['block', { statements: [statement], exit: ['yield', undefined] }])] }
+    if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [statement])) }
+    if (frame.terminal && !frame.body.branch) { return [stack, outer, error(foldError('terminal for-of may complete normally')(frame.forOf.start))] }
+    return bodyRound(stack, outer, advanced(frame.body, [statement]))
+}
+
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
  * value in document order. Source guards retain their lexical block and the
@@ -1168,7 +1166,6 @@ const bodyRound = (stack, scope, frame) => {
     const { statements, first, index } = frame
     if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
     const [kind, statement] = statements[index]
-    if (kind === 'for-of' || kind === 'terminal-for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
     // the statement's own beginning before either half of it: the one
     // before it, written without its `;`, ends at a newline or not at all
     if (unterminated(index === first ? null : statements[index - 1][1], statement)) {
@@ -1180,6 +1177,7 @@ const bodyRound = (stack, scope, frame) => {
     // evidence reaches sugar before mutable loop inputs are selected.
     if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
     if (kind === 'for' || kind === 'terminal-for') { return enterFor(stack, scope, statement, frame, kind === 'terminal-for') }
+    if (kind === 'for-of' || kind === 'terminal-for-of') { return enterForOf(stack, scope, statement, frame, kind === 'terminal-for-of') }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1692,6 +1690,7 @@ const returned = (stack, scope, frame, value) => {
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
+    if (hasEntry(frame, 'forOf')) { return forOfReturned(stack, scope, frame, value) }
     if (hasEntry(frame, 'for')) {
         const block = regionBlock(value)
         if (frame.initial === null) {
@@ -1859,7 +1858,7 @@ const hasArmThrow = arms => {
         for (const statement of block.statements) {
             if (statement[0] === 'throw') { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
     }
@@ -2022,7 +2021,6 @@ const loopRound = (stack, scope, frame) => {
             return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
-        if (kind === 'for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
@@ -2038,6 +2036,7 @@ const loopRound = (stack, scope, frame) => {
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
         if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
+        if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
         if (kind === 'switch') {
             return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
                 regionScope(scope, empty, null), ['enter', statement.discriminant]]
@@ -2060,30 +2059,6 @@ const loopRound = (stack, scope, frame) => {
 const regionBlock = value => {
     assert(value instanceof Array && value[0] === 'block')
     return value[1]
-}
-
-/**
- * Merge complete source evidence at a lexical boundary. The captures the
- * scope holds, still pending, of bindings it declares itself are decided:
- * harmless, since the function that made them was called inside the
- * binding's scope. The rest pass to the outer scope after the outer's own,
- * in document order — pending still, unless the scope is a function `held`
- * as a value, which makes them escaped: those a reassignment refuses,
- * {@link resolvedModule}.
- *
- * @type {(scope: _Scope, held: boolean) => _Scope}
- */
-const restoredScope = (scope, held) => {
-    const outer = assertNotNullish(scope.outer, 'a source region without its enclosing scope')
-    const trace = completedTrace(scope)
-    /** @type {BindingEvent} */
-    const event = scope.region ? ['region', trace.events] : ['function', trace]
-    const kept = scope.captures.filter(capture => capture.escaped || !trace.bindings.includes(capture.id))
-    return {
-        ...traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
-        sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
-        captures: [...outer.captures, ...(held ? kept.map(capture => ({ ...capture, escaped: true })) : kept)],
-    }
 }
 
 /**
@@ -2128,7 +2103,7 @@ const internalReturn = body => {
         for (const statement of block.statements) {
             if (statement[0] === 'return') { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
         const exit = block.exit
@@ -2269,7 +2244,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
-    /** @type {Statement | While | null} */
+    /** @type {Statement | While | ForOf | null} */
     let previous = null
     for (const statement of imports) {
         if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
@@ -2287,7 +2262,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
             }, [['initialize', id]])
             importIds = [...importIds, id]
         }
-        const [read, record] = imported(statement)
+        const [read, record] = _readImport(statement)
         if (read === 'error') { return error(record) }
         modules = [
             ...modules,
@@ -2297,12 +2272,11 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
-        if (statement[0] === 'for-of') { return error(unsupportedForOf(statement[1].start)) }
-        if (statement[0] === 'while' || statement[0] === 'for') {
+        if (statement[0] === 'while' || statement[0] === 'for' || statement[0] === 'for-of') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
             previous = loop
-            const [tag, evaluated] = evaluateState(statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, loop, null))
+            const [tag, evaluated] = evaluateState(statement[0] === 'for-of' ? enterForOf(null, scope, statement[1], null) : statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, statement[1], null))
             if (tag === 'error') { return error(evaluated) }
             scope = evaluated.scope
             body = [...body, ...regionBlock(evaluated.value).statements]

@@ -88,7 +88,7 @@ check. These successful shared-sequence profiles establish no general graph
 identity, stable hash or graph/text fixed-point guarantee. The established
 canonical profile contracts remain unchanged.
 
-The [deferred-tail fixtures](../../../../from_fast/deferred_tail_calls/fixtures.f.mjs)
+The [deferred-tail fixtures](../../../../from_fast/deferred_tail_calls/fixtures.f.js)
 include `nestedRecipe` and `normalPayload`, which now reach public source through
 the bounded immutable result recovery described below. JavaScript and Rust also
 execute their deep owning tail transitions. The

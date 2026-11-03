@@ -7,7 +7,12 @@ export type Environment = readonly (readonly [BindingId, Value])[]
 export type Context = {
     readonly bindings: readonly Binding[]
     readonly scopes: readonly BindingScope[]
-    readonly loop: { readonly target: LoopTarget; readonly sources: readonly BindingId[] } | null
+    readonly loop: {
+        readonly target: LoopTarget
+        readonly sources: readonly BindingId[]
+        /** Generated iteration inputs precede source state on an owning continue. */
+        readonly continuePrefix?: readonly Value[]
+    } | null
     readonly breakRegion: Context['loop']
     readonly writes: ReadonlyMap<SourceValue | SourceBlock, readonly BindingId[]>
 }

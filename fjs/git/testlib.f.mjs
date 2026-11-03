@@ -10,7 +10,7 @@
  */
 
 import { assert } from '../asserts/module.f.js'
-import { decode } from '../basen/base16/module.f.mjs'
+import { decode } from '../basen/base16/module.f.js'
 import { ioError } from '../effects/module.f.mjs'
 
 /**

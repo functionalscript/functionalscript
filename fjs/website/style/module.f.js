@@ -325,7 +325,7 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    column GitHub reads a rendered Markdown file in — so a page here is as wide
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
-main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 2.5rem }
 /* The breadcrumb is where the page sits, not what it is about: a small
    muted line above the page's heading, which is the README's title or, on a
    page without one, the directory's name. The space between the two is the
@@ -532,21 +532,41 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
-/* Heading links preserve native anchors until clipboard controls are bound. */
-[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
+/* A heading's anchor sits in its left margin, as on GitHub, so the heading
+   text keeps the body's left edge. Where the reader can hover it shows while
+   the heading is hovered or the anchor focused; on a touch screen, where
+   nothing hovers, it is always shown. The page's gutters hold it. */
+[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; margin: 1.5rem 0 .75rem }
 [data-linked-heading] > :is(h1,h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
-[data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
-[data-permalink] > button, [data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .375rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
+[data-permalink] { display: inline-flex; vertical-align: middle; font-size: .75rem; font-weight: normal }
+[data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 1.75rem; height: 2rem; padding: .25rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
 [data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
-[data-permalink] > button:hover, [data-permalink] > a:hover { color: var(--text) }
-[data-permalink] > button:focus-visible, [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
-[data-permalink] [hidden] { display: none }
-[data-permalink] > button[data-copy-feedback="copied"] { color: var(--pass) }
-[data-permalink] > button[data-copy-feedback] > [data-copy-status] { position: fixed; left: 50%; right: auto; top: auto; bottom: 1rem; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 2rem); white-space: normal; text-align: center; z-index: 10 }
-[data-permalink]:has(> [data-copy-demo-section]) { gap: .25rem }
-[data-permalink] > button[data-copy-demo] { width: auto; gap: .375rem; white-space: nowrap }
-[data-permalink] > button[data-copy-demo] > svg { flex-shrink: 0 }
-[data-permalink] > button:disabled { opacity: .45; cursor: default }
+[data-permalink] > a:hover { color: var(--text) }
+[data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
+/* A README heading's anchor leads the row and its negative margin takes it
+   out to the left — its 1.75rem and the row's .35rem gap — so it keeps the
+   row's baseline. */
+[data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
+/* A section's summary is one line of text, the disclosure triangle first;
+   its anchor is pinned to the left of that first line, the same gap from it
+   as a README heading's, so every anchor on a page lines up. */
+[data-section] > summary:has(> [data-permalink]) { position: relative }
+[data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: calc(100% + .35rem); top: 0; height: 1.5rem }
+@media (hover: hover) {
+    [data-heading-anchor] { opacity: 0 }
+    :is([data-linked-heading], [data-section] > summary):hover [data-heading-anchor], [data-heading-anchor]:focus-visible { opacity: 1 }
+}
+/* The gutters that hold the anchor, 2.1rem and some room: \`main\`'s own
+   padding, the directory layout's gap clear of the catalogue's divider, and
+   the narrow directory layout's padding beside the screen's edge. A directory
+   with an empty catalogue is one centred column at every width, so it keeps
+   that padding at every width: above 48rem its centring margin is too narrow
+   for the anchor until the window is about 67.5rem wide. */
+[data-directory-layout] { column-gap: 3rem }
+[data-directory-layout]:has(> [data-catalogue]:empty) > main { padding-inline: 1.5rem }
+@media (max-width: 48rem) {
+    [data-directory-layout] > main { padding-inline: 1.5rem }
+}
 [id] { scroll-margin-top: 1rem }
 
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }

@@ -66,6 +66,8 @@ export const proof = /** @type {const} */ ({
         // Past the emoji blocks, nothing is known to be dropped.
         legacySymbol: () => assertEq(slug([['text', 'a\u{1fb00}']]), 'a'),
         digits: () => assertEq(slug([['strong', [['text', '10-'], ['code', '2']]]]), '10-2'),
+        // A struck word is a word of the anchor, as GitHub makes it.
+        struck: () => assertEq(slug([['del', [['text', 'a']]], ['text', ' b']]), 'a-b'),
     },
     anchors: () => assertStructurallySame(
         anchors([['heading', 1, [['text', 'A']]], ['paragraph', []], ['heading', 2, [['text', 'a']]], ['heading', 2, [['text', 'B']]], ['heading', 3, [['text', 'A']]]]),
@@ -199,6 +201,10 @@ export const proof = /** @type {const} */ ({
                 error('an image whose source is not an https address: http://e.x/b.svg')),
             imageInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'a '], ['image', 'b', 'https://e.x/c.png']]]]),
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
+            imageStruckInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['del', [['image', 'b', 'https://e.x/c.png']]]]]]),
+                error('an image in a heading, whose anchor GitHub may make otherwise')),
+            struck: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['del', [['text', 'a'], ['code', 'b']]]]]]),
+                ok([['p', ['del', 'a', ['code', 'b']]]])),
             badgeInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['image', 'b', 'https://e.x/c.png']], 'd']]]]),
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
             paragraph: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['text', 'a'], ['link', [['text', 'x']], 'bad']]]]), error('no')),

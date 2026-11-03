@@ -37,17 +37,17 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-Two controls beside Demo distinguish **Copy section link** (plain chain) from
-**Copy with inputs** (chain with a visible text label). The section link always
-copies `#demo` without a query; input links use `#demo` for defaults. Example links
+The address bar is the link to share: it always holds the demo's current
+inputs in its query, and the Demo heading's anchor is a plain
+[section link](#section-links). Input links use `#demo` for defaults. Example links
 such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
 custom inputs use individual query parameters such as `?compiler=source#demo`.
 Restore validates all inputs before replacing state and never presses action
-buttons. Each settled edit pushes a history entry carrying the same query, so
-the address bar is always the current link and Back walks the edits. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
+buttons. A reader edit pushes a history entry once typing pauses, so Back walks
+the edits; an action that changes an input replaces the entry instead. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
 atomic sharing adapter; `textDemo` supplies one automatically. See the
 [sharing contract](./demo/sharing/README.md) for encodings, validation,
-clipboard feedback, startup edits and history navigation.
+startup edits and history navigation.
 
 ## Section links
 
@@ -59,11 +59,14 @@ suffix. Empty heading slugs start at `section`. Heading text is unchanged. Demo 
 per-instance namespace at prerender and runtime; see
 [DOM identifiers](./demo/README.md#dom-identifiers-and-repeated-instances).
 
-A native permalink beside each documentation or main section heading works
-without JavaScript. Once the shared fragment runtime binds, a keyboard-accessible
-**Copy link** button replaces that fallback. It copies the current page URL with
-the heading fragment, reports clipboard success or failure, and leaves both the
-address bar and section's open state alone. Controls sit outside the heading's
+Each documentation or main section heading has an anchor, as on GitHub: a
+native link to the heading's fragment, in the heading's left margin, shown
+while the heading is hovered or the anchor has keyboard focus. Clicking it
+scrolls the heading to the top and puts its fragment in the address bar, with a
+history entry; copying the link is the browser's own link menu. It needs no
+JavaScript. On a touch screen, where nothing hovers, the anchor stays in the
+margin and is always shown, as on GitHub's mobile view. The page's side gutters
+are wide enough to hold it at every width. It sits outside the heading's
 accessible name.
 
 Initial fragment navigation, hash changes, back/forward navigation, and repeated

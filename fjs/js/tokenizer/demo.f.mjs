@@ -23,7 +23,7 @@
  */
 
 import { codeMarker } from '../../website/style/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { caption, textDemo } from '../../website/demo/module.f.mjs'
 import { highlight } from '../../website/demo/highlight/module.f.mjs'

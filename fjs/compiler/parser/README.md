@@ -221,14 +221,16 @@ member ::= id [ ':' value ] | string ':' value | number ':' value | '[' string '
 items  ::= item [ ',' [ items ] ]
 ```
 
-The syntax layer also represents braced `for…of` declaration loops, including
-binding patterns, independently of FunctionalScript admission. Its distinct
-`for-of` node retains the declaration, iterable expression and body.
-`parseFromTokens` explicitly refuses that node at the `for` token, including
-at module level or inside nested bodies. No iterable is evaluated and no FAST
-or EDAG lowering is defined by this syntax support. Classic `for` retains its
-existing syntax representation and admission. `of` remains an ordinary name
-outside the header separator, as in `for (const of of of)`.
+The syntax layer represents braced `for…of` declaration loops, including
+binding patterns. Its distinct `for-of` node retains the declaration,
+iterable expression and body. FunctionalScript admission resolves `const`/`let`
+headers with the existing name, pattern and capture rules, and records the
+iterable separately from each iteration's initialization and body events.
+Sugar materializes the source through spread, then lowers traversal through
+the existing structured loop state and scoped exits. Arrays and strings follow
+the [loop contract](../../../spec/control-flow/loops/README.md#forof);
+other values fail at runtime through spread. Classic `for` retains its existing
+representation. `of` remains an ordinary name outside the header separator.
 
 Constructor expressions with an argument list, `new Callee(arguments)`, also
 form a generic AST before admission. The `new` node retains the constructor

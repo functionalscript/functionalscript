@@ -52,6 +52,7 @@ export const writes = (root, functions) => {
                     : statement[0] === 'compound-write' ? [statement[3]]
                     : statement[0] === 'if' ? [statement[1], statement[2], statement[3]]
                     : statement[0] === 'while' ? [statement[1].condition, statement[1].body, ...(statement[1].step === undefined ? [] : [statement[1].step])]
+                    : statement[0] === 'for-of' ? [statement[1].source, statement[1].body]
                     : statement[0] === 'switch' ? [statement[1].discriminant, ...statement[1].cases.flatMap(arm => [...arm.labels, arm.body]), statement[1].otherwise]
                     : statement[0] === 'return' ? [statement[2]] : statement[0] === 'throw' ? [statement[1]] : [])]
             }

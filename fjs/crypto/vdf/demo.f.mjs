@@ -48,7 +48,7 @@ import { computeSync, sha256 } from '../sha2/module.f.mjs'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.mjs'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 
 /** Steps evaluated per browser turn: a few tens of milliseconds. */
 const batch = 10n

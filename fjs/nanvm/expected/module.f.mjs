@@ -43,7 +43,7 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { withoutNegativeZero } from '../corpus/module.f.mjs'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 /** The first line of a generated expectation. @type {(fixture: string) => string} */

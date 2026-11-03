@@ -14,7 +14,7 @@ import {
     floorCodePointBoundary,
     isWellFormed,
     utf16Decoder,
-} from './module.f.mjs'
+} from './module.f.js'
 import { stringifySorted as stringify } from '../../media/json/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'

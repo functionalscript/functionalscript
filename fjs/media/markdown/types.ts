@@ -35,7 +35,19 @@
  * neither carries {@link Inline}: a deeper shape would be a generality no
  * file uses, and the parser would owe it a meaning.
  */
-export type Inline =
+export type Inline = Struck | readonly ['del', readonly Struck[]]
+
+/**
+ * One span a strikethrough may hold: any {@link Inline} span but another
+ * strikethrough.
+ *
+ * **Strikethrough is GitHub's `~~text~~`, read in a paragraph's own
+ * text**: a file strikes out a task that was settled, `~~**Build the
+ * string in blocks.**~~`, and holds bold, code and links inside it. It is
+ * read only where its two tilde runs stand outside any other span; inside
+ * bold or emphasis, or across one, it is refused, as is one inside another.
+ */
+export type Struck =
     | readonly ['text', string]
     | readonly ['code', string]
     | readonly ['strong', readonly Bolded[]]

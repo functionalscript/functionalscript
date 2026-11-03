@@ -7,7 +7,7 @@
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Loop, Operator, Statement, Value } from '../types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
- * @import { ExpansionPlan, SourceBlock, SourceExit, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
+ * @import { ExpansionPlan, SourceBlock, SourceExit, SourceForOf, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
  * @import { Task } from '../task/types.ts'
  * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, ReferenceTask, Results, Work } from './private.ts'
@@ -757,6 +757,57 @@ const normalizedLoop = (loop, environment, context, terminal) => {
 }
 
 /**
+ * Spread supplies the existing iterable admission and Unicode behavior once at
+ * entry. The generated cursor and source state use the ordinary structured-loop
+ * helper; its scoped completion transport keeps break and function exits owned.
+ * @type {(loop: SourceForOf, environment: Environment, context: Context) => Normalized}
+ */
+const normalizedForOf = (loop, environment, context) => {
+    const entry = normalizedState(environment, context)(loop.source)
+    if (!entry.normal) {
+        return { block: evaluatedBlock(entry), environment: entry.environment, normal: false, hasLoopExit: true, hasFunctionExit: true }
+    }
+    const items = binding(loop.item.index)
+    const cursor = binding(loop.item.index)
+    const events = eventFacts(loop.events)
+    const sources = loopSources(events.references, entry.environment, context)
+    const parameters = sources.map(source => binding(source.index))
+    const results = sources.map(source => binding(source.index))
+    /** @type {Value} */
+    const advance = ['+', reference(cursor), 1]
+    /** @type {Environment} */
+    const scope = [...entry.environment,
+        ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])])),
+        [loop.item, ['.', reference(items), ['Number', reference(cursor)]]],
+    ]
+    const transfer = { target: loop.target, sources, continuePrefix: [advance] }
+    const step = normalizedBlock(loop.body, scope, { ...context, loop: transfer, breakRegion: transfer }, sources)
+    /** @type {Block} */
+    const continuing = step.block.exit[0] === 'yield'
+        ? { ...step.block, exit: ['continue', loop.target, [advance, ...sources.map(source => lookup(step.environment, source))]] }
+        : step.block
+    /** @type {Block} */
+    const body = {
+        statements: [['if', [], ['<', reference(cursor), ['.', reference(items), 'length']], continuing,
+            { statements: [], exit: ['break', loop.target, parameters.map(reference)] },
+        ]],
+        exit: ['yield', []],
+    }
+    return {
+        block: {
+            statements: [...entry.statements, ['define', items, ['array', [['...', entry.value]]], 'required'],
+                ['loop', { target: loop.target, parameters: [cursor, ...parameters], initial: [0, ...sources.map(source => lookup(entry.environment, source))], results, body }],
+            ],
+            exit: ['yield', []],
+        },
+        environment: [...entry.environment, ...sources.flatMap((source, index) => events.writes.includes(source) ? [/** @type {const} */ ([source, reference(results[index])])] : [])],
+        normal: true,
+        hasLoopExit: step.hasFunctionExit,
+        hasFunctionExit: step.hasFunctionExit,
+    }
+}
+
+/**
  * Assignments retain their source identity until this complete scan. Source
  * loop inputs, iteration versions and results are chosen here, after analysis.
  *
@@ -777,7 +828,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         if (statement[0] === 'break' || statement[0] === 'continue') {
             const loop = assertNotNullish(statement[0] === 'break' ? context.breakRegion : context.loop, 'a source transfer has no target')
             assert(loop.target === statement[1], 'a source loop exit targets another loop')
-            const values = loop.sources.map(source => lookup(inner, source))
+            const values = [...statement[0] === 'continue' ? loop.continuePrefix ?? [] : [], ...loop.sources.map(source => lookup(inner, source))]
             return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false,
                 hasLoopExit: hasLoopExit || loop === context.loop, hasFunctionExit }
         }
@@ -855,10 +906,11 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             inner = made.environment
             continue
         }
-        const made = normalizedLoop(statement[1], inner, context, false)
+        const made = statement[0] === 'for-of' ? normalizedForOf(statement[1], inner, context) : normalizedLoop(statement[1], inner, context, false)
         statements = [...statements, ...made.block.statements]
         hasLoopExit = hasLoopExit || made.hasLoopExit
         hasFunctionExit = hasFunctionExit || made.hasFunctionExit
+        if (!made.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: made.environment, normal: false, hasLoopExit, hasFunctionExit } }
         inner = made.environment
     }
     if (source.exit[0] === 'terminal-loop') {

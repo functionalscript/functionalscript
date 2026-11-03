@@ -70,6 +70,16 @@ export type SourceLoop = {
     readonly step?: SourceBlock
 }
 
+/** Iteration keeps its source operand and fresh item identity until sugar. */
+export type SourceForOf = {
+    readonly target: LoopTarget
+    readonly events: readonly BindingEvent[]
+    readonly source: SourceValue
+    /** Internal input to the body's checked declaration or assignment plan. */
+    readonly item: BindingId
+    readonly body: SourceBlock
+}
+
 /** A switch owns break completion without changing the enclosing continue target. */
 export type SourceSwitch = {
     readonly target: LoopTarget
@@ -87,6 +97,7 @@ export type SourceStatement =
     /** Only normally completing arms resume the next statement; an omitted else is empty. */
     | readonly ['if', SourceValue, SourceBlock, SourceBlock]
     | readonly ['while', SourceLoop]
+    | readonly ['for-of', SourceForOf]
     | readonly ['switch', SourceSwitch]
     /** Source resolution fixes the innermost loop; sugar supplies its state. */
     | readonly ['break', LoopTarget]
