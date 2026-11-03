@@ -21,7 +21,7 @@ Stable Rust produces neither. Checked with Rust 1.99.1 and a nightly from
 | --- | --- |
 | `extern "C" fn call(f: i64, a: i64) -> R`, `R` a `#[repr(C)]` pair | `(i32, i64, i64) -> ()` |
 | `fn call(f: i64, a: i64) -> (i32, i64)`, the Rust ABI | `(i32, i64, i64) -> ()` |
-| a call through `fn(i64, i64) -> (i32, i64)` | `(i32, i32, i64) -> ()` |
+| a call through a pointer of type `fn(i64, i64) -> (i32, i64)` | a `call_indirect` of type `(i32, i64, i64) -> ()` |
 
 The pair always travels through a hidden pointer into memory. The
 `multivalue` feature lets LLVM emit multi-value code, but rustc's ABIs
