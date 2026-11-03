@@ -40,8 +40,6 @@ Id: `0..9`, `A..Z`, `a..z`, `$_`.
 
 `48` or `56` address spaces.
 
-`56 - 52 = 4`
-
 Alignments:
 
 |     | Bytes |  Bits |
@@ -53,9 +51,19 @@ Alignments:
 | `4` | `16`  | `128` |
 | `5` | `32`  | `256` |
 
-**Fail-fast** design: as soon as a function receives a pointer to allocated memory, the function tests it with our hypothesis. If the hypothesis is confirmed, the function encodes the pointer, otherwise it panics. For example:
+**Fail-fast** design: as soon as a function receives a pointer to allocated memory, the function tests it with an encoding hypothesis. If the hypothesis is confirmed, the function encodes the pointer, otherwise it panics. For example:
 
 ```rust
 const MASK: u64 = 0xFFFF_0000_0000_0000;
 assert_eq!(address & MASK, 0, "pointer exceeds NaNPtr address range");
 ```
+
+## Capacity
+
+|         |        | Prefix | Info                                        |
+|---------|--------|--------|---------------------------------------------|
+|`string` | `2^51` |`00`    | Strings + primitives and non-finite numbers |
+|`pointer`| `2^51` |`01`    | Pointer + data types                        |
+|`bigint` | `2^52` |`1X`    | Sign and 51 bit uint                        |
+|**Total**| `2^53` |        |                                             |
+
