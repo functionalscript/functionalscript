@@ -68,7 +68,7 @@ export const proof = {
             assertEq(closure[1], 0)
         }
     },
-    sourceAdmissionRemainsConservative: () => {
+    completionIsDecidedDuringFastLowering: () => {
         for (const source of [
             'export default ()=>{while(true){break;}};',
             'export default ()=>{while(true){if(false){break;}}};',
@@ -82,6 +82,8 @@ export const proof = {
             'export default ()=>{};',
             'export default ()=>{const value=1;};',
             'export default ()=>{while(true){}const value=1;};',
+        ]) { assertOk(parse('')(source)) }
+        for (const source of [
             'export default ()=>{while(true){if(false){const unused=missing;}}};',
             'export default ()=>{while(true){return 1;const unused=missing;}};',
             'export default ()=>{let value=0;while(true){const held=()=>value;value=value+1;if(false){return held;}}};',

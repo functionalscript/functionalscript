@@ -49,7 +49,8 @@ const restBlockTask = (block, length, target) => {
 }
 
 /**
- * An invocation layout with its whole public result returned directly.
+ * An invocation layout with its whole public result returned directly, or a
+ * terminal loop exit with no normal result or successor.
  * Established capture/self aliases are harmless prefix reads. Only parameter
  * lineages retain an input position; equal debug indices never merge slots.
  * A rest input follows the fixed inputs and uses the shared fresh-rest recipe.
@@ -58,14 +59,15 @@ const restBlockTask = (block, length, target) => {
 export const invocationRootOf = fn => {
     const { body } = fn
     const exit = body.exit
-    if (fn.parameters.length > maxLength || exit[0] !== 'return' || exit[1] !== fn.target) { return null }
+    if (fn.parameters.length > maxLength) { return null }
     const last = body.statements.at(-1)
-    if (last === undefined || last[0] !== 'loop') { return null }
-    const loop = last[1]
+    const terminal = exit[0] === 'loop'
+    if (!terminal && (exit[0] !== 'return' || exit[1] !== fn.target || last === undefined || last[0] !== 'loop')) { return null }
+    const loop = exit[0] === 'loop' ? exit[1] : /** @type {Extract<Statement, readonly ['loop', Loop]>} */ (last)[1]
     const length = fn.parameters.length + (fn.rest === null ? 0 : 1)
     if (loop.parameters.length !== length || loop.initial.length !== length
-        || loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0])) { return null }
-    const aliases = invocationAliases(fn, body.statements.slice(0, -1))
+        || (exit[0] === 'return' ? loop.results.length !== 1 || !namesBinding(exit[2], loop.results[0]) : loop.results.length !== 0)) { return null }
+    const aliases = invocationAliases(fn, terminal ? body.statements : body.statements.slice(0, -1))
     return aliases !== null && loop.initial.every((value, position) => aliases[position].some(binding => namesBinding(value, binding)))
         && !readsEntryParameters(loop, aliases)
         && (fn.rest === null || run(restBlockTask(loop.body, fn.parameters.length, loop.target)).valid) ? loop : null
@@ -154,7 +156,7 @@ const resolveInvocationRoot = (fn, loop, transported, terminal) => {
 }
 
 /** @type {(fn: FastFunction, loop: Loop) => FastFunction} */
-export const directInvocationRoot = (fn, loop) => resolveInvocationRoot(fn, loop, false, false)
+export const directInvocationRoot = (fn, loop) => resolveInvocationRoot(fn, loop, false, fn.body.exit[0] === 'loop')
 
 /**
  * Resolve the outer invocation loop introduced by owning-tail normalization.

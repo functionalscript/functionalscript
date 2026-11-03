@@ -64,8 +64,18 @@ export const proof = {
     },
     terminalLoopSourceShape: () => {
         const graph = sourceOf('export default ()=>{while(true){return 1;}};')
-        const loop = nodeOf(graph, 'terminal while')
+        const loop = nodeOf(graph, 'while')
         assertStructurallySame(from(graph, loop).map(edge => [edge.label, edge.kind]), [['cond', undefined], ['body', 'lazy']])
+        // Separately supplied source exits retain their established display shape.
+        const shape = sourceGraph({ ...assertOk(parse('')('export default 0;')), body: { statements: [], exit: ['terminal-loop', {
+            target: { kind: 'loop', index: 0 }, events: [], condition: true,
+            body: { statements: [], exit: ['throw', 1] },
+        }] } })
+        assertEq(shape.nodes.some(node => node.label === 'terminal while'), true)
+        const switched = sourceGraph({ ...assertOk(parse('')('export default 0;')), body: {
+            statements: [], exit: ['switch', 1, [], { statements: [], exit: ['throw', 2] }],
+        } })
+        assertEq(switched.nodes.some(node => node.label === 'switch'), true)
     },
     /**
      * The shape against hand-built tuples in the EDAG's spelling, not source
