@@ -12,6 +12,15 @@ export const proof = /** @type {const} */ ({
             assertEq(compileSource(escaped)(output), compileSource(unicode)(output), output)
         }
     },
+    templateOutputsAgreeWithUnicodeEscapes: () => {
+        const escaped = /** @type {const} */ ('export default `\\x00${1}\\x80${2}\\x81\\xFf\\x414\\x5cx41`;')
+        const unicode = /** @type {const} */ ('export default `\\u0000${1}\\u0080${2}\\u0081\\u00ff\\u00414\\u005cx41`;')
+        for (const output of ['output.js', 'output.f.js', 'output.edag.data.js', 'output.json', 'output.data.js', 'output.rs']) {
+            assertEq(compileSource(escaped)(output), compileSource(unicode)(output), output)
+        }
+        const first = fjsRoundTrip(escaped)
+        assertEq(fjsRoundTrip(first), first)
+    },
     decodedKeysAndPatternsUseExistingPropertyNames: () => {
         const source = /** @type {const} */ ("const {'\\x61': value} = {'a':'\\x41'}; export default [value, {'\\x61':'\\v'}.a];")
         assertEq(compileSource(source)('output.json'), '["A","\\u000b"]')
@@ -36,7 +45,7 @@ export const proof = /** @type {const} */ ({
         }
     },
     doubleQuotedAndTemplateChunksRemainRestricted: () => {
-        for (const source of ['export default "\\x41";', 'export default "\\v";', 'export default `\\x41`;', 'export default `\\v`;']) {
+        for (const source of ['export default "\\x41";', 'export default "\\v";', 'export default `\\v`;']) {
             assertEq(moduleRefused(source).includes('unexpected token'), true, source)
         }
     },
