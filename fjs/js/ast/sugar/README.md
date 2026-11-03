@@ -210,3 +210,12 @@ Nullish selection compares against null and primitive undefined with nested
 conditionals. Switch label joins use this same lowering, so their graph is
 the graph of the equivalent written logical expression. Normalized FAST and
 canonical EDAG contain no logical or nullish operation tags.
+
+`tryNormalize(resolved, imports)` reports unsupported source constructs as a
+Result before producing FAST. `normalize` retains its strict convenience API
+and throws that refusal. Unary `+` is currently admitted in source AST only:
+conversion refuses every occurrence, including unreachable source, with
+`unary + AST-to-FAST conversion is not implemented`. The existing source-write
+index identifies actual value nodes, so literal `"+"` data and binary addition
+are unaffected. Compiler linking and interpretation propagate this as a normal
+file diagnostic. See the [remaining lowering work](../../../../spec/todo/unary-plus.md).

@@ -37,7 +37,7 @@ import type { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * [`spec/operators/README.md`](../../../../spec/operators/README.md):
  * arithmetic, strict comparison, and bitwise — and Stage B's lazy `&&`,
  * `||` and `??` the same shape, laziness being no shape difference here
- * any more than in the EDAG. `-` alone is both a prefix and an infix, told
+ * any more than in the EDAG. `+` and `-` are both prefixes and infixes, told
  * apart by arity exactly as `~`'s prefix and every infix are told apart
  * from each other, by tag; `**` is right-associative, folded by the
  * grammar rather than by this tree, so `2 ** 3 ** 2` is already
@@ -66,6 +66,7 @@ export type Node =
     /** Syntax only: callee, ordered arguments and the original `new` token. */
     | readonly ['new', Node, readonly Item[], ModuleTokenWithMetadata]
     | Chain
+    | readonly ['+', Node]
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly ['!', Node]

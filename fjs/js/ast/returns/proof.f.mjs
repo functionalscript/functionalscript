@@ -786,7 +786,7 @@ export const proof = /** @type {const} */ ({
         const selected = /** @type {Value} */ (['block', yielded([3], [
             ['define', earlier, 4, 'required'], ['if', [], ref(condition), returned(9), yielded([])],
         ])])
-        for (const tag of [...unaryTags, '+']) {
+        for (const tag of unaryTags) {
             const source = returned(/** @type {Value} */ ([tag, selected]))
             const result = liftReturns(source, owner)
             const region = blockOf(result.statements[0])

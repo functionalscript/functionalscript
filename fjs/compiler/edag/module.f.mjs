@@ -5,6 +5,7 @@
  *
  * @module
  *
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { _Load } from '../source/types.ts'
@@ -15,11 +16,11 @@
  * @import { _Resolved } from './private.ts'
  */
 
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
+import { tryNormalize } from '../../js/ast/sugar/module.f.mjs'
 import { fromFast } from '../../edag/from_fast/module.f.mjs'
-import { _jsonModule, _program } from '../source/module.f.mjs'
+import { _fileError, _jsonModule, _program } from '../source/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
+import { error, mapOk, ok, unwrap } from '../../types/result/module.f.js'
 
 const args = /** @type {const} */ (['args'])
 
@@ -30,11 +31,11 @@ const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', 
  * Source expansion supplies explicit immutable bindings and required roots;
  * graph construction consumes those normalized FAST values.
  *
- * @type {(imports: readonly Exp[]) => (module: ResolvedModule) => Exp}
+ * @type {(imports: readonly Exp[]) => (module: ResolvedModule) => Result<Exp, string>}
  */
 const lowered = imports => module => {
-    const fast = normalize(module, imports)
-    return fromFast(fast.body, fast.parameters.map((id, i) => [id, imports[i]]))
+    const fast = tryNormalize(module, imports)
+    return fast[0] === 'error' ? fast : ok(fromFast(fast[1].body, fast[1].parameters.map((id, i) => [id, imports[i]])))
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
@@ -47,7 +48,10 @@ const over = imports => edag => ({ imports, edag })
  *
  * @type {(module: ResolvedModule) => Unresolved}
  */
-export const unresolved = module => over(module.imports.map(({ binding, ...record }) => record))(lowered(module.imports.map(parameter))(module))
+export const unresolved = module => unwrap(tryUnresolved(module))
+
+/** Convert a resolved source AST, reporting unsupported AST-to-FAST constructs. @type {(module: ResolvedModule) => Result<Unresolved, string>} */
+export const tryUnresolved = module => mapOk(over(module.imports.map(({ binding, ...record }) => record)))(lowered(module.imports.map(parameter))(module))
 
 /**
  * Whether a module's computation ends in a `throw`, past its evaluation
@@ -115,12 +119,15 @@ const resolved = edag => ({
  * would be, and a diamond of imports joins at one node. A JSON module is the
  * tree its document denotes, under `default`.
  *
- * @type {_Load<_Resolved, Exp, never>}
+ * @type {_Load<_Resolved, Exp, ParseError>}
  */
 const linking = {
     json: value => resolved(_jsonModule(value)),
     select: ({ exports, bindings }, name) => name === null ? exports : bindings.find(([key]) => key === name)?.[1],
-    module: (_, imports, module) => ok(resolved(lowered(imports)(module))),
+    module: ({ path }, imports, module) => {
+        const loweredModule = lowered(imports)(module)
+        return loweredModule[0] === 'error' ? error(_fileError(path)(loweredModule[1])) : ok(resolved(loweredModule[1]))
+    },
 }
 
 /**

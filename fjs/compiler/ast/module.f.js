@@ -84,16 +84,16 @@ export const isBinary = node => node.length === 3 && binaryTags.some(tag => tag 
  * it and the syntax reader tags them with it. Pinned in `./types.ts` to the
  * {@link UnaryTag}s that are prefixes.
  */
-export const prefixLayer = /** @type {const} */ ({ neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
+export const prefixLayer = /** @type {const} */ ({ pos: '+', neg: '-', bitnot: '~', not: '!', typeof: 'typeof' })
 
 /**
  * Every unary operator's tag, {@link UnaryTag} at run time — pinned to it in
- * `./types.ts` as {@link binaryTags} is to its own: the prefixes `-`, `~`,
+ * `./types.ts` as {@link binaryTags} is to its own: the prefixes `+`, `-`, `~`,
  * `!` and `typeof`, and the `Number`, `String`, and `BigInt` conversions, each a node
  * of one operand. `instanceof` is not one: its node carries the constructor
  * name too. Nor is `throw`, which ends a body rather than computing a value.
  */
-export const unaryTags = /** @type {const} */ (['-', '~', '!', 'typeof', 'Number', 'String', 'BigInt'])
+export const unaryTags = /** @type {const} */ (['+', '-', '~', '!', 'typeof', 'Number', 'String', 'BigInt'])
 
 /**
  * Whether a node is a unary operator, a source node of two entries: a tag of {@link unaryTags} and one operand. The
