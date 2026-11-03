@@ -10,8 +10,6 @@ import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { error, ok, unwrap } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { min } from '../function/compare/module.f.js'
 import {
     sum,
     abs,
@@ -31,6 +29,8 @@ import {
     divUp8,
     roundUp8
 } from './module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { min } from '../function/compare/module.f.js'
 
 /**
  * The candidates the demo page compares, in the order it renders them.
