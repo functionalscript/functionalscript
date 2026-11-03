@@ -1,21 +1,20 @@
 ## A block whose end is reachable
 
 **Priority:** P2
-**Status:** wip — generic branch syntax and the approved one-outer-binding
-profile with normal arms and owning returns are implemented; broader completion
-and joins remain open, while function bodies still need explicit terminators
+**Status:** wip — normal function completion and source-shaped AST blocks are
+implemented; broader conditional joins remain open.
 
-### Problem
+### Current boundary
 
-A FunctionalScript function body ends in an explicit terminating statement,
-while a normally completing conditional branch continues after its `if`
-([bodies and guards](../control-flow/guards/README.md)). The first admitted
-ordinary-function branch profile joins at most one assigned outer binding,
-with returning paths bypassing that join. Broader completion and multi-binding
-forms remain open. JavaScript also
-lets a function run off its end and return `undefined`; FunctionalScript keeps
-that case separate and refuses it. This issue tracks the branch extensions
-and source rewrites needed by function bodies without explicit terminators.
+Functions may reach their end and return `undefined`. Syntax AST preserves all
+written statements, and FAST determines completion and prunes unreachable
+computations. The designer approved this in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+The one-outer-binding profile remains the current ordinary conditional join
+limit. The discussion below records the earlier refusal and alternatives;
+its explicit-function-terminator assumption has been superseded.
+
+### Original problem and alternatives
 
 At `442ea8f` a reachable block end is the first refusal of 26 modules, 11 of
 them among the modules the self-hosting loader depends on
@@ -194,9 +193,8 @@ of repeating that code in the arm.
 
 ### Tasks
 
-- [ ] Rewrite the function bodies with no terminator, `return undefined` or a
-      `throw`, and a terminator after each `switch` with no `default`; no
-      approval needed.
+- [x] Accept normal function completion and supply its `undefined` result
+      in FAST without changing the written AST.
 - [x] Parse non-terminating `if` branches into the generic syntax AST without
       requiring FunctionalScript admission or FAST/EDAG compilation.
 - [x] Record formal language-design approval for the bounded case 6 profile,
@@ -211,7 +209,7 @@ of repeating that code in the arm.
       assignment/return example, preserving return ownership, one normal
       continuation and the zero/one-outer-binding bound.
 - [ ] Extend broader joins and remaining completion profiles under the
-      completion and ownership contract, keeping explicit function terminators.
+      completion and ownership contract.
 - [ ] Recount the modules this unblocks and rename those that then compile.
 
 ### Related

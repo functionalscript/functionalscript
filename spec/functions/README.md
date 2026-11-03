@@ -32,7 +32,7 @@ pattern, `({ a }, [b]) => [a, b]`, as a `const` does
 (below); the rest parameter takes neither. A newline before `=>` is
 refused.
 
-A block may also end in a literal `while (true)` with no source break
+A block may also end in a literal `while (true)` with no reachable break
 targeting that loop ([terminal unconditional loops](../control-flow/loops/README.md#a-terminal-unconditional-loop)).
 Returning paths still return explicitly; other paths throw or continue
 indefinitely, so the function cannot silently fall through and answer
@@ -46,13 +46,13 @@ indefinitely, so the function cannot silently fall through and answer
 - [Calls](./calls/README.md)
 - [Call Statements](./call-statements/README.md)
 - [Function Outputs](./function-outputs/README.md)
+- [Function Fallthrough](./body-end/README.md)
+- [Unreachable Statements](./unreachable/README.md)
 
 Refused by design, each page showing what `fjs compile` prints and what to write instead:
 
-- [A Body That Does Not Terminate Is Refused](./body-end/README.md)
 - [An Expression Statement That Is No Call Is Refused](./call-statements/expression-statements/README.md)
 - [More Than 16 Fixed Parameters Are Refused](./parameters/limit/README.md)
-- [A Statement After `return` Is Refused](./unreachable/README.md)
 
 ## Examples
 

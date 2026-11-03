@@ -137,7 +137,6 @@ export const proof = /** @type {const} */ ({
             'for(const item of [1])item;export default 0;',
             'for(const item=1 of []){}export default 0;',
             'for(const item of [1]){return item;}export default 0;',
-            'export default ()=>{for(const item of []){return item;}};',
         ]) { assertError(parse(path)(source)) }
     },
     contextualOfRemainsAnOrdinaryBindingAndValue: () => {

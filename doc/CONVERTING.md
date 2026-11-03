@@ -359,51 +359,17 @@ each pair.
 
 ## 7. A body that ends without `return`
 
-A block body ends in a terminating statement, a `return` or a `throw`, and
-every statement before it is a `const` or a guard
-([bodies and guards](../spec/control-flow/guards/README.md)). JavaScript lets
-a body run off its closing brace and answers `undefined`; the compiler
-refuses to infer that return, and reports the brace (`unexpected token`).
-The rewrite spells the value JavaScript supplied:
+No rewrite is needed. A function that reaches the end of its block returns
+`undefined`, as in JavaScript. Bare `return;` is also accepted. The syntax AST
+preserves the written statements; FAST normalization supplies the normal-path
+return and removes unreachable computations. Terminal branches and loops do
+not gain a fallback return.
 
 ```js
 const check = (a, b) => {
     if (a !== b) { throw [a, b] }
-}                                   // refused at the `}`
+} // returns undefined when a === b
 ```
-
-```js
-const check = (a, b) => {
-    if (a !== b) { throw [a, b] }
-    return undefined                // accepted
-}
-```
-
-The value is preserved exactly — the function returned `undefined` on that
-path before, and returns it now — and the compiler lowers the body to the
-conditional the guard already denotes, `a !== b ? (() => { throw [a, b] })()
-: undefined`. The same rewrite closes a body whose last statement is a
-`const`, and a guard's own block, `if (c) { return undefined }`, where the
-guarded path is the one that answers nothing. A bare `return` is not the
-spelling: `return` and its value share a line and the value is required, so
-`return;` is refused as the brace was.
-
-Such a body is nearly always a procedure — a proof that asserts by throwing,
-as [`fjs/emergent_testing/example.f.js`](../fjs/emergent_testing/example.f.js)
-does — and a module may find it reads better as an expression once the
-`return` is written,
-`(a, b) => a !== b ? (() => { throw [a, b] })() : undefined`. Either spelling
-is in the language; the conversion adds the `return` and changes nothing
-else.
-
-A final literal `while (true)` with no source break targeting that loop needs
-no trailing return: it is already a
-[terminating statement](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop).
-Returning paths inside it still return explicitly, and other paths throw or
-continue indefinitely. Breaks targeting an inner loop or switch do not change
-that rule; a break targeting the final loop itself does, even when unreachable.
-Ordinary function-body ends that can be reached still require an explicit
-return as above.
 
 ## 8. `BigInt`
 

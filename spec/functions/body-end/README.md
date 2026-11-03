@@ -1,56 +1,10 @@
-# A Body That Does Not Terminate Is Refused
+# Function Fallthrough
 
-**Status:** refused by design
+**Status:** implemented
 
-**`{}` is not FunctionalScript.** `() => {}` is valid JavaScript, and
-`fjs compile` refuses it by design: the demo below shows what it prints.
+A function that reaches the end of its body returns `undefined`, as in JavaScript.
+FAST normalization adds that return only to a normally completing path. Terminal
+branches and unconditional loops need no fallback return.
 
-A JavaScript function whose block can fall through its closing brace answers
-`undefined`, silently. FunctionalScript requires an explicit result or an end
-that cannot be reached by normal completion: `return`, `throw`, a terminating
-`switch`, or a [terminal unconditional loop](../../control-flow/loops/README.md#a-terminal-unconditional-loop).
-What a function answers is still explicit ([functions](../README.md)).
-
-The row `st.body-end` of [refused constructs](../../todo/refused-constructs.md)
-registers the refusal, and [functions](../README.md) gives its reason.
-
-## Examples
-
-```js
-/** @type {() => undefined} */
-const f = () => {};
-export default f();
-```
-
-The demo on this page compiles [`sample.mjs`](./sample.mjs), the module
-above, with this build's `fjs compile`, and shows the line it prints and the
-token it refuses. Below that it shows what JavaScript answers for the same
-module: `undefined`.
-
-## What to Write Instead
-
-End the block with what the function answers, as [`alternative.f.js`](./alternative.f.js) does:
-
-```js
-/** @type {() => undefined} */
-const f = () => {
-    return undefined;
-};
-export default f();
-```
-
-It answers `undefined`. The answer is the same; now it is written.
-
-## A Better Message
-
-Today `fjs compile` prints `implicit return is not admitted` at the closing
-brace. The syntax AST retains the implicit ending; FunctionalScript admission
-refuses it. The demo proposes a richer explanation at the same token: what
-JavaScript does there, and the allowed spelling, the line
-`alternative.f.js` writes, as `help`. The page compiles the alternative
-too, so the suggestion is one the compiler accepts.
-
-## Reference
-
-- ECMA-262: [Function definitions](https://tc39.es/ecma262/#sec-function-definitions)
-- MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/return>
+See [bodies and guards](../../control-flow/guards/README.md) for the completion contract
+and language-design approval.

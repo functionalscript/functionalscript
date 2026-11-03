@@ -1,30 +1,14 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { _function } from '../standalone.proof.f.mjs'
-import { _flattenedStandalone, _hasArmThrow, _regionBlock, _standaloneStatements } from './module.f.js'
-import { parseSyntax } from '../syntax/module.f.mjs'
-import { tokenizeString } from '../proof.f.mjs'
-import { assertOk } from '../../../asserts/module.f.js'
+import { _flattenedStandalone, _hasArmThrow, _regionBlock } from './module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     regions: () => {
         const body = _function('export default ()=>{return 1;};').body
         assertEq(_regionBlock(['block', body]), body)
-        const empty = { statements: [], exit: /** @type {const} */ (['yield', undefined]) }
+        const empty = /** @type {const} */ ({ statements: [], exit: ['yield', undefined] })
         assertEq(_flattenedStandalone(empty), empty.statements)
         assertEq(_flattenedStandalone({ statements: [], exit: ['throw', 2] })[0][0], 'throw')
-    },
-    endings: () => {
-        for (const [source, ending] of /** @type {const} */ ([
-            ['{}export default 0;', null], ['{throw 1;}export default 0;', 'throw'],
-            ['{while(false){}}export default 0;', 'while'],
-            ['{for(;;){}}export default 0;', 'for'],
-            ['{for(const x of []){}}export default 0;', 'for-of'],
-        ])) {
-            const statement = assertOk(parseSyntax(tokenizeString(source))).statements[0]
-            assert(statement[0] === 'block')
-            const statements = _standaloneStatements(statement[1].block)
-            assertEq(statements.length === 0 ? null : statements[0][0], ending)
-        }
     },
     throws: () => {
         for (const [source, expected] of /** @type {const} */ ([
@@ -40,6 +24,9 @@ export const proof = {
             ['export default ()=>{while(false){if(true){throw 1;}}return 0;};', true],
             ['export default ()=>{while(false){switch(1){case 1:{break;}default:{break;}}}return 0;};', false],
         ])) { assertEq(_hasArmThrow([_function(source).body]), expected) }
+        const loop = _function('export default ()=>{while(true){throw 1;}};').body.statements[0]
+        assert(loop[0] === 'while')
+        assertEq(_hasArmThrow([{ statements: [], exit: ['terminal-loop', loop[1]] }]), true)
         assertEq(_hasArmThrow([]), false)
     },
-}
+})

@@ -96,43 +96,10 @@ export type Node =
     | Block
     | Container
 
-/**
- * The block syntax: zero or more statements — `const` declarations and
- * guards, {@link BlockStatement} — followed by the one statement that ends
- * it, a `return` or a `throw` with its value, or a switch with a `default`,
- * {@link BlockEnd}, or a candidate final loop retained for source admission.
- * A normal closing brace is retained as an implicit-return ending.
- * The grammar enforces this order; a bare `return`, a bare `throw` and a
- * statement after the last are unsupported.
- */
-export type Block = readonly ['block', readonly [...(readonly BlockStatement[]), BlockEnd]]
-
-/**
- * The statement a block ends with, tagged by its keyword: a `return` or a
- * `throw` with its value, or a switch with a `default`, {@link Switch},
- * which the grammar lets nothing follow, a candidate final loop, or an
- * implicit return with no source return statement.
- */
-export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For] | readonly ['terminal-for-of', ForOf] | readonly ['implicit-return', ModuleTokenWithMetadata | null]
-
-/** A standalone lexical block retains its opening brace and ordinary child region. */
-export type StandaloneBlock = { readonly start: ModuleTokenWithMetadata; readonly block: BranchBlock }
-/** Inside a loop the same braces preserve loop transfers and following statements. */
+/** A written block preserves every statement in source order, including unreachable syntax. */
+export type Block = readonly ['block', LoopBlock[1]]
+export type BlockStatement = LoopStatement
 export type StandaloneLoopBlock = { readonly start: ModuleTokenWithMetadata; readonly block: LoopBlock }
-
-/** A block's statement before the one that ends it: a declaration, assignment, terminating guard or normal conditional, loop, or switch without a `default`. The following statements run when such a switch has no matching label. */
-export type BlockStatement = readonly ['block', StandaloneBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]
-
-/** A conditional arm keeps its ordinary statements and explicit ending, if present. */
-export type BranchBlock = readonly ['branch', readonly BlockStatement[], BlockEnd | null]
-
-/** A conditional with a normal arm or an alternate, retained separately from the legacy terminating guard. */
-export type NormalIf = {
-    readonly start: ModuleTokenWithMetadata
-    readonly condition: Node
-    readonly block: BranchBlock
-    readonly otherwise: BranchBlock | null
-}
 
 /** What begins with a name, tagged: a call statement, the record a `const` has, or an assignment. */
 export type NamedStatement = readonly ['const', Const] | readonly ['assign', Assignment]
@@ -148,25 +115,14 @@ export type NamedStatement = readonly ['const', Const] | readonly ['assign', Ass
  * block's one list, so that the fold reads them as it reads the
  * statements after a guard ([spec: switch](../../../../spec/control-flow/switch/README.md)).
  */
-export type Switch = {
-    readonly start: ModuleTokenWithMetadata
-    readonly discriminant: Node
-    readonly cases: readonly Case[]
-    readonly default: Block | null
-}
 
-/** A case of a switch: its labels, one or more values, each the `case` of a `case value:`, and its block, which ends as every block does, {@link BlockEnd}. */
-export type Case = {
-    readonly labels: readonly Node[]
-    readonly block: Block
-}
+/** A switch case retains its labels and written block. */
 
 /**
  * What ends a switch: the `default` block, or the rest of the block the
  * switch stands in, its statements and its end, which follow the switch
  * in that block's list.
  */
-export type SwitchEnd = readonly ['default', Block] | readonly ['rest', Block[1]]
 
 /**
  * A loop, `while (condition) block`: the token it begins with, its
@@ -181,7 +137,7 @@ export type While = {
 }
 
 /** A loop's block: statements in order, including syntax after transfers, and no required terminator. */
-export type LoopBlock = readonly ['loop', readonly LoopStatement[]]
+export type LoopBlock = readonly ['block', readonly LoopStatement[]]
 
 /** A classic `for` keeps its lexical initializer and step until normalization. */
 export type For = {
@@ -218,7 +174,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ReturnStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -233,7 +189,7 @@ export type Assignment = Statement & {
 
 /**
  * A guard, `if (condition) block`: the token it begins with, its condition,
- * and its block, which ends as every block does, {@link BlockEnd}. It
+ * and its written block. It
  * records no `;`: a block statement ends at its `}`, and JavaScript inserts
  * no semicolon after one, so the statement after a guard may share its
  * line. The statements after the guard, up to and including the body's own
@@ -241,11 +197,6 @@ export type Assignment = Statement & {
  * the two arms of a conditional of them
  * ([spec: functions](../../../../spec/functions/README.md)).
  */
-export type If = {
-    readonly start: ModuleTokenWithMetadata
-    readonly condition: Node
-    readonly block: Block
-}
 
 /**
  * An access's key: the token a constant key is read from — the name after
@@ -474,6 +425,12 @@ export type ValueStatement = Statement & {
     readonly value: Node
 }
 
+/** A written return may omit its operand; lowering supplies undefined. */
+export type ReturnStatement = Statement & {
+    readonly first: ModuleTokenWithMetadata | null
+    readonly value: Node | null
+}
+
 /** A module declaration, with its source export marker retained. */
 export type ModuleConst = {
     readonly declaration: Const
@@ -487,7 +444,7 @@ export type ModuleLet = {
 }
 
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['block', StandaloneBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
+export type ModuleStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an
@@ -577,12 +534,6 @@ export type Out =
     | { readonly id: 'const', readonly statement: Const }
     | { readonly id: 'let', readonly statement: Let }
     | { readonly id: 'named', readonly statement: NamedStatement }
-    | { readonly id: 'statement', readonly statement: BlockStatement }
-    | { readonly id: 'end', readonly end: Block[1] }
-    | { readonly id: 'blockContents', readonly statements: Block[1] }
-    | { readonly id: 'branchContents' | 'branchElse', readonly block: BranchBlock }
-    | { readonly id: 'caseTail', readonly labels: List<Node>, readonly block: Block, readonly cases: List<Case>, readonly end: SwitchEnd }
-    | { readonly id: 'afterCase', readonly cases: List<Case>, readonly end: SwitchEnd }
     | { readonly id: 'loopStatement', readonly statement: LoopStatement }
     | { readonly id: 'loopElse', readonly block: LoopBlock }
     | { readonly id: 'moduleStatement', readonly statement: ModuleStatement }

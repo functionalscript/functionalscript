@@ -11,12 +11,13 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While, StandaloneBlock } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, StandaloneLoopBlock } from './syntax/types.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
 import { declarations } from './declarations/module.f.js'
-import { _standaloneStatements as standaloneStatements, _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
+import { _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
+import { returnedBlock, hasRetainedReturn } from '../../js/ast/sugar/completion/module.f.js'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -209,9 +210,9 @@ const noExport = foldError('module exports nothing')
  * `undefined`, `throw` a syntax error — and is refused rather than read
  * another way.
  *
- * @type {(statement: ValueStatement) => boolean}
+ * @type {(statement: { readonly first: ModuleTokenWithMetadata | null }) => boolean}
  */
-const brokenLine = statement => statement.first.newline
+const brokenLine = statement => statement.first !== null && statement.first.newline
 
 /**
  * Whether `next` is refused at its first token: `previous` ended without
@@ -525,16 +526,16 @@ const boundPlan = (scope, plan, assignable) => initialized({ ...scope, names: pl
  */
 const advanced = (frame, made) => ({ ...frame, index: frame.index + 1, done: concat(frame.done)(made) })
 
-/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {<F extends _BodyFrame | _LoopBodyFrame>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, kind: 'const' | 'let', value: SourceValue) => _State} */
+/** Bind a declaration after its initializer has resolved: a `const`'s names, or a `let`'s, which are variables. @type {<F extends _LoopBodyFrame>(round: (stack: _Stack, scope: _Scope, frame: F) => _State, stack: _Stack, scope: _Scope, frame: F, kind: 'const' | 'let', value: SourceValue) => _State} */
 const landed = (round, stack, scope, frame, kind, value) => {
     const plan = assertNotNullish(frame.plan, 'a declaration with no plan')
     const shadowed = plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
     if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
     if (hasPatternDefault(plan)) {
-        /** @type {_BodyFrame | _LoopBodyFrame} */
+        /** @type {_LoopBodyFrame} */
         const source = frame
         /** @type {_PatternFrame['continuation']} */
-        const continuation = 'block' in source ? { loop: source, value } : { body: source, value }
+        const continuation = { loop: source, value }
         return patternRound(stack, scope, { pattern: plan, index: 0, reads: [], kind, continuation })
     }
     return round(stack, boundPlan(scope, plan, isVariable(kind)), advanced(frame, [['initialize', expansion(plan), value]]))
@@ -582,7 +583,6 @@ const patternRound = (stack, scope, frame) => {
     }
     if ('forOf' in continuation) { return forOfBody(stack, scope, continuation.forOf, plan) }
     if ('loop' in continuation) { return loopRound(stack, scope, advanced(continuation.loop, [['initialize', plan, continuation.value]])) }
-    if ('body' in continuation) { return bodyRound(stack, scope, advanced(continuation.body, [['initialize', plan, continuation.value]])) }
     return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
 }
 
@@ -1094,27 +1094,27 @@ const hasTargetBreak = (root, target) => {
     return false
 }
 
-/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While | For, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
-const enterLoop = (stack, scope, loop, body, terminal = false) =>
-    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, step: null, terminal }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
+/** The same lexical loop entry serves a function, enclosing loop, or module continuation. @type {(stack: _Stack, scope: _Scope, loop: While | For, body: _LoopBodyFrame | null) => _State} */
+const enterLoop = (stack, scope, loop, body) =>
+    [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, step: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
 
-/** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State} */
-const enterFor = (stack, scope, loop, body, terminal = false) => {
+/** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _LoopBodyFrame | null) => _State} */
+const enterFor = (stack, scope, loop, body) => {
     const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
-    return loopRound({ top: { for: loop, body, initial: null, terminal }, rest: stack }, regionScope(scope, empty, null), {
+    return loopRound({ top: { for: loop, body, initial: null }, rest: stack }, regionScope(scope, empty, null), {
         block: loop.initializer === null ? [] : [loop.initializer], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null, open: true,
     })
 }
 
 /** Resolve the iterable once, before initializing a fresh iteration binding.
- * @type {(stack: _Stack, scope: _Scope, loop: ForOf, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State}
+ * @type {(stack: _Stack, scope: _Scope, loop: ForOf, body: _LoopBodyFrame | null) => _State}
  */
-const enterForOf = (stack, scope, loop, body, terminal = false) => {
+const enterForOf = (stack, scope, loop, body) => {
     const inner = regionScope(scope, empty, null)
     const [kind, plan] = planned(bodyBindable(inner))(loop.target, null)
     if (kind === 'error') { return [stack, scope, error(plan)] }
     /** @type {_ForOfFrame} */
-    const frame = { forOf: loop, body, target: { kind: 'loop', index: scope.trace.count + 1 }, item: sourceBinding(0), plan, source: null, initial: [], terminal }
+    const frame = { forOf: loop, body, target: { kind: 'loop', index: scope.trace.count + 1 }, item: sourceBinding(0), plan, source: null, initial: [] }
     return [{ top: frame, rest: stack }, inner, ['enter', loop.iterable]]
 }
 
@@ -1149,63 +1149,13 @@ const forOfReturned = (stack, scope, frame, value) => {
     /** @type {SourceStatement} */
     const statement = ['for-of', loop]
     if (frame.body === null) { return [stack, outer, ok(['block', { statements: [statement], exit: ['yield', undefined] }])] }
-    if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [statement])) }
-    if (frame.terminal && !frame.body.branch) { return [stack, outer, error(foldError('terminal for-of may complete normally')(frame.forOf.start))] }
-    return bodyRound(stack, outer, advanced(frame.body, [statement]))
+    return loopRound(stack, outer, advanced(frame.body, [statement]))
 }
 
-/** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneBlock, body: _BodyFrame | null) => _State} */
-const enterStandalone = (stack, scope, block, body) => [{ top: { scoped: body }, rest: stack }, regionScope(scope, empty, null), ['region', {
-    statements: standaloneStatements(block.block), first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
+/** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneLoopBlock) => _State} */
+const enterStandalone = (stack, scope, block) => [{ top: { scoped: null }, rest: stack }, regionScope(scope, empty, null), ['region', {
+    block: block.block[1], target: null, breakTarget: null, index: 0, plan: null, assigned: null, done: null,
 }]]
-
-/**
- * Resolve the next statement; guards retain their remaining statements as terminal branches.
- * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
- */
-const bodyRound = (stack, scope, frame) => {
-    if (frame.index === frame.first) { frame = { ...frame, statements: frame.statements.flatMap(/** @returns {_BodyFrame['statements']} */ statement => statement[0] === 'const'
-        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
-    const { statements, first, index } = frame
-    if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
-    const [kind, statement] = statements[index]
-    if (kind === 'implicit-return') {
-        const ending = assertNotNullish(statement)
-        return [stack, scope, error(foldError('implicit return is not admitted')(ending))]
-    }
-    // the statement's own beginning before either half of it: the one
-    // before it, written without its `;`, ends at a newline or not at all
-    // The implicit ending is final, so it cannot precede another statement.
-    const previous = /** @type {Parameters<typeof unterminated>[0]} */ (index === first ? null : statements[index - 1][1])
-    if (unterminated(previous, statement)) {
-        return [stack, scope, error(unexpectedToken(statement.start))]
-    }
-    if (kind === 'block') { return enterStandalone(stack, scope, statement, frame) }
-    if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
-    if (kind === 'if' || kind === 'normal-if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
-    if (kind === 'switch') { return [{ top: { ...frame, switchFirstEvent: scope.trace.count }, rest: stack }, scope, ['enter', statement.discriminant]] }
-    // A loop's condition and block are source regions. Their complete
-    // evidence reaches sugar before mutable loop inputs are selected.
-    if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
-    if (kind === 'for' || kind === 'terminal-for') { return enterFor(stack, scope, statement, frame, kind === 'terminal-for') }
-    if (kind === 'for-of' || kind === 'terminal-for-of') { return enterForOf(stack, scope, statement, frame, kind === 'terminal-for-of') }
-    if (kind === 'assign') {
-        const [tag, target] = assigned(scope, statement.name)
-        if (tag === 'error') { return [stack, scope, error(target)] }
-        return [{ top: { ...frame, plan: null, assigned: target[1] }, rest: stack }, assignmentScope(target[0], statement, target[1]), ['enter', statement.value]]
-    }
-    if (kind !== 'const' && kind !== 'let') {
-        return brokenLine(statement)
-            ? [stack, scope, error(unexpectedToken(statement.first))]
-            : [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
-    }
-    const { target } = statement
-    const value = declarationValue(statement)
-    const namespace = namespaceOf(target, value)
-    const [tag, plan] = constPlan(bodyBindable(scope))(target, value, namespace)
-    if (tag === 'error') { return [stack, scope, error(plan)] }
-    return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
-}
 
 /** An omitted let initializer is the existing primitive undefined at its declaration point. @type {(declaration: Const | Let) => Node} */
 const declarationValue = ({ value }) => value === null ? ['primitive', undefined] : value
@@ -1510,7 +1460,7 @@ const entryFunction = ([, list, body]) => {
     const [p, q] = list.fixed
     const first = body[1][0]
     const last = body[1][1]
-    if (first[0] !== 'const' || first[1].following !== undefined || last[0] !== 'return') { return null }
+    if (first[0] !== 'const' || first[1].following !== undefined || last[0] !== 'return' || last[1].value === null) { return null }
     const [, declaration] = first
     const [, returned] = last
     // the two parameters and the descriptor are each bound to one name: a
@@ -1523,10 +1473,10 @@ const entryFunction = ([, list, body]) => {
     const names = [a, b, x]
     if (new Set(names).size !== names.length || names.some(word => isKeyword(word) || isReservedGlobal(word))) { return null }
     if (!isDescriptorOf(declaration.value, a, b)) { return null }
-    const has = isHasEntryOf(returned.value, x)
-    if (!has && !isEntryOf(returned.value, x)) { return null }
+    const has = isHasEntryOf(assertNotNullish(returned.value), x)
+    if (!has && !isEntryOf(assertNotNullish(returned.value), x)) { return null }
     if (unterminated(declaration, returned)) { return error(unexpectedToken(returned.start)) }
-    if (brokenLine(returned)) { return error(unexpectedToken(returned.first)) }
+    if (brokenLine(returned)) { return error(unexpectedToken(assertNotNullish(returned.first))) }
     /** @type {ValueEntryFunction | ValueHasEntryFunction} */
     const helper = has ? ['hasEntry'] : ['entry']
     return ok(helper)
@@ -1613,7 +1563,7 @@ const lateRound = (stack, scope, frame) => {
     const { late, index, body } = frame
     if (index === late.length) {
         return body[0] === 'block'
-            ? bodyRound(stack, scope, { statements: body[1], first: 0, index: 0, plan: null, assigned: null, done: null })
+            ? loopRound(stack, scope, { block: body[1], target: null, breakTarget: null, functionBody: true, index: 0, plan: null, assigned: null, done: null })
             : [{ top: { function: true }, rest: stack }, scope, ['enter', body]]
     }
     const { init } = late[index]
@@ -1643,8 +1593,7 @@ const returned = (stack, scope, frame, value) => {
     if (hasEntry(frame, 'scoped')) {
         const statements = flattenedStandalone(regionBlock(value))
         if (frame.scoped === null) { return [stack, scope, ok(['block', { statements, exit: ['yield', undefined] }])] }
-        return 'block' in frame.scoped ? loopRound(stack, scope, advanced(frame.scoped, statements))
-            : bodyRound(stack, scope, advanced(frame.scoped, statements))
+        return loopRound(stack, scope, advanced(frame.scoped, statements))
     }
     if (hasEntry(frame, 'pattern')) {
         const [tag, selected] = patternSelected(scope, frame, { value })
@@ -1699,21 +1648,9 @@ const returned = (stack, scope, frame, value) => {
         const outer = restoredScope(scope, false)
         const statement = block.statements[0]
         assert(statement[0] === 'while', 'a for resolves to one loop')
-        if (frame.terminal) {
-            const syntax = frame.for.condition
-            assert(frame.body !== null && !('block' in frame.body), 'a terminal loop belongs to a function block')
-            if (syntax[0] !== 'primitive' || syntax[1] !== true || hasTargetBreak(statement[1].body, statement[1].target)) {
-                if (frame.body.branch) {
-                    return closed(stack, outer, { statements: [...toArray(frame.body.done), ...frame.initial, statement], exit: ['yield', undefined] })
-                }
-                return [stack, outer, error(foldError('terminal for must be literal true with no break targeting it')(frame.for.start))]
-            }
-            return closed(stack, outer, { statements: [...toArray(frame.body.done), ...frame.initial], exit: ['terminal-loop', statement[1]] })
-        }
         const statements = [...frame.initial, ...block.statements]
         if (frame.body === null) { return [stack, outer, ok(['block', { statements, exit: ['yield', undefined] }])] }
-        if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, statements)) }
-        return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)(statements) })
+        return loopRound(stack, outer, advanced(frame.body, statements))
     }
     if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
@@ -1733,25 +1670,13 @@ const returned = (stack, scope, frame, value) => {
         const outer = restoredScope(scope, false)
         const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: frame.condition[0], body,
             ...(frame.step === null ? {} : { step: frame.step }) })
-        if (frame.terminal) {
-            const syntax = frame.loop.condition
-            assert(frame.body !== null && !('block' in frame.body), 'a terminal loop belongs to a function block')
-            if (syntax[0] !== 'primitive' || syntax[1] !== true || hasTargetBreak(loop.body, loop.target)) {
-                if (frame.body.branch) {
-                    return closed(stack, outer, { statements: [...toArray(frame.body.done), ['while', loop]], exit: ['yield', undefined] })
-                }
-                return [stack, outer, error(foldError('terminal while must be literal true with no break targeting it')(frame.loop.start))]
-            }
-            return closed(stack, outer, { statements: toArray(frame.body.done), exit: ['terminal-loop', loop] })
-        }
         if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
-        if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [['while', loop]])) }
-        return bodyRound(stack, outer, { ...frame.body, index: frame.body.index + 1, done: concat(frame.body.done)([['while', loop]]) })
+        return loopRound(stack, outer, advanced(frame.body, [['while', loop]]))
     }
     if (hasEntry(frame, 'block')) {
         const [kind, statement] = frame.block[frame.index]
         if (kind === 'if') {
-            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null }, rest: stack }, regionScope(scope, empty, null),
+            return loopRound({ top: { loopGuard: frame, condition: value, otherwise: statement.otherwise, then: null, firstEvent: scope.trace.count, firstOrigin: scope.sourceOrigins.length, start: statement.start }, rest: stack }, regionScope(scope, empty, null),
                 { block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null })
         }
         if (kind === 'assign') {
@@ -1769,85 +1694,28 @@ const returned = (stack, scope, frame, value) => {
             return loopRound({ top: { ...frame, then: block }, rest: stack }, regionScope(scope, empty, null),
                 { block: frame.otherwise[1], target: frame.loopGuard.target, breakTarget: frame.loopGuard.breakTarget, index: 0, plan: null, assigned: null, done: null })
         }
-        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition,
-            frame.then ?? block, frame.then === null ? { statements: [], exit: ['yield', undefined] } : block,
-        ]]))
+        const then = frame.then ?? block
+        const otherwise = frame.then === null ? { statements: [], exit: /** @type {const} */ (['yield', undefined]) } : block
+        if (frame.loopGuard.target === null) {
+            const thenNormal = caseFallsThrough(then)
+            const otherwiseNormal = caseFallsThrough(otherwise)
+            if (!(frame.otherwise === null && !thenNormal) && (thenNormal || otherwiseNormal)) {
+                if (hasArmThrow([then, otherwise])) { return [stack, scope, error(throwingArm(frame.start))] }
+                if (outerArmWrites(scope, frame) > 1) { return [stack, scope, error(multipleJoinBindings(frame.start))] }
+            }
+        }
+        return loopRound(stack, scope, advanced(frame.loopGuard, [['if', frame.condition, then, otherwise]]))
     }
-    if (hasEntry(frame, 'statements')) {
-        const [kind, statement] = frame.statements[frame.index]
-        if (kind === 'const' || kind === 'let') { return landed(bodyRound, stack, scope, frame, kind, value) }
-        if (kind === 'assign') {
-            const id = assertNotNullish(frame.assigned, 'an assignment with no target')
-            return bodyRound(stack, written(scope, statement, id), advanced(frame, [assignmentStatement(statement, id, value)]))
-        }
-        if (kind === 'if') { return arm(stack, scope, { guard: statement, body: frame, condition: value, then: null }, statement.block[1], 0, null) }
-        if (kind === 'normal-if') {
-            return normalArm(stack, scope, {
-                normalIf: statement, body: frame, condition: value, then: null,
-                firstEvent: scope.trace.count, firstOrigin: scope.sourceOrigins.length,
-            }, statement.block)
-        }
-        if (kind === 'switch') {
-            return switchRound(stack, scope, { switch: statement, body: frame, discriminant: value,
-                target: { kind: 'loop', index: scope.trace.count + 1 }, firstEvent: assertNotNullish(frame.switchFirstEvent, 'a switch without entry events'),
-                index: 0, label: 0, labels: [], arms: null })
-        }
-        if (kind === 'return' && frame.targetedReturn) {
-            return closed(stack, scope, { statements: [...toArray(frame.done), ['return', scope.trace.target, value]], exit: ['yield', undefined] })
-        }
-        return closed(stack, scope, { statements: toArray(frame.done), exit: kind === 'throw' ? ['throw', value] : ['return', scope.trace.target, value] })
-    }
-    if (hasEntry(frame, 'switch')) { return switchReturned(stack, scope, frame, value) }
     if (hasEntry(frame, 'loopSwitch')) {
         return frame.discriminant === null
             ? loopSwitchRound(stack, scope, { ...frame, discriminant: [value] })
             : loopSwitchReturned(stack, scope, frame, value)
     }
-    if (hasEntry(frame, 'guard')) {
-        const block = regionBlock(value)
-        if (frame.then === null) { return arm(stack, scope, { ...frame, then: block }, frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, frame.body.branch) }
-        if (frame.body.targetedReturn) {
-            return closed(stack, scope, { statements: [...toArray(frame.body.done), ['if', frame.condition, frame.then, block]], exit: ['yield', undefined] })
-        }
-        return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['if', frame.condition, frame.then, block] })
-    }
-    if (hasEntry(frame, 'normalIf')) {
-        const block = regionBlock(value)
-        if (frame.then === null && frame.normalIf.otherwise === null && block.exit[0] === 'terminal-loop') {
-            return arm(stack, scope, { guard: true, body: frame.body, condition: frame.condition, then: block },
-                frame.body.statements, frame.body.index + 1, { first: scope.names, tail: scope.enclosing }, frame.body.branch)
-        }
-        if (frame.then === null && frame.normalIf.otherwise !== null) {
-            return normalArm(stack, scope, { ...frame, then: block }, frame.normalIf.otherwise)
-        }
-        const then = frame.then ?? block
-        const otherwise = frame.then === null ? { statements: [], exit: /** @type {const} */ (['yield', undefined]) } : block
-        if (hasArmThrow([then, otherwise])) { return [stack, scope, error(throwingArm(frame.normalIf.start))] }
-        if (outerArmWrites(scope, frame) > 1) { return [stack, scope, error(multipleJoinBindings(frame.normalIf.start))] }
-        return bodyRound(stack, scope, advanced(frame.body, [['if', frame.condition, then, otherwise]]))
-    }
     if (hasEntry(frame, 'late')) { return lateLanded(stack, scope, frame, { value }) }
     return closed(stack, scope, { statements: [], exit: ['return', scope.trace.target, value] })
 }
 
-/**
- * Resolve a lexical branch. A source block may shadow outer names; a branch
- * continuing the current block retains its duplicate and capture-shadow checks.
- * Regions preserve the owning source function target and add no invocation.
- *
- * @type {(stack: _Stack, scope: _Scope, frame: _GuardFrame | _SwitchFrame, statements: _BodyFrame['statements'], first: number, enclosing: List<_Env>, branch?: boolean) => _State}
- */
-const arm = (stack, scope, frame, statements, first, enclosing, branch = false) =>
-    bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, enclosing), {
-        statements, first, index: first, plan: null, assigned: null, done: null, branch, targetedReturn: frame.body.targetedReturn ?? false,
-    })
-
-/** Ordinary arms may complete normally or return, and keep fresh lexical names. @type {(stack: _Stack, scope: _Scope, frame: _NormalIfFrame, block: BranchBlock) => _State} */
-const normalArm = (stack, scope, frame, block) => bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
-    statements: block[2] === null ? block[1] : [...block[1], block[2]], first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
-})
-
-/** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: _NormalIfFrame) => number} */
+/** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: { readonly firstEvent: number; readonly firstOrigin: number }) => number} */
 const outerArmWrites = (scope, frame) => {
     const locals = scope.sourceOrigins.slice(frame.firstOrigin).map(origin => origin.id)
     /** @type {readonly BindingId[]} */
@@ -1861,46 +1729,6 @@ const outerArmWrites = (scope, frame) => {
         pending = rest
     }
     return writes.length
-}
-
-/**
- * Resolve case labels and lexical bodies in source order, then the explicit
- * default or the remaining statements. Sugar owns discriminant sharing and
- * the lazy comparison chain.
- *
- * @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame) => _State}
- */
-const switchRound = (stack, scope, frame) => {
-    const { cases, default: fallback } = frame.switch
-    const { body, index, label } = frame
-    if (index < cases.length) {
-        const { labels, block } = cases[index]
-        return label < labels.length
-            ? [{ top: frame, rest: stack }, scope, ['enter', labels[label]]]
-            : arm(stack, scope, frame, block[1], 0, null)
-    }
-    return fallback !== null
-        ? arm(stack, scope, frame, fallback[1], 0, null)
-        : arm(stack, scope, frame, body.statements, body.index + 1, { first: scope.names, tail: scope.enclosing }, body.branch)
-}
-
-/** Preserve source cases; sugar selects the discriminant and tests each label. @type {(stack: _Stack, scope: _Scope, frame: _SwitchFrame, value: SourceValue) => _State} */
-const switchReturned = (stack, scope, frame, value) => {
-    const { cases } = frame.switch
-    const { index, label } = frame
-    if (index < cases.length && label < cases[index].labels.length) {
-        return switchRound(stack, scope, { ...frame, label: label + 1, labels: [...frame.labels, value] })
-    }
-    const body = regionBlock(value)
-    if (index < cases.length) {
-        return switchRound(stack, scope, { ...frame, index: index + 1, label: 0, labels: [], arms: { first: { labels: frame.labels, body }, tail: frame.arms } })
-    }
-    if (frame.body.targetedReturn) {
-        const region = /** @type {SourceSwitch} */ ({ target: frame.target, events: completedTrace(scope).events.slice(frame.firstEvent),
-            discriminant: frame.discriminant, cases: toArray(reverse(frame.arms)), otherwise: body })
-        return closed(stack, scope, { statements: [...toArray(frame.body.done), ['switch', region]], exit: ['yield', undefined] })
-    }
-    return closed(stack, scope, { statements: toArray(frame.body.done), exit: ['switch', frame.discriminant, toArray(reverse(frame.arms)), body] })
 }
 
 /**
@@ -1933,6 +1761,7 @@ const caseFallsThrough = body => {
             if (owner !== undefined) { pending = [owner[1], ...pending] }
             continue
         }
+        if (statement[0] === 'while' && statement[1].condition === true && !hasTargetBreak(statement[1].body, statement[1].target)) { continue }
         if (statement[0] === 'continue' || statement[0] === 'return' || statement[0] === 'throw') { continue }
         if (statement[0] === 'if') {
             pending = [...[statement[2], statement[3]].map(arm => ({ statements: arm.statements, index: 0, next, breaks: path.breaks })), ...pending]
@@ -2002,7 +1831,12 @@ const loopRound = (stack, scope, frame) => {
         const { block, index } = frame
         if (index === block.length) {
             if (frame.open) { return [stack, scope, ok(['block', { statements: toArray(frame.done), exit: ['yield', undefined] }])] }
-            return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
+            const statements = toArray(frame.done)
+            const last = statements[statements.length - 1]
+            if (frame.functionBody && last !== undefined && (last[0] === 'return' || last[0] === 'throw')) {
+                return closed(stack, scope, { statements: statements.slice(0, -1), exit: last })
+            }
+            return closed(stack, scope, { statements, exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
@@ -2014,13 +1848,15 @@ const loopRound = (stack, scope, frame) => {
             }]]
         }
         if (kind === 'break' || kind === 'continue') {
-            frame = advanced(frame, [[kind, kind === 'break' ? frame.breakTarget : frame.target]])
+            const target = kind === 'break' ? frame.breakTarget : frame.target
+            if (target === null) { return [stack, scope, error(unexpectedToken(statement.start))] }
+            frame = advanced(frame, [[kind, target]])
             continue
         }
         if (kind === 'return' || kind === 'throw') {
             if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
-            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(statement.first))] }
-            return [{ top: frame, rest: stack }, scope, ['enter', statement.value]]
+            if (brokenLine(statement)) { return [stack, scope, error(unexpectedToken(assertNotNullish(statement.first)))] }
+            return [{ top: frame, rest: stack }, scope, ['enter', statement.value ?? ['primitive', undefined]]]
         }
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
@@ -2069,32 +1905,12 @@ const closed = (stack, scope, body) => {
     // keep its invocation. Other invocation boundaries were refused at the
     // assignment, before its right-hand side was entered.
     const externalWrite = scope.captures.find(capture => capture.written && !scope.trace.bindings.includes(capture.id))
-    if (!scope.region && externalWrite !== undefined && internalReturn(body)) { return [stack, scope, error(externalWrite.refusal)] }
+    if (!scope.region && externalWrite !== undefined && hasRetainedReturn(returnedBlock(body))) { return [stack, scope, error(externalWrite.refusal)] }
     /** @type {SourceValue} */
     const value = scope.region ? ['block', body] : ['function', {
         target: scope.trace.target, length: scope.count, parameters: scope.parameters, rest: scope.rest === null ? null : expansion(scope.rest), self: scope.selfBinding, body,
     }]
     return [stack, restoredScope(scope, !scope.region && !isCalledWhereWritten(stack)), ok(value)]
-}
-
-/** Source statement returns retain an invocation; terminal exits become yields. @type {(body: SourceBlock) => boolean} */
-const internalReturn = body => {
-    let pending = [body]
-    while (pending.length !== 0) {
-        const [block, ...rest] = pending
-        pending = rest
-        for (const statement of block.statements) {
-            if (statement[0] === 'return') { return true }
-            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
-            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
-        }
-        const exit = block.exit
-        if (exit[0] === 'if') { pending = [...pending, exit[2], exit[3]] }
-        if (exit[0] === 'switch') { pending = [...pending, ...exit[2].map(arm => arm.body), exit[3]] }
-        if (exit[0] === 'terminal-loop') { pending = [...pending, exit[1].body] }
-    }
-    return false
 }
 
 /**
@@ -2121,7 +1937,7 @@ const evaluateState = initial => {
         const [stack, scope, step] = state
         const [tag, payload] = step
         if (tag === 'region') {
-            state = 'block' in payload ? loopRound(stack, scope, payload) : bodyRound(stack, scope, payload)
+            state = loopRound(stack, scope, payload)
         } else if (tag === 'enter') {
             state = enter(stack, scope, payload)
         } else if (tag === 'define') {
@@ -2262,7 +2078,7 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
         if (statement[0] === 'block') {
             if (unterminated(previous, statement[1])) { return error(unexpectedToken(statement[1].start)) }
             previous = statement[1]
-            const [tag, evaluated] = evaluateState(enterStandalone(null, scope, statement[1], null))
+            const [tag, evaluated] = evaluateState(enterStandalone(null, scope, statement[1]))
             if (tag === 'error') { return error(evaluated) }
             scope = evaluated.scope
             body = [...body, ...regionBlock(evaluated.value).statements]

@@ -120,10 +120,19 @@ export const proof = /** @type {const} */ ({
             export default [f(false,false),f(true,false),f(true,true),g(false,false),g(true,false),g(true,true)];
         `), { default: [20, 28, 17, 4, 4, 3] })
     },
+    completedImmediateSwitchThreadsEnclosingWrites: () => {
+        assertStructurallySame(evaluated(`
+            const f=(a,b)=>{
+                let n=0;
+                const value=(()=>{if(a){switch(b){case 1:{return 7;}default:{return 8;}}}else{}n=2;return 3;})();
+                return [n,value];
+            };
+            export default [f(false,1),f(true,1),f(true,2)];
+        `), { default: [[2,3],[0,7],[0,8]] })
+    },
     retainedImmediateInvocationsCannotWriteTheirEnclosingScope: () => {
         for (const body of [
             'if(a){if(b){return 7;}}n=2;return 3;',
-            'if(a){switch(b){case 1:{return 7;}default:{return 8;}}}else{}n=2;return 3;',
         ]) {
             refused(`export default (a,b)=>{let n=0;const value=(()=>{${body}})();return [n,value];};`, 'reassigned variable captured')
         }
@@ -146,9 +155,9 @@ export const proof = /** @type {const} */ ({
             refused(`export default (a,b)=>{${body}return 3;};`, 'ordinary conditional arms do not admit explicit throw')
         }
     },
-    explicitFunctionEndAndReturnLineRulesRemainRequired: () => {
-        assertError(parse(path)('export default (a,b)=>{if(a){if(b){return 7;}}};'))
-        assertError(parse(path)('export default a=>{if(a){return 7;}else{return 8;}};'))
+    normalFunctionEndsAreAdmittedButReturnLineRulesRemain: () => {
+        assertOk(parse(path)('export default (a,b)=>{if(a){if(b){return 7;}}};'))
+        assertOk(parse(path)('export default a=>{if(a){return 7;}else{return 8;}};'))
         assertError(parse(path)('export default (a,b)=>{if(a){if(b){return\n7;}}return 3;};'))
     },
     selectedReturnsSkipFailingContinuationWork: () => {

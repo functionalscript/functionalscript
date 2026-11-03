@@ -252,7 +252,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('while(false){return;}export default 0;'), ['ok'])
         assertStructurallySame(read('while(false){throw;}export default 0;'), ['error', ';'])
         assertStructurallySame(read('return 1;export default 0;'), ['error', 'return'])
-        assertStructurallySame(read('export default ()=>{return 1;throw 2;};'), ['error', 'throw'])
+        assertStructurallySame(read('export default ()=>{return 1;throw 2;};'), ['ok'])
     },
     // The grammar is LL(1): each rule builds in its own proof, keeping the
     // external runner's per-test timeout independent of the rule count.
@@ -536,8 +536,8 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => {const x=1;return x;};'), ['ok'])
         assertStructurallySame(read('export default (...a) => {\n    const x = 1;\n    return x;\n};'), ['ok'])
         assertStructurallySame(read('export default (...a) => { const x = (...b) => { const y = 1; return y; }; return x; };'), ['ok'])
-        // An explicit return still ends the body; omission is retained separately.
-        assertStructurallySame(read('export default (...a) => { return 1; const x = 1; };'), ['error', 'const'])
+        // Statements after an explicit return remain written syntax.
+        assertStructurallySame(read('export default (...a) => { return 1; const x = 1; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { const x = 1; };'), ['ok'])
         // a statement's `;` may be omitted, before the `}` and before the
         // next statement alike: the grammar reads both, and whether the
@@ -547,7 +547,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { const x = 1\nreturn x };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return a };'), ['ok'])
-        // Empty bodies retain a syntax-only implicit ending.
+        // Empty bodies retain an empty statement list.
         assertStructurallySame(read('export default (...a) => {};'), ['ok'])
         // a statement that begins with a name is read whatever value the
         // name begins, the fold admitting a call alone; implicit endings
@@ -559,7 +559,7 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => { (a)(1); return a; };'), ['error', '('])
         assertStructurallySame(read('export default (...a) => { [a].at(0); return a; };'), ['error', '['])
         assertStructurallySame(read('export default (...a) => { !a(1); return a; };'), ['error', '!'])
-        assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return; };'), ['ok'])
         // the line terminator JavaScript forbids between `return` and the
         // value is the reader's to see, as the one before `=>` is: the
@@ -577,8 +577,8 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => { throw a };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { const x = 1; throw x; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { throw; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { throw a; return a; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { return a; throw a; };'), ['error', 'throw'])
+        assertStructurallySame(read('export default (...a) => { throw a; return a; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return a; throw a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { throw\na; };'), ['ok'])
         assertStructurallySame(read('throw 1;'), ['ok'])
         assertStructurallySame(read('throw 1'), ['ok'])
@@ -658,8 +658,8 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default {break:1,continue:2}.break;'), ['ok'])
         assertStructurallySame(read('break;export default 7;'), ['error', 'break'])
         assertStructurallySame(read('continue;export default 7;'), ['error', 'continue'])
-        assertStructurallySame(read('export default ()=>{break;return 7;};'), ['error', 'break'])
-        assertStructurallySame(read('while(false){const f=()=>{continue;return 7;};}export default 7;'), ['error', 'continue'])
+        assertStructurallySame(read('export default ()=>{break;return 7;};'), ['ok'])
+        assertStructurallySame(read('while(false){const f=()=>{continue;return 7;};}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
@@ -722,13 +722,13 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(read('export default (...a) => { if (a) { switch (a) { case 1: { return 1; } default: { return 2; } } } return 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: return 1; } return 2; };'), ['error', 'return'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { const x = 1; } } return 2; };'), ['ok'])
-        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { break; } } return 2; };'), ['error', 'break'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { break; } } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } case 1: { return 1; } } };'), ['error', 'default'])
         assertStructurallySame(read('export default (...a) => { switch (a) { default: { return 2; } } };'), ['error', 'default'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: default: { return 1; } } };'), ['error', 'default'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: case 2: { return 2; } } };'), ['error', 'case'])
         assertStructurallySame(read('export default (...a) => { switch (a) { } return 2; };'), ['error', '}'])
-        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } return 3; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } default: { return 2; } } return 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } } };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { switch (a) { case 1: { return 1; } }; return 2; };'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { switch a { case 1: { return 1; } } return 2; };'), ['error', 'a'])

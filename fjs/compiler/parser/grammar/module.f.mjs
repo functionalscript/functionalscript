@@ -868,7 +868,7 @@ const valueBranches = () => ({
  *
  * @type {Body}
  */
-export const body = () => ['const', { ...valueBranches(), block }]
+export const body = () => ['const', { ...valueBranches(), block: loopBlock }]
 
 /**
  * The conditional, above {@link circuitTail} and the top of {@link tail}:
@@ -1264,42 +1264,6 @@ export const terminator = /** @type {const} */ ({
     switch: [sym('switch'), sym('('), value, sym(')'), sym('{'), sym('case'), value, sym(':'), caseTail],
 })
 
-/**
- * A function body's non-loop statements: declarations, named statements and
- * braced conditionals. Conditional arms may complete normally or retain an
- * explicit ending; source admission decides the supported completion profile.
- * A function body itself still requires its ordinary terminator or candidate
- * final loop. No {@link end} follows a conditional's `}`: a written `;` would
- * be an empty statement, which this grammar refuses. Bare consequents remain
- * outside the syntax profile.
- *
- * A `let` is a declaration as a `const` is, {@link letStatement}, and a
- * loop is `while (condition) loopBlock`. Both stand where a `const` may,
- * independently, each beginning with its own keyword. Resolved source facts
- * let the common sugar pass select loop state
- * ([spec: loops](../../../../spec/control-flow/loops/README.md)). No
- * {@link end} follows the loop's `}`, as none follows the guard's.
- *
- * A statement that begins with a name is an assignment or a call
- * statement, {@link bodyNameStatement}: the keywords above each open a
- * statement of their own, and a name is none of them.
- *
- * The non-loop prefix excludes `while` and `for`, which `blockContents` reads once
- * before deciding whether more body statements follow.
- * @type {SimpleStatement}
- */
-export const simpleStatement = () => ['const', {
-    block: branchBlock,
-    const: constStatement,
-    construct: newExpressionStatement,
-    if: ifStatement,
-    let: letStatement,
-    name: bodyNameStatement,
-}]
-
-/** A body statement, with ordinary loops allowed before later statements. @type {Statement} */
-export const statement = () => ['const', { ...simpleStatement()[1], while: whileStatement, for: forStatement }]
-
 /** An explicit initializer is shared by named and pattern declarations. @type {DeclarationInitializer} */
 const declarationInitializer = [sym('='), value]
 
@@ -1399,6 +1363,12 @@ export const loopBlock = /** @type {const} */ ([
     sym('{'), repeatFrom0(loopStatement), sym('}'),
 ])
 
+/** Written statements share one grammar at every block position. @type {SimpleStatement} */
+export const simpleStatement = loopStatement
+
+/** @type {Statement} */
+export const statement = loopStatement
+
 /** Stacked labels introduce one braced arm; resolution refuses normal fallthrough. @type {LoopCase} */
 export const loopCase = [repeatFrom1([sym('case'), value, sym(':')]), loopBlock]
 
@@ -1440,25 +1410,12 @@ export const forHeader = {
 /** The braced body is retained syntactically; `for...of` admission is a later boundary. @type {ForStatement} */
 export const forStatement = [sym('for'), sym('('), forHeader, sym(')'), loopBlock]
 
-/**
- * A body has non-loop statements and an optional terminator or loop. The
- * loop may be final; otherwise the remaining body uses the same rule.
- * This left-factors each loop token instead of adding it to two LL(1) branches.
- * Source admission decides whether a final loop really cannot fall through.
- * @type {BlockContents}
- */
-export const blockContents = () => ['const', [repeatFrom0(simpleStatement), option({
-    end: terminator, loop: [whileStatement, blockContents], for: [forStatement, blockContents],
-})]]
+/** Ordered written statements; completion is determined during FAST lowering. @type {BlockContents} */
+export const blockContents = repeatFrom0(loopStatement)
 
 /**
- * A function's block body: `{ const x = 1; return value; }` — its
- * {@link blockContents}, ending in an ordinary terminator or a candidate
- * terminal loop, or a normal closing brace retained as implicit-return syntax.
- * Source admission checks the candidate's literal condition
- * and transfer targets. A switch holds the rest of the body where it has no
- * `default`
- * ([spec: functions](../../../../spec/functions/README.md)).
+ * A braced statement list. Empty bodies and unreachable statements retain
+ * their source shape; no grammar production classifies terminal control flow.
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
  * binds names the way a module does, and the fold is what says the two
@@ -1488,18 +1445,16 @@ export const blockContents = () => ['const', [repeatFrom0(simpleStatement), opti
 export const block = /** @type {const} */ ([sym('{'), blockContents, sym('}')])
 
 /** Ordinary arms reuse body statements but may reach their closing brace normally. @type {BranchContents} */
-export const branchContents = () => ['const', [repeatFrom0(simpleStatement), option({
-    end: terminator, loop: [whileStatement, branchContents], for: [forStatement, branchContents],
-})]]
+export const branchContents = repeatFrom0(loopStatement)
 
-/** A braced conditional arm; its optional ending does not relax a function body. @type {BranchBlock} */
+/** A braced conditional arm with the same written statement list. @type {BranchBlock} */
 export const branchBlock = [sym('{'), branchContents, sym('}')]
 
 /** Braces distinguish an alternate arm from a chained conditional. @type {BranchElse} */
-export const branchElse = () => ['const', { block: branchBlock, if: ifStatement }]
+export const branchElse = loopElse
 
 /** Ordinary conditionals retain terminating guards and normally completing arms. @type {IfStatement} */
-export const ifStatement = [sym('if'), sym('('), value, sym(')'), branchBlock, option([sym('else'), branchElse])]
+export const ifStatement = loopIfStatement
 
 /**
  * An import's attribute, `with { type: "json" }` as JavaScript spells the
@@ -1546,7 +1501,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ block: branchBlock, const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ block: loopBlock, const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

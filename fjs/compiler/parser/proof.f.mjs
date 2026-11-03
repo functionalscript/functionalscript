@@ -190,7 +190,6 @@ export const proof = {
                 'export const a=1 export const b=2;', 'export const a=1; import b from "./x";',
                 'export default 1; export const a=2;', 'export default 1; export default 2;',
                 'export { a };', 'export let a=1;', 'const a=1;', '',
-                'export const f=()=>{};',
                 'export const f=()=>{return\n1;};',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
             const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
@@ -230,8 +229,8 @@ export const proof = {
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',
             ]) {
-                assertEq(parseSyntax(tokenizeString(source))[0], 'error')
-                assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+                assertEq(parseSyntax(tokenizeString(source))[0], 'ok')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
             }
             // a line break where JavaScript forbids one, before `=>` and
             // after `return`: the syntax tree holds it, since trivia is no
@@ -826,24 +825,27 @@ export const proof = {
             assert(tag === 'ok', tag)
         },
         () => {
-            // a body of many guards: each nests as the alternate of the one
-            // before it, the arms resolved as bodies of their own on the same
-            // explicit stack the shapes above pin at twenty thousand, the
-            // statements after a guard shared with the body they continue
-            // rather than copied per guard, and each guard's read of the
-            // parameter answered by the arm before it, which remembers the
-            // word, rather than by a walk out through every arm. A quarter
-            // of the count above: a guard is nine tokens where a ternary's
-            // level is four, and the suite's slowest runner times a test out
-            // at five seconds
+            // Many written guards stay in one source statement sequence.
+            // Resolution uses the explicit stack without constructing a
+            // nested continuation for every remaining statement.
             const [tag, value] = parseFromTokens(tokenizeString(`export default (a) => {\n${'if (a) { return 1; }\n'.repeat(5000)}return 0;\n};`))
             assert(tag === 'ok', tag)
-            /** @type {any} */
-            let arm = /** @type {any} */ (value.body.exit[1])[1][0][2][1].body
-            for (let depth = 1; depth < 5_000; depth += 1) { arm = arm.exit[3] }
-            assertEq(arm.exit[0], 'if')
-            assertEq(arm.exit[3].exit[0], 'return')
-            assertEq(arm.exit[3].exit[2], 0)
+            assert(value.body.exit[0] === 'yield')
+            const object = value.body.exit[1]
+            assert(object instanceof Array && object[0] === 'object')
+            const entry = object[1][0]
+            assert(entry[0] === ':' && entry[2] instanceof Array && entry[2][0] === 'function')
+            const fn = entry[2][1]
+            assertEq(fn.body.statements.length, 5_000)
+            for (const statement of fn.body.statements) {
+                assert(statement[0] === 'if')
+                const returned = statement[2].statements[0]
+                assert(returned[0] === 'return')
+                assertEq(returned[1], fn.target)
+                assertEq(returned[2], 1)
+            }
+            assert(fn.body.exit[0] === 'return')
+            assertEq(fn.body.exit[2], 0)
         },
     ],
     // An object's members stand in the order they are written, as JavaScript

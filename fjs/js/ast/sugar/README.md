@@ -71,14 +71,20 @@ Expressions with no outer writes retain their established normalization path.
 dispatch. It indexes held function bodies and defaults independently without
 treating function construction as their execution.
 
-A terminal literal-true loop arrives as the source exit `terminal-loop`, after
-admission has resolved every break target and proved that none leaves that
-loop. It shares ordinary loop state and transfer normalization, but has no
-normal results and no condition-false break. Returns still target the owning
-source function; throws and continues retain their ordinary meaning. An empty
-terminal loop therefore remains deliberate divergence. Its FAST block ends
-directly with the loop exit. That exit has no normal successor and introduces
-no synthetic throw or implicit undefined result.
+Source resolution retains loops as ordinary statements. Normalization determines
+whether a literal-true loop has a normal successor after normalizing its body
+and checking for an owning break. A terminal loop has no normal results or
+condition-false break, and ends its FAST block directly. Returns still target
+the owning function; throws and continues retain their ordinary meaning. No
+synthetic throw or undefined function result follows that loop. Supplied source
+records may also use the existing explicit `terminal-loop` exit; syntax AST
+does not classify loops or introduce that exit.
+
+Function bodies may complete normally, in which case normalization supplies
+an owning return of `undefined`. Every written statement remains in syntax AST
+and passes binding/capture checks; only FAST lowering discards unreachable
+computations. Terminal conditional branches retain their returns without an
+extra fallback result.
 
 A conditional statement keeps the surrounding statement continuation. The
 admitted ordinary-function profile has at most one assigned outer binding;

@@ -389,7 +389,7 @@ export type Value = () => readonly ['const', ValueBranches & {
  * object.
  */
 export type Body = () => readonly ['const', ValueBranches & {
-    readonly block: Block
+    readonly block: LoopBlock
 }]
 
 /** `(` and what it opens: the one alternative a `(` starts. */
@@ -491,55 +491,26 @@ export type ParenGroupOperand = readonly [number, GroupOperand]
 /** A statement's terminator: `;`, or nothing. */
 export type End = Option<readonly [number]>
 
-/**
- * `{`, the {@link BlockContents} ending in a terminator or candidate while, and `}`.
- *
- * A statement is a `const`, {@link ConstStatement}, the module's own rule
- * — a body binds names the way a module does, and which scope a name lands
- * in is the fold's answer, not the grammar's — or a guard, `if`, `(`, the
- * condition, `)` and a block, this same rule.
- */
+/** Braces around an ordered written statement list. */
 export type Block = readonly [number, BlockContents, number]
 
-/** Non-loop body statements before a terminal or candidate terminal loop. */
-export type SimpleStatement = () => readonly ['const', {
-    readonly block: BranchBlock
-    readonly const: ConstStatement
-    readonly construct: NewExpressionStatement
-    readonly if: IfStatement
-    readonly let: LetStatement
-    readonly name: BodyNameStatement
-}]
+/** A written statement in any lexical block. */
+export type SimpleStatement = LoopStatement
 
-/** A normal closing brace may omit the body terminator; final loops remain candidates. */
-export type BlockContents = () => readonly ['const', readonly [
-    RepeatFrom<0, SimpleStatement>,
-    Option<{ readonly end: Terminator; readonly loop: readonly [WhileStatement, BlockContents]; readonly for: readonly [ForStatement, BlockContents] }>,
-]]
+/** Empty or nonempty statement lists preserve source order. */
+export type BlockContents = RepeatFrom<0, LoopStatement>
 
 /** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
-export type Statement = () => readonly ['const', {
-    readonly construct: NewExpressionStatement
-    readonly block: BranchBlock
-    readonly const: ConstStatement
-    readonly if: IfStatement
-    readonly let: LetStatement
-    readonly while: WhileStatement
-    readonly for: ForStatement
-    readonly name: BodyNameStatement
-}]
+export type Statement = LoopStatement
 
 /** An ordinary conditional retains normal arms and the existing terminating guards. */
 export type IfStatement = readonly [number, number, Value, number, BranchBlock, Option<readonly [number, BranchElse]>]
 
-/** Ordinary conditional arms can finish normally; function bodies still require their explicit end. */
+/** Conditional arms share the function-body statement grammar. */
 export type BranchBlock = readonly [number, BranchContents, number]
 
 /** The same statements and endings as a function block, with an optional ending for a normal arm. */
-export type BranchContents = () => readonly ['const', readonly [
-    RepeatFrom<0, SimpleStatement>,
-    Option<{ readonly end: Terminator; readonly loop: readonly [WhileStatement, BranchContents]; readonly for: readonly [ForStatement, BranchContents] }>,
-]]
+export type BranchContents = BlockContents
 
 /** A braced alternate or another ordinary conditional. */
 export type BranchElse = () => readonly ['const', {
@@ -556,7 +527,7 @@ export type BodyNameStatement = readonly [...NameExpression, End]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
-    readonly block: BranchBlock
+    readonly block: LoopBlock
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement
     readonly let: LetStatement

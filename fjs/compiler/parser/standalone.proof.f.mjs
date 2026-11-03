@@ -100,7 +100,7 @@ export const proof = {
         for (const source of [
             '{export default 1;}export default 0;', '{import x from "x";}export default 0;',
             '{var x=1;}export default 0;', '{};export default 0;',
-            'export default ()=>{{return 1;}};', 'const x=1{}export default x;',
+'const x=1{}export default x;',
         ]) { assert(parse('')(source)[0] === 'error', source) }
     },
 }

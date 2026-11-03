@@ -16,7 +16,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
-import { _hasReturn } from '../memo/cells/module.f.mjs'
+import { returnedBlock, hasRetainedReturn } from './completion/module.f.js'
 import { logicalCondition, logicalValue } from './logical/module.f.js'
 import { _exposeOperands } from '../returns/module.f.mjs'
 import { bind, call, done, run } from '../task/module.f.js'
@@ -298,13 +298,14 @@ const functionValue = (source, environment, context) => {
         inner = made.environment
         prefix = [...prefix, ...made.statements]
     }
-    const normalized = normalizedBlock(source.body, inner, context).block
+    const completion = normalizedBlock(returnedBlock(source.body), inner, context)
+    const normalized = completion.block
     const body = { statements: [...prefix, ...normalized.statements], exit: normalized.exit }
     const used = references(body)
     return {
         target: source.target, parameters, rest: used.includes(rest) ? rest : null, self: used.includes(self) ? self : null,
         captures: captures.filter(capture => used.includes(capture.binding)),
-        body: { ...body, exit: body.exit[0] === 'yield' ? ['return', source.target, body.exit[1][0]] : body.exit },
+        body: { ...body, exit: completion.normal && body.exit[0] === 'yield' ? ['return', source.target, body.exit[1][0]] : body.exit },
     }
 }
 
@@ -327,14 +328,15 @@ const leaf = (environment, context, value) => {
     if (value === null || typeof value !== 'object') { return { value } }
     if (value[0] === 'ref') { return { value: lookup(environment, value[1]) } }
     if (value[0] === 'function') { return { value: ['function', functionValue(value[1], environment, context)] } }
-    if (value[0] === 'block') { return { value: ['block', enclosed(value[1], environment, environment, context)] } }
+    if (value[0] === 'block') { return { value: ['block', enclosed(returnedBlock(value[1]), environment, environment, context)] } }
     if (value[0] === '()' && value[2].length === 0 && value[1] instanceof Array && value[1][0] === 'function') {
         const source = value[1][1]
         const fn = functionValue(source, environment, context)
-        const scanned = fn.body.exit[0] === 'loop' ? fn.body : { ...fn.body, exit: /** @type {const} */ (['yield', exitValues(fn.body.exit)]) }
-        if (fn.parameters.length === 0 && fn.rest === null && !_hasReturn(['block', scanned], fn.target)) {
+        const completion = returnedBlock(source.body)
+        if (fn.parameters.length === 0 && fn.rest === null && !hasRetainedReturn(completion)) {
             const inner = source.rest === null ? environment : expanded(source.rest, undefined, environment, true, context).environment
-            return { value: ['block', enclosed(source.body, environment, inner, { ...context, loop: null, breakRegion: null })] }
+            const body = enclosed(completion, environment, inner, { ...context, loop: null, breakRegion: null })
+            return { value: ['block', body] }
         }
         return { value: ['()', ['function', fn], []] }
     }
@@ -486,7 +488,7 @@ const sequencedOperator = (source, environment, context) => {
 const stateTask = (source, environment, context) => call(() => {
     if (!writesOuter(source, environment, context)) { return done(unchangedValue(normalizedValue(environment, context)(source), environment)) }
     assert(source instanceof Array, 'a stateful value is no source expression')
-    if (source[0] === 'block') { return done(enclosedValue(source[1], environment, environment, context)) }
+    if (source[0] === 'block') { return done(enclosedValue(returnedBlock(source[1]), environment, environment, context)) }
     // A literal callee has no observable construction work. Snapshot its
     // captures after argument evaluation, when JavaScript's direct call reads
     // the enclosing variables, rather than retaining versions an argument
@@ -508,7 +510,7 @@ const stateTask = (source, environment, context) => call(() => {
     if (source[0] === '()' && source[2].length === 0 && source[1] instanceof Array && source[1][0] === 'function') {
         const fn = source[1][1]
         assert(fn.parameters.length === 0 && fn.rest === null, 'a stateful immediate call has invocation bindings')
-        return done(enclosedValue(fn.body, environment, environment, { ...context, loop: null, breakRegion: null }))
+        return done(enclosedValue(returnedBlock(fn.body), environment, environment, { ...context, loop: null, breakRegion: null }))
     }
     if (source[0] === '?:' || source[0] === '&&' || source[0] === '||' || source[0] === '??') {
         return bind(stateTask(source[1], environment, context), left => {
@@ -721,7 +723,7 @@ const normalizedLoop = (loop, environment, context, terminal) => {
     const events = eventFacts(loop.events)
     const sources = loopSources(events.references, environment, context)
     const parameters = sources.map(source => binding(source.index))
-    const results = terminal ? [] : sources.map(source => binding(source.index))
+    let results = terminal ? [] : sources.map(source => binding(source.index))
     const scope = /** @type {Environment} */ ([...environment, ...sources.map((source, index) => /** @type {const} */ ([source, reference(parameters[index])]))])
     /** @type {NonNullable<Context['loop']>} */
     const transfer = { target: loop.target, sources }
@@ -732,9 +734,11 @@ const normalizedLoop = (loop, environment, context, terminal) => {
         sourceBody = { ...continued, statements: [...continued.statements, ...loop.step.statements] }
     }
     const step = normalizedBlock(sourceBody, condition.environment, { ...context, loop: transfer, breakRegion: transfer }, sources)
+    terminal ||= condition.value === true && condition.statements.length === 0 && !hasLoopTransfer(step.block, loop.target, 'break')
+    if (terminal) { results = [] }
     /** @type {Block} */
-    const continuing = step.block.exit[0] === 'yield'
-        ? { ...step.block, exit: ['continue', loop.target, step.normal ? sources.map(source => lookup(step.environment, source)) : parameters.map(reference)] }
+    const continuing = step.normal && step.block.exit[0] === 'yield'
+        ? { ...step.block, exit: ['continue', loop.target, sources.map(source => lookup(step.environment, source))] }
         : step.block
     /** @type {Block} */
     const body = terminal || condition.value === true && condition.statements.length === 0 && step.hasLoopExit ? continuing : {
@@ -910,7 +914,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
         statements = [...statements, ...made.block.statements]
         hasLoopExit = hasLoopExit || made.hasLoopExit
         hasFunctionExit = hasFunctionExit || made.hasFunctionExit
-        if (!made.normal) { return { block: pruneAliases({ statements, exit: ['yield', []] }, []), environment: made.environment, normal: false, hasLoopExit, hasFunctionExit } }
+        if (!made.normal) { return { block: pruneAliases({ statements, exit: made.block.exit }, []), environment: made.environment, normal: false, hasLoopExit, hasFunctionExit } }
         inner = made.environment
     }
     if (source.exit[0] === 'terminal-loop') {
