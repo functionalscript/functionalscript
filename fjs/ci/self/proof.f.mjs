@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesScript } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -35,6 +35,20 @@ const workflowOf = (program, filename = 'gen.ci.yml') => {
 }
 
 export const proof = {
+    personalNotes: () => {
+        const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.personal-notes.yml')))))
+        assertEq(personalNotesPath, '.github/workflows/gen.personal-notes.yml')
+        assertStructurallySame(generated, personalNotesWorkflow)
+        // The base branch's workflow, never the pull request's.
+        assertStructurallySame(generated.on, { pull_request_target: {} })
+        const steps = generated.jobs.approve?.steps ?? []
+        // Nothing from the pull request is checked out or run.
+        assert(steps.every(step => step.uses === undefined))
+        assertStructurallySame(generated.jobs.approve?.permissions, { contents: 'read', 'pull-requests': 'write' })
+        // Values GitHub substitutes reach the script only through its environment.
+        assert(!personalNotesScript.includes('${{'))
+        assert(personalNotesScript.includes('prefix="doc/$AUTHOR/"'))
+    },
     sharedChecks: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))
         assertStructurallySame(generated, repositoryWorkflow)
@@ -47,7 +61,7 @@ export const proof = {
         assert(typeof github === 'object' && !(github instanceof Array))
         const workflows = github.workflows
         assert(typeof workflows === 'object' && !(workflows instanceof Array))
-        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml', 'gen.website.yml'])
+        assertStructurallySame(Object.keys(workflows), ['gen.ci.yml', 'gen.npm-publish.yml', 'gen.website.yml', 'gen.personal-notes.yml'])
     },
     websiteBuild: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main(), 'gen.website.yml')))))

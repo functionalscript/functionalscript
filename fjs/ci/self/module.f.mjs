@@ -112,7 +112,10 @@ export const packageConsumer = {
  */
 export const main = () => step(
     writeCi(repositoryWorkflow),
-    () => exitStep(writeFiles([[websitePath, JSON.stringify(websiteWorkflow, null, '  ')]])))
+    () => exitStep(writeFiles([
+        [websitePath, JSON.stringify(websiteWorkflow, null, '  ')],
+        [personalNotesPath, JSON.stringify(personalNotesWorkflow, null, '  ')],
+    ])))
 
 /** Repository configuration shared with cache initialization. @type {Setup} */
 const setup = {
@@ -142,4 +145,66 @@ export const websiteWorkflow = {
     },
     permissions: { contents: 'read' },
     jobs: { website: websiteJob },
+}
+
+/** Generated apart from the tests, since it reviews rather than checks. */
+export const personalNotesPath = /** @type {const} */ (`${_workflowsDirectory}/gen.personal-notes.yml`)
+
+/**
+ * The approval of a pull request that changes only its author's personal
+ * notes, the files under `doc/<author's login>/`, such as `doc/sergey`. The
+ * author must hold write access. Anything else is left to people, and an
+ * approval this workflow gave earlier is dismissed once a file outside the
+ * notes changes, because the repository keeps approvals across pushes. The
+ * script reads the pull request through the API and checks nothing out, so
+ * no code from the pull request runs with the token.
+ */
+export const personalNotesScript = [
+    'set -euo pipefail',
+    'prefix="doc/$AUTHOR/"',
+    'permission=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission)',
+    "outside=$(gh api --paginate \"repos/$REPO/pulls/$PR/files\" --jq '.[] | .filename, .previous_filename // empty' | awk -v p=\"$prefix\" 'index($0, p) != 1')",
+    'if { [ "$permission" = admin ] || [ "$permission" = write ]; } && [ -z "$outside" ]; then',
+    '  gh pr review "$PR" --repo "$REPO" --approve --body "Every changed file is under $prefix, the personal notes of its author."',
+    'else',
+    '  echo "Not only the personal notes of $AUTHOR ($permission access): review is left to people."',
+    "  for id in $(gh api --paginate \"repos/$REPO/pulls/$PR/reviews\" --jq '.[] | select(.user.login == \"github-actions[bot]\" and .state == \"APPROVED\") | .id'); do",
+    '    gh api -X PUT "repos/$REPO/pulls/$PR/reviews/$id/dismissals" -f event=DISMISS -f message="A file outside $prefix changed."',
+    '  done',
+    'fi',
+].join('\n')
+
+/** @type {Job} */
+export const personalNotesJob = {
+    'runs-on': images.ubuntu.intel,
+    'timeout-minutes': jobTimeout,
+    permissions: { contents: 'read', 'pull-requests': 'write' },
+    steps: [{
+        run: personalNotesScript,
+        shell: 'bash',
+        env: {
+            GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+            REPO: '${{ github.repository }}',
+            PR: '${{ github.event.pull_request.number }}',
+            AUTHOR: '${{ github.event.pull_request.user.login }}',
+        },
+    }],
+}
+
+/**
+ * Approves pull requests that change only their author's personal notes.
+ * It runs on `pull_request_target`, so the workflow is always the base
+ * branch's: a pull request cannot change what approves it.
+ *
+ * @type {GitHubAction}
+ */
+export const personalNotesWorkflow = {
+    name: 'Personal notes',
+    on: { pull_request_target: {} },
+    concurrency: {
+        group: '${{ github.workflow }}-${{ github.event.pull_request.number }}',
+        'cancel-in-progress': true,
+    },
+    permissions: { contents: 'read' },
+    jobs: { approve: personalNotesJob },
 }

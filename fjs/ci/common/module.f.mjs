@@ -91,6 +91,10 @@ export const gitHubActionSchema = /** @type {const} */ ({
     // without it a push to any branch would publish.
     on: {
         pull_request: or(option, {}),
+        // Runs the workflow as the base branch defines it, never as the pull
+        // request does: the personal-notes approval relies on it, since a
+        // workflow a pull request could rewrite could approve itself.
+        pull_request_target: or(option, {}),
         merge_group: or(option, {}),
         push: or(option, { branches: array(string) })
     },

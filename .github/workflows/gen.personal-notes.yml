@@ -1,0 +1,35 @@
+{
+  "name": "Personal notes",
+  "on": {
+    "pull_request_target": {}
+  },
+  "concurrency": {
+    "group": "${{ github.workflow }}-${{ github.event.pull_request.number }}",
+    "cancel-in-progress": true
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "approve": {
+      "runs-on": "ubuntu-26.04",
+      "timeout-minutes": 30,
+      "permissions": {
+        "contents": "read",
+        "pull-requests": "write"
+      },
+      "steps": [
+        {
+          "run": "set -euo pipefail\nprefix=\"doc/$AUTHOR/\"\npermission=$(gh api \"repos/$REPO/collaborators/$AUTHOR/permission\" --jq .permission)\noutside=$(gh api --paginate \"repos/$REPO/pulls/$PR/files\" --jq '.[] | .filename, .previous_filename // empty' | awk -v p=\"$prefix\" 'index($0, p) != 1')\nif { [ \"$permission\" = admin ] || [ \"$permission\" = write ]; } && [ -z \"$outside\" ]; then\n  gh pr review \"$PR\" --repo \"$REPO\" --approve --body \"Every changed file is under $prefix, the personal notes of its author.\"\nelse\n  echo \"Not only the personal notes of $AUTHOR ($permission access): review is left to people.\"\n  for id in $(gh api --paginate \"repos/$REPO/pulls/$PR/reviews\" --jq '.[] | select(.user.login == \"github-actions[bot]\" and .state == \"APPROVED\") | .id'); do\n    gh api -X PUT \"repos/$REPO/pulls/$PR/reviews/$id/dismissals\" -f event=DISMISS -f message=\"A file outside $prefix changed.\"\n  done\nfi",
+          "shell": "bash",
+          "env": {
+            "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+            "REPO": "${{ github.repository }}",
+            "PR": "${{ github.event.pull_request.number }}",
+            "AUTHOR": "${{ github.event.pull_request.user.login }}"
+          }
+        }
+      ]
+    }
+  }
+}
