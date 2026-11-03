@@ -49,7 +49,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { pureOk } from '../../effects/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 
 const { listToVec } = msb
 

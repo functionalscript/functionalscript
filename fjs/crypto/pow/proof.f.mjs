@@ -12,7 +12,7 @@ import { concat as stringConcat } from '../../types/string/module.f.js'
 import { element, htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 
 /** A 256-bit target's 64 hex digits, as the demo shows it. */
 const targetHex = encodeScalar(64)

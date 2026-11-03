@@ -19,7 +19,7 @@ import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
 import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
-import { stringToList } from '../text/utf16/module.f.mjs'
+import { stringToList } from '../text/utf16/module.f.js'
 
 /** Implementation entry points selected for the dependency graph. @type {(path: string) => boolean} */
 const isModule = path => ['module.f.js', 'module.f.mjs'].includes(basename(path))

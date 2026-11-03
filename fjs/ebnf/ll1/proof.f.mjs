@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { one as c } from '../../text/ascii/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'

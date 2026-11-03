@@ -12,7 +12,7 @@
  */
 
 import { specifierKind } from '../../path/import/module.f.mjs'
-import { isIdentifierPart } from '../../js/identifier/module.f.mjs'
+import { isIdentifierPart } from '../../js/identifier/module.f.js'
 import { charIs } from '../../text/ascii/module.f.js'
 
 /** A one-character string that may continue a JavaScript identifier. */

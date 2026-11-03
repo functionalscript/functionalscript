@@ -1,6 +1,6 @@
 import { assert } from '../../asserts/module.f.js'
 import { one } from '../../text/ascii/module.f.js'
-import { isIdentifier, isIdentifierPart, isIdentifierStart, isInteger } from './module.f.mjs'
+import { isIdentifier, isIdentifierPart, isIdentifierStart, isInteger } from './module.f.js'
 
 export const proof = {
     isInteger: () => {

@@ -62,7 +62,7 @@ required; see [deployment](../website/README.md#github-actions-deployment).
 The generated `gen.personal-notes.yml` workflow approves a pull request that
 changes only its author's personal notes, the files under
 `doc/<author's login>/`, when the author has write access
-([`personal-notes`](./personal-notes/module.f.mjs)). It runs on
+([`personal-notes`](./personal-notes/module.f.js)). It runs on
 `pull_request_target`, also when a pull request is edited, since a new base
 branch changes its files. The workflow and the code it runs are the base
 branch's, so a pull request cannot change what approves it, and the pull

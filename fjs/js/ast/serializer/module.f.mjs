@@ -13,7 +13,7 @@
  */
 
 import { operatorOperands } from '../module.f.mjs'
-import { isIdentifier } from '../../../js/identifier/module.f.mjs'
+import { isIdentifier } from '../../../js/identifier/module.f.js'
 import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { next, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'

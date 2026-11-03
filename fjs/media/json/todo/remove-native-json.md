@@ -148,7 +148,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
 
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — the
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
-- [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
+- [`fjs/text/utf16/module.f.js`](../../../text/utf16/module.f.js) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
 - [`fjs/js/string_escape/module.f.mjs`](../../../js/string_escape/module.f.mjs)
   — `stringLiteral`, the escaping `stringSerialize` wraps and the

@@ -13,7 +13,7 @@
  * [`fjs/git/packstore`](../packstore/module.f.mjs), which is where
  * `git clone` and `git gc` put nearly everything. The repository's own
  * `objects/` is the first such directory and its `objects/info/alternates`
- * names the rest, as [`fjs/git/alternates`](../alternates/module.f.mjs)
+ * names the rest, as [`fjs/git/alternates`](../alternates/module.f.js)
  * decodes it — see {@link objectsDirs}, which walks them, and
  * {@link readIn}, which reads over the list. The caller gives the common
  * directory, `.git` for a main worktree; finding it from a worktree of any
@@ -71,7 +71,7 @@ import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkS
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { alternatesIn } from '../alternates/module.f.mjs'
+import { alternatesIn } from '../alternates/module.f.js'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
 import { hexText, of, ofWidth } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
