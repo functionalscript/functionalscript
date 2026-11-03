@@ -48,6 +48,82 @@ export const proof = {
         assertEq(normalized.body.statements.filter(statement => statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === '.' && statement[2][2] === 'a').length, 1)
         assertError(memo(assertOk(analysis(graph('const {a=null.x}={};export default 0;'))))({ args: [] }))
     },
+    forOfSpreadAndCursorUseTheExistingLoopRepresentation: () => {
+        const normalized = fn('export default source=>{let sum=0;for(const item of source){if(item<0){break;}sum+=item;if(item===1){continue;}}return sum;};')
+        const loop = normalized.body.statements.find(statement => statement[0] === 'loop')
+        assert(loop !== undefined && loop[0] === 'loop')
+        const entry = normalized.body.statements[normalized.body.statements.indexOf(loop) - 1]
+        assert(entry[0] === 'define' && entry[3] === 'required')
+        assert(entry[2] instanceof Array && entry[2][0] === 'array')
+        const spread = entry[2][1][0]
+        assert(spread instanceof Array && spread[0] === '...')
+        assertEq(loop[1].parameters.length, 2)
+        assertEq(loop[1].initial[0], 0)
+        assertEq(loop[1].results.length, 1)
+        const guard = loop[1].body.statements[0]
+        assert(guard[0] === 'if')
+        assert(guard[2] instanceof Array && guard[2][0] === '<')
+        assert(guard[4].exit[0] === 'break')
+        assertEq(guard[4].exit[2].length, 1)
+        const resumed = guard[3].statements.find(statement => statement[0] === 'if' && statement[4].exit[0] === 'yield')
+        assert(resumed !== undefined)
+    },
+    forOfStatesAndContinuationsKeepTheirSourceBehavior: () => {
+        /** @type {readonly (readonly [string, unknown])[]} */
+        const cases = [
+            ['let sum=1;for(const item of []){sum+=item;}export default sum;', 1],
+            ['let sum=0;for(const item of [1,2,3]){sum+=item;if(item===2){continue;}sum+=10;}export default sum;', 26],
+            ['let sum=0;for(const item of [1,2,3]){sum+=item;if(item===2){break;}sum+=10;}export default sum;', 13],
+            ['export default (()=>{for(const item of [1,2]){if(item===2){return item*3;}}return 9;})();', 6],
+            ['export default (()=>{let sum=0;for(const item of [1,2,3]){switch(item){case 2:{continue;}default:{sum+=item;break;}}sum+=10;}return sum;})();', 24],
+            ['let sum=0;for(const outer of [1,2]){for(const inner of [3,4]){if(inner===3){continue;}sum+=outer+inner;}}export default sum;', 11],
+            ['let sum=0;for(const item of (()=>{sum=7;return [];})()){sum+=item;}export default sum;', 7],
+            ['let value=1;value=2;let sum=0;for(const item of [1,2]){sum+=value+item;}export default [value,sum];', [2, 7]],
+            ['let saved=()=>0;for(const item of [1,2]){const read=()=>item;saved=read;}export default saved();', 2],
+            ['let count=0;for(const item of "a😀\\ud800"){count+=1;}export default count;', 3],
+        ]
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        for (const source of [
+            'for(const item of null){}export default 0;',
+            'for(const item of [1]){const failure=null.x;}export default 0;',
+            'for(const item of [1]){throw item;}export default 0;',
+        ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
+    },
+    forOfSourceTransfersSkipTheLoopAndFollowingStatements: () => {
+        const resolved = assertOk(parse('')('let outer=0;outer=1;export default 0;'))
+        const [initialize, write] = resolved.body.statements
+        assert(initialize[0] === 'initialize' && write[0] === 'write')
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const item = /** @type {const} */ ({ index: 0 })
+        const fast = normalize({ ...resolved, body: { statements: [initialize, ['for-of', {
+            target, item, events: [],
+            source: ['block', { statements: [write], exit: ['throw', 7] }],
+            body: { statements: [], exit: ['yield', undefined] },
+        }]], exit: ['yield', ['.', null, 'unreached']] } }, [])
+        assertError(memo(assertOk(analysis(fromFast(fast.body))))({ args: [] }))
+        assert(!fast.body.statements.some(statement => statement[0] === 'loop'))
+    },
+    forOfWithoutUserStateStillAdvancesAndValidatesItsInput: () => {
+        const resolved = assertOk(parse('')('export default 0;'))
+        const target = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const item = /** @type {const} */ ({ index: 0 })
+        for (const continued of [false, true]) {
+            const fast = normalize({ ...resolved, body: { statements: [['for-of', {
+                target, item, events: [], source: ['array', [1, 2]],
+                body: { statements: continued ? [['continue', target]] : [], exit: ['yield', undefined] },
+            }]], exit: ['yield', 7] } }, [])
+            const loop = fast.body.statements.find(statement => statement[0] === 'loop')
+            assert(loop !== undefined && loop[0] === 'loop')
+            assertEq(loop[1].parameters.length, 1)
+            assertEq(loop[1].results.length, 0)
+            assertEq(assertOk(toData(assertOk(memo(assertOk(analysis(fromFast(fast.body))))({ args: [] })))), 7)
+        }
+        const invalid = normalize({ ...resolved, body: { statements: [['for-of', {
+            target, item, events: [], source: null,
+            body: { statements: [], exit: ['yield', undefined] },
+        }]], exit: ['yield', 7] } }, [])
+        assertError(memo(assertOk(analysis(fromFast(invalid.body))))({ args: [] }))
+    },
     forUpdatesRunAtNormalCompletionAndOwningContinues: () => {
         const cases = /** @type {const} */ ([
             ['let sum=0;for(let i=0;i<4;i+=1){if(i===1){continue;}sum+=i;}export default sum;', 5],

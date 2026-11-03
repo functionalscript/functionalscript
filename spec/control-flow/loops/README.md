@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while` and classic `for` bodies with conditionals and explicit exits
+**Status:** implemented — nested `while`, classic `for` and declaration `for…of` bodies with conditionals and explicit exits
 
 ```js
 export default n => {
@@ -52,7 +52,7 @@ assignment, a call statement, or empty. The step may be an assignment, a call
 statement, or empty. Existing pattern, assignment and call restrictions apply
 to those clauses. A named `let` may omit its initializer, starting at
 `undefined` before the first condition test; a pattern still requires one.
-`++`, `--`, `for…of` and `for…in` remain separate features.
+`++`, `--` and `for…in` remain separate features.
 The condition is an ordinary expression. Computed property keys still require
 their explicit conversion, as `Number(first + i)` does above.
 
@@ -72,6 +72,55 @@ continue each run the step exactly once.
 The direct expansion is a lexical region containing the initializer followed
 by `while (condition) { body; step; }`, with the same step before each owning
 continue. No new graph or VM operation is needed.
+
+## `for…of`
+
+Braced declaration loops visit array elements or string code points:
+
+```js
+let sum = 0;
+for (const item of [1, 2, 3]) {
+    sum = sum + item;
+}
+```
+
+The header uses `const` or `let` and the existing binding-pattern rules.
+Patterns may destructure each item and use the admitted lazy defaults.
+Each iteration initializes a fresh header binding; its body owns a nested
+lexical scope. Header names end after the loop, and the ordinary own-reference,
+shadowing and write-based capture checks apply. A `let` header can be assigned
+within its iteration. A retained function may capture an unreassigned header
+binding or a const snapshot, preserving that iteration's value.
+
+The source expression runs once. The compiler then materializes `[...source]`
+using the existing [spread contract](../../values/arrays/README.md#spread):
+arrays preserve element order and identities; strings yield one string per
+code point, including unchanged lone surrogates. For example, `"a😀"` yields
+`"a"` and `"😀"`. Other FunctionalScript values fail during expansion before
+any iteration binding, pattern default or body computation is evaluated.
+This deliberately uses O(n) work and storage up front, even if the first
+iteration exits. The source's writes take effect before initial loop state
+is selected, including when its result is empty.
+
+Normal body completion and an owning `continue` advance to the next item.
+An owning `break` resumes the following statements with the current outer
+values. An owning-function `return` and a throw skip those statements.
+Nested loops, switches and source functions keep their existing transfer
+owners. Empty input runs no body and immediately resumes following code.
+A function ending with `for…of` still needs a following explicit terminator,
+because the input may be empty; a normal conditional arm may end with one
+and resume its surrounding block.
+
+Assignment-target headers, `for…in`, `for await…of` and unbraced bodies remain
+outside the admitted forms. The contextual separator `of` is an ordinary
+identifier elsewhere.
+
+Normalization implements the [fold proposal](../../../doc/sergey/for-of.md)
+through the existing structured loop inputs, results and scoped completion
+transport. An internal cursor advances on both fallthrough and owning
+continue and is omitted from the normal result signature. The source binding
+analysis supplies aggregate user state. Spread supplies validation and Unicode
+handling; this adds no EDAG operation or public `tryFold` API.
 
 ## Loop bodies and exits
 
@@ -333,6 +382,14 @@ header scope and shadowing, optional clauses, update timing, nested transfers,
 switch continues, owning function exits, required failures and unreachable
 source checks through parsing, normalization and EDAG execution.
 
+The [for-of proofs](../../../fjs/compiler/parser/for_of.proof.f.mjs) cover
+array/string input, Unicode and lone surrogates, patterns and defaults, fresh
+captures, source writes, zero and many state values, nested transfers and
+required failures. Sugar proofs cover the internal cursor, required spread
+entry and aggregate-state normalization; the
+[function-text proofs](../../../fjs/compiler/serializer/function_text/proof.mjs)
+compare generated source execution and stable graph/text round trips.
+
 ## Design approval
 
 The general loop and binding extension was approved by `sergey-shandar` in
@@ -346,6 +403,12 @@ The [authorization and scope record](../../todo/3270-for.md#classic-for-authoriz
 quotes that request and lists the implemented header variants. No separate
 formal approval comment is recorded beyond that request. The general-loop
 approval above covers `while` and bindings, not classic `for`.
+
+`sergey-shandar` explicitly requested the spread-based `for…of` implementation
+in the [working session](https://chatgpt.com/local/01a19e8c-c68a-733e-86e5-9dde72899035).
+The [authorization record](../../todo/3270-for.md#forof-implementation-authorization)
+quotes the request. This admits the braced `const`/`let` declaration forms
+above; the earlier syntax-only request did not admit iteration semantics.
 
 ## Examples
 
