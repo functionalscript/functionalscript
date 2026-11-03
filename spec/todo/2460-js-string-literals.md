@@ -49,7 +49,8 @@ it follows is its own admission decision.
 
 This increment admits `\xHH` (exactly two hexadecimal digits) and `\v`
 in single-quoted strings. At that increment, double-quoted strings remained JSON strings,
-and template admission remains unchanged. Both spellings decode to the existing
+and template admission was unchanged. Templates now also admit `\xHH`; their
+vertical-tab escape remains refused. Both spellings decode to the existing
 string value: for example, `'\x1b'` equals `'\u001b'` and `'\v'` equals
 `'\u000b'`. No FAST, EDAG or runtime operation is needed.
 
@@ -108,7 +109,7 @@ normalization replaces actual shorthand escapes without changing their values.
 separately ([template literals](../values/template-literals/README.md)). That
 specification owns template restrictions on extra escapes, raw controls and line
 continuations. The NUL shorthand remains prohibited; any other widening of the
-common escape set must be coordinated across quoted strings and templates.
+escape set must be documented for each delimiter.
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FJS in a
 single pass — implements any of these spellings, it must still distinguish JS

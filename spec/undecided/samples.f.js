@@ -48,5 +48,5 @@ export const samples = {
     'lit.trailing-dot': 'export default 5.;\n',
     'lit.string-escape': 'export default "\\x41";\n',
     'lit.string-continuation': 'export default "a\\\nb";\n',
-    'lit.template-escape': 'export default `\\x41`;\n',
+    'lit.template-escape': 'export default `\\v`;\n',
 }
