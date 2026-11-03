@@ -16,14 +16,14 @@ logical not and the type tag, the prefixes neither stage had — and
 `"k" in o`, the entry check with a literal key ([below](in/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
 `==`/`!=` stay refused, since neither language reads them the same way
-twice. Unary `+` is not in the language:
-the conversion to a number is `Number(x)`
-([number conversion](../conversions/number/README.md)). The EDAG admits every pure
-operation, unary `+` among them, and the language spells a subset of them;
-which is the language's decision, made on these pages, not the EDAG's.
+twice. Unary `+` is admitted into the syntax and resolved source AST, including
+numeric-index syntax such as `a[+x]`. Its AST-to-FAST conversion is explicitly
+refused pending [unary-plus lowering](../todo/unary-plus.md). It must not be
+silently replaced with `Number(x)`: unary `+` rejects BigInts, whereas `Number`
+accepts them. The existing `Number(x)` conversion remains available.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
-levels are the prefixes `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
+levels are the prefixes `+`, `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
 the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `=== !==`; `&`; `^`;
 `|`; `&&`; `||`,
 with `??` a chain of its own at the same level; the conditional above

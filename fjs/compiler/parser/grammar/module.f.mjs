@@ -14,24 +14,24 @@
  * last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
  *          | 'throw' value end
  * end    ::= [ ';' ]
- * value  ::= '-' unaryOperand tail | '~' unaryOperand tail
+ * value  ::= '+' unaryOperand tail | '-' unaryOperand tail | '~' unaryOperand tail
  *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
  *          | (primitive | template | array | object) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue)
  *          | newExpression access* powTail tail
- * body   ::= '-' unaryOperand tail | '~' unaryOperand tail
+ * body   ::= '+' unaryOperand tail | '-' unaryOperand tail | '~' unaryOperand tail
  *          | '!' unaryOperand tail | 'typeof' unaryOperand tail
  *          | (primitive | template | array) access* powTail tail
  *          | id arrowOrRest
  *          | '(' (func | value afterValue) | block
  *          | newExpression access* powTail tail
- * unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+ * unary  ::= '+' unaryOperand | '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
  *          | (primitive | template | id | array | object) access* powTail
  *          | '(' group
  *          | newExpression access* powTail
- * unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
+ * unaryOperand ::= '+' unaryOperand | '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
  *          | 'typeof' unaryOperand
  *          | (primitive | template | id | array | object) access*
  *          | '(' groupOperand

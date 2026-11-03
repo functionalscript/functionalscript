@@ -224,7 +224,7 @@ export type PrefixBranches<Rest extends readonly unknown[]> = {
  * What a prefix takes: a value less the function, JavaScript's
  * unary operand being a `UnaryExpression`, which an arrow function is not —
  * and a group, {@link ParenGroup}, which is one. Every alternative but the
- * three prefixes may be raised to a power, {@link PowTail}; the prefixes
+ * prefix operators may be raised to a power, {@link PowTail}; the prefixes
  * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
  * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */

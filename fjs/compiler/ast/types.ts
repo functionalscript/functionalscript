@@ -10,7 +10,7 @@ export type AstImport = {
     readonly name: string | null
 }
 
-export type UnaryTag = '-' | '~' | '!' | 'typeof' | 'Number' | 'String' | 'BigInt'
+export type UnaryTag = '+' | '-' | '~' | '!' | 'typeof' | 'Number' | 'String' | 'BigInt'
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'

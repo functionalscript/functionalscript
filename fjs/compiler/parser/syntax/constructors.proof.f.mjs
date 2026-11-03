@@ -65,7 +65,7 @@ export const proof = /** @type {const} */ ({
         const typed = expression('typeof new Ctor()')
         assert(typed[0] === 'typeof' && typed[1][0] === 'new')
         const sum = expression('1+new Ctor()**2')
-        assert(sum[0] === '+' && sum[2][0] === '**' && sum[2][1][0] === 'new')
+        assert(sum[0] === '+' && sum.length === 3 && sum[2][0] === '**' && sum[2][1][0] === 'new')
         const body = expression('x=>new factory.new({new:x})')
         assert(body[0] === '=>' && body[2][0] === 'new' && body[2][1][0] === '.')
         assert(!(body[2][1][2] instanceof Array) && body[2][1][2].token.kind === 'id')

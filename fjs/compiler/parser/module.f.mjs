@@ -385,14 +385,16 @@ const accessClosed = (key, method, base) => mapOk(
 const computedKey = foldError('computed key is not Number(...)')
 
 /**
- * Whether a computed key is the conversion: a call of the word `Number`,
+ * Whether a computed key is numeric-conversion syntax: unary `+`, whose
+ * lowering remains deferred, or a call of the word `Number`,
  * whatever its arguments, which the conversion itself judges when entered,
  * {@link conversion} — so `a[Number()]` is `a[0]`, and `a[Number(1, 2)]`
  * is refused as `Number(1, 2)` is anywhere.
  *
  * @type {(node: Node) => boolean}
  */
-const isConversion = node => node[0] === '()' && node[1][0] === 'ref' && nameOf(node[1][1]) === 'Number'
+const isConversion = node => node[0] === '+' && node.length === 2
+    || node[0] === '()' && node[1][0] === 'ref' && nameOf(node[1][1]) === 'Number'
 
 /**
  * A computed key entered under `frame`, which receives its value — the
@@ -404,7 +406,7 @@ const isConversion = node => node[0] === '()' && node[1][0] === 'ref' && nameOf(
  * @type {(stack: _Stack, scope: _Scope, key: ComputedKey, frame: _IndexFrame | _ChainFrame) => _State}
  */
 const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
-    ? [{ top: frame, rest: stack }, scope, ['enter', node]]
+    ? [node[0] === '+' ? { top: { unary: 'Number' }, rest: { top: frame, rest: stack } } : { top: frame, rest: stack }, scope, ['enter', node]]
     : [stack, scope, error(computedKey(first))]
 
 /**

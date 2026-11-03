@@ -82,7 +82,7 @@ describes:
 | `op.eval` | `eval("1")` | design ([built-ins](./2360-built-in.md): never admitted, it runs source at run time; page: [`eval` Is Refused](../built-ins/eval/README.md)) |
 | `op.conversion-call-shape` | `Number(1, 2)`, `Number(...a)`, `String(1, 2)`, `String(...[])` | design ([operators and functions](../principles/README.md#operators-and-functions): a conversion is an operator, with a fixed set of operands; page: [A Conversion With Other Than One Operand Is Refused](../conversions/operands/README.md)) |
 | `op.guarded-conversion` | `Number?.(x)`, `String?.(x)` | design ([operators and functions](../principles/README.md#operators-and-functions): an operator is no value, so it has no nullishness to guard; page: [A Guarded Conversion Is Refused](../conversions/guarded/README.md)) |
-| `op.unary-plus` | `+1`, `+a` | open ([operators](../operators/README.md) leaves unary `+` out of the language; no record plans it) |
+| `op.unary-plus` | `+1`, `+a` | planned ([unary plus](./unary-plus.md): AST admission is implemented; AST-to-FAST conversion is explicitly deferred) |
 | `op.import-call` | `import("m")` | open |
 | `op.import-meta` | `import.meta` | open |
 | `op.regex` | `/a/g` | planned (roadmap, regular expressions) |
