@@ -7,7 +7,7 @@ import { parseSyntax } from './syntax/module.f.mjs'
 import { _evaluate, stringifyModule, tokenizeString } from './proof.f.mjs'
 import { _function } from './standalone.proof.f.mjs'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     equivalentFast: () => {
         for (const [bare, explicit] of [
             ['export default ()=>{return;};', 'export default ()=>{return undefined;};'],
@@ -69,4 +69,4 @@ export const proof = {
         assertStructurallySame(assertOk(toData(_evaluate(assertOk(parse('')('export default ({return:7}).return;'))))), { default: 7 })
         assertEq(assertError(parse('')('export default {return};')).message, 'reserved word')
     },
-}
+})
