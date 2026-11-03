@@ -63,7 +63,7 @@ export const proof = {
         assertEq(parsed('""'), '')
         assertEq(parsed('"\\" \\\\ \\/ \\b \\f \\n \\r \\t"'), '" \\ / \b \f \n \r \t')
         assertEq(parsed('"\\u0041\\u00e9\\u00E9\\u4e2d"'), 'Aéé中')
-        assertEq(parsed('"\\u0000"'), '\0')
+        assertEq(parsed('"\\u0000"'), '\u0000')
         assertEq(parsed('"\\uFFFF"'), '￿')
         // The escape is four digits and no more: a fifth is a character.
         assertEq(parsed('"\\u00411"'), 'A1')

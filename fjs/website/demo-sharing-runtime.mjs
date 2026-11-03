@@ -39,7 +39,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         const target = ++request
         const inputRevision = controller.revision()
         const earlyEdits = root.getAttribute('data-demo-input-edited')
-        const locationKey = `${view.location.search}\0${view.location.hash}`
+        const locationKey = `${view.location.search}\u0000${view.location.hash}`
         // Construct the whole state only after every field has passed validation.
         const state = sharing.restore(inputs[1])
         controller.replace(state, () => {
@@ -48,19 +48,19 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
         }, () => {
             const edited = inputRevision !== controller.revision() || earlyEdits !== root.getAttribute('data-demo-input-edited')
             if (edited) {
-                if (target === request && locationKey === `${view.location.search}\0${view.location.hash}`) { report('Your edits were preserved; the demo link was not applied.') }
+                if (target === request && locationKey === `${view.location.search}\u0000${view.location.hash}`) { report('Your edits were preserved; the demo link was not applied.') }
                 return 'edited'
             }
-            return target === request && locationKey === `${view.location.search}\0${view.location.hash}` ? 'apply' : 'navigated'
+            return target === request && locationKey === `${view.location.search}\u0000${view.location.hash}` ? 'apply' : 'navigated'
         }, !initial)
     }
     // A page has one primary Demo target. Extra embedded instances can copy
     // their inputs to that target without all consuming the same navigation.
     if ((root.getAttribute(scopeMarker) ?? root.getAttribute(demoMarker)) === root.getAttribute(demoMarker)) {
         let search = view.location.search
-        let locationKey = `${search}\0${view.location.hash}`
+        let locationKey = `${search}\u0000${view.location.hash}`
         const navigate = () => {
-            const next = `${view.location.search}\0${view.location.hash}`
+            const next = `${view.location.search}\u0000${view.location.hash}`
             if (next === locationKey) { return }
             const changed = search !== view.location.search
             search = view.location.search
@@ -80,7 +80,7 @@ export const startDemoSharing = (root, demo, controller, startupEdited) => {
                 if (query === view.location.search) { return }
                 view.history.pushState(null, '', `${view.location.pathname}${query}${view.location.hash}`)
                 search = view.location.search
-                locationKey = `${search}\0${view.location.hash}`
+                locationKey = `${search}\u0000${view.location.hash}`
             })
         }
         view.addEventListener('popstate', navigate)

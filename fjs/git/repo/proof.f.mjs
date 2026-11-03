@@ -141,9 +141,9 @@ export const proof = {
     // taken out of them, so a line that is nothing but a NUL gets past it
     // and names the worktree.
     nul: () => {
-        assertEq(at({ w: { '.git': file('gitdir: /r\0junk\n') }, r: repo })('w'), '/r')
-        assertEq(at({ w: { '.git': file('gitdir: \0junk\n') } })('w'), 'w/')
-        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\0junk\n') }, m: { '.git': repo } })
+        assertEq(at({ w: { '.git': file('gitdir: /r\u0000junk\n') }, r: repo })('w'), '/r')
+        assertEq(at({ w: { '.git': file('gitdir: \u0000junk\n') } })('w'), 'w/')
+        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\u0000junk\n') }, m: { '.git': repo } })
         assertEq(at(root)('w'), '/m/.git')
     },
     // The bytes past the first NUL are no part of the path, so what they
@@ -202,7 +202,7 @@ export const proof = {
         // than nothing. Both spell the same directory to this module, but
         // the answer leaves it: a caller joining `config` below an empty
         // string would read at the root instead.
-        assertEq(at({ '.git': file('gitdir: \0junk\n') })(''), '.')
+        assertEq(at({ '.git': file('gitdir: \u0000junk\n') })(''), '.')
         // A line naming a bare drive joins to one, and a bare drive is
         // refused however it arrives: `C:` is the current directory on
         // drive C to Windows and a directory called `C:` to POSIX, and a

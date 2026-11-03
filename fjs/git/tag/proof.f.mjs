@@ -109,16 +109,16 @@ export const proof = {
         // type line is `type blob` and a NUL peels to the blob, and so does
         // one with bytes after the NUL, where a value beginning with a NUL
         // is `unknown tag type ''`.
-        assertEq(tryType(replaced(1, 'type blob\0')), 'blob')
-        assertEq(tryType(replaced(1, 'type blob\0junk')), 'blob')
-        assertEq(tryType(replaced(1, 'type \0blob')), null)
+        assertEq(tryType(replaced(1, 'type blob\u0000')), 'blob')
+        assertEq(tryType(replaced(1, 'type blob\u0000junk')), 'blob')
+        assertEq(tryType(replaced(1, 'type \u0000blob')), null)
         // A continuation folded into the value leaves an LF in it, and
         // that is no type: Git reads the `type` line and then wants `tag `
         // on the line after, which the continuation is not. Without this
         // the NUL cut would hide the continuation and accept a tag Git
         // refuses — measured on Git 2.43.0, where `type blob<NUL>` with a
         // continuation before `tag` is `Not a valid object name`.
-        assertEq(tryType(tag([`object ${id}`, 'type blob\0', ' cont', 'tag v1', '', 'm'])), null)
+        assertEq(tryType(tag([`object ${id}`, 'type blob\u0000', ' cont', 'tag v1', '', 'm'])), null)
         assertEq(tryType(tag([`object ${id}`, 'type blob', ' cont', 'tag v1', '', 'm'])), null)
     },
     // What a tag names and what it says that object is, taken together as
@@ -186,11 +186,11 @@ export const proof = {
         // A NUL in any header, the tagger's value or a header after it, is
         // refused before anything else is looked at; one in the message is
         // not a header's.
-        assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +0000\0')), ['error', 'NUL in header'])
-        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'note \0', ...lines.slice(4)])), ['error', 'NUL in header'])
-        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'no\0te x', ...lines.slice(4)])), ['error', 'NUL in header'])
-        assertStructurallySame(validate20(tag(['', 'm\0'])), ['error', 'no object'])
-        assertStructurallySame(validate20(replaced(5, 'm\0'))[0], 'ok')
+        assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +0000\u0000')), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'note \u0000', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'no\u0000te x', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag(['', 'm\u0000'])), ['error', 'no object'])
+        assertStructurallySame(validate20(replaced(5, 'm\u0000'))[0], 'ok')
     },
     // A tag's name is a ref name, so `validate` asks `fjs/git/refname`
     // whether it is one and reports `bad tag name` where it is not. Which

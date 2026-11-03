@@ -74,6 +74,17 @@ follow-up: the same scan now reports 1,100 parsed and 97 failed out of 1,197
 visits, including the new syntax proof and the JSON dependency. The first five
 previously reported proof files now parse without edits to their source.
 
+### NUL escape normalization
+
+The task owner chose fixed-width NUL spellings instead of admitting the
+content-dependent shorthand. Actual source escapes are normalized to
+`\u0000` across proofs, helpers and the browser host adapter; literal
+backslash-zero strings used as rejected inputs are preserved. This replaces
+154 actual escapes in 25 files, without admitting new language syntax. The
+expanded scan now reports 1,117 parsed and 80 failed out of 1,197 visits. The language
+restriction and codebase rule are recorded in
+[JS string literals](../../spec/todo/2460-js-string-literals.md#nul-shorthand-prohibited).
+
 ### Function bodies ending normally
 
 The task owner requested accepting functions without a final `return undefined`

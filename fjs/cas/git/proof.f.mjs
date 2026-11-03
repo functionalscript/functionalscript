@@ -852,7 +852,7 @@ export const proof = {
         const bad = [
             { name: 'A <B>', email: 'a@b' },
             { name: 'A', email: 'a@b\nc' },
-            { name: 'A\0B', email: 'a@b' },
+            { name: 'A\u0000B', email: 'a@b' },
             { name: '', email: 'a@b' },
             { name: 'A', email: ' ' },
         ]

@@ -31,6 +31,11 @@ character, a line continuation — are refused in both quotes; see
 [template literals](../../values/template-literals/README.md) have their own
 expression syntax and escape policy; `\xHH` and `\v` remain refused there.
 
+The NUL shorthand `\0` is intentionally prohibited. Use `\u0000` in
+any delimiter, or `\x00` in single quotes. Both are fixed-width and remain
+unambiguous when a digit follows. Literal backslash-zero text is still ordinary
+string data, for example `\\0` inside a quoted source string.
+
 This holds at every string position of a module: a value, an object key,
 plain or in brackets, the key of a property access in brackets (`o['k']`),
 the path of an `import` statement and the value of its attribute —

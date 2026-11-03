@@ -57,7 +57,7 @@ export const proof = {
         // second character that was not there.
         () => assertEq(toRange('a'), byteSetRange([0x61, 0x61])),
         () => assertEq(toRange('a'), one(0x61)),
-        () => assertEq(toRange('\0'), one(0)),
+        () => assertEq(toRange('\u0000'), one(0)),
     ],
     // The expected states are written as the sets they are, keyed through
     // `toKey`, so this proof asserts the automaton and not the key encoding.

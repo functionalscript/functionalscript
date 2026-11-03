@@ -38,7 +38,7 @@ const files = {
     trailing: [...tagLoose, 1, 2, 3],
     // an envelope of three bytes over a body of 100 000, and then bytes that are no
     // stream: the body is stopped at its first chunk, and the rest never read
-    oversize: [...storedBytes([...latin1('blob 3\0'), ...Array.from({ length: 100_000 }, () => 0)]).slice(0, 1_000), ...Array.from({ length: 2_000 }, () => 0xff)],
+    oversize: [...storedBytes([...latin1('blob 3\u0000'), ...Array.from({ length: 100_000 }, () => 0)]).slice(0, 1_000), ...Array.from({ length: 2_000 }, () => 0xff)],
 }
 
 /**

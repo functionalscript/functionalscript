@@ -227,6 +227,19 @@ export const proof = /** @type {const} */ ({
             'proof.f.mjs': ['module.f.js'],
         })
     },
+    prohibitedNulEscapesDoNotPublishGraphs: () => {
+        for (const source of ["export default '\\0';", "export default `\\0`;"]) {
+            const [state, result] = execute({
+                'module.f.js': [utf8('export default 1;')],
+                'proof.f.mjs': [utf8(source)],
+                '_deps.json': [utf8('previous graph')],
+            })
+            assertEq(exitCode(result), 1)
+            assert(state.stderr.includes('proof.f.mjs'), state.stderr)
+            const [, written] = virtual(state)(readSource('_deps.json'))
+            assertEq(assertOk(written), 'previous graph')
+        }
+    },
     malformedProofPreservesPreviousGraph: () => {
         const [state, result] = execute({
             'module.f.js': [utf8('export default 1;')],

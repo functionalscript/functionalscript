@@ -16,7 +16,7 @@ ECMAScript's string literal syntax has four spellings beyond JSON's:
 
 - single-quoted strings: `'hello'` — FunctionalScript's, as above,
 - additional escapes: `\v` and `\xHH` are accepted in single quotes;
-  `\0` and `\u{XXXXXX}` remain deferred,
+  `\u{XXXXXX}` remains deferred; `\0` is intentionally prohibited,
 - literal C0 control characters, e.g. a raw TAB inside a string,
 - line continuations: `\` before a line terminator.
 
@@ -66,12 +66,12 @@ This records approval under [DESIGN.md §12](../../doc/DESIGN.md#new-language-fe
 
 ### Deferred: the remaining spellings
 
-The remaining extra escapes (`\0`, `\u{…}` and identity escapes), raw control
+The remaining extra escapes (`\u{…}` and identity escapes), raw control
 characters and line continuations stay deferred. Double-quoted strings keep
 JSON's escape rules, and the single-quoted increment does not widen templates.
-They are alternative spellings of values JSON already expresses. The NUL escape
-has a repository use case described below; the other spellings remain at the
-lowest priority until a concrete need appears.
+They are alternative spellings of values JSON already expresses. The NUL
+shorthand is separately prohibited below; other spellings remain at the lowest
+priority until a concrete need appears.
 
 Design rule: we extend JSON only where JS has values JSON cannot express
 (`undefined`, `bigint`, functions), or where a spelling is common enough that
@@ -85,29 +85,29 @@ Deferred spellings can be normalized into JSON mechanically: literal TAB →
 single-quoted spellings also have JSON equivalents: `\v` → `\u000b`,
 `\x41` → `A`.
 
-### NUL escape: repository use
+### NUL shorthand: prohibited
 
-Implementation modules use NUL characters for Git object and record delimiters,
-path validation, symbolic compiler names and Rust character formatting. The
-`\0` spelling blocks source AST formation with the current FJS escape subset.
-These `module.f.mjs` sources now use the equivalent accepted `\u0000` spelling;
-accepting `\0` remains tracked here.
+NUL values are used for Git delimiters, path validation and internal names.
+Write them with the fixed-width `\u0000` escape, or `\x00` where admitted.
+The `\0` shorthand is intentionally outside FJS: unlike these fixed-width
+forms, its validity depends on the character that follows it.
 
-The proposed scope is `\0` in quoted strings and untagged templates, denoting
-one NUL character only when no decimal digit follows, as in JavaScript modules.
-Spellings such as `\01` and `\08` must remain refused. The benefit is familiar
-JavaScript notation already used by repository code; the cost is another
-spelling of the same value and a following-digit check.
+The language designer `sergey-shandar` withdrew the earlier admission proposal
+and explicitly requested normalizing the codebase and prohibiting the shorthand
+in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+No `\0` admission is planned, including in templates. Both `\0a` and
+`\00` through `\09` remain refused by the FJS tokenizer.
 
-Language-design approval and implementation are future work. Coordinate them
-with [lexical recognition](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md)
-and the template escape policy; this normalization does not widen admission.
+The codebase rule covers implementation modules, proofs, helpers, demos and
+host adapters. Literal backslash-zero text used to describe an invalid input
+or in diagnostics is preserved; it is not a source NUL escape. Repository-wide
+normalization replaces actual shorthand escapes without changing their values.
 
 **Note**: template syntax and expression interpolation are implemented
 separately ([template literals](../values/template-literals/README.md)). That
 specification owns template restrictions on extra escapes, raw controls and line
-continuations. The proposed NUL escape admission, and any other widening of the
-common escape set, must be coordinated across quoted strings and templates.
+continuations. The NUL shorthand remains prohibited; any other widening of the
+common escape set must be coordinated across quoted strings and templates.
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FJS in a
 single pass — implements any of these spellings, it must still distinguish JS
@@ -127,8 +127,9 @@ See
       contract and existing template admission.
 - [x] Normalize actual `\0` escapes in `module.f.mjs` sources to `\u0000`,
       preserving NUL values and literal backslash-zero output.
-- [ ] Obtain language-design approval and implement `\0` admission for quoted
-      strings and untagged templates, including its decimal-digit restriction.
+- [x] Reject the NUL shorthand proposal, normalize actual source escapes to
+      fixed-width spellings, and preserve compiler rejection across strings and
+      templates, including every decimal digit after the shorthand.
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the admission checks in
       `fjs/compiler/tokenizer`'s fold.
