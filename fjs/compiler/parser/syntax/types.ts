@@ -101,6 +101,7 @@ export type Node =
  * guards, {@link BlockStatement} — followed by the one statement that ends
  * it, a `return` or a `throw` with its value, or a switch with a `default`,
  * {@link BlockEnd}, or a candidate final loop retained for source admission.
+ * A normal closing brace is retained as an implicit-return ending.
  * The grammar enforces this order; a bare `return`, a bare `throw` and a
  * statement after the last are unsupported.
  */
@@ -109,9 +110,10 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
 /**
  * The statement a block ends with, tagged by its keyword: a `return` or a
  * `throw` with its value, or a switch with a `default`, {@link Switch},
- * which the grammar lets nothing follow, or a candidate final loop.
+ * which the grammar lets nothing follow, a candidate final loop, or an
+ * implicit return with no source return statement.
  */
-export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For] | readonly ['terminal-for-of', ForOf]
+export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For] | readonly ['terminal-for-of', ForOf] | readonly ['implicit-return', ModuleTokenWithMetadata | null]
 
 /** A block's statement before the one that ends it: a declaration, assignment, terminating guard or normal conditional, loop, or switch without a `default`. The following statements run when such a switch has no matching label. */
 export type BlockStatement = readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]

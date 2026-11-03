@@ -120,13 +120,13 @@ export const proof = {
             // Each JavaScript spelling cooks correctly, while the exact source
             // stays distinct from the value for consumers' spelling policies.
             const cases = /** @type {const} */ ([
-                ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\0'], ['\\0a', '\0a'],
+                ['\\x41', 'A'], ['\\v', '\v'], ['\\0', '\u0000'], ['\\0a', '\u0000a'],
                 ['\\u{1f600}', '😀'], ['\\u{000000000041}', 'A'],
-                ['\\u{0}', '\0'], ['\\u{10FFFF}', '\u{10ffff}'], ['\\u{0000000000000010fFfF}', '\u{10ffff}'],
+                ['\\u{0}', '\u0000'], ['\\u{10FFFF}', '\u{10ffff}'], ['\\u{0000000000000010fFfF}', '\u{10ffff}'],
                 ['\\xfF', '\xff'], ['\\u00411', 'A1'], ['\\uD83D\\uDE00', '😀'], ['\\x411', 'A1'],
                 ['\\q', 'q'], ["\\'", "'"], ['\\$', '$'], ['\\$x', '$x'],
                 ['\\\n', ''], ['\\\r', ''], ['\\\r\n', ''], ['\\\u2028', ''], ['\\\u2029', ''],
-                ['\0', '\0'], ['\t', '\t'], ['\x1f', '\x1f'],
+                ['\u0000', '\u0000'], ['\t', '\t'], ['\x1f', '\x1f'],
             ])
             for (const [source, value] of cases) {
                 assertStructurallySame(tokenizeString('`' + source + '`'), [

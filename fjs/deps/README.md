@@ -15,17 +15,26 @@ directory, with `/` separators and `../` for dependencies outside it. A dependen
 a different Windows drive) keeps its absolute path.
 Cycles are recorded; compilation still rejects them.
 
-Entry points are files named exactly `module.f.js` or `module.f.mjs`, discovered
-recursively under the caller's directory. Hidden entries, `node_modules` and
+Entry points are all files ending in `.f.js` or `.f.mjs`, including proofs,
+demos, helpers and standalone samples, discovered recursively under the caller's directory. Hidden entries, `node_modules` and
 `target` are skipped during discovery. Imports are followed transitively,
 including helpers and modules outside the scanned subtree. JSON imports are
 leaves with empty dependency arrays.
+
+The parser does not yet accept every authored source. Expanding a scan to proofs
+can expose unsupported syntax in existing files; each diagnostic names the first
+unsupported construct in that file. The scan fails instead of publishing an
+incomplete dependency graph.
 
 Source files are read as UTF-8 without importing or executing them. Dependency
 extraction reads the syntax AST's import declarations through the compiler's
 shared import-attribute reader and filesystem resolver. It does not validate
 selected exports or source bindings, apply FunctionalScript admission, or lower
 to FAST or EDAG. JSDoc type imports are not runtime dependencies.
+
+Function bodies may end normally without an explicit `return undefined` at the
+syntax-AST level. The AST preserves an implicit-return marker; compilation still
+requires an admitted terminal form.
 
 Its syntax AST can represent forms that FJS compilation still refuses,
 including braced `for (const item of items)` and `for (let item of items)`

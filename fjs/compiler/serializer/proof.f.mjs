@@ -1245,7 +1245,7 @@ export const proof = {
         assertEq(text, 'export const $0=($1)=>$1;export const $2=[];')
         assertEq(unwrap(tryModuleStringify(moduleGraph(text))), text)
         // Literal names and the internal symbol delimiter remain literal data.
-        writes(['=>', 1, [], ['[]', [['arg', 0], '$a_0', '$0', '\0!binding\0']]],
+        writes(['=>', 1, [], ['[]', [['arg', 0], '$a_0', '$0', '\u0000!binding\u0000']]],
             'export default ($0)=>[$0,"$a_0","$0","\\u0000!binding\\u0000"];')
     },
     // Eligible scalar function graphs become structured loops before syntax

@@ -98,8 +98,8 @@ export const proof = {
         // format Git does not know, and one a NUL cuts short is the format
         // before it, which is the one Git reads.
         assertEq(width(extension(1, 'objectFormat', 'sha256 ""')), null)
-        assertEq(width(extension(1, 'objectFormat', 'sha256\0junk')), 32)
-        assertEq(width(extension(1, 'objectFormat', 'sha256 \0junk')), null)
+        assertEq(width(extension(1, 'objectFormat', 'sha256\u0000junk')), 32)
+        assertEq(width(extension(1, 'objectFormat', 'sha256 \u0000junk')), null)
         assertEq(width('\uFEFF' + extension(1, 'objectFormat', 'sha256')), 32)
         assertEq(width(extension(0, 'objectformat', 'sha256')), null)
         assertEq(width(extension(0, 'noop-v1', 'x')), null)

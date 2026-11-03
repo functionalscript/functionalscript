@@ -509,10 +509,10 @@ export type SimpleStatement = () => readonly ['const', {
     readonly name: BodyNameStatement
 }]
 
-/** A candidate final loop may omit the body's ordinary terminator. */
+/** A normal closing brace may omit the body terminator; final loops remain candidates. */
 export type BlockContents = () => readonly ['const', readonly [
     RepeatFrom<0, SimpleStatement>,
-    { readonly end: Terminator; readonly loop: readonly [WhileStatement, Option<BlockContents>]; readonly for: readonly [ForStatement, Option<BlockContents>] },
+    Option<{ readonly end: Terminator; readonly loop: readonly [WhileStatement, BlockContents]; readonly for: readonly [ForStatement, BlockContents] }>,
 ]]
 
 /** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */

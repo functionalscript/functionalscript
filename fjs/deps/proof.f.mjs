@@ -3,7 +3,7 @@
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq, assertOk, assertError } from '../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, nodeCommands } from '../effects/node/module.f.mjs'
 import { ioError } from '../effects/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
@@ -20,20 +20,20 @@ import { main, _relativeGraph } from './module.f.mjs'
  */
 const execute = (root, options = {}) => virtualAt(root)(main({ ...defaultNodeProgramOptions, ...options }))
 
-/** Only implementation entry points are analyzed; other source names may be invalid. */
+/** Every authored source is discovered; hidden, third-party and other suffixes stay excluded. */
 const sources = /** @type {const} */ ({
     'module.f.js': [utf8('export default notDefined;')],
-    'proof.f.mjs': [utf8('not valid syntax')],
+    'proof.f.mjs': [utf8('import value from "./module.f.js"; export const proof = () => value;')],
     nested: {
         'module.f.mjs': [utf8('throw "must not execute";')],
         deeper: {
             'absent.f.mjs': [utf8('export default 0;')],
             'module.f.js': [utf8('import missing from "./absent.f.mjs"; export default missing;')],
         },
-        'demo.f.mjs': [utf8('not valid syntax')],
-        'helper.f.js': [utf8('not valid syntax')],
-        'proof.f.js': [vec8(0xffn)],
-        'notmodule.f.js': [utf8('not valid syntax')],
+        'demo.f.mjs': [utf8('export default unknownDemo;')],
+        'helper.f.js': [utf8('export default unknownHelper;')],
+        'proof.f.js': [utf8('import helper from "./helper.f.js"; export const proof = () => helper;')],
+        'notmodule.f.js': [utf8('export default standalone;')],
         'module.f.mjs.bak': [utf8('not valid syntax')],
     },
     '.hidden.f.mjs': [utf8('not valid syntax')],
@@ -87,12 +87,12 @@ export const proof = /** @type {const} */ ({
         })
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('_deps.json'))
-        assertEq(assertOk(written), `${JSON.stringify({
+        assertStructurallySame(JSON.parse(assertOk(written)), {
             'module.f.js': ['shared.f.mjs', 'branch.f.mjs'],
             'shared.f.mjs': ['module.f.js'],
             'branch.f.mjs': ['shared.f.mjs', 'data.json'],
             'data.json': [],
-        }, null, 2)}\n`)
+        })
         assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
     },
     dependenciesOutsideEntrySubtree: () => {
@@ -139,13 +139,19 @@ export const proof = /** @type {const} */ ({
     sourceDiscovery: () => {
         const [state, result] = execute(sources)
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
+        assertEq(state.stdout, 'AST: 9 parsed, 0 failed, 9 total\n')
         assertEq(state.stderr, '')
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        const graph = JSON.parse(assertOk(written))
+        assertEq(JSON.stringify(graph['proof.f.mjs']), '["module.f.js"]')
+        assertEq(JSON.stringify(graph['nested/proof.f.js']), '["nested/helper.f.js"]')
+        assertEq(JSON.stringify(graph['nested/demo.f.mjs']), '[]')
+        assertEq(JSON.stringify(graph['nested/notmodule.f.js']), '[]')
     },
     invocationDirectory: () => {
         const [state, result] = execute(sources, { env: { INIT_CWD: 'nested' } })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stdout, 'AST: 7 parsed, 0 failed, 7 total\n')
         const [, written] = virtual(state)(readSource('nested/_deps.json'))
         assert(assertOk(written).includes('module.f.mjs'))
         assert(!assertOk(written).includes('nested/'))
@@ -208,6 +214,43 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0, state.stderr)
         assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
+    },
+    proofDependenciesAllowImplicitFunctionEnds: () => {
+        const [state, result] = execute({
+            'module.f.js': [utf8('export default 0;')],
+            'proof.f.mjs': [utf8('import value from "./module.f.js"; export const proof=()=>{value();};')],
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertStructurallySame(JSON.parse(assertOk(written)), {
+            'module.f.js': [],
+            'proof.f.mjs': ['module.f.js'],
+        })
+    },
+    prohibitedNulEscapesDoNotPublishGraphs: () => {
+        for (const source of ["export default '\\0';", "export default `\\0`;"]) {
+            const [state, result] = execute({
+                'module.f.js': [utf8('export default 1;')],
+                'proof.f.mjs': [utf8(source)],
+                '_deps.json': [utf8('previous graph')],
+            })
+            assertEq(exitCode(result), 1)
+            assert(state.stderr.includes('proof.f.mjs'), state.stderr)
+            const [, written] = virtual(state)(readSource('_deps.json'))
+            assertEq(assertOk(written), 'previous graph')
+        }
+    },
+    malformedProofPreservesPreviousGraph: () => {
+        const [state, result] = execute({
+            'module.f.js': [utf8('export default 1;')],
+            'proof.f.mjs': [utf8('export default ;')],
+            '_deps.json': [utf8('previous graph')],
+        })
+        assertEq(exitCode(result), 1)
+        assertEq(state.stdout, 'AST: 1 parsed, 1 failed, 2 total\n')
+        assert(state.stderr.includes('proof.f.mjs:1:16 - error: unexpected token'), state.stderr)
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertEq(assertOk(written), 'previous graph')
     },
     failuresContinue: () => {
         const [state, result] = execute({

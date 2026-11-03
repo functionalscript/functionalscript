@@ -135,6 +135,18 @@ become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
 one task from its `todo/` to the last pull request merged — a stack of small
 pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 
+### NUL spelling in JavaScript and FunctionalScript
+
+Never use the `\0` escape in source code, including proofs, demos, helpers
+and host adapters. Its interpretation depends on the following character.
+Use `\u0000` consistently, or `\x00` where the string grammar admits it
+(single-quoted FunctionalScript strings). Double-quoted strings and templates
+use `\u0000`. The shorthand stays outside FJS's accepted escape subset;
+the compiler tokenizer and dependency scan reject it.
+
+Literal backslash-zero text, such as `\\0` in a rejection-test input or a
+diagnostic, is different: preserve that text rather than changing its meaning.
+
 ### Numeric notation
 
 Prefer hexadecimal literals where the value represents bytes, Unicode code

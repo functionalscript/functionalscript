@@ -16,6 +16,20 @@ export const proof = {
             assertStructurallySame(tokens[1].metadata, { path: 'compound.f.js', line: 1, column: 7 })
         }
     },
+    nulShorthandIsProhibited: () => {
+        for (const suffix of ['', 'a', ...'0123456789']) {
+            for (const [prefix, end] of [["'\\0", "'"], ["\"\\0", "\""], ["`\\0", "`"], ["`\\0", "${1}`"], ["`a${1}\\0", "${2}`"], ["`a${1}\\0", "`"]]) {
+                const source = prefix + suffix + end
+                const tokens = toArray(tokenize(stringToList(source))('nul.f.js'))
+                assert(tokens.some(({ token }) => token.kind === 'error'), source)
+            }
+        }
+        for (const [source, value] of [["'\\u0000a'", "\u0000a"], ["'\\x00a'", "\u0000a"], ["\"\\u0000a\"", "\u0000a"], ["`\\u0000a`", "\u0000a"], ["'\\\\0'", "\\0"]]) {
+            const tokens = toArray(tokenize(stringToList(source))('nul.f.js'))
+            assert(tokens[0].token.kind === 'string' || tokens[0].token.kind === 'noSubstitutionTemplate')
+            assertEq(tokens[0].token.value, value)
+        }
+    },
     templates: {
         admitted: () => {
             const tokens = toArray(tokenize(stringToList('`a${1}b${2}c`'))('template.f.js'))
@@ -26,7 +40,7 @@ export const proof = {
         },
         refusedEscapes: () => {
             // Cooking must not turn a deferred spelling into an admitted one.
-            for (const spelling of ['\\x41', '\\v', '\\0', '\\u{41}', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\0']) {
+            for (const spelling of ['\\x41', '\\v', '\\0', '\\u{41}', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
                 const tokens = toArray(tokenize(stringToList('`' + spelling + '`'))('template.f.js'))
                 assertEq(tokens[0].token.kind, 'error', spelling)
                 assertStructurallySame(tokens[0].metadata, { path: 'template.f.js', line: 1, column: 1 }, spelling)

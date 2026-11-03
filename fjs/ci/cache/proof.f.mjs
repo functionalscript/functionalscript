@@ -60,7 +60,7 @@ const treeId = idOf('tree', tree)
 const commit = ascii(`tree ${hexText(treeId)}\nauthor A <a@b> 1 +0000\ncommitter A <a@b> 1 +0000\n\nsource\n`)
 const commitId = idOf('commit', commit)
 
-const sourceListing = `100644 blob ${hexText(sourceId)}\tpackage.json\0`
+const sourceListing = `100644 blob ${hexText(sourceId)}\tpackage.json\u0000`
 
 /** Script Git's captured output while preserving the virtual filesystem. @type {(outcome: IoResult<ExecResult>, target?: Oid) => RunInstance<NodeOp, State>} */
 const withGitResult = (outcome, target = commitId) => {
@@ -170,13 +170,13 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(assertOk(enumerated(sourceListing)), [['package.json', vecToCBase32(sourceId)]])
         assertStructurallySame(assertOk(enumerated('')), [])
         const path = /** @type {const} */ (' fjs/café\tline\nmodule.f.js \n')
-        assertStructurallySame(assertOk(enumerated(`${sourceListing}100755 blob ${hexText(sourceId)}\t${path}\0`)), [
+        assertStructurallySame(assertOk(enumerated(`${sourceListing}100755 blob ${hexText(sourceId)}\t${path}\u0000`)), [
             ['package.json', vecToCBase32(sourceId)], [path, vecToCBase32(sourceId)],
         ])
         const hash256 = of(32)
         const source256 = hash256('blob', ascii('source'))
         const commit256 = hash256('commit', ascii('commit'))
-        assertStructurallySame(assertOk(enumerated(`100644 blob ${hexText(source256)}\tfjs/module.f.js\0`, 32, commit256)), [
+        assertStructurallySame(assertOk(enumerated(`100644 blob ${hexText(source256)}\tfjs/module.f.js\u0000`, 32, commit256)), [
             ['fjs/module.f.js', vecToCBase32(source256)],
         ])
     },
@@ -184,16 +184,16 @@ export const proof = /** @type {const} */ ({
         const hex = hexText(sourceId)
         for (const stdout of [
             sourceListing.slice(0, -1),
-            `100644 blob ${hex} package.json\0`,
-            `100644 blob\tpackage.json\0`,
-            `100644 blob ${hex} extra\tpackage.json\0`,
-            `100644  blob ${hex}\tpackage.json\0`,
-            `100644 blob ${hex}\t\0`,
-            `100644 blob ${'g'.repeat(40)}\tpackage.json\0`,
-            `100644 blob ${hex.slice(2)}\tpackage.json\0`,
-            `100644 blob ${hex}00\tpackage.json\0`,
-            '\0',
-            `${sourceListing}\0`,
+            `100644 blob ${hex} package.json\u0000`,
+            `100644 blob\tpackage.json\u0000`,
+            `100644 blob ${hex} extra\tpackage.json\u0000`,
+            `100644  blob ${hex}\tpackage.json\u0000`,
+            `100644 blob ${hex}\t\u0000`,
+            `100644 blob ${'g'.repeat(40)}\tpackage.json\u0000`,
+            `100644 blob ${hex.slice(2)}\tpackage.json\u0000`,
+            `100644 blob ${hex}00\tpackage.json\u0000`,
+            '\u0000',
+            `${sourceListing}\u0000`,
         ]) {
             const refused = assertError(enumerated(stdout))
             assertEq(refused[0] === 'ioError' ? refused[1].code : '', 'ERR_CI_TREE')
@@ -201,7 +201,7 @@ export const proof = /** @type {const} */ ({
     },
     unsupportedInputs: () => {
         for (const header of ['120000 blob', '160000 commit', '040000 tree', '100644 commit', '100755 tree']) {
-            const refused = assertError(enumerated(`${header} ${hexText(sourceId)}\tunsupported\0`))
+            const refused = assertError(enumerated(`${header} ${hexText(sourceId)}\tunsupported\u0000`))
             assertEq(refused[0] === 'ioError' ? refused[1].code : '', 'ERR_CI_INPUT')
         }
     },

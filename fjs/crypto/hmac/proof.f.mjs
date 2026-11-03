@@ -34,7 +34,7 @@ export const proof = {
             }
         },
         nul: () => {
-            for (const [key, text] of [['a\0b', 'message'], ['key', 'a\0b'], ['\0', '\0']]) {
+            for (const [key, text] of [['a\u0000b', 'message'], ['key', 'a\u0000b'], ['\u0000', '\u0000']]) {
                 const html = htmlToString(demo.view({ algorithm: 'SHA-256', key, text }))
                 assert(html.includes('OpenSSL command unavailable:'), html)
                 assert(!html.includes('Copy OpenSSL command'), html)

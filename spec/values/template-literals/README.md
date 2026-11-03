@@ -38,6 +38,10 @@ exceptions serve its syntax: escaped backticks and `${`, and literal line
 terminators for multiline text. Any future widening of the common escape set
 must be coordinated across quoted strings and templates.
 
+The NUL shorthand `\0` is intentionally prohibited, even when followed by
+an otherwise valid character. Use the fixed-width `\u0000` spelling instead.
+The codebase rule also applies to proofs, helpers and host adapters.
+
 | Refused template spelling | Admitted spelling with the same value |
 | --- | --- |
 | `` `\0${"key"}\0` `` | `` `\u0000${"key"}\u0000` `` |

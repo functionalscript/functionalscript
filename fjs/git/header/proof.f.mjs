@@ -160,10 +160,10 @@ export const proof = {
     // real commit, and one in the message is not a header's.
     hasNulHeader: () => {
         assert(!hasNulHeader(read(commitPayload)))
-        assert(!hasNulHeader(read(latin1('\n\0'))))
+        assert(!hasNulHeader(read(latin1('\n\u0000'))))
         assert(hasNulHeader(read([0x61, 0x20, 0, 0x0A, 0x0A])))
         assert(hasNulHeader(read([0x61, 0, 0x20, 0x78, 0x0A, 0x0A])))
-        assert(hasNulHeader(read(latin1('a x\nb y\n \0\n\n'))))
+        assert(hasNulHeader(read(latin1('a x\nb y\n \u0000\n\n'))))
     },
     // Every header of a key, in order, wherever it sits; none is none.
     valuesOf: () => {

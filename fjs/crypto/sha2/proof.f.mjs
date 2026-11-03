@@ -389,7 +389,7 @@ export const proof = {
             assert(empty.includes('openssl dgst -sha256'), empty)
             const multiline = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\nb' }))
             assert(multiline.includes('>a\nb</textarea>'), multiline)
-            const nul = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\0b' }))
+            const nul = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'a\u0000b' }))
             assert(nul.includes('OpenSSL command unavailable:'), nul)
             assert(!nul.includes('Copy OpenSSL command'), nul)
             const typed = htmlToString(demo.view({ algorithm: 'SHA-256', text: 'hello' }))

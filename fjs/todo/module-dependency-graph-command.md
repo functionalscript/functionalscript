@@ -40,8 +40,9 @@ module paths. Replace paths with hashes in both record keys and dependency
 arrays, keeping the same graph shape. The hash definition and migration are
 future work.
 
-`fjs deps` accepts no arguments. It recursively discovers files named exactly
-`module.f.js` or `module.f.mjs` under the caller's directory, then follows their
+`fjs deps` accepts no arguments. It recursively discovers every `.f.js` and
+`.f.mjs` file under the caller's directory, including proofs, demos, helpers and
+standalone samples, then follows their
 runtime imports transitively. It reads generic syntax ASTs without FJS admission
 or FAST/EDAG lowering. JSON dependencies are leaves. The host resolver supplies
 module identity and canonical paths, as for compilation. Graph keys and edges
@@ -54,6 +55,49 @@ Each module appears once, each direct dependency path appears once per module,
 and cycles are retained. A failed scan reports errors and does not replace an
 existing graph. An empty scan writes an empty JSON object.
 Website rendering and build-cache integration remain separate epic tasks.
+
+### All-source scan readiness
+
+Discovery now includes proofs, demos, helpers and standalone sources. This does
+not yet mean that every discovered file forms a generic AST. On the
+`0ee6caee` base with the expanded discovery, the repository scan selects 1,195
+source files and reports 697 parsed, 499 failed, 1,196 total visits (including a
+JSON dependency). It exits with code 1 and does not publish a partial graph.
+
+For example, [the assertion proofs](../asserts/proof.f.mjs) have function bodies
+that end after assertion calls without an explicit return; the current block
+syntax still requires a terminal form. Many first diagnostics occur at closing
+blocks, while other files expose additional syntax gaps. Each diagnostic names
+only the first unsupported form in that file. The unchecked generic-AST task
+below remains open. Syntax-only implicit function endings are the first parser
+follow-up: the same scan now reports 1,100 parsed and 97 failed out of 1,197
+visits, including the new syntax proof and the JSON dependency. The first five
+previously reported proof files now parse without edits to their source.
+
+### NUL escape normalization
+
+The task owner chose fixed-width NUL spellings instead of admitting the
+content-dependent shorthand. Actual source escapes are normalized to
+`\u0000` across proofs, helpers and the browser host adapter; literal
+backslash-zero strings used as rejected inputs are preserved. This replaces
+154 actual escapes in 25 files, without admitting new language syntax. The
+expanded scan now reports 1,117 parsed and 80 failed out of 1,197 visits. The language
+restriction and codebase rule are recorded in
+[JS string literals](../../spec/todo/2460-js-string-literals.md#nul-shorthand-prohibited).
+
+### Function bodies ending normally
+
+The task owner requested accepting functions without a final `return undefined`
+at the syntax-AST level in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+The generic AST retains this omission as an `implicit-return` ending with the closing-brace token instead of
+inventing an explicit return statement. Empty bodies and bodies ending after
+ordinary statements can therefore participate in dependency scans.
+
+This preserves familiar JavaScript source and removes a common proof-parsing
+blocker. The cost is an optional grammar ending and a distinct AST marker.
+FunctionalScript admission still refuses implicit return; no runtime, FAST or
+EDAG semantics change. Final-loop candidates retain their existing shape and
+admission checks. Bare `return` and `throw` remain separate syntax work.
 
 ### Constructor-expression syntax
 
@@ -122,6 +166,12 @@ The approval and rationale are part of the
 
 ### Tasks
 
+- [x] Extend discovery to every `.f.js` and `.f.mjs` file, including proofs,
+      demos, helpers and standalone samples, using the test runner's authored-source
+      predicate. Preserve syntax diagnostics and avoid publishing partial graphs.
+
+- [x] Accept function-body fallthrough in the syntax AST, retaining its closing
+      token and preserving explicit FJS admission refusal.
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
   - [x] Add `fjs deps` to report AST parsing failures for `module.f.js` and
         `module.f.mjs` files using the current parser.
@@ -169,7 +219,9 @@ The approval and rationale are part of the
     - [x] Form a generic AST for every authored `module.f.js` and `module.f.mjs`
           selected by `fjs deps`, without requiring FAST or EDAG admission.
     - [x] Enforce implementation-module AST readiness in CI with `npm start deps`.
-          The canonical Node job runs it uncached and fails on AST errors.
+          The canonical Node job runs it uncached.
+    - [ ] Remove the temporary `continue-on-error` from the dependency scan once
+          every authored `.f.js` and `.f.mjs` file forms a generic AST.
 - [x] Normalize newly reached FAST fixtures, control-flow proofs and the B-tree
       demo into existing syntax forms so transitive scanning succeeds.
 - [x] Define the command interface and input/output behavior.

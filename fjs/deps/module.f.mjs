@@ -10,8 +10,8 @@
  * @import { _Checked } from './private.ts'
  */
 
-import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { basename, join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
+import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.mjs'
+import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
 import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.mjs'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
@@ -20,9 +20,6 @@ import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, wr
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.js'
-
-/** Implementation entry points selected for the dependency graph. @type {(path: string) => boolean} */
-const isModule = path => ['module.f.js', 'module.f.mjs'].includes(basename(path))
 
 /** Read syntax imports through the same attribute reader and resolver as compilation. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
 const dependencies = source => {
@@ -85,7 +82,7 @@ export const _relativeGraph = (base, graph) => {
 export const main = ({ args, env }) => {
     if (args.length !== 0) { return errorExit('Usage: fjs deps') }
     const root = sourceRoot(env)
-    const files = allFiles(root, isModule)
+    const files = allFiles(root, isAuthored)
     const results = foldStep(files, { checked: 0, refused: 0, seen: [], graph: {} }, checkOne)
     const reported = historyStep(history(results), ({ checked, refused }) =>
         log(`AST: ${checked - refused} parsed, ${refused} failed, ${checked} total`))
