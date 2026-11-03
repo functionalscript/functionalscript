@@ -90,6 +90,10 @@ const core = {
                 ['link', [['text', '#7']], pull('7')],
                 ['text', ')'],
             ]),
+        // A struck entry's references are its own, and linked too.
+        struck: () => assertStructurallySame(
+            linked([['del', [['text', 'Retired path (#123)']]]]),
+            [['del', [['text', 'Retired path ('], ['link', [['text', '#123']], pull('123')], ['text', ')']]]]),
         keepsAnExistingLink: () => assertStructurallySame(
             linked([['link', [['text', '#1553']], 'https://example.com/1553']]),
             [['link', [['text', '#1553']], 'https://example.com/1553']]),

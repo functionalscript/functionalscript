@@ -21,7 +21,7 @@
  *
  * @module
  *
- * @import { Document, Entry, Inline } from '../../media/markdown/types.ts'
+ * @import { Document, Entry, Inline, Struck } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Release } from './types.ts'
  * @import { Build } from '../page/types.ts'
@@ -140,13 +140,16 @@ const joinText = a => b => a[0] === 'text' && b[0] === 'text' ? ['text', `${a[1]
 export const _merged = spans => toArray(mergeAdjacent(joinText)(spans))
 
 /**
- * One entry with its references linked. Only `text` spans are scanned: a
+ * One entry with its references linked. Only `text` spans are scanned, and
+ * a strikethrough's, which is the entry's own text struck out: a
  * parenthesis inside code is code, and a link is already one.
  *
  * @type {(entry: Entry) => Entry}
  */
 export const linked = entry => _merged(entry.flatMap(
-    span => span[0] === 'text' ? _linked(span[1]) : [span]))
+    span => span[0] === 'text' ? _linked(span[1])
+        : span[0] === 'del' ? [['del', /** @type {readonly Struck[]} */ (linked(span[1]))]]
+        : [span]))
 
 /**
  * Whether a name is a version: three numbers separated by dots, which is

@@ -606,23 +606,24 @@ const scanned = span => span[0] === 'text' ? span[1]
 /**
  * Whether a tilde run at `at`, `length` long, stands in a bare URL, and
  * how: `null` where it does not, `'inside'` where it is part of the link,
- * and `'tail'` where only punctuation GitHub cuts off a link's end follows
- * it to the URL's end.
+ * and `'tail'` where it is in the punctuation GitHub cuts off a link's end.
  *
  * GitHub reads a bare `http://` or `https://` URL as one link, up to a
  * space or `<`, before it looks for delimiters in it, so a tilde inside is
  * the link's own; a tilde it cuts off the end is read again as prose,
- * where whether it pairs is GitHub's choice to make.
+ * where whether it pairs is GitHub's choice to make. Where the link ends
+ * is {@link bareUrl}'s answer, balanced parentheses and all; a word it
+ * reads as no link is refused where its prose is read.
  *
  * @type {(text: string, at: number, length: number) => 'inside' | 'tail' | null}
  */
 const inBareUrl = (text, at, length) => {
     const start = Math.max(text.lastIndexOf(' ', at), text.lastIndexOf('\t', at), text.lastIndexOf('<', at)) + 1
     const word = text.slice(start, at)
-    if (!word.includes('http://') && !word.includes('https://')) { return null }
-    let end = at
-    while (end < text.length && !' \t<'.includes(text[end])) { end = end + 1 }
-    return [...text.slice(at + length, end)].every(c => urlTrailing.includes(c) || c === ')') ? 'tail' : 'inside'
+    const scheme = Math.max(word.lastIndexOf('http://'), word.lastIndexOf('https://'))
+    if (scheme === -1) { return null }
+    const url = bareUrl(text.slice(start + scheme))
+    return url === null || at + length <= start + scheme + url.length ? 'inside' : 'tail'
 }
 
 /**

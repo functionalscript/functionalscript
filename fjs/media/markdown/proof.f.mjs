@@ -406,6 +406,10 @@ export const proof = {
             inBareUrl: () => {
                 assertStructurallySame(spans('see https://e.x/~~a~~/b'), [['text', 'see '], ['link', [['text', 'https://e.x/~~a~~/b']], 'https://e.x/~~a~~/b']])
                 assertStructurallySame(spans('https://e.x/~a b'), [['link', [['text', 'https://e.x/~a']], 'https://e.x/~a'], ['text', ' b']])
+                // Its balanced parentheses are the link's, as `bareUrl` reads them.
+                assertStructurallySame(spans('https://e.x/(a~)'), [['link', [['text', 'https://e.x/(a~)']], 'https://e.x/(a~)']])
+                // A word GitHub reads as no link is refused as such.
+                assertEq(tryParseEntry('https://ex/~~a~~')[1], 'a bare URL, which GitHub reads as a link, at 0')
                 // A word with no scheme is no URL.
                 assertStructurallySame(spans('e.x/~~a~~'), [['text', 'e.x/'], ['del', [['text', 'a']]]])
             },
