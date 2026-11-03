@@ -100,7 +100,7 @@ export const proof = /** @type {const} */ ({
         const direct = _directOwningInvocationRoot(terminal, target)
         assertEq(direct.body.statements.length, 1)
         assertEq(direct.body.exit[0], 'return')
-        assertEq(invocationRootOf(terminal), null)
+        assertEq(invocationRootOf(terminal), loop)
         /** @type {Loop} */
         const failing = { ...loop, body: { statements: [['if', [], ['>', ref(n), 0], loop.body,
             { statements: [], exit: ['throw', 'finished'] }]], exit: ['continue', target, [ref(n)]] } }

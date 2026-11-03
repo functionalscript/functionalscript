@@ -64,6 +64,16 @@ const evaluate = (fn, args) => {
 }
 
 export const proof = {
+    terminalInvocationRootReusesItsOwner: () => {
+        /** @type {Loop} */
+        const loop = { ...loopOf(body(['continue', loopTarget, [ref(x), ref(y)]])), results: [] }
+        /** @type {FastFunction} */
+        const fn = { ...root(loop), body: body(['loop', loop]) }
+        assertEq(invocationRootOf(fn), loop)
+        const resolved = directInvocationRoot(fn, loop)
+        assertEq(resolved.body.exit[0], 'return')
+        assertEq(invocationRootOf({ ...fn, body: body(['loop', { ...loop, results: [output] }]) }), null)
+    },
     terminalNestedLoopsRetainTheirTransferOwner: () => {
         const nested = /** @type {const} */ ({ kind: 'loop', index: 0 })
         /** @type {Loop} */
