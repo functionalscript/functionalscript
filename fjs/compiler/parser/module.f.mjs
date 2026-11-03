@@ -33,6 +33,7 @@ import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
 import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 
 // -- resolving the names ------------------------------------------------------
 
@@ -227,55 +228,6 @@ const unterminated = (previous, next) => previous !== null && hasEntry(previous,
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
 
-
-/** Source identity is independent of the value its initialization computes. @type {(index: number) => BindingId} */
-const sourceBinding = index => ({ index })
-
-/** @type {(scope: _Scope, events: readonly BindingEvent[]) => _Scope} */
-const traced = (scope, events) => ({ ...scope, trace: { ...scope.trace, events: concat(scope.trace.events)(events), count: scope.trace.count + events.length } })
-
-/** Materialize ordered evidence once at a source function or region boundary. @type {(scope: _Scope) => BindingScope} */
-const completedTrace = scope => ({ target: scope.trace.target, bindings: scope.trace.bindings, events: toArray(scope.trace.events) })
-
-/** @type {(plan: _Plan, kind: _DeclarationKind) => readonly BindingOrigin[]} */
-const planOrigins = (plan, kind) => {
-    /** @type {List<BindingOrigin>} */
-    let origins = null
-    let named = 0
-    // Names follow their read indices, so each name and hidden read is visited once.
-    for (let index = 0; index < plan.ids.length; index += 1) {
-        const entry = plan.names[named]
-        const name = entry !== undefined && entry[1] === index ? entry[0] : undefined
-        if (name !== undefined) { named += 1 }
-        origins = { first: { id: plan.ids[index], name: name === undefined ? null : nameOf(name), kind: name === undefined ? 'temporary' : kind, metadata: name?.metadata ?? plan.metadata }, tail: origins }
-    }
-    return toArray(reverse(origins))
-}
-
-/** Declare before initialization without making the name readable in its TDZ. @type {(scope: _Scope, plan: _Plan, kind: _DeclarationKind) => _Scope} */
-const declared = (scope, plan, kind) => ({ ...scope, trace: { ...scope.trace, bindings: [...scope.trace.bindings, ...plan.ids] }, sourceOrigins: [...scope.sourceOrigins, ...planOrigins(plan, kind)] })
-
-/** Whether a declaration's names are variables, which an assignment may rebind: a `let`'s and a parameter's. @type {(kind: _DeclarationKind) => boolean} */
-const isVariable = kind => kind !== 'const'
-
-/** Initialize each expanded identity once; aliases retain separate source IDs. @type {(scope: _Scope, plan: _Plan) => _Scope} */
-const initialized = (scope, plan) => traced({
-    ...scope,
-    origins: plan.names.reduce((origins, [name, index]) => setReplace(nameOf(name))(plan.ids[index])(origins), scope.origins),
-}, plan.ids.map(id => ['initialize', id]))
-
-/** @type {() => _Scope} */
-const moduleScope = () => ({
-    names: empty, origins: empty, count: 0, parameters: [], rest: null, enclosing: null, outer: null,
-    self: null, selfBinding: null, selfVariable: false, captures: [], region: false, inFunction: false, blockCall: false,
-    trace: { target: { kind: 'function', index: 0 }, bindings: [], events: null, count: 0 }, sourceOrigins: [],
-})
-
-/** A lexical region shares its source function target. @type {(outer: _Scope, names: _Env, enclosing: List<_Env>) => _Scope} */
-const regionScope = (outer, names, enclosing) => ({
-    names, origins: empty, count: 0, parameters: [], rest: null, enclosing, outer, self: null, selfBinding: null, selfVariable: false, captures: [], region: true, inFunction: outer.inFunction, blockCall: false,
-    trace: { target: outer.trace.target, bindings: [], events: null, count: 0 }, sourceOrigins: [],
-})
 
 /**
  * The word an identifier token spells where JavaScript wants an identifier
@@ -2107,30 +2059,6 @@ const loopRound = (stack, scope, frame) => {
 const regionBlock = value => {
     assert(value instanceof Array && value[0] === 'block')
     return value[1]
-}
-
-/**
- * Merge complete source evidence at a lexical boundary. The captures the
- * scope holds, still pending, of bindings it declares itself are decided:
- * harmless, since the function that made them was called inside the
- * binding's scope. The rest pass to the outer scope after the outer's own,
- * in document order — pending still, unless the scope is a function `held`
- * as a value, which makes them escaped: those a reassignment refuses,
- * {@link resolvedModule}.
- *
- * @type {(scope: _Scope, held: boolean) => _Scope}
- */
-const restoredScope = (scope, held) => {
-    const outer = assertNotNullish(scope.outer, 'a source region without its enclosing scope')
-    const trace = completedTrace(scope)
-    /** @type {BindingEvent} */
-    const event = scope.region ? ['region', trace.events] : ['function', trace]
-    const kept = scope.captures.filter(capture => capture.escaped || !trace.bindings.includes(capture.id))
-    return {
-        ...traced({ ...outer, trace: scope.region ? { ...outer.trace, bindings: [...outer.trace.bindings, ...trace.bindings] } : outer.trace }, [event]),
-        sourceOrigins: [...outer.sourceOrigins, ...scope.sourceOrigins],
-        captures: [...outer.captures, ...(held ? kept.map(capture => ({ ...capture, escaped: true })) : kept)],
-    }
 }
 
 /**
