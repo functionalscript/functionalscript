@@ -7,13 +7,8 @@
  * approves such a pull request and leaves every other one to people.
  *
  * @module
- */
-
-/**
- * A changed file as the GitHub REST API lists it: `previous_filename` is the
- * old path of a renamed file.
  *
- * @typedef {{ readonly filename: string, readonly previous_filename?: string }} ChangedFile
+ * @import { ChangedFile } from './types.ts'
  */
 
 /** The directory that holds an author's personal notes. @type {(author: string) => string} */
