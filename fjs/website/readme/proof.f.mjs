@@ -86,7 +86,7 @@ export const proof = /** @type {const} */ ({
         ]), ['demo-1', 'demo-2', 'emergent-testing-1', 'section', 'section-1', 'demo-1-1', 'drawer-title-1']),
     readmeNodes: {
         latin1Heading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['text', 'µ ª º']]]]),
-            ok([linkedHeading(2, 'µ-ª-º', 'µ ª º', ['µ ª º'])])),
+            ok([linkedHeading(1, 'µ-ª-º', 'µ ª º', ['µ ª º'])])),
         all: () => {
             /** @type {Blocks} */
             const blocks = [
@@ -107,7 +107,7 @@ export const proof = /** @type {const} */ ({
                 ['rule'],
             ]
             assertStructurallySame(readmeNodes(href)(blocks), ok([
-                linkedHeading(2, 't', 'T', ['T']),
+                linkedHeading(1, 't', 'T', ['T']),
                 linkedHeading(6, 's', 'S', ['S']),
                 ['p', 'a ', ['code', 'b'], ['strong', 'c', ['code', 'h'], ['a', { href: 'm' }, 'l']], ['em', 'd'], ['a', { href: 'g' }, 'e ', ['code', 'f']]],
                 fence('x', ['code', { class: 'language-js' }, ['span', { 'data-token': 'identifier' }, 'x']]),

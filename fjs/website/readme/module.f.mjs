@@ -257,9 +257,9 @@ const hasImage = spans => spans.some(span => span[0] === 'image' || (span[0] ===
 /**
  * A README as the elements of its page, or the first link it cannot place.
  *
- * **A heading is one level below the README's own.** The page's `h1` is its
- * breadcrumb, and its sections are `h2`, so the README's title is an `h2`
- * beside them and its sections `h3`; an `h6` stays an `h6`.
+ * **A heading is at the README's own level.** The README's title is the
+ * page's `h1`, and its sections are `h2`, beside the sections the page adds
+ * itself.
  *
  * **A list item is its blocks**, in a `ul`, or an `ol` for a numbered
  * list, and in a tight list a paragraph is its bare
@@ -398,7 +398,7 @@ export const readmeNodes = href => blocks => {
             const n = nodes(b[0] === 'heading' ? b[2] : b[1])
             if (n[0] === 'error') { return n }
             if (b[0] === 'heading') {
-                out = [...out, linkedHeading(Math.min(b[1] + 1, 6), ids[heading], b[2].map(words).join(''), n[1])]
+                out = [...out, linkedHeading(b[1], ids[heading], b[2].map(words).join(''), n[1])]
                 heading += 1
                 continue
             }

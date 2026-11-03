@@ -89,7 +89,7 @@ const script = `window.cardReady = Promise.all([...document.images].map(image =>
  * @type {(path: string) => (readme: readonly Element[]) => readonly Node[] | null}
  */
 export const cardContent = path => readme => readmeArticle(readme)
-    ?? (path === '.' ? [['h2', siteName], ['p', siteDescription]] : null)
+    ?? (path === '.' ? [['h1', siteName], ['p', siteDescription]] : null)
 
 /**
  * The card page showing `content`.

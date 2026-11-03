@@ -326,6 +326,9 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+/* The breadcrumb is where the page sits, not what it is about: a small
+   muted line above the page's heading, which is the README's title. */
+nav[aria-label="Breadcrumb"] { color: var(--muted); font-size: .875rem; margin-bottom: 1rem }
 /* Keep the catalogue in a fixed left column and let desktop content fill
    the remaining width. The divider spans the content, independently of
    the sticky catalogue's height. Mobile navigation opens a drawer. */
@@ -525,7 +528,7 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 [data-demo-working] button { cursor: default }
 /* Heading links preserve native anchors until clipboard controls are bound. */
 [data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
-[data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
+[data-linked-heading] > :is(h1,h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
 [data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
 [data-permalink] > button, [data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .375rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
 [data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
@@ -849,12 +852,13 @@ ${railroadLabel('nonTerminal')} { fill: var(--text); font-weight: 700 }
    (render-readme's "prose face"). */
 [data-readme] { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin-block: 1.5rem; max-width: 60rem; overflow-wrap: break-word }
 [data-readme] > :first-child { margin-top: 0 }
-[data-readme] :is(h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
-[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
-[data-readme] h3 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
-[data-readme] h4 { font-size: 1.25em }
-[data-readme] h5 { font-size: 1em }
-[data-readme] h6 { color: var(--muted); font-size: .875em }
+[data-readme] :is(h1, h2, h3, h4, h5, h6) { font-weight: 600; line-height: 1.25; margin: 1.5em 0 1rem }
+[data-readme] h1 { border-bottom: 1px solid var(--border); font-size: 2em; padding-bottom: .3em }
+[data-readme] h2 { border-bottom: 1px solid var(--border); font-size: 1.5em; padding-bottom: .3em }
+[data-readme] h3 { font-size: 1.25em }
+[data-readme] h4 { font-size: 1em }
+[data-readme] h5 { font-size: .875em }
+[data-readme] h6 { color: var(--muted); font-size: .85em }
 [data-readme] :is(p, ul, pre, table, blockquote) { margin: 0 0 1rem }
 [data-readme] blockquote { border-left: .25em solid var(--border); color: var(--muted); padding: 0 1em }
 [data-readme] blockquote > :last-child { margin-bottom: 0 }

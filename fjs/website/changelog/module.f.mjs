@@ -291,6 +291,7 @@ export const releasePage = build => release => document => shell(build)({
     description: `What changed in FunctionalScript ${release.version}.`,
 })(['main',
     breadcrumb(`${changelogDir}/${release.version}`)(release.version),
+    ['h1', release.version],
     ...neighbours(release),
     ...(document.length === 0
         ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
@@ -313,6 +314,7 @@ export const indexPage = build => versions => shell(build)({
     description: 'What changed in each release of FunctionalScript.',
 })(['main',
     breadcrumb(changelogDir)(changelogDir),
+    ['h1', changelogDir],
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
         /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],

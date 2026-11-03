@@ -710,22 +710,49 @@ const breadcrumbs = path => [
 ]
 
 /**
- * The page's heading: a link to each ancestor of `path`, root first, then
+ * Where the page sits: a link to each ancestor of `path`, root first, then
  * `name`, the page itself, as text.
  *
- * **The breadcrumb is the heading.** A breadcrumb above a heading repeated
- * the page's path twice; one line now says where the reader is, and it is
- * still the `h1` that a screen reader's heading list and a search engine
- * take the page's topic from.
+ * **The breadcrumb is navigation, not the heading.** The page's `h1` is its
+ * README's own title ({@link pageHeading}), which says what the page is about
+ * rather than where it is, and is what a screen reader's heading list and a
+ * search engine take the page's topic from.
  *
  * @type {(path: string) => (name: string) => Element}
  */
-export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' }, ['h1',
+export const breadcrumb = path => name => ['nav', { 'aria-label': 'Breadcrumb' },
     ...toArray(intersperse(/** @type {Node} */ (' / '))([
         ...breadcrumbs(path).map(([href, text]) => /** @type {Node} */ (['a', { href: pageHref(href) }, text])),
         /** @type {Node} */ (['span', { 'aria-current': 'page' }, name]),
     ])),
-]]
+]
+
+/** Whether a node is a heading of the first level. @type {(node: Node) => boolean} */
+const isH1 = node => typeof node !== 'string' && parseElement(/** @type {Element} */ (node))[0] === 'h1'
+
+/**
+ * Whether a rendered README has a title of its own: an `h1`, which a
+ * README's `#` heading is, wrapped beside its permalink.
+ *
+ * @type {(readme: readonly Element[]) => boolean}
+ */
+const hasTitle = readme => (readmeArticle(readme) ?? []).some(n => {
+    if (typeof n === 'string') { return false }
+    const [tag, , children] = parseElement(n)
+    return tag === 'div' && children.some(isH1)
+})
+
+/**
+ * The page's `h1` where its README does not give one: `name`, the
+ * directory's own, for a directory without a README, with one whose README
+ * is not rendered, or with one that has no `#` title.
+ *
+ * **A README's title is the page's heading**, so the README is the page's
+ * own content and not a document set beneath a heading that repeats it.
+ *
+ * @type {(readme: readonly Element[]) => (name: string) => readonly Element[]}
+ */
+export const pageHeading = readme => name => hasTitle(readme) ? [] : [['h1', name]]
 
 /**
  * The branch the published site is built from. Every other branch's build is
@@ -962,6 +989,7 @@ export const page = build => dir => shell(build)({
     ...(readmeArticle(dir.readme) === null ? {} : { card: cardImageHref(dir.path) }),
 })(directoryLayout(build)(dir)(testsMain(
     breadcrumb(dir.path)(basename(dir.path)),
+    ...pageHeading(dir.readme)(basename(dir.path)),
     ...(dir.api === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.api }, 'API documentation']])]),
     ...(dir.apiIndex === null ? [] : [/** @type {Element} */ (['p', ['a', { href: dir.apiIndex }, 'Rust API documentation']])]),
     ...dir.readme,

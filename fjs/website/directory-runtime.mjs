@@ -22,10 +22,15 @@ export const startDirectoryDrawer = layout => {
     close.textContent = '×'
     close.setAttribute('aria-label', 'Close navigation')
     heading.append(title, close)
-    const path = doc.createElement('p')
-    path.setAttribute('data-drawer-path', '')
-    path.textContent = main.querySelector('h1')?.textContent ?? ''
-    dialog.append(heading, path)
+    dialog.append(heading)
+    // Where the reader is, as the breadcrumb says it; the root page has none.
+    const crumbs = main.querySelector('nav[aria-label="Breadcrumb"]')?.textContent ?? ''
+    if (crumbs !== '') {
+        const path = doc.createElement('p')
+        path.setAttribute('data-drawer-path', '')
+        path.textContent = crumbs
+        dialog.append(path)
+    }
     const navigation = doc.createElement('div')
     navigation.setAttribute('data-directory-navigation', '')
     navigation.setAttribute('role', 'group')
