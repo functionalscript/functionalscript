@@ -429,7 +429,9 @@ Source admission alone does not make an importing module compilable. The
 bodies of `fjs/types/bit_set/module.f.mjs` and
 `fjs/media/json/extended/module.f.mjs` now parse, but both remain `.f.mjs`
 because the compiler also links their imports. `bit_set` imports
-`types/bigint`, whose `combination` still uses an unadmitted `for...of` loop.
+`types/bigint`, whose `bits` function still references the later `bitLength`
+binding, outside the module forward-reference contract. Its `for…of` syntax
+is now admitted.
 The extended JSON codec imports the JSON parser, whose `tagged` helper still
 reads the dynamic string key `member[key]`, outside the numeric computed-key
 contract. Compile either module explicitly to observe its dependency's refusal:

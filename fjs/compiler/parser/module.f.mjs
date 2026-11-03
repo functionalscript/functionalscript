@@ -9,13 +9,13 @@
  * @module
  * @import { Result } from '../../types/result/types.ts'
  * @import { BindingEvent, BindingId, BindingScope, LoopTarget } from '../../js/ast/types.ts'
- * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch } from '../../js/ast/sugar/source.ts'
+ * @import { ExpansionPlan, SourceValue, SourceStatement, SourceBlock, SourceImport, SourceModule, SourceSwitch, SourceForOf } from '../../js/ast/sugar/source.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
  * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
- * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
+ * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
 import { error, mapOk, ok } from '../../types/result/module.f.js'
@@ -60,9 +60,6 @@ const duplicateId = foldError('duplicate id')
 
 /** A braced switch arm must leave the arm rather than fall into the next one. */
 const unterminatedCase = foldError('switch case does not terminate')
-
-/** Generic syntax retains for-of; iteration remains outside FJS admission. */
-const unsupportedForOf = foldError('for-of is not admitted')
 
 /** Generic construction syntax does not admit constructor execution. */
 const unsupportedNew = foldError('new is not admitted')
@@ -632,6 +629,7 @@ const patternRound = (stack, scope, frame) => {
         const next = { ...scope, parameters: [...scope.parameters, { plan, default: continuation.value }] }
         return lateRound(stack, next, { ...continuation.parameter, index: continuation.parameter.index + 1 })
     }
+    if ('forOf' in continuation) { return forOfBody(stack, scope, continuation.forOf, plan) }
     if ('loop' in continuation) { return loopRound(stack, scope, advanced(continuation.loop, [['initialize', plan, continuation.value]])) }
     if ('body' in continuation) { return bodyRound(stack, scope, advanced(continuation.body, [['initialize', plan, continuation.value]])) }
     return [stack, scope, ok(['block', { statements: [['initialize', plan, continuation.module]], exit: ['yield', undefined] }])]
@@ -1138,7 +1136,7 @@ const hasTargetBreak = (root, target) => {
         for (const statement of block.statements) {
             if (statement[0] === 'break' && statement[1] === target) { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
     }
@@ -1157,6 +1155,54 @@ const enterFor = (stack, scope, loop, body, terminal = false) => {
     })
 }
 
+/** Resolve the iterable once, before initializing a fresh iteration binding.
+ * @type {(stack: _Stack, scope: _Scope, loop: ForOf, body: _BodyFrame | _LoopBodyFrame | null, terminal?: boolean) => _State}
+ */
+const enterForOf = (stack, scope, loop, body, terminal = false) => {
+    const inner = regionScope(scope, empty, null)
+    const [kind, plan] = planned(bodyBindable(inner))(loop.target, null)
+    if (kind === 'error') { return [stack, scope, error(plan)] }
+    /** @type {_ForOfFrame} */
+    const frame = { forOf: loop, body, target: { kind: 'loop', index: scope.trace.count + 1 }, item: sourceBinding(0), plan, source: null, initial: [], terminal }
+    return [{ top: frame, rest: stack }, inner, ['enter', loop.iterable]]
+}
+
+/** The body owns a lexical scope inside the per-iteration declaration scope.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, plan: ExpansionPlan) => _State}
+ */
+const forOfBody = (stack, scope, frame, plan) => loopRound({
+    top: { ...frame, initial: [['initialize', plan, ['ref', frame.item]]] }, rest: stack,
+}, regionScope(scope, empty, null), {
+    block: frame.forOf.block[1], target: frame.target, breakTarget: frame.target, index: 0, plan: null, assigned: null, done: null,
+})
+
+/** Keep iterable effects outside iteration events, and retain original transfer owners.
+ * @type {(stack: _Stack, scope: _Scope, frame: _ForOfFrame, value: SourceValue) => _State}
+ */
+const forOfReturned = (stack, scope, frame, value) => {
+    if (frame.source === null) {
+        const shadowed = frame.plan.names.find(([name]) => at(nameOf(name))(scope.names) !== null)
+        if (shadowed !== undefined) { return [stack, scope, error(captureShadowed(shadowed[0]))] }
+        /** @type {_ForOfFrame} */
+        const next = { ...frame, source: [value] }
+        const inner = declared(regionScope(scope, empty, null), frame.plan, frame.forOf.kind)
+        return hasPatternDefault(frame.plan)
+            ? patternRound(stack, inner, { pattern: frame.plan, index: 0, reads: [], kind: frame.forOf.kind, continuation: { forOf: next } })
+            : forOfBody(stack, boundPlan(inner, frame.plan, isVariable(frame.forOf.kind)), next, expansion(frame.plan))
+    }
+    const body = regionBlock(value)
+    /** @type {SourceForOf} */
+    const loop = { target: frame.target, events: completedTrace(scope).events, source: frame.source[0], item: frame.item,
+        body: { ...body, statements: [...frame.initial, ...body.statements] } }
+    const outer = restoredScope(restoredScope(scope, false), false)
+    /** @type {SourceStatement} */
+    const statement = ['for-of', loop]
+    if (frame.body === null) { return [stack, outer, ok(['block', { statements: [statement], exit: ['yield', undefined] }])] }
+    if ('block' in frame.body) { return loopRound(stack, outer, advanced(frame.body, [statement])) }
+    if (frame.terminal && !frame.body.branch) { return [stack, outer, error(foldError('terminal for-of may complete normally')(frame.forOf.start))] }
+    return bodyRound(stack, outer, advanced(frame.body, [statement]))
+}
+
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
  * value in document order. Source guards retain their lexical block and the
@@ -1168,7 +1214,6 @@ const bodyRound = (stack, scope, frame) => {
     const { statements, first, index } = frame
     if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
     const [kind, statement] = statements[index]
-    if (kind === 'for-of' || kind === 'terminal-for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
     // the statement's own beginning before either half of it: the one
     // before it, written without its `;`, ends at a newline or not at all
     if (unterminated(index === first ? null : statements[index - 1][1], statement)) {
@@ -1180,6 +1225,7 @@ const bodyRound = (stack, scope, frame) => {
     // evidence reaches sugar before mutable loop inputs are selected.
     if (kind === 'while' || kind === 'terminal-while') { return enterLoop(stack, scope, statement, frame, kind === 'terminal-while') }
     if (kind === 'for' || kind === 'terminal-for') { return enterFor(stack, scope, statement, frame, kind === 'terminal-for') }
+    if (kind === 'for-of' || kind === 'terminal-for-of') { return enterForOf(stack, scope, statement, frame, kind === 'terminal-for-of') }
     if (kind === 'assign') {
         const [tag, target] = assigned(scope, statement.name)
         if (tag === 'error') { return [stack, scope, error(target)] }
@@ -1692,6 +1738,7 @@ const returned = (stack, scope, frame, value) => {
         const binary = [frame.tag, frame.left, value]
         return [stack, scope, ok(binary)]
     }
+    if (hasEntry(frame, 'forOf')) { return forOfReturned(stack, scope, frame, value) }
     if (hasEntry(frame, 'for')) {
         const block = regionBlock(value)
         if (frame.initial === null) {
@@ -1859,7 +1906,7 @@ const hasArmThrow = arms => {
         for (const statement of block.statements) {
             if (statement[0] === 'throw') { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
     }
@@ -2022,7 +2069,6 @@ const loopRound = (stack, scope, frame) => {
             return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] })
         }
         const [kind, statement] = block[index]
-        if (kind === 'for-of') { return [stack, scope, error(unsupportedForOf(statement.start))] }
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
@@ -2038,6 +2084,7 @@ const loopRound = (stack, scope, frame) => {
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
         if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
+        if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
         if (kind === 'switch') {
             return [{ top: { loopSwitch: statement, body: frame, target: { kind: 'loop', index: scope.trace.count + 1 }, discriminant: null, index: 0, label: 0, labels: [], arms: null }, rest: stack },
                 regionScope(scope, empty, null), ['enter', statement.discriminant]]
@@ -2128,7 +2175,7 @@ const internalReturn = body => {
         for (const statement of block.statements) {
             if (statement[0] === 'return') { return true }
             if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
             if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
         }
         const exit = block.exit
@@ -2269,7 +2316,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
-    /** @type {Statement | While | null} */
+    /** @type {Statement | While | ForOf | null} */
     let previous = null
     for (const statement of imports) {
         if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
@@ -2297,12 +2344,11 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
-        if (statement[0] === 'for-of') { return error(unsupportedForOf(statement[1].start)) }
-        if (statement[0] === 'while' || statement[0] === 'for') {
+        if (statement[0] === 'while' || statement[0] === 'for' || statement[0] === 'for-of') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
             previous = loop
-            const [tag, evaluated] = evaluateState(statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, loop, null))
+            const [tag, evaluated] = evaluateState(statement[0] === 'for-of' ? enterForOf(null, scope, statement[1], null) : statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, statement[1], null))
             if (tag === 'error') { return error(evaluated) }
             scope = evaluated.scope
             body = [...body, ...regionBlock(evaluated.value).statements]
