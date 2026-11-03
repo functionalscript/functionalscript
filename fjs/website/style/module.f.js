@@ -549,8 +549,12 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
 }
 /* The gutters that hold the anchor, 2.1rem and some room: \`main\`'s own
    padding, the directory layout's gap clear of the catalogue's divider, and
-   the narrow directory layout's padding beside the screen's edge. */
+   the narrow directory layout's padding beside the screen's edge. A directory
+   with an empty catalogue is one centred column at every width, so it keeps
+   that padding at every width: above 48rem its centring margin is too narrow
+   for the anchor until the window is about 67.5rem wide. */
 [data-directory-layout] { column-gap: 3rem }
+[data-directory-layout]:has(> [data-catalogue]:empty) > main { padding-inline: 1.5rem }
 @media (max-width: 48rem) {
     [data-directory-layout] > main { padding-inline: 1.5rem }
 }
