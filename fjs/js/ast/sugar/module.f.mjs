@@ -181,7 +181,7 @@ const expanded = (plan, value, environment, alias, context) => {
     /** @type {readonly Statement[]} */
     let statements = []
     for (const [index, { source, spread, default: fallback }] of plan.reads.entries()) {
-        const read = source === null ? value : source.length === 1 ? source : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
+        const read = source === null ? value : typeof source === 'number' || source.length === 1 ? source : /** @type {Value} */ (['.', lookup(inner, plan.ids[source[0]]), source[1]])
         let selected = read
         if (fallback !== undefined) {
             const raw = binding(index)

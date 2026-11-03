@@ -252,8 +252,9 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN`
       and `Number.isFinite`, static functions
       ([built-in static functions](../built-ins/static-functions/README.md),
-      the record below); the namespace's other members, its value
-      properties `Number.MAX_SAFE_INTEGER` among them, stay unticked, each
+      the record below), plus the numeric constant `Number.MAX_SAFE_INTEGER`,
+      desugared to its value ([constant admission](../built-ins/static-functions/README.md#numeric-constants));
+      the namespace's other members stay unticked, each
       an admission of its own. A module reading one of the four, through
       `const { isFinite } = Number` as well, needs no rewrite to compile;
       a module reading another member is rewritten when that member is
@@ -297,8 +298,9 @@ reading one of the four needs no rewrite to compile.
 **Drawbacks.** Four more EDAG node kinds, each a tag every executor and
 writer has to read, unless they share one table of static names. The
 namespace grows to a member that is a number, `Number.MAX_SAFE_INTEGER`,
-which stays refused: a value property is a different admission from a
-function.
+which was refused at this step: a value property is a different admission
+from a function. It is now admitted by the separately approved
+[numeric-constant lowering](../built-ins/static-functions/README.md#numeric-constants).
 
 **Language-design approval.** **sergey-shandar** chose "all four Number
 predicates" when asked which function to admit next, in
