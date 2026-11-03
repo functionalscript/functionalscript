@@ -56,6 +56,16 @@
   `=>` is. Nothing follows the terminating statement: a statement after it
   is unreachable, and JavaScript's admitting the text does not make it
   anything but a mistake.
+- An explicit bare `return;`, or `return` followed by the closing brace,
+  means `return undefined`. Syntax parsing supplies the existing primitive
+  `undefined` operand and preserves the written return's source location and
+  semicolon. This applies to function bodies, guards, switches and loops;
+  ownership and unreachable-code checks stay the same. A bare `throw` is
+  refused. A function with no return still has an implicit ending and is not
+  admitted. The language designer `sergey-shandar` explicitly approved this
+  desugaring in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
+  under DESIGN.md §12. It preserves familiar JavaScript syntax without adding
+  an AST, FAST or EDAG node kind; symbol classification needs one token of lookahead.
 - A parameterless function **called where it is written**, with no
   arguments, denotes its body where the call stands:
   `a ? (() => { const x = f(); return [x, x]; })() : 4` is the idiom for a

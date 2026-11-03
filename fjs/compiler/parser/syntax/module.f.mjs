@@ -54,7 +54,7 @@ import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
     afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
-    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
+    importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
 /**
@@ -1305,6 +1305,7 @@ const toEnd = node => {
     // destructured here rather than in the parameter list, where
     // narrowing on `kind` would not reach `branch`
     const [kind, branch] = node
+    if (kind === 'bareReturn') { return symbol({ id: 'end', end: [['return', bareReturnOf(unmapped(branch))]] }) }
     if (kind === 'return') { return symbol({ id: 'end', end: [['return', valueStatementOf(unmapped(branch))]] }) }
     if (kind === 'throw') { return symbol({ id: 'end', end: [['throw', valueStatementOf(unmapped(branch))]] }) }
     const [first, , discriminant, , , , label, , tail] = unmapped(branch)
@@ -1561,6 +1562,7 @@ const toLoopStatement = ([kind, branch]) => {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
     }
+    if (kind === 'bareReturn') { return symbol({ id: 'loopStatement', statement: ['return', bareReturnOf(unmapped(branch))] }) }
     if (kind === 'return') { return symbol({ id: 'loopStatement', statement: ['return', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
@@ -1581,6 +1583,14 @@ const toLoopStatement = ([kind, branch]) => {
  */
 const valueStatementOf = ([keyword, v, end]) =>
     ({ start: tokenAt(keyword), semicolon: ended(end), first: firstAt(v), value: nodeAt(v) })
+
+/** Canonicalize bare return without inventing a new AST or control-flow form.
+ * @type {(node: Children<(typeof terminator)['bareReturn'], ModuleTokenWithMetadata, Out>) => ValueStatement}
+ */
+const bareReturnOf = ([keyword, end]) => {
+    const start = tokenAt(keyword)
+    return { start, semicolon: ended(end), first: { ...start, newline: false }, value: ['primitive', undefined] }
+}
 
 /** A member's record as the rewrite returns it, with the property it is where a binding is wanted. @type {(member: Member, target: BindingProperty) => Meta<Out>} */
 const memberOf = (member, target) => symbol({ id: 'member', member, target })
@@ -1994,7 +2004,7 @@ export const parseSyntax = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
-    const [matched, result] = parseModule(tokens.map(symbolOf))
+    const [matched, result] = parseModule(symbolsOf(tokens))
     if (matched === 'error') {
         // A failure past the last token is the end of input rather than a
         // token the reader can point at.

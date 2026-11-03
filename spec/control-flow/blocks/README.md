@@ -35,7 +35,8 @@ normally. Existing restrictions on conditional joins and EDAG conversion of
 nonlocal transfers in value regions remain in force.
 
 Imports and exports belong at module level. This feature does not add labels,
-`var`, bare `return` or empty `;` statements.
+`var` or empty `;` statements. [Bare returns](../guards/README.md) desugar to
+`return undefined`.
 
 The language designer `sergey-shandar` explicitly approved standalone AST blocks,
 flattening to FAST and distinct names for shadowed bindings in the

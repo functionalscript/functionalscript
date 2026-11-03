@@ -190,7 +190,7 @@ export const proof = {
                 'export const a=1 export const b=2;', 'export const a=1; import b from "./x";',
                 'export default 1; export const a=2;', 'export default 1; export default 2;',
                 'export { a };', 'export let a=1;', 'const a=1;', '',
-                'export const f=()=>{return;};', 'export const f=()=>{};',
+                'export const f=()=>{};',
                 'export const f=()=>{return\n1;};',
             ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
             const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
@@ -227,7 +227,6 @@ export const proof = {
         },
         syntaxRefusals: () => {
             for (const source of [
-                'export default () => { return; };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',
             ]) {

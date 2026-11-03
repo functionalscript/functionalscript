@@ -53,7 +53,7 @@ export const proof = /** @type {const} */ ({
         assert(conditional[0] === 'normal-if')
         assertEq(conditional[1].block[2], null)
     },
-    omissionDoesNotRelaxAdmissionOrBareTerminators: () => {
+    omissionDoesNotRelaxAdmissionOrThrow: () => {
         for (const source of [
             'export default ()=>{};',
             'export default ()=>{const value=1;};',
@@ -63,7 +63,7 @@ export const proof = /** @type {const} */ ({
             assertOk(parseSyntax(tokenize(stringToList(source))('implicit-return.f.js')))
             assertEq(assertError(parse('implicit-return.f.js')(source)).message, 'implicit return is not admitted')
         }
-        for (const body of ['return;', 'throw;', 'return 1;const value=2;']) {
+        for (const body of ['throw;', 'return 1;const value=2;']) {
             assertError(parseSyntax(tokenize(stringToList(`export default ()=>{${body}};`))('implicit-return.f.js')))
         }
     },

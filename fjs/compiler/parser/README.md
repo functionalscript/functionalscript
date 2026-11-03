@@ -172,7 +172,8 @@ statement ::= const | ifStatement | let
 ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
 branchBlock ::= '{' statement* [ terminator ] '}'
 branchElse ::= branchBlock | ifStatement
-terminator ::= 'return' value end | 'throw' value end
+bareReturn ::= bare-return end
+terminator ::= 'return' value end | bareReturn | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
 caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
@@ -180,7 +181,7 @@ afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
 loopBlock ::= '{' loopStatement* '}'
 loopStatement ::= const | let | bodyNameStatement | newExpressionStatement | whileStatement | forStatement
                 | loopIfStatement | 'break' end | 'continue' end
-                | 'return' value end | 'throw' value end | loopSwitch
+                | 'return' value end | bareReturn | 'throw' value end | loopSwitch
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
 loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
@@ -582,6 +583,20 @@ mapping is typed from its rule; the one reader the two list mappings share is
 typed by the shape of a list node, as a reader of a combinator's scaffolding
 is. The nodes the mappings build, and the alphabet they return them in, are
 public types in `./types.ts`, as the rewrite set is.
+
+## Bare returns
+
+`return;` and `return` immediately before `}` desugar to `return undefined`
+in the syntax AST. The original keyword, location and semicolon information
+are retained. `symbolsOf` uses the following token to give bare returns a
+distinct grammar symbol; identifier positions accept that symbol too, so
+members and shorthand keys named `return` remain unchanged. This avoids the
+LL(1) ambiguity between an optional operand and a following loop statement.
+The AST rewrite emits the existing return node with primitive `undefined`;
+source resolution, FAST and EDAG need no new form.
+
+Implicit function endings still require an explicit terminator for FJS admission.
+A written return operand beginning on a new line retains its existing refusal.
 
 ## Required keywords are terminals of their own
 
