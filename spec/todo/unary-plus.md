@@ -1,6 +1,6 @@
 # Unary plus
 
-**Status:** approved — syntax AST admission; AST-to-FAST lowering remains TODO
+**Status:** open — syntax AST admission; AST-to-FAST lowering remains TODO
 
 The language designer `sergey-shandar` approved unary `+` AST admission and explicitly deferred lowering in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
 
