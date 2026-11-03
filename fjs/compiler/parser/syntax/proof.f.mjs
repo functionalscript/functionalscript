@@ -54,6 +54,60 @@ const returned = node => {
 }
 
 export const proof = {
+    objectPatternDefaultsRetainTargetsInitializersAndTokens: () => {
+        const source = 'const {a=1,b:c=2,"d":d=3,["e"]:e=4,nested:{f=5}={}}=input;export default a;'
+        const declaration = unwrap(parseSyntax(tokenizeString(source))).statements[0]
+        assert(declaration[0] === 'const')
+        const target = declaration[1].declaration.target
+        assert(target[0] === 'object')
+        for (const [index, expected] of [1, 2, 3, 4].entries()) {
+            const property = target[2][index]
+            assert(hasEntry(property, 'key'))
+            const initialized = property.target
+            assert(initialized[0] === '=' && initialized[1][0] === 'name')
+            assertEq(initialized[2].token.kind, '=')
+            assertEq(initialized[2].metadata.column, source.indexOf(`=${expected}`) + 1)
+            assertStructurallySame(initialized[3], ['primitive', expected])
+        }
+        const property = target[2][4]
+        assert(hasEntry(property, 'key'))
+        const initialized = property.target
+        assert(initialized[0] === '=' && initialized[1][0] === 'object')
+        assertStructurallySame(initialized[3], ['object', []])
+        const nested = initialized[1][2][0]
+        assert(hasEntry(nested, 'key') && nested.target[0] === '=')
+        assertStructurallySame(nested.target[3], ['primitive', 5])
+    },
+    arrayAndParameterDefaultsKeepSeparateLevels: () => {
+        const declaration = unwrap(parseSyntax(tokenizeString('const [a=1,[b=2]=[],{c=3}={}]=input;export default a;'))).statements[0]
+        assert(declaration[0] === 'const')
+        const target = declaration[1].declaration.target
+        assert(target[0] === 'array')
+        assertStructurallySame(target[2].map(element => element[0]), ['=', '=', '='])
+        const nested = target[2][1]
+        assert(nested[0] === '=' && nested[1][0] === 'array')
+        assertEq(nested[1][2][0][0], '=')
+        assertStructurallySame(nested[3], ['array', []])
+        const value = unwrap(parseSyntax(tokenizeString('export default ({a=5}={})=>a;'))).exported?.value
+        assert(value !== undefined && value[0] === '=>' && hasEntry(value[1], 'fixed'))
+        const parameter = value[1].fixed[0]
+        assert(parameter[0] === '=' && parameter[1][0] === 'object')
+        const property = parameter[1][2][0]
+        assert(hasEntry(property, 'key') && property.target[0] === '=')
+        assertStructurallySame(property.target[3], ['primitive', 5])
+        assertStructurallySame(parameter[3], ['object', []])
+    },
+    valueDefaultsRemainExplicitCoverNodes: () => {
+        const value = unwrap(parseSyntax(tokenizeString('export default [a=1,{b=2,c:d=3,"e":f=4,["g"]:h=5}];'))).exported?.value
+        assert(value !== undefined && value[0] === 'array')
+        assertEq(value[1][0][0], 'binding-default')
+        const object = value[1][1]
+        assert(object[0] === 'object')
+        for (const entry of object[1]) {
+            assert(hasEntry(entry, 'key') && entry.value[0] === 'binding-default')
+            assertEq(entry.value[2].token.kind, '=')
+        }
+    },
     classicForRetainsClausesAndLexicalDeclarations: () => {
         const module = unwrap(parseSyntax(tokenizeString('for(let i=0;i<3;i+=1){for(;;){continue;}}export default 0;')))
         const loop = module.statements[0]
@@ -474,6 +528,7 @@ export const proof = {
         assert(b.target[0] === 'array')
         const [c, d, e] = b.target[2]
         assertStructurallySame([c[0], d[0], e[0]], ['name', 'invalid', '...'])
+        assert(d[0] === 'invalid')
         assertEq(d[1].token.kind, '(')
         assert(e[0] === '...' && e[2][0] === 'name')
         assertEq(k.key[0], '[]')
@@ -551,7 +606,12 @@ export const proof = {
             const source = unwrap(parseSyntax(tokenizeString('const x=1; export const a=x; let y=a; y=x; export const b=y;')))
             assertEq(source.exported, null)
             assertStructurallySame(source.statements.map(s => s[0]), ['const', 'const', 'let', 'assign', 'const'])
-            assertStructurallySame(source.statements.map(s => s[0] === 'const' || s[0] === 'let' ? [s[1].exported, s[1].declaration.target[1].token] : s[0] === 'assign' ? s[1].name.token : null), [
+            assertStructurallySame(source.statements.map(s => {
+                if (s[0] !== 'const' && s[0] !== 'let') { return s[0] === 'assign' ? s[1].name.token : null }
+                const target = s[1].declaration.target
+                assert(target[0] === 'name')
+                return [s[1].exported, target[1].token]
+            }), [
                 [false, { kind: 'id', value: 'x' }], [true, { kind: 'id', value: 'a' }], [false, { kind: 'id', value: 'y' }], { kind: 'id', value: 'y' }, [true, { kind: 'id', value: 'b' }],
             ])
         },

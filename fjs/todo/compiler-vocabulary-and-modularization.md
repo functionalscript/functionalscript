@@ -2,9 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the shared FAST foundation and existing input/output
-migration are implemented; the control-flow conversion audit and conformance
-corpus are in progress before further conditional admission work;
-lexical/specification alignment remains
+migration, named control-flow conformance profiles and output recovery are
+implemented, including normal and partly returning ordinary-function
+conditionals; broader joins and lexical/specification alignment remain
 
 ### Problem
 
@@ -18,9 +18,9 @@ suggest different responsibilities to different contributors.
 The shared FAST foundation and writer migration are implemented:
 [compiler architecture](../compiler/architecture.md) records the current owners.
 Graph-to-FAST conversion and common preparation own sharing, placement and
-transfers; JS and Rust writers consume their decisions. The remaining review
-must make source completion, normalization and source reconstruction use one
-control-flow contract, before extending conditional admission further.
+transfers; JS and Rust writers consume their decisions. The approved completion
+and ownership contract guides ordinary-function conditional admission, with
+each increment preserving the documented source and output limits.
 
 The specification has the same gap from the reader's side. A page says what
 a feature accepts and, for sugar, what it lowers to — a pattern "is sugar
@@ -383,11 +383,17 @@ where it satisfies that contract; existing special cases do not constrain
 the model.
 [PR #3511](https://github.com/functionalscript/functionalscript/pull/3511) and
 [PR #3512](https://github.com/functionalscript/functionalscript/pull/3512) are
-paused drafts while this contract is reviewed. Their tests and source-output
+paused drafts. Their tests and source-output
 investigation remain evidence; the reconstruction recipe in #3512 is a
 prototype finding, not an agreed implementation requirement.
 
-The review must settle these rules before resuming implementation:
+The [approved contract summary](../compiler/control-flow.md#approved-control-flow-contract)
+records the implemented normalization and named output profiles. Those output
+profiles do not themselves admit new source syntax.
+Review the paused drafts against this foundation before resuming admission
+work; their earlier experiments are not a plan to reapply unchanged.
+
+The agreed rules for ordinary-function conditional admission are:
 
 - Sequential composition resumes following statements only on normal
   completion. A conditional evaluates its test once and selects one arm;
@@ -409,6 +415,53 @@ The review must settle these rules before resuming implementation:
   implement or recognize a stated profile of this contract. A recognizer's
   accepted shapes do not define all valid terminal control flow. Decide any
   compatibility canonicalization and its graph-identity effects explicitly.
+
+##### First approved admission boundary
+
+The first increment is reference case 6:
+an ordinary function's normally completing `if`, with or without `else`,
+joins one outer binding's versions before one following computation and an
+explicit function return. Branch-local declarations stay local; an absent
+`else` supplies the incoming versions. Reuse the existing join representation and
+preserve scope, `const`, capture and required-evaluation checks before
+desugaring erases their evidence.
+
+This restores familiar JavaScript conditional assignment without requiring
+an IIFE or a conditional-expression rewrite. Its cost is a wider admission
+profile whose binding and completion checks must remain consistent with loop
+branches; it adds no new control-flow construct to FAST.
+
+**Approval:** language designer `sergey-shandar` approved this control-flow
+contract and case 6 implementation in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+replying “do it” to the proposal to implement it on top of #3552.
+
+##### Partly returning admission boundary
+
+Cases 4 and 7, including the nested example below, extend that profile to
+branches that either return from their owning function or complete normally.
+Only normal paths supply the zero-or-one outer result and reach the shared
+following computation. Source resolution preserves branch returns as targeted
+statements through nested guards and switches; the existing FAST normalization
+keeps them abrupt. Function and eligible IIFE terminal results retain their
+existing normalization role. An IIFE whose internal returns require its
+invocation boundary cannot gain permission to write enclosing variables.
+
+The benefit is familiar JavaScript early-return control flow without duplicating
+the continuation. The cost is preserving completion ownership through source
+regions that previously held only terminal results. No new FAST construct or
+EDAG operation is needed. The one-outer-binding admission limit, explicit
+function terminators and existing explicit-throw restriction remain.
+
+**Approval:** language designer `sergey-shandar` approved cases 4 and 7 and the
+nested `m` example in the
+[working session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006),
+replying “do it” to the proposal for the PR stacked on #3554.
+
+Implicit-return desugaring stays later. Keep generic AST formation, FJS
+admission and FAST conversion separately reported: the
+[module dependency command](module-dependency-graph-command.md)
+needs an AST even for modules that cannot yet pass the later stages.
 
 For the task owner's example, inside an ordinary function `F`:
 
@@ -530,10 +583,13 @@ graph/text round trips remain separately named guarantees for supported
 canonical profiles; they are not a gate on general serialization.
 
 This is the target contract, not a claim that all current output profiles
-meet it. The current source coordinator retains recursive fallbacks for some
-profiles; the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
-records those implementation gaps. Audit those paths against the `while`
-requirement instead of preserving their recursive spelling for compatibility.
+meet it. After retaining supported loop plans, the source coordinator refuses
+possible owning backedges before inverse reconstruction; one-pass fallback
+remains available. The [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md)
+records the unsupported layouts, and the
+[self-tail audit](../compiler/self-tail-output.md#direct-fast-preparation)
+separately records the direct raw FAST planning boundary. Extending those
+profiles must satisfy the `while` requirement.
 
 ##### Switch selection and execution
 
@@ -703,8 +759,8 @@ Where the original implementation placed a feature, and its intended owner:
 
 | Feature | Original placement | Layer |
 | --- | --- | --- |
-| Destructuring, a `const`'s or a parameter's | The fold: `planned` and `lowered`, `functionScope` for a parameter | Desugaring |
-| Default parameters | The fold: `functionScope` and `lateRound`, one conditional entry reading the rest array twice | Desugaring, two fresh entries |
+| Destructuring, a `const`'s or a parameter's | `compiler/parser` checks and resolves the pattern plan; `js/ast/sugar` expands it | Desugaring |
+| Parameter and pattern defaults | `compiler/parser` resolves initializers in binding order; `js/ast/sugar` establishes a read and a selected value | Desugaring, two fresh entries |
 | Guards, `if` | The fold: `bodyRound` | Desugaring |
 | The `let`/`while` loop | The fold: `loopRound`, to self recursion | Graph construction: FAST keeps the loop and `from_fast` lowers it to a tail call; `to_fast` rebuilding one for output is no second owner |
 | A pattern over `Object` or `Number` | The fold: `namespaceOf` | Desugaring, over binding's static read |
@@ -715,32 +771,25 @@ Where the original implementation placed a feature, and its intended owner:
 | Writes and captures | The fold | Shared binding analysis after pattern expansion; admission applies the source policy before normalization |
 | FunctionalScript's own refusals: a prototype name, a reserved global, `__proto__`, a prohibited call | The fold | Admission, before desugaring |
 
-**Destructuring is the fold's today and belongs to desugaring.** The syntax
-tree, [`parser/syntax`](../compiler/parser/syntax/types.ts)'s
-`BindingTarget`, is the last representation that holds a pattern: the fold
-in [`parser`](../compiler/parser/module.f.mjs) writes the reads the pattern
-is sugar for while it resolves names, and `AstModule` has no node for it
-([spec: destructuring](../../spec/bindings/destructuring/README.md)). The same fold
-owns every other sugar the language has, the table's rows above, so there is
-no desugaring stage to point a page at: the AST of the vocabulary is that
-syntax tree, and the compiler's `AstModule` is nearer FAST, its names
-already indices. Under the vocabulary, binding checks the words a pattern
-binds, admission its keys, and `desugar` writes the reads after both, the
-[example below](#examples-the-design-must-explain); the fold keeps what
-reads a word or a line.
+**Destructuring belongs to desugaring.** The syntax tree,
+[`parser/syntax`](../compiler/parser/syntax/types.ts)'s `BindingTarget`,
+retains the source pattern. Binding and admission in
+[`parser`](../compiler/parser/module.f.mjs) check its names and keys and
+resolve initializer references while their source evidence remains available.
+The resulting plan retains original binding identities and ordered reads;
+[`js/ast/sugar`](../js/ast/sugar/module.f.mjs) expands it into explicit FAST
+bindings ([spec: destructuring](../../spec/bindings/destructuring/README.md)).
 
-**A default parameter is the fold's today and desugars to two entries.**
-`functionScope` reads a parameter from the first default on from the rest
-array, `['.', ['rest'], i]`, and the fold lands it as one entry, the
-conditional `r[0] === undefined ? 5 : r[0]` with the read spelled twice,
-which is the form the outputs write
-([spec: parameters](../../spec/functions/parameters/README.md)). Desugaring writes
-it as two fresh bindings of the body, the read once, the
-[example below](#examples-the-design-must-explain): the initializer is
-evaluated once, nothing after desugaring knows a default was written, and
-the function's `length` still stops at the first default. A default inside
-a pattern, `{ a = 1 }`, refused today, is the same two entries over the
-pattern's read, so it lands in desugaring with the rest.
+**Parameter and pattern defaults desugar to a read and a selected value.**
+The read is established once, and the selected binding is
+`read === undefined ? fallback : read`. The fallback stays in the selected
+arm, while the selected binding remains a required initializer. Source
+resolution follows binding order before sugar erases the default spelling.
+Parameters from the first whole-parameter default on read the invocation's
+rest array, preserving `length`; a default inside a pattern keeps that
+pattern's fixed-parameter count
+([spec: parameters](../../spec/functions/parameters/README.md)). Neither
+default form introduces an EDAG operation.
 
 **A module becomes a function in two places and belongs to one.**
 [Spec: modules](../../spec/modules/README.md#a-module-is-a-function) says a
@@ -961,7 +1010,7 @@ documentation and run the affected checks with each implementation increment.
 The remaining architecture alignment accompanies relevant moves; unrelated
 parts do not delay the epic's foundation gate:
 
-- [ ] Agree the [control-flow vocabulary](#control-flow-vocabulary) and
+- [x] Agree the [control-flow vocabulary](#control-flow-vocabulary) and
       [control-flow model and completion/ownership contract](#control-flow-contract-review)
       before resuming the conditional-admission drafts. Assume explicit
       function returns; implicit-return desugaring comes afterward. Audit
@@ -974,23 +1023,82 @@ parts do not delay the epic's foundation gate:
       output. Include parameterized continuations and the switch edges above;
       mark unsupported forms honestly. The
       [control-flow audit](../compiler/control-flow.md) links each stage's proof.
-- [ ] Audit source statement/exit returns and immediate-call boundaries;
-      decide their common normalization and any graph canonicalization before
-      selecting constructor changes or compatibility adapters.
-- [ ] Rework structured source reconstruction against that contract, using
-      common preparation. Allow helper functions and enclosing-variable writes
-      from IIFEs; preserve completion owners and semantics without requiring
-      general exact-graph round trips. Use parameters/immutable bindings for
-      non-loop continuations in the baseline; broader mutable output variables
-      belong to optional future optimization rather than the core model.
-      Remove redundant control-flow bridges
-      with their consumers once the corpus demonstrates the replacement.
-- [ ] Audit self tail calls in every output function, including generated
-      helpers, and replace fallbacks that retain self tail calls with common
-      `while` lowering. Cover mixed tail/non-tail self uses, deep execution,
-      argument snapshots and invocation-local lifetimes; track broader profiles
-      in the
-      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md).
+- [x] Audit source statement/exit returns and immediate-call boundaries;
+      record their [ownership and normalization contract](../compiler/control-flow.md#return-ownership-and-immediate-call-audit)
+      and graph-identity limits. Keep the current source constructors and
+      explicit returns; an ownership proof precedes moving a targeted return
+      across a function boundary. The task owner approved this audit before
+      preparation is changed.
+- [x] Implement the [direct one-result statement join](../compiler/control-flow.md#first-immutable-join-profile)
+      with an immutable parameterized continuation in common preparation.
+      Preserve owning early returns, required work, captures and sharing;
+      verify direct JavaScript and Rust execution. Self-bearing functions and
+      unsupported profiles keep their existing lowering. This completes the
+      task-owner-approved first implementation boundary.
+- [x] Recover the [canonical one-pass invocation join](../js/ast/prepare/one_pass/README.md)
+      on the default JavaScript/Rust graph route. Restore the owning returns
+      and required entry snapshots, then use the immutable continuation.
+      Preserve backedges, scoped binding collisions and unsupported profiles;
+      verify deep genuine loops and self-tail execution.
+- [x] Emit the canonical immutable joins through public FJS source output.
+      Use source-compatible terminating guards and the shared recovery profile;
+      normal or inverted inner decisions retain their existing invocation loop.
+      Verify parser readback, execution and reserialization for `K(z)` and
+      nested `m`. Genuine self-tail recursion still requires `while` output.
+- [x] Emit the bounded independent-recipe selector profile as public FJS
+      source. Forward the redundant result wrapper through its conditional,
+      preserve branch scopes and transfer owners, and verify parser readback,
+      reserialization and deep execution without widening source grammar.
+- [ ] Extend structured source reconstruction to the remaining statement and
+      nonlocal profiles recorded in the
+      [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md),
+      using common preparation. Preserve completion owners and semantics
+      without requiring general exact-graph round trips. Helper functions and
+      IIFEs are allowed; parameters/immutable bindings remain the non-loop
+      baseline, with broader mutable storage an optional future optimization.
+      Retire redundant control-flow bridges with their consumers when the
+      corpus proves the replacement. The named immutable-join and lazy-recipe
+      profiles listed here remain implemented evidence.
+- [x] Audit current self-tail output profiles through final functions and
+      generated helpers in public source, code-only JavaScript/function text
+      and Rust. Reuse existing witnesses, add missing conformance tests, and
+      distinguish bounded loops, explicit refusals and recursive fallbacks.
+      Record routes, witnesses and limits in the
+      [self-tail output audit](../compiler/self-tail-output.md).
+- [x] Share the mixed tail/non-tail/self-as-value fixture across JavaScript
+      function text and native Rust. Verify deep transfers, ordinary following
+      work, retained function identity, captures, sharing and fresh allocations.
+- [x] Reconstruct the shared snapshot recipe as public FJS source with immutable
+      invocation snapshots. Preserve first demand, escaped readers and allocation
+      identity; verify source readback, reserialization and deep `while` execution.
+- [x] Reconstruct dependent lazy `nestedRecipe` as public FJS source using
+      an immutable first-demand join. Preserve skipped work, shared results
+      and owning returns; verify readback, reserialization and deep loops.
+- [x] Reconstruct the lazy `normalPayload` profile as public FJS source.
+      Preserve normal shared values, conditional demand and owning returns;
+      verify opaque tags, fresh allocations, source readback and deep loops.
+- [x] Establish the source fallback's stack-safety boundary with concrete
+      accepted and refused witnesses. Preserve loops and one-pass recovery;
+      verify source readback and deep execution for supported backedges.
+- [x] Reconcile completed output profiles with the central control-flow audit
+      and remaining tasks. Prepare the explicit-return ownership contract for
+      review and define the next ordinary-if admission boundary.
+- [x] Admit the approved case 6 ordinary-function conditional using existing
+      immutable joins, retaining explicit final returns and source binding checks.
+- [x] Admit partly returning ordinary conditionals for cases 4 and 7, including
+      the nested `m` example. Preserve owning returns and one normal continuation
+      with zero or one joined outer binding; keep explicit function terminators.
+- [ ] Extend common `while` and source plans for explicitly refused backedge
+      profiles, preserving the current refusal until a bounded plan is proven.
+      Cover deep execution, argument snapshots and invocation-local lifetimes.
+      Independent shared terminal recipes already have
+      [common loop planning](../compiler/self-tail-output.md#independent-shared-terminal-recipes)
+      and native JavaScript/Rust witnesses; mixed-self-use witnesses separately
+      cover retained self identity and following work. Keep the
+      [direct raw FAST planning boundary](../compiler/self-tail-output.md#direct-fast-preparation)
+      distinct from public graph output. Track broader source reconstruction
+      in the [source-profile follow-up](../edag/to_fast/source/loops/todo/general-source-profiles.md);
+      it does not itself widen source admission.
 - [ ] Establish the paired reusable lexical APIs using existing token machinery.
 - [ ] Name each specification feature's implementing layer. Update affected
       pages with their code moves, then finish the remaining vocabulary alignment.

@@ -198,7 +198,8 @@ rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
 `--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
-icons in the pinned rustdoc. The original links remain; the HTML icon
+icons in the pinned rustdoc, and the card tags
+([A shared link shows a card](#a-shared-link-shows-a-card)). The original links remain; the HTML icon
 selection rule prefers the last equally appropriate icon. Verify the tab
 icon after a hard refresh when changing the rustdoc pin.
 
@@ -339,8 +340,8 @@ that page for the repository root — it carries the project's name and the same
 catalogue — rather than a special case beside the rule.
 
 **Contents and Issues use the left margin.** Both sections live in one
-catalogue beside the main column, with Contents and Issues
-open by default. The catalogue stays in view while the demo or test report grows,
+catalogue beside the main column, with Contents open and Issues
+collapsed by default. The catalogue stays in view while the demo or test report grows,
 and can scroll when its links are taller than the viewport. On desktop
 it takes a 16rem column, with a full-height divider and content filling the
 remaining width; at 48rem and below a full-width Contents / Issues bar above the breadcrumb
@@ -866,6 +867,82 @@ the SVG's `type` tells a browser which one it can skip. The `.ico` cannot
 carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
+
+## A shared link shows a card
+
+Slack, Telegram, Discord, X, Facebook and LinkedIn build a card for a pasted
+link from Open Graph and Twitter `<meta>` tags, which `previewMeta` in
+[`page/`](./page/module.f.mjs) writes into every page's `<head>` through
+`shell`. They are in the static HTML because a crawler runs no script.
+
+**A title and a description on every page.** A directory's description is
+the first sentence of the first paragraph of prose in its README. A
+paragraph of badges has no text, and a field such as `**Status:** implemented`,
+which opens most READMEs under `spec/`, is a label rather than prose, so both
+are skipped. A sentence ends at a `.`, `!` or `?` outside code, since in code
+those are operators. A sentence longer than 160 characters, about what a
+search result shows, is cut at a word and ends with "…"; otherwise each
+platform cuts it mid-sentence at a length of its own. A release names its
+version, and every other page uses the site's own sentence.
+
+**rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
+Rust API reference, and the site adds one fixed fragment to every page's
+`<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
+pages share: the site's name, the page kind, the card type and, where the
+build has an origin, the root page's card image. Each page's title and description are
+rustdoc's own `<title>` and `<meta name="description">`, which a card falls
+back to; `og:title` and `og:url`, which Open Graph requires, are missing
+([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
+
+**A URL and an image wherever the build has an origin.** Open Graph wants
+both absolute, so a page needs to know where it is published, which
+[`origin/`](./origin/module.f.js) says from the build's branch. Production
+deploys only from a push to `main`, so a build of `main` is at
+`https://functionalscript.com`. Any other branch is its preview, at the alias
+the upload names it by, which is computed in that same module so the two
+cannot disagree. Both write `og:url`, `og:image` and the large card, so a
+preview's card can be checked before it merges. A local build names no
+branch, has no address anyone can fetch, and gets neither and the small
+card.
+
+**A page with a README shows it as its card.** The image is the README as
+its page shows it, without the header, the catalogue, the breadcrumb or the
+footer, so a link to a directory says in the card what the directory holds.
+Every other page — the PR queue, the CLI reference, the changelog's, a
+README the reader refused, and rustdoc's — shows the root page's card, whose
+alt text is the site's name; a page's own card is described by its title.
+
+- **A screenshot, taken at build time.** Only a browser lays out the site's
+  own CSS, so the card cannot drift from the page. The generator writes a
+  card page, `_card.html`, beside each page that has a card, and lists them
+  in `_cards.json` ([`card/`](./card/module.f.mjs)). After it, the website
+  workflow runs [`cards.mjs`](./cards.mjs), which serves the built tree and
+  has headless Chrome screenshot each as `_card.png`, four tabs at a time
+  (`CARD_TABS` overrides it), so a card waiting on a slow image holds up
+  only its own tab. It drives Chrome over
+  the DevTools protocol with Node's own `WebSocket`, so the step adds no npm
+  dependency; `CHROME_PATH` names another browser. A local build writes the
+  card pages and no images, as it writes no `og:image`. The root always has
+  a card, since every other page falls back to it: its README, or the site's
+  name and description where the README is not rendered.
+- **1200×630 at 1×, light.** The size the large cards show uncropped, and
+  those platforms refuse SVG. A card cannot follow the viewer's dark mode.
+- **The whole README, faded at the bottom.** A card that stopped at the
+  first heading would be empty for a README whose intro is a line or none,
+  so it runs on, and the last 140px fade into the background rather than
+  cutting a line in half.
+- **Trimmed to even margins.** 40px above the first heading and 48px on
+  each side; the README's reading width does not apply on a card.
+- **No controls.** Permalinks and buttons are hidden; a picture cannot use
+  them.
+- **An image from another site gets five seconds.** One that has not loaded
+  by then, or fails, is removed before the screenshot, so a slow badge server
+  costs the card its badge and never draws a broken image. A badge shows its
+  value at the build, and the cards are rebuilt with every deploy.
+
+**Checking a card.** View a page's source, or paste its URL into a preview
+debugger such as opengraph.xyz. Platforms cache cards, so a link shared
+before a change keeps its old card for a while.
 
 ## Every page opens with the same header
 

@@ -18,7 +18,7 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
+    _ordinaryTokenNames as names, access, array, attribute, block, branchBlock, branchContents, branchElse, ifStatement, body, circuitTail, conditionalTail, constStatement, constructorCallee, newExpression, newExpressionStatement, memberAccess,
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
@@ -83,11 +83,113 @@ const categoryNames = /** @type {const} */ ([
     'noSubstitutionTemplate', 'templateHead', 'templateMiddle', 'templateTail',
 ])
 
-export const proof = {
+export const proof = /** @type {const} */ ({
+    namedLetInitializersMayBeOmitted: () => {
+        for (const source of [
+            'let value;export default value;',
+            'let value\nexport default value;',
+            'let value\n=1;export default value;',
+            'export default ()=>{let value;return value;};',
+            'export default a=>{if(a){let value;}return 0;};',
+            'while(false){let value;}export default 0;',
+            'while(false){switch(0){case 0:{let value;break;}}}export default 0;',
+            'for(let value;;){break;}export default 0;',
+            'for(let of;false;){}export default 0;',
+            'for(let [value]=[0];false;){}export default 0;',
+            'for(let {value}={value:0};false;){}export default 0;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'const value;export default value;',
+            'let [value];export default value;',
+            'let {value};export default value;',
+            'export default ()=>{let {value};return value;};',
+            'for(let [value];false;){}export default 0;',
+            'for(let {value};false;){}export default 0;',
+            'for(const value;false;){}export default 0;',
+            'for(let value\nfalse;){}export default 0;',
+            'for(let value=0 of values){}export default 0;',
+            'let first,second;export default first;',
+            'export let value;export default value;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
+    numericObjectKeysUseNumberLiteralSpelling: () => {
+        for (const source of [
+            'export default {1:2};',
+            'export default {0:1,0x70:2,0b11:3,1_000:4,1.5:5,2e3:6};',
+            'const {0:first,0x70:value=3}=source;export default value;',
+            'export default ({0x70:value=3})=>value;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'export default {0};',
+            'export default {-1:2};',
+            'export default {0n:1};',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
+    constructorsHaveArgumentListsAndMemberPrecedence: () => {
+        for (const source of [
+            'export default new Map();',
+            'export default new ns.C(1,...items,).value;',
+            'export default new ns[member](a,b)();',
+            'export default new (factory())(value);',
+            'export default new (A,B)();',
+            'export default new new C()();',
+            'export default new new C().D();',
+            'export default new (source?.C).D();',
+            'export default new C()?.value;',
+            'export default typeof new C();',
+            'export default -new C();',
+            'export default 1+new C()**2;',
+            'export default x=>new factory.new({new:x});',
+            'new C();export default 0;',
+            'export default ()=>{new C().m();return 0;};',
+            'while(false){new C()();}export default 0;',
+        ]) { assertStructurallySame(read(source), ['ok'], source) }
+        for (const source of [
+            'export default new C;',
+            'export default new (C);',
+            'export default new.target;',
+            'export default new C?.();',
+            'export default new C?.member();',
+            'export default -new C()**2;',
+        ]) { assertEq(read(source)[0], 'error', source) }
+    },
+    bindingDefaultsShareTheLiteralCover: () => {
+        for (const source of [
+            'export default ({a=5})=>a;',
+            'export default ({a=5}={})=>a;',
+            'const {a=1,b:c=2,"d":d=3,["e"]:e=4,nested:{f=5}={}}=source;export default a;',
+            'const [a=1,[b=2]=[],{c=3}={}]=source;export default a;',
+            'export default (x,[a=1],{b=2},...rest)=>a;',
+            // The cover retains these for explicit value-position refusal.
+            'export default [a=1,{b=2,c:d=3}];',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const source of [
+            'const [...a=[]]=source;export default a;',
+            'const {...a={}}=source;export default a;',
+            'const [a=1=2]=source;export default a;',
+            'export default (...a=[])=>a;',
+        ]) { assertStructurallySame(read(source), ['error', '=']) }
+    },
+    ordinaryIfArmsMayCompleteNormallyWithoutImplicitFunctionReturns: () => {
+        for (const source of [
+            'export default b=>{let a=0;if(b){a+=2;}return a;};',
+            'export default b=>{let a=0;if(b){a=1;}else{a=2;}return a;};',
+            'export default (a,b)=>{if(a){}else if(b){}else{}return 0;};',
+            // Syntax formation keeps partly returning arms for separate admission.
+            'export default (a,b)=>{if(a){if(b){return 1;}}return 0;};',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        for (const source of [
+            'export default b=>{if(b){}};',
+            'export default b=>{if(b){return 1;}else{return 2;}};',
+            'export default b=>{if(b)a=1;return 0;};',
+            'export default b=>{if(b){};return 0;};',
+        ]) { assertEq(read(source)[0], 'error') }
+    },
     classicForClausesHaveExplicitSeparators: () => {
         for (const source of [
             'for(;;){}export default 0;',
             'for(let i=0;i<3;i+=1){}export default 0;',
+            'for(let i;i<3;i+=1){}export default 0;',
             'for(const [i]=[0];false;){}export default 0;',
             'let i=0;for(i=1;i<3;i=i+1){}export default i;',
             'for(start();ready();advance()){}export default 0;',
@@ -99,9 +201,10 @@ export const proof = {
         for (const source of [
             'for(let i=0\ni<3;i+=1){}export default 0;',
             'for(let i=0;i<3\ni+=1){}export default 0;',
-            'for(let i;i<3;i+=1){}export default 0;',
+            'for(const i;i<3;i+=1){}export default 0;',
+            'for(let [i];i<3;i+=1){}export default 0;',
+            'for(let {i};i<3;i+=1){}export default 0;',
             'for(let i=0;i<3;i++){}export default 0;',
-            'for(const i of []){}export default 0;',
             'for(const i in {}){}export default 0;',
             'for(;;)break;export default 0;',
             'for(;;){};export default 0;',
@@ -160,6 +263,10 @@ export const proof = {
         template: () => { parser(/** @type {Rule} */ (template)) },
         member: () => { parser(/** @type {Rule} */ (member)) },
         access: () => { parser(access) },
+        memberAccess: () => { parser(/** @type {Rule} */ (memberAccess)) },
+        constructorCallee: () => { parser(/** @type {Rule} */ (constructorCallee)) },
+        newExpression: () => { parser(/** @type {Rule} */ (newExpression)) },
+        newExpressionStatement: () => { parser(/** @type {Rule} */ (newExpressionStatement)) },
         entry: () => { parser(/** @type {Rule} */ (entry)) },
         value: () => { parser(/** @type {Rule} */ (value)) },
         array: () => { parser(/** @type {Rule} */ (array)) },
@@ -175,6 +282,10 @@ export const proof = {
         circuitTail: () => { parser(/** @type {Rule} */ (circuitTail)) },
         conditionalTail: () => { parser(/** @type {Rule} */ (conditionalTail)) },
         block: () => { parser(/** @type {Rule} */ (block)) },
+        branchBlock: () => { parser(/** @type {Rule} */ (branchBlock)) },
+        branchContents: () => { parser(/** @type {Rule} */ (branchContents)) },
+        branchElse: () => { parser(/** @type {Rule} */ (branchElse)) },
+        ifStatement: () => { parser(/** @type {Rule} */ (ifStatement)) },
         loopBlock: () => { parser(/** @type {Rule} */ (loopBlock)) },
         whileStatement: () => { parser(/** @type {Rule} */ (whileStatement)) },
         forStatement: () => { parser(/** @type {Rule} */ (forStatement)) },
@@ -477,13 +588,10 @@ export const proof = {
         assertStructurallySame(read('throw;'), ['error', ';'])
         assertStructurallySame(read('throw 1; export default 2;'), ['error', 'export'])
         assertStructurallySame(read('export default 2; throw 1;'), ['error', 'throw'])
-        // a guard, `if ( value ) block`, stands where a `const` may, any
-        // number of times before the terminator; its block is the block
-        // rule itself, so it ends in `return` or `throw` and may hold
-        // `const`s and guards of its own. No `;` follows its `}`: one there
-        // is the empty statement, refused as `;;` is. The bare consequent,
-        // `else`, a block that does not terminate, and a guard at module
-        // level are outside the grammar.
+        // Braced conditionals retain terminal guards, normal arms and
+        // alternates. The outer function still has an explicit ending.
+        // No `;` follows the `}`: one there is an empty statement. Bare
+        // consequents and module-level conditionals remain outside the grammar.
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } return 2 };'), ['ok'])
         assertStructurallySame(read('export default (...a) => {if(a){return 1}return 2};'), ['ok'])
@@ -492,9 +600,9 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { if (a) { if (a) { return 1; } return 2; } return 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } if (a) { return 2; } throw 3; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; return 2; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', 'else'])
+        assertStructurallySame(read('export default (...a) => { if (a) { return 1; } else { return 2; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; }; return 2; };'), ['error', ';'])
-        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { if (a) { const x = 1; } return 2; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { if (a) { return 1; } };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { if a { return 1; } return 2; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { if (a) return 1; };'), ['error', 'return'])
@@ -556,8 +664,8 @@ export const proof = {
         assertStructurallySame(read('while(false){while(false){switch(1){case 1:{return 1;}}}}export default 7;'), ['ok'])
         assertStructurallySame(read('while(false){while(false){};}export default 7;'), ['error', ';'])
         assertStructurallySame(read('export default (...a) => { let r = 0; while (r) { r = 1; }; return r; };'), ['error', ';'])
-        // a `let` takes its initializer as a `const` does: `let x;` is refused
-        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['error', ';'])
+        // A named `let` may omit its initializer; a pattern still requires one.
+        assertStructurallySame(read('export default (...a) => { let r; while (r) { } return r; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { let [r]; while (r) { } return r; };'), ['error', ';'])
         // a name in the block begins the assignment or a call statement,
         // and `=` after any other value is no assignment
@@ -881,7 +989,6 @@ export const proof = {
         assertStructurallySame(read('export default [1 2];'), ['error', 'number'])
         assertStructurallySame(read('export default 1; const a = 2;'), ['error', 'const'])
         assertStructurallySame(read('const a = 1; import x from "m"; export default a;'), ['error', 'import'])
-        assertStructurallySame(read('export default {1: 2};'), ['error', 'number'])
         assertStructurallySame(read('export default;'), ['error', ';'])
         assertStructurallySame(read('export default "abc;'), ['error', 'error'])
     },
@@ -922,4 +1029,4 @@ export const proof = {
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 }, newline: false }),
     },
-}
+})

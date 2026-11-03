@@ -27,7 +27,7 @@
  * @import { Build } from '../page/types.ts'
  */
 
-import { breadcrumb, changelogDir, pageTitle, repository, shell } from '../page/module.f.mjs'
+import { breadcrumb, changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
 import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
 import { intersperse, mergeAdjacent } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -285,7 +285,11 @@ const neighbours = ({ previous, next }) => {
  *
  * @type {(build: Build) => (release: Release) => (document: Document) => string}
  */
-export const releasePage = build => release => document => shell(build)(pageTitle(release.version))(['main',
+export const releasePage = build => release => document => shell(build)({
+    href: releaseHref(release.version),
+    title: pageTitle(release.version),
+    description: `What changed in FunctionalScript ${release.version}.`,
+})(['main',
     breadcrumb(`${changelogDir}/${release.version}`)(release.version),
     ...neighbours(release),
     ...(document.length === 0
@@ -303,7 +307,11 @@ export const releasePage = build => release => document => shell(build)(pageTitl
  *
  * @type {(build: Build) => (versions: readonly string[]) => string}
  */
-export const indexPage = build => versions => shell(build)(pageTitle('Releases'))(['main',
+export const indexPage = build => versions => shell(build)({
+    href: pageHref(changelogDir),
+    title: pageTitle('Releases'),
+    description: 'What changed in each release of FunctionalScript.',
+})(['main',
     breadcrumb(changelogDir)(changelogDir),
     // One link per line, so marked for the stylesheet's tap-target rule.
     ['ul', { 'data-links': '' }, ...descending(versions).map(version =>

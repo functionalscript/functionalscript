@@ -93,12 +93,14 @@ export type Statement =
 
 export type Exit =
     | readonly ['yield', readonly Value[]]
+    /** No break targets this loop; it has no normal results or successor. */
+    | readonly ['loop', Loop]
     | readonly ['continue', LoopTarget, readonly Value[]]
     | readonly ['break', LoopTarget, readonly Value[]]
     | readonly ['return', FunctionTarget, Value]
     | readonly ['throw', Value]
 
-/** Every path finishes with an explicit normal or abrupt transfer. */
+/** Every path finishes with a normal result, abrupt transfer or terminal loop. */
 export type Block = {
     readonly statements: readonly Statement[]
     readonly exit: Exit

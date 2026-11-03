@@ -16,7 +16,7 @@
 
 ### Problem
 
-`fjs t` opens a leaf's line before the leaf runs — `name: ` with no newline —
+`fjs t` opens a leaf's line before the leaf runs — `name:` and a space, with no newline —
 and closes it when the leaf lands: `ok, 1.2345 ms`. That is the right shape for
 someone watching a terminal, and it is what the start event landed — see
 `defaultReporter`'s `start` in [`../module.f.mjs`](../module.f.mjs).
@@ -25,7 +25,7 @@ It is not a record until the newline arrives, and two of the reasons the
 announcement exists are reasons a *consumer* needs it, not a reader:
 
 - **A slow test is invisible again to anything that reads lines.** A pipe, a CI
-  log collector, a controller watching the stream: none of them see `name: `
+  log collector, a controller watching the stream: none of them see `name:`
   until the leaf finishes and the line is closed, which is exactly when the
   result would have told them anyway.
 - **A killed run can lose the name.** The unterminated final line is the one

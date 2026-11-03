@@ -421,11 +421,8 @@ export const proof = {
                 ['let a = 1; export const a = 2;', 'duplicate id', 25],
                 ['let r = 0; const f = () => r; r = 1; export default f;', 'reassigned variable captured', 28],
                 ['let f = n => f(n); f = 1; export default f;', 'reassigned variable captured', 14],
-                // a `let` takes its initializer, as a `const` does: a variable
-                // names its value where it is declared, and `let x;` is refused
-                // by design; a module's `let` is no export, `export let` refused
-                ['export default () => { let x; return x; };', 'unexpected token', 29],
-                ['let a; export default a;', 'unexpected token', 6],
+                // A pattern still needs an initializer; a module's `let`
+                // is no export, so `export let` remains refused.
                 ['export default () => { let [a]; return a; };', 'unexpected token', 31],
                 ['export let a = 1; export default a;', 'unexpected token', 8],
             ])) {
@@ -1658,7 +1655,7 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         () => {
-            const tokenList = tokenizeString('export default {1:2}')
+            const tokenList = tokenizeString('export default {1 2}')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')

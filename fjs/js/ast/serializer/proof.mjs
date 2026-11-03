@@ -215,6 +215,37 @@ export const proof = {
         assertEq(first[0], first[1])
         assertEq(first[0] === second[0], false)
     },
+    terminalLoopsKeepTheirOwningReturnAndFailure: () => {
+        const owner = /** @type {const} */ ({ kind: 'function', index: 0 })
+        const outer = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const inner = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        const count = id(0)
+        /** @type {PreparedFunction} */
+        const fn = { target: owner, parameters: [], rest: null, self: null, captures: [], body: {
+            statements: [['slot', count, 0, true]], exit: ['loop', outer, {
+                statements: [], exit: ['loop', inner, {
+                    statements: [
+                        ['if', ['===', ['ref', count], 4],
+                            { statements: [], exit: ['return', owner, ['ref', count]] }, { statements: [], exit: ['yield', []] }],
+                        ['write', count, ['+', ['ref', count], 1]],
+                    ], exit: ['continue', outer],
+                }],
+            }],
+        } }
+        assertEq(compile(fn)(), 4)
+        const token = id(1)
+        /** @type {PreparedFunction} */
+        const returning = { ...fn, parameters: [token], body: {
+            statements: [], exit: ['loop', outer, { statements: [], exit: ['return', owner, ['ref', token]] }],
+        } }
+        const value = /** @type {const} */ ({ terminal: 'payload' })
+        assertEq(compile(returning)(value), value)
+        /** @type {PreparedFunction} */
+        const failing = { ...returning, body: {
+            statements: [], exit: ['loop', outer, { statements: [], exit: ['throw', ['ref', token]] }],
+        } }
+        throws(() => compile(failing)(value))
+    },
     moduleBoundary: async () => {
         const shared = id(0)
         const text = untagged(renderModule({

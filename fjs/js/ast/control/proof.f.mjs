@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings, hasLoopTransfer } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -41,6 +41,45 @@ const identities = (bindings, expected) => {
 }
 
 export const proof = {
+    transferKindsKeepLoopOwnershipAndFunctionBoundaries: () => {
+        assertEq(hasLoopTransfer.length, 2)
+        const continued = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, []] })
+        const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })
+        assertEq(hasLoopTransfer(continued, outer, 'continue'), true)
+        assertEq(hasLoopTransfer(continued, outer, 'break'), false)
+        assertEq(hasLoopTransfer(stopped, outer, 'break'), true)
+        assertEq(hasLoopTransfer(stopped, outer, 'continue'), false)
+        const mixed = /** @type {Block} */ ({ statements: [['if', [], true, stopped, continued]], exit: ['yield', []] })
+        assertEq(hasLoopTransfer(mixed, outer, 'continue'), true)
+        assertEq(hasLoopTransfer(mixed, outer, 'break'), true)
+        assertEq(hasLoopTransfer(mixed, inner, 'continue'), false)
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            ['block', continued], ['if', false, yielding(0), continued],
+            fn([{ binding: local, value: ['block', continued] }], nestedReturning(0)),
+            { statements: [['define', local, ['block', continued], 'lazy']], exit: ['yield', []] },
+            { statements: [['loop', { target: inner, parameters: [], initial: [], results: [], body: continued }]], exit: ['yield', []] },
+        ])) { assertEq(hasLoopTransfer(value, outer, 'continue'), true) }
+        for (const value of /** @type {readonly (Value | Block)[]} */ ([
+            fn([], nestedReturning(['block', continued])),
+            { statements: [['loop', { target: inner, parameters: [], initial: [], results: [], body: { statements: [], exit: ['continue', inner, []] } }]], exit: ['yield', []] },
+        ])) { assertEq(hasLoopTransfer(value, outer, 'continue'), false) }
+    },
+    terminalLoopsKeepTheirLexicalDependencies: () => {
+        /** @type {Loop} */
+        const loop = { target: outer, parameters: [state], initial: [['ref', a]], results: [], body: {
+            statements: [['define', local, ['ref', state], 'required']],
+            exit: ['continue', outer, [['array', [['ref', local], ['ref', b]]]]],
+        } }
+        /** @type {Block} */
+        const terminal = { statements: [], exit: ['loop', loop] }
+        assertEq(exitValues(terminal.exit), loop.initial)
+        identities(freeBindings(terminal), [a, b])
+        assertEq(hasLoopTransfer(terminal, outer), true)
+        assertEq(hasLoopTransfer(terminal, inner), false)
+        /** @type {Loop} */
+        const captured = { ...loop, initial: [], body: returning(fn([], nestedReturning(['block', loop.body]))) }
+        assertEq(hasLoopTransfer({ statements: [], exit: ['loop', captured] }, outer), false)
+    },
     loopTransferOwners: () => {
         const escaping = /** @type {Block} */ ({ statements: [], exit: ['continue', outer, [['ref', a]]] })
         const stopped = /** @type {Block} */ ({ statements: [], exit: ['break', outer, []] })

@@ -68,7 +68,7 @@ operation must preserve its source's successful JavaScript behavior. The
 which the language intentionally offers a narrower, explicitly spelled pattern.
 
 One important detail regarding run-time access to instance properties, methods is
-`obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
+`obj[<expression>]` syntax when `<expression>` can evaluate to a string. On one hand,
 in JS that syntax enables possibilities to abuse; on another hand, it's a regular
 syntax for array indexing, legit in FJS. Our current approach is to force FJS users to
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
@@ -250,8 +250,8 @@ patterns are the source API instead.
 |----------------------|----------------|
 |`__defineGetter__`    |mutate          |
 |`__defineSetter__`    |mutate          |
-|`__lookupGetter__`    |'__proto__'     |
-|`__lookupSetter__`    |'__proto__'     |
+|`__lookupGetter__`    |`'__proto__'`   |
+|`__lookupSetter__`    |`'__proto__'`   |
 |`hasOwnProperty`      |no              |
 |`isPrototypeOf`       |no              |
 |`propertyIsEnumerable`|no              |

@@ -16,11 +16,15 @@
  * does: NaNVM and `std` are most of the module and the same for every
  * sample. Each function is printed as [`wat`](../../../media/wasm/wat/module.f.mjs)
  * prints it in the whole module, so a fragment is not a module of its own.
+ * Each sample's WAT is written as `<sample>.wat.marked`: the text with each
+ * word's kind in a tag ([`text/marked`](../../../text/marked/README.md)'s
+ * `toTagged`), which the demo page reads to draw the WAT coloured. No plain
+ * `.wat` is written, as nothing reads one; `untagged` gives it.
  *
  * Nothing is written until every sample has its WAT: an input that is no
  * module, or a sample with no functions, fails the run with the files as they
- * were. Then each `.wat` in the directory that names no listed sample is
- * removed, so a sample removed or renamed leaves no disassembly behind; any
+ * were. Then each `.wat.marked` in the directory that names no listed sample
+ * is removed, so a sample removed or renamed leaves no disassembly behind; any
  * other file there is kept.
  *
  * `fjs run ./fjs/nanvm/demos/publish/module.f.mjs <built .wasm> <published .wasm> <WAT directory> <sample>...`
@@ -32,6 +36,7 @@
  * @import { Write } from '../../../effects/common/types.ts'
  * @import { Module } from '../../../media/wasm/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
+ * @import { Marked } from '../../../text/marked/types.ts'
  * @import { _Checked } from './private.ts'
  */
 
@@ -39,9 +44,10 @@ import { errorExit } from '../../../effects/common/module.f.mjs'
 import { forEachStep, ioError, pureError, pureOk, step } from '../../../effects/module.f.mjs'
 import { exitStep, mkdir, readdir, readWhole, rm, writeChunks, writeFiles } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/wasm/binary/parse/module.f.mjs'
-import { functions } from '../../../media/wasm/wat/module.f.mjs'
+import { functionsMarked } from '../../../media/wasm/wat/module.f.mjs'
 import { parent } from '../../../path/module.f.js'
 import { demangle } from '../../../rust/demangle/module.f.mjs'
+import { toTagged } from '../../../text/marked/module.f.mjs'
 import { u8ArrayMsb } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 
@@ -60,11 +66,11 @@ export const demangleNames = m => ({
 })
 
 /**
- * Each sample's WAT, as `[sample, text]`, or why one has none: the functions
- * of `module`, by their demangled names, whose path is in
+ * Each sample's WAT, as `[sample, marked]`, or why one has none: the
+ * functions of `module`, by their demangled names, whose path is in
  * `nanvm_demos::samples::<sample>::`, in the order the module defines them.
  *
- * @type {(module: Module, samples: readonly string[]) => Result<readonly (readonly [string, string])[], string>}
+ * @type {(module: Module, samples: readonly string[]) => Result<readonly (readonly [string, Marked])[], string>}
  */
 export const sampleWats = (m, samples) => {
     const named = demangleNames(m)
@@ -72,27 +78,31 @@ export const sampleWats = (m, samples) => {
     /** @type {ReadonlyMap<number, string>} */
     const names = new Map(named.customs.flatMap(({ content }) => content[0] === 'name' ? content[1] : [])
         .flatMap(s => s[0] === 'function' ? s[1] : []))
-    const texts = functions(named)
-    /** @type {(sample: string) => string} */
+    const texts = functionsMarked(named)
+    /** @type {(sample: string) => Marked} */
     const wat = sample => {
         const path = `nanvm_demos::samples::${sample}::`
-        return texts.filter((_, k) => (names.get(imported + k) ?? '').includes(path)).join('')
+        return texts.filter((_, k) => (names.get(imported + k) ?? '').includes(path)).flat()
     }
     const wats = samples.map(sample => /** @type {const} */ ([sample, wat(sample)]))
-    const missing = wats.find(([, text]) => text === '')
+    const missing = wats.find(([, marked]) => marked.length === 0)
     return missing === undefined ? ok(wats) : error(`no functions of the sample \`${missing[0]}\``)
 }
 
+/** The file extension of a published sample's WAT. */
+const watExtension = '.wat.marked'
+
 /**
- * Removes each `.wat` in `directory` that names none of `samples`.
+ * Removes each file in `directory` named `<sample><extension>` for a sample
+ * none of `samples` names: what a sample removed or renamed left behind.
  *
- * @type {(directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
+ * @type {(extension: string) => (directory: string, samples: readonly string[]) => Effect<Readdir | Rm, void, IoChannel>}
  */
-const removeStale = (directory, samples) => step(
+export const removeStale = extension => (directory, samples) => step(
     readdir(directory, {}),
     entries => forEachStep(
-        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > 4 && name.endsWith('.wat')
-            && !samples.includes(name.slice(0, -4)))),
+        pureOk(entries.filter(({ name, isFile }) => isFile && name.length > extension.length && name.endsWith(extension)
+            && !samples.includes(name.slice(0, -extension.length)))),
         ({ name }) => rm(`${directory}/${name}`)))
 
 /**
@@ -120,13 +130,13 @@ const save = (to, watDirectory, samples) => ({ chunks, wats }) => {
     const madeTo = mkdir(parent(to), { recursive: true })
     const copied = step(madeTo, () => writeChunks(to, chunks))
     const madeWat = step(copied, () => mkdir(watDirectory, { recursive: true }))
-    const written = step(madeWat, () => writeFiles(wats.map(([sample, text]) => [`${watDirectory}/${sample}.wat`, text])))
-    return step(written, () => removeStale(watDirectory, samples))
+    const written = step(madeWat, () => writeFiles(wats.map(([sample, marked]) => [`${watDirectory}/${sample}${watExtension}`, toTagged(marked)])))
+    return step(written, () => removeStale(watExtension)(watDirectory, samples))
 }
 
 /**
- * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat` in
- * `watDirectory`, making each directory first, then removes any other WAT
+ * Copies `from` to `to`, and writes each sample's WAT to `<sample>.wat.marked`
+ * in `watDirectory`, making each directory first, then removes any other WAT
  * there.
  *
  * @type {(from: string, to: string, watDirectory: string, samples: readonly string[]) => Effect<ReadWhole | Mkdir | WriteFile | WriteBytes | Rm | Readdir, void, IoChannel>}

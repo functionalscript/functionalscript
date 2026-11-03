@@ -14,6 +14,7 @@ import { emptyModule } from '../../../media/wasm/testlib.f.js'
 import { utf8 } from '../../../text/module.f.mjs'
 import { u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { toText, untagged } from '../../../text/marked/module.f.mjs'
 import { demangleNames, main, publish, sampleWats, usage } from './module.f.mjs'
 
 /** `nanvm_demos::samples::hello::module` in v0 mangling. */
@@ -55,23 +56,28 @@ export const proof = {
         ])
     },
     sampleWats: () => {
-        assertStructurallySame(assertOk(sampleWats(module, ['hello'])), [['hello', helloWat]])
+        const [[sample, marked]] = assertOk(sampleWats(module, ['hello']))
+        assertEq(sample, 'hello')
+        // The WAT's words carry their kinds; their text is the WAT.
+        assertEq(toText(marked), helloWat)
+        assertStructurallySame(marked.slice(0, 4), [['  ('], ['func', 'keyword'], [' '], ['$nanvm_demos::samples::hello::module', 'identifier']])
         assertEq(assertError(sampleWats(module, ['hello', 'goodbye'])), 'no functions of the sample `goodbye`')
         // A module with no names has no sample.
         assertEq(assertError(sampleWats({ ...module, customs: [] }, ['hello'])), 'no functions of the sample `hello`')
     },
-    // The bytes copied as they were, the sample's WAT written, a removed
-    // sample's WAT removed, and everything else in the directory kept.
+    // The bytes copied as they were, the sample's WAT written tagged, a
+    // removed sample's WAT removed, and everything else in the directory kept.
     publish: () => {
-        const root = tree({ 'b': { 'gone.wat': [utf8('')], 'notes.txt': [utf8('')], 'dir.wat': {}, '.wat': [utf8('')] } })
+        const root = tree({ 'b': { 'gone.wat.marked': [utf8('')], 'notes.txt': [utf8('')], 'dir.wat.marked': {}, '.wat.marked': [utf8('')] } })
         const [state, result] = virtualAt(root)(publish('built.wasm', 'a/published.wasm', 'b', ['hello']))
         assertOk(result)
         assertStructurallySame(toArray(assertOk(virtual(state)(readWholeBytes('a/published.wasm'))[1])), bytes)
-        assertEq(assertOk(virtual(state)(readUtf8File('b/hello.wat'))[1]), helloWat)
-        assertEq(virtual(state)(readUtf8File('b/gone.wat'))[1][0], 'error')
+        assertEq(untagged(assertOk(virtual(state)(readUtf8File('b/hello.wat.marked'))[1])), helloWat)
+        assertEq(virtual(state)(readUtf8File('b/hello.wat'))[1][0], 'error')
+        assertEq(virtual(state)(readUtf8File('b/gone.wat.marked'))[1][0], 'error')
         assertOk(virtual(state)(readUtf8File('b/notes.txt'))[1])
-        assertOk(virtual(state)(readUtf8File('b/.wat'))[1])
-        assert(state.root['b'] !== undefined && 'dir.wat' in state.root['b'])
+        assertOk(virtual(state)(readUtf8File('b/.wat.marked'))[1])
+        assert(state.root['b'] !== undefined && 'dir.wat.marked' in state.root['b'])
     },
     // An input that is no module, or a sample with no functions, is reported
     // with the input's path, before anything is written.

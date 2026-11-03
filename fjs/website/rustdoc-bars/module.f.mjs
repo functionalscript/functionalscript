@@ -1,5 +1,5 @@
 /**
- * Writes the site's favicon links, header, footer and their stylesheet for
+ * Writes the site's favicon links and card tags, header, footer and their stylesheet for
  * `cargo doc`, and nothing else: `npm run rustdoc-bars`.
  *
  * rustdoc puts the bars on every page it writes when `cargo doc` is given
@@ -37,7 +37,7 @@ import { _readBuild } from '../module.f.mjs'
  * @type {(build: Build) => Effect<Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
 export const writeRustdocBars = build => {
-    const headWritten = writeUtf8File(rustdocHeadPath, rustdocHead)
+    const headWritten = writeUtf8File(rustdocHeadPath, rustdocHead(build))
     const headerWritten = step(headWritten, () => writeUtf8File(rustdocHeaderPath, rustdocHeader(build)))
     const footerWritten = step(headerWritten, () => writeUtf8File(rustdocFooterPath, rustdocFooter(build.funding)))
     return step(footerWritten, () => writeUtf8File(rustdocStylesheetPath, rustdocStylesheet))

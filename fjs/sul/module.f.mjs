@@ -115,7 +115,10 @@ export const encode =
             let [height, id, s] = bitStep(1n, state)
             let acc = f(acc0, height)
             while (id === undefined) {
-                [height, id, s] = bitStep(0n, s)
+                const [nextHeight, nextId, nextState] = bitStep(0n, s)
+                height = nextHeight
+                id = nextId
+                s = nextState
                 acc = f(acc, height)
             }
             return [acc, id]

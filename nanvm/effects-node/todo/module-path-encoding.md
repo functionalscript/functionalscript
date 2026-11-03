@@ -23,7 +23,7 @@ refusal by restoring lossy conversion. Decide that API separately.
 
 The [WHATWG URL parser](https://url.spec.whatwg.org/#concept-basic-url-parser)
 trims leading/trailing C0 controls and spaces, and removes tab, LF, and CR
-throughout an input. Consequently `./dep ` names `dep`, not `dep `, and
+throughout an input. Consequently `'./dep '` names `dep`, not `'dep '`, and
 `./a<TAB>b` names `ab`, not the literal tab-containing filename.
 
 Until the resolver implements that preprocessing in the correct order, imports

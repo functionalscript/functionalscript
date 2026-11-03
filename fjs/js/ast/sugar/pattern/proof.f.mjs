@@ -65,6 +65,28 @@ export const proof = {
         ])
         assertStructurallySame(object.names, [[a, 1], [b, 3]])
     },
+    defaultsStayOnTheirSelectedReads: () => {
+        const opening = token('opening')
+        const equals = token('=', 7)
+        const name = token('a')
+        const fallback = /** @type {const} */ (['primitive', 5])
+        const named = assertOk(plan(['=', ['name', name], equals, fallback], null))
+        assertStructurallySame(named.reads, [{ source: null, spread: false, default: { value: fallback } }])
+        assertStructurallySame(named.names, [[name, 0]])
+        assertEq(named.metadata, equals.metadata)
+        const array = assertOk(plan(['=', ['array', opening, [['=', ['name', name], equals, fallback]]], equals, ['array', []]], null))
+        assertStructurallySame(array.reads, [
+            { source: null, spread: true, default: { value: ['array', []] } },
+            { source: [0, 0], spread: false, default: { value: fallback } },
+        ])
+        const object = assertOk(plan(['object', opening, [{ key: name, target: ['=', ['object', opening, []], equals, ['object', []]] }]], null))
+        assertStructurallySame(object.reads, [
+            { source: null, spread: false },
+            { source: [0, 'a'], spread: false, default: { value: ['object', []] } },
+            { source: [1, 'length'], spread: false },
+        ])
+        assertEq(object.ids.length, 3)
+    },
     emptyPatternsAndNamespaces: () => {
         const opening = token('opening')
         assertStructurallySame(assertOk(plan(['array', opening, []], null)).reads, [{ source: null, spread: true }])

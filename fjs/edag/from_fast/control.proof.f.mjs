@@ -46,6 +46,21 @@ const joined = call => {
 }
 
 export const proof = /** @type {const} */ ({
+    aReturningSubjoinSuppliesNoOuterResult: () => {
+        const first = id(), second = id(), inner = id(), outer = id()
+        /** @type {FastFunction} */
+        const fn = { target: owner, parameters: [first, second], rest: null, self: null, captures: [],
+            body: block(['return', owner, ['+', ref(outer), 10]], [
+                ['if', [outer], ref(first), block(['return', owner, ['+', ref(inner), 3]], [
+                    ['if', [inner], ref(second), block(['yield', [1]]), block(['return', owner, 2])],
+                ]), block(['yield', [5]])],
+            ]),
+        }
+        assertEq(evaluated(fn, [true, true]), 4)
+        assertEq(evaluated(fn, [true, false]), 2)
+        assertEq(evaluated(fn, [false, true]), 15)
+        assertEq(evaluated(fn, [false, false]), 15)
+    },
     normalPredecessorsHaveNoTerminalPlaceholder: () => {
         const fn = joined(false)
         /** @type {Exp} */

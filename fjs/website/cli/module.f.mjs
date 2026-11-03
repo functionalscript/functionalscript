@@ -14,7 +14,7 @@
 
 import { commands } from '../../module.f.mjs'
 import { helpMeta, helpReference } from '../../cli/module.f.mjs'
-import { fileHref, shell } from '../page/module.f.mjs'
+import { cliDir, fileHref, pageHref, shell, siteDescription } from '../page/module.f.mjs'
 import { codeBlock } from '../demo/code/module.f.js'
 
 /**
@@ -71,7 +71,7 @@ const commandLink = entry => ['li',
  */
 export const cliPage = build => {
     const entries = catalogue(commands)
-    return shell(build)('FunctionalScript CLI')(['main', { 'data-cli': '' },
+    return shell(build)({ href: pageHref(cliDir), title: 'FunctionalScript CLI', description: siteDescription })(['main', { 'data-cli': '' },
         ['h1', 'FunctionalScript CLI'],
         ['p', 'Install FunctionalScript to test and compile modules, manage content-addressable storage, and run local tools. Choose a command below for usage and documentation.'],
         ['h2', 'Install and run'],

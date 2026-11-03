@@ -17,6 +17,20 @@ to report their unsupported source forms. Parser extensions are a later step.
 Source files are read as UTF-8 without importing or executing them. The check
 does not resolve imports or source bindings, apply FunctionalScript admission,
 or lower to FAST or EDAG.
+Its syntax AST can represent forms that FJS compilation still refuses,
+including braced `for (const item of items)` and `for (let item of items)`
+declaration loops. Recognizing that syntax does not select iteration semantics.
+Constructor expressions such as `new Map(entries)` and `new Set(values)`
+also form syntax ASTs, retaining their constructor, arguments and source token.
+The argument parentheses are required in this increment. Constructor support
+here defines no FunctionalScript constructor semantics or lowering; compilation
+still explicitly refuses construction at `new`.
+Number literal object keys such as `{ 0x70: value }` also form syntax ASTs.
+Their FunctionalScript admission reuses the existing computed-key lowering;
+the dependency check still performs only syntax parsing.
+Named `let` declarations can omit their initializer. The syntax AST preserves
+that absence; compilation separately supplies primitive `undefined` at the
+declaration point. `const` and destructuring declarations require initializers.
 Each read or syntax failure is reported with its source location when known;
 the remaining files are still checked. A summary reports parsed, failed and
 total files. Any failed file or discovery error exits with code 1; a successful

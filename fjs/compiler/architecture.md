@@ -50,7 +50,9 @@ and unreachable writes still count. Analysis reports facts, and source
 admission applies the current capture policy before generated helpers exist.
 
 Normalized FAST has immutable values and explicit branch results, loop inputs,
-loop results and resolved transfers. A value-producing block has no function
+loop results and resolved transfers. A terminal loop can end a block directly:
+it has no owning break and no normal successor, so normalization adds no
+failure or implicit function result after it. A value-producing block has no function
 or invocation boundary. Assignments in such a block export new immutable
 binding versions to its continuation, including later operands. Conditional
 regions join only the reached updates, and loop conditions carry their updates

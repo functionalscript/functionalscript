@@ -34,6 +34,11 @@ sugar intersects those events with established bindings and the shared
 `isMutable` facts. Loop-local names remain separate resolved identities.
 Classic `for` header declarations are resolved in a scope surrounding the
 condition, step and body; the step is outside the body's nested lexical scope.
+The syntax AST retains an omitted named `let` initializer. Source admission
+supplies primitive `undefined` at that declaration's initialization point,
+using the existing binding plan. Reads after the declaration and before any
+later assignment see that value; reads before the declaration retain their
+existing refusal. `const` and destructuring declarations require initializers.
 `scope` records initialization, reads, writes,
 execution regions and ordinary source function boundaries. `bindings` is the
 result of one shared `analyzeBindings` pass after that complete scope exists;
@@ -53,6 +58,23 @@ Guard and loop lexical regions retain their owning source function target.
 They create no source capture boundary. An ordinary nested function does, even
 when it is called immediately. Whole-helper recognition retains its parameter
 and local facts before replacing the helper with an intrinsic operation.
+
+Ordinary conditionals may finish normally or return from their owning function,
+with an optional `else`.
+Their lexical arms retain declarations, assignments and complete source
+evidence; the first admitted profile joins at most one outer binding.
+Branch-local writes do not count toward that limit. The condition establishes
+its versions before either arm; sugar supplies unchanged versions for an
+absent `else` and resumes following work once on normal paths. An early return
+in a lexical arm retains its function target as a source statement, including
+through nested guards and switches. It supplies no normal join result and
+skips the following computation. An ordinary nested function keeps its own
+return owner. This statement-return context is separate from permission for
+an arm's final loop to complete normally; switch cases still require an exit.
+Explicit throws in this branch profile remain refused, while existing
+terminating guards keep their behavior. Generic branch syntax forms an AST
+before admission checks; ordinary function bodies still require an explicit
+terminator.
 
 Loop bodies and their conditional arms retain valued `return` and `throw` as
 source statements, including all syntax after them. A return names its owning
@@ -104,13 +126,14 @@ concern and adds no synthetic source reads.
 
 ```
 module ::= import* moduleStatement* last eof
-moduleStatement ::= const | let | while | forStatement | bodyNameStatement
+moduleStatement ::= const | let | while | forStatement | bodyNameStatement | newExpressionStatement
 import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
 clause ::= named | id [ ',' named ]
 named  ::= '{' [ items(binding) ] '}'
 binding ::= id [ 'as' id ]
 const  ::= 'const' target '=' value end
-let    ::= 'let' target '=' value end
+let    ::= 'let' letBinding end
+letBinding ::= id [ '=' value ] | ( array | object ) '=' value
 target ::= id | array | object
 last   ::= 'export' ( 'default' value end | const moduleStatement* [ last ] )
          | 'throw' value end
@@ -118,41 +141,50 @@ end    ::= [ ';' ]
 while  ::= 'while' '(' value ')' loopBlock
 value  ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array | object) access* powTail tail
+         | (primitive | template | array | object | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue)
 body   ::= '-' unaryOperand tail | '~' unaryOperand tail
          | '!' unaryOperand tail | 'typeof' unaryOperand tail
-         | (primitive | template | array) access* powTail tail
+         | (primitive | template | array | newExpression) access* powTail tail
          | id arrowOrRest
          | '(' (func | value afterValue) | block
 unary  ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access* powTail
+         | (primitive | template | id | array | object | newExpression) access* powTail
          | '(' group
 unaryOperand ::= '-' unaryOperand | '~' unaryOperand | '!' unaryOperand
          | 'typeof' unaryOperand
-         | (primitive | template | id | array | object) access*
+         | (primitive | template | id | array | object | newExpression) access*
          | '(' groupOperand
+newExpression ::= 'new' constructorCallee '(' [ callArguments ] ')'
+newExpressionStatement ::= newExpression access* end
+constructorCallee ::= ( id | '(' value { ',' value } ')' | newExpression ) memberAccess*
+memberAccess ::= '.' id | '[' value ']'
+callArguments ::= ( value | '...' value ) [ ',' [ callArguments ] ]
 template ::= noSubstitutionTemplate
            | templateHead value { templateMiddle value } templateTail
 block  ::= '{' statement* terminator '}'
-statement ::= const | 'if' '(' value ')' block | let
-            | whileStatement | forStatement | bodyNameStatement
+statement ::= const | ifStatement | let
+            | whileStatement | forStatement | bodyNameStatement | newExpressionStatement
+ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
+branchBlock ::= '{' statement* [ terminator ] '}'
+branchElse ::= branchBlock | ifStatement
 terminator ::= 'return' value end | 'throw' value end
            | 'switch' '(' value ')' '{' 'case' value ':' caseTail
 caseTail ::= 'case' value ':' caseTail | block afterCase
 afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
            | '}' statement* terminator
 loopBlock ::= '{' loopStatement* '}'
-loopStatement ::= const | let | bodyNameStatement | whileStatement | forStatement
+loopStatement ::= const | let | bodyNameStatement | newExpressionStatement | whileStatement | forStatement
                 | loopIfStatement | 'break' end | 'continue' end
                 | 'return' value end | 'throw' value end | loopSwitch
 loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
 loopCase ::= ( 'case' value ':' )+ loopBlock
 whileStatement ::= 'while' '(' value ')' loopBlock
-forStatement ::= 'for' '(' [ forInitializer ] ';' [ value ] ';' [ nameExpression ] ')' loopBlock
-forInitializer ::= ( 'const' | 'let' ) target '=' value | nameExpression
+forStatement ::= 'for' '(' ( [ forInitializer ] ';' [ value ] ';' [ nameExpression ]
+                         | ( 'const' | 'let' ) target 'of' value ) ')' loopBlock
+forInitializer ::= 'const' target '=' value | 'let' letBinding | nameExpression
 loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
 loopElse ::= loopBlock | loopIfStatement
 nameExpression ::= id ( assignmentOperator value | <the rest of the value the name begins> )
@@ -185,9 +217,39 @@ optionalStep ::= id | '[' (string | number) ']' | '(' [ items(value) ] ')'
 array  ::= '[' [ items(value) ] ']'
 object ::= '{' [ items(entry) ] '}'
 entry  ::= '...' value | member
-member ::= id [ ':' value ] | string ':' value | '[' string ']' ':' value
+member ::= id [ ':' value ] | string ':' value | number ':' value | '[' string ']' ':' value
 items  ::= item [ ',' [ items ] ]
 ```
+
+The syntax layer also represents braced `for…of` declaration loops, including
+binding patterns, independently of FunctionalScript admission. Its distinct
+`for-of` node retains the declaration, iterable expression and body.
+`parseFromTokens` explicitly refuses that node at the `for` token, including
+at module level or inside nested bodies. No iterable is evaluated and no FAST
+or EDAG lowering is defined by this syntax support. Classic `for` retains its
+existing syntax representation and admission. `of` remains an ordinary name
+outside the header separator, as in `for (const of of of)`.
+
+Constructor expressions with an argument list, `new Callee(arguments)`, also
+form a generic AST before admission. The `new` node retains the constructor
+expression, ordered arguments and original token. Constructor member access,
+grouped or nested constructors, and following member/call continuations keep
+JavaScript's precedence: `new ns.C()` constructs `ns.C`, while `new C().m()`
+calls a member of the constructed value. Argument parentheses are required in
+this syntax increment; `new C`, `new.target` and unparenthesized optional-chain
+constructor targets remain unsupported. FunctionalScript compilation refuses
+the node at `new`, without resolving or evaluating its constructor or arguments.
+This defines no constructor behavior or FAST/EDAG operation.
+Standalone expressions beginning with `new` also form syntax statements at
+module level and inside function or loop bodies. They retain the original
+`new` token and use the existing discarded-value statement shape, including
+following member and call steps, before the same admission refusal.
+
+Number literal object keys retain their numeric token, value and source
+location in the syntax AST. Admission routes `{ 0x70: value }` through the
+existing computed-key path for `{ [0x70]: value }`, yielding the same numeric
+key operand in FAST. Number literal keys in binding patterns similarly reuse
+the existing constant-key read. This adds no FAST/EDAG operation or runtime rule.
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
@@ -329,10 +391,12 @@ the fold's:
   a key or the name after `.` may be one, so `const if = 1;` and
   `export default class;` are the fold's to refuse and `{ if: 1 }` is a
   member: a broken JavaScript program is a broken FunctionalScript program.
-  `typeof` opens a value, so the grammar keeps it out of `identifier`, the
-  reference rule, where it would conflict with its own prefix branch; a
+  `typeof` and `new` open values, so the grammar keeps them out of
+  `identifier`, the reference rule, where they would conflict with their
+  expression branches; a
   binding takes the wider `identifierName`, so `const typeof = 1;` still
-  reaches the fold, and `{ typeof: 1 }` and `a.typeof` stay members;
+  reaches the fold, and `{ typeof: 1 }`, `{ new: 1 }`, `a.typeof` and `a.new`
+  stay members;
 - a reserved conversion global, `Number` or `String`, bound or referenced
   anywhere but as the callee of `Number(x)` or `String(x)`
   ([spec: number conversion](../../../spec/conversions/number/README.md),

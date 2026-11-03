@@ -1,12 +1,14 @@
 /**
  * @import { Build, Dir } from './types.ts'
  * @import { Issue } from '../issue/types.ts'
+ * @import { Node } from '../../media/html/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, repository, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
+import { origin, productionOrigin } from '../origin/module.f.js'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -35,11 +37,11 @@ const contents = items => '<body><details data-section="" open=""><summary><h2>C
     + `<ul data-links="">${items}</ul></details></body>`
 
 /**
- * The Issues section around `items`, open, as the body it is the whole of.
+ * The Issues section around `items`, collapsed, as the body it is the whole of.
  *
  * @type {(items: string) => string}
  */
-const issues = items => '<body><details data-section="" open=""><summary><h2>Issues</h2></summary>'
+const issues = items => '<body><details data-section=""><summary><h2>Issues</h2></summary>'
     + `<ul data-links="">${items}</ul></details></body>`
 
 /**
@@ -54,6 +56,58 @@ const issue = name => ({ name, status: 'open', priority: 'P3' })
 const empty = { path: '.', files: [], dirs: [], demoDirs: [], todo: [], proofs: [], readme: [], demo: null, api: null, apiIndex: null }
 
 export const proof = {
+    readmeDescription: {
+        // A paragraph of badges has no text, so the next paragraph is the
+        // description, its links read as their text.
+        skipsBadges: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['h2', 'Title'],
+            ['p', ['a', { href: 'x' }, ['img', { alt: 'badge' }]]],
+            ['p', ' A ', ['a', { href: 'y' }, 'safe'], ' language. '],
+            ['p', 'Second.']]]), 'A safe language.'),
+        // A field opens many READMEs; the prose after it is the description.
+        // A bold lead-in that ends with a period is prose, not a field.
+        skipsFields: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['p', ['strong', 'Status:'], ' implemented'],
+            ['p', ['strong', 'A lead-in, not a field'], ' opens this prose.']]]),
+            'A lead-in, not a field opens this prose.'),
+        // The first sentence describes the page, the rest of the paragraph
+        // does not; `!` and `?` end a sentence too.
+        firstSentence: () => {
+            const of = (/** @type {readonly Node[]} */ ...p) => readmeDescription([['article', { 'data-readme': '' }, ['p', ...p]]])
+            assertEq(of('One. Two.'), 'One.')
+            assertEq(of('Why? Because.'), 'Why?')
+            assertEq(of('Stop! Go.'), 'Stop!')
+            // A character outside the BMP is two code units, and shifts
+            // nothing: the sentence still ends at its period.
+            assertEq(of('😀 hello. Second sentence.'), '😀 hello.')
+            // No sentence end inside a word or at a decimal point.
+            assertEq(of('Version 1.5 is a.b and more'), 'Version 1.5 is a.b and more')
+        },
+        // Punctuation in code is an operator, not the end of a sentence.
+        codeIsNotASentenceEnd: () => assertEq(readmeDescription([['article', { 'data-readme': '' },
+            ['p', 'Has ', ['code', 'a! b'], ' and ', ['a', { href: 'x' }, ['code', '?. x']], ' both. Then more.']]]),
+            'Has a! b and ?. x both.'),
+        // A sentence over the limit is cut at a word, without the punctuation
+        // before the cut, and says so.
+        limit: () => {
+            const of = (/** @type {string} */ t) => readmeDescription([['article', { 'data-readme': '' }, ['p', t]]])
+            const exact = `${'a'.repeat(descriptionLimit - 1)}.`
+            assertEq(of(exact), exact)
+            const words = 'word, '.repeat(40)
+            const cut = of(words)
+            assert(cut !== undefined && cut.length <= descriptionLimit && cut.endsWith('word…'), String(cut))
+            // One word longer than the limit is cut inside it.
+            assertEq(of('x'.repeat(200)), `${'x'.repeat(descriptionLimit - 1)}…`)
+            // A cut never splits a character in two: 79 whole emoji fit
+            // before the ellipsis, and the 80th would be cut in half.
+            assertEq(of('😀'.repeat(100)), `${'😀'.repeat(79)}…`)
+        },
+        // A README this site does not render is a note about it, not its text.
+        refused: () => assertEq(readmeDescription([['p', { 'data-readme-refused': '' }, 'README.md is not rendered here.']]), undefined),
+        // A README of headings alone describes nothing.
+        noParagraph: () => assertEq(readmeDescription([['article', { 'data-readme': '' }, ['h2', 'Title'], 'text']]), undefined),
+        none: () => assertEq(readmeDescription([]), undefined),
+    },
     issueNameOrder: () => assertEq(issueOrder(issue('z.md'), issue('a.md')), 1),
     fileHref: () => {
         assertEq(fileHref(null)('nanvm/demos/wasm')('hello.wat'), '/nanvm/demos/wasm/hello.wat')
@@ -129,6 +183,7 @@ export const proof = {
      * root itself rather than under `./`. Neither is encoded: a path to
      * write is not a URL.
      */
+    urlPath: () => assertEq(urlPath('fjs/a#b/c?d/100%/%20/é x/_card.html'), 'fjs/a%23b/c%3Fd/100%25/%2520/%C3%A9%20x/_card.html'),
     pagePath: {
         root: () => assertEq(pagePath('.'), 'index.html'),
         nested: () => assertEq(pagePath('fjs/types/list'), 'fjs/types/list/index.html'),
@@ -168,15 +223,15 @@ export const proof = {
             contents('<li><a href="/fjs/types/index.html" data-kind="dir">types</a></li>'
                 + '<li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li>')),
         /**
-         * **Issues are a list of their own, after Contents and open.** Both
-         * lists are available without opening a disclosure control.
+         * **Issues start collapsed after the open Contents list.** Readers
+         * can expand Issues with its disclosure control.
          */
-        issuesSeparateAndOpen: () => {
+        issuesSeparateAndCollapsed: () => {
             const html = sectionsHtml({ ...empty, path: 'fjs', todo: [issue('a.md')], files: ['module.f.mjs'] })
             assertEq(html,
                 '<body><details data-section="" open=""><summary><h2>Contents</h2></summary>'
                 + '<ul data-links=""><li><a href="/fjs/module.f.mjs" data-kind="file">module.f.mjs</a></li></ul></details>'
-                + '<details data-section="" open=""><summary><h2>Issues</h2></summary>'
+                + '<details data-section=""><summary><h2>Issues</h2></summary>'
                 + '<ul data-links=""><li><span data-priority="P3">P3</span> <a href="/fjs/todo/a.md" data-kind="issue" data-issue-status="open">a.md</a></li></ul></details></body>')
         },
         // A subdirectory link points at a page, and every such page exists —
@@ -511,6 +566,65 @@ export const proof = {
             assert(html.includes('<link rel="stylesheet" href="/_main.css">'), html)
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
+        },
+        // A pasted link's card names the page, what it is about and the site,
+        // from the static page alone; without a README, the site describes it.
+        previewMeta: () => {
+            const html = pageHtml({ ...empty, path: 'fjs' })
+            assert(html.includes(
+                `<meta name="description" content="${siteDescription}">`
+                + '<meta property="og:title" content="fjs · FunctionalScript">'
+                + `<meta property="og:description" content="${siteDescription}">`
+                + '<meta property="og:site_name" content="FunctionalScript">'
+                + '<meta property="og:type" content="website">'
+                + '<meta name="twitter:card" content="summary">'), html)
+        },
+        // A build of `main` is production, so its page gives its own URL;
+        // a local build, above, gives none. Without a README, the page shows
+        // the root page's card, named for the site.
+        productionUrl: () => {
+            const html = page({ ...local, branch: 'main' })({ ...empty, path: 'fjs/types' })
+            assert(html.includes(
+                `<meta property="og:url" content="${productionOrigin}/fjs/types/index.html">`
+                + '<meta property="og:site_name" content="FunctionalScript">'
+                + '<meta property="og:type" content="website">'
+                + `<meta property="og:image" content="${productionOrigin}/_card.png">`
+                + '<meta property="og:image:alt" content="FunctionalScript">'
+                + '<meta name="twitter:card" content="summary_large_image">'), html)
+            const localHtml = pageHtml({ ...empty, path: 'fjs' })
+            assert(!localHtml.includes('og:url') && !localHtml.includes('og:image'), 'no origin, no URL and no image')
+        },
+        // A preview's page gives its URL and image at the preview's own origin.
+        previewUrl: () => {
+            const preview = origin('claude/x')
+            const html = page({ ...local, branch: 'claude/x' })({ ...empty, path: 'fjs' })
+            assert(html.includes(`<meta property="og:url" content="${preview}/fjs/index.html">`), html)
+            assert(html.includes(`<meta property="og:image" content="${preview}/_card.png">`), html)
+        },
+        // The tags every page shares, rustdoc's included, show the root page's card.
+        siteMeta: () => assertStructurallySame(siteMeta(productionOrigin).slice(2), [
+            ['meta', { property: 'og:image', content: `${productionOrigin}/_card.png` }],
+            ['meta', { property: 'og:image:alt', content: 'FunctionalScript' }],
+            ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+        ]),
+        // A page with a README shows its own card, named by the page's title;
+        // a README the reader refused leaves it the root page's.
+        ownCard: () => {
+            const production = { ...local, branch: 'main' }
+            const html = page(production)({ ...empty, path: 'fjs/a b', readme: [['article', { 'data-readme': '' }, ['p', 'All of it.']]] })
+            assert(html.includes(
+                `<meta property="og:image" content="${productionOrigin}${cardImageHref('fjs/a b')}">`
+                + '<meta property="og:image:alt" content="fjs/a b · FunctionalScript">'), html)
+            assertEq(cardImageHref('fjs/a b'), '/fjs/a%20b/_card.png')
+            assertEq(cardImageHref('.'), '/_card.png')
+            const refused = page(production)({ ...empty, path: 'fjs', readme: [['p', { 'data-readme-refused': '' }, 'no']] })
+            assert(refused.includes(`<meta property="og:image" content="${productionOrigin}/_card.png">`), refused)
+        },
+        // A directory with a README is described by it.
+        describedByItsReadme: () => {
+            const html = pageHtml({ ...empty, path: 'fjs', readme: [['article', { 'data-readme': '' }, ['p', 'All of it.']]] })
+            assert(html.includes('<meta name="description" content="All of it.">'), html)
+            assert(html.includes('<meta property="og:description" content="All of it.">'), html)
         },
         // A demo stays in main while the catalogue lives beside it.
         carriesADemo: () => {

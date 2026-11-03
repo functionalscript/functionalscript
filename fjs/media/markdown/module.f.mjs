@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Document, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
+ * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -65,26 +65,21 @@ const codeText = node => {
 }
 
 /**
- * Text and code alternating, as a link's label and a bold body hold them:
- * the leading run, if any, then each code span and the run after it.
+ * A plain link's label as its spans: text and code alternating, the
+ * leading run, if any, then each code span and the run after it.
  *
- * @type {(lead: unknown, pairs: unknown) => readonly Label[]}
+ * @type {(node: unknown) => readonly Label[]}
  */
-const labelsOf = (lead, pairs) => {
+const labelOf = node => {
+    const [lead, pairs] = arr(node)
     /** @type {readonly Label[]} */
-    const head = lead === undefined || arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
+    const head = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
     return [...head, ...arr(pairs).flatMap(pair => {
         const [code, tail] = arr(pair)
         /** @type {readonly Label[]} */
         const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         return [/** @type {Label} */(['code', codeText(code)]), ...after]
     })]
-}
-
-/** A plain link's label as its spans. @type {(node: unknown) => readonly Label[]} */
-const labelOf = node => {
-    const [lead, rest] = arr(node)
-    return labelsOf(lead, rest)
 }
 
 /**
@@ -163,15 +158,61 @@ const linkLabelOf = node => {
 
 /**
  * A bold or emphasised body as its spans, by the branch the grammar took:
- * one opening with text, or one opening with a code span.
+ * one opening with text, or one opening with a code span or a link. A link
+ * right after an `!` would be an image on GitHub, which a body here does
+ * not hold, so it is refused.
  *
- * @type {(node: unknown) => readonly Label[]}
+ * @type {(node: unknown) => Result<readonly Emphasised[], string>}
  */
 const emphasisOf = node => {
     const [tag, body] = arr(node)
-    if (tag === 'code') { return labelsOf(undefined, body) }
-    const [lead, rest] = arr(body)
-    return labelsOf(lead, rest)
+    const [lead, rest] = tag === 'text' ? arr(body) : [undefined, body]
+    /** @type {readonly Emphasised[]} */
+    let out = lead === undefined ? [] : [['text', lexeme(lead)]]
+    for (const part of arr(rest)) {
+        const [kind, pair] = arr(part)
+        const [span, tail] = arr(pair)
+        /** @type {readonly Emphasised[]} */
+        const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
+        if (kind === 'code') {
+            out = [...out, ['code', codeText(span)], ...after]
+            continue
+        }
+        if (beforeBang(out[out.length - 1]) !== null) { return error('an image inside bold or emphasis') }
+        out = [...out, ['link', ...plainLinkOf(span)], ...after]
+    }
+    return ok(out)
+}
+
+/**
+ * A bold body as its spans, from the rule's own tuple: the run after the two
+ * asterisks it opens with, then, while what follows that run is emphasis,
+ * the emphasis and the run after it, if any.
+ *
+ * @type {(node: unknown) => Result<readonly Bolded[], string>}
+ */
+const strongOf = node => {
+    const [, first, rest] = arr(node)
+    const lead = emphasisOf(first)
+    if (lead[0] === 'error') { return lead }
+    /** @type {readonly Bolded[]} */
+    let out = lead[1]
+    let next = rest
+    while (true) {
+        const [kind, body] = arr(arr(next)[1])
+        if (kind === 'end') { return ok(out) }
+        const [em, , after] = arr(body)
+        const read = emphasisOf(em)
+        if (read[0] === 'error') { return read }
+        out = [...out, ['em', read[1]]]
+        const [tail, more] = arr(after)
+        if (tail === 'end') { return ok(out) }
+        const [run, again] = arr(more)
+        const runRead = emphasisOf(run)
+        if (runRead[0] === 'error') { return runRead }
+        out = [...out, ...runRead[1]]
+        next = again
+    }
 }
 
 /**
@@ -192,9 +233,12 @@ const spanOf = node => {
         return ok(['link', label[1], targetOf(l)])
     }
     const [kind, inner] = arr(arr(body)[1])
-    return ok(kind === 'strong'
-        ? ['strong', emphasisOf(arr(inner)[1])]
-        : ['em', emphasisOf(arr(inner)[0])])
+    if (kind === 'strong') {
+        const read = strongOf(inner)
+        return read[0] === 'error' ? read : ok(['strong', read[1]])
+    }
+    const read = emphasisOf(arr(inner)[0])
+    return read[0] === 'error' ? read : ok(['em', read[1]])
 }
 
 /**
@@ -486,13 +530,12 @@ const isAsciiPunctuation = c => '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.includes(c)
 const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : span[0] === 'image' ? '!' : '*'
 
 /**
- * A span's last character, as the delimiter after it sees it. Bold or
- * emphasis right before emphasis is refused before this is asked, so any
- * other span is a link.
+ * A span's last character, as the delimiter after it sees it: an asterisk
+ * for emphasis inside bold, and a parenthesis for a link.
  *
  * @type {(span: Inline) => string}
  */
-const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : ')'
+const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' ? '*' : ')'
 
 /**
  * Whether an asterisk run between `outer` and `inner` fails to open or close
@@ -529,6 +572,28 @@ const proseTildePair = spans => {
 
 /** Whether a link's or an image's address holds an entity. @type {(address: string) => boolean} */
 const entityIn = address => [...address].some((_, i) => entityAt(address, i))
+
+/**
+ * Each emphasis inside a bold body, checked as {@link readProse} checks
+ * emphasis on its own, and against the spans beside it in the bold: its
+ * asterisks must open and close it on GitHub as they would outside. The
+ * grammar never lets emphasis open a bold body, so a span stands before
+ * each one.
+ *
+ * @type {(body: readonly Bolded[]) => Result<void, string>}
+ */
+const nestedEmphasis = body => {
+    for (const [i, b] of body.entries()) {
+        if (b[0] !== 'em') { continue }
+        if (unflanked(lastChar(body[i - 1]))(firstChar(b[1][0]))
+            || unflanked(i === body.length - 1 ? undefined : firstChar(body[i + 1]))(lastChar(b[1][b[1].length - 1]))) {
+            return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+        }
+        const read = readProse([b])
+        if (read[0] === 'error') { return read }
+    }
+    return ok(undefined)
+}
 
 /**
  * An entry's spans with every prose run read by {@link proseSpans}: a text
@@ -576,9 +641,23 @@ const readProse = entry => {
         if (span[0] !== 'link' && ((first[0] === 'text' && first[1].startsWith(' ')) || (last[0] === 'text' && last[1].endsWith(' ')))) {
             return error('bold or emphasis padded with a space')
         }
+        // A link inside bold or emphasis is checked as any link is.
+        for (const l of span[0] === 'link' ? [] : span[1]) {
+            const read = l[0] === 'link' ? readProse([l]) : ok([])
+            if (read[0] === 'error') { return read }
+        }
+        // Emphasis inside bold is checked as emphasis is, against the
+        // spans beside it in the bold.
+        if (span[0] === 'strong') {
+            const nested = nestedEmphasis(span[1])
+            if (nested[0] === 'error') { return nested }
+        }
         // A label's code spans side by side are one span in CommonMark too.
         if (codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }
-        if (proseTildePair(span[1])) { return error('a tilde pair in a span body, which GitHub may read as strikethrough') }
+        // Strikethrough may cross emphasis inside bold.
+        if (proseTildePair(span[0] === 'strong' ? span[1].flatMap(b => b[0] === 'em' ? b[1] : [b]) : span[1])) {
+            return error('a tilde pair in a span body, which GitHub may read as strikethrough')
+        }
         // CommonMark reads an entity in a destination as the character it
         // names, and the page would keep it as written.
         if (span[0] === 'link' && entityIn(span[2])) { return error('an entity in a link target') }
@@ -652,6 +731,20 @@ const headingLevel = line => {
     return level >= 1 && level <= 6 && (line[level] === ' ' || line[level] === '\t' || line.length === level) ? level : 0
 }
 
+/**
+ * Whether a line is a thematic break: three or more of one of `-`, `*` and
+ * `_`, unindented, with spaces between them and nothing else. A `- - -` is
+ * one, not a list, as GitHub reads it.
+ *
+ * @type {(line: string) => boolean}
+ */
+const isThematicBreak = line => {
+    const mark = line[0]
+    if (mark !== '-' && mark !== '*' && mark !== '_') { return false }
+    const marks = [...line].filter(c => c !== ' ')
+    return marks.length >= 3 && marks.every(c => c === mark)
+}
+
 /** Whether a line opens a fenced code block. @type {(line: string) => boolean} */
 const isFence = line => line.startsWith('```')
 
@@ -671,9 +764,12 @@ const isClosingFence = line => {
  *
  * **Each is refused, not read as prose.** An indented block quote, a table row, raw
  * HTML, a numbered list, another bullet, an indented code block, a
- * fence, heading or list item indented by up to three spaces, a
- * thematic break and a heading's underline are each a structure on GitHub,
- * and prose here would be the README GitHub does not show.
+ * fence, heading, list item or thematic break indented by up to three
+ * spaces, and a heading's underline, a `---` or `===` right under a
+ * paragraph's line, are each a structure on GitHub, and prose here would
+ * be the README GitHub does not show. An unindented thematic break where a
+ * block starts is read as a `rule` before this is asked; a run of `-` or
+ * `=` too short for one is refused here with the underlines.
  *
  * @type {(line: string) => string | null}
  */
@@ -880,6 +976,13 @@ const readBlocks = (base, container) => lines => {
             i = end
             continue
         }
+        // Under a paragraph's line, a `---` is that paragraph's heading
+        // underline, which the paragraph refuses; here, a block starts.
+        if (isThematicBreak(line)) {
+            out = [...out, [['rule'], i, i]]
+            i += 1
+            continue
+        }
         const marker = listMarker(line)
         if (marker !== null) {
             /** @type {(l: string) => ListMarker | null} */
@@ -989,8 +1092,9 @@ const readBlocks = (base, container) => lines => {
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
             && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
-            // A quote ends a paragraph, as GitHub reads it.
-            && !lines[end].startsWith('>')) {
+            // A quote ends a paragraph, as GitHub reads it, and so does a
+            // thematic break but `---`, which underlines the paragraph.
+            && !lines[end].startsWith('>') && !(isThematicBreak(lines[end]) && lines[end][0] !== '-')) {
             const continued = foreignBlock(lines[end].trimStart())
             if (continued !== null) { return refuseAt(end, continued) }
             end += 1
@@ -1013,8 +1117,9 @@ const readBlocks = (base, container) => lines => {
  * The blocks are the ones a README is written in: an ATX heading, a
  * paragraph, a code fence opened by three backticks, a list of `- ` items,
  * each holding blocks of its own indented by two spaces and opening with a
- * GitHub task checkbox or not, a table whose rows open with a pipe, and a
- * block quote, its lines opening with `>`, holding blocks of its own.
+ * GitHub task checkbox or not, a table whose rows open with a pipe, a
+ * block quote, its lines opening with `>`, holding blocks of its own, and a
+ * thematic break, `---`.
  *
  * **What GitHub reads differently is refused, not approximated.** A line
  * after a list item with no blank before it and no indentation continues

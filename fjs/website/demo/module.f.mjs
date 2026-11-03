@@ -37,7 +37,15 @@ import { captionMarker, editorMarker, mirrorMarker, resultMarker } from '../styl
 import { max } from '../../types/number/max/module.f.js'
 import { min } from '../../types/number/min/module.f.js'
 
-export { option, selectField, button } from './controls/module.f.js'
+import {
+    option as controlOption,
+    selectField as controlSelectField,
+    button as controlButton,
+} from './controls/module.f.js'
+
+export const option = controlOption
+export const selectField = controlSelectField
+export const button = controlButton
 
 /**
  * A demo whose state is the text in a labelled textarea, followed by what

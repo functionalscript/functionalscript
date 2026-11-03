@@ -198,6 +198,7 @@ const check = rule => {
             check(info[1])
         }
     }
+    return undefined
 }
 
 /**

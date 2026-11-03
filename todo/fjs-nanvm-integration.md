@@ -198,6 +198,10 @@ remaining leaves are refused as written.
 | `types/version` | Global `BigInt` in `maxPart` | 0 |
 | `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
 
+The measured `types/list/iterable` leaf is now a
+[host JavaScript adapter](../fjs/types/list/iterable/module.mjs). It and its proof
+use `.mjs`, after production FunctionalScript consumers stopped importing it.
+
 The preceding twelve-leaf measurement is retained in the
 [earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/374ad5cb5dfdc5548b9d663c8de175107fd10ecc/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
 

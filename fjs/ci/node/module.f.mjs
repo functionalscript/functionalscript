@@ -63,7 +63,7 @@ export const platformNodeSteps = () => [
 const nodeSteps = consumer => [
     nodeVersionStep(),
     tscVersionStep,
-    ...environmentSteps(['npm ci', 'tsc', 'npm start compile', 'npm run cov']),
+    ...environmentSteps(['npm ci', 'tsc', 'npm start deps', 'npm start compile', 'npm run cov']),
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
