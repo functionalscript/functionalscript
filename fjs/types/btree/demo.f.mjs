@@ -60,7 +60,7 @@ const rowsOf = node => {
             const [l, v, r] = node
             return [keyRow(v), { to: l, corner: 'top' }, { to: r, corner: 'bottom' }]
         }
-        case 5: {
+        default: {
             const [l, v0, m, v1, r] = node
             return [
                 keyRow(v0), keyRow(v1),

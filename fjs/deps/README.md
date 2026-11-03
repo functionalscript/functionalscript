@@ -4,19 +4,29 @@
 fjs deps
 ```
 
-The command recursively discovers files named exactly `module.f.js` or
-`module.f.mjs` under the caller's directory and checks that each file can form
-a syntax AST. This initial selection prepares coverage checks for those modules.
-Under npm, the caller's original directory (`INIT_CWD`) selects the subtree.
-Discovery uses the same rules as the other source checks: hidden entries,
-`node_modules` and `target` are skipped.
+The command writes `_deps.json` in the caller's directory, replacing an existing
+file only after the scan succeeds. No arguments are accepted. Under npm,
+`INIT_CWD` selects the caller's original directory.
 
-This initial command uses the current compiler tokenizer and syntax AST parser
-to report their unsupported source forms. Parser extensions are a later step.
+The JSON object maps each module path to an array of its direct dependency
+paths. Each module appears once, modules without dependencies have empty arrays,
+and repeated imports produce one edge. Paths are relative to the output
+directory, with `/` separators and `../` for dependencies outside it. A dependency on another filesystem root (such as
+a different Windows drive) keeps its absolute path.
+Cycles are recorded; compilation still rejects them.
 
-Source files are read as UTF-8 without importing or executing them. The check
-does not resolve imports or source bindings, apply FunctionalScript admission,
-or lower to FAST or EDAG.
+Entry points are files named exactly `module.f.js` or `module.f.mjs`, discovered
+recursively under the caller's directory. Hidden entries, `node_modules` and
+`target` are skipped during discovery. Imports are followed transitively,
+including helpers and modules outside the scanned subtree. JSON imports are
+leaves with empty dependency arrays.
+
+Source files are read as UTF-8 without importing or executing them. Dependency
+extraction reads the syntax AST's import declarations through the compiler's
+shared import-attribute reader and filesystem resolver. It does not validate
+selected exports or source bindings, apply FunctionalScript admission, or lower
+to FAST or EDAG. JSDoc type imports are not runtime dependencies.
+
 Its syntax AST can represent forms that FJS compilation still refuses,
 including braced `for (const item of items)` and `for (let item of items)`
 declaration loops. Recognizing that syntax does not select iteration semantics.
@@ -31,11 +41,9 @@ the dependency check still performs only syntax parsing.
 Named `let` declarations can omit their initializer. The syntax AST preserves
 that absence; compilation separately supplies primitive `undefined` at the
 declaration point. `const` and destructuring declarations require initializers.
-Each read or syntax failure is reported with its source location when known;
-the remaining files are still checked. A summary reports parsed, failed and
-total files. Any failed file or discovery error exits with code 1; a successful
-scan, including an empty source tree, exits with code 0.
-
-Only the no-argument form is implemented. Dependency extraction and `.data.js`
-graph output are later tasks in the
-[dependency graph command TODO](../todo/module-dependency-graph-command.md).
+Each read, resolution or syntax failure is reported with its source location
+when known; the remaining entry points are still checked. The summary counts
+module visits, including JSON leaves, with valid cached repeats omitted. Any failed file, discovery error
+or output-write failure exits with code 1. A failed scan leaves an existing
+`_deps.json` untouched. Successful scans, including an empty tree, exit with
+code 0; an empty tree writes `{}` followed by a newline.

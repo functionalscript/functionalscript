@@ -6,7 +6,7 @@
  * @module
  */
 
-import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.mjs'
+import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
 import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { generate as generateRust } from '../../../compiler/rust/module.f.mjs'
 
