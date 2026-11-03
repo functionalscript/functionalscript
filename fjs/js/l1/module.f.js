@@ -245,11 +245,14 @@ export const toNumber = v => {
 
 /**
  * [`ToNumeric`](https://tc39.es/ecma262/#sec-tonumeric): the primitive, a
- * number preferred, as it is when it is a bigint, else its number.
+ * number preferred, as it is when it is a bigint, else its number. A
+ * function is `NaN` without its text, as in {@link toNumber}, so a
+ * function without text converts too.
  *
  * @type {(v: unknown) => unknown}
  */
 export const toNumeric = v => {
+    if (kind(v) === FUNCTION) { return NaN }
     const p = toPrimitive(v, false)
     return kind(p) === BIGINT ? p : toNumber(p)
 }

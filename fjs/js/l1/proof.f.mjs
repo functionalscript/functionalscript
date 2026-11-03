@@ -104,6 +104,7 @@ export const proof = {
         assertEq(toNumeric('3'), 3)
         assertEq(toNumeric([4]), 4)
         assert(Number.isNaN(toNumeric({})))
+        assert(Number.isNaN(toNumeric(f)))
     },
     // `functionText` passes a function's text through.
     functionText: () => {
