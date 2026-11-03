@@ -13,7 +13,7 @@ import { _evaluate, tokenizeString } from './proof.f.mjs'
 /** @type {(source: string) => import('./types.ts').ResolvedModule} */
 const parsed = source => assertOk(parseFromTokens(tokenizeString(source)))
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     astRetainsTheWrittenGroup: () => {
         const module = assertOk(parseSyntax(tokenizeString('const a=[1,2],{length:b}=a;export default b;')))
         assertEq(module.statements.length, 1)
@@ -61,4 +61,4 @@ export const proof = {
             'const a=1,b=2;export const b=3;',
         ]) { assertError(parseFromTokens(tokenizeString(source))) }
     },
-}
+})

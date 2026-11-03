@@ -10,10 +10,11 @@ const written = source => {
     return first[1].declaration
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     singleDeclarationKeepsItsRecord: () => {
         const first = written('const a=1;export default a;')
         assertEq(declarations(first)[0], first)
+        /** @type {import('../syntax/types.ts').Const} */
         const empty = { ...first, following: [] }
         assertEq(declarations(empty)[0], empty)
     },
@@ -31,4 +32,4 @@ export const proof = {
             assertStructurallySame(expanded.map(declaration => declaration.start.metadata.column), [1,10,14])
         }
     },
-}
+})

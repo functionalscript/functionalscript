@@ -1757,6 +1757,7 @@ const targetOf = ([tag, branch]) => {
 
 /** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([first, target, , v, rest, end]) => {
+    /** @type {Const} */
     const statement = { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) }
     const following = unmapped(rest).map(item => {
         const [comma, target, , value] = unmapped(item)
