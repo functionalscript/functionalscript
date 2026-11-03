@@ -204,7 +204,7 @@ impl<A: IVm> BigInt<A> {
         self.0.items().is_empty()
     }
 
-    fn sign(&self) -> Sign {
+    pub(crate) fn sign(&self) -> Sign {
         *self.0.header()
     }
 
