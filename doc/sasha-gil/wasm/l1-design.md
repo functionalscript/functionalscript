@@ -100,11 +100,20 @@ L1 is called only where it does not.
 | Arithmetic | `+ - * /` and unary `-`, number and string | FunctionalScript |
 | Comparison | `=== !==`, `< <= > >=` of numbers and strings | FunctionalScript |
 | Member read | `a[k]` and `a.k`: an object's own key through `find`, an array index, a string index, `length` | FunctionalScript |
-| Calls | `call` of an unknown value, `callMember`, the optional forms `?.` and `?.()` | FunctionalScript, `callMember` through L2's `runtime.dot` |
+| Calls | `call` of an unknown value, and `resolveMember`, the callee of `a[k](...)` | FunctionalScript, `resolveMember` through L2's `runtime.dot` |
 | Iteration | spread of an array or a string, `Object.entries`-style iteration, object spread | FunctionalScript |
 | Numbers, native | `%`, `**`, `numberToString`, `stringToNumber` | Native |
 | Integers, native | `& \| ^ ~ << >> >>>` and `ToInt32` | Native |
 | Bigints, native | every operation on a bigint, and the mixed comparisons | Native |
+
+Optional chaining stays in the program. For `f?.(x)` and `a.k?.(x)` the
+compiler emits the guard itself: it gets the callee, through
+`resolveMember` for a member, tests it for `undefined` and `null` with L0
+`kind`, and evaluates the arguments only after the test passes. No L1
+operation takes an argument that has not been evaluated yet, so no thunk
+crosses the boundary, and the order stays the one
+[the runtime README](../../../fjs/js/runtime/README.md) sets: the guard
+before the arguments.
 
 The native rows are the whole of what a new runtime must write beyond L0.
 Each of them can still get a FunctionalScript body later, for example
@@ -115,9 +124,12 @@ Each of them can still get a FunctionalScript body later, for example
 - **Pick:** the FunctionalScript bodies of L1, together with L2, compile
   into one module, the stock runtime. It imports `fjs:l0` and the native
   rows, as `fjs:l1-native`, from the host runtime, and exports `fjs:l1`.
-  When the loader links a program, each `fjs:l1` import goes to the host
-  runtime if the host exports that name, and to the stock module
-  otherwise.
+  Substitution happens when our linker builds the stock module for a
+  host. For each L1 or L2 name the host exports, the linker drops the
+  FunctionalScript body and turns every call to it, inside the stock module
+  as well as in programs, into a call to the host's import. A call between
+  bodies that stays inside the module is therefore always a call to a body
+  the host did not replace.
 - **Why:** a native version replaces a body by name, with no change to the
   program or the body. This is DESIGN.md §13's substitution at the module
   boundary. NaNVM starts by exporting only L0 and the native rows, then

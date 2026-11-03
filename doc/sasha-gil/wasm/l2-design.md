@@ -83,9 +83,11 @@ functions were added for this.
 
 ### 6. Substitution order
 
-- **Pick:** when the loader links a program, it takes each import of
-  `fjs:l1`, `fjs:static` and `fjs:runtime` from the host runtime if the
-  host exports it, and from the stock module otherwise.
+- **Pick:** our linker builds the stock module for a given host. For each
+  name of `fjs:l1`, `fjs:static` and `fjs:runtime` that the host exports,
+  it drops the FunctionalScript body and rewrites every call to it, inside
+  the stock module too, into a call to the host's import. Programs import
+  the remaining names from the stock module.
 - **Why:** this is the one rule that lets NaNVM, or any runtime, replace a
   FunctionalScript body with native code, without changing the body or the
   program. A conformance run compares every substituted name with its body.
