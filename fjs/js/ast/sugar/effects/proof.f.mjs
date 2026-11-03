@@ -22,6 +22,20 @@ export const proof = {
         assertStructurallySame(behind.get(fallback), [id])
         assertStructurallySame(behind.get(held), [])
     },
+    forOfInputAndBodyContributeWrites: () => {
+        const inputId = /** @type {BindingId} */ ({ index: 0 })
+        const bodyId = /** @type {BindingId} */ ({ index: 1 })
+        const item = /** @type {BindingId} */ ({ index: 2 })
+        const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })
+        const input = /** @type {SourceBlock} */ ({ statements: [['write', inputId, 1]], exit: ['yield', ['array', [2]]] })
+        const body = /** @type {SourceBlock} */ ({ statements: [['write', bodyId, ['ref', item]]], exit: ['yield', undefined] })
+        const root = /** @type {SourceBlock} */ ({ statements: [['for-of', { target, events: [], source: ['block', input], item, body }]], exit: ['yield', undefined] })
+        const indexed = writes(root, new Map())
+        assertStructurallySame(indexed.get(input), [inputId])
+        assertStructurallySame(indexed.get(body), [bodyId])
+        assertEq(indexed.get(root)?.includes(inputId), true)
+        assertEq(indexed.get(root)?.includes(bodyId), true)
+    },
     forUpdatesContributeToNormalAndTerminalLoopEffects: () => {
         const id = /** @type {BindingId} */ ({ index: 0 })
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })

@@ -27,7 +27,7 @@ export const samples = {
     'op.tagged-template': 'const tag = s => s[0];\nexport default tag`x`;\n',
     'acc.property-assignment': 'const f = o => { o.b = 1; return o; };\nexport default f({});\n',
     'name.forward-reference': 'const f = () => b;\nconst b = 1;\nexport default f();\n',
-    'st.for-in-of': 'const f = a => { let s = 0; for (const x of a) { s = s + x; } return s; };\nexport default f([1, 2]);\n',
+    'st.for-in-of': 'const f = a => { let s = 0; for (const x in a) { s = s + 1; } return s; };\nexport default f([1, 2]);\n',
     'st.do-while': 'const f = () => { let i = 0; do { i = i + 1; } while (i < 3); return i; };\nexport default f();\n',
     'st.try': 'const f = () => { try { return 1; } catch { return 2; } };\nexport default f();\n',
     'st.debugger': 'const f = () => { debugger; return 1; };\nexport default f();\n',
