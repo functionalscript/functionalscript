@@ -1268,6 +1268,7 @@ export const terminator = /** @type {const} */ ({
  * @type {SimpleStatement}
  */
 export const simpleStatement = () => ['const', {
+    block: branchBlock,
     const: constStatement,
     construct: newExpressionStatement,
     if: ifStatement,
@@ -1348,6 +1349,7 @@ export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
  * @type {LoopStatement}
  */
 export const loopStatement = () => ['const', {
+    block: loopBlock,
     break: [sym('break'), end],
     const: constStatement,
     construct: newExpressionStatement,
@@ -1522,7 +1524,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ block: branchBlock, const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

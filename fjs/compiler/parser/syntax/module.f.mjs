@@ -36,7 +36,7 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { BranchBlock, StandaloneBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
  * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
@@ -1232,6 +1232,9 @@ const branchContentsAt = node => {
 /** @type {(node: Children<BranchBlockRule, ModuleTokenWithMetadata, Out>) => BranchBlock} */
 const branchBlockOf = ([, contents]) => branchContentsAt(contents)
 
+/** @type {(node: Ast<BranchBlockRule, ModuleTokenWithMetadata, Out>) => StandaloneBlock} */
+const standaloneAt = node => ({ start: tokenAt(unmapped(node)[0]), block: branchBlockOf(unmapped(node)) })
+
 /** Branches have the existing body endings or a normal closing brace. @type {(node: Children<BranchContents, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toBranchContents = ([statements, ending]) => {
     const prefix = unmapped(statements).map(statementAt)
@@ -1483,6 +1486,7 @@ const toLoopElse = ([kind, branch]) => {
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
+        case 'block': { return symbol({ id: 'statement', statement: ['block', standaloneAt(branch)] }) }
         case 'construct': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
         case 'const': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
         case 'let': { return symbol({ id: 'statement', statement: ['let', letAt(branch)] }) }
@@ -1504,6 +1508,7 @@ const discarded = (name, rest, semicolon) =>
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'block') { return symbol({ id: 'moduleStatement', statement: ['block', standaloneAt(branch)] }) }
     if (kind === 'construct') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
     if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
@@ -1550,6 +1555,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'block') { return symbol({ id: 'loopStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
     if (kind === 'construct') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
     if (kind === 'break' || kind === 'continue') {
         const [keyword, end] = unmapped(branch)

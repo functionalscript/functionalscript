@@ -115,8 +115,13 @@ export type Block = readonly ['block', readonly [...(readonly BlockStatement[]),
  */
 export type BlockEnd = readonly ['return' | 'throw', ValueStatement] | readonly ['switch', Switch] | readonly ['terminal-while', While] | readonly ['terminal-for', For] | readonly ['terminal-for-of', ForOf] | readonly ['implicit-return', ModuleTokenWithMetadata | null]
 
+/** A standalone lexical block retains its opening brace and ordinary child region. */
+export type StandaloneBlock = { readonly start: ModuleTokenWithMetadata; readonly block: BranchBlock }
+/** Inside a loop the same braces preserve loop transfers and following statements. */
+export type StandaloneLoopBlock = { readonly start: ModuleTokenWithMetadata; readonly block: LoopBlock }
+
 /** A block's statement before the one that ends it: a declaration, assignment, terminating guard or normal conditional, loop, or switch without a `default`. The following statements run when such a switch has no matching label. */
-export type BlockStatement = readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]
+export type BlockStatement = readonly ['block', StandaloneBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', If] | readonly ['normal-if', NormalIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', Switch]
 
 /** A conditional arm keeps its ordinary statements and explicit ending, if present. */
 export type BranchBlock = readonly ['branch', readonly BlockStatement[], BlockEnd | null]
@@ -213,7 +218,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ValueStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -480,7 +485,7 @@ export type ModuleLet = {
 }
 
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
+export type ModuleStatement = readonly ['block', StandaloneBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an

@@ -10,6 +10,7 @@ throws and switches with braced cases.
 
 ## Pages
 
+- [Standalone Lexical Blocks](./blocks/README.md)
 - [Bodies and Guards](./guards/README.md)
 - [Loops](./loops/README.md)
 - [Switch](./switch/README.md)
