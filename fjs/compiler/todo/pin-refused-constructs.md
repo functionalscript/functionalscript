@@ -52,10 +52,6 @@ behaviour, and a table of cases is one test.
 - [ ] Ask the language designer which **open** rows are permanent, and set
       their **Why**.
 - [ ] Pin the **open** rows that no proof pins.
-- [ ] Settle one possible gap: `0o7` is left out of the specification without
-      a stated reason, while `0b` and `0x` are accepted. State the reason, or
-      admit it, and then set its **Why**
-      ([design principles §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
 
 ### Related
 
