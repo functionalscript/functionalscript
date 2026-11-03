@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/js/l0/module.f.js`.
+ * Type-level API for `fjs/wasm/runtime/l0/module.f.js`.
  *
  * @module
  */

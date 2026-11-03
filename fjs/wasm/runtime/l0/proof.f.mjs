@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
     asArray, asBigInt, asBoolean, asFunction, asNumber, asObject, asString,

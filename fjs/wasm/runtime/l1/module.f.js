@@ -1,13 +1,13 @@
 /**
  * The L1 operations of the WASM runtime interface with a FunctionalScript
- * body ([`l1-design.md`](../../../doc/sasha-gil/wasm/l1-design.md)), written
+ * body ([`l1-design.md`](../../../../doc/sasha-gil/wasm/l1-design.md)), written
  * over the [L0 view](../l0/module.f.js) and the [native rows](./native/module.f.js).
  * Only the WASM backend will compile this module. On a JavaScript host the
  * bodies run over the views' JavaScript bodies, and each is proved against
  * JavaScript's own operator.
  *
  * A body keeps the closure rule
- * ([`l1-design.md` §2](../../../doc/sasha-gil/wasm/l1-design.md#2-the-closure-rule)):
+ * ([`l1-design.md` §2](../../../../doc/sasha-gil/wasm/l1-design.md#2-the-closure-rule)):
  * every operator has typed operands, known from a cast or an L0 function,
  * so the compiler lowers it to a WASM instruction or an L0 import and never
  * back to L1. In particular `===` and `<` on two strings lower to
@@ -23,7 +23,7 @@
  * through `toIterable`, and object spread through `objectSpread`.
  *
  * A thrown value copies the text NaNVM throws for the same case
- * ([`error.rs`](../../../nanvm/lib/src/vm/error.rs)), so a native
+ * ([`error.rs`](../../../../nanvm/lib/src/vm/error.rs)), so a native
  * substitution and its body throw the same value.
  *
  * @module

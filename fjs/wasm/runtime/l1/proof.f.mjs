@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq } from '../../../asserts/module.f.js'
 import {
     call, get, objectSpread, toIterable,
     add, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, subtract,

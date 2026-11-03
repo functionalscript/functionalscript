@@ -1,7 +1,7 @@
 /**
  * The native rows of L1 that the bodies in [`..`](../module.f.js) call so
  * far, each with a plain JavaScript body
- * ([`l1-design.md`](../../../../doc/sasha-gil/wasm/l1-design.md#the-operations)).
+ * ([`l1-design.md`](../../../../../doc/sasha-gil/wasm/l1-design.md#the-operations)).
  * A native row has no FunctionalScript body over the L0 view: the L0 view
  * cannot read a bigint's words, for example. Every runtime implements the
  * rows, and the WASM backend will lower each function here to its
