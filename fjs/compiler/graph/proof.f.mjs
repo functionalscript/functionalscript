@@ -55,6 +55,13 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    terminalLoopFastHasNoInventedFailure: () => {
+        const graph = ofText('export default n=>{let i=n;while(true){if(i===0){return i;}i-=1;}};')
+        const loop = nodeOf(graph, 'loop')
+        assertStructurallySame(from(graph, loop).map(edge => edge.label), ['param 0', 'initial 0', 'body'])
+        assertEq(graph.nodes.some(node => node.label === 'throw'), false)
+        assertStructurallySame(from(graph, nodeOf(graph, 'continue')).map(edge => [edge.label, edge.to, edge.back]).slice(0, 1), [['to', loop, true]])
+    },
     terminalLoopSourceShape: () => {
         const graph = sourceOf('export default ()=>{while(true){return 1;}};')
         const loop = nodeOf(graph, 'terminal while')

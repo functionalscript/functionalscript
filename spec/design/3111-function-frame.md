@@ -23,7 +23,7 @@ separate from the compiler, JavaScript executor and Rust source migration.
 That metadata specifies the size of function's frame - a span of NaNVM's 64-bit values that keeps:
 
 - values of actual parameters (in a contiguous range of slots - to allow to refer to these values
-via indexed "arguments" elements);
+  via indexed "arguments" elements);
 
 - a result value slot;
 
@@ -62,34 +62,34 @@ What does the compiler need to know about a compiled "callee" function to produc
 bytecode? Here goes a preliminary sketch:
 
 - A "proper" callee's frame size. In a simple scheme, there will be a command to allocate a "stack
-frame" of the given size, followed up by commands filling certain slots of that callee frame
-(copying over actual parameters to their designated slots).
+  frame" of the given size, followed up by commands filling certain slots of that callee frame
+  (copying over actual parameters to their designated slots).
 
 - Info on a memory block that keeps captured values. Its lifetime coincides with the lifetime of
-the function object (since these values are needed at each call). That block gets designated at the
-moment of the function object instantiation. Essentially it's a "captured values frame" that has
-a different lifespan compared with the aforementioned "proper" call frame. The compiler produces
-instructions on feeling out that memory block at the moment of function object's instantiation.
-In absence of captured values, that set of instructions is empty (since there is no need for that
-frame of captured values).
+  the function object (since these values are needed at each call). That block gets designated at the
+  moment of the function object instantiation. Essentially it's a "captured values frame" that has
+  a different lifespan compared with the aforementioned "proper" call frame. The compiler produces
+  instructions on feeling out that memory block at the moment of function object's instantiation.
+  In absence of captured values, that set of instructions is empty (since there is no need for that
+  frame of captured values).
 
 - Info needed to generate call site's instructions on copying over parameters to the callee's frame.
 
 - Function result slot index (within the callee frame) - to copy over the result from the callee
-frame to a slot in the caller frame. The callee's frame can be disposed after that copying. In a
-simple scheme the compiler uses slot 0 always for that purpose. In case a function does not return
-any result value, a simple scheme places "undefined" value in that slot to comply with ECMAScript.
+  frame to a slot in the caller frame. The callee's frame can be disposed after that copying. In a
+  simple scheme the compiler uses slot 0 always for that purpose. In case a function does not return
+  any result value, a simple scheme places "undefined" value in that slot to comply with ECMAScript.
 
 ## Optimizations to consider
 
 1) Let's assume that the FJS compiler does a good job on tail recursion optimization so "truly
-recursive" functions are rare in compiled bytecode. In that case the compiler marks a compiled
-function as not "truly recursive" and calculates an expanded frame size of it - allowing for
-expanded frame sizes of all functions called from the given one. Such a not "truly recursive"
-function can share same expanded frame memory block with all functions it calls, and in turn, its
-frame can be a contiguous slot range within the callee's expanded frame. That simple technique
-allows to reduce amount of frame memory block allocations / disposals. It makes sense to benchmark
-this optimization that looks like a low hanging fruit.
+   recursive" functions are rare in compiled bytecode. In that case the compiler marks a compiled
+   function as not "truly recursive" and calculates an expanded frame size of it - allowing for
+   expanded frame sizes of all functions called from the given one. Such a not "truly recursive"
+   function can share same expanded frame memory block with all functions it calls, and in turn, its
+   frame can be a contiguous slot range within the callee's expanded frame. That simple technique
+   allows to reduce amount of frame memory block allocations / disposals. It makes sense to benchmark
+   this optimization that looks like a low hanging fruit.
 
 ## Recursive Functions
 

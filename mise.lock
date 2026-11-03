@@ -56,123 +56,123 @@ checksum = "sha256:0f20ce6674d4f2dbcc8c5d59fdf99f7ba45f8c3b367e0f5781cbfa30a1c78
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-windows-x64-baseline.zip"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-aarch64-linux.tar.xz"
+asset_pattern = "wasmtime-v50.0.1-aarch64-linux.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-arm64"]
-checksum = "sha256:10f9ad1f8539d2e04e041cc622de6a270109ab1e43a6be1f69843c2082166832"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840091"
+checksum = "sha256:d737e077416d78fbfb0a008229ec27d6a0fd5a4924874b8c38b293c850cf4094"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409149"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-arm64-musl"]
-checksum = "sha256:10f9ad1f8539d2e04e041cc622de6a270109ab1e43a6be1f69843c2082166832"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840091"
+checksum = "sha256:d737e077416d78fbfb0a008229ec27d6a0fd5a4924874b8c38b293c850cf4094"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409149"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-x86_64-linux.tar.xz"
+asset_pattern = "wasmtime-v50.0.1-x86_64-linux.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-x64"]
-checksum = "sha256:77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840344"
+checksum = "sha256:685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409604"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-x64-baseline"]
-checksum = "sha256:77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840344"
+checksum = "sha256:685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409604"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-x64-musl"]
-checksum = "sha256:77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840344"
+checksum = "sha256:685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409604"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:77c19ee0437991f9ac7837b9c269d9c7076744f85dad263fea5214cc2723c7ff"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840344"
+checksum = "sha256:685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409604"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-aarch64-macos.tar.xz"
+asset_pattern = "wasmtime-v50.0.1-aarch64-macos.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.macos-arm64"]
-checksum = "sha256:323dc098dc0455d60f396c404627e967b7033ffcfa29abfffb243126cf82c9d6"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-macos.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840121"
+checksum = "sha256:960e5216c7ebd7e9b45e6561d15821b8b801b7d54aee28c7b91921aeb30c65c8"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-macos.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409249"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-x86_64-macos.tar.xz"
+asset_pattern = "wasmtime-v50.0.1-x86_64-macos.tar.xz"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.macos-x64"]
-checksum = "sha256:ad14d9fb6a51d1633318426d6df21734127faddc81fe18a3afd70c5964eabeb5"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-macos.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840372"
+checksum = "sha256:ea1818fa8cbb51524847ab2ad22197e0051594fdc96cbd0cc2afb65832e11925"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-macos.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409612"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.macos-x64-baseline"]
-checksum = "sha256:ad14d9fb6a51d1633318426d6df21734127faddc81fe18a3afd70c5964eabeb5"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-macos.tar.xz"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840372"
+checksum = "sha256:ea1818fa8cbb51524847ab2ad22197e0051594fdc96cbd0cc2afb65832e11925"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-macos.tar.xz"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409612"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-aarch64-windows.zip"
+asset_pattern = "wasmtime-v50.0.1-aarch64-windows.zip"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.windows-arm64"]
-checksum = "sha256:938d84a71a7f36ca9151a906584386444e031169558aa2860ce0a9020f8fef23"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-aarch64-windows.zip"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840140"
+checksum = "sha256:2fe15ad13e1ed2f975ff530a335aa6cc8cd63548517321fc9e96ab1dec9db046"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-windows.zip"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409300"
 provenance = "github-attestations"
 
 [[tools."github:bytecodealliance/wasmtime"]]
-version = "50.0.0"
+version = "50.0.1"
 backend = "github:bytecodealliance/wasmtime"
-specifiers = ["50.0.0"]
+specifiers = ["50.0.1"]
 
 [tools."github:bytecodealliance/wasmtime".options]
-asset_pattern = "wasmtime-v50.0.0-x86_64-windows.zip"
+asset_pattern = "wasmtime-v50.0.1-x86_64-windows.zip"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.windows-x64"]
-checksum = "sha256:cea9ccc700aaccb2b5507e96ac990ba60104bd7ab39284fb2e67cb64d58efcc4"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-windows.zip"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840475"
+checksum = "sha256:c3646ee2de8cfcefe532e75852e1fd2728d78c3fcc43251794803a698d1c30ca"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-windows.zip"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409731"
 provenance = "github-attestations"
 
 [tools."github:bytecodealliance/wasmtime"."platforms.windows-x64-baseline"]
-checksum = "sha256:cea9ccc700aaccb2b5507e96ac990ba60104bd7ab39284fb2e67cb64d58efcc4"
-url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-windows.zip"
-url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/659840475"
+checksum = "sha256:c3646ee2de8cfcefe532e75852e1fd2728d78c3fcc43251794803a698d1c30ca"
+url = "https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-windows.zip"
+url_api = "https://api.github.com/repos/bytecodealliance/wasmtime/releases/assets/689409731"
 provenance = "github-attestations"
 
 [[tools."github:denoland/deno"]]
@@ -366,29 +366,6 @@ version = "7.5.0"
 backend = "github:wasmerio/wasmer"
 specifiers = ["7.5.0"]
 
-[tools."github:wasmerio/wasmer"."platforms.macos-x64"]
-checksum = "sha256:5504da6c260ab320e768376bf8eea3c409d53e28da035c6281360067a721a672"
-checksum_source = "mise-versions"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-full-source.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602904597"
-
-[tools."github:wasmerio/wasmer"."platforms.macos-x64-baseline"]
-checksum = "sha256:5504da6c260ab320e768376bf8eea3c409d53e28da035c6281360067a721a672"
-checksum_source = "mise-versions"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-full-source.tar.gz"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602904597"
-
-[tools."github:wasmerio/wasmer"."platforms.windows-arm64"]
-checksum = "sha256:145264808db66977cb48e928a13f996a5222a6e2b699442560b722d580b5fa55"
-checksum_source = "mise-versions"
-url = "https://github.com/wasmerio/wasmer/releases/download/v7.5.0/wasmer-windows.exe"
-url_api = "https://api.github.com/repos/wasmerio/wasmer/releases/assets/602904501"
-
-[[tools."github:wasmerio/wasmer"]]
-version = "7.5.0"
-backend = "github:wasmerio/wasmer"
-specifiers = ["7.5.0"]
-
 [tools."github:wasmerio/wasmer".options]
 asset_pattern = "wasmer-windows-amd64.tar.gz"
 
@@ -471,15 +448,6 @@ specifiers = ["1.99.1"]
 [tools.rust.options]
 components = "clippy,rustfmt"
 profile = "minimal"
-
-[[tools.rust]]
-version = "1.99.1"
-backend = "core:rust"
-specifiers = ["1.99.1"]
-
-[tools.rust.options]
-components = "clippy,rustfmt"
-profile = "minimal"
 targets = "i686-unknown-linux-gnu,wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2"
 
 [[tools.rust]]
@@ -501,3 +469,12 @@ specifiers = ["1.99.1"]
 components = "clippy,rustfmt"
 profile = "minimal"
 targets = "i686-pc-windows-msvc"
+
+[[tools.rust]]
+version = "1.99.1"
+backend = "core:rust"
+specifiers = ["1.99.1"]
+
+[tools.rust.options]
+components = "clippy,rustfmt"
+profile = "minimal"

@@ -250,7 +250,7 @@ export const proof = {
             const [, result] = virtualAt(root)(loadModuleMap({ env: {}, engine: 'node' }, select))
             const map = unwrap(result)
             assertEq(Object.keys(map).join(','), files.filter(select).map(p => './' + p).toSorted().join(','))
-            for (const loaded of Object.values(map)) assert(loaded !== undefined && loaded[0] === 'ok', loaded)
+            for (const loaded of Object.values(map)) { assert(loaded !== undefined && loaded[0] === 'ok', loaded) }
         }
         const [, result] = virtualAt({ 'proof.mjs': [] })(loadModuleMap({
             env: {}, engine: 'spidermonkey',

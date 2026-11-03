@@ -64,6 +64,22 @@ const evaluate = (fn, args) => {
 }
 
 export const proof = {
+    terminalNestedLoopsRetainTheirTransferOwner: () => {
+        const nested = /** @type {const} */ ({ kind: 'loop', index: 0 })
+        /** @type {Loop} */
+        const terminal = { target: nested, parameters: [], initial: [], results: [], body: body(['throw', 7]) }
+        const loop = restLoopOf(body(['loop', terminal]))
+        const original = restRoot(loop)
+        assertEq(invocationRootOf(original), loop)
+        const resolved = directInvocationRoot(original, loop)
+        assert(resolved.body.exit[0] === 'loop')
+        assertEq(resolved.body.exit[1], terminal)
+        assertError(evaluate(original, [1, 2]))
+        assertError(evaluate(resolved, [1, 2]))
+        /** @type {Loop} */
+        const escaping = { ...terminal, body: body(['continue', loopTarget, [ref(x), ref(y), ref(currentRest)]]) }
+        assertEq(invocationRootOf(restRoot(restLoopOf(body(['loop', escaping])))), null)
+    },
     restInvocationsKeepFreshStateAndStableOrdinaryGraphs: () => {
         const args = /** @type {const} */ ([['-', ref(x), 1], ref(y), ['...', ref(currentRest)]])
         const loop = restLoopOf(body(['yield', []], [['if', [], ['>', ref(x), 0], _restTransition(2, args, loopTarget),

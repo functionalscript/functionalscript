@@ -25,10 +25,12 @@ pub mod lazy;
 pub mod length;
 pub mod method;
 pub mod missing;
+pub mod mixed_if;
 pub mod named;
 pub mod named_imports;
 pub mod named_imports_throws;
 pub mod nested;
+pub mod normal_if;
 pub mod not_a_function;
 pub mod nullish;
 pub mod number;
@@ -45,6 +47,7 @@ pub mod object_is;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
+pub mod owning_self_tail_calls;
 pub mod parameters;
 pub mod property;
 pub mod recursion;
@@ -92,10 +95,12 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
     crate::Case { name: "missing", fixture: crate::fixtures::missing::module::<Naive>, expected: missing::module::<Naive>, json: missing::JSON, throws: missing::THROWS },
+    crate::Case { name: "mixed_if", fixture: crate::fixtures::mixed_if::module::<Naive>, expected: mixed_if::module::<Naive>, json: mixed_if::JSON, throws: mixed_if::THROWS },
     crate::Case { name: "named", fixture: crate::fixtures::named::module::<Naive>, expected: named::module::<Naive>, json: named::JSON, throws: named::THROWS },
     crate::Case { name: "named_imports", fixture: crate::fixtures::named_imports::module::<Naive>, expected: named_imports::module::<Naive>, json: named_imports::JSON, throws: named_imports::THROWS },
     crate::Case { name: "named_imports_throws", fixture: crate::fixtures::named_imports_throws::module::<Naive>, expected: named_imports_throws::module::<Naive>, json: named_imports_throws::JSON, throws: named_imports_throws::THROWS },
     crate::Case { name: "nested", fixture: crate::fixtures::nested::module::<Naive>, expected: nested::module::<Naive>, json: nested::JSON, throws: nested::THROWS },
+    crate::Case { name: "normal_if", fixture: crate::fixtures::normal_if::module::<Naive>, expected: normal_if::module::<Naive>, json: normal_if::JSON, throws: normal_if::THROWS },
     crate::Case { name: "not_a_function", fixture: crate::fixtures::not_a_function::module::<Naive>, expected: not_a_function::module::<Naive>, json: not_a_function::JSON, throws: not_a_function::THROWS },
     crate::Case { name: "nullish", fixture: crate::fixtures::nullish::module::<Naive>, expected: nullish::module::<Naive>, json: nullish::JSON, throws: nullish::THROWS },
     crate::Case { name: "number", fixture: crate::fixtures::number::module::<Naive>, expected: number::module::<Naive>, json: number::JSON, throws: number::THROWS },
@@ -112,6 +117,7 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },
+    crate::Case { name: "owning_self_tail_calls", fixture: crate::fixtures::owning_self_tail_calls::module::<Naive>, expected: owning_self_tail_calls::module::<Naive>, json: owning_self_tail_calls::JSON, throws: owning_self_tail_calls::THROWS },
     crate::Case { name: "parameters", fixture: crate::fixtures::parameters::module::<Naive>, expected: parameters::module::<Naive>, json: parameters::JSON, throws: parameters::THROWS },
     crate::Case { name: "property", fixture: crate::fixtures::property::module::<Naive>, expected: property::module::<Naive>, json: property::JSON, throws: property::THROWS },
     crate::Case { name: "recursion", fixture: crate::fixtures::recursion::module::<Naive>, expected: recursion::module::<Naive>, json: recursion::JSON, throws: recursion::THROWS },

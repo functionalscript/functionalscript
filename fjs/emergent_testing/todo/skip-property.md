@@ -113,7 +113,7 @@ option on the test effect used by the surviving process-based adapters:
   result and increment the `skip` counter in `RunTotals` (no `passed`/`failed`
   change, no return-value walk).
 - **`registerModule`** — register skipped leaves with a `skip` flag instead of
-  a test body; no subtest registration, no ` ...` star suffix.
+  a test body; no subtest registration, no `...` star suffix.
 - **`TestFn` / `Test` effect (`fjs/effects/node/module.f.mjs`)** — extend the
   options record `{ expectFailure }` with `skip`; the Node implementation
   passes `{ skip: true }` through to `node:test`, and the surviving Bun/Deno

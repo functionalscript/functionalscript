@@ -6,18 +6,45 @@
  * @module
  * @import { BindingId, Block, LoopTarget, Statement, Value } from '../../../js/ast/types.ts'
  * @import { Task } from '../../../js/ast/task/types.ts'
- * @import { _Recipe, _Result, _Use, _UseTask } from './private.ts'
+ * @import { _Plan, _Recipe, _Result, _Use, _UseTask } from './private.ts'
  */
 
 import { bind, call, done, run } from '../../../js/ast/task/module.f.js'
 import { isSpread, operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
-import { _restTransition } from '../../../js/ast/invocation/module.f.js'
+import { _invocationTransition } from '../../../js/ast/invocation/module.f.js'
 
 /** @type {(value: Value, owner: BindingId | null, tail: boolean) => _UseTask} */
 const valueTask = (value, owner, tail) => ({ kind: 'value', value, owner, tail })
 /** @type {(block: Block, owner: BindingId | null, tail: boolean) => _UseTask} */
 const blockTask = (block, owner, tail) => ({ kind: 'block', block, owner, tail })
+
+/**
+ * Inert prefix constructions need no first-demand storage. Only values already
+ * established in this invocation may be captured; an outer lazy owner is not
+ * established merely because its binding is visible. Ordinary computations and
+ * definitions after control statements retain their existing placement.
+ * @type {(block: Block, inputs: readonly BindingId[]) => Block}
+ */
+const snapshots = (block, inputs) => {
+    let established = inputs
+    /** @type {readonly Statement[]} */
+    let statements = []
+    for (const statement of block.statements) {
+        if (statement[0] !== 'define') { return { ...block, statements: [...statements, ...block.statements.slice(statements.length)] } }
+        /** @type {(value: Value) => boolean} */
+        const stable = value => !(value instanceof Array) || value[0] === 'ref' && established.includes(value[1])
+        const value = statement[2]
+        const inert = stable(value) || value instanceof Array && (
+            value[0] === 'array' && value[1].every(item => !isSpread(item) && stable(item))
+            || value[0] === 'object' && value[1].every(entry => entry[0] === ':' && !(entry[1] instanceof Array) && stable(entry[2]))
+            || value[0] === 'function' && value[1].captures.every(capture => stable(capture.value)))
+        const required = statement[3] === 'required' || inert
+        if (required) { established = [...established, statement[1]] }
+        statements = [...statements, statement[3] === 'lazy' && inert ? ['define', statement[1], value, 'required'] : statement]
+    }
+    return { ...block, statements }
+}
 
 /** Terminal uses retain their lazy recipe owner until that recipe is selected. @type {(source: Block) => readonly _Use[]} */
 const recipeUses = source => {
@@ -32,8 +59,9 @@ const recipeUses = source => {
         if (task.kind === 'block') {
             const { block } = task
             const tail = task.tail && block.exit[0] === 'yield' && block.exit[1].length === 1
+            const terminal = block.exit[0] === 'loop' ? [blockTask(block.exit[1].body, owner, false)] : []
             pending = [...block.statements.map(statement => /** @type {_UseTask} */ ({ kind: 'statement', statement, owner })),
-                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...pending]
+                ...exitValues(block.exit).map(value => valueTask(value, owner, tail)), ...terminal, ...pending]
             continue
         }
         if (task.kind === 'statement') {
@@ -64,10 +92,9 @@ const recipeUses = source => {
 }
 
 /**
- * A single shared following recipe keeps one physical continuation. Exclusive
- * lazy dependencies move with it, without demanding or copying their values.
- * Independent interleaved recipes retain their existing recursive layout.
- * @type {(source: Block) => Task<{ readonly block: Block; readonly recipe: _Recipe } | null>}
+ * Each shared terminal recipe keeps one physical continuation. Exclusive lazy
+ * dependencies move with its selected continuation without being demanded.
+ * @type {(source: Block) => Task<_Plan | null>}
  */
 const recipeTask = source => call(() => {
     const definitions = /** @type {readonly _Recipe[]} */ (source.statements.filter(statement => statement[0] === 'define' && statement[3] === 'lazy'))
@@ -75,8 +102,7 @@ const recipeTask = source => call(() => {
     const uses = recipeUses(source)
     const reads = definitions.map(definition => uses.filter(use => use.binding === definition[1]))
     const roots = definitions.filter((_, index) => reads[index].length !== 0 && reads[index].every(use => use.tail && use.owner === null))
-    if (roots.length !== 1) { return done(null) }
-    const root = roots[0]
+    if (roots.length === 0) { return done(null) }
     const owners = new Map(definitions.flatMap((definition, index) => {
         const first = reads[index][0]
         return first !== undefined && first.tail && first.owner !== null && definitions.some(definition => definition[1] === first.owner)
@@ -85,7 +111,7 @@ const recipeTask = source => call(() => {
     /** @type {(binding: BindingId) => readonly _Recipe[]} */
     const childrenOf = binding => definitions.filter(child => owners.get(child[1]) === binding)
     /** @type {readonly BindingId[]} */
-    let pending = [root[1]]
+    let pending = roots.map(root => root[1])
     /** @type {readonly BindingId[]} */
     let moved = []
     while (pending.length !== 0) {
@@ -103,7 +129,11 @@ const recipeTask = source => call(() => {
             : bind(expand(children[index]), statement => each(index + 1, [...statements, statement])))
         return each(0, [])
     })
-    return bind(expand(root), recipe => done({ block: { ...source, statements: source.statements.filter(statement => statement[0] !== 'define' || !movedBindings.includes(statement[1])) }, recipe }))
+    const block = { ...source, statements: source.statements.filter(statement => statement[0] !== 'define' || !movedBindings.includes(statement[1])) }
+    /** @type {(index: number, recipes: readonly _Recipe[]) => Task<_Plan>} */
+    const each = (index, recipes) => call(() => index === roots.length ? done({ block, recipes })
+        : bind(expand(roots[index]), recipe => each(index + 1, [...recipes, recipe])))
+    return each(0, [])
 })
 
 /**
@@ -115,21 +145,26 @@ const recipeTask = source => call(() => {
  * @type {(source: Block, parameters: readonly BindingId[], self: BindingId, target: LoopTarget, rest?: BindingId | null) => Block | null}
  */
 export const _tailCalls = (source, parameters, self, target, rest = null) => {
-    /** A selected recipe falls through; other leaves finish their original invocation. @type {(value: Value, selected: BindingId) => Task<Block>} */
+    /** Selected recipes yield their choice; other leaves finish the invocation. @type {(value: Value, selected: readonly BindingId[]) => Task<Block>} */
     const selectedValueTask = (value, selected) => call(() => {
         if (value instanceof Array) {
-            if (value[0] === 'ref' && value[1] === selected) { return done({ statements: [], exit: ['yield', []] }) }
+            const index = value[0] === 'ref' ? selected.indexOf(value[1]) : -1
+            if (index !== -1) { return done({ statements: [], exit: ['yield', selected.length === 1 ? [] : [index]] }) }
             if (value[0] === 'block') { return selectedBlockTask(value[1], selected) }
             if (value[0] === 'if') {
+                /** @type {readonly BindingId[]} */
+                const results = selected.length === 1 ? [] : [{ index: target.index }]
+                /** @type {readonly Value[]} */
+                const values = results.map(binding => ['ref', binding])
                 return bind(selectedBlockTask(value[2], selected), then => bind(selectedBlockTask(value[3], selected), otherwise => done({
-                    statements: [['if', [], value[1], then, otherwise]], exit: ['yield', []],
+                    statements: [['if', results, value[1], then, otherwise]], exit: ['yield', values],
                 })))
             }
         }
         return bind(valueTask(value), result => done(result.block))
     })
-    /** @type {(block: Block, selected: BindingId) => Task<Block>} */
-    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' ? done(block)
+    /** @type {(block: Block, selected: readonly BindingId[]) => Task<Block>} */
+    const selectedBlockTask = (block, selected) => call(() => block.exit[0] === 'throw' || block.exit[0] === 'loop' ? done(block)
         : bind(selectedValueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0], selected), result =>
             done({ statements: [...block.statements, ...result.statements], exit: result.exit })))
     /** @type {(value: Value) => Task<_Result>} */
@@ -148,37 +183,44 @@ export const _tailCalls = (source, parameters, self, target, rest = null) => {
                 })))
             }
             if (value[0] === '()' && value[1] instanceof Array && value[1][0] === 'ref' && value[1][1] === self) {
-                const args = value[2]
-                if (rest !== null) { return done({ block: _restTransition(parameters.length, args, target), changed: true }) }
-                if (args.length > parameters.length || args.some(isSpread)) {
-                    // Materialize the invocation before reading its fixed
-                    // prefix. Every extra value and lazy demand stays reached.
-                    // This private vector's identity is never exposed.
-                    const binding = { index: self.index + 1 }
-                    return done({ block: {
-                        statements: [['define', binding, ['array', args], 'required']],
-                        exit: ['continue', target, parameters.map((_, index) => ['.', ['ref', binding], index])],
-                    }, changed: true })
-                }
-                const fixed = /** @type {readonly Value[]} */ (args)
-                return done({ block: { statements: [], exit: ['continue', target, parameters.map((_, index) => index < fixed.length ? fixed[index] : undefined)] }, changed: true })
+                return done({ block: _invocationTransition(parameters.length, value[2], target, rest !== null), changed: true })
             }
         }
         return done({ block: { statements: [], exit: ['break', target, [value]] }, changed: false })
     })
     /** @type {(block: Block) => Task<_Result>} */
     const ordinaryBlockTask = block => call(() => {
-        if (block.exit[0] === 'throw') { return done(/** @type {_Result} */ ({ block, changed: false })) }
+        if (block.exit[0] === 'throw' || block.exit[0] === 'loop') {
+            /** @type {_Result} */
+            const result = { block, changed: false }
+            return done(result)
+        }
         return bind(valueTask(/** @type {Extract<Block['exit'], readonly ['yield', readonly Value[]]>} */ (block.exit)[1][0]), result => done({
             block: { statements: [...block.statements, ...result.block.statements], exit: result.block.exit }, changed: result.changed,
         }))
     })
+    /** Every reached recipe transfers; the final arm is the remaining choice. @type {(recipes: readonly _Recipe[], selected: BindingId, index: number) => Task<Block>} */
+    const dispatchTask = (recipes, selected, index) => call(() => bind(valueTask(recipes[index][2]), continuation => index + 1 === recipes.length
+        ? done(continuation.block)
+        : bind(dispatchTask(recipes, selected, index + 1), otherwise => done({
+            statements: [['if', [], ['===', ['ref', selected], index], continuation.block, otherwise]], exit: ['yield', []],
+        }))))
     /** @type {(block: Block) => Task<_Result>} */
-    const blockTask = block => bind(recipeTask(block), planned => planned === null ? ordinaryBlockTask(block)
-        : bind(valueTask(planned.recipe[2]), continuation => bind(selectedBlockTask(planned.block, planned.recipe[1]), selected => done({
-                block: { statements: [...selected.statements, ...continuation.block.statements], exit: continuation.block.exit },
-                changed: true,
-            }))))
+    const blockTask = block => bind(recipeTask(block), planned => {
+        if (planned === null) { return ordinaryBlockTask(block) }
+        const recipes = planned.recipes
+        const bindings = recipes.map(recipe => recipe[1])
+        if (recipes.length === 1) {
+            return bind(valueTask(recipes[0][2]), continuation => bind(selectedBlockTask(planned.block, bindings), selected => done({
+                block: { statements: [...selected.statements, ...continuation.block.statements], exit: continuation.block.exit }, changed: true,
+            })))
+        }
+        /** @type {BindingId} */
+        const selected = { index: target.index }
+        return bind(selectedBlockTask({ statements: [], exit: planned.block.exit }, bindings), selection => bind(dispatchTask(recipes, selected, 0), continuation => done({
+            block: { statements: [...planned.block.statements, ['block', [selected], selection], ...continuation.statements], exit: continuation.exit }, changed: true,
+        })))
+    })
     const result = run(blockTask(source))
-    return result.changed ? result.block : null
+    return result.changed ? snapshots(result.block, [...parameters, self, ...rest === null ? [] : [rest]]) : null
 }

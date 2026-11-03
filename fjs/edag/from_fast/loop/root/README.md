@@ -70,3 +70,11 @@ from admitted operand regions are lifted by the shared FAST return pass before
 root reconstruction. Loop transfers still require a locally owned target.
 Rest/default/spread invocation transitions use the same contract as
 [tail-call analysis](../../../to_fast/README.md#tail-call-eligibility).
+
+The [owning-tail producer](../owning/module.f.mjs) also creates invocation roots
+before inner loops become helpers. It carries the actual root identity through
+completion lowering. `_directOwningInvocationRoot` resolves only that trusted
+root, including a terminal root without normal results. Completion packets can
+replace the original rest recipe with projections; the trusted resolver then
+calls self with the fixed payloads and a spread of the established fresh rest
+payload. Strict structural root matching remains unchanged for other loops.

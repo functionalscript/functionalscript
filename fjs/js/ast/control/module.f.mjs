@@ -24,8 +24,9 @@ const valueTasks = (values, context) => values.map(value => ({ kind: 'value', va
 /** @type {(block: Block, context: Context) => Task} */
 const blockTask = (block, context) => ({ kind: 'block', block, bound: context.bound })
 
-/** Values evaluated by a region's explicit exit. @type {(exit: Exit) => readonly Value[]} */
+/** Direct exit operands; a terminal loop's body is a separate lexical region. @type {(exit: Exit) => readonly Value[]} */
 export const exitValues = exit => exit[0] === 'yield' ? exit[1]
+    : exit[0] === 'loop' ? exit[1].initial
     : exit[0] === 'break' || exit[0] === 'continue' ? exit[2]
     : exit[0] === 'throw' ? [exit[1]] : [exit[2]]
 
@@ -56,7 +57,9 @@ const blockTasks = (block, context) => {
             : [...valueTasks([statement[2]], inner), blockTask(statement[3], inner), blockTask(statement[4], inner)])]
         scope = [...scope, ...statement[1]]
     }
-    return [...tasks, ...valueTasks(exitValues(block.exit), { bound: scope })]
+    const exit = block.exit
+    return [...tasks, ...valueTasks(exitValues(exit), { bound: scope }),
+        ...exit[0] === 'loop' ? [blockTask(exit[1].body, { bound: [...scope, ...exit[1].parameters] })] : []]
 }
 
 /**
@@ -99,9 +102,10 @@ export const freeLoopBindings = loop => freeBindings(loop.body, loop.parameters)
  * Find a transfer to one exact loop target through values and statement
  * regions, including nested loops. Ordinary function bodies remain opaque;
  * their captures still execute in the constructing region.
- * @type {(root: Value | Block, target: LoopTarget) => boolean}
+ * An optional kind distinguishes an invocation backedge from a normal break.
+ * @type {(root: Value | Block, target: LoopTarget, kind?: 'break' | 'continue') => boolean}
  */
-export const hasLoopTransfer = (root, target) => {
+export const hasLoopTransfer = (root, target, kind = undefined) => {
     /** @type {Link<Value | Block> | null} */
     let work = { first: root, tail: null }
     while (work !== null) {
@@ -115,10 +119,11 @@ export const hasLoopTransfer = (root, target) => {
                 : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
         } else {
             const exit = node.exit
-            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target) { return true }
+            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target && (kind === undefined || exit[0] === kind)) { return true }
             children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
                 : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit)]
+                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit),
+                ...exit[0] === 'loop' ? [exit[1].body] : []]
         }
         work = children.reduceRight((tail, first) => ({ first, tail }), work)
     }

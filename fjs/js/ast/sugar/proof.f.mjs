@@ -33,6 +33,21 @@ const fn = source => {
 }
 
 export const proof = {
+    patternDefaultsSelectOnceBeforeNestedReads: () => {
+        const cases = /** @type {const} */ ([
+            ['const {a=5,b=a+1}={};export default [a,b];', [5, 6]],
+            ['const {a=5,b=6}={a:null,b:0};export default [a,b];', [null, 0]],
+            ['const [{a=5}={},[b=6]=[]]=[];export default [a,b];', [5, 6]],
+            ['const {a:nullValue=null.x}={a:7};export default nullValue;', 7],
+            ['let value=0;const {a=(()=>{value+=1;return value;})(),b=value}={};export default [a,b,value];', [1, 1, 1]],
+            ['let value=0;const {a=(()=>{value+=1;return value;})(),b=value}={a:7};export default [a,b,value];', [7, 0, 0]],
+        ])
+        for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+        const normalized = fn('export default ({a=5})=>a;')
+        assertEq(normalized.parameters.length, 1)
+        assertEq(normalized.body.statements.filter(statement => statement[0] === 'define' && statement[2] instanceof Array && statement[2][0] === '.' && statement[2][2] === 'a').length, 1)
+        assertError(memo(assertOk(analysis(graph('const {a=null.x}={};export default 0;'))))({ args: [] }))
+    },
     forUpdatesRunAtNormalCompletionAndOwningContinues: () => {
         const cases = /** @type {const} */ ([
             ['let sum=0;for(let i=0;i<4;i+=1){if(i===1){continue;}sum+=i;}export default sum;', 5],
@@ -115,17 +130,39 @@ export const proof = {
         for (const body of ['', 'continue;']) {
             // Inspect deliberate divergence; never execute either function.
             const normalized = fn(`export default ()=>{while(true){${body}}};`)
-            assertEq(normalized.body.statements.length, 1)
-            const loop = normalized.body.statements[0]
+            assertEq(normalized.body.statements.length, 0)
+            const loop = normalized.body.exit
             assert(loop[0] === 'loop')
             assertEq(loop[1].parameters.length, 0)
             assertEq(loop[1].results.length, 0)
             assertEq(loop[1].body.statements.length, 0)
             assert(loop[1].body.exit[0] === 'continue')
             assertEq(loop[1].body.exit[1], loop[1].target)
-            // FAST requires an exit record even after a non-completing loop.
-            // The unreachable guard is not an implicit returned undefined.
-            assertStructurallySame(normalized.body.exit, ['throw', 'a terminal loop completed normally'])
+            assertEq(freeLoopBindings(loop[1]).length, 0)
+            assert(!assertOk(analysis(graph(`export default ()=>{while(true){${body}}};`))).nodes.some(node => node[0] === 'throw'))
+        }
+    },
+    terminalLoopKeepsItsFunctionResultAndBranchContinuation: () => {
+        const source = /** @type {const} */ ('export default x=>{while(true){let y=0;if(x){if(x<0){return 2;}y=1;}return x*x+y;}};')
+        const normalized = fn(source)
+        const loop = normalized.body.exit
+        assert(loop[0] === 'loop')
+        assertEq(normalized.body.statements.length, 0)
+        assertEq(loop[1].parameters.length, 0)
+        assertEq(loop[1].results.length, 0)
+        const returned = loop[1].body.exit
+        assert(returned[0] === 'return')
+        assertEq(returned[1], normalized.target)
+        const branch = loop[1].body.statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        assertEq(branch[1].length, 1)
+        const early = branch[3].statements.find(statement => statement[0] === 'if')
+        assert(early !== undefined && early[0] === 'if')
+        assert(early[3].exit[0] === 'return')
+        assertEq(early[3].exit[1], normalized.target)
+        assert(!assertOk(analysis(graph(source))).nodes.some(node => node[0] === 'throw'))
+        for (const [value, expected] of [[0, 0], [2, 5], [-2, 2]]) {
+            assertStructurallySame(result(`const fn=${source.slice('export default '.length, -1)};export default fn(${value});`), { default: expected })
         }
     },
     terminalLoopReturnsKeepTheirOwningFunction: () => {
@@ -137,9 +174,13 @@ export const proof = {
             ['export default (()=>{if(true){while(true){return 5;}}return 9;})();', 5],
             ['export default (()=>{switch(1){case 1:{while(true){return 6;}}default:{return 9;}}})();', 6],
             ['export default (()=>{while(true){const inner=()=>{while(true){return 11;}};return inner();}})();', 11],
+            ['export default ((...args)=>{while(true){return args;}})(1,2,3);', [1, 2, 3]],
+            ['const value=[7];export default (()=>{while(true){return value;}})();', [7]],
+            ['export default (n=>{const alias=n;while(true){return alias;}})(7);', 7],
         ])
         for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
         assertError(memo(assertOk(analysis(graph('export default (()=>{while(true){throw "terminal failure";}})();'))))({ args: [] }))
+        assertEq(assertOk(analysis(graph('export default ()=>{while(true){throw "terminal failure";}};'))).nodes.filter(node => node[0] === 'throw').length, 1)
     },
     terminalLoopRegionsPreserveExpressionBlockUpdates: () => {
         const cases = /** @type {const} */ ([
@@ -148,6 +189,11 @@ export const proof = {
             ['export default (()=>{let n=0;while(true){switch((()=>{n+=1;return n;})()){case 1:{continue;}default:{return n;}}}})();', 2],
         ])
         for (const [source, expected] of cases) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    terminalSwitchLogicalLabelsKeepTheirSelectedValue: () => {
+        for (const label of ['true&&1', 'false||1', 'null??1']) {
+            assertStructurallySame(result(`export default (()=>{while(true){switch(1){case ${label}:{return 7;}default:{return 9;}}}})();`), { default: 7 })
+        }
     },
     switchBreaksMergeStateAndResumeTheirLoop: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
@@ -233,10 +279,10 @@ export const proof = {
         const normalized = fn('export default ()=>{while(true){switch(1){case 1:{return 7;}default:{throw 8;}}const skipped=null.x;}return 0;};')
         const loop = normalized.body.statements[0]
         assert(loop[0] === 'loop')
-        assertEq(loop[1].body.statements.length, 2)
+        assertEq(loop[1].body.statements.length, 1)
         assertEq(loop[1].body.statements[0][0], 'define')
-        assertEq(loop[1].body.statements[1][0], 'loop')
-        assertStructurallySame(loop[1].body.exit, ['continue', loop[1].target, []])
+        assert(loop[1].body.exit[0] === 'loop')
+        assertEq(loop[1].body.exit[1].results.length, 0)
     },
     switchResultsKeepSnapshotsAndSharedAliases: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
@@ -630,6 +676,117 @@ export const proof = {
             ['export default (()=>{let x=0;let y=6;while((()=>{const pair=[x,y];return pair[0]<pair[1];})()){x=x+1;y=y-1;}return [x,y];})();', [3, 3]],
             ['export default (()=>{let x=0;let y=1;while(x<3){let local=1;local=local+1;x=x+1;y=y+local;}return [x,y];})();', [3, 7]],
         ])) { assertStructurallySame(result(source), { default: expected }, source) }
+    },
+    partlyReturningConditionalKeepsOneZeroInputContinuation: () => {
+        const normalized = fn('export default (a,f,c)=>{if(a){const x=f();if(x.a()){return x.b();}}return c();};')
+        const branch = normalized.body.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[1].length, 0)
+        assertEq(branch[3].statements.length, 2)
+        const reached = branch[3].statements[0]
+        assert(reached[0] === 'define')
+        assertStructurallySame(reached[2], ['()', ['ref', normalized.parameters[1]], []])
+        const returning = branch[3].statements[1]
+        assert(returning[0] === 'if')
+        assertEq(returning[1].length, 0)
+        assert(returning[3].exit[0] === 'return')
+        assertEq(returning[3].exit[1], normalized.target)
+        assertStructurallySame(returning[4].exit, ['yield', []])
+        assertEq(branch[4].statements.length, 0)
+        // Neither selected prefix contains c(): the one following call stays
+        // at the owning function's exit, outside both conditional regions.
+        assertStructurallySame(normalized.body.exit,
+            ['return', normalized.target, ['()', ['ref', normalized.parameters[2]], []]])
+    },
+    partlyReturningConditionalJoinsOnlyNormalOuterVersions: () => {
+        const normalized = fn('export default (a,m,f,g)=>{if(a){const x=f();m=x.a;if(x.b){return x.c;}}return g(m);};')
+        const branch = normalized.body.statements[0]
+        assert(branch[0] === 'if')
+        assertEq(branch[1].length, 1)
+        assertEq(branch[3].statements.length, 3)
+        const reached = branch[3].statements[0]
+        const assigned = branch[3].statements[1]
+        const returning = branch[3].statements[2]
+        assert(reached[0] === 'define' && assigned[0] === 'define' && returning[0] === 'if')
+        assertStructurallySame(reached[2], ['()', ['ref', normalized.parameters[2]], []])
+        assertStructurallySame(assigned[2], ['.', ['ref', reached[1]], 'a'])
+        assertEq(assigned[3], 'required')
+        assertStructurallySame(returning[3].exit,
+            ['return', normalized.target, ['.', ['ref', reached[1]], 'c']])
+        assertStructurallySame(returning[4].exit, ['yield', []])
+        assertStructurallySame(branch[3].exit, ['yield', [['ref', assigned[1]]]])
+        assertStructurallySame(branch[4].exit, ['yield', [['ref', normalized.parameters[1]]]])
+        assertStructurallySame(normalized.body.exit,
+            ['return', normalized.target, ['()', ['ref', normalized.parameters[3]], [['ref', branch[1][0]]]]])
+    },
+    immediateMixedReturnKeepsItsOwnInvocation: () => {
+        const normalized = fn('export default selected=>{const r=(()=>{if(selected){return 7;}else{const local=8;}return 9;})();return [r,r];};')
+        const established = normalized.body.statements[0]
+        assert(established[0] === 'define')
+        const called = established[2]
+        assert(called instanceof Array && called[0] === '()')
+        const callee = called[1]
+        assert(callee instanceof Array && callee[0] === 'function')
+        assert(callee[1].target !== normalized.target)
+        const branch = callee[1].body.statements[0]
+        assert(branch[0] === 'if')
+        assertStructurallySame(branch[3].exit, ['return', callee[1].target, 7])
+        assertStructurallySame(callee[1].body.exit, ['return', callee[1].target, 9])
+        assertStructurallySame(normalized.body.exit,
+            ['return', normalized.target, ['array', [['ref', established[1]], ['ref', established[1]]]]])
+    },
+    mixedArmSwitchReturnsIntroduceNoFailure: () => {
+        for (const [selected, expected] of /** @type {const} */ ([
+            ['switch(tag){case 1:{return 7;}default:{return 9;}}', [15, 7, 9]],
+            ['switch(tag){case 1:{return 7;}}return 14;', [15, 7, 14]],
+            ['switch((()=>{n+=1;return tag;})()){case 1:{return n+7;}default:{return n+9;}}', [15, 8, 10]],
+            ['switch(tag){case (()=>{n+=1;return 1;})():{return n+7;}default:{return n+9;}}', [15, 8, 10]],
+        ])) {
+            const value = `(b,tag)=>{let n=0;if(b){${selected}}else{n=4;}return n+11;}`
+            const source = `export default ${value};`
+            const normalized = fn(source)
+            const branch = normalized.body.statements.find(statement => statement[0] === 'if')
+            assert(branch !== undefined && branch[0] === 'if')
+            assertEq(branch[1].length, 1)
+            assert(branch[3].exit[0] === 'loop')
+            assertEq(branch[3].exit[1].results.length, 0)
+            let current = graph(source)
+            for (let round = 0; round < 2; round += 1) {
+                assert(!assertOk(analysis(current)).nodes.some(node => node[0] === 'throw'))
+                current = graph(assertOk(tryModuleStringify(current)))
+            }
+            assert(!assertOk(analysis(current)).nodes.some(node => node[0] === 'throw'))
+            assertStructurallySame(result(`const f=${value};export default [f(false,1),f(true,1),f(true,2)];`), { default: expected })
+        }
+    },
+    ordinaryConditionalJoinsOneOuterVersionWithoutExportingLocals: () => {
+        const normalized = fn('export default (selected,initial)=>{let value=initial;if(selected){let local=initial;local=[local];value=local;}return [value,value];};')
+        const branch = normalized.body.statements.find(statement => statement[0] === 'if')
+        assert(branch !== undefined && branch[0] === 'if')
+        // The branch's mutable local stays private. Only value crosses the join.
+        assertEq(branch[1].length, 1)
+        assert(branch[3].exit[0] === 'yield' && branch[4].exit[0] === 'yield')
+        assertEq(branch[3].exit[1].length, 1)
+        const incoming = normalized.body.statements[0]
+        assert(incoming[0] === 'define')
+        assertStructurallySame(incoming[2], ['ref', normalized.parameters[1]])
+        assertStructurallySame(branch[4].exit[1], [['ref', incoming[1]]])
+        const returned = normalized.body.exit
+        assert(returned[0] === 'return' && returned[1] === normalized.target)
+        assertStructurallySame(returned[2], ['array', [['ref', branch[1][0]], ['ref', branch[1][0]]]])
+    },
+    ordinaryConditionalTestsPassTheirUpdatedVersionToEitherArm: () => {
+        for (const [selected, expected] of /** @type {const} */ ([[true, 3], [false, 5]])) {
+            assertStructurallySame(result(`export default (selected=>{let value=0;if((()=>{value+=1;return selected;})()){value+=2;}else{value+=4;}return value;})(${selected});`), { default: expected })
+        }
+        assertStructurallySame(result('export default (()=>{let value=0;if((()=>{value+=1;return false;})()){value+=2;}return value;})();'), { default: 1 })
+    },
+    ordinaryConditionalKeepsSelectedAndOverwrittenRequiredWork: () => {
+        for (const work of ['const required=null.x;value=9;', 'value=null.x;value=9;']) {
+            const source = `const f=selected=>{let value=0;if(selected){${work}}else{value=7;}return value;};`
+            assertStructurallySame(result(`${source}export default f(false);`), { default: 7 })
+            assertError(memo(assertOk(analysis(graph(`${source}export default f(true);`))))({ args: [] }))
+        }
     },
     conditionalBodyResultsMergeOnlyOuterWrites: () => {
         /** @type {string} */

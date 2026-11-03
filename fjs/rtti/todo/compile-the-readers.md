@@ -31,7 +31,7 @@ five things, so neither module can be renamed `.f.js`:
   ([`occurrences-without-map`](../../types/array/todo/occurrences-without-map.md)).
 - **`types/object`**, imported for `isObject`, `at`, `definedEntries` and
   `definedValues`, destructures `Object` and still imports the unconverted
-  `types/array` and `list/iterable` modules. Its
+  `types/array` module. Its
   [`ordered_map`](../../types/ordered_map/module.f.js),
   [`btree`](../../types/btree/module.f.js) and
   [`list`](../../types/list/module.f.js) dependencies are now compiler-compatible.

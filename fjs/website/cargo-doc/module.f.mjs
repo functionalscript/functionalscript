@@ -23,7 +23,8 @@
 
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
-import { footer, header, pageTitle, shell } from '../page/module.f.mjs'
+import { footer, header, pageTitle, shell, siteDescription, siteMeta } from '../page/module.f.mjs'
+import { origin } from '../origin/module.f.js'
 import { faviconLinks } from '../style/module.f.js'
 
 /**
@@ -64,7 +65,7 @@ export const cargoDocHref = `/${cargoDocDir}/index.html`
  *
  * @type {(build: Build) => (crates: readonly string[]) => string}
  */
-export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'))(['main',
+export const cargoDocPage = build => crates => shell(build)({ href: cargoDocHref, title: pageTitle('Rust API'), description: siteDescription })(['main',
     ['h1', 'Rust API'],
     ['p', 'The workspace’s crates, documented by ', ['code', 'cargo doc'], '.'],
     ['ul', ...crates.map(crate => /** @type {Element} */ (['li', ['a', { href: crateHref(crate) }, crate]]))],
@@ -79,11 +80,16 @@ export const cargoDocPage = build => crates => shell(build)(pageTitle('Rust API'
  */
 export const rustdocHeaderPath = '_rustdoc-header.html'
 
-/** Where `rustdoc-bars` writes the favicon links for rustdoc, `--html-in-header`. @type {string} */
+/** Where `rustdoc-bars` writes the favicon links and card tags for rustdoc, `--html-in-header`. @type {string} */
 export const rustdocHeadPath = '_rustdoc-head.html'
 
-/** The site's shared favicon links, serialized for rustdoc's `<head>`. @type {string} */
-export const rustdocHead = faviconLinks.map(e => concat(element(e))).join('')
+/**
+ * What rustdoc adds to every page's `<head>`: the site's favicon links and
+ * the card tags every page shares ({@link siteMeta}), serialized.
+ *
+ * @type {(build: Build) => string}
+ */
+export const rustdocHead = build => [...faviconLinks, ...siteMeta(origin(build.branch))].map(e => concat(element(e))).join('')
 
 /** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
 export const rustdocFooterPath = '_rustdoc-footer.html'

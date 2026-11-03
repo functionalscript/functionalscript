@@ -13,6 +13,31 @@ already contain the corrected break result and initial invocation. Case 10
 adds a conditional loop. Implicit returns and source case fall-through remain
 outside admission.
 
+## Approved control-flow contract
+
+The task owner approved this contract and the ordinary-function conditional
+increments; the
+[proposal and approval](../todo/compiler-vocabulary-and-modularization.md#first-approved-admission-boundary)
+and [partly returning boundary](../todo/compiler-vocabulary-and-modularization.md#partly-returning-admission-boundary)
+record their scope.
+
+- Explicit source returns remain required. Ordinary-source cases 4, 6
+  and 7 admit at most one written outer binding; supplied FAST and source
+  readback have separate gates.
+- Normal region completion supplies ordered results. Return, break and continue
+  retain their resolved owner and bypass the normal join. Failure uses its
+  existing channel; nested ordinary functions own their returns.
+- The implemented non-loop join profile uses immutable versions and
+  parameterized continuations, preserving selected work, shared allocations
+  and invocation lifetimes.
+  Broader mutable storage remains an optional optimization.
+- Loop input and result signatures are independent. Continuing establishes all
+  next inputs from one old snapshot; breaking supplies the loop's results.
+- Eligible graph-route self-tail evaluations use `while`, including transfers
+  through generated helpers. Unsupported source invocation backedges are
+  refused. Direct raw FAST preparation has a separate planning boundary, as
+  recorded in the [self-tail audit](self-tail-output.md#direct-fast-preparation).
+
 ## Region inputs, results and owners
 
 The existing [FAST types](../js/ast/types.ts) provide the relevant constructs.
@@ -44,22 +69,29 @@ first failure, its payload and prior work are not language observations and
 require no diagnostic-order barriers. Graph identity has its own normalization
 domain.
 
+Some native JavaScript witnesses additionally assert a particular selected
+exception or callback trace, including the
+[deferred first-demand](serializer/value/deferred_tail_calls.proof.mjs) and
+[immutable-join](../js/ast/prepare/immutable_joins.proof.mjs) checks. Those stronger
+witness assertions help detect placement errors in the named profiles; they do
+not extend the language's failure-payload or prior-work contract.
+
 ## Audit of the reference cases
 
 The source-profile column describes current source admission, with
-the explicit-return wrappers above. In particular, an ordinary function's
-conditional branches still use the terminating-guard grammar; loop bodies
-already admit normally completing conditional branches.
+the explicit-return wrappers above. Ordinary functions admit existing
+terminating guards and conditionals with normal and owning-return paths,
+joining at most one outer binding. Loop bodies retain their broader profile.
 
 | Case | Required normalized meaning | Current source profile |
 | --- | --- | --- |
 | 1. Conditional expression | Select `a` or `b` once and supply one result. | Admitted. |
 | 2. Expression blocks | Only the selected block establishes its local `x` or `y`; its result feeds `r0`. | Admitted for these immediate-call shapes. |
 | 3. Terminating guard | True returns `f()` from `F`; false reaches the following `g()` return. | Admitted. |
-| 4. Partly returning conditional | `x` stays local. The inner return exits `F`; both normal outer paths reach one following `c()` call. | Ordinary source branch rejected; supplied FAST can express the control flow. |
+| 4. Partly returning conditional | `x` stays local. The inner return exits `F`; both normal outer paths reach one following `c()` call. | Admitted with targeted early returns and one shared normal continuation. |
 | 5. Sequential reassignment | Keep `a0`, the established `f(a0)` result, and fresh `a1`; the suffix reads their respective versions. | Admitted. |
-| 6. Conditional reassignment | Join one `a1`: true supplies `a0 + 2`, false supplies `a0`; call `f(a1)` once afterward. | Ordinary source branch rejected; joins already exist in FAST and in source loop bodies. |
-| 7. Reassignment with an early return | Only normal paths join `z1`; the inner return skips the continuation using it. | Ordinary source branch rejected; supplied FAST expresses it. |
+| 6. Conditional reassignment | Join one `a1`: true supplies `a0 + 2`, false supplies `a0`; call `f(a1)` once afterward. | Admitted with normal arms, an optional `else` and an explicit following function terminator. |
+| 7. Reassignment with an early return | Only normal paths join `z1`; the inner return skips the continuation using it. | Admitted with at most one written outer binding and an explicit following function terminator. |
 | 8. Loop with break and continue | Loop state `(a,b)` and results `(a,b)` have explicit ordered signatures. Break supplies the updated `b`. | Admitted. |
 | 9. Loop with an owning return | A break supplies loop state to the suffix; `return m(a)` leaves `F` and bypasses that suffix. | Admitted. |
 | 10. Conditional loop | Test before each reached iteration, including zero iterations; false supplies the current loop state to the suffix. | Admitted with an explicit following function terminator. |
@@ -152,14 +184,14 @@ The returning path still requires `x.a`: deleting its failure could invent a
 successful return. This does not expose the first failure. Only normal paths
 supply `m1`; the returning arm supplies no placeholder.
 
-Current source grammar rejects the outer normally completing branch. The
-supplied normalized FAST fixture now executes through both public FJS source
-and code-only output, preserving the selected `m` and owning return. This does
-not admit the original source spelling. The separate
+The original source spelling is admitted. Its branch return retains `F` as a
+targeted statement, and the normal paths join the selected `m` before one
+following call. The supplied normalized FAST fixture and the source-derived
+graph execute through public FJS source and code-only output, preserving that
+owning return. The separate
 [source-profile work](../edag/to_fast/source/loops/todo/general-source-profiles.md)
-also covers parameterized `K(z)` output; its first source output executes, but
-serializing the reparsed join again still meets a graph-validation refusal.
-These are different boundaries, not missing FAST control constructs.
+also covers parameterized `K(z)` output and serialization of its reparsed graph.
+Source admission and graph-to-source reconstruction remain separate boundaries.
 
 ### Cases 8–10: loop state, results and owning returns
 
@@ -252,53 +284,256 @@ than assuming arithmetic reassociation. The current
 corpus can build such control flow directly in FAST; automatic source
 fall-through admission and the source-to-FAST encoding are separate work.
 
+## Return ownership and immediate-call audit
+
+The two source return constructors retain the same lexical `FunctionTarget`;
+their storage positions have different normalization roles. They are not
+interchangeable input constructors. The current mapping is:
+
+| Boundary | Current owner and normalization |
+| --- | --- |
+| Parsed function | Parser [`entered`, `returned` and `closed`](parser/module.f.mjs) assign the function target. Returns inside loop regions and ordinary join arms are targeted `SourceStatement`s, including through nested guards and switches. An ordinary function's terminal result remains a `SourceExit`. |
+| Statement return | Sugar [`normalizedBlock`](../js/ast/sugar/module.f.mjs) keeps `['return', F, value]` as an abrupt exit. No following normal join consumes a result from that path. |
+| Terminal source return | Sugar `normalizedExit` produces a local one-result yield in the admitted terminal-result profile. `functionValue` restores `['return', F, value]` at the ordinary function boundary. Join-arm returns do not enter this result path. A yield in this intermediate body is not an implicit source return. |
+| Immediate function call | Sugar `leaf` eliminates an eligible zero-argument call only after checking for other owning returns and invocation bindings. It excludes the final return from that check, but still scans a terminal loop. A required invocation boundary remains a function call. |
+| Immediate call with enclosing writes | Parser `blockCall`, `closed` and `internalReturn` apply the existing invocation/capture limits. Sugar `enclosedValue` exports the expression result and changed outer binding versions on normal completion; subsequent code reads those immutable versions. |
+| Normalized FAST to EDAG | [`functionValue` and `controlTask`](../edag/from_fast/module.f.mjs) consume explicit owners. A local yield resumes the suffix; a return exits its function. Loop [completion helpers](../edag/from_fast/loop/completions/module.f.mjs) relay that owner across generated helpers. |
+| Prepared target code | Common [`prepareValue` and `exitValue`](../js/ast/prepare/module.f.mjs) hoist outward transfers into the containing flow. JavaScript's [`blockExpression`](../js/ast/serializer/module.f.mjs) may then spell a local result block as an IIFE; [Rust](../rust/serializer/module.f.mjs) can use a lexical block. These spellings do not change a source function's return target. |
+
+The normalization contract keeps this distinction at its producer boundary.
+Terminal source results may become yields only where the function return will
+be restored, or where admitted immediate-call elimination makes that result
+local. Moving a targeted statement return into that path requires an ownership
+proof; changing its array tag or storage position alone is insufficient.
+An ordinary function, including a source IIFE, owns its returns. A normalized
+value block creates no invocation, so `return F(v)` can cross it. A serializer
+must not wrap that outward transfer in a new function and thereby catch it.
+
+A switch with no normal alternative has a terminal FAST loop exit and no
+normal result signature. Its enclosing block preserves that exit instead of
+substituting an unreachable empty yield. This matters inside a one-result
+conditional: an owning return bypasses that result, rather than supplying an
+empty or placeholder value. A switch with a normal path retains its ordinary
+statement-loop results.
+
+For example, the admitted source
+`n => { const r = (() => { n = n + 1; return 10; })(); return [n, r]; }`
+returns `[3, 10]` at input `2`: the inner return finishes the immediate call,
+while the outer return reads the updated version of `n`. The
+[parser ownership proof](parser/control_flow.proof.f.mjs),
+`immediateReturnKeepsItsOwnOwnerWhileWritesEscape`, pins that distinction.
+[Binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
+and `expressionBlockAssignmentBoundaries`, cover admitted writes and retained
+invocation boundaries. [Native output proofs](serializer/value/control_flow.proof.mjs),
+`immediateWriteKeepsOneSharedAllocation` and `expressionJoinKeepsSelectedWrite`,
+check shared allocations and selected versions after output. Those write
+permissions remain; a private continuation does not authorize mutable captures.
+
+### Graph normalization boundary
+
+This audit retains the current source constructors and EDAG operations. It
+does not add a general return-constructor rewrite or another control-flow IR.
+Simple expression bodies and explicit final returns, local terminal IIFEs and
+their expression forms, and terminating guards can already produce the same
+analysis-normalized graph. That observation about those forms is not a general
+canonicalization law for arbitrary statement returns or function boundaries.
+
+The existing [graph contract](architecture.md#graph-and-output-contracts)
+continues to distinguish semantics from graph identity. Helper insertion can
+introduce function/call nodes; required anchors, shared reads and capture
+compaction have their named normalization domains. Output must parse and
+preserve successful results, required failures, sharing and invocation
+lifetimes. This audit adds no raw graph/hash equality or general graph/text
+fixed-point requirement. Explicit function returns remain required.
+
+### First immutable join profile
+
+The existing [`_controlFlowFunctions.parameterizedJoin`](../edag/from_fast/control_flow.proof.f.mjs)
+is a concrete supplied normalized FAST input to `prepareFunction`:
+
+```text
+F(selected, stop, operation):
+    z = if (selected) {
+        if (stop) { return F(42) } else { yield() }
+        yield(3)
+    } else { yield(0) }
+    return F(operation(z + 5))
+```
+
+It has one normal result, an abrupt path owned by `F`, and one shared normal
+suffix. Direct common preparation now extracts a private parameterized
+continuation instead of declaring a conditional-result slot. The routes remain
+distinct:
+
+| Input route | Current output for this corpus |
+| --- | --- |
+| `parameterizedJoin` directly through `prepareFunction` | Immutable continuation and guarded calls; no `let` or `while`. |
+| The same join through `fromFast`, `fromAnalysis` and default preparation | The canonical one-pass wrapper is recovered; an immutable continuation and guarded calls need no `let` or `while`. |
+| Public FJS source output for the same graph | Immutable continuation and guards; parser readback, execution and reserialization preserve the supplied profile. |
+| `parameterizedHelper` through either route | Immutable continuation and guarded calls; no `let` or `while`. |
+| Source `expressionJoinKeepsSelectedWrite` | An already supported immutable expression profile. |
+
+The [common join pass](../js/ast/prepare/joins/README.md) implements the direct
+one-result, non-loop profile. Default preparation also uses
+[one-pass invocation recovery](../js/ast/prepare/one_pass/README.md) to expose
+that profile after graph conversion. Its immutable continuation spelling is:
+
+```js
+export default (selected, stop, operation) => {
+    const shared = z => operation(z + 5)
+    if (selected) {
+        if (stop) { return 42 }
+        return shared(3)
+    }
+    return shared(0)
+}
+```
+
+Only the normal suffix moves into `shared`. The early return stays in `F`;
+neither a placeholder result nor a call to `shared` is introduced on that
+path. The initial profile uses required immutable definitions, no lazy definition
+or loop transfer in the extracted region, and one joined value. Operand value
+blocks and value-region conditionals retain their existing plan. Ordinary nested
+functions keep their own owners; their capture expressions are checked in the
+constructing region. Functions with a self binding retain their existing
+lowering so the new helper cannot hide an owning self-tail call or its alias.
+The following criteria govern the replacement:
+
+- Evaluate the test once, retain reached required work and skip unselected work.
+- Pass the selected result to one private continuation body. Do not duplicate
+  a call or allocation merely because its syntax is equal.
+- Capture established immutable bindings; pass branch-local results as inputs.
+  Each invocation retains its own values and allocation sharing.
+- Keep abrupt transfers under their existing owner. Introducing a helper must
+  not hide an owning self tail call; eligible self tails in any output function
+  still require common `while` lowering. This nonrecursive witness does not
+  complete the [broader self-tail audit](self-tail-output.md).
+- Preserve the function's arity and existing source admission. Have JS and Rust
+  render the common plan; do not teach each writer to rediscover the join.
+
+The existing `nested` and `parameterizedJoin`/`parameterizedHelper` fixtures
+provide the semantic backstop. Their
+[native tests](serializer/value/control_flow.proof.mjs),
+`suppliedNestedJoinKeepsNativeReturnOwnership` and
+`suppliedParameterizedContinuationsKeepNativeInputs`, cover both normal inputs,
+the bypassing return, shared allocations, fresh invocations and repeated public
+source writes. [Direct preparation proofs](../js/ast/prepare/joins/proof.f.mjs)
+and [native JavaScript checks](../js/ast/prepare/immutable_joins.proof.mjs)
+exercise the new boundary, including unsupported-profile identity, early
+returns, selected failures, required prefixes, rest/capture metadata, allocation
+sharing, fresh invocations and retained self-tail lowering. The
+[Rust fixture generator](../nanvm/fast/immutable_joins/module.f.mjs) prepares
+both the direct FAST inputs and their full `fromFast`/analysis/`fromAnalysis`
+route; its [native tests](../../nanvm/harness/tests/immutable_joins.rs) execute
+the continuation, owning return and shared captured allocations, plus a genuine
+self-tail loop. The [graph-route JavaScript proofs](../edag/to_fast/immutable_invocation.proof.mjs)
+check the same owners and allocation lifetimes, public source
+readback, and deep genuine loop/self-tail execution.
+
+The JavaScript writer omits empty alternatives, retaining the existing guard
+spelling accepted by the FJS parser. Public source output now uses the same
+one-pass recovery and immutable continuation as default preparation. Its
+[native readback proofs](serializer/value/immutable_source_joins.proof.mjs)
+check parsing, execution and reserialization of the supplied `K(z)` and nested
+`m` profiles without imposing graph/hash equality. Explicit source returns
+remain required. Recovery uses the existing invocation-root matcher and inverse
+to restore the owning returns and required entry snapshots. Source recovery
+requires every moved decision to have an empty normal alternative and a
+terminating then block; broader normal or inverted inner decisions retain their
+invocation loop. A read of the inverse's fresh
+self binding signals a backedge, so that wrapper is retained. Recovery also
+retains the original function when the immutable-join profile cannot consume
+the result, including lazy, nested-loop and hidden value-transfer regions.
+Removing the loop scope requires fresh root identities for iteration inputs
+and all lifted declarations. The direct join pass applies the same restriction
+to flattened false-arm declarations. Valid shadowing that would collide at the
+function root retains its original scoped lowering; no renaming is introduced.
+Additional result signatures, source reconstruction outside the named profiles
+and remaining genuine lazy definitions retain their existing boundaries.
+Mutable-storage optimizations remain separate work.
+
 ## Source boundaries and reconstruction gaps
-
-The [source representation](../js/ast/sugar/source.ts) stores returns in both
-`SourceStatement` and `SourceExit`. Parser `closed`/`internalReturn` and sugar
-`normalizedExit`, `functionValue` and immediate-call handling depend on that
-distinction. Statement returns stay abrupt; terminal value exits can yield
-before restoring or safely eliminating the function boundary. Specify that
-mapping explicitly: storage position must not silently change return ownership.
-
-Immediate calls retain their invocation until safe elimination. Existing
-[binding proofs](parser/bindings.proof.f.mjs), `expressionBlockAssignments`
-and `expressionBlockAssignmentBoundaries`, admit some enclosing writes and
-refuse boundary-requiring captures. This permission stays; parameterized
-continuations neither replace it nor generally authorize mutable captures.
 
 Source coordination now preserves lexically local invocation loops with normal
 joins and a shared suffix after trying the established source plans. Common
 preparation uses its existing private loop state/result storage. Nearest-loop
 ownership, value-region transfer and statement-block checks remain; so do final
-graph and genuine-lazy checks. `recursiveFunction`/`resultBlock` still provide
-their restricted terminal-value fallback for other profiles. This is a source
-output extension, with no source-admission or optimizer change.
+graph and genuine-lazy checks. These source-output profiles do not change source
+syntax admission or optimization.
 
+After retaining the established loop plans, the
+[`recursiveFunction` / `resultBlock` fallback](../edag/to_fast/source/loops/module.f.mjs)
+refuses a possible `continue` to the invocation's exact loop target before
+inverse reconstruction. Break-only and other one-pass wrappers can still become
+terminal values, preserving ordinary self calls and returned self identity.
+The [fallback proofs](../edag/to_fast/source/loops/fallback.proof.f.mjs) and
+[transfer-query proofs](../js/ast/control/proof.f.mjs) pin this boundary. The
+query traverses nested regions and evaluated captures, skipping ordinary
+function bodies. It is structural and can conservatively refuse
+an unreachable owning backedge.
+
+The [self-tail output audit](self-tail-output.md) maps current routes, native
+witnesses, source refusals and bounded shared-recipe loop planning.
 Every self tail-call evaluation must serialize as a `while` transfer, including
 in generated helpers. Existing
 [tail eligibility](../edag/to_fast/README.md#tail-call-eligibility) covers selected
-profiles; current recursive fallbacks that retain self tail calls are gaps
-against the target contract. Non-tail uses, ordinary recursive identity and
-invocation-local memo lifetimes still matter; profile extensions do not make
+profiles. The lower-level fallback witness previously reconstructed recursive
+JavaScript that overflowed at input 100,001; its raw spelling also failed FJS
+parsing. The public graph route already normalized that graph back to `while`,
+so this was not an established accepted-public-output regression. The source
+coordinator now refuses that raw input; the
+[native public-output proof](serializer/value/control_flow.proof.mjs),
+`suppliedFallbackBackedgeKeepsDeepPublicLoopsAfterReadback`, retains deep
+execution through two source generations. Direct raw FAST preparation still
+requires producers to supply planned loops. Non-tail uses, ordinary self identity
+and invocation-local memo lifetimes still matter; profile extensions do not make
 arbitrary calls loop transfers.
 
 The shared-tail, prefix, observed-rest and generated-helper fixtures now execute
 deep transfers through `while` in public source output as well as code-only
 output. Retaining a demanded-prefix graph does not admit genuine lazy FAST
 remaining in the source plan. New output profiles have no blanket graph/hash
-or fixed-point guarantee: the reparsed parameterized join is still refused with
-`a shared comma outside a scope`, while established canonical domains stay exact.
+or fixed-point guarantee. Ordinary shared sequences placed as bindings now
+reach public source output, including the reparsed parameterized join and the
+source-origin numeric terminal-loop join. Established canonical domains stay
+exact. The [independent-recipe witnesses](serializer/value/independent_tail_recipes.proof.mjs)
+also cover scalar/vector selectors, selected failures and immutable invocation
+snapshots through two public source generations. The snapshot's array and
+escaped reader remain in their creating invocation. Remaining genuine lazy FAST
+definitions are still refused.
+
+Supplied FAST can also return from its owning function during a lazy
+initializer's first demand. Memo getters transport an owning self tail call as
+evaluated arguments in a private completion, rather than invoking the owner
+recursively. Nested getters forward that completion; the owner restores the
+direct self return before invocation-loop normalization. The deferred-tail
+fixtures execute this path deeply in JavaScript and Rust. The existing
+`nestedRecipe` and `normalPayload` graphs now reach public FJS source through
+immutable first-demand result joins. Recovery processes later dependencies
+before prerequisites and may descend into their sole demanding conditional arm;
+declaration scopes and the existing ordered-demand checks remain mandatory.
+Ordinary function bodies and loop boundaries remain opaque to that descent.
+The [join proofs](../edag/to_fast/join/proof.f.mjs) pin scope and demand limits;
+the [native deferred-tail proofs](serializer/value/deferred_tail_calls.proof.mjs)
+parse, execute and reserialize both graphs through two source generations at
+100,001 transfers. Shared normal payloads keep opaque tags as data, share one
+allocation within an invocation and allocate fresh payloads in later calls.
+Skipped failing transitions stay skipped, and reached failures still fail.
+These named output profiles do not admit arbitrary lazy storage. Ordinary
+source cases 4 and 7 have their separate admission and owning-return proofs.
 
 The baseline output model uses immutable bindings and parameterized
 continuations for ordinary branches, with mutable state for `while` lowering.
 Broader use of mutable output variables is an optional future optimization;
 it is not required to represent normal joins. The host corpus's
 `expressionJoinKeepsSelectedWrite` already emits const/IIFE/conditional code
-without `let` or `while`. Other supplied result-bearing conditionals can use
-physical join slots in current common preparation; audit the actual profile.
-Replacing those slots must preserve owners, selected evaluation and observable
-sharing, while helper insertion may change the graph's shape. This baseline
+without `let` or `while`. The [first immutable join profile](#first-immutable-join-profile)
+now lowers a supplied statement conditional to a private continuation in direct
+common preparation. Default and public source preparation can recover its
+canonical graph-route wrapper too; genuine source loops and other result-bearing
+regions retain their existing plans. The private continuation preserves owners,
+selected evaluation and observable sharing, while its insertion may change the
+graph's shape. This baseline
 does not change source assignment admission or declare existing slot output
 semantically incorrect.
 
@@ -311,9 +546,11 @@ helpers.
 
 | Corpus | What it establishes |
 | --- | --- |
-| [Parser/source](parser/control_flow.proof.f.mjs) | Six groups pin ordinary-if syntax limits, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. |
+| [Parser/source](parser/control_flow.proof.f.mjs) | Pins conditional admission, recognized-but-refused switch fall-through, switch-break syntax limits, explicit function returns, normal region continuation, and immediate return ownership with enclosing writes. [Normal conditional proofs](parser/normal_if.proof.f.mjs) and [mixed-return proofs](parser/mixed_if.proof.f.mjs) cover immutable joins, exact owners and remaining admission limits. |
 | [Normalized FAST](../edag/from_fast/control_flow.proof.f.mjs) | Nine groups cover nested joins/returns, allocation sharing, parameterized continuations, current multi-state transfers, iteration snapshots, owning loop returns, switch fall-through edges/owners and conditional-loop iterations. They construct FAST independently of source admission. |
 | [JavaScript host](serializer/value/control_flow.proof.mjs) | Executes admitted reference cases, immediate writes, expression joins and deep self-tail/helper loops through code-only and FJS source outputs. Supplied nested joins, parameterized continuations, shared-tail prefixes, rest and named exports also execute through both writers; deep shared-tail transfers use `while`. |
+| [Deferred owning tails](../edag/from_fast/deferred_tail_calls.proof.f.mjs) | Directly constructed FAST covers lazy completion ownership, nested recipes, aliases, argument snapshots and memo lifetimes. [Native JavaScript](serializer/value/deferred_tail_calls.proof.mjs) and [native Rust](../../nanvm/harness/tests/deferred_owning_tail_calls.rs) execute deep transfers without recursive stack growth. JavaScript also checks `nestedRecipe` and `normalPayload` through two public source generations. |
+| [Source fallback](../edag/to_fast/source/loops/fallback.proof.f.mjs) | Retained loop plans precede the structural owning-backedge refusal. One-pass inversion preserves ordinary self calls and identity; the [native public route](serializer/value/control_flow.proof.mjs) separately preserves parser readback and deep `while` execution. |
 
 Result equality does not establish graph identity. Source parsing, graph/source
 reconstruction and native target execution remain separate gates; Rust text is

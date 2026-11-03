@@ -88,7 +88,7 @@ Two things that fell out of it, worth knowing before phase 2:
   `codePointListToString`. Wrapping one code point in a list to call the list
   version cost about half of the escape loop's time.
 - A FunctionalScript leaf is roughly 5× the host's on a serialize-heavy
-  benchmark (a 20k-key object: ~130 ms → ~700 ms end to end), which is what
+  benchmark (a 20k-key object: about 130 ms → about 700 ms end to end), which is what
   replacing a C++ builtin with an interpreted decode pipeline costs. That is
   the price of self-hosting, not a defect; if it ever becomes a real problem the
   generic fix is a faster `text/utf16` scan, not a special case in the

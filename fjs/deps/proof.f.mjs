@@ -54,6 +54,63 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0, state.stderr)
         assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
     },
+    forOfSyntaxDoesNotRequireCompilationOrExecution: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('for(const item of notDefined){throw "must not execute";}export default 0;')],
+            nested: { 'module.f.js': [utf8('export default ()=>{for(let [key,value] of missing){continue;}return 0;};')] },
+            imported: { 'module.f.mjs': [utf8('import {of} from "./absent.f.mjs";export default ()=>{for(const {value} of of){return value;}return undefined;};')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stderr, '')
+    },
+    patternDefaultsDoNotResolveOrExecuteInitializers: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('const { value = missing() } = {}; export default value;')],
+            nested: { 'module.f.js': [utf8('export default ({ source: [value = null.x] = [] } = {}) => value;')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stderr, '')
+    },
+    constructorsDoNotRequireResolutionOrExecution: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('export default new Missing(null.x);')],
+            nested: { 'module.f.js': [utf8('const value=new absent.Constructor(...unresolved);export default value;')] },
+            imported: { 'module.f.mjs': [utf8('import Constructor from "./absent.f.js";export default new Constructor(missing());')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stderr, '')
+    },
+    numericObjectKeysDoNotExecuteTheirValues: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('export default { 0x70: unknown(), 0b11: null.x };')],
+            nested: { 'module.f.js': [utf8('import value from "./absent.f.js"; const { 0: picked = missing() } = value; export default picked;')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stderr, '')
+    },
+    singleQuotedEscapesDoNotResolveImportsOrExecuteValues: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8("export default {'\\x61': unknown('\\v')};")],
+            nested: { 'module.f.js': [utf8("import value from './missing\\x2ef\\x2ejs'; export default [value,'\\x41'];")] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stderr, '')
+    },
+    omittedLetInitializersNeedNoResolutionOrExecution: () => {
+        const [state, result] = execute({
+            'module.f.mjs': [utf8('let value;export default missing(value);')],
+            nested: { 'module.f.js': [utf8('export default ()=>{let value;return value;};')] },
+            loop: { 'module.f.mjs': [utf8('for(let value;unknown(value);value=missing){}export default 0;')] },
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stderr, '')
+    },
     failuresContinue: () => {
         const [state, result] = execute({
             invalid: { 'module.f.mjs': [utf8('export default ;')] },

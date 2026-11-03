@@ -71,6 +71,8 @@ export type Statement =
 /** A prepared block normally finishes with no further values to distribute. */
 export type Exit =
     | readonly ['yield', readonly Value[]]
+    /** A terminal loop has no normal successor or result storage. */
+    | readonly ['loop', LoopTarget, Block]
     | readonly ['continue' | 'break', LoopTarget]
     | readonly ['return', FunctionTarget, Value]
     | readonly ['throw', Value]

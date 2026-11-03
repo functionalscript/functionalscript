@@ -1,6 +1,6 @@
 ## Design Principles of FunctionalScript
 
-In versions 0.*, FunctionalScript (FJS) is shaped as a strict subset of ECMAScript (JS).
+In versions `0.*`, FunctionalScript (FJS) is shaped as a strict subset of ECMAScript (JS).
 FJS prefers simplicity and safety to ease-of-use and extensibility.
 That leads to a conclusion that many features of JS are not supported in FJS.
 
@@ -21,7 +21,7 @@ by reference FJS implementation.
 To officially discourage such code fragments, we plan to implement an official FJS linter
 (akin to Rust's clippy) accompanied with documentation on FJS's official guidelines.
 
-In its core, FJS 0.* is purely functional language that preserves only certain OOP-oriented
+In its core, FJS `0.*` is purely functional language that preserves only certain OOP-oriented
 elements of JS,
 while faithfully implementing JS features that don't contradict FJS's design principles
 (discussed in this document).

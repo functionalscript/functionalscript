@@ -33,7 +33,7 @@ A **required status check**: a workflow on `pull_request` with types
 event payload and fails unless
 
 - the title matches `<topic>: <short description>` — or `Release X.Y.Z` for a
-  release — within 72 characters including the ` (#NNN)` GitHub appends, with no
+  release — within 72 characters including the space and `(#NNN)` GitHub appends, with no
   `(#NNN)` written by the author, and
 - a `Changelog:` section, **when present**, is the last section of the body
   before an optional trailer block (`Co-Authored-By:`, generated-with lines,

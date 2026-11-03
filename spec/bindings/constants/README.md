@@ -11,6 +11,7 @@ export default { "dev": server, "prod": server };
 A `const` statement names a value so that it can be *used more than once*. It
 is what makes a module denote a **graph** rather than a tree, and it is the
 main thing FunctionalScript data has that JSON data does not.
+A `const` declaration always requires an initializer.
 
 JSON can only represent a tree, so a value used twice is written twice. Two
 copies are not one shared value: they take twice the space, they drift apart

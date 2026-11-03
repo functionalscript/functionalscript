@@ -8,6 +8,7 @@ import type { Write } from '../../../effects/common/types.ts'
 import type { WasmInstance } from '../../../effects/browser/types.ts'
 import type { Effect } from '../../../effects/types.ts'
 import type { Result } from '../../../types/result/types.ts'
+import type { Marked } from '../../../text/marked/types.ts'
 
 /**
  * Where a sample is: the name it is known by, which is also its module in
@@ -86,8 +87,8 @@ export type Runs = {
 
 export type State = {
     readonly source: Loaded<string>
-    readonly rust: Loaded<string>
-    readonly wat: Loaded<string>
+    readonly rust: Loaded<Marked>
+    readonly wat: Loaded<Marked>
     readonly wasm: Loaded<WasmInstance>
     readonly runs: Runs | null
 }

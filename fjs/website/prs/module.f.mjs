@@ -14,7 +14,7 @@
  */
 
 import { array, boolean, number, open, or, string } from '../../rtti/module.f.mjs'
-import { pageTitle, repository, shell } from '../page/module.f.mjs'
+import { pageHref, pageTitle, prsDir, repository, shell, siteDescription } from '../page/module.f.mjs'
 
 /**
  * Only the fields the page reads, open at every object boundary so additional
@@ -106,7 +106,7 @@ export const row = ({ number: prNumber, user, draft }, checks) => ['tr',
  *
  * @type {(build: Build) => string}
  */
-export const prsPage = build => shell(build)(pageTitle('Pull requests'))(['main', { 'data-prs': '' },
+export const prsPage = build => shell(build)({ href: pageHref(prsDir), title: pageTitle('Pull requests'), description: siteDescription })(['main', { 'data-prs': '' },
     ['h1', 'Pull requests'],
     ['p', ['a', { href: `${repository}/pulls` }, 'View pull requests on GitHub']],
     ['div', { 'data-github-auth': '' },

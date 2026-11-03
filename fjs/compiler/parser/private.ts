@@ -8,13 +8,13 @@ import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { BindingEvent, BindingId, FunctionTarget, LoopTarget, Item, Entry, Key, Step, _Access, _Call, _Conditional, _Unary, _InstanceOf, _In, _Comma, _Array, _Object } from '../../js/ast/types.ts'
-import type { SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
+import type { ExpansionPlan, SourceValue, SourceParameter, SourceStatement, SourceBlock, SourceCase, _SourceBinary } from '../../js/ast/sugar/source.ts'
 import type { PatternPlan } from '../../js/ast/sugar/pattern/types.ts'
 import type { StaticId, IntrinsicId } from '../../edag/types.ts'
 import type { BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
 import type { BindingOrigin, ParseError } from './types.ts'
-import type { BindingElement, BindingProperty, BindingTarget, Block, Chain, Container, For, If, Item as SyntaxItem, Key as SyntaxKey, LoopBlock, LoopSwitch, Node, Switch, While } from './syntax/types.ts'
+import type { BindingElement, BindingProperty, BindingTarget, BlockEnd, BlockStatement, Chain, Container, For, If, Item as SyntaxItem, Key as SyntaxKey, LoopBlock, LoopSwitch, Node, NormalIf, Switch, While } from './syntax/types.ts'
 
 export type ValueItem = Item<SourceValue>
 export type ValueEntry = Entry<SourceValue>
@@ -95,11 +95,32 @@ export type _Bound = {
     readonly initialized: readonly BindingId[]
 }
 export type _LateFrame = { readonly late: readonly _Late[]; readonly index: number; readonly body: Node }
+/** A pattern's reads resolve defaults and introduce their original bindings in order. */
+export type _PatternFrame = {
+    readonly pattern: _Plan
+    readonly index: number
+    readonly reads: readonly ExpansionPlan['reads'][number][]
+    readonly kind: _DeclarationKind
+    readonly continuation:
+        | { readonly body: _BodyFrame; readonly value: SourceValue }
+        | { readonly loop: _LoopBodyFrame; readonly value: SourceValue }
+        | { readonly parameter: _LateFrame; readonly value: SourceParameter['default'] }
+        | { readonly module: SourceValue }
+}
 /** What declares a name: a `const`, a `let` or a parameter list — the two variables' kinds, and the one an assignment refuses. */
 export type _DeclarationKind = 'const' | 'let' | 'parameter'
 /** The statement being read: a declaration's plan, or an assignment's resolved target. */
 export type _Declaring = { readonly plan: _Plan | null; readonly assigned: BindingId | null }
-export type _BodyFrame = _Counted<SourceStatement> & _Declaring & { readonly statements: Block[1]; readonly first: number }
+export type _BodyFrame = _Counted<SourceStatement> & _Declaring & {
+    readonly statements: readonly (BlockStatement | BlockEnd)[]
+    readonly first: number
+    /** A final loop candidate may complete normally in a conditional arm. */
+    readonly branch?: boolean
+    /** A lexical arm's return exits its owning invocation, not the arm. */
+    readonly targetedReturn?: boolean
+    /** Switch admission retains only events from its own discriminant onward. */
+    readonly switchFirstEvent?: number
+}
 export type _LoopFrame = { readonly loop: While | For; readonly target: LoopTarget; readonly body: _BodyFrame | _LoopBodyFrame | null; readonly condition: readonly [SourceValue] | null; readonly step: SourceBlock | null; readonly terminal: boolean }
 /** The initializer's lexical scope surrounds the condition, step and body only. */
 export type _ForFrame = { readonly for: For; readonly body: _BodyFrame | _LoopBodyFrame | null; readonly initial: readonly SourceStatement[] | null; readonly terminal: boolean }
@@ -110,8 +131,17 @@ export type _LoopGuardFrame = {
     readonly otherwise: LoopBlock | null
     readonly then: SourceBlock | null
 }
-export type _GuardFrame = { readonly guard: If; readonly body: _BodyFrame; readonly condition: SourceValue; readonly then: SourceBlock | null }
-export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
+export type _GuardFrame = { readonly guard: If | true; readonly body: _BodyFrame; readonly condition: SourceValue; readonly then: SourceBlock | null }
+/** Resolve both lexical arms before checking the ordinary normal-join profile. */
+export type _NormalIfFrame = {
+    readonly normalIf: NormalIf
+    readonly body: _BodyFrame
+    readonly condition: SourceValue
+    readonly then: SourceBlock | null
+    readonly firstEvent: number
+    readonly firstOrigin: number
+}
+export type _SwitchFrame = { readonly switch: Switch; readonly body: _BodyFrame; readonly discriminant: SourceValue; readonly target: LoopTarget; readonly firstEvent: number; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 export type _LoopSwitchFrame = { readonly loopSwitch: LoopSwitch; readonly body: _LoopBodyFrame; readonly target: LoopTarget; readonly discriminant: readonly [SourceValue] | null; readonly index: number; readonly label: number; readonly labels: readonly SourceValue[]; readonly arms: List<SourceCase> }
 /** A possible normal path and the shared continuation each nested switch break reaches. */
 export type _CasePath = { readonly statements: readonly SourceStatement[]; readonly index: number; readonly next: _CasePath | null; readonly breaks: readonly (readonly [LoopTarget, _CasePath])[] }
@@ -123,7 +153,7 @@ export type _BinaryLeftFrame = { readonly tag: BinaryTag; readonly right: Node }
 export type _BinaryRightFrame = { readonly tag: BinaryTag; readonly left: SourceValue }
 export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: readonly ['?:', Node, Node, Node] }
 export type _CommaFrame = _Counted<SourceValue> & { readonly comma: readonly Node[] }
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _BodyFrame | _GuardFrame | _SwitchFrame | _LoopFrame | _ForFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _PatternFrame | _BodyFrame | _GuardFrame | _NormalIfFrame | _SwitchFrame | _LoopFrame | _ForFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]

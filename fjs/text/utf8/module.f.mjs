@@ -193,7 +193,7 @@ const codePointToUtf8 = input => {
         if ((input & errorLead4ContFlag) !== 0) {
             return seqLead4Cont(input)
         }
-        if ((input & errorByteFlag) !== 0) return [input & 0b1111_1111]
+        if ((input & errorByteFlag) !== 0) { return [input & 0b1111_1111] }
     }
     return [errorMask]
 }
@@ -217,27 +217,22 @@ export const fromCodePointList = flatMap(
  * @returns {CodePoint} An error-tagged code point derived from the invalid UTF-8 state.
  */
 export const utf8StateToError = state => {
-    let x
     switch (state.length) {
         case 1: {
-            [x] = state
-            break
+            const [x] = state
+            return x | errorMask
         }
         case 2: {
             const [s0] = state
-            x = s0 < lead4Tag
+            const x = s0 < lead4Tag
                 ? lead3Payload(state) + errorLead3ContFlag
                 : lead4Payload(state) + errorLead4ContFlag
-            break
+            return x | errorMask
         }
-        case 3: {
-            x = lead4Payload(state) + errorLead4Cont2Flag
-            break
+        default: {
+            return (lead4Payload(state) + errorLead4Cont2Flag) | errorMask
         }
-        //default:
-        //    throw 'invalid state'
     }
-    return x | errorMask
 }
 
 /**
@@ -264,35 +259,30 @@ export const utf8ByteToCodePointOp = (byte, state) => {
     if (!isByte(byte)) {
         return [[errorMask], state]
     }
-    if (state === null) return restartUtf8([])(byte)
+    if (state === null) { return restartUtf8([])(byte) }
     if (byte >= contTag && byte < lead2Tag) {
-        switch (state.length) {
-            case 1: {
-                const [s0] = state
-                if (s0 < lead3Tag) {
-                    return [[lead2Payload([s0, byte])], null]
-                }
-                if (s0 < 0b1111_1000) {
-                    // Reject overlong 3-/4-byte encodings: after lead `E0` the
-                    // first continuation must be >= 0xA0, after lead `F0` it
-                    // must be >= 0x90 (Unicode Table 3-7).
-                    const overlong = s0 === lead3Tag && byte < 0b1010_0000 ||
-                        s0 === lead4Tag && byte < 0b1001_0000
-                    if (!overlong) return [[], [s0, byte]]
-                }
-                break
+        const { length } = state
+        if (length === 1) {
+            const [s0] = state
+            if (s0 < lead3Tag) {
+                return [[lead2Payload([s0, byte])], null]
             }
-            case 2: {
-                const [s0, s1] = state
-                if (s0 < lead4Tag) {
-                    return [[lead3Payload([s0, s1, byte])], null]
-                }
-                if (s0 < 0b1111_1000) return [[], [s0, s1, byte]]
-                break
+            if (s0 < 0b1111_1000) {
+                // Reject overlong 3-/4-byte encodings: after lead `E0` the
+                // first continuation must be >= 0xA0, after lead `F0` it
+                // must be >= 0x90 (Unicode Table 3-7).
+                const overlong = s0 === lead3Tag && byte < 0b1010_0000 ||
+                    s0 === lead4Tag && byte < 0b1001_0000
+                if (!overlong) { return [[], [s0, byte]] }
             }
-            case 3: {
-                return [[lead4Payload([...state, byte])], null]
+        } else if (length === 2) {
+            const [s0, s1] = state
+            if (s0 < lead4Tag) {
+                return [[lead3Payload([s0, s1, byte])], null]
             }
+            if (s0 < 0b1111_1000) { return [[], [s0, s1, byte]] }
+        } else {
+            return [[lead4Payload([...state, byte])], null]
         }
     }
     return restartUtf8([utf8StateToError(state)])(byte)

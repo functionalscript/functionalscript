@@ -267,7 +267,7 @@ const hasImage = spans => spans.some(span => span[0] === 'image' || (span[0] ===
  * `<li><p>text</p></li>`. A task item's checkbox is a disabled `input`
  * opening its first paragraph, and its `li` is a `task-list-item`, as
  * GitHub writes both. A table column's alignment is its cells' `align`. A
- * block quote is a `blockquote` of its blocks.
+ * block quote is a `blockquote` of its blocks, and a thematic break an `hr`.
  *
  * @type {(href: (href: string) => Result<string, string>) => (blocks: Blocks) => Result<readonly Element[], string>}
  */
@@ -283,8 +283,10 @@ export const readmeNodes = href => blocks => {
     const node = span => {
         const kind = span[0]
         if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong') { return ok(['strong', ...span[1].map(labelNode)]) }
-        if (kind === 'em') { return ok(['em', ...span[1].map(labelNode)]) }
+        if (kind === 'strong' || kind === 'em') {
+            const inner = nodes(span[1])
+            return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
+        }
         if (kind === 'image') { return imageNode(span) }
         if (kind === 'link') {
             const target = href(span[2])
@@ -367,6 +369,10 @@ export const readmeNodes = href => blocks => {
                 // `ol` takes as `start` where it is not the 1 it defaults to.
                 out = [...out, b[0] === 'list' ? ['ul', ...items]
                     : b[1] === 1 ? ['ol', ...items] : ['ol', { start: String(b[1]) }, ...items]]
+                continue
+            }
+            if (b[0] === 'rule') {
+                out = [...out, ['hr']]
                 continue
             }
             // A quote's paragraphs are each a `p`, whatever holds the quote.

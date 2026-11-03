@@ -37,7 +37,13 @@
   lowered form ([default parameters](../../todo/3125-default-parameters.md)).
 - `f.length` is the number of fixed parameters, including unused ones and
   counting a pattern as one, before the first parameter with a default,
-  as JavaScript's is: `((a, b = 1, c) => 0).length` is `1`. Rest
+  as JavaScript's is: `((a, b = 1, c) => 0).length` is `1`. A default
+  inside a destructuring pattern does not end the count:
+  `(({ a = 5 }) => a).length` is `1`, while a default on the whole
+  parameter, `(({ a = 5 } = {}) => a).length`, is `0`. The first form
+  still throws for an omitted or `null` argument; the second permits an
+  omitted argument and still throws for `null`
+  ([destructuring](../../bindings/destructuring/README.md)). Rest
   adds zero. A function has **at most 16** fixed parameters, every one
   written counted, defaulted or not: a 17th is a
   compile error, and an EDAG function whose `length` is above 16 is refused by

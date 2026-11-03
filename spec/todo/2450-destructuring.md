@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** wip — the design approved, and `const` and parameter
 destructuring implemented ([destructuring](../bindings/destructuring/README.md)),
-the elision included; the rest element remains
+elisions and pattern defaults included; the rest element remains
 
 ```js
 const { a, "%": [c, d] } = { a: null, "%": [true, false] };
@@ -58,8 +58,8 @@ parameter list, or against a body declaration, and the capture-shadowing
 rule are refused as they are for a plain name; `export const { a, b } = p;`
 exports `a` and `b`, and `then` is refused among them as it is alone.
 
-**Not in this stage**, each refused with an explicit message rather than
-read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)):
+**Additional forms**, with implemented increments distinguished from the
+remaining refusals:
 
 - a **rest element**, `[a, ...r]` and `{ a, ...r }`, and a pattern under
   the rest parameter, `(...[a, b]) => …`, which stops at the grammar, the
@@ -77,17 +77,17 @@ read partially ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-h
   pattern. It has landed since, its deferral having been no rule of the
   language: an elision in a pattern is harmless JavaScript
   ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
-- a **default**, `{ a = 1 }` and `[a = 1]`, deferred with default
-  parameters ([default parameters](./3125-default-parameters.md)), since
-  both lower to the same `undefined` test and are best designed once. The
-  two differ on `length`, and the follow-up must keep them apart: a
+- a **default**, `{ a = 1 }` and `[a = 1]`, originally deferred with default
+  parameters and now implemented under
+  [default parameters](./3125-default-parameters.md). Both lower to the
+  same `undefined` test. The two differ on `length`: a
   default on a parameter itself ends JavaScript's count, so
   `((a = 1) => 0).length` is `0`, while a default nested inside a
   pattern does not, so `(({ a = 1 }) => 0).length` and
   `(([a = 1]) => 0).length` are both `1` — the pattern stays one fixed
-  parameter whatever its elements default to. Neither spelling parses
-  today: `=` is no operator in a literal, so there is nothing to refuse
-  by hand;
+  parameter whatever its elements default to. The syntax reader retains the
+  default until source resolution and desugaring; binding defaults remain
+  invalid in ordinary value positions;
 - a **computed key** beyond a constant. A string or a number literal
   standing alone in the brackets, `{ ["a"]: t }` and `{ [3]: t }`, is the
   constant key an access admits in brackets, `o["a"]` and `o[3]`
@@ -225,7 +225,7 @@ by `const` and parameters.
 
 **Drawbacks.** The outputs no longer spell what the source spelled, as with
 `if`; an array pattern materializes the whole array it reads two elements
-of; and two familiar spellings — rest and defaults — are refused for now, each with a message that says so and a follow-up here.
+of; and rest elements remain refused, with a follow-up here.
 
 ### Tasks
 
@@ -243,8 +243,10 @@ of; and two familiar spellings — rest and defaults — are refused for now, ea
 - [x] Elisions, `[, b]`, the element after one taking the next index, the
       array literal's rule admitting the elision for the fold to refuse in
       a value (`array hole`).
+- [x] Pattern defaults, sharing the `undefined` test and binding-order
+      contract in [default parameters](./3125-default-parameters.md).
 - [ ] Array rest, `[a, ...r]`, as a slice of the spread array; file the
-      object rest and the defaults as follow-ups of their own.
+      object rest as a follow-up of its own.
 
 ### Related
 

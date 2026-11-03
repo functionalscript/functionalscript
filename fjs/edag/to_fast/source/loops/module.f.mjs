@@ -1,7 +1,8 @@
 /**
- * Retain loops admitted by shared source preparation and reify other canonical
- * invocation loops as recursive source. Placement and tail eligibility stay in
- * common FAST; the source adapter chooses no mutable state or target syntax.
+ * Retain loops admitted by shared source preparation and reify one-pass
+ * canonical invocation roots without introducing recursion. Other potential
+ * backedges receive an explicit source refusal. Placement and tail eligibility
+ * stay in common FAST; this adapter chooses no mutable state or target syntax.
  *
  * @module
  * @import { Block, Exit, Function as FastFunction, Loop, Statement, Value } from '../../../../js/ast/types.ts'
@@ -13,9 +14,10 @@ import { directInvocationRoot, invocationRootOf } from '../../../from_fast/loop/
 import { scalarLoopOf } from '../../../../js/ast/loop/module.f.js'
 import { branchingPlainLoopOf, continueFirstPlainLoopOf, plainLoopOf, resultBlockPlainLoopOf } from '../../../../js/ast/loop/plain/module.f.mjs'
 import { isTerminalLoop } from '../../../../js/ast/loop/terminal/module.f.js'
-import { exitValues } from '../../../../js/ast/control/module.f.mjs'
+import { exitValues, hasLoopTransfer } from '../../../../js/ast/control/module.f.mjs'
 import { mapOperator, operatorOperands } from '../../../../js/ast/module.f.mjs'
 import { bind as taskBind, call, done as taskDone, run } from '../../../../js/ast/task/module.f.js'
+import { _forwardResult } from '../../../../js/ast/results/module.f.js'
 import { error, ok } from '../../../../types/result/module.f.js'
 
 /** @type {<T>(value: T) => Task<T>} */
@@ -62,6 +64,9 @@ const localLoop = (loop, general = false) => {
             || !general && exit[0] === 'break' && exit[1] === loop.target && loop.parameters.length === 0
             || (exit[0] === 'break' || exit[0] === 'continue') && exit[1] !== target) { return false }
         pending = [...exitValues(exit).map(value => /** @type {_Scope} */ ({ kind: 'value', value, target })), ...pending]
+        if (exit[0] === 'loop') {
+            pending = [{ kind: 'block', block: exit[1].body, target: exit[1].target, value: scope.value }, ...pending]
+        }
         for (const statement of block.statements) {
             if (statement[0] === 'define') { pending = [{ kind: 'value', value: statement[2], target }, ...pending] }
             else if (statement[0] === 'block') { return false }
@@ -110,6 +115,7 @@ const recursiveFunction = fn => {
     // Keep existing source plans first. Their common one-result layout also
     // carries normal joins before a shared tail, without restoring recursion.
     if (localLoop(loop, true)) { return done(fn) }
+    if (hasLoopTransfer(loop.body, loop.target, 'continue')) { return taskDone(error('an invocation backedge outside the source loop profile')) }
     const recursive = directInvocationRoot(fn, loop)
     const aliasCount = fn.body.statements.length - 1 + loop.parameters.length
     const statements = recursive.body.statements.map((statement, index) => index < aliasCount
@@ -155,25 +161,34 @@ const valueTask = source => call(/** @type {() => Task<Value>} */ (() => {
 /** @type {(source: Statement) => Task<Statement>} */
 const statementTask = source => call(/** @type {() => Task<Statement>} */ (() => {
     if (source[0] === 'define') { return bind(valueTask(source[2]), value => done(value === source[2] ? source : ['define', source[1], value, source[3]])) }
-    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(block === source[2] ? source : ['block', source[1], block])) }
+    if (source[0] === 'block') { return bind(blockTask(source[2]), block => done(_forwardResult(block === source[2] ? source : ['block', source[1], block]))) }
     if (source[0] === 'if') {
         return bind(valueTask(source[2]), test => bind(blockTask(source[3]), then => bind(blockTask(source[4]), otherwise =>
             done(test === source[2] && then === source[3] && otherwise === source[4] ? source : ['if', source[1], test, then, otherwise]))))
     }
-    const loop = source[1]
-    return bind(each(loop.initial, valueTask), initial => bind(blockTask(loop.body), body =>
-        done(initial === loop.initial && body === loop.body ? source : ['loop', { ...loop, initial, body }])))
+    return bind(loopTask(source[1]), loop => done(loop === source[1] ? source : ['loop', loop]))
 }))
 
+/** Both statement and terminal loops keep the same entry and body transformations. @type {(loop: Loop) => Task<Loop>} */
+const loopTask = loop =>
+    bind(each(loop.initial, valueTask), initial => bind(blockTask(loop.body), body =>
+        done(initial === loop.initial && body === loop.body ? loop : { ...loop, initial, body })))
+
 /** @type {(source: Block) => Task<Block>} */
-const blockTask = source => bind(each(source.statements, statementTask), statements => bind(each(exitValues(source.exit), valueTask), values => {
+const blockTask = source => bind(each(source.statements, statementTask), statements => {
     const exit = source.exit
-    if (statements === source.statements && values.every((value, index) => value === exitValues(exit)[index])) { return done(source) }
-    const mapped = /** @type {Exit} */ (exit[0] === 'yield' ? ['yield', values]
-        : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
-            : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]])
-    return done({ statements, exit: mapped })
-}))
+    if (exit[0] === 'loop') {
+        return bind(loopTask(exit[1]), loop => done(statements === source.statements && loop === exit[1] ? source : { statements, exit: ['loop', loop] }))
+    }
+    return bind(each(exitValues(exit), valueTask), values => {
+        if (statements === source.statements && values.every((value, index) => value === exitValues(exit)[index])) { return done(source) }
+        /** @type {Exit} */
+        const mapped = exit[0] === 'yield' ? ['yield', values]
+            : exit[0] === 'break' || exit[0] === 'continue' ? [exit[0], exit[1], values]
+                : exit[0] === 'throw' ? ['throw', values[0]] : ['return', exit[1], values[0]]
+        return done({ statements, exit: mapped })
+    })
+})
 
 /** Source grammar preparation over the common placed plan. @type {(block: Block) => Result<Block, string>} */
 export const _sourceLoops = block => run(blockTask(block))

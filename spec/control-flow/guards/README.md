@@ -41,8 +41,8 @@
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](../../operators/grouping/README.md)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of statements — `const`s, call statements
-  ([call statements](../../functions/call-statements/README.md)), and guards, `if`
+  is any number of statements — declarations, assignments, call statements
+  ([call statements](../../functions/call-statements/README.md)), and `if` statements
   (below) — and then one terminating statement, a `return` or a `throw` (below), or a
   switch with a `default` ([switch](../switch/README.md)), or a
   [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop), each
@@ -126,7 +126,7 @@
   through a function that throws, as in JavaScript. The EDAG output carries
   the node, and the Rust output fails as the VM fails
   ([output](../../command-line/output.md)).
-- **`if (condition) block`** is a guard: a statement of a block body,
+- **A terminating `if (condition) block`** is a guard: a statement of a block body,
   standing where a `const` may, any number of times before the body's
   terminating statement. Its block is a block as above — any number of
   statements and then a `return`, a `throw`, a switch with a `default`
@@ -135,12 +135,10 @@
   and the statements after the guard, up to and including the
   body's own terminator, are what runs when the condition is falsy. The
   condition is any expression, evaluated where the statement stands and
-  tested as `?:` tests its condition. This is the one form: the braces are
-  required, there is no `else`, and the statement stands in a function
-  body only — each a scoping decision of a step-by-step plan rather than a
-  guarantee, the bare consequent `if (c) return v;`, a branch that does
-  not terminate and with it `else`, and a guard at module level being
-  follow-ups, each additive on top of this one. No `;` follows the `}`, as
+  tested as `?:` tests its condition. This terminating-guard form requires
+  braces and has no `else`; conditional joins and early returns are described
+  below. An unbraced consequent, `if (c) return v;`, and an `if` at module
+  level remain outside admission. No `;` follows the `}`, as
   in JavaScript: one there is the empty statement the language refuses
   ([module structure](../../modules/README.md)), and the next statement may
   share the guard's line.
@@ -184,11 +182,73 @@
   condition or in the guard's block (`capture shadowed`), since in
   JavaScript every such read would have named the later `const` before
   its declaration; the guard's block is a block of its own and may shadow
-  either. The FunctionalScript writer never
-  writes `if`: it spells the conditional, and an arm that holds a `const`
+  either. For this terminating-guard profile, the FunctionalScript writer
+  spells the conditional, and an arm that holds a `const`
   or a `throw` as the block opened at the operand (above), so the guarded
   body reads back as the same graph; the EDAG output carries the `?:`,
   and the Rust output prints it as it prints any conditional.
+
+## Normally completing conditionals
+
+An ordinary function also admits a braced `if` whose selected arm can finish
+normally, with an optional braced `else`. A path may instead return from the
+owning function. The function still has its own explicit terminator:
+
+```js
+export default (condition, f) => {
+    let a = 0;
+    if (condition) { a += 2; }
+    return f(a);
+};
+```
+
+Evaluate the condition once, then run only the selected arm. Both arms start
+from the binding values established after the test. The arms may assign at
+most one binding declared outside them; their normal results select its
+latest value for following statements. An arm that does not assign it, or
+an omitted `else`, supplies its incoming value. Following work such as `f(a)`
+runs once after that join. This uses the existing FAST branch results and
+adds no EDAG operation.
+
+Each arm has its own lexical scope. Its declarations and snapshots stay
+local, while an assignment to an outer variable establishes the version
+used after the `if`. Assignments to branch-local variables do not count as
+outer writes. The usual declaration, `const` and capture checks still apply,
+including to unselected syntax. The one-outer-binding limit counts writes on
+returning paths too.
+
+A partly returning arm bypasses the normal join and the following work. For
+example:
+
+```js
+export default (a, m, f, g) => {
+    if (a) {
+        const x = f();
+        m = x.a;
+        if (x.b) { return x.c; }
+    }
+    return g(m);
+};
+```
+
+When `a` is false, `g` receives the incoming `m`. When `a` is true and
+`x.b` is false, it receives `x.a`. When both tests are true, the function
+returns `x.c` and skips `g`. The read of `x.a` remains required even on
+that returning path. Only normal paths supply the joined binding version
+and reach the one following `g` call.
+
+Nested conditionals and loops keep their lexical scopes. Loop-local `break`
+and `continue` retain their targets; an owning return bypasses those loops
+and finishes its original function. A nested ordinary function keeps its own
+return owner and does not return from the surrounding function.
+
+This mixed-arm profile does not admit explicit throws within its arms,
+including nested guards and loops. Standalone terminating throw guards keep
+their existing admission. Selected expressions can still fail, and an
+unselected arm performs none of its work. Joins assigning several outer
+bindings remain a follow-up in
+[reachable block ends](../../todo/3210-reachable-block-end.md). The syntax AST
+already retains those broader forms even when FJS admission refuses them.
 
 ## Examples
 

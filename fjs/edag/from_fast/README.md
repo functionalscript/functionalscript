@@ -239,6 +239,31 @@ propagates the source value through nested helpers. Normal exits still carry
 the updated vector for following work; a function return needs no resumable
 vector. Standalone blocks do not invent function ownership.
 
+When construction supplies the owning function's self identity, a returning
+recipe can finish with a private `tail` completion carrying its fully evaluated
+argument array. It does not call the function from inside the getter. Nested
+getters forward that completion unchanged; the original demand restores a
+direct owning self return. Invocation-loop normalization and shared output
+recovery can then lower it to a loop without a function/getter call cycle.
+Immutable self aliases retain the same owner, while ordinary nested function
+bodies and non-tail calls retain their normal call semantics.
+
+Alias elimination also rewrites loop bodies without memo state and initializers
+that remain lazy. Those deferred initializers retain their first-demand work.
+A fresh lexical self snapshot preserves the owning function across declarations
+and loop parameters that reuse its original binding identity. Region results
+and local declarations still shadow their own incoming aliases.
+Common physical preparation also gives free self reads an unshadowed function
+binding before generating names; capture initializers keep their outer scope.
+
+Tail completion is abrupt: the interrupted cell is never marked ready, and a
+new owning invocation gets fresh cells, default setup and local declarations.
+Arguments, including spreads and ignored extras, finish before the completion
+leaves its recipe. Normal completion still installs one ready payload with its
+ordinary sharing. These packets are private control transport; source arrays
+with the same strings remain ordinary values. No outer-loop transfer is hidden
+inside a lazy value operand.
+
 ## Owning returns in value regions
 
 At source-function entry, the shared FAST [`returns`](../../js/ast/returns/module.f.mjs) pass lifts owning
@@ -355,7 +380,10 @@ root matching at each owning block boundary.
 ## Enclosing-function returns
 
 [`loop/completions`](./loop/completions/module.f.mjs) carries statement-level
-returns and outer-loop transfers through helpers. Only nonroot loops with
+returns and outer-loop transfers through helpers. A terminal loop has no normal
+completion: return-only helpers carry the owning function's result directly,
+and several outward exit kinds dispatch exhaustively over their actual cases.
+No normal fallback is added. For loops that can resume, only nonroot loops with
 escaping control gain a private completion result: `["normal", resultValues]`,
 `["return", value]`, `["break", targetId, resultValues]`, or
 `["continue", targetId, nextValues]`. The completion occupies one loop-result

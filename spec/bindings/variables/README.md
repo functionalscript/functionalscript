@@ -20,27 +20,47 @@ standing where a `const` stands, in a module, a function body, a guard's or
 a case's block and a loop's block, that binds a name or a pattern
 ([destructuring](../destructuring/README.md)) to the value of its
 initializer, evaluated as its own statement whether or not anything reads
-it ([constants](../constants/README.md)). The initializer is required, as
-a `const`'s is: JavaScript's `let x;`, the variable `undefined` until its
-first assignment, is refused by design. A variable names its value where it
-is declared, as a body names what it returns in an explicit `return`
-([bodies and guards](../../control-flow/guards/README.md)); a declaration
-that names none asks the reader to find the first assignment on every path,
-and this compiler tracks no such thing, so it admits no program that needs
-it ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-Write the value the variable starts from, `let x = undefined;` where that is
-what is meant. A later proposal may admit the declaration where every path
-assigns the variable before a read, `let x; if (c) { x = 2; } else { x = 3;
-}` as `const x = c ? 2 : 3`
-([definite assignment](../../todo/3225-definite-assignment.md)). The name is a name of the body as
-a `const`'s is: it takes the words a `const` takes, bound twice is
-`duplicate id`, read in its own initializer or before its declaration
-`const not found`, and from outside a nested function it is a capture. A
+it ([constants](../constants/README.md)). A named `let` may omit its
+initializer: `let x;` initializes `x` to the primitive `undefined` when
+execution reaches the declaration, exactly as `let x = undefined;` does.
+A `const` or a destructuring declaration still requires an initializer.
+
+A variable takes the same binding names as a `const`. A duplicate declaration
+is `duplicate id`; a read before the declaration or in its explicit initializer
+is `const not found`. A reference from a nested function is a capture. A
 parameter is a variable too, fixed or rest.
+
+## Declarations without initializers
+
+Reads after `let x;` and before a later assignment return `undefined`:
+
+```js
+export default () => {
+    let x;
+    const before = x;
+    x = 2;
+    return [before, x];
+};
+```
+
+This returns `[undefined, 2]`. No definite-assignment analysis requires an
+assignment on each path, or any later assignment at all. A conditional arm
+that leaves the variable unchanged preserves its preceding value, including
+`undefined`. The declaration supplies that primitive value directly; it does
+not resolve a source identifier named `undefined`.
+
+The declaration still establishes the binding at its written position.
+A read before it remains refused, and an explicit initializer such as
+`let x = x;` does not acquire an implicit initial value. A declaration inside
+a loop body starts again on each reached iteration. A named declaration in a
+classic `for` header may also omit its initializer; it runs once before the
+first condition test and retains the header's lexical scope.
 
 A declaration pattern initializes each of its bindings once; defaults and
 destructuring do not count as assignments. Destructuring assignment without a
 declaration, such as `[a, b] = values;`, remains a separate language extension.
+
+## Assignments and scope
 
 - **An assignment**, `x = value;`, rebinds the variable for the statements
   after it, in order, as JavaScript reads them: `let r = 0; r = r + n; r =
@@ -58,11 +78,16 @@ declaration, such as `[a, b] = values;`, remains a separate language extension.
   establishes a fresh immutable value, and a read is a read of the latest;
   no node of the graph holds a variable, so the graph outputs write the
   values: `let r = 0; r = r + n; return r;` is the graph `n + 0` is. A
-  guard's block ends in a terminator ([bodies and guards](../../control-flow/guards/README.md)),
-  so the assignments in it are that block's own, and the statements after
-  the guard read the values the body established before it — the one way
-  two branches rejoin is the loop ([loops](../../control-flow/loops/README.md)),
-  which carries the variables its condition and body read or assign.
+  terminating guard never rejoins its returning arm. A
+  [conditional join](../../control-flow/guards/README.md#normally-completing-conditionals)
+  may assign one outer binding across its arms: following statements read
+  the selected arm's latest version, or the incoming version when that arm
+  leaves it unchanged. A returning path supplies no normal result and skips
+  the following continuation, preserving its original function owner. The
+  one-outer-binding limit counts writes on returning paths too. Branch-local
+  declarations stay local. A loop
+  ([loops](../../control-flow/loops/README.md)) can carry several variables
+  read or assigned by its condition and body.
 - **A reassigned variable is captured by no function held as a value.** A
   function nested in the variable's scope — a `const`, an item, an
   argument, a value returned, a condition — may not read or assign a
@@ -215,9 +240,11 @@ the shared `isMutable` fact does not authorize an assignment to a source
 
 After source admission, normalization maps each resolved source binding to its
 current immutable FAST value. An assignment establishes a fresh value and
-updates that map. Required initializers and assignment computations remain
-required even when a later write overwrites their values. Admitted conditional
-regions pass the selected current values to their normal continuation; an arm
+updates that map. An omitted named `let` initializer enters the same path with
+primitive `undefined`; it adds no FAST or EDAG operation. Required initializers
+and assignment computations remain required even when a later write overwrites
+their values. Admitted conditional regions pass the selected current values
+to their normal continuation; an arm
 that leaves a binding unchanged supplies its incoming value, and an abrupt
 arm supplies no normal result. The [loop normalization contract](../../control-flow/loops/README.md#normalization-and-output)
 defines ordered branch and loop signatures. The shared representation belongs
@@ -230,6 +257,20 @@ in AST-to-FAST normalization, before graph construction, and introduces no
 shared mutable cell in FAST or EDAG.
 
 ## Design approval
+
+`sergey-shandar` approved named `let` declarations without initializers and
+their JavaScript-compatible `undefined` initialization in the
+[design session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+This supersedes the earlier initializer-required restriction and closes the
+former `3225-definite-assignment.md` proposal. Familiar JavaScript source can
+be parsed and lowered through the existing binding model without path
+analysis; the tradeoff is allowing the starting value to be implicit.
+
+`sergey-shandar` approved the bounded ordinary conditional joins and partly
+returning branches in the
+[design session](https://chatgpt.com/local/01a1908b-f970-713f-b7cb-e16f7ffb2006).
+The [reachable-block-end issue](../../todo/3210-reachable-block-end.md)
+records the separately approved increments and remaining admission limits.
 
 `sergey-shandar` approved assignments in expression blocks and serialization to
 that spelling in the

@@ -43,11 +43,11 @@ export type _Lexed = {
 /** A run of trivia not yet emitted: its kind so far, and where it is anchored. */
 export type _Trivia = { readonly kind: TriviaKind, readonly metadata: TokenMetadata } | null
 
-/** Where a string-literal decode is: plain text, after `\`, or inside `\uXXXX` with the digits read so far. */
+/** Where a string-literal decode is: plain text, after a backslash, or inside a Unicode or byte escape with the digits read so far. */
 export type _StringDecodeState =
     | { readonly kind: 'normal' }
     | { readonly kind: 'escape' }
-    | { readonly kind: 'unicode', readonly digits: readonly number[] }
+    | { readonly kind: 'unicode' | 'hex', readonly digits: readonly number[] }
 
 /** An active substitution, with braces nested inside it and its opening head. */
 export type _TemplateContext = {
