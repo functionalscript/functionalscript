@@ -7,7 +7,7 @@ our own linker. Nothing here is decided yet.
 
 ## Summary
 
-L0 is 26 imported functions and 4 imported constants in one import module,
+L0 is 30 imported functions and 4 imported constants in one import module,
 `fjs:l0`. A value is an opaque `i64`. Bytes cross through a memory both
 modules share. Containers are built through a builder handle and then sealed,
 values are reference counted, and a call returns a status and a value.
@@ -22,6 +22,8 @@ values are reference counted, and a call returns a status and a value.
 | | `read_units` | `(s, start, len, ptr)` |
 | | `make_bigint` | `(sign, ptr, len) -> any`, `u64` words |
 | | `sign`, `read_words` | `(b) -> i32`, `(b, start, len, ptr)` |
+| Strings | `unit`, `from_unit` | `(s, i) -> i32`, `(i32) -> any` |
+| | `concat`, `substring` | `(a, b) -> any`, `(s, start, end) -> any` |
 | Containers | `begin_array`, `begin_object` | `(len) -> builder` |
 | | `push`, `push_property` | `(builder, v)`, `(builder, key, v)` |
 | | `seal` | `(builder) -> any` |
@@ -190,6 +192,40 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 - **Pick:** the import module is `fjs:l0`, and a custom section, `fjs.abi`,
   names the version, `l0/1`. A runtime refuses a version it doesn't know.
+
+### 16. Four string functions that need no memory
+
+Added 2026-11-03 for [L1](./l1-design.md) and [L2](./l2-design.md), which
+are written in FunctionalScript.
+
+- **Pick:** `unit(s, i)` answers one UTF-16 unit, `from_unit(u)` makes a
+  one-unit string, `concat(a, b)` joins two strings and
+  `substring(s, start, end)` cuts one.
+- **Alternative:** a string builder, `begin_string` and `push_unit`, which
+  FunctionalScript source cannot name.
+- **Why:** FunctionalScript code cannot address linear memory, so without
+  these it can read and build no string. With them, `slice`, `charCodeAt`,
+  `String.fromCharCode` and string `+` all get FunctionalScript bodies.
+  Every runtime has these four natively anyway.
+
+### 17. A FunctionalScript view of L0
+
+- **Pick:** a module of intrinsics, proposed as `fjs/js/l0`, names the L0
+  functions that FunctionalScript code may call: `kind`, `length`, `item`,
+  `key`, `find`, `same` and the four string functions, plus the kind tags
+  as constants. It also has casts: `asNumber`, `asBoolean`, `asString`,
+  `asBigInt`, `asArray`, `asObject` and `asFunction`. The compiler
+  recognises each function by its body, as it does `fjs/js/intrinsic`
+  today, and lowers it to the L0 import. A cast lowers to `to_f64`,
+  `to_bool` or nothing, and gives the result a known type.
+- **Not in the view:** allocation, `dup`, `drop`, the builders and memory.
+  The compiler emits those from literals and from its ownership pass.
+- **Why:** each intrinsic also has a plain JavaScript body, `kind` through
+  `typeof` and a cast as identity, so code written over the view runs and
+  is proved on any JavaScript host today, before a WASM backend exists.
+- **Numbers:** FunctionalScript numbers are `f64`. Where L0 takes an
+  `i32`, the compiler truncates, and a value that is not an integer in
+  range traps.
 
 ## Where this draft is least sure
 

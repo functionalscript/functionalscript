@@ -46,9 +46,9 @@ rest of L1 natively, or by linking the reference bodies.
 
 | Layer | Holds | Note |
 | --- | --- | --- |
-| L0 | The FJS data model: values, allocation, lifetime, calls, errors, identity | [l0-core.md](./l0-core.md), and a first detailed design in [l0-design.md](./l0-design.md) |
-| L1 | The JavaScript operations: `+`, `===`, `typeof`, member access, coercions, natives | [l1-operations.md](./l1-operations.md) |
-| L2 | The built-ins: statics such as `Object.is`, member bodies such as `startsWith` | [l2-stock-runtime.md](./l2-stock-runtime.md) |
+| L0 | The FJS data model: values, allocation, lifetime, calls, errors, identity | [l0-core.md](./l0-core.md), design: [l0-design.md](./l0-design.md) |
+| L1 | The JavaScript operations: `+`, `===`, `typeof`, member access, coercions, natives | [l1-operations.md](./l1-operations.md), design: [l1-design.md](./l1-design.md) |
+| L2 | The built-ins: statics such as `Object.is`, member bodies such as `startsWith` | [l2-stock-runtime.md](./l2-stock-runtime.md), design: [l2-design.md](./l2-design.md) |
 
 A runtime may also offer small WASM fragments that the compiler inlines in
 place of a call to it: [inline-fragments.md](./inline-fragments.md).

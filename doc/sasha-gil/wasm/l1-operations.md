@@ -3,6 +3,8 @@
 **Decided (2026-11-02):** the JavaScript operations form their own layer,
 between the core and the stock runtime.
 
+[l1-design.md](./l1-design.md) is a first detailed design.
+
 L1 holds the operations whose meaning is JavaScript's: arithmetic and
 comparison, `===`, `typeof`, `instanceof`, member access, calls through a
 member, coercions, iteration and spread, and the natives the stock runtime
