@@ -207,19 +207,19 @@ postponed rather than missed.
       rule:
       *every unresolved issue that **constrains or leaves open** what a
       destination emits is an input to the shape.*
-      - *Constrains* covers a field, a status, a tally, an annotation, a record
-        that is not a result, an ordering between records, and a requirement to
-        emit **nothing** —
-        [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) forbids a
-        manifest hash on partial failure.
-      - *Leaves open* covers a question not yet answered:
-        [timer-precision](../emergent_testing/todo/timer-precision.md) has not
-        decided whether a row renders a duration at all. A shape settled
-        without those is invalidated the moment they are.
+  - *Constrains* covers a field, a status, a tally, an annotation, a record
+    that is not a result, an ordering between records, and a requirement to
+    emit **nothing** —
+    [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) forbids a
+    manifest hash on partial failure.
+  - *Leaves open* covers a question not yet answered:
+    [timer-precision](../emergent_testing/todo/timer-precision.md) has not
+    decided whether a row renders a duration at all. A shape settled
+    without those is invalidated the moment they are.
 
-      **Unresolved**, not `open`: one
-      [status](../../todo/README.md#status-values) among several, and every
-      issue this document blocks is `blocked`.
+  **Unresolved**, not `open`: one
+  [status](../../todo/README.md#status-values) among several, and every
+  issue this document blocks is `blocked`.
 - [ ] Design the shape and its renderers against that enumeration.
 - [ ] Answer every question under *Left open on purpose*, or record why it
       still has no answer.

@@ -21,7 +21,7 @@ call argument or property-access base, as in `` `abc`.length ``. Empty templates
 and adjacent substitutions are admitted too.
 
 Text chunks accept JSON's escapes (`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`,
-`\t`, `\uXXXX`), escaped backticks and the escaped substitution opener `\${`.
+`\t`, `\uXXXX`, `\u{…}`), escaped backticks and the escaped substitution opener `\${`.
 Quotes stand raw. Only an unescaped `${` opens a substitution. Literal LF, CR
 and CRLF are admitted; raw CR and CRLF cook to LF, while escaped `\r` or
 `\u000D` stays CR. Raw U+2028 and U+2029 keep their values. Additional JavaScript
@@ -33,7 +33,7 @@ are compilation errors.
 
 The common escape set is uniform across single-quoted strings, double-quoted
 strings and templates: changing the delimiter does not admit additional common
-spellings such as `\0`, `\v`, `\xHH` or `\u{...}`. The template-specific
+spellings such as `\0`, `\v` or `\xHH`. The template-specific
 exceptions serve its syntax: escaped backticks and `${`, and literal line
 terminators for multiline text. Any future widening of the common escape set
 must be coordinated across quoted strings and templates.
@@ -47,7 +47,6 @@ The codebase rule also applies to proofs, helpers and host adapters.
 | `` `\0${"key"}\0` `` | `` `\u0000${"key"}\u0000` `` |
 | `` `\v` `` | `` `\u000b` `` |
 | `` `\x41` `` | `` `A` `` or `` `\u0041` `` |
-| `` `\u{1f600}` `` | `` `\ud83d\ude00` `` |
 
 For a refused line continuation, join the lines without the continuation
 sequence to preserve the value. Before marking a module compiler-compatible

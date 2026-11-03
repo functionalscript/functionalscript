@@ -15,6 +15,7 @@
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
+import { declarations } from './declarations/module.f.js'
 import { _standaloneStatements as standaloneStatements, _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse } from '../../types/list/module.f.js'
@@ -1163,6 +1164,8 @@ const enterStandalone = (stack, scope, block, body) => [{ top: { scoped: body },
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, scope, frame) => {
+    if (frame.index === frame.first) { frame = { ...frame, statements: frame.statements.flatMap(/** @returns {_BodyFrame['statements']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
     const { statements, first, index } = frame
     if (index === statements.length) { return closed(stack, scope, { statements: toArray(frame.done), exit: ['yield', undefined] }) }
     const [kind, statement] = statements[index]
@@ -1491,36 +1494,14 @@ const intrinsicFunction = ([, list, body]) => {
 }
 
 /**
- * The `entry` helper, recognized whole
- * ([spec: entry](../../../spec/property-access/entries/README.md)), and the
- * `hasEntry` helper beside it, the same but for its `return`
- * ([spec: why two helpers](../../../spec/property-access/entries/README.md#why-two-helpers)):
- *
- * ```js
- * (a, b) => {
- *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable ? x.value : undefined;
- * }
- * (a, b) => {
- *     const x = Object.getOwnPropertyDescriptor(a, b);
- *     return x?.enumerable === true;
- * }
- * ```
- *
- * under any three distinct names — the AST's `['entry']` and
- * `['hasEntry']`, the two functions whose body reads a property named at
- * run time, and the one place the
- * `Object` namespace stands but `Object.is`. It is matched on the syntax
- * tree with its names resolved by the rules every other body follows: the
- * two parameters and the body's `const` are what the body reads back, and
- * `Object` is a reserved global, which no scope binds. `null` where the
- * function is not the helper, by shape or by binding, and the ordinary
- * resolution takes it from there, refusing the `Object` it cannot name; a
- * keyword, a reserved global such as `Array` or `Object`, or a repeated
- * name among the three is left to it the same way, to refuse as it
- * refuses every other. An error where the helper's two statements
- * break the line rules every block's statements keep, {@link unterminated}
- * and {@link brokenLine}, which the shape alone cannot see.
+ * Recognize the complete `entry` or `hasEntry` helper
+ * ([spec](../../../spec/property-access/entries/README.md)). Each has two
+ * distinct named parameters, one descriptor declaration, and its matching
+ * return. A grouped declaration can contain extra work and must not match.
+ * Names retain ordinary binding rules, and the statement/return line rules
+ * are checked before replacing the body. Return `null` for ordinary source
+ * resolution when the shape or names differ; reserved `Object` uses are
+ * then refused in the usual way.
  *
  * @type {(node: Extract<Node, readonly ['=>', ParameterList, Node]>) => Result<ValueEntryFunction | ValueHasEntryFunction, ParseError> | null}
  */
@@ -1529,7 +1510,7 @@ const entryFunction = ([, list, body]) => {
     const [p, q] = list.fixed
     const first = body[1][0]
     const last = body[1][1]
-    if (first[0] !== 'const' || last[0] !== 'return') { return null }
+    if (first[0] !== 'const' || first[1].following !== undefined || last[0] !== 'return') { return null }
     const [, declaration] = first
     const [, returned] = last
     // the two parameters and the descriptor are each bound to one name: a
@@ -2015,6 +1996,8 @@ const loopSwitchDone = (stack, scope, frame, otherwise) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _LoopBodyFrame) => _State}
  */
 const loopRound = (stack, scope, frame) => {
+    if (frame.index === 0) { frame = { ...frame, block: frame.block.flatMap(/** @returns {_LoopBodyFrame['block']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1]).map(declaration => /** @type {const} */ (['const', declaration])) : [statement]) } }
     while (true) {
         const { block, index } = frame
         if (index === block.length) {
@@ -2236,7 +2219,9 @@ const resolvedModule = (source, scope) => {
  *
  * @type {(module: Module) => Result<ResolvedModule, ParseError>}
  */
-const foldModule = ({ imports, statements, exported, thrown: failing }) => {
+const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: failing }) => {
+    const statements = syntaxStatements.flatMap(/** @returns {Module['statements']} */ statement => statement[0] === 'const'
+        ? declarations(statement[1].declaration).map(declaration => /** @type {const} */ (['const', { declaration, exported: statement[1].exported }])) : [statement])
     let scope = moduleScope()
     /** @type {readonly SourceImport[]} */
     let modules = []

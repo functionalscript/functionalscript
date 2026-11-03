@@ -155,9 +155,11 @@ export const proof = {
          */
         spaceFlankedAsterisks: () => accepts(`a * b * c`),
         paddedEm: () => accepts(`* a *`),
-        // A code span loses one leading and trailing space to CommonMark,
-        // so keeping them answers with different content.
-        paddedCode: () => refuses(`${tick} code ${tick}`),
+        // A code span may hold a space at either end, as GitHub's does;
+        // the one CommonMark strips from each end is stripped where it is
+        // read.
+        paddedCode: () => accepts(`${tick} code ${tick}`),
+        trailingSpaceInCode: () => accepts(`${tick}name: ${tick}`),
         // The title form: CommonMark ends the destination at the space and
         // reads the rest as the link title, so admitting it links elsewhere.
         linkTitle: () => refuses(`[x](https://example.com "t")`),

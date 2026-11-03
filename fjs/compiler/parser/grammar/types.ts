@@ -652,7 +652,8 @@ export type BindingTarget = {
 }
 
 /** A `const` statement: `const`, what it binds, `=`, the value, and {@link End}. */
-export type ConstStatement = readonly [number, BindingTarget, number, Value, End]
+/** One or more initialized declarators, with no trailing comma. */
+export type ConstStatement = readonly [number, BindingTarget, number, Value, RepeatFrom<0, readonly [number, BindingTarget, number, Value]>, End]
 
 /** A declaration initializer, with its explicit equals token. */
 export type DeclarationInitializer = readonly [number, Value]

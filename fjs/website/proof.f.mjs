@@ -722,9 +722,14 @@ export const proof = {
                 c: { 'README.md': file('[up](../../x)\n') },
             })
             const a = pageAt(root, ['a'])
-            assert(a.includes('<article data-readme=""><div data-linked-heading=""><h2 id="a">A</h2>'), a)
+            assert(a.includes('<article data-readme=""><div data-linked-heading=""><h1 id="a">A</h1>'), a)
             assert(a.includes('</div><p>See <a href="/b/index.html#x">b</a> and <a href="/a/c.md">c</a>.</p></article>'), a)
+            // The README's title is the page's heading, so the directory's
+            // name is not one too.
+            assert(!a.includes('<h1>a</h1>'), a)
             const b = pageAt(root, ['b'])
+            // A README that is not rendered gives no title: the name does.
+            assert(b.includes('</nav><h1>b</h1>'), b)
             assert(b.includes('<a href="/b/README.md">README.md</a> is not rendered here: line 1: a table.'), b)
             const c = pageAt(root, ['c'])
             assert(c.includes('is not rendered here: a link that leaves the repository: ../../x.'), c)

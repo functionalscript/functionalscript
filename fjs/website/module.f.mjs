@@ -74,7 +74,7 @@ import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
-import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHeading, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
@@ -95,7 +95,8 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  * **The catalogue sits beside the demo and test suite.** A reader can
  * navigate the directory without a growing demo or report moving its links.
  *
- * The heading is the project, not the suite. The suite is one section of the
+ * The heading is the project, not the suite: the README's title, or the
+ * site's name where it has none. The suite is one section of the
  * page — named for what it is, with the prose that introduces it inside —
  * and the page is the repository's root.
  *
@@ -105,7 +106,7 @@ import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir
  * @type {(build: Build) => (dir: Dir) => string}
  */
 const rootPage = build => dir => shell(build)({ href: pageHref('.'), title: siteName, description: siteDescription })(directoryLayout(build)(dir)(testsMain(
-    ['h1', 'FunctionalScript'],
+    ...pageHeading(dir.readme)(siteName),
     ...dir.readme,
     ...(dir.demo === null ? [] : demoSection(dir.demo)),
     ...testSection(dir)([

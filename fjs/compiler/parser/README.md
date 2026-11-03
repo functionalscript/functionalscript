@@ -685,3 +685,15 @@ return statement. FunctionalScript admission still refuses this ending with
 `implicit return is not admitted`; no implicit return is lowered to FAST or EDAG.
 Final-loop candidates keep their existing representation and admission checks.
 Bare `return` and `throw` remain unsupported syntax.
+
+### Const declaration lists
+
+`const a=first,b=second;` retains one syntax statement. Its existing first
+`Const` record carries the optional `following` declarators in source order;
+single declarations keep their original AST shape. Source resolution expands
+the group into individual declarations in the same scope before resolving
+initializers. Commas provide separators between those declarations, while the
+last one retains the written semicolon or ASI boundary. Module, body, branch,
+switch, standalone and loop-body statements share this lowering, including
+named exports. Trailing commas, missing initializers and classic-for/let lists
+are outside this increment.

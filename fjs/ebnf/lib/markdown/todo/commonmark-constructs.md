@@ -21,7 +21,7 @@ than argued from the spec:
 | `**see [details](u)**` | bold around a link | read, the link's label holding text and code; a `!` before it, an image, refused |
 | `[**details**](u)` | a link whose words are bold | refused |
 | a two-backtick code span | one code span holding `x` | read as that span, one space stripped each side; three backticks refused |
-| a code span padded with spaces | `code` — one stripped each side | refused |
+| a code span padded with spaces | `code` — one stripped each side | read as that; a space at one end only is kept |
 | `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
 | `` **`a` b** `` | bold holding code | read as that |
 | `**a *b* c**`, `**a *b***` | bold holding emphasis | read as that; emphasis opening bold (`***a* b**`), two side by side, and bold inside emphasis refused |

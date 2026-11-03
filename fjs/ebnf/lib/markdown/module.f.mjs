@@ -61,29 +61,6 @@ const any = range(` ${unicodeMax}`)
  */
 const opening = '`*[\\'
 
-/**
- * A body that neither begins nor ends with a space: runs of ordinary
- * symbols separated by runs of spaces.
- *
- * **Padding is refused, for two readings it would otherwise invent.**
- * CommonMark does not read an asterisk with a space beside it as emphasis
- * at all — GitHub leaves `a * b * c` as the three words and two asterisks
- * they are, where a body admitting the spaces makes an `em` span out of
- * prose. And a code span's one leading and trailing space is stripped, so
- * `` code `` reads as `code` there and would read as ` code ` here.
- * Neither is a rendering that merely looks different; both are a different
- * document.
- *
- * It also refuses an empty body, which is what a longer delimiter looks
- * like one symbol at a time.
- *
- * @type {(openers: string) => Rule}
- */
-const unpadded = openers => {
-    const inner = repeatFrom1(remove(any, set(`${openers} `)))
-    return [inner, repeatFrom0([repeatFrom1(' '), inner])]
-}
-
 /** A run of plain text: at least one symbol that opens no span. */
 export const text = repeatFrom1(remove(any, set(opening)))
 
@@ -119,10 +96,16 @@ export const doubleBody = () => ['const', [notTicks, '`', { end: '`', more: doub
  * backtick at a time, would be an empty span, an `x`, and another empty
  * span, a different document from the one GitHub builds, so a single body
  * is non-empty and a double one may not open with a backtick.
+ *
+ * **Either body may hold a space at either end**, as GitHub's does:
+ * `` `name: ` `` is the code `name: `. CommonMark strips one space from
+ * each end of a body that has one at both and is not all spaces, so
+ * `` ` code ` `` is the code `code`; that is done where the span is read,
+ * in [`media/markdown`](../../../media/markdown/module.f.mjs).
  */
 export const code = /**@type {const}*/(['`', {
     double: ['`', doubleBody],
-    single: [unpadded('`'), '`'],
+    single: [notTicks, '`'],
 }])
 
 

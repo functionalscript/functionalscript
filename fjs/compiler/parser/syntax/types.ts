@@ -400,6 +400,8 @@ export type ImportBinding = {
  * the `export` before one a module exports.
  */
 export type Const = Statement & {
+    /** Additional declarators in this written statement, retained until source lowering. */
+    readonly following?: readonly Const[]
     readonly target: PlainBindingTarget | Discard
     readonly value: Node
 }
