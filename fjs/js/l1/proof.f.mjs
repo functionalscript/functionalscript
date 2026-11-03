@@ -14,7 +14,7 @@ const o = { a: 1 }
 const values = [
     undefined, null, true, false,
     0, -0, NaN, 1, -1.5, Infinity, -Infinity,
-    '', 'a', 'ab', 'b', 'B', '\u{1F600}', '￿', '0', 'false',
+    '', 'a', 'ab', 'b', 'B', '\u{1F600}', '\uffff', '0', 'false',
     0n, 1n, -1n, 0x1_0000_0000_0000_0000n,
     a, [1], [], o, { a: 1 }, {}, f, () => 0,
 ]
@@ -63,15 +63,16 @@ export const proof = {
         assert(!strictEquals(a, [1]))
     },
     // `stringEquals` and `stringLess` are `===` and `<` on every pair of
-    // strings, by UTF-16 unit, so `'￿'` sorts after an astral
+    // strings, by UTF-16 unit, so `'\uffff'` sorts after an astral
     // character's leading surrogate.
     strings: () => {
         pairs(strings).forEach(([x, y]) => {
             assertEq(stringEquals(x, y), x === y, `${x} ${y}`)
             assertEq(stringLess(x, y), x < y, `${x} ${y}`)
         })
-        assert(stringLess('\u{1F600}', '￿'))
-    },    // `toString` and `toPropertyKey` are `String` and a computed key, and
+        assert(stringLess('\u{1F600}', '\uffff'))
+    },
+    // `toString` and `toPropertyKey` are `String` and a computed key, and
     // `toNumber` is unary `+`, on every convertible value: an array joined,
     // nested arrays too, and an object through its own `toString` and
     // `valueOf`, a non-function or a non-primitive answer skipped.
