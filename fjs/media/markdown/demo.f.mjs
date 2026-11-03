@@ -23,7 +23,7 @@
  *
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element, Node } from '../html/types.ts'
- * @import { Bolded, Entry, Inline, LinkLabel } from './types.ts'
+ * @import { Bolded, Entry, Inline, LinkLabel, Struck } from './types.ts'
  */
 
 import { textDemo, refusal } from '../../website/demo/module.f.mjs'
@@ -31,14 +31,14 @@ import { tryParse } from './module.f.mjs'
 import { assertStructurallySame } from '../../asserts/module.f.js'
 
 /**
- * A label's or a body's span as a node: code, a link, emphasis inside bold,
- * or its words.
+ * A label's or a body's span as a node: code, a link, bold or emphasis
+ * inside a body, or its words; an image as its alternative text.
  *
- * @type {(l: LinkLabel | Bolded) => Node}
+ * @type {(l: LinkLabel | Bolded | Struck) => Node}
  */
 const labelNode = l => l[0] === 'code' ? ['code', l[1]]
     : l[0] === 'link' ? ['a', { href: l[2] }, ...l[1].map(labelNode)]
-    : l[0] === 'em' ? ['em', ...l[1].map(labelNode)]
+    : l[0] === 'em' || l[0] === 'strong' ? [l[0], ...l[1].map(labelNode)]
     : l[1]
 
 /**
@@ -54,6 +54,7 @@ const spanView = span => {
     const label = kind === 'text' ? [] : span[1].map(labelNode)
     if (kind === 'strong') { return ['li', ['code', kind], ' ', ['strong', ...label]] }
     if (kind === 'em') { return ['li', ['code', kind], ' ', ['em', ...label]] }
+    if (kind === 'del') { return ['li', ['code', kind], ' ', ['del', ...label]] }
     if (kind === 'link') {
         return ['li', ['code', kind], ' ', ['a', { href: span[2] }, ...label], ' → ', ['code', span[2]]]
     }
@@ -73,6 +74,8 @@ export const proof = /** @type {const} */ ({
         ['li', ['code', 'strong'], ' ', ['strong', 'see ', ['a', { href: 'u' }, ['code', 'a']]]]),
     strongEm: () => assertStructurallySame(spanView(['strong', [['text', 'a '], ['em', [['text', 'b']]]]]),
         ['li', ['code', 'strong'], ' ', ['strong', 'a ', ['em', 'b']]]),
+    del: () => assertStructurallySame(spanView(['del', [['strong', [['text', 'a']]], ['text', ' b']]]),
+        ['li', ['code', 'del'], ' ', ['del', ['strong', 'a'], ' b']]),
 })
 
 /**
