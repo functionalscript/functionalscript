@@ -58,6 +58,15 @@ const MASK: u64 = 0xFFFF_0000_0000_0000;
 assert_eq!(address & MASK, 0, "pointer exceeds NaNPtr address range");
 ```
 
+Additional bits:
+
+|                   | Values                                   | States |Total|Bits|
+|-------------------|------------------------------------------|--------|-----|----|
+| static or dynamic | `true`, `false`                          | `*2`   |`2`  |`1` |
+| types             | `object`, `string`, `bigint`, `function` | `4`    |`8`  |`3` |
+| extra types 1     | `array`, `Map`, `Set`, `iterable`        | `+4`   |`16` |`4` |
+| extra types 4     | `RegEx`, `Temporal`, etc.                | `+8`   |`32` |`5` |
+
 ## Capacity
 
 |         |        | Prefix | Info                                        |
