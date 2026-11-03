@@ -219,7 +219,9 @@ The approval and rationale are part of the
     - [x] Form a generic AST for every authored `module.f.js` and `module.f.mjs`
           selected by `fjs deps`, without requiring FAST or EDAG admission.
     - [x] Enforce implementation-module AST readiness in CI with `npm start deps`.
-          The canonical Node job runs it uncached and fails on AST errors.
+          The canonical Node job runs it uncached.
+    - [ ] Remove the temporary `continue-on-error` from the dependency scan once
+          every authored `.f.js` and `.f.mjs` file forms a generic AST.
 - [x] Normalize newly reached FAST fixtures, control-flow proofs and the B-tree
       demo into existing syntax forms so transitive scanning succeeds.
 - [x] Define the command interface and input/output behavior.

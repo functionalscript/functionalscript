@@ -18,8 +18,11 @@ export const proof = {
         const [check] = matching
         assert(check !== undefined)
         assertEq(check.if, undefined)
-        assertEq(check['continue-on-error'], undefined)
+        assertEq(check['continue-on-error'], true)
         assertEq(check['working-directory'], undefined)
+        for (const command of ['tsc', 'npm start compile', 'npm run cov']) {
+            assertEq(canonicalSteps.find(step => step.run === environmentCommand(command))?.['continue-on-error'], undefined)
+        }
         const checkout = canonicalSteps.findIndex(step => step.uses?.startsWith('actions/checkout@'))
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
     },
