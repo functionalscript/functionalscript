@@ -348,7 +348,7 @@ const valueKindOf = ({ to }) =>
  * @type {(edge: Edge) => { readonly [k in string]?: string }}
  */
 const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {} : {
-    'data-demo-click': /** @type {string} */ (entry(to.click, 'name')), tabindex: '0', role: 'button', 'aria-label': to.click.label,
+    'data-demo-click': assertNotNullish(entry(to.click, /** @type {const} */ ('name'))), tabindex: '0', role: 'button', 'aria-label': to.click.label,
     'pointer-events': 'all', cursor: 'pointer',
 }
 
