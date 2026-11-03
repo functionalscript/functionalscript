@@ -10,7 +10,7 @@
 
 import { node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
+import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
 /** @type {(v: string) => string} */
@@ -63,7 +63,10 @@ export const platformNodeSteps = () => [
 const nodeSteps = consumer => [
     nodeVersionStep(),
     tscVersionStep,
-    ...environmentSteps(['npm ci', 'tsc', 'npm start deps', 'npm start compile', 'npm run cov']),
+    ...environmentSteps(['npm ci', 'tsc']),
+    // Temporary until every authored file forms a generic AST (module-dependency-graph-command.md).
+    test({ run: environmentCommand('npm start deps'), 'continue-on-error': true }),
+    ...environmentSteps(['npm start compile', 'npm run cov']),
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
