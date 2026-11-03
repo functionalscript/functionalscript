@@ -153,7 +153,7 @@ export const personalNotesPath = /** @type {const} */ (`${_workflowsDirectory}/g
 
 /**
  * The approval of a pull request that changes only its author's personal
- * notes: [`../personal-notes`](../personal-notes/module.f.mjs) decides, and
+ * notes: [`../personal-notes`](../personal-notes/module.f.js) decides, and
  * its GitHub boundary approves, or dismisses the approval it gave once a file
  * outside the notes changes. The checkout is the base branch's, the default
  * on `pull_request_target`, so the code that runs with the token is never the

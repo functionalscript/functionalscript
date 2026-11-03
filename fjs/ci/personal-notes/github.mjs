@@ -2,7 +2,7 @@
 
 import { readFile } from 'node:fs/promises'
 
-import { notesPrefix, onlyPersonalNotes } from './module.f.mjs'
+import { notesPrefix, onlyPersonalNotes } from './module.f.js'
 
 const bot = /** @type {const} */ ('github-actions[bot]')
 

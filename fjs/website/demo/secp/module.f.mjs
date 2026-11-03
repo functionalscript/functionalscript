@@ -7,11 +7,12 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { encodeScalar } from '../../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { curve, isPublicKey, secp192r1, secp256k1, secp256r1, secp384r1, secp521r1 } from '../../../crypto/secp/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { isDigits } from '../../../text/ascii/module.f.js'
+import { generate } from '../../../types/array/generate/module.f.js'
 
 /** The example from the secp README: all 28 finite points have order 29.
  * @type {Curve}
@@ -20,8 +21,8 @@ export const toy = curve({ p: 23n, c: [4n, 1n], g: [0n, 2n], n: 29n })
 const { pf: { mod, reciprocal }, add, neg, mul, g, y2 } = toy
 
 /** @type {readonly Point2D[]} */
-export const points = Array.from({ length: 23 }, (_, x) => BigInt(x)).flatMap(x =>
-    Array.from({ length: 23 }, (_, y) => BigInt(y)).flatMap(y =>
+export const points = generate(23, x => BigInt(x)).flatMap(x =>
+    generate(23, y => BigInt(y)).flatMap(y =>
         y * y % 23n === y2(x) ? [/** @type {const} */ ([x, y])] : []))
 
 /** A display label; infinity has no XY coordinates.
@@ -48,7 +49,10 @@ export const scalar = (text, max) => {
 /** Each educational frame is computed with the module, not a second engine.
  * @type {(k: bigint) => readonly Point[]}
  */
-export const sequence = k => Array.from({ length: Number(k) + 1 }, (_, i) => mul(BigInt(i))(g))
+export const sequence = k => {
+    const length = Number(k) + 1
+    return generate(length > 0 ? length : 0, i => mul(BigInt(i))(g))
+}
 
 /** Every grid position on the finite-field secant or tangent. These are
  * discrete solutions of a modular equation, not samples of a Euclidean line.
@@ -61,11 +65,11 @@ export const modularLine = (p, q) => {
     const same = x1 === x2 && y1 === y2
     const denominator = mod(same ? 2n * y1 : x2 - x1)
     if (denominator === 0n) {
-        return Array.from({ length: 23 }, (_, y) => /** @type {const} */ ([x1, BigInt(y)]))
+        return generate(23, y => /** @type {const} */ ([x1, BigInt(y)]))
     }
     const numerator = mod(same ? 3n * x1 * x1 + 1n : y2 - y1)
     const m = mod(numerator * reciprocal(denominator))
-    return Array.from({ length: 23 }, (_, x) => {
+    return generate(23, x => {
         const bx = BigInt(x)
         return /** @type {const} */ ([bx, mod(y1 + m * (bx - x1))])
     })

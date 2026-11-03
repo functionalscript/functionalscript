@@ -31,7 +31,8 @@
  */
 
 import { hexDigitCodePoint, hexDigitValue, lowerHexDigitValue } from '../../text/ascii/module.f.js'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 
 /** The two lowercase hex digit code points of a byte, the high one first. @type {(byte: U8) => readonly [number, number]} */
 const digitsOf = byte => [hexDigitCodePoint(byte >> 4), hexDigitCodePoint(byte & 0xf)]
@@ -73,7 +74,7 @@ const decodeWith = digitValue => codePoints => {
     })
     return values.length !== codePoints.length || values.length % 2 !== 0
         ? null
-        : Array.from({ length: values.length / 2 }, (_, i) => values[2 * i] * 16 + values[2 * i + 1])
+        : generate(values.length / 2, i => values[Number(2 * i)] * 16 + values[Number(2 * i + 1)])
 }
 
 /**
@@ -82,7 +83,7 @@ const decodeWith = digitValue => codePoints => {
  *
  * @type {(s: string) => readonly number[]}
  */
-const codeUnits = s => Array.from({ length: s.length }, (_, i) => s.charCodeAt(i))
+const codeUnits = s => generate(s.length, i => s.charCodeAt(i))
 
 /**
  * The bytes a run of hex digit code points spells, `0-9`, `a-f` and `A-F`

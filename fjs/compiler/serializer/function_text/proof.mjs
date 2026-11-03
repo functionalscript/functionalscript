@@ -17,7 +17,7 @@ import { fromFast } from '../../../edag/from_fast/module.f.mjs'
 import { _fixtures } from '../../../edag/from_fast/deferred_tail_calls/fixtures.f.js'
 import { _mixedSelfUses } from '../../../edag/to_fast/tail/fixtures.f.js'
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
-import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(e: FunctionExp, captures?: readonly unknown[]) => (...args: readonly unknown[]) => any} */

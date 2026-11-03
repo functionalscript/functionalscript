@@ -29,9 +29,9 @@
 import { map } from '../../types/list/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { map as nullableMap } from '../../types/nullable/module.f.js'
-import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.js'
 import { errorMask } from '../../text/code_point/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 import {
     backspace,
     cr,

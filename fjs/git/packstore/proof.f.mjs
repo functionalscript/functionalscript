@@ -14,7 +14,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { inflateTrailingCode, inflateTrailingMessage, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
@@ -24,7 +24,7 @@ import { hexBytes, latin1, noFile, packMixed, packMixedIdx } from '../testlib.f.
 import { maxDeltaBytes } from '../pack/module.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 import { max } from '../../types/number/max/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.mjs'
+import { encodeScalar } from '../../basen/base16/module.f.js'
 
 /** The first 8 hex digits of a fixture id, its other 32 being zeros. */
 const idPrefixHex = encodeScalar(8)

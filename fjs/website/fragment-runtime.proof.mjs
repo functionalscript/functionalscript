@@ -30,22 +30,27 @@ const fixture = (fragment, id) => {
 }
 
 export const proof = /** @type {const} */ ({
-    demoControlWaitsForState: () => {
-        const { doc } = fixture('', 'demo')
-        const fallback = { hidden: false }
-        const demo = { hidden: true, hasAttribute: () => true }
-        const heading = { hidden: true, hasAttribute: () => false, parentElement: { querySelector: () => fallback } }
-        doc.querySelectorAll = (/** @type {string} */ selector) => selector === 'button[data-copy-fragment]' ? [demo, heading] : []
+    // A heading anchor is native: the runtime leaves its click, URL and
+    // history to the browser and only reveals the target afterwards.
+    headingAnchorIsNative: () => {
+        const { doc, scrolls } = fixture('', 'heading')
         /** @type {((event: any) => void) | undefined} */
         let click
         doc.addEventListener = (/** @type {string} */ name, /** @type {(event: any) => void} */ listener) => { if (name === 'click') { click = listener } }
-        class Target { closest() { return demo } }
+        /** @type {(() => void)[]} */
+        const frames = []
+        doc.defaultView.requestAnimationFrame = (/** @type {() => void} */ f) => { frames.push(f) }
+        doc.baseURI = 'https://example.com/page/'
+        const anchor = { getAttribute: () => '#heading' }
+        class Target { closest(/** @type {string} */ selector) { return selector === 'a[href]' ? anchor : null } }
         doc.defaultView.Element = Target
         startFragments(doc)
-        assertEq(demo.hidden, true)
-        assertEq(heading.hidden, false)
-        assertEq(fallback.hidden, true)
-        click?.({ target: new Target(), preventDefault() { throw 'Demo copy belongs to the state runtime' } })
+        assertEq(scrolls(), 0)
+        click?.({ target: new Target(), button: 0, preventDefault() { throw 'A heading anchor keeps its native navigation' } })
+        assertEq(frames.length, 1)
+        doc.defaultView.location.hash = '#heading'
+        frames[0]()
+        assertEq(scrolls(), 1)
     },
     // A README's code block copies its text, and shows its button once bound.
     readmeCopies: async () => {

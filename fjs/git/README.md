@@ -119,7 +119,7 @@ what a grammar can and cannot do for the formats.
   which read it as Git does: every assignment in order, the last one
   winning, and as Git's `int` or `bool` each assignment judged as the reader
   reaches it. What a key means is its reader's, not the grammar's.
-- [`alternates/`](alternates/module.f.mjs) — an `objects/info/alternates`
+- [`alternates/`](alternates/module.f.js) — an `objects/info/alternates`
   file as the object directories it names, decoded line shape by line shape
   as Git reads it: comments and blank lines skipped, a C-quoted line
   unquoted, a path ended at its first `NUL`, and a relative entry joined below

@@ -1,5 +1,5 @@
 import { assertStructurallySame } from '../../asserts/module.f.js'
-import { alternatesIn } from './module.f.mjs'
+import { alternatesIn } from './module.f.js'
 
 export const proof = {
     // A comment, a blank line and a path with no trailing newline: the three

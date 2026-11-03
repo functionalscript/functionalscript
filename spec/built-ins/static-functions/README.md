@@ -1,6 +1,26 @@
-# Built-in Static Functions
+# Built-in Static Functions and Constants
 
 **Status:** implemented
+
+## Numeric constants
+
+`Number.MAX_SAFE_INTEGER` is the number `0x1f_ffff_ffff_ffff`, the largest
+safe integer. Beyond the safe integer range, distinct integers can round
+to the same number. The compiler desugars the access to that numeric value; it
+needs no new graph operation or runtime function. The compiler reads
+`Number.MAX_SAFE_INTEGER` from its host, and an independent numeric proof
+pins that value on every engine.
+
+`Number["MAX_SAFE_INTEGER"]` and namespace destructuring such as
+`const { MAX_SAFE_INTEGER: max } = Number` read the same value. A guard on
+the namespace, `Number?.MAX_SAFE_INTEGER`, a dynamic key, and other
+unadmitted members remain refused. Calls and later property accesses are
+operations on the resulting number, with their ordinary semantics.
+
+**Language-design approval:** **sergey-shandar** explicitly requested this
+constant lowering in [the working session](https://chatgpt.com/local/01a19f98-0942-73e9-86cb-c7b41536801e).
+
+## Static functions
 
 ```js
 const { is, entries } = Object;

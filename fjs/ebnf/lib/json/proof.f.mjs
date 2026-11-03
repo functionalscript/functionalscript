@@ -10,7 +10,7 @@
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { simpleEscapes } from '../../../js/string_escape/module.f.mjs'
-import { codePointListToString } from '../../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
 import { set } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'

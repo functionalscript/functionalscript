@@ -13,7 +13,7 @@
  */
 
 import { expectModule, expectRefused } from './proof.f.mjs'
-import { assert } from '../../asserts/module.f.js'
+import { assert, assertEq } from '../../asserts/module.f.js'
 import { isReservedGlobal } from '../../js/keywords/module.f.js'
 import { staticIds, staticPath } from '../../edag/module.f.mjs'
 
@@ -91,7 +91,7 @@ export const proof = {
     // The four `Number` predicates are read as `Object.is` is, in either
     // key spelling and through destructuring, beside the conversion `Number(x)`,
     // which the namespace leaves as it was; a member it does not admit, a
-    // value property included, is refused at the word, and so is a
+    // value property other than MAX_SAFE_INTEGER included, is refused at the word, and so is a
     // predicate under the other namespace.
     number: () => {
         for (const name of ['isInteger', 'isSafeInteger', 'isNaN', 'isFinite']) {
@@ -104,13 +104,32 @@ export const proof = {
         expectModule('const { isInteger, isFinite: f } = Number; export default [isInteger, f];',
             "[\"{}\",[[\":\",\"default\",[\"[]\",[[\"Number.isInteger\"],[\"Number.isFinite\"]]]]]]")
         for (const source of [
-            'export default Number.MAX_SAFE_INTEGER;',
+            'export default Number.MAX_VALUE;',
             'export default Number.parseFloat("1");',
             'export default Number.is;',
             'export default Number?.(1);',
         ]) { expectRefused(source, 'reserved word', 16) }
         expectRefused('export default Object.isInteger;', 'reserved word', 16)
         expectRefused('const { foo } = Number; export default 1;', 'reserved word', 17)
+    },
+    maxSafeInteger: () => {
+        // An independent numeric spelling pins the host's value on every engine.
+        /** @type {number} */
+        const expected = 0x1f_ffff_ffff_ffff
+        assertEq(Number.MAX_SAFE_INTEGER, expected)
+        for (const source of ['Number.MAX_SAFE_INTEGER', 'Number["MAX_SAFE_INTEGER"]', '(Number.MAX_SAFE_INTEGER)']) {
+            expectModule(`export default ${source};`, exported(String(expected)))
+        }
+        expectModule('const { MAX_SAFE_INTEGER: max } = Number; export default max;', exported(String(expected)))
+        expectModule('export default () => { const { MAX_SAFE_INTEGER } = Number; return MAX_SAFE_INTEGER; };',
+            exported(`["=>",0,[],${expected}]`))
+        expectModule('export default Number.MAX_SAFE_INTEGER - 1;', exported(`["-",${expected},1]`))
+        // A call remains a call of a number; lowering does not invent a function.
+        expectModule('export default Number.MAX_SAFE_INTEGER?.();', exported(`["?.()",${expected},[]]`))
+        for (const source of ['Number?.MAX_SAFE_INTEGER', 'Number?.["MAX_SAFE_INTEGER"]', 'Object.MAX_SAFE_INTEGER', 'Number[Number(0)]']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+        expectRefused('const key = "MAX_SAFE_INTEGER"; export default Number[key];', 'reserved word', 48)
     },
     // `Object.entries` is read as `Object.is` is, in either key spelling
     // and through destructuring, though `entries` is a prototype name: the

@@ -2,7 +2,7 @@
 
 What may start an identifier and what may continue one, for the ASCII
 identifiers this repository writes: Latin letters, digits, `_` and `$`.
-[`module.f.mjs`](./module.f.mjs) adds `_` and `$` to the character classes of
+[`module.f.js`](./module.f.js) adds `_` and `$` to the character classes of
 [`text/ascii`](../../text/ascii/module.f.js) and nothing more. JavaScript
 itself also admits Unicode letters such as `π`; these predicates refuse them,
 so they do not validate an arbitrary JavaScript identifier.
@@ -15,7 +15,7 @@ so they do not validate an arbitrary JavaScript identifier.
 |`isInteger(s)`          |whether `s` is a decimal integer without a leading zero         |
 
 ```js
-import { isIdentifier } from './module.f.mjs'
+import { isIdentifier } from './module.f.js'
 
 isIdentifier('$a_1') // true
 isIdentifier('1a')   // false

@@ -12,7 +12,7 @@ import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
 import { toCodePointList, utf8ToString } from '../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, randomInt, read, readLine, sandbox, write,
 } from './module.f.mjs'

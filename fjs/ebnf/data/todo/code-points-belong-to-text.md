@@ -21,7 +21,7 @@ this file for that function only. The front end — `range`, `set` and
 [`fjs/ebnf/byte`](../../byte/module.f.mjs) import it *from the lowering*: the
 front end reaches into its own back end for a string helper.
 
-[`fjs/text/utf16`](../../../text/utf16/module.f.mjs) owns the same question in
+[`fjs/text/utf16`](../../../text/utf16/module.f.js) owns the same question in
 two halves, `stringToCodePointList` and `isWellFormed`, and its README says
 `isWellFormed` "is the question to ask before handing a string to something
 that needs valid Unicode". Meanwhile
