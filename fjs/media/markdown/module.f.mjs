@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Label, LinkLabel, ListMarker } from './types.ts'
+ * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Label, LinkLabel, ListMarker, Struck } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -221,7 +221,7 @@ const strongOf = node => {
  * with, `em` the body before the one it closes with, and a `link` its label
  * and the two parts of its target.
  *
- * @type {(node: unknown) => Result<Inline, string>}
+ * @type {(node: unknown) => Result<Struck, string>}
  */
 const spanOf = node => {
     const [tag, body] = arr(node)
@@ -251,15 +251,15 @@ const spanOf = node => {
  * more, which one symbol of lookahead cannot see. An image of a link that
  * shows an image is refused: its alternative text would be an image's.
  *
- * @type {(node: unknown) => Result<Entry, string>}
+ * @type {(node: unknown) => Result<readonly Struck[], string>}
  */
 const entryOf = node => {
     const [lead, rest] = arr(node)
-    /** @type {readonly Inline[]} */
+    /** @type {readonly Struck[]} */
     let out = arr(lead).length === 0 ? [] : [['text', lexeme(lead)]]
     for (const pair of arr(rest)) {
         const [node, tail] = arr(pair)
-        /** @type {readonly Inline[]} */
+        /** @type {readonly Struck[]} */
         const after = arr(tail).length === 0 ? [] : [['text', lexeme(tail)]]
         const span = spanOf(node)
         if (span[0] === 'error') { return span }
@@ -461,8 +461,8 @@ export const bareUrl = text => {
  *
  * - `_` opens or closes emphasis there unless a letter or digit stands on
  *   both sides of it, so only `snake_case` is admitted;
- * - two `~` are GitHub's strikethrough, so a run holds one at most — the
- *   "about" of `~100`;
+ * - a `~` is left as it is: whether tildes are GitHub's strikethrough is
+ *   a question of the whole entry, which {@link strikethrough} answers;
  * - `&` before a name or a number and a `;` is an entity, read as the
  *   character it names;
  * - `<` before a letter, `/`, `!` or `?` is raw HTML — unless it opens an
@@ -487,7 +487,6 @@ export const proseSpans = autolinks => text => {
         if (c === '_' && !(isWordChar(text[i - 1]) && isWordChar(text[i + 1]))) {
             return error(`an underscore that GitHub may read as emphasis at ${i}`)
         }
-        if (c === '~' && text.indexOf('~', i + 1) !== -1) { return error(`a tilde pair, which GitHub reads as strikethrough, at ${i}`) }
         if (entityAt(text, i)) { return error(`an entity, which GitHub reads as the character it names, at ${i}`) }
         if (shortcodeAt(text, i)) { return error(`an emoji shortcode candidate at ${i}`) }
         if (autolinks && c === '@' && emailAt(text, i)) { return error(`an email address, which GitHub reads as a link, at ${i}`) }
@@ -527,15 +526,16 @@ export const proseSpans = autolinks => text => {
 const isAsciiPunctuation = c => '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'.includes(c)
 
 /** A span's first character, as the delimiter before it sees it. @type {(span: Inline) => string} */
-const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : span[0] === 'image' ? '!' : '*'
+const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ? '`' : span[0] === 'link' ? '[' : span[0] === 'image' ? '!' : span[0] === 'del' ? '~' : '*'
 
 /**
  * A span's last character, as the delimiter after it sees it: an asterisk
- * for emphasis inside bold, and a parenthesis for a link.
+ * for emphasis inside bold, a tilde for strikethrough, and a parenthesis
+ * for a link.
  *
  * @type {(span: Inline) => string}
  */
-const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' ? '*' : ')'
+const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' ? '*' : span[0] === 'del' ? '~' : ')'
 
 /**
  * Whether an asterisk run between `outer` and `inner` fails to open or close
@@ -558,9 +558,10 @@ const unflanked = outer => inner => !isWordChar(inner) && inner !== ' '
 const codeSideBySide = spans => spans.some((s, i) => i !== 0 && s[0] === 'code' && spans[i - 1][0] === 'code')
 
 /**
- * Tilde delimiters can surround other spans. Code contents and link targets
- * are not prose; link labels and emphasis bodies are checked separately
- * in their own scopes.
+ * Whether a link's label or an image's alternative text holds two tildes
+ * in its text. A label is a scope of its own for GitHub's strikethrough,
+ * which this does not read there, so a pair in one is refused; code is no
+ * prose, so its tildes are not counted.
  *
  * @type {(spans: readonly (Inline | Label)[]) => boolean}
  */
@@ -572,6 +573,145 @@ const proseTildePair = spans => {
 
 /** Whether a link's or an image's address holds an entity. @type {(address: string) => boolean} */
 const entityIn = address => [...address].some((_, i) => entityAt(address, i))
+
+/**
+ * A character as a delimiter run beside it sees it: a space (the edge of
+ * the text counts as one), ASCII punctuation, or a word character; `null`
+ * for a character outside ASCII that is no letter, which CommonMark may
+ * class as either, so a run beside one is refused.
+ *
+ * @type {(c: string | undefined) => 'space' | 'punctuation' | 'word' | null}
+ */
+const delimiterSide = c => c === undefined || c === ' ' || c === '\t' ? 'space'
+    : isAsciiPunctuation(c) ? 'punctuation'
+    : isWordChar(c) || c.charCodeAt(0) < 0x80 ? 'word'
+    : null
+
+/**
+ * A span as the characters GitHub's delimiter scan sees, for the tildes
+ * among them: text as written, bold and emphasis as their asterisks around
+ * their bodies, which the scan shares, and code, a link and an image as
+ * their outer brackets around a stand-in, as code is no prose and a link's
+ * label is a scope of its own.
+ *
+ * @type {(span: Struck | Bolded) => string}
+ */
+const scanned = span => span[0] === 'text' ? span[1]
+    : span[0] === 'code' ? '`c`'
+    : span[0] === 'strong' ? `**${span[1].map(scanned).join('')}**`
+    : span[0] === 'em' ? `*${span[1].map(scanned).join('')}*`
+    : span[0] === 'image' ? '![a](u)'
+    : '[a](u)'
+
+/**
+ * A run of tildes in {@link scanned} text, as GitHub reads it: where it
+ * starts and how long it is, and whether it opens strikethrough, closes
+ * it, or is the tildes it is. A run that may do both, three or more
+ * tildes, or a run beside a character {@link delimiterSide} cannot class
+ * is refused.
+ *
+ * GitHub's rule for a tilde run is CommonMark's for an asterisk run: it
+ * opens when no space follows it and, if punctuation follows, a space or
+ * punctuation comes before; it closes the other way round.
+ *
+ * @type {(text: string, at: number, length: number) => Result<'open' | 'close' | 'text', string>}
+ */
+const tildeRun = (text, at, length) => {
+    const before = delimiterSide(text[at - 1])
+    const after = delimiterSide(text[at + length])
+    if (before === null || after === null) { return error('a tilde beside a character whose kind GitHub may read otherwise') }
+    if (length > 2) { return error('a run of three or more tildes, which GitHub may read otherwise') }
+    const opens = after !== 'space' && (after !== 'punctuation' || before !== 'word')
+    const closes = before !== 'space' && (before !== 'punctuation' || after !== 'word')
+    if (opens && closes) { return error('a tilde run that GitHub may read as opening or closing strikethrough') }
+    return ok(opens ? 'open' : closes ? 'close' : 'text')
+}
+
+/**
+ * An entry's strikethrough read, `~~text~~`, as GitHub's own strikethrough,
+ * and every other tilde kept as text or refused.
+ *
+ * **The tildes are paired as GitHub pairs them**: across the entry's text
+ * and the bodies of its bold and emphasis, as one scan, each closing run
+ * with the opening run before it, which must be as long. A run that opens
+ * or closes nothing is a tilde, the "about" of `~0.2 s`.
+ *
+ * **Only a pair of two-tilde runs in the entry's own text is read**,
+ * wrapping the spans between them. A pair of single tildes, which GitHub
+ * may read as strikethrough too, is refused; so is a pair inside bold or
+ * emphasis or across one, a pair inside another, and an opening run
+ * closed by a run of another length.
+ *
+ * @type {(entry: readonly Struck[]) => Result<Entry, string>}
+ */
+const strikethrough = entry => {
+    const texts = entry.map(scanned)
+    const text = texts.join('')
+    /** The start of each span in `text`. @type {readonly number[]} */
+    const starts = texts.map((_, k) => texts.slice(0, k).join('').length)
+    /** The entry's own text span a position is in, or `-1`. @type {(at: number) => number} */
+    const spanAt = at => entry.findIndex((s, k) => s[0] === 'text' && starts[k] <= at && at < starts[k] + s[1].length)
+    /** @type {readonly (readonly [number, number])[]} */
+    let open = []
+    /** Each pair's two runs, as `[at, length]`. @type {readonly (readonly [readonly [number, number], readonly [number, number]])[]} */
+    let pairs = []
+    let i = 0
+    while (i < text.length) {
+        if (text[i] !== '~') { i = i + 1; continue }
+        let end = i
+        while (text[end] === '~') { end = end + 1 }
+        const run = /** @type {const} */ ([i, end - i])
+        i = end
+        const [tag, kind] = tildeRun(text, ...run)
+        if (tag === 'error') { return error(kind) }
+        if (kind === 'open') { open = [...open, run]; continue }
+        if (kind === 'text' || open.length === 0) { continue }
+        const opener = open[open.length - 1]
+        if (opener[1] !== run[1]) { return error('tilde runs of two lengths, which GitHub may pair otherwise') }
+        open = open.slice(0, -1)
+        pairs = [...pairs, [opener, run]]
+    }
+    for (const [[o, length], [c]] of pairs) {
+        if (length === 1) { return error('a single-tilde pair, which GitHub may read as strikethrough') }
+        if (spanAt(o) === -1 || spanAt(c) === -1) { return error('strikethrough inside or across bold or emphasis') }
+        if (pairs.some(([[o2], [c2]]) => o2 < o && c < c2)) { return error('strikethrough inside strikethrough') }
+    }
+    /** Each pair's runs, as `[[at, length], end]`, in the order they stand. */
+    const cuts = pairs.flatMap(([o, c]) => [/** @type {const} */ ([o, 'open']), /** @type {const} */ ([c, 'close'])])
+        .toSorted(([[a]], [[b]]) => a - b)
+    /**
+     * The entry's spans, each text span cut at the runs in it, and the
+     * ends of each strikethrough where its runs stood.
+     *
+     * @type {readonly (Struck | 'open' | 'close')[]}
+     */
+    const pieces = entry.flatMap((span, k) => {
+        if (span[0] !== 'text') { return [span] }
+        /** @type {readonly (Struck | 'open' | 'close')[]} */
+        let cut = []
+        let from = 0
+        for (const [[at, length], end] of cuts.filter(([[at]]) => spanAt(at) === k)) {
+            const to = at - starts[k]
+            cut = [...cut, ...(to > from ? [/** @type {Struck} */ (['text', span[1].slice(from, to)])] : []), end]
+            from = to + length
+        }
+        return from < span[1].length ? [...cut, ['text', span[1].slice(from)]] : cut
+    })
+    /** @type {readonly Inline[]} */
+    let out = []
+    /** The body of the strikethrough open here, if one is. @type {readonly Struck[] | null} */
+    let struck = null
+    for (const piece of pieces) {
+        if (piece === 'open') { struck = [] }
+        else if (piece === 'close') {
+            out = [...out, ['del', /** @type {readonly Struck[]} */ (struck)]]
+            struck = null
+        }
+        else if (struck === null) { out = [...out, piece] }
+        else { struck = [...struck, piece] }
+    }
+    return ok(out)
+}
 
 /**
  * Each emphasis inside a bold body, checked as {@link readProse} checks
@@ -607,9 +747,15 @@ const readProse = entry => {
     /** @type {readonly Inline[]} */
     let out = []
     if (codeSideBySide(entry)) { return error('two code spans side by side, which GitHub reads as one') }
-    if (proseTildePair(entry)) { return error('a tilde pair, which GitHub may read as strikethrough') }
     for (const [i, span] of entry.entries()) {
         if (span[0] === 'code') { out = [...out, span]; continue }
+        // A strikethrough body is checked as an entry is.
+        if (span[0] === 'del') {
+            const read = readProse(span[1])
+            if (read[0] === 'error') { return read }
+            out = [...out, ['del', /** @type {readonly Struck[]} */ (read[1])]]
+            continue
+        }
         // `*a**b*` is one emphasis holding `**` in CommonMark, not two.
         if ((span[0] === 'strong' || span[0] === 'em') && i !== 0 && (entry[i - 1][0] === 'strong' || entry[i - 1][0] === 'em')) {
             return error('bold or emphasis side by side, which GitHub reads otherwise')
@@ -654,8 +800,9 @@ const readProse = entry => {
         }
         // A label's code spans side by side are one span in CommonMark too.
         if (codeSideBySide(span[1])) { return error('two code spans side by side, which GitHub reads as one') }
-        // Strikethrough may cross emphasis inside bold.
-        if (proseTildePair(span[0] === 'strong' ? span[1].flatMap(b => b[0] === 'em' ? b[1] : [b]) : span[1])) {
+        // A link's label is a scope of its own for strikethrough, which
+        // `strikethrough` has read everywhere else.
+        if (span[0] === 'link' && proseTildePair(span[1])) {
             return error('a tilde pair in a span body, which GitHub may read as strikethrough')
         }
         // CommonMark reads an entity in a destination as the character it
@@ -685,7 +832,9 @@ const parseInline = images => text => {
     if (match[0] === 'error') { return error(`entry: unexpected symbol at ${match[1]}`) }
     const entry = entryOf(arr(arr(match[1])[0])[0])
     if (entry[0] === 'error') { return entry }
-    return !images && hasImage(entry[1]) ? error('an image, which an entry does not hold') : readProse(entry[1])
+    if (!images && hasImage(entry[1])) { return error('an image, which an entry does not hold') }
+    const struck = strikethrough(entry[1])
+    return struck[0] === 'error' ? struck : readProse(struck[1])
 }
 
 /**

@@ -212,6 +212,7 @@ export const spanNode = span => {
     if (kind === 'code') { return ['code', span[1]] }
     if (kind === 'strong') { return ['strong', ...span[1].map(spanNode)] }
     if (kind === 'em') { return ['em', ...span[1].map(spanNode)] }
+    if (kind === 'del') { return ['del', ...span[1].map(spanNode)] }
     if (kind === 'link') { return ['a', { href: span[2] }, ...span[1].map(spanNode)] }
     return span[1]
 }

@@ -52,7 +52,7 @@ the README renderer needed are now read as GitHub reads them or refused
 | `<br>`, `Array<T>` outside code | raw HTML | refused |
 | `<https://…>` | an autolink | read as the link it is |
 | a bare `https://…` or `www.…` | a link (GitHub's extension) | refused |
-| `~~a~~` | strikethrough (GitHub's extension) | refused; one `~` is text |
+| `~~a~~` | strikethrough (GitHub's extension) | read as that where both runs stand in the paragraph's own text, paired by GitHub's flanking rule; a single-tilde pair, one inside or across bold or emphasis, one inside another, three tildes or more, and a run that may open or close refused; a tilde that pairs with nothing is text |
 | a line ending in two spaces or a backslash | a hard line break | joined with a space; two spaces refused in a README |
 | `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose in a release file; in a README the heading is refused and the quote and lists are read as GitHub reads them |
 | `1. x`, `# h` indented on a continuation | the same | prose |

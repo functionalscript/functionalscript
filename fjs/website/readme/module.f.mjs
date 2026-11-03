@@ -111,7 +111,7 @@ export const resolveHref = commit => isPage => dir => href => {
 }
 
 /** A span's words, as a heading's anchor is made of them. @type {(span: Inline | Label) => string} */
-const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 'em'
+const words = span => span[0] === 'link' || span[0] === 'strong' || span[0] === 'em' || span[0] === 'del'
     ? span[1].map(words).join('')
     : span[1]
 
@@ -251,8 +251,10 @@ const imageNode = ([, alt, src]) => src.toLowerCase().startsWith('https://')
     ? ok(['img', { src, alt }])
     : error(`an image whose source is not an https address: ${src}`)
 
-/** Whether a heading shows an image. @type {(spans: readonly Inline[]) => boolean} */
-const hasImage = spans => spans.some(span => span[0] === 'image' || (span[0] === 'link' && span[1].some(l => l[0] === 'image')))
+/** Whether a heading shows an image, struck out or not. @type {(spans: readonly Inline[]) => boolean} */
+const hasImage = spans => spans.some(span => span[0] === 'image'
+    || (span[0] === 'link' && span[1].some(l => l[0] === 'image'))
+    || (span[0] === 'del' && hasImage(span[1])))
 
 /**
  * A README as the elements of its page, or the first link it cannot place.
@@ -283,7 +285,7 @@ export const readmeNodes = href => blocks => {
     const node = span => {
         const kind = span[0]
         if (kind === 'code') { return ok(['code', span[1]]) }
-        if (kind === 'strong' || kind === 'em') {
+        if (kind === 'strong' || kind === 'em' || kind === 'del') {
             const inner = nodes(span[1])
             return inner[0] === 'error' ? inner : ok([kind, ...inner[1]])
         }

@@ -138,9 +138,9 @@ export const proof = {
             // The bold's own closing run sees the emphasis's asterisk inside it.
             assertEq(tryParseEntry('**a *b***c')[1], flanking)
             assertEq(tryParseEntry('**a *<https://e.x>* c**')[1], 'an autolink inside bold or emphasis')
-            assertEq(tryParseEntry('**a *~b~* c**')[1], 'a tilde pair in a span body, which GitHub may read as strikethrough')
+            assertEq(tryParseEntry('**a *~b~* c**')[1], 'a single-tilde pair, which GitHub may read as strikethrough')
             // Strikethrough may cross the emphasis.
-            assertEq(tryParseEntry('**~a *b* c~**')[1], 'a tilde pair in a span body, which GitHub may read as strikethrough')
+            assertEq(tryParseEntry('**~a *b* c~**')[1], 'a single-tilde pair, which GitHub may read as strikethrough')
             assertStructurallySame(tryParseEntry('**a *![b](u)* c**'), error('an image inside bold or emphasis'))
             assertStructurallySame(tryParseEntry('**a *b* ![c](u)**'), error('an image inside bold or emphasis'))
             assertStructurallySame(tryParseEntry('**![a](u) *b***'), error('an image inside bold or emphasis'))
@@ -311,6 +311,8 @@ export const proof = {
             [['link', [['text', 'https://e.x']], 'https://e.x'], ['text', ' b']]),
         snakeCase: () => assertEq(proseRefusal('a_b and 9_x_é'), null),
         oneTilde: () => assertEq(proseRefusal('about ~100'), null),
+        // Whether tildes are strikethrough is the whole entry's question.
+        tildes: () => assertEq(proseRefusal('~~a~~'), null),
         colons: () => assertEq(proseRefusal('label: and :: and :two words:'), null),
         ampersand: () => assertEq(proseRefusal('a & b, a&; and &x y;'), null),
         ampersandAlone: () => assertEq(proseRefusal('a & b'), null),
@@ -318,7 +320,6 @@ export const proof = {
         refuses: {
             underscore: () => assertEq(proseRefusal('_a_'), 'an underscore that GitHub may read as emphasis at 0'),
             trailingUnderscore: () => assertEq(proseRefusal('a_'), 'an underscore that GitHub may read as emphasis at 1'),
-            tildes: () => assertEq(proseRefusal('~~a~~'), 'a tilde pair, which GitHub reads as strikethrough, at 0'),
             shortcode: () => assertEq(proseRefusal(':shipit:'), 'an emoji shortcode candidate at 0'),
             shortcodeAliases: () => {
                 for (const name of ['+1', '-1', 'non-potable_water', '100']) {
@@ -382,12 +383,48 @@ export const proof = {
             strong: () => assertEq(tryParseEntry('**a*b*')[0], 'error'),
             emAfterStrong: () => assertEq(tryParseEntry('**a***b*')[0], 'error'),
         },
+        // GitHub's strikethrough, read where both its runs are the entry's
+        // own text; every other tilde is text or refused.
+        strikethrough: {
+            read: () => assertStructurallySame(spans('a ~~b~~ c'), [['text', 'a '], ['del', [['text', 'b']]], ['text', ' c']]),
+            spans: () => assertStructurallySame(spans(`~~**b** ${tick}c${tick} [d](u)~~ e`), [
+                ['del', [['strong', [['text', 'b']]], ['text', ' '], ['code', 'c'], ['text', ' '], ['link', [['text', 'd']], 'u']]],
+                ['text', ' e'],
+            ]),
+            // Its runs may stand in two text runs, with spans between.
+            acrossTextRuns: () => assertStructurallySame(spans(`~~a ${tick}b${tick} c~~`),
+                [['del', [['text', 'a '], ['code', 'b'], ['text', ' c']]]]),
+            twice: () => assertStructurallySame(spans('~~a~~ and ~~b~~'),
+                [['del', [['text', 'a']]], ['text', ' and '], ['del', [['text', 'b']]]]),
+            // A run that opens nothing, closes nothing or is closed by
+            // nothing is the tilde it is.
+            about: () => assertStructurallySame(spans('about ~0.2 s and ~1.6 s'), [['text', 'about ~0.2 s and ~1.6 s']]),
+            unopened: () => assertStructurallySame(spans('a~ b'), [['text', 'a~ b']]),
+            spaced: () => assertStructurallySame(spans('a ~ b'), [['text', 'a ~ b']]),
+            unclosed: () => assertStructurallySame(spans('~~a'), [['text', '~~a']]),
+            // Bold beside it sees a tilde, which is punctuation.
+            besideBold: () => {
+                assertStructurallySame(spans('**a**~~b~~'), [['strong', [['text', 'a']]], ['del', [['text', 'b']]]])
+                assertStructurallySame(spans('~~a~~**b**'), [['del', [['text', 'a']]], ['strong', [['text', 'b']]]])
+            },
+            refuses: {
+                body: () => assertEq(tryParseEntry('~~a _b_~~')[1], 'an underscore that GitHub may read as emphasis at 2'),
+                unknownNeighbour: () => assertEq(tryParseEntry('~~a~~\u2014')[1], 'a tilde beside a character whose kind GitHub may read otherwise'),
+                threeTildes: () => assertEq(tryParseEntry('~~~a~~~')[1], 'a run of three or more tildes, which GitHub may read otherwise'),
+                bothWays: () => assertEq(tryParseEntry('a~~b~~c')[1], 'a tilde run that GitHub may read as opening or closing strikethrough'),
+                twoLengths: () => assertEq(tryParseEntry('~~a~ b')[1], 'tilde runs of two lengths, which GitHub may pair otherwise'),
+                single: () => assertEq(tryParseEntry('~a~')[1], 'a single-tilde pair, which GitHub may read as strikethrough'),
+                insideBold: () => assertEq(tryParseEntry('**~~a~~**')[1], 'strikethrough inside or across bold or emphasis'),
+                acrossBold: () => assertEq(tryParseEntry('~~a **b~~ c**')[1], 'strikethrough inside or across bold or emphasis'),
+                nested: () => assertEq(tryParseEntry('~~a ~~b~~ c~~')[1], 'strikethrough inside strikethrough'),
+            },
+        },
         tildeAcrossSpans: {
             emphasis: () => assertEq(tryParseEntry('~*foo*~')[0], 'error'),
             strong: () => assertEq(tryParseEntry('~**foo**~')[0], 'error'),
             link: () => assertEq(tryParseEntry('~[foo](u)~')[0], 'error'),
             code: () => assertEq(tryParseEntry(`~${tick}foo${tick}~`)[0], 'error'),
-            double: () => assertEq(tryParseEntry('~~*foo*~~')[0], 'error'),
+            double: () => assertStructurallySame(spans('~~*foo*~~'), [['del', [['em', [['text', 'foo']]]]]]),
             label: () => assertEq(tryParseEntry(`[~${tick}foo${tick}~](u)`)[0], 'error'),
             insideStrong: () => assertEq(tryParseEntry(`**~${tick}x${tick}~**`)[0], 'error'),
             insideEmphasis: () => assertEq(tryParseEntry(`*~${tick}x${tick}~*`)[0], 'error'),

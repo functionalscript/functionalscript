@@ -149,6 +149,7 @@ const render = {
         code: () => assertStructurallySame(spanNode(['code', 'a']), ['code', 'a']),
         strong: () => assertStructurallySame(spanNode(['strong', [['text', 'a'], ['code', 'b']]]), ['strong', 'a', ['code', 'b']]),
         em: () => assertStructurallySame(spanNode(['em', [['text', 'a']]]), ['em', 'a']),
+        del: () => assertStructurallySame(spanNode(['del', [['strong', [['text', 'a']]]]]), ['del', ['strong', 'a']]),
         link: () => assertStructurallySame(
             spanNode(['link', [['text', 'a'], ['code', 'b']], 'u']), ['a', { href: 'u' }, 'a', ['code', 'b']]),
     },
