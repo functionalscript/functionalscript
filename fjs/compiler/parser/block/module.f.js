@@ -1,0 +1,46 @@
+/**
+ * Lexical region payloads and statement sequences after binding resolution.
+ * @module
+ * @import { BranchBlock, BlockStatement, BlockEnd } from '../syntax/types.ts'
+ * @import { SourceBlock, SourceStatement, SourceValue } from '../../../js/ast/sugar/source.ts'
+ */
+import { assert } from '../../../asserts/module.f.js'
+
+/** A final loop in lexical braces is an ordinary statement, not a function ending. @type {(block: BranchBlock) => readonly (BlockStatement | BlockEnd)[]} */
+export const _standaloneStatements = block => {
+    const end = block[2]
+    if (end === null) { return block[1] }
+    return [...block[1], end[0] === 'terminal-while' ? ['while', end[1]]
+        : end[0] === 'terminal-for' ? ['for', end[1]]
+            : end[0] === 'terminal-for-of' ? ['for-of', end[1]] : end]
+}
+
+/** Binding identities and lexical events already preserve the erased scope. @type {(body: SourceBlock) => readonly SourceStatement[]} */
+export const _flattenedStandalone = body => {
+    assert(body.exit[0] === 'yield' || body.exit[0] === 'throw')
+    return body.exit[0] === 'throw' ? [...body.statements, ['throw', body.exit[1]]] : body.statements
+}
+
+/** A resolved lexical region payload, including normal and terminal branches. @type {(value: SourceValue) => SourceBlock} */
+export const _regionBlock = value => {
+    assert(value instanceof Array && value[0] === 'block')
+    return value[1]
+}
+
+/** Explicit throw stays refused in lexical arms; ordinary functions own theirs. @type {(arms: readonly SourceBlock[]) => boolean} */
+export const _hasArmThrow = arms => {
+    let pending = arms
+    while (pending.length !== 0) {
+        const block = pending[0]
+        if (block.exit[0] === 'throw') { return true }
+        pending = pending.slice(1)
+        if (block.exit[0] === 'terminal-loop') { pending = [...pending, block.exit[1].body] }
+        for (const statement of block.statements) {
+            if (statement[0] === 'throw') { return true }
+            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
+            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
+            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
+        }
+    }
+    return false
+}

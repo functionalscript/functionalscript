@@ -502,6 +502,7 @@ export type Block = readonly [number, BlockContents, number]
 
 /** Non-loop body statements before a terminal or candidate terminal loop. */
 export type SimpleStatement = () => readonly ['const', {
+    readonly block: BranchBlock
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement
     readonly if: IfStatement
@@ -518,6 +519,7 @@ export type BlockContents = () => readonly ['const', readonly [
 /** A block's statement before its terminator: a declaration, a braced conditional, a loop, or a named assignment or call. A thunk, as {@link Value} is, since it names itself through the block. */
 export type Statement = () => readonly ['const', {
     readonly construct: NewExpressionStatement
+    readonly block: BranchBlock
     readonly const: ConstStatement
     readonly if: IfStatement
     readonly let: LetStatement
@@ -553,6 +555,7 @@ export type BodyNameStatement = readonly [...NameExpression, End]
 
 /** A module's statement before its exports: a `const`, a `let`, a plain loop, or what begins with a name, an assignment or a call statement. */
 export type ModuleStatement = {
+    readonly block: BranchBlock
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement
     readonly let: LetStatement
@@ -600,6 +603,7 @@ export type LoopBlock = readonly [number, RepeatFrom<0, LoopStatement>, number]
 
 /** A loop block's statement: a declaration, conditional, nested loop, switch, loop or function exit, or what begins with a name. A thunk, since its branches name themselves through {@link LoopBlock}. */
 export type LoopStatement = () => readonly ['const', {
+    readonly block: LoopBlock
     readonly break: readonly [number, End]
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement

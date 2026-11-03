@@ -1,10 +1,7 @@
 /**
- * Resolve admitted source names and preserve source blocks, assignments,
- * parameter plans and loop source evidence for the common sugar pass.
+ * Resolve source bindings and control structure for the common sugar pass.
  *
- * The explicit work stack keeps source depth independent of the host stack.
- * The parser owns declaration, key and capture admission; sugar owns generated
- * bindings, invocation layout and graph normalization.
+ * Explicit work steps keep source depth independent of the host stack.
  *
  * @module
  * @import { Result } from '../../types/result/types.ts'
@@ -14,10 +11,11 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While } from './syntax/types.ts'
+ * @import { Assignment, BindingTarget, BranchBlock, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, If, Import, Item, Key, Let, LoopSwitch, Module, Node, NormalIf, ParameterList, Statement, Step, Switch, ValueStatement, While, StandaloneBlock } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _BodyFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _GuardFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _NormalIfFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State, _SwitchFrame } from './private.ts'
  */
 
+import { _standaloneStatements as standaloneStatements, _flattenedStandalone as flattenedStandalone, _hasArmThrow as hasArmThrow, _regionBlock as regionBlock } from './block/module.f.js'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import { concat, reverse } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -221,7 +219,7 @@ const brokenLine = statement => statement.first.newline
  * asked; nor is a guard or a switch, which ends at its `}` and takes no
  * `;`, so the statement after one may share its line, as in JavaScript.
  *
- * @type {(previous: Statement | If | NormalIf | Switch | LoopSwitch | While | ForOf | null, next: Statement | If | NormalIf | Switch | LoopSwitch | While | ForOf) => boolean}
+ * @type {(previous: { readonly start: ModuleTokenWithMetadata } | null, next: { readonly start: ModuleTokenWithMetadata }) => boolean}
  */
 const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
 
@@ -1155,11 +1153,13 @@ const forOfReturned = (stack, scope, frame, value) => {
     return bodyRound(stack, outer, advanced(frame.body, [statement]))
 }
 
+/** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneBlock, body: _BodyFrame | null) => _State} */
+const enterStandalone = (stack, scope, block, body) => [{ top: { scoped: body }, rest: stack }, regionScope(scope, empty, null), ['region', {
+    statements: standaloneStatements(block.block), first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
+}]]
+
 /**
- * Enter the next declaration, branch condition, loop initializer or terminal
- * value in document order. Source guards retain their lexical block and the
- * remaining statements as terminal branches rather than generated invocations.
- *
+ * Resolve the next statement; guards retain their remaining statements as terminal branches.
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, scope, frame) => {
@@ -1177,6 +1177,8 @@ const bodyRound = (stack, scope, frame) => {
     if (unterminated(previous, statement)) {
         return [stack, scope, error(unexpectedToken(statement.start))]
     }
+    if (kind === 'block') { return enterStandalone(stack, scope, statement, frame) }
+    if (kind === 'return' && !scope.inFunction) { return [stack, scope, error(unexpectedToken(statement.start))] }
     if (kind === 'if' || kind === 'normal-if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
     if (kind === 'switch') { return [{ top: { ...frame, switchFirstEvent: scope.trace.count }, rest: stack }, scope, ['enter', statement.discriminant]] }
     // A loop's condition and block are source regions. Their complete
@@ -1657,6 +1659,12 @@ const lateLanded = (stack, scope, frame, value) => {
  * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: SourceValue) => _State}
  */
 const returned = (stack, scope, frame, value) => {
+    if (hasEntry(frame, 'scoped')) {
+        const statements = flattenedStandalone(regionBlock(value))
+        if (frame.scoped === null) { return [stack, scope, ok(['block', { statements, exit: ['yield', undefined] }])] }
+        return 'block' in frame.scoped ? loopRound(stack, scope, advanced(frame.scoped, statements))
+            : bodyRound(stack, scope, advanced(frame.scoped, statements))
+    }
     if (hasEntry(frame, 'pattern')) {
         const [tag, selected] = patternSelected(scope, frame, { value })
         return tag === 'error' ? [stack, scope, error(selected)] : patternRound(stack, selected[0], selected[1])
@@ -1771,7 +1779,7 @@ const returned = (stack, scope, frame, value) => {
         }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
-        assert(kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        assert(kind !== 'block' && kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
@@ -1857,24 +1865,6 @@ const arm = (stack, scope, frame, statements, first, enclosing, branch = false) 
 const normalArm = (stack, scope, frame, block) => bodyRound({ top: frame, rest: stack }, regionScope(scope, empty, null), {
     statements: block[2] === null ? block[1] : [...block[1], block[2]], first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
 })
-
-/** Explicit throw stays refused in lexical arms; ordinary functions own theirs. @type {(arms: readonly SourceBlock[]) => boolean} */
-const hasArmThrow = arms => {
-    let pending = arms
-    while (pending.length !== 0) {
-        const [block, ...rest] = pending
-        if (block.exit[0] === 'throw') { return true }
-        pending = rest
-        if (block.exit[0] === 'terminal-loop') { pending = [...pending, block.exit[1].body] }
-        for (const statement of block.statements) {
-            if (statement[0] === 'throw') { return true }
-            if (statement[0] === 'if') { pending = [...pending, statement[2], statement[3]] }
-            if (statement[0] === 'while' || statement[0] === 'for-of') { pending = [...pending, statement[1].body] }
-            if (statement[0] === 'switch') { pending = [...pending, ...statement[1].cases.map(arm => arm.body), statement[1].otherwise] }
-        }
-    }
-    return false
-}
 
 /** Count only writes in the arms to identities established before arm entry. @type {(scope: _Scope, frame: _NormalIfFrame) => number} */
 const outerArmWrites = (scope, frame) => {
@@ -2035,6 +2025,11 @@ const loopRound = (stack, scope, frame) => {
         if (unterminated(index === 0 ? null : block[index - 1][1], statement)) {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
+        if (kind === 'block') {
+            return [{ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), ['region', {
+                block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null,
+            }]]
+        }
         if (kind === 'break' || kind === 'continue') {
             frame = advanced(frame, [[kind, kind === 'break' ? frame.breakTarget : frame.target]])
             continue
@@ -2064,12 +2059,6 @@ const loopRound = (stack, scope, frame) => {
         if (tag === 'error') { return [stack, scope, error(plan)] }
         return [{ top: { ...frame, plan, assigned: null }, rest: stack }, declared(scope, plan, kind), declaredValue(kind, target, value, namespace, plan)]
     }
-}
-
-/** A resolved lexical region payload, including normal and terminal branches. @type {(value: SourceValue) => SourceBlock} */
-const regionBlock = value => {
-    assert(value instanceof Array && value[0] === 'block')
-    return value[1]
 }
 
 /**
@@ -2148,7 +2137,9 @@ const evaluateState = initial => {
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step
-        if (tag === 'enter') {
+        if (tag === 'region') {
+            state = 'block' in payload ? loopRound(stack, scope, payload) : bodyRound(stack, scope, payload)
+        } else if (tag === 'enter') {
             state = enter(stack, scope, payload)
         } else if (tag === 'define') {
             // a `const`'s value: a function is entered under its own name
@@ -2255,7 +2246,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
     let exports = []
     // the statement before the one being read, whose omitted `;` the one
     // being read has to begin a line for
-    /** @type {Statement | While | ForOf | null} */
+    /** @type {Parameters<typeof unterminated>[0]} */
     let previous = null
     for (const statement of imports) {
         if (unterminated(previous, statement)) { return error(unexpectedToken(statement.start)) }
@@ -2283,6 +2274,15 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
         ]
     }
     for (const statement of statements) {
+        if (statement[0] === 'block') {
+            if (unterminated(previous, statement[1])) { return error(unexpectedToken(statement[1].start)) }
+            previous = statement[1]
+            const [tag, evaluated] = evaluateState(enterStandalone(null, scope, statement[1], null))
+            if (tag === 'error') { return error(evaluated) }
+            scope = evaluated.scope
+            body = [...body, ...regionBlock(evaluated.value).statements]
+            continue
+        }
         if (statement[0] === 'while' || statement[0] === 'for' || statement[0] === 'for-of') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
