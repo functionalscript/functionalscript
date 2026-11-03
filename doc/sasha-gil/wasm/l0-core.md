@@ -4,7 +4,7 @@ The core describes the FunctionalScript data model, not JavaScript. Values
 are immutable and come in a few kinds: numbers, booleans, `undefined` and
 `null`, strings, bigints, arrays, ordered objects and functions. L0 is how a
 module makes, reads, shares, frees and calls them. The sections below name
-23 functions, and L0 should stay near that size: a new one needs a reason
+24 functions, and L0 should stay near that size: a new one needs a reason
 that L1 cannot serve.
 
 Every section below is a **proposal**, with the options considered.
@@ -133,6 +133,9 @@ code is an entry in a function table that program and runtime share.
   rest parameters come free, at the cost of one allocation per call. A
   fixed-arity fast path can be added later without breaking this one.
 - **Frame:** `frame(self, i)`.
+- **Text:** `text(f)` answers the text `make_function` took, as a string, or
+  `undefined` when it took none, so `String(f)` can refuse it as
+  `IFunction::text` does today.
 
 **Open:** a function's text, what `String(f)` answers, is the most
 JavaScript-flavoured item in L0. It could move to L1 as metadata looked up
