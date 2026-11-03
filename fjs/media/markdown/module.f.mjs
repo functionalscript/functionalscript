@@ -604,6 +604,28 @@ const scanned = span => span[0] === 'text' ? span[1]
     : '[a](u)'
 
 /**
+ * Whether a tilde run at `at`, `length` long, stands in a bare URL, and
+ * how: `null` where it does not, `'inside'` where it is part of the link,
+ * and `'tail'` where only punctuation GitHub cuts off a link's end follows
+ * it to the URL's end.
+ *
+ * GitHub reads a bare `http://` or `https://` URL as one link, up to a
+ * space or `<`, before it looks for delimiters in it, so a tilde inside is
+ * the link's own; a tilde it cuts off the end is read again as prose,
+ * where whether it pairs is GitHub's choice to make.
+ *
+ * @type {(text: string, at: number, length: number) => 'inside' | 'tail' | null}
+ */
+const inBareUrl = (text, at, length) => {
+    const start = Math.max(text.lastIndexOf(' ', at), text.lastIndexOf('\t', at), text.lastIndexOf('<', at)) + 1
+    const word = text.slice(start, at)
+    if (!word.includes('http://') && !word.includes('https://')) { return null }
+    let end = at
+    while (end < text.length && !' \t<'.includes(text[end])) { end = end + 1 }
+    return [...text.slice(at + length, end)].every(c => urlTrailing.includes(c) || c === ')') ? 'tail' : 'inside'
+}
+
+/**
  * A run of tildes in {@link scanned} text, as GitHub reads it: where it
  * starts and how long it is, and whether it opens strikethrough, closes
  * it, or is the tildes it is. A run that may do both, three or more
@@ -612,11 +634,16 @@ const scanned = span => span[0] === 'text' ? span[1]
  *
  * GitHub's rule for a tilde run is CommonMark's for an asterisk run: it
  * opens when no space follows it and, if punctuation follows, a space or
- * punctuation comes before; it closes the other way round.
+ * punctuation comes before; it closes the other way round. A run inside a
+ * bare URL is the link's own ({@link inBareUrl}), and one at its end is
+ * refused.
  *
  * @type {(text: string, at: number, length: number) => Result<'open' | 'close' | 'text', string>}
  */
 const tildeRun = (text, at, length) => {
+    const url = inBareUrl(text, at, length)
+    if (url === 'tail') { return error('a tilde at the end of a bare URL, which GitHub may read otherwise') }
+    if (url === 'inside') { return ok('text') }
     const before = delimiterSide(text[at - 1])
     const after = delimiterSide(text[at + length])
     if (before === null || after === null) { return error('a tilde beside a character whose kind GitHub may read otherwise') }

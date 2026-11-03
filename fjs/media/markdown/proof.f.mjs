@@ -402,6 +402,13 @@ export const proof = {
             unopened: () => assertStructurallySame(spans('a~ b'), [['text', 'a~ b']]),
             spaced: () => assertStructurallySame(spans('a ~ b'), [['text', 'a ~ b']]),
             unclosed: () => assertStructurallySame(spans('~~a'), [['text', '~~a']]),
+            // GitHub reads a bare URL as one link before its tildes.
+            inBareUrl: () => {
+                assertStructurallySame(spans('see https://e.x/~~a~~/b'), [['text', 'see '], ['link', [['text', 'https://e.x/~~a~~/b']], 'https://e.x/~~a~~/b']])
+                assertStructurallySame(spans('https://e.x/~a b'), [['link', [['text', 'https://e.x/~a']], 'https://e.x/~a'], ['text', ' b']])
+                // A word with no scheme is no URL.
+                assertStructurallySame(spans('e.x/~~a~~'), [['text', 'e.x/'], ['del', [['text', 'a']]]])
+            },
             // Bold beside it sees a tilde, which is punctuation.
             besideBold: () => {
                 assertStructurallySame(spans('**a**~~b~~'), [['strong', [['text', 'a']]], ['del', [['text', 'b']]]])
@@ -417,6 +424,12 @@ export const proof = {
                 insideBold: () => assertEq(tryParseEntry('**~~a~~**')[1], 'strikethrough inside or across bold or emphasis'),
                 acrossBold: () => assertEq(tryParseEntry('~~a **b~~ c**')[1], 'strikethrough inside or across bold or emphasis'),
                 nested: () => assertEq(tryParseEntry('~~a ~~b~~ c~~')[1], 'strikethrough inside strikethrough'),
+                // GitHub cuts a tilde off a URL's end and reads it again.
+                bareUrlTail: () => {
+                    assertEq(tryParseEntry('~~see https://e.x~~')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                    assertEq(tryParseEntry('https://e.x/a~.')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                    assertEq(tryParseEntry('(https://e.x/a~)')[1], 'a tilde at the end of a bare URL, which GitHub may read otherwise')
+                },
             },
         },
         tildeAcrossSpans: {
