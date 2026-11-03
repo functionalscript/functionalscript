@@ -7,7 +7,7 @@ Representability does not imply source admission. Drafts
 [#3512](https://github.com/functionalscript/functionalscript/pull/3512) remain
 paused; their experiments do not change current admission.
 
-The [reference cases](../../doc/sergey/control-flow.md) are fragments. Admission
+The [reference cases](../../doc/sergey-shandar/control-flow.md) are fragments. Admission
 checks add ordinary-function wrappers with explicit final returns. Cases 8/9
 already contain the corrected break result and initial invocation. Case 10
 adds a conditional loop. Implicit returns and source case fall-through remain
