@@ -23,13 +23,12 @@ output writes `0x10n` exactly as it writes `16n`, and one that refuses a
 export default [0x10n, 0XFFn, -0x8000000000000000n];
 ```
 
-A binary integer part also takes `n`: `0b101n` and `0B101n` are `5n`.
+Binary and octal integer parts also take `n`: `0b101n` and `0B101n` are `5n`; `0o17n` and `0O17n` are `15n`.
 Numeric separators may occur between digits in every admitted base,
-`1_000n`, `0xFF_FFn` and `0b1010_0011n`, under the same separator rules as
+`1_000n`, `0xFF_FFn`, `0b1010_0011n` and `0o7_7n`, under the same separator rules as
 [numbers](../numbers/README.md). Values remain exact at any width and outputs use decimal.
 
-The syntax is those integer parts and the `n`, so the JavaScript spellings
-it leaves out are not recognized: no octal prefix (`0o7n`). A fraction or
+The syntax is those integer parts and the `n`. A fraction or
 an exponent (`1.5n`, `1e3n`), a leading zero (`01n`) and an uppercase `N` are
 errors in both languages. JSON has no spelling for a `bigint`, so a `.json`
 output refuses one ([output](../../command-line/output.md)).

@@ -102,7 +102,7 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
    ([destructuring](../bindings/destructuring/README.md)), the elision
    included; the rest element is open,
 3. [ ] [js-string-literals](./2460-js-string-literals.md),
-4. [ ] number spellings beyond JSON's — `0o7`, `.5`, `1.`
+4. [ ] remaining number spellings beyond JSON's — `.5`, `1.`
    ([numbers](../values/numbers/README.md)); hexadecimal, binary and numeric separators are implemented;
    [binary design review](./2470-binary-literals.md) remains open for linked
    designer approval, as does the

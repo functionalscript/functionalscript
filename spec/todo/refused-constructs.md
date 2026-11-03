@@ -164,7 +164,6 @@ describes:
 
 | ID | Construct | Why |
 |---|---|---|
-| `lit.octal` | `0o7` | open ([numbers](../values/numbers/README.md) leaves it out; the [roadmap](./README.md) records no use case yet) |
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
 | `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md); page: [An Array Hole Is Refused](../values/arrays/holes/README.md)) |

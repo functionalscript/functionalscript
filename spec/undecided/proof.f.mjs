@@ -53,7 +53,6 @@ const refusals = {
     'mod.side-effect-import': '1:8 - error: unexpected token',
     'mod.string-import-name': '1:10 - error: unexpected token',
     'mod.top-level-await': '1:22 - error: unexpected token',
-    'lit.octal': '1:17 - error: unexpected token',
     'lit.trailing-dot': '1:18 - error: unexpected token',
     'lit.string-escape': '1:16-2:1 - error: unexpected token',
     'lit.string-continuation': '1:16-3:1 - error: unexpected token',
