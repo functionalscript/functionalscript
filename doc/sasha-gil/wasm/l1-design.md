@@ -147,7 +147,13 @@ in NaNVM's `option_dot` and `option_call`:
 - `f?.(x)` and `a.k?.(x)` get the callee first, through `resolveMember` for
   a member, then test the callee.
 
-Either way the arguments are evaluated only after the test passes. No L1
+When the test fails, the guard jumps to the end of the whole chain, which
+answers `undefined`: every step written after the `?.` is skipped, up to a
+parenthesis that closes the chain
+([optional chaining](../../../spec/property-access/optional-chaining/README.md)).
+So `n?.a.b` answers `undefined`, while `(n?.a).b` reads `b` of `undefined`
+and throws. The chain is one block in WASM, and the guard is a `br` out of
+it. Either way the arguments are evaluated only after the test passes. No L1
 operation takes an argument that has not been evaluated yet, so no thunk
 crosses the boundary, and the order stays the one
 [the runtime README](../../../fjs/js/runtime/README.md) sets: the guard
