@@ -17,7 +17,10 @@
  * The operations join a slice at a time. So far: `typeof`, `ToBoolean`,
  * `===`, the string comparisons, the coercions `ToPrimitive`,
  * `ToString`, `ToNumber`, `ToNumeric` and `ToPropertyKey`, the arithmetic
- * operators `+ - * /` and unary `-`, and the relations `< <= > >=`.
+ * operators `+ - * /` and unary `-`, the relations `< <= > >=`, the
+ * member read `a[k]`, a call of an unknown value, and the iterations:
+ * array spread, `for...of` and array destructuring of an unknown value
+ * through `toIterable`, and object spread through `objectSpread`.
  *
  * A thrown value copies the text NaNVM throws for the same case
  * ([`error.rs`](../../../nanvm/lib/src/vm/error.rs)), so a native
@@ -28,7 +31,8 @@
 
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asBoolean, asFunction, asNumber, asString, concat, find, item, kind, length, same, text, unit,
+    asArray, asBoolean, asFunction, asNumber, asObject, asString, concat, find, fromUnit, item, kind, length,
+    same, substring, text, unit,
 } from '../l0/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
@@ -404,4 +408,132 @@ export const lessThanOrEqual = (a, b) => {
 export const greaterThanOrEqual = (a, b) => {
     const pa = toPrimitive(a, false)
     return less(pa, toPrimitive(b, false)) === 0
+}
+
+/**
+ * A number as an array or string index, the `canonical_index` of NaNVM:
+ * an integer from `0` to `0xffff_ffff`, `-0` read as `0`, or `-1` for any
+ * other number, which no index matches.
+ *
+ * @type {(n: number) => number}
+ */
+const numberIndex = n => n % 1 === 0 && n >= 0 && n <= 0xffff_ffff ? n : -1
+
+/**
+ * The digit a UTF-16 unit spells, or `-1`.
+ *
+ * @type {(u: number) => number}
+ */
+const digit = u => u >= 0x30 && u <= 0x39 ? u - 0x30 : -1
+
+/**
+ * A string as an array or string index: the decimal spelling of an
+ * integer up to `0xffff_ffff`, with no sign and no leading zero, or `-1`.
+ *
+ * @type {(s: unknown) => number}
+ */
+const stringIndex = s => {
+    const n = length(s)
+    if (n === 0 || n > 1 && unit(s, 0) === 0x30) { return -1 }
+    let r = { i: 0, value: 0 }
+    while (r.i < n && r.value >= 0) {
+        const d = digit(unit(s, r.i))
+        const value = d < 0 ? -1 : r.value * 10 + d
+        r = { i: r.i + 1, value: value > 0xffff_ffff ? -1 : value }
+    }
+    return r.value
+}
+
+/**
+ * The member read `a[k]` and `a.k`, NaNVM's rules: a receiver's own
+ * members only, no prototype. `undefined` and `null` throw. An object
+ * reads its own property, a number key by its string. An array or a
+ * string reads an index, by a number or by its canonical string, and its
+ * `length`; a string's index is a one-unit string. A function reads its
+ * `length`. Every other key, receiver or index out of bounds answers
+ * `undefined`. The key is a number or a string, as the compiler emits it;
+ * any other key answers `undefined`.
+ *
+ * @type {(a: unknown, k: unknown) => unknown}
+ */
+export const get = (a, k) => {
+    const ka = kind(a)
+    if (ka === UNDEFINED || ka === NULL) { throw 'TypeError: Cannot convert undefined or null to object' }
+    const kk = kind(k)
+    if (kk !== NUMBER && kk !== STRING) { return undefined }
+    if (ka === OBJECT) {
+        const i = find(a, kk === NUMBER ? numberToString(k) : k)
+        return i < 0 ? undefined : item(a, i)
+    }
+    const isLength = kk === STRING && stringEquals(k, 'length')
+    if (ka === FUNCTION) { return isLength ? length(a) : undefined }
+    if (ka !== ARRAY && ka !== STRING) { return undefined }
+    if (isLength) { return length(a) }
+    const i = kk === NUMBER ? numberIndex(asNumber(k)) : stringIndex(k)
+    if (i < 0 || i >= length(a)) { return undefined }
+    return ka === ARRAY ? item(a, i) : fromUnit(unit(a, i))
+}
+
+/**
+ * A call of a value of unknown type with an array of arguments. A value
+ * that is not a function throws NaNVM's `TypeError`.
+ *
+ * @type {(f: unknown, args: unknown) => unknown}
+ */
+export const call = (f, args) => {
+    if (kind(f) !== FUNCTION) { throw 'TypeError: unexpected type' }
+    return asFunction(f)(...asArray(args))
+}
+
+/**
+ * Whether a UTF-16 unit is in a range, `low` to `high` inclusive.
+ *
+ * @type {(u: number, low: number, high: number) => boolean}
+ */
+const inRange = (u, low, high) => u >= low && u <= high
+
+/**
+ * `GetIterator` of a value of unknown type, as the array it walks: an
+ * array as it is, and a string as its code points, a surrogate pair as one
+ * string and a lone surrogate as itself. Any other value throws NaNVM's
+ * `TypeError`. Spread, `for...of` and array destructuring walk the answer
+ * with L0 `length` and `item`. A string costs one copy per code point, as
+ * a reference body may.
+ *
+ * @type {(v: unknown) => readonly unknown[]}
+ */
+export const toIterable = v => {
+    const k = kind(v)
+    if (k === ARRAY) { return asArray(v) }
+    if (k !== STRING) { throw 'TypeError: value is not iterable' }
+    const n = length(v)
+    let r = { i: 0, points: /** @type {readonly unknown[]} */ ([]) }
+    while (r.i < n) {
+        const pair = r.i + 1 < n && inRange(unit(v, r.i), 0xd800, 0xdbff) && inRange(unit(v, r.i + 1), 0xdc00, 0xdfff)
+        const end = pair ? r.i + 2 : r.i + 1
+        r = { i: end, points: [...asArray(r.points), substring(v, r.i, end)] }
+    }
+    return r.points
+}
+
+/**
+ * The properties `{ ...v }` copies from a value of unknown type, as an
+ * object: an object's own properties, an array's items and a string's
+ * units under their index keys, and nothing from any other value,
+ * `undefined` and `null` included. One copy per property, as a reference
+ * body may.
+ *
+ * @type {(v: unknown) => { readonly [k in string]: unknown }}
+ */
+export const objectSpread = v => {
+    const k = kind(v)
+    if (k === OBJECT) { return asObject(v) }
+    if (k !== ARRAY && k !== STRING) { return {} }
+    const n = length(v)
+    let r = { i: 0, o: {} }
+    while (r.i < n) {
+        const x = k === ARRAY ? item(v, r.i) : fromUnit(unit(v, r.i))
+        r = { i: r.i + 1, o: { ...asObject(r.o), [numberToString(r.i)]: x } }
+    }
+    return r.o
 }
