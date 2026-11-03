@@ -1756,8 +1756,14 @@ const targetOf = ([tag, branch]) => {
 }
 
 /** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
-const toConst = ([first, target, , v, end]) =>
-    symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
+const toConst = ([first, target, , v, rest, end]) => {
+    const statement = { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) }
+    const following = unmapped(rest).map(item => {
+        const [comma, target, , value] = unmapped(item)
+        return { start: tokenAt(comma), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(value) }
+    })
+    return symbol({ id: 'const', statement: following.length === 0 ? statement : { ...statement, following } })
+}
 
 /** @type {(node: Children<LetStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toLet = ([first, binding, end]) => {

@@ -1177,7 +1177,8 @@ export const bindingTarget = { name: identifierName, ...bindingPattern }
 
 /**
  * A `const` statement: what it binds, {@link bindingTarget}, `=`, the
- * value, and its {@link end}. A module's statement and a function body's
+ * value, any following comma-separated target/initializer pairs, and its
+ * {@link end}. A module's statement and a function body's
  * alike — {@link module} takes a run of them after the imports, and
  * {@link block} a run of them before the `return`.
  *
@@ -1187,7 +1188,7 @@ export const bindingTarget = { name: identifierName, ...bindingPattern }
  *
  * @type {ConstStatement}
  */
-export const constStatement = [sym('const'), bindingTarget, sym('='), value, end]
+export const constStatement = [sym('const'), bindingTarget, sym('='), value, repeatFrom0([sym(','), bindingTarget, sym('='), value]), end]
 
 /** Bare construction and its ordinary member/call continuations. @type {NewExpressionStatement} */
 export const newExpressionStatement = [newExpression, accesses, end]
