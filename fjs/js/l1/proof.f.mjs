@@ -7,17 +7,17 @@ import {
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
 
-const a = [1]
-const o = { a: 1 }
+const a = /** @type {const} */ ([1])
+const o = /** @type {const} */ ({ a: 1 })
 
 /** Values of every kind, with the edge cases of each operation. */
-const values = [
+const values = /** @type {readonly unknown[]} */ ([
     undefined, null, true, false,
     0, -0, NaN, 1, -1.5, Infinity, -Infinity,
     '', 'a', 'ab', 'b', 'B', '\u{1F600}', '\uffff', '0', 'false',
     0n, 1n, -1n, 0x1_0000_0000_0000_0000n,
     a, [1], [], o, { a: 1 }, {}, f, () => 0,
-]
+])
 
 /**
  * Values every coercion converts without a throw: {@link values} but the
@@ -111,6 +111,11 @@ export const proof = {
     },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {
+        // both operands of a string comparison must be strings
+        stringEqualsFirst: () => { stringEquals([], []) },
+        stringEqualsSecond: () => { stringEquals('', []) },
+        stringLessFirst: () => { stringLess([], '') },
+        stringLessSecond: () => { stringLess('', [1]) },
         // a bigint has no number
         toNumberBigInt: () => { toNumber(1n) },
         toNumberValueOf: () => { toNumber({ valueOf: () => 1n }) },
