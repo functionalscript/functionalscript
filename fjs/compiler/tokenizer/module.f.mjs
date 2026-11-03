@@ -88,9 +88,9 @@ const moduleTokenKindSet = new Set(_moduleTokenKinds)
 /**
  * Whether a lexically valid JS template chunk uses FJS's spelling subset.
  * The shared lexer already validates escape digits and chunk boundaries, so
- * this only checks the policy: JSON and hexadecimal escapes, escaped backticks
- * and escaped `${`, with raw CR/LF but no other C0 controls. Checking source preserves
- * refusals such as vertical-tab escapes after cooking.
+ * this only checks the policy: JSON, hexadecimal and vertical-tab escapes,
+ * escaped backticks and escaped `${`, with raw CR/LF but no other C0 controls.
+ * Checking source preserves refusals such as identity escapes after cooking.
  *
  * @type {(source: string) => boolean}
  */
@@ -101,7 +101,7 @@ const templateSourceAccepted = source => {
         const cp = source.charCodeAt(i)
         if (escaped) {
             const admitted = character === '$' ? source[i + 1] === '{'
-                : character === 'u' || character === 'x' || escapeToCodePoint(cp) !== null || character === '`'
+                : character === 'u' || character === 'x' || character === 'v' || escapeToCodePoint(cp) !== null || character === '`'
             if (!admitted) { return false }
             escaped = false
         } else if (character === '\\') {

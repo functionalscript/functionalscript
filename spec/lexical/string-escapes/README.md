@@ -29,7 +29,7 @@ other spellings — the `\0` escape, a raw TAB or other C0 control
 character, a line continuation — are refused in both quotes; see
 [js-string-literals](../../todo/2460-js-string-literals.md). Backtick-delimited
 [template literals](../../values/template-literals/README.md) have their own
-expression syntax and escape policy; `\xHH` is admitted there, while `\v` remains refused.
+expression syntax and escape policy; `\xHH` and `\v` are admitted there.
 
 A braced Unicode escape has one or more hexadecimal digits between braces,
 with a value from `0` through `0x10ffff`. Leading zeros and either hex case
