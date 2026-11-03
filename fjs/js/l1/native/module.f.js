@@ -10,7 +10,8 @@
  * proved before any WASM exists.
  *
  * A row joins with its first caller. Like the L0 view, a body checks its
- * preconditions and throws where WASM would trap.
+ * preconditions and throws where WASM would trap, with the text
+ * `l1.<name>: <reason>`.
  *
  * @module
  */
@@ -47,3 +48,82 @@ export const stringToNumber = s => Number(asString(s))
  * @type {(b: unknown) => string}
  */
 export const bigintToString = b => String(asBigInt(b))
+
+/**
+ * The bigint operands of an arithmetic row, or a throw where WASM traps.
+ *
+ * @type {(name: string, a: unknown, b: unknown) => readonly [bigint, bigint]}
+ */
+const bigints = (name, a, b) => {
+    if (typeof a !== 'bigint' || typeof b !== 'bigint') { throw 'l1.' + name + ': not a bigint' }
+    return [a, b]
+}
+
+/**
+ * `+` on two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintAdd = (a, b) => {
+    const [x, y] = bigints('bigintAdd', a, b)
+    return x + y
+}
+
+/**
+ * `-` on two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintSubtract = (a, b) => {
+    const [x, y] = bigints('bigintSubtract', a, b)
+    return x - y
+}
+
+/**
+ * `*` on two bigints.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintMultiply = (a, b) => {
+    const [x, y] = bigints('bigintMultiply', a, b)
+    return x * y
+}
+
+/**
+ * `/` on two bigints, truncated toward zero. A zero divisor throws NaNVM's
+ * `RangeError`.
+ *
+ * @type {(a: unknown, b: unknown) => bigint}
+ */
+export const bigintDivide = (a, b) => {
+    const [x, y] = bigints('bigintDivide', a, b)
+    if (y === 0n) { throw 'RangeError: Division by zero' }
+    return x / y
+}
+
+/**
+ * Unary `-` on a bigint.
+ *
+ * @type {(a: unknown) => bigint}
+ */
+export const bigintNegate = a => -asBigInt(a)
+
+/**
+ * [`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan) of two
+ * primitives where at least one is a bigint and each is a bigint, a
+ * number or a string, the mixed comparisons: `1` for less, `0` for not
+ * less, and `-1` for undefined, which a `NaN` or a string that spells no
+ * integer gives.
+ *
+ * @type {(a: unknown, b: unknown) => number}
+ */
+export const bigintLess = (a, b) => {
+    const ka = typeof a
+    const kb = typeof b
+    if (ka !== 'bigint' && kb !== 'bigint') { throw 'l1.bigintLess: not a bigint' }
+    if (ka !== 'bigint' && ka !== 'number' && ka !== 'string') { throw 'l1.bigintLess: not a numeric' }
+    if (kb !== 'bigint' && kb !== 'number' && kb !== 'string') { throw 'l1.bigintLess: not a numeric' }
+    const x = /** @type {bigint} */ (a)
+    const y = /** @type {bigint} */ (b)
+    return x < y ? 1 : x >= y ? 0 : -1
+}

@@ -15,8 +15,9 @@
  * not strings.
  *
  * The operations join a slice at a time. So far: `typeof`, `ToBoolean`,
- * `===`, the string comparisons, and the coercions `ToPrimitive`,
- * `ToString`, `ToNumber`, `ToNumeric` and `ToPropertyKey`.
+ * `===`, the string comparisons, the coercions `ToPrimitive`,
+ * `ToString`, `ToNumber`, `ToNumeric` and `ToPropertyKey`, the arithmetic
+ * operators `+ - * /` and unary `-`, and the relations `< <= > >=`.
  *
  * A thrown value copies the text NaNVM throws for the same case
  * ([`error.rs`](../../../nanvm/lib/src/vm/error.rs)), so a native
@@ -29,7 +30,10 @@ import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
     asBoolean, asFunction, asNumber, concat, find, item, kind, length, same, text, unit,
 } from '../l0/module.f.js'
-import { bigintEquals, bigintToString, numberToString, stringToNumber } from './native/module.f.js'
+import {
+    bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
+    bigintToString, numberToString, stringToNumber,
+} from './native/module.f.js'
 
 /** The answer of `typeof` for each kind tag, in tag order. */
 const typeNames = ['undefined', 'object', 'boolean', 'number', 'string', 'bigint', 'object', 'object', 'function']
@@ -259,3 +263,139 @@ export const toNumeric = v => {
  * @type {(v: unknown) => string}
  */
 export const toPropertyKey = v => toString(v)
+
+/**
+ * Whether two numeric values, each a number or a bigint, are bigints: an
+ * arithmetic operator's choice between the native bigint row and the WASM
+ * instruction. A number and a bigint together throw, as JavaScript does.
+ *
+ * @type {(x: unknown, y: unknown) => boolean}
+ */
+const bigintPair = (x, y) => {
+    const kx = kind(x)
+    if (kx !== kind(y)) { throw 'TypeError: Cannot mix BigInt and other types, use explicit conversions' }
+    return kx === BIGINT
+}
+
+/**
+ * The `+` operator: a string when either primitive is a string, else a
+ * sum of two numbers or two bigints. Both primitives are taken before
+ * either is converted, the left first.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const add = (a, b) => {
+    const pa = toPrimitive(a, false)
+    const pb = toPrimitive(b, false)
+    if (kind(pa) === STRING || kind(pb) === STRING) { return concat(toString(pa), toString(pb)) }
+    const x = toNumeric(pa)
+    const y = toNumeric(pb)
+    return bigintPair(x, y) ? bigintAdd(x, y) : asNumber(x) + asNumber(y)
+}
+
+/**
+ * The `-` operator on values of unknown type.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const subtract = (a, b) => {
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintSubtract(x, y) : asNumber(x) - asNumber(y)
+}
+
+/**
+ * The `*` operator on values of unknown type.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const multiply = (a, b) => {
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintMultiply(x, y) : asNumber(x) * asNumber(y)
+}
+
+/**
+ * The `/` operator on values of unknown type. A bigint divided by `0n`
+ * throws in the native row.
+ *
+ * @type {(a: unknown, b: unknown) => unknown}
+ */
+export const divide = (a, b) => {
+    const x = toNumeric(a)
+    const y = toNumeric(b)
+    return bigintPair(x, y) ? bigintDivide(x, y) : asNumber(x) / asNumber(y)
+}
+
+/**
+ * The unary `-` operator on a value of unknown type.
+ *
+ * @type {(a: unknown) => unknown}
+ */
+export const negate = a => {
+    const x = toNumeric(a)
+    return kind(x) === BIGINT ? bigintNegate(x) : -asNumber(x)
+}
+
+/**
+ * [`IsLessThan`](https://tc39.es/ecma262/#sec-islessthan) of two
+ * primitives: `1` for less, `0` for not less, `-1` for undefined, where a
+ * `NaN` takes part. Two strings compare by units. A comparison with a
+ * bigint goes to the native row, with a string kept as it is, since it is
+ * read as a bigint there, and any other primitive made a number.
+ *
+ * @type {(a: unknown, b: unknown) => number}
+ */
+const less = (a, b) => {
+    const ka = kind(a)
+    const kb = kind(b)
+    if (ka === STRING && kb === STRING) { return stringLess(a, b) ? 1 : 0 }
+    if (ka === BIGINT || kb === BIGINT) {
+        return bigintLess(ka === BIGINT || ka === STRING ? a : toNumber(a), kb === BIGINT || kb === STRING ? b : toNumber(b))
+    }
+    const x = toNumber(a)
+    const y = toNumber(b)
+    if (x !== x || y !== y) { return -1 }
+    return x < y ? 1 : 0
+}
+
+/**
+ * The `<` operator on values of unknown type. The primitives, a number
+ * preferred, are taken left first for every relation.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+export const lessThan = (a, b) => {
+    const pa = toPrimitive(a, false)
+    return less(pa, toPrimitive(b, false)) === 1
+}
+
+/**
+ * The `>` operator: `b < a`, with the primitives taken left first.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+export const greaterThan = (a, b) => {
+    const pa = toPrimitive(a, false)
+    return less(toPrimitive(b, false), pa) === 1
+}
+
+/**
+ * The `<=` operator: not `b < a`, and false where that is undefined.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+export const lessThanOrEqual = (a, b) => {
+    const pa = toPrimitive(a, false)
+    return less(toPrimitive(b, false), pa) === 0
+}
+
+/**
+ * The `>=` operator: not `a < b`, and false where that is undefined.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+export const greaterThanOrEqual = (a, b) => {
+    const pa = toPrimitive(a, false)
+    return less(pa, toPrimitive(b, false)) === 0
+}
