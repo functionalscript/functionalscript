@@ -327,8 +327,14 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    length here, so it grows with a reader's own font size. */
 main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
 /* The breadcrumb is where the page sits, not what it is about: a small
-   muted line above the page's heading, which is the README's title. */
-nav[aria-label="Breadcrumb"] { color: var(--muted); font-size: .875rem; margin-bottom: 1rem }
+   muted line above the page's heading, which is the README's title or, on a
+   page without one, the directory's name. The space between the two is the
+   breadcrumb's alone, so the heading sits at the same place either way: a
+   README's title would otherwise bring the README's own margin and a
+   section heading's, which do not collapse into the breadcrumb's. */
+nav[aria-label="Breadcrumb"] { color: var(--muted); font-size: .875rem; margin-bottom: 1.25rem }
+nav[aria-label="Breadcrumb"] + h1, nav[aria-label="Breadcrumb"] + [data-readme] { margin-top: 0 }
+[data-readme] > [data-linked-heading]:first-child > h1 { margin-top: 0 }
 /* Keep the catalogue in a fixed left column and let desktop content fill
    the remaining width. The divider spans the content, independently of
    the sticky catalogue's height. Mobile navigation opens a drawer. */
