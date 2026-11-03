@@ -28,7 +28,7 @@
  */
 
 import { breadcrumb, changelogDir, pageHref, pageTitle, repository, shell } from '../page/module.f.mjs'
-import { cmp as versionCmp, tryParse } from '../../types/version/module.f.mjs'
+import { cmp as versionCmp, tryParse } from '../../types/version/module.f.js'
 import { intersperse, mergeAdjacent } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { charIs, isDigit as isDigitCodePoint, lowerHexDigitValue } from '../../text/ascii/module.f.js'
@@ -163,7 +163,7 @@ export const linked = entry => _merged(entry.flatMap(
  * is the plausible wrong value `DESIGN.md` §10 rules out.
  *
  * **A version is what {@link descending} can order.** The parts are
- * [`types/version`](../../types/version/module.f.mjs)'s `tryParse`, the same
+ * [`types/version`](../../types/version/module.f.js)'s `tryParse`, the same
  * definition its `cmp` refuses anything outside of, so a release admitted here
  * never makes the sort throw.
  *
@@ -180,7 +180,7 @@ export const isVersion = name => {
  * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
  * text and follows it as a version, and `0.1.608` lands nowhere sensible
  * among the `0.10.x` files at all. Every index that lists them has to
- * compare the numbers, which [`types/version`](../../types/version/module.f.mjs)
+ * compare the numbers, which [`types/version`](../../types/version/module.f.js)
  * does.
  *
  * @type {(versions: readonly string[]) => readonly string[]}
