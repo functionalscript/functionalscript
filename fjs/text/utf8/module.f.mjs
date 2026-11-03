@@ -25,7 +25,7 @@ import {
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.js'
 import { isByte } from '../../types/number/module.f.js'
-import { codePointListToString, stringToCodePointList } from '../utf16/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../utf16/module.f.js'
 
 /**
  * UTF-8 byte-format constants. Each byte kind is defined by a tag — the fixed

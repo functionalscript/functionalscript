@@ -65,6 +65,7 @@ import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { entry, hasEntry } from '../../../types/object/entry/module.f.js'
+import { stringifySorted } from '../../../media/json/module.f.mjs'
 
 /**
  * Every node's rank: the longest path from a source, so every edge points
@@ -347,7 +348,7 @@ const valueKindOf = ({ to }) =>
  * @type {(edge: Edge) => { readonly [k in string]?: string }}
  */
 const clickOf = ({ to }) => typeof to === 'number' || to.click === undefined ? {} : {
-    'data-demo-click': to.click.name, tabindex: '0', role: 'button', 'aria-label': to.click.label,
+    'data-demo-click': /** @type {string} */ (entry(to.click, 'name')), tabindex: '0', role: 'button', 'aria-label': to.click.label,
     'pointer-events': 'all', cursor: 'pointer',
 }
 
@@ -392,7 +393,7 @@ const fadeOf = nodeOf => (from, to) => {
  * @type {(part: string, ...keys: readonly (string | undefined)[]) => { readonly 'data-key'?: string }}
  */
 const pathKeyOf = (part, ...keys) =>
-    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${JSON.stringify(keys)}` } : {}
+    keys.every(k => k !== undefined) ? { 'data-key': `${part}:${stringifySorted(keys)}` } : {}
 
 /**
  * Where a node's contents are drawn, and the attributes of the groups that

@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { canWrite, notesPrefix, onlyPersonalNotes } from './module.f.mjs'
+import { canWrite, notesPrefix, onlyPersonalNotes } from './module.f.js'
 
 export const proof = {
     prefix: () => {

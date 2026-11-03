@@ -18,7 +18,7 @@ import { errorLocation } from '../compiler/parser/module.f.mjs'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
 import { error as errorLine, errorExit, errorMessage, log } from '../effects/node/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { stringToList } from '../text/utf16/module.f.mjs'
+import { stringToList } from '../text/utf16/module.f.js'
 
 /** Implementation entry points selected for the initial coverage dependency check. @type {(path: string) => boolean} */
 const isModule = path => ['module.f.js', 'module.f.mjs'].includes(basename(path))

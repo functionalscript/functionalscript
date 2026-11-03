@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { unwrap } from '../../../types/result/module.f.js'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import { parseSyntax } from './module.f.mjs'
 

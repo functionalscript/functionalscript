@@ -16,6 +16,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
+import { generate } from '../../types/array/generate/module.f.js'
 import { eq } from '../secp/module.f.js'
 
 /** How many low bits of a card's `x` hold its index. */
@@ -74,7 +75,7 @@ export const mentalPoker = ({ pf: { p }, y, mul, nf: { p: n, reciprocal } }) => 
             if (!Number.isInteger(size) || size < 0 || maxDeckSize < size) {
                 return null
             }
-            const cards = Array.from({ length: size }, (_, i) => encode(BigInt(i))(0n))
+            const cards = generate(size, i => encode(BigInt(i))(0n))
             return cards.every(card => card !== null) ? cards : null
         },
         key: secret => 0n < secret && secret < n
@@ -105,7 +106,7 @@ export const shuffle = seed => list => {
     }
     const length = BigInt(list.length)
     const i = Number(seed % length)
-    return [list[i], ...shuffle(seed / length)([...list.slice(0, i), ...list.slice(i + 1)])]
+    return [list[Number(i)], ...shuffle(seed / length)([...list.slice(0, i), ...list.slice(i + 1)])]
 }
 
 /**

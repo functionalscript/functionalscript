@@ -26,10 +26,10 @@
  * @import { Bytes } from '../../types.ts'
  */
 
-import { encode } from '../../../basen/base16/module.f.mjs'
+import { encode } from '../../../basen/base16/module.f.js'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { fromVec, stringToU8List } from '../../../text/utf8/module.f.mjs'
-import { codePointListToString } from '../../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../../text/utf16/module.f.js'
 import { maxLengthBytes, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { isWholeName } from '../../refname/module.f.mjs'
