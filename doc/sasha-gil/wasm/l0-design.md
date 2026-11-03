@@ -219,7 +219,13 @@ are written in FunctionalScript.
   today, and lowers it to the L0 import. A cast lowers to `to_f64`,
   `to_bool` or nothing, and gives the result a known type.
 - **Not in the view:** allocation, `dup`, `drop`, the builders and memory.
-  The compiler emits those from literals and from its ownership pass.
+  The compiler emits those from literals, from its ownership pass, and from
+  spread over a value of known type. A body builds a container of dynamic
+  size by spreading a cast value, as in `[...asArray(acc), x]` or
+  `{ ...asObject(o), [asString(k)]: v }`. Spread of a known array or object
+  lowers to builder calls over `length`, `item` and `key`, not to L1, so
+  the closure rule allows it. Grown one item at a time, this is quadratic,
+  which is acceptable for a reference body.
 - **Why:** each intrinsic also has a plain JavaScript body, `kind` through
   `typeof` and a cast as identity, so code written over the view runs and
   is proved on any JavaScript host today, before a WASM backend exists.

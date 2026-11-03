@@ -39,7 +39,7 @@ functions were added for this.
 | `slice(s, start, end)` | the clamped positions, then `substring` |
 | `String.fromCharCode(...units)` | a loop of `from_unit` and `concat` |
 | `Object.entries(o)` | a loop of `key` and `item` that builds pairs |
-| `entry(o, k)`, `hasEntry(o, k)` | `find`, then `item` |
+| `entry(o, k)`, `hasEntry(o, k)` | by kind, after L1 `toPropertyKey(k)`: an object through `find` and `item`; an array or a string through a canonical index below `length`, then `item` or `substring`; any other kind owns nothing |
 
 - **Why:** each was native only because no body could read a unit or a key.
   The L0 view can, so the list of natives shrinks to L1's native rows.
@@ -49,10 +49,16 @@ functions were added for this.
 
 ### 3. Statics link by name
 
-- **Pick:** a program imports a static by its id, such as
-  `(import "fjs:static" "Object.is" ...)`, and the stock module exports one
-  function per entry of `statics`. `runtime.static`, the lookup by string,
-  is no longer needed in compiled code.
+- **Pick:** for each entry of `statics`, the stock module exports two
+  things under its id: the code, and an immutable `i64` global that holds
+  the function value. The start function of the stock module makes each
+  value once, with `make_function`, from the code that linking chose, the
+  body or the host's native. A program that uses a static as a value, as
+  in `const f = Object.is` or `String(Object.is)`, imports the global, so
+  every module sees the same value, with one identity, `length` and text.
+  A direct call such as `Object.is(a, b)` may import the code and call it
+  without the value. `runtime.static`, the lookup by string, is no longer
+  needed in compiled code.
 - **Why:** the id is known when the program is compiled, so a lookup at
   run time is wasted work. A runtime overrides a static the way it
   overrides an L1 operation: by exporting the same name.

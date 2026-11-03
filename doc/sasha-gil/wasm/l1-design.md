@@ -71,6 +71,7 @@ L1 is called only where it does not.
 | Two booleans, or `!` of a boolean | `i32` instructions |
 | Two strings, `+` | L0 `concat` |
 | Two strings, `===` and `<` | L1 string compare: a loop over `unit` in FunctionalScript |
+| Spread of a known array or object: `[...xs, x]`, `{ ...o, [k]: v }` | L0 builder calls over `length`, `item` and `key`, emitted by the compiler |
 | Anything else | The L1 operation |
 
 ### 5. One calling convention for every L1 operation
