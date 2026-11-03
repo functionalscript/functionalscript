@@ -53,6 +53,10 @@ C applies that to all of L1.
 
 ## Open
 
+The [L1 design](./l1-design.md) proposes an answer to both: the native rows
+of its operations table, and `resolveMember`, an L1 operation that calls
+L2's `runtime.dot`.
+
 - Which operations have no reasonable reference body? Number to string and
   string to number are the likely ones, and they may stay native-only. Every
   native-only operation is one more thing a runtime must implement before

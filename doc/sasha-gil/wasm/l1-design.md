@@ -14,15 +14,17 @@ with a reference body. In the first implementation almost every body is
 FunctionalScript, written over the [FunctionalScript view of
 L0](./l0-design.md#17-a-functionalscript-view-of-l0). Only a short list of
 operations is native: number formatting and parsing, `%`, `**`, the
-32-bit integer operators and bigint arithmetic. Every runtime implements
-those, and any other operation it wants to make faster.
+32-bit integer operators, bigint arithmetic, and the member functions that
+have no body yet. Every runtime implements those, and any other operation
+it wants to make faster.
 
 ## Design choices
 
 ### 1. L1 bodies are FunctionalScript over typed values
 
 - **Pick:** an L1 body is an ordinary FunctionalScript function in a new
-  module, proposed as `fjs/js/l1`. It reads values through the L0 view and
+  module, proposed as `fjs/js/l1`, which only the WASM backend compiles. It
+  reads values through the L0 view and
   works on the typed results. For example, `+` is:
 
   ```js
@@ -58,7 +60,9 @@ those, and any other operation it wants to make faster.
   compares it with JavaScript's own operator, over a table of values of
   every kind. The L0 view's JavaScript bodies make this possible.
 - **Why:** the reference bodies are correct before any WASM exists. Later,
-  the same tables are the conformance test for every native substitution.
+  the same tables are the conformance test for every native substitution,
+  NaNVM's existing Rust operations included. The module is held to the
+  repository's full proof coverage, like any other.
 
 ### 4. Typed lowering is the compiler's, not L1's
 
@@ -72,6 +76,10 @@ L1 is called only where it does not.
 | Two strings, `+` | L0 `concat` |
 | Two strings, `===` and `<` | L1 string compare: a loop over `unit` in FunctionalScript |
 | Spread of a known array or object: `[...xs, x]`, `{ ...o, [k]: v }` | L0 builder calls over `length`, `item` and `key`, emitted by the compiler |
+| A condition that is a known boolean: `if`, `?:`, `&&`, `\|\|`, `!` | `br_if` and `i32` instructions; any other condition goes through L1 `toBoolean` |
+| `x === undefined`, `x === null` and their `!==` | L0 `kind` and an `i32.eq` |
+| A call of a known function | L0 `call` |
+| `.length` of a known string or array | L0 `length` |
 | Anything else | The L1 operation |
 
 ### 5. One calling convention for every L1 operation
@@ -83,12 +91,27 @@ L1 is called only where it does not.
   as `typeof`. That can come later as a specialised version.
 - **Why:** a top-level FunctionalScript function compiles to exactly this
   shape. The L1 module is then one compiler output, not hand-written WASM.
+- **Needs:** the compiler must compile a top-level function that captures
+  nothing as a direct WASM function with one parameter per argument, besides
+  the general `(self, args)` code that every function value has.
+- **Variadic operations:** an operation that takes any number of
+  arguments, such as the body of `String.fromCharCode`, has one parameter,
+  the arguments as an array: `(any args) -> (i32, any)`. Its function value
+  passes the `args` of its `(self, args)` code straight through. A direct
+  call such as `String.fromCharCode(a, b)` builds the array with L0's
+  builder, as a spread does.
 
 ### 6. Errors are FunctionalScript throws
 
 - **Pick:** an L1 body throws, as the runtime does today, for example
-  `throw 'TypeError: not a function'`. The throw becomes status 1.
-- **Why:** there is nothing new to design. Whether the thrown value should
+  `throw 'TypeError: unexpected type'` from `call` of a value that is not a
+  function. The throw becomes status 1.
+- **Why:** there is nothing new to design. Each throw copies the text of
+  the matching constructor in NaNVM's
+  [`error.rs`](../../../nanvm/lib/src/vm/error.rs), the error's name, a
+  colon and the message, so a native substitution and its body throw the
+  same value and the proof tables can compare it. A case `error.rs` does
+  not have yet gets a constructor there first. Whether the thrown value should
   be an error object, rather than a string, is a separate question for the
   whole runtime.
 
@@ -100,18 +123,37 @@ L1 is called only where it does not.
 | Coercions | `toBoolean`, `toPrimitive`, `toPropertyKey`, `toString` of everything except numbers and bigints, `toNumber` of everything except strings, `toNumeric` | FunctionalScript |
 | Arithmetic | `+ - * /` and unary `-`, number and string | FunctionalScript |
 | Comparison | `=== !==`, `< <= > >=` of numbers and strings | FunctionalScript |
-| Member read | `a[k]` and `a.k`: an object's own key through `find`, an array index, a string index, `length` | FunctionalScript |
+| Member read | `a[k]` and `a.k`: an object's own key through `find`, an array index, a string index, the `length` of a string, an array or a function | FunctionalScript |
+| Today's intrinsics | `charCodeAt`, `slice`, `entry`, `hasEntry`, and the bodies of the statics `String.fromCharCode` and `Object.entries` ([L2 design](./l2-design.md#2-todays-natives-become-l1-operations)) | FunctionalScript |
 | Calls | `call` of an unknown value, and `resolveMember`, the callee of `a[k](...)` | FunctionalScript, `resolveMember` through L2's `runtime.dot` |
-| Iteration | spread of an array or a string, `Object.entries`-style iteration, object spread | FunctionalScript |
+| Iteration | `toIterable(v)`: an array as it is, a string as an array of its code points, a throw for anything else. Spread, `for...of` and array destructuring of an unknown value call it, then walk the array with `length` and `item`. Object spread of an unknown value | FunctionalScript |
 | Numbers, native | `%`, `**`, `numberToString`, `stringToNumber` | Native |
 | Integers, native | `& \| ^ ~ << >> >>>` and `ToInt32` | Native |
 | Bigints, native | every operation on a bigint, and the mixed comparisons | Native |
 | Members, native | `nativeMember(self, key)`: the member functions with no body in `fjs/js/runtime` yet, such as `map` | Native, shrinking as bodies are written |
 
-Optional chaining stays in the program. For `f?.(x)` and `a.k?.(x)` the
-compiler emits the guard itself: it gets the callee, through
-`resolveMember` for a member, tests it for `undefined` and `null` with L0
-`kind`, and evaluates the arguments only after the test passes. No L1
+Some operators need no operation of their own. Unary `+` is `toNumber`.
+A template literal is `toString` of each part, then `concat`. A computed key
+in an object literal is `toPropertyKey`. `in` is L2's `runtime.in`.
+
+Optional chaining stays in the program, and the compiler emits the guard
+itself with L0 `kind`. What it tests depends on where the `?.` stands, as
+in NaNVM's `option_dot` and `option_call`:
+
+- `a?.b`, `a?.[k]` and `a?.k(x)` test the receiver `a` for `undefined` and
+  `null` first. Only after that does the program evaluate `k` and read the
+  member, or call `resolveMember`, so `undefined?.x` answers `undefined`
+  and does not throw.
+- `f?.(x)` and `a.k?.(x)` get the callee first, through `resolveMember` for
+  a member, then test the callee.
+
+When the test fails, the guard jumps to the end of the whole chain, which
+answers `undefined`: every step written after the `?.` is skipped, up to a
+parenthesis that closes the chain
+([optional chaining](../../../spec/property-access/optional-chaining/README.md)).
+So `n?.a.b` answers `undefined`, while `(n?.a).b` reads `b` of `undefined`
+and throws. The chain is one block in WASM, and the guard is a `br` out of
+it. Either way the arguments are evaluated only after the test passes. No L1
 operation takes an argument that has not been evaluated yet, so no thunk
 crosses the boundary, and the order stays the one
 [the runtime README](../../../fjs/js/runtime/README.md) sets: the guard

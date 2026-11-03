@@ -85,14 +85,18 @@ Each choice gives the pick first, then the alternatives and the reason.
   both to the runtime and to the program. The program's data and element
   segments go at offsets given by imported globals, `data_base` and
   `table_base`. The program's region also holds the scratch space that
-  `read_units` and `read_words` write into. The runtime owns everything
-  outside that region.
+  `read_units` and `read_words` write into. The stock module of
+  [L1](./l1-design.md) and [L2](./l2-design.md) is compiled the same way,
+  so it gets a region of its own: the loader reserves one region for each
+  compiled module. The runtime owns everything outside those regions, and
+  never allocates into any of them.
 - **Alternatives:** the runtime exports its memory and the program imports
   it; multi-memory (WASM 3.0); no shared memory, with a string passed one unit
   per call.
 - **Why:** this works the same for a WASM runtime and a JavaScript runtime,
   and needs only WASM 2.0. The program states its sizes in a custom section,
-  `fjs.layout`, so the loader can reserve them before instantiating it. Its
+  `fjs.layout`, so the loader can reserve them before instantiating the
+  module. Its
   payload is three unsigned LEB128 numbers, in this order: the size of the
   data segments in bytes, the size of the scratch space in bytes, and the
   number of table entries.
@@ -104,6 +108,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   These values are never dropped.
 - **Alternative:** build a literal each time it is used.
 - **Why:** a literal in a loop costs one `global.get`, not an allocation.
+  Building a literal cannot throw, so the WASM start function, which has no
+  way to report a throw, is enough for it. Evaluating the module is not:
+  see [choice 20](#20-a-program-is-one-module-with-an-init-export).
 
 ### 7. Strings: UTF-16 units in L0
 
@@ -142,7 +149,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   store, `make_function` of its frame and text, and `drop` of its argument.
   `seal` consumes its builder. Every returned value is owned, so `item`,
   `key` and `frame` return a `dup`. The program emits `drop` at a value's
-  last use.
+  last use. A value read from a global, an imported constant or a literal,
+  is borrowed. Before it goes to a function that takes ownership, the
+  program calls `dup`.
 - **Alternatives:** an arena, where `drop` does nothing, is legal under the
   same ABI. WasmGC would need no `dup` or `drop`.
 - **Why:** this matches NaNVM's `Rc` today, and the heap is acyclic. The cost
@@ -181,7 +190,9 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 ### 14. Identity: `same` is reference identity, and a runtime may merge equal values
 
-- **Pick:** `same(a, b)` answers 1 when `a` and `b` are the same value. A
+- **Pick:** `same(a, b)` takes two arrays, objects or functions, and
+  answers 1 when they are the same value. Numbers, strings and the other
+  primitives compare in L1 by content, so `same` never sees them. A
   content-addressable runtime may answer 1 for two structurally equal values.
   Conformance tests must not rely on two fresh objects being distinct.
 - **Alternative:** require reference identity on every runtime.
@@ -212,7 +223,7 @@ are written in FunctionalScript.
 
 - **Pick:** a module of intrinsics, proposed as `fjs/js/l0`, names the L0
   functions that FunctionalScript code may call: `kind`, `length`, `item`,
-  `key`, `find`, `same` and the four string functions, plus the kind tags
+  `key`, `find`, `same`, `text` and the four string functions, plus the kind tags
   as constants. It also has casts: `asNumber`, `asBoolean`, `asString`,
   `asBigInt`, `asArray`, `asObject` and `asFunction`. The compiler
   recognises each function by its body, as it does `fjs/js/intrinsic`
@@ -226,12 +237,68 @@ are written in FunctionalScript.
   lowers to builder calls over `length`, `item` and `key`, not to L1, so
   the closure rule allows it. Grown one item at a time, this is quadratic,
   which is acceptable for a reference body.
+- **Calls:** a call of a cast function, `asFunction(f)(...xs)`, lowers to
+  L0 `call`, with the arguments built by the builder, or passed as they are
+  when `xs` is a known array.
 - **Why:** each intrinsic also has a plain JavaScript body, `kind` through
-  `typeof` and a cast as identity, so code written over the view runs and
-  is proved on any JavaScript host today, before a WASM backend exists.
+  `typeof`, so code written over the view runs and is proved on any
+  JavaScript host today, before a WASM backend exists.
+- **The JavaScript bodies check preconditions.** A cast throws unless the
+  value has its kind, and a function that takes an `i32` in WASM throws
+  unless its argument is an integer in range. In WASM the same mistake
+  traps, so a proof on a JavaScript host finds every misuse that would trap.
+- **Who reads the view:** only the WASM backend recognises the intrinsics,
+  and only `fjs/js/l1` imports the view. The interpreter and the Rust
+  backend never see it, so each intrinsic costs one recognised body in one
+  backend, not one in every executor, as `fjs/js/intrinsic` costs today.
 - **Numbers:** FunctionalScript numbers are `f64`. Where L0 takes an
   `i32`, the compiler truncates, and a value that is not an integer in
   range traps.
+
+### 18. What `length`, `item` and `key` mean for each kind
+
+| Kind | `length(v)` | `item(v, i)` | `key(v, i)` |
+| --- | --- | --- | --- |
+| String | UTF-16 units | traps; use `unit` | traps |
+| Bigint | `u64` words | traps; use `read_words` | traps |
+| Array | items | the item | traps |
+| Object | properties | the value of property `i` | the key of property `i` |
+| Function | declared parameters | traps | traps |
+
+`a.length` in a program is L1's member read, not L0's `length`. For an
+object, L1 reads its `length` property through `find`.
+
+### 19. Bigints are canonical
+
+- **Pick:** `make_bigint` takes a magnitude with no leading zero words and
+  a sign of 0 for zero, 1 for positive and -1 for negative. Zero is 0 words
+  with sign 0. Any other input traps.
+- **Why:** one value has one form, so `length(b) === 0` tests for zero, and
+  equal bigints have equal words.
+
+### 20. A program is one module, with an `init` export
+
+- **Pick:** the compiler links all the FunctionalScript modules of one
+  program into one WASM module. It exports `init`, of type `() -> (i32, any)`,
+  which evaluates the modules in import order and answers the main module's
+  default export, or the value it throws.
+- **Alternative:** one WASM module per FunctionalScript module, linked by the
+  loader.
+- **Why:** a module's top level can throw, and the WASM start function cannot
+  report that. One module per program also keeps calls between modules
+  direct. Modules can be split later, because each one is already a function
+  of its imports.
+
+### 21. The host is an L0 client
+
+- **Pick:** the host reads a program's result, and the requests of its
+  effects, through L0's reads, `kind`, `length`, `item`, `key`, `to_f64`
+  and `read_units`. It answers through L0's builders and continues through
+  `call`. Serialising a value as JSON for the harness is host code over the
+  same reads.
+- **Why:** NaNVM's effect loop already works this way over `Any`
+  ([`effects-node`](../../../nanvm/effects-node/src/native.rs)), so no new
+  import is needed.
 
 ## Where this draft is least sure
 

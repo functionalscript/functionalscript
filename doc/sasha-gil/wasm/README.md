@@ -58,22 +58,27 @@ each layer say where.
 
 ## Plan
 
-The plan is still rough. Each step ends in a discussion before the next one
-starts.
+Each step ends in a discussion before the next one starts. Steps 1 and 2
+are done as drafts: the designs for [L0](./l0-design.md), [L1](./l1-design.md)
+and [L2](./l2-design.md). The aim since 2026-11-03 is to write as much of
+the runtime as possible in FunctionalScript first, and to make it faster
+later by substitution.
 
 1. **Inventory.** Sort every operation that generated code and
-   `gen.runtime.rs` use today into L0, L1 or L2, with a signature for each and
-   the questions each one raises. No code.
-2. **ABI choices.** Decide the open questions below, one axis at a time:
-   the WASM type of `any`, allocation, lifetime, calls, errors, identity.
-3. **Smallest proof.** NaNVM built as its own `.wasm` that exports L0 and L1.
-   One small program, written as WAT through
-   [`fjs/media/wasm`](../../../fjs/media/wasm/README.md), imports it and runs
-   in Node, first with an opaque `any` and every operation imported. Then
-   the same program specialized for NaNVM, with its `to_f64` and `from_f64`
-   inlined as fragments. A small second runtime in JavaScript implements the
-   same imports and runs the portable program.
-4. **Spec and conformance.** The agreed interface as a spec, and the
+   `gen.runtime.rs` use today into L0, L1 or L2. The L1 design's operations
+   table is the draft; checking it against `vm::unstable` and the `Any`
+   methods is still to do.
+2. **ABI choices.** One pick on each axis, in the L0 design.
+3. **The runtime in FunctionalScript, on a JavaScript host.** The L0 view,
+   the L1 bodies, and today's natives as L1 operations, each proved against
+   JavaScript itself. No WASM yet
+   ([L2 design](./l2-design.md#the-first-implementation)).
+4. **Smallest proof.** A WASM backend compiles the stock module and one
+   small program. A host supplies L0 and L1's native rows: NaNVM built as its
+   own `.wasm`, or a small runtime in JavaScript. Then the same program
+   specialized for NaNVM, with its `to_f64` and `from_f64` inlined as
+   fragments.
+5. **Spec and conformance.** The agreed interface as a spec, and the
    existing harness corpus run against any runtime, in both the portable and
    the specialized mode.
 
@@ -92,19 +97,27 @@ inliner.
 
 ## Open questions
 
+The designs propose an answer to each of the first five. They stay open
+until the owner decides them.
+
 1. Is the WASM type of `any` fixed by the ABI, or chosen per target
    runtime when code is generated? See
-   [l0-core.md](./l0-core.md#the-wasm-type-of-any).
+   [l0-core.md](./l0-core.md#the-wasm-type-of-any). Proposed: `i64`, fixed
+   for version 1.
 2. Are UTF-16 strings acceptable in L0, or should strings be opaque, with
    every string operation in L1? See [l0-core.md](./l0-core.md#allocation).
+   Proposed: UTF-16 units, plus four string functions that need no memory.
 3. Is reference counting, with borrowed arguments and owned results, the
    baseline? Is object-grouping forward reference, which would make cycles
    possible, likely to land? See [l0-core.md](./l0-core.md#lifetime).
+   Proposed: reference counting, as in NaNVM today.
 4. May a content-addressable runtime give structural identity, or must every
    runtime keep reference identity? See
-   [l0-core.md](./l0-core.md#identity).
+   [l0-core.md](./l0-core.md#identity). Proposed: a runtime may merge equal
+   values.
 5. Is the reading of "stock runtime building ops" in
-   [l2-stock-runtime.md](./l2-stock-runtime.md) the intended one?
+   [l2-stock-runtime.md](./l2-stock-runtime.md) the intended one? The L2
+   design builds on it.
 6. How small and how simple must an inline fragment be, and how does a
    specialized program name the runtime it was built for? See
    [inline-fragments.md](./inline-fragments.md#open).
