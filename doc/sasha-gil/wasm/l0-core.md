@@ -9,6 +9,9 @@ that L1 cannot serve.
 
 Every section below is a **proposal**, with the options considered.
 
+[l0-design.md](./l0-design.md) picks one option on each axis, as a first
+detailed design for discussion.
+
 ## Today
 
 | Concept | Rust today |
