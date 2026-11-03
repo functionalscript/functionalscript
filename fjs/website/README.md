@@ -37,13 +37,14 @@ the two are separate, and this one is not quietly migrated into the other.
 
 ## Shareable demo links
 
-The address bar is the link to share: each settled edit puts the demo's inputs
-in its query, and the Demo heading's anchor is a plain
+The address bar is the link to share: it always holds the demo's current
+inputs in its query, and the Demo heading's anchor is a plain
 [section link](#section-links). Input links use `#demo` for defaults. Example links
 such as `/fjs/compiler/?example=hex-escape#demo` restore a stable example;
 custom inputs use individual query parameters such as `?compiler=source#demo`.
 Restore validates all inputs before replacing state and never presses action
-buttons. Each settled edit pushes a history entry, so Back walks the edits. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
+buttons. A reader edit pushes a history entry once typing pauses, so Back walks
+the edits; an action that changes an input replaces the entry instead. The encoded query plus `#demo` has a 16 KiB limit. New demos with inputs must declare defaults, choices and an
 atomic sharing adapter; `textDemo` supplies one automatically. See the
 [sharing contract](./demo/sharing/README.md) for encodings, validation,
 startup edits and history navigation.

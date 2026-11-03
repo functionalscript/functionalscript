@@ -196,7 +196,7 @@ Tree presets append an ID as their fifth tuple entry,
 option metadata. Labels and the events demos receive stay unchanged.
 
 Stable IDs are used by [shareable demo inputs](./sharing/README.md).
-Each settled edit puts the inputs in the address bar: `#demo` for defaults, a
+The address bar always holds the current inputs: `#demo` for defaults, a
 matching example query or the complete custom input set as individual query
 parameters. The heading's anchor links to the section. Every new demo with editable inputs must declare the
 [sharing contract](./sharing/README.md#authoring); `textDemo` does this
