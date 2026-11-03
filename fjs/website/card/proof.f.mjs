@@ -26,7 +26,7 @@ export const proof = {
         // The root always has one, since every other page falls back to it.
         root: () => {
             assertStructurallySame(cardContent('.')(rendered), [['h2', 'Crypto'], ['p', 'Hashes.']])
-            assertStructurallySame(cardContent('.')(refused), [['h2', siteName], ['p', siteDescription]])
+            assertStructurallySame(cardContent('.')(refused), [['h1', siteName], ['p', siteDescription]])
         },
     },
     // The README in the site's stylesheet, sized, and ready once its images are.
