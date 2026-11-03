@@ -990,28 +990,44 @@ and no other page had either.
   `WORKERS_CI_COMMIT_SHA`. The published site is built from `main` and a local
   build names no branch, so neither shows the strip.
 
-## The breadcrumb is the page's heading
+## The README's title is the page's heading
 
-A directory's page, a release's page and the release index open with one
-line, `root / fjs / rtti`: each ancestor a link, the page itself as text
-marked `aria-current="page"`. It is `breadcrumb` in
-[`page/module.f.mjs`](./page/module.f.mjs), a `nav` holding the page's `h1`.
+A directory's page opens with its breadcrumb, `root / fjs / rtti`: each
+ancestor a link, the page itself as text marked `aria-current="page"`. It is
+`breadcrumb` in [`page/module.f.mjs`](./page/module.f.mjs), a plain `nav`,
+set as a small muted line. Under it is the page's one `h1`: the README's own
+`#` title, or, where the README gives none, the directory's name
+(`pageHeading`).
 
-- **One line, not two.** The page used to carry a breadcrumb, `root / fjs`,
-  and under it an `h1`, `fjs/rtti` — the same path twice, the second time
-  without its root.
-- **It is still the `h1`.** Only the duplicate is gone, not the heading: a
-  screen reader's list of headings, a search engine and a reader mode take the
-  page's topic from it, and a page with none would give them nothing. An `h1`
-  may sit in a `nav`, not the other way round, so the `nav` is outside.
-  Browsers that still apply the old rule shrinking an `h1` inside a `nav`
-  show it smaller; current ones no longer do, so the stylesheet does not set
-  its size.
-- **Every part is heading-sized.** A variant setting the ancestors at body
-  size, so the page's own name stood out, was rendered beside it, and the
-  plain heading won.
-- **A page with no ancestors keeps a plain `h1`**: the root page, the pull
-  requests and the CLI reference have no path to show.
+- **What the page is about, not where it is.** The breadcrumb used to be the
+  `h1`, and the README's headings were shifted one level down beneath it. A
+  screen reader's list of headings, a search engine and a reader mode then
+  took `root / fjs / types / bit_vec` as the page's topic where the README
+  says "Signed Vector of Bits", and the root page, which has no path, carried
+  a fixed `FunctionalScript` heading over the README's own `FunctionalScript`.
+  The README's title is what it is about; the path is navigation.
+- **A README's headings keep their levels.** Its `#` is the `h1` and its
+  `##` sections are `h2`, beside the sections the page adds itself — the
+  catalogue's Contents and Issues, the demo, the test suite. The heading
+  styles are GitHub's at the same levels.
+- **One `#` title, or the README is refused.** A second `#` would be a
+  second `h1`; demoting it to an `h2` would set it beside the sections it was
+  written above. So `readmeNodes` refuses it, and the page shows why, as it
+  does for anything else it cannot render as GitHub does.
+- **The directory's name where there is no title**: no README, one that is
+  not rendered, or one with no `#` title. Every page has an `h1`.
+- **One space between the breadcrumb and the heading.** It is the
+  breadcrumb's bottom margin alone, and the heading after it brings none of
+  its own, so a README's title sits where a directory's name would; its own
+  margins and its section spacing would otherwise stack under the breadcrumb.
+- **The drawer reads the breadcrumb.** The narrow screen's Browse drawer
+  shows the reader's path under its title, taken from the breadcrumb's text,
+  not from the `h1`, which is now the README's title.
+- **A page with no ancestors has no breadcrumb**: the root page, whose
+  heading is the root README's title, and the pull requests and the CLI
+  reference, which keep a plain `h1` of their own. The release index and a
+  release's page have no README, so their breadcrumb is followed by their
+  name as the `h1`.
 
 ## Every page closes with the funding links
 

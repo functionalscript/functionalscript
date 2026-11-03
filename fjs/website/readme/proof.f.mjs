@@ -203,6 +203,11 @@ export const proof = /** @type {const} */ ({
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
             imageStruckInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['del', [['image', 'b', 'https://e.x/c.png']]]]]]),
                 error('an image in a heading, whose anchor GitHub may make otherwise')),
+            // The title is the page's one `h1`; a second is refused, and a
+            // section under it is not.
+            secondTitle: () => assertStructurallySame(
+                readmeNodes(href)([['heading', 1, [['text', 'a']]], ['heading', 2, [['text', 'b']]], ['heading', 1, [['text', 'c']]]]),
+                error('a second `#` title, which would give the page a second heading')),
             struck: () => assertStructurallySame(readmeNodes(href)([['paragraph', [['del', [['text', 'a'], ['code', 'b']]]]]]),
                 ok([['p', ['del', 'a', ['code', 'b']]]])),
             badgeInAHeading: () => assertStructurallySame(readmeNodes(href)([['heading', 1, [['link', [['image', 'b', 'https://e.x/c.png']], 'd']]]]),

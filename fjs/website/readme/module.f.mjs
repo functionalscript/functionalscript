@@ -261,7 +261,9 @@ const hasImage = spans => spans.some(span => span[0] === 'image'
  *
  * **A heading is at the README's own level.** The README's title is the
  * page's `h1`, and its sections are `h2`, beside the sections the page adds
- * itself.
+ * itself. A second `#` title is refused: it would be a second `h1`, a page
+ * with two topics, and demoting it to an `h2` would set it beside the
+ * sections it was written above.
  *
  * **A list item is its blocks**, in a `ul`, or an `ol` for a numbered
  * list, and in a tight list a paragraph is its bare
@@ -279,6 +281,9 @@ export const readmeNodes = href => blocks => {
         if (c !== undefined) { return error(`a heading character whose anchor GitHub may make otherwise: ${c}`) }
         // An image's words are not its alternative text in GitHub's anchor.
         if (block[0] === 'heading' && hasImage(block[2])) { return error('an image in a heading, whose anchor GitHub may make otherwise') }
+    }
+    if (blocks.filter(block => block[0] === 'heading' && block[1] === 1).length > 1) {
+        return error('a second `#` title, which would give the page a second heading')
     }
     const ids = anchors(blocks)
     /** @type {(span: Inline) => Result<Node, string>} */
