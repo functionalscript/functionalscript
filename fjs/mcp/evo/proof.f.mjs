@@ -19,6 +19,10 @@ import { _freshEvo } from '../../cas/evo/proof.f.mjs'
 import { evoAddArgs, evoToolRegistry } from './module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
+import { parse as parseJson } from '../../media/json/module.f.mjs'
+import { array, string as rttiString } from '../../rtti/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.js'
 
 /**
  * Unwraps what a run answered, keeping the state beside it.
@@ -30,10 +34,6 @@ import { at } from '../../types/object/module.f.mjs'
  * @type {<T, E>(r: readonly [State, Result<T, E>]) => readonly [State, T]}
  */
 const unwrapRun = ([state, r]) => [state, unwrapResult(r)]
-import { parse as parseJson } from '../../media/json/module.f.mjs'
-import { array, string as rttiString } from '../../rtti/module.f.mjs'
-import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.js'
 
 const store = fileCas(sha256)('/home/user')
 

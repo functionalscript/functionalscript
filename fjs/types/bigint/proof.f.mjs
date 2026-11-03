@@ -29,6 +29,8 @@ import {
     divUp8,
     roundUp8
 } from './module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { min } from '../function/compare/module.f.js'
 
 /**
  * The candidates the demo page compares, in the order it renders them.
@@ -46,8 +48,6 @@ const candidateNames = [
     'string32Log2',
     'mathLog2',
 ]
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { min } from '../function/compare/module.f.js'
 
 /** @type {(v: bigint) => bigint} */
 const oldLog2 = v => {
