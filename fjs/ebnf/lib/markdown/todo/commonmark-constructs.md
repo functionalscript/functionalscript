@@ -24,7 +24,8 @@ than argued from the spec:
 | a code span padded with spaces | `code` — one stripped each side | read as that; a space at one end only is kept |
 | `a * b * c` | three words and two asterisks | refused, after the grammar matches it |
 | `` **`a` b** `` | bold holding code | read as that |
-| `**a *b* c**`, `**a *b***` | bold holding emphasis | read as that; emphasis opening bold (`***a* b**`), two side by side, and bold inside emphasis refused |
+| `**a *b* c**`, `**a *b***` | bold holding emphasis | read as that; emphasis opening bold (`***a* b**`) and two side by side refused |
+| `*a **b** c*`, `*a **b***` | emphasis holding bold | read as that where a space stands before the bold; bold opening emphasis (`***a** b*`), bold right after a word, and a word right after it refused |
 | `[x](a(b)c)` | a link to `a(b)c` | read as that, one level of parentheses deep; a deeper or unbalanced one refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
 | `[x](<u>)` | a link to `u` | refused |
@@ -115,10 +116,11 @@ Take them in the order that a writer is likely to want them.
 - **Images and link titles**, if a release note is ever to carry either.
   Neither is asked for by `changelog/README.md`, so this is last.
 
-Emphasis inside bold is read: several documents stress a word in a bold
-sentence, `**… *be* …**`, and the bold body takes it one level deep
-(`strongRest` in [the grammar](../module.f.mjs)). Any deeper nesting, and
-bold inside emphasis, is out of scope for all of it: CommonMark allows it,
+Emphasis inside bold and bold inside emphasis are read, one level deep:
+documents stress a word in a bold sentence, `**… *be* …**`, and in an
+emphasised one, `*… **constrains** …*` (`strongRest` and `emAfterWord` in
+[the grammar](../module.f.mjs)). Any deeper nesting is out of scope for
+all of it: CommonMark allows it,
 no file has used it, and it is what makes the rule recursive rather than
 one level deep.
 

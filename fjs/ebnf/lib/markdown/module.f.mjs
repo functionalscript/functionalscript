@@ -26,8 +26,8 @@
  * **Emphasis holds text, code and plain links, and refuses what it cannot
  * hold.** A README sets a name in bold as `` **`Object` is reserved** ``,
  * and a document links from bold, `**[capl.md](./capl.md)**`. Bold holds
- * emphasis, `**… *be* …**`, and no other emphasised span in the tree nests,
- * so the rules say so. Where CommonMark would nest otherwise, this refuses
+ * emphasis, `**… *be* …**`, emphasis holds bold, `*… **constrains** …*`,
+ * and no deeper nesting is in the tree, so the rules say so. Where CommonMark would nest otherwise, this refuses
  * rather than reading the delimiters as text: the same file is read on
  * GitHub too, and a body that swallowed them would give the two renderings
  * different answers about one source.
@@ -200,6 +200,70 @@ export const strongRest = () => ['const', ['*', {
     em: [emphasised, '*', { more: [emphasised, strongRest], end: '**' }],
 }]]
 
+/** A run of an emphasis body's words: no space, asterisk, backtick, bracket or backslash. */
+const word = repeatFrom1(remove(any, set(' *`[\\')))
+
+/** A run of spaces. */
+const spaces = repeatFrom1(' ')
+
+/**
+ * What follows a word, a code span or a link in emphasis: a space, another
+ * span, or the asterisk that closes it.
+ *
+ * **Emphasis is read a word at a time so that it may hold bold**,
+ * `*every issue that **constrains** what a destination emits*`. Read as one
+ * run, the asterisk after it could close the emphasis or open bold inside
+ * it, and only the symbol after that tells which, while a span that opens
+ * with an asterisk may also follow the emphasis; one symbol cannot decide.
+ * But CommonMark closes emphasis only with an asterisk that follows no
+ * space, so after a word the asterisk closes it, and after a space
+ * ({@link emAfterSpace}) it opens bold.
+ *
+ * Its states name each other, so it is a thunk, as {@link doubleBody} is.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterWord = () => ['const', {
+    space: [spaces, emAfterSpace],
+    code: [code, emAfterSpan],
+    link: [plainLink, emAfterSpan],
+    close: '*',
+}]
+
+/**
+ * What follows a code span or a link in emphasis: what follows a word, or a
+ * word, `` *(an `exp`)* ``. A word cannot follow a word, as a word runs to
+ * the symbol that ends it, so the two are states of their own.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpan = () => ['const', {
+    word: [word, emAfterWord],
+    space: [spaces, emAfterSpace],
+    code: [code, emAfterSpan],
+    link: [plainLink, emAfterSpan],
+    close: '*',
+}]
+
+/**
+ * What follows a space in emphasis: a word, a code span, a link, or bold,
+ * `**…**`, then a space or the asterisk that closes the emphasis,
+ * `*a **b***`. The bold holds what a body holds, and no emphasis.
+ *
+ * **An asterisk after a space never closes the emphasis**: CommonMark
+ * would not close it there, and GitHub reads `a * b * c` as prose. Bold
+ * needs a space before it for the same reason: `*a**b** c*` is a closing
+ * asterisk and an opening one, a reading neither side shares.
+ *
+ * @type {Const<DataRule>}
+ */
+export const emAfterSpace = () => ['const', {
+    word: [word, emAfterWord],
+    code: [code, emAfterSpan],
+    link: [plainLink, emAfterSpan],
+    strong: ['**', emphasised, '**', { space: [spaces, emAfterSpace], close: '*' }],
+}]
+
 /**
  * Bold or emphasis, **factored through the asterisk they share**. Written as
  * two alternatives, `** … **` and `* … *`, both would begin with the same
@@ -210,14 +274,22 @@ export const strongRest = () => ['const', ['*', {
  * for the same reason — an empty one would let `em` begin with the asterisk
  * `strong` begins with.
  *
- * **Bold may hold emphasis**, the one nesting a file in the tree writes:
- * `**… *be* …**` stresses a word inside a bold sentence. Its body is runs
- * and the emphasis between them ({@link strongRest}); emphasis holds no
- * bold.
+ * **Bold and emphasis may hold each other, one level deep**, as files in
+ * the tree write them: `**… *be* …**` stresses a word inside a bold
+ * sentence, and `*… **constrains** …*` a word inside an emphasised one. A
+ * bold body is runs and the emphasis between them ({@link strongRest}); an
+ * emphasis body is words, spaces and spans, bold among them
+ * ({@link emAfterWord}). A body that opens with a space is matched here and
+ * refused after.
  */
 export const emphasis = /**@type {const}*/(['*', {
     strong: ['*', emphasised, strongRest],
-    em: [emphasised, '*'],
+    em: {
+        word: [word, emAfterWord],
+        code: [code, emAfterSpan],
+        link: [plainLink, emAfterSpan],
+        space: [spaces, emAfterSpace],
+    },
 }])
 
 /**
