@@ -7,7 +7,7 @@
  * @import { BindingEvent, BindingId, BindingScope } from '../../../js/ast/types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { BindingOrigin } from '../types.ts'
- * @import { _DeclarationKind, _Env, _Plan, _Scope } from '../private.ts'
+ * @import { _DeclarationKind, _Env, _Plan, _Scope } from './types.ts'
  */
 
 import { concat, reverse } from '../../../types/list/module.f.js'

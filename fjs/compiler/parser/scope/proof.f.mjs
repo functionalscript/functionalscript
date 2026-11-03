@@ -3,7 +3,7 @@
  *
  * @import { BindingId } from '../../../js/ast/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { _Capture, _Plan, _Scope } from '../private.ts'
+ * @import { _Capture, _Plan, _Scope } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
