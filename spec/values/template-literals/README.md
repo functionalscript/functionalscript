@@ -21,7 +21,7 @@ call argument or property-access base, as in `` `abc`.length ``. Empty templates
 and adjacent substitutions are admitted too.
 
 Text chunks accept JSON's escapes (`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`,
-`\t`, `\uXXXX`, `\u{…}`), escaped backticks and the escaped substitution opener `\${`.
+`\t`, `\uXXXX`, `\u{…}`), hexadecimal escapes (`\xHH`), escaped backticks and the escaped substitution opener `\${`.
 Quotes stand raw. Only an unescaped `${` opens a substitution. Literal LF, CR
 and CRLF are admitted; raw CR and CRLF cook to LF, while escaped `\r` or
 `\u000D` stays CR. Raw U+2028 and U+2029 keep their values. Additional JavaScript
@@ -31,22 +31,27 @@ here and are refused. The quoted-string counterparts are tracked separately in
 Malformed or unterminated templates and tagged templates such as `` tag`a${b}c` ``
 are compilation errors.
 
-The common escape set is uniform across single-quoted strings, double-quoted
-strings and templates: changing the delimiter does not admit additional common
-spellings such as `\0`, `\v` or `\xHH`. The template-specific
-exceptions serve its syntax: escaped backticks and `${`, and literal line
-terminators for multiline text. Any future widening of the common escape set
-must be coordinated across quoted strings and templates.
+A hexadecimal escape consumes exactly two hexadecimal digits, in either case.
+`\xHH` denotes the same single UTF-16 code unit as `\u00HH`, including
+`\x80` through `\xff`; it is not a UTF-8 byte sequence. A following digit
+is ordinary text: `\x414` denotes `A4`. Missing or non-hexadecimal digits
+are errors, including `\x8?`. This uses the existing shared lexer and
+cooked-value decoder, without a new AST or FAST node.
+
+The language designer `sergey-shandar` approved this increment in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+Hexadecimal escapes are also admitted in single-quoted strings; double-quoted
+strings keep their existing escape subset. Vertical-tab and identity escapes,
+raw C0 controls other than CR/LF, and line continuations remain refused here.
 
 The NUL shorthand `\0` is intentionally prohibited, even when followed by
-an otherwise valid character. Use the fixed-width `\u0000` spelling instead.
+an otherwise valid character. Use the fixed-width `\u0000` or `\x00` spelling instead.
 The codebase rule also applies to proofs, helpers and host adapters.
 
 | Refused template spelling | Admitted spelling with the same value |
 | --- | --- |
 | `` `\0${"key"}\0` `` | `` `\u0000${"key"}\u0000` `` |
 | `` `\v` `` | `` `\u000b` `` |
-| `` `\x41` `` | `` `A` `` or `` `\u0041` `` |
 
 For a refused line continuation, join the lines without the continuation
 sequence to preserve the value. Before marking a module compiler-compatible

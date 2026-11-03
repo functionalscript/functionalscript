@@ -55,14 +55,22 @@ export const proof = {
             assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join('|'), 'a|b|c')
             assertEq(toArray(tokenize(stringToList('`\\` \\${x} \\n \\u0041`'))('')).map(({ token }) => token.kind).join(' '), 'noSubstitutionTemplate eof')
         },
+        hexadecimal: () => {
+            const source = /** @type {const} */ ('`\\x80${1}\\x81${2}\\xFf`')
+            const tokens = toArray(tokenize(stringToList(source))('hex.f.js'))
+            assertEq(tokens.map(({ token }) => token.kind).join(' '), 'templateHead number templateMiddle number templateTail eof')
+            assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join(''), '\u0080\u0081\u00ff')
+            assertEq(tokens.flatMap(({ token }) => hasEntry(token, 'source') ? [token.source] : []).join(''), '\\x80\\x81\\xFf')
+            assertEq(tokens[2].metadata.column, source.indexOf('}\\x81') + 1)
+        },
         refusedEscapes: () => {
             // Cooking must not turn a deferred spelling into an admitted one.
-            for (const spelling of ['\\x41', '\\v', '\\0', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
+            for (const spelling of ['\\v', '\\0', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
                 const tokens = toArray(tokenize(stringToList('`' + spelling + '`'))('template.f.js'))
                 assertEq(tokens[0].token.kind, 'error', spelling)
                 assertStructurallySame(tokens[0].metadata, { path: 'template.f.js', line: 1, column: 1 }, spelling)
             }
-            const middle = toArray(tokenize(stringToList('`a${1}\\x41`'))(''))
+            const middle = toArray(tokenize(stringToList('`a${1}\\v`'))(''))
             assertEq(middle.map(({ token }) => token.kind).join(' '), 'templateHead number error eof')
             assertEq(middle[2].metadata.column, 6)
         },

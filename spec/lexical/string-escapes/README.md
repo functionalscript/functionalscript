@@ -29,7 +29,7 @@ other spellings — the `\0` escape, a raw TAB or other C0 control
 character, a line continuation — are refused in both quotes; see
 [js-string-literals](../../todo/2460-js-string-literals.md). Backtick-delimited
 [template literals](../../values/template-literals/README.md) have their own
-expression syntax and escape policy; `\xHH` and `\v` remain refused there.
+expression syntax and escape policy; `\xHH` is admitted there, while `\v` remains refused.
 
 A braced Unicode escape has one or more hexadecimal digits between braces,
 with a value from `0` through `0x10ffff`. Leading zeros and either hex case
@@ -44,7 +44,7 @@ The language designer `sergey-shandar` approved this increment in the
 under DESIGN.md §12.
 
 The NUL shorthand `\0` is intentionally prohibited. Use `\u0000` in
-any delimiter, or `\x00` in single quotes. Both are fixed-width and remain
+any delimiter, or `\x00` in single quotes and templates. Both are fixed-width and remain
 unambiguous when a digit follows. Literal backslash-zero text is still ordinary
 string data, for example `\\0` inside a quoted source string.
 

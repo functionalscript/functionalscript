@@ -51,7 +51,6 @@ export const proof = /** @type {const} */ ({
         for (const source of [
             'export default "\\x41";',
             'export default "\\v";',
-            'export default `\\x41`;',
             'export default `\\v`;',
             "export default '\\x4';",
             "export default '\\x4Z';",
