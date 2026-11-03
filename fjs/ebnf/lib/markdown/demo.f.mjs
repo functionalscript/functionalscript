@@ -7,11 +7,6 @@
  * diagrams, and `fjs/website/demo/railroad` lays them out — so a change to
  * the grammar is a change to the picture.
  *
- * **Unpadded text is a loop.** Code and emphasis hold words separated by
- * runs of spaces, never starting or ending with one, which the grammar
- * spells as `join` does — a word, then any number of `spaces, word` — and
- * the diagram reads back as a loop through one or more spaces.
- *
  * @module
  *
  * @import { Selection } from '../../../website/demo/railroad/types.ts'

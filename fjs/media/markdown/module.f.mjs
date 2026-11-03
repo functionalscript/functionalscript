@@ -49,19 +49,18 @@ const parseEntry = parser([entryRule, eof], nothing)
 const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
 
 /**
- * A code span's text. A single-backtick body is the code as written. A
- * double-backtick body runs through the two backticks that close it, and
- * CommonMark strips one space from each end when both ends have one and
- * the body is not all spaces, so
- * ``` `` f`x` `` ``` is the code `` f`x` ``.
+ * A code span's text: its body, a double-backtick one less the two
+ * backticks that close it, with one space stripped from each end when both
+ * ends have one and the body is not all spaces, as CommonMark strips it.
+ * So ``` `` f`x` `` ``` is the code `` f`x` ``, `` ` a ` `` is `a`, and
+ * `` `name: ` `` keeps its space.
  *
  * @type {(node: unknown) => string}
  */
 const codeText = node => {
     const [kind, body] = arr(arr(node)[1])
-    if (kind === 'single') { return lexeme(arr(body)[0]) }
-    const text = lexeme(arr(body)[1]).slice(0, -2)
-    return text.trim() !== '' && text.startsWith(' ') && text.endsWith(' ') ? text.slice(1, -1) : text
+    const text = kind === 'single' ? lexeme(arr(body)[0]) : lexeme(arr(body)[1]).slice(0, -2)
+    return text.startsWith(' ') && text.endsWith(' ') && [...text].some(c => c !== ' ') ? text.slice(1, -1) : text
 }
 
 /**
