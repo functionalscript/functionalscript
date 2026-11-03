@@ -332,7 +332,7 @@ const unknownType = foldError('unknown import type')
  *
  * @type {(statement: Import) => Result<Omit<AstImport, 'name'>, ParseError>}
  */
-const imported = ({ module, attribute }) => {
+export const _readImport = ({ module, attribute }) => {
     if (attribute === null) { return ok({ specifier: module, json: false }) }
     const [key, value] = attribute
     if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
@@ -2287,7 +2287,7 @@ const foldModule = ({ imports, statements, exported, thrown: failing }) => {
             }, [['initialize', id]])
             importIds = [...importIds, id]
         }
-        const [read, record] = imported(statement)
+        const [read, record] = _readImport(statement)
         if (read === 'error') { return error(record) }
         modules = [
             ...modules,

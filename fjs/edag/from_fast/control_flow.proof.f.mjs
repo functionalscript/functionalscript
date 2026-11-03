@@ -30,6 +30,7 @@ const sharedPair = (value, item) => {
     assert(value instanceof Array)
     assertStructurallySame(value, [item, item])
     assertEq(value[0], value[1])
+    return undefined
 }
 
 /** @type {(value: Value) => Value} */
@@ -40,7 +41,8 @@ const constant = value => {
 
 /** One fresh allocation is returned through two object properties. @type {(stop: boolean) => Value} */
 const objectFactory = stop => {
-    const target = functionTarget(), allocation = id()
+    const target = functionTarget()
+    const allocation = id()
     return func(target, [], block(['return', target, ['object', [
         [':', 'a', ref(allocation)], [':', 'b', stop], [':', 'c', ref(allocation)],
     ]]], [['define', allocation, ['array', [41]], 'required']]))
@@ -48,13 +50,16 @@ const objectFactory = stop => {
 
 /** @type {() => Value} */
 const duplicateArgument = () => {
-    const target = functionTarget(), value = id()
+    const target = functionTarget()
+    const value = id()
     return func(target, [value], block(['return', target, ['array', [ref(value), ref(value)]]]))
 }
 
 /** @type {() => Value} */
 const allocatedPair = () => {
-    const target = functionTarget(), value = id(), allocation = id()
+    const target = functionTarget()
+    const value = id()
+    const allocation = id()
     return func(target, [value], block(['return', target, ['array', [ref(allocation), ref(allocation)]]], [
         ['define', allocation, ['array', [ref(value)]], 'required'],
     ]))
@@ -62,7 +67,8 @@ const allocatedPair = () => {
 
 /** @type {(tag: string) => Value} */
 const tagged = tag => {
-    const target = functionTarget(), value = id()
+    const target = functionTarget()
+    const value = id()
     return func(target, [value], block(['return', target, ['array', [tag, ref(value)]]]))
 }
 
@@ -74,7 +80,14 @@ const failing = () => {
 
 /** The task owner's nested m example keeps its normal continuation outside the branch. @type {() => FastFunction} */
 const nestedMutable = () => {
-    const target = functionTarget(), selected = id(), incoming = id(), factory = id(), following = id(), local = id(), updated = id(), joined = id()
+    const target = functionTarget()
+    const selected = id()
+    const incoming = id()
+    const factory = id()
+    const following = id()
+    const local = id()
+    const updated = id()
+    const joined = id()
     return { target, parameters: [selected, incoming, factory, following], rest: null, self: null, captures: [],
         body: block(['return', target, ['()', ref(following), [ref(joined)]]], [
             ['if', [joined], ref(selected), block(['yield', [ref(updated)]], [
@@ -88,7 +101,14 @@ const nestedMutable = () => {
 
 /** K(z) is reached with different immutable values; a helper is another valid encoding. @type {(helper: boolean) => FastFunction} */
 const parameterized = helper => {
-    const target = functionTarget(), selected = id(), stop = id(), operation = id(), joined = id(), continuation = id(), input = id(), capture = id()
+    const target = functionTarget()
+    const selected = id()
+    const stop = id()
+    const operation = id()
+    const joined = id()
+    const continuation = id()
+    const input = id()
+    const capture = id()
     const continuationTarget = functionTarget()
     const continuationValue = func(continuationTarget, [input], block(['return', continuationTarget, ['()', ref(capture), [['+', ref(input), 5]]]]), [
         { binding: capture, value: ref(operation) },
@@ -116,7 +136,12 @@ export const _controlFlowFunctions = /** @type {const} */ ({
 
 /** Two normal results carry the values at break, including the preceding increment. @type {() => FastFunction} */
 const multiState = () => {
-    const target = functionTarget(), loop = loopTarget(), left = id(), right = id(), first = id(), second = id()
+    const target = functionTarget()
+    const loop = loopTarget()
+    const left = id()
+    const right = id()
+    const first = id()
+    const second = id()
     return { target, parameters: [], rest: null, self: null, captures: [],
         body: block(['return', target, ['array', [ref(second), ref(first)]]], [
             ['loop', { target: loop, parameters: [left, right], initial: [0, 1], results: [first, second],
@@ -131,8 +156,19 @@ const multiState = () => {
 
 /** @type {() => FastFunction} */
 const snapshots = () => {
-    const target = functionTarget(), loop = loopTarget(), limit = id(), round = id(), left = id(), right = id(), held = id(), created = id(), captured = id()
-    const first = id(), second = id(), saved = id(), closureTarget = functionTarget()
+    const target = functionTarget()
+    const loop = loopTarget()
+    const limit = id()
+    const round = id()
+    const left = id()
+    const right = id()
+    const held = id()
+    const created = id()
+    const captured = id()
+    const first = id()
+    const second = id()
+    const saved = id()
+    const closureTarget = functionTarget()
     const closure = func(closureTarget, [], block(['return', closureTarget, ref(captured)]), [{ binding: captured, value: ref(left) }])
     return { target, parameters: [limit], rest: null, self: null, captures: [],
         body: block(['return', target, ['array', [ref(first), ref(second), ['()', ref(saved), []]]]], [
@@ -150,7 +186,15 @@ const snapshots = () => {
 
 /** The loop return leaves the containing function, not its generated helper. @type {() => FastFunction} */
 const returningLoop = () => {
-    const target = functionTarget(), loop = loopTarget(), limit = id(), normal = id(), early = id(), state = id(), first = id(), second = id(), result = id()
+    const target = functionTarget()
+    const loop = loopTarget()
+    const limit = id()
+    const normal = id()
+    const early = id()
+    const state = id()
+    const first = id()
+    const second = id()
+    const result = id()
     return { target, parameters: [limit, normal, early], rest: null, self: null, captures: [],
         body: block(['return', target, ['()', ref(normal), [ref(result)]]], [
             ['loop', { target: loop, parameters: [state], initial: [0], results: [result],
@@ -167,7 +211,14 @@ const returningLoop = () => {
 
 /** Dispatch is complete before case execution follows its fall-through edge. @type {() => FastFunction} */
 const fallingSwitch = () => {
-    const target = functionTarget(), region = loopTarget(), tag = id(), failLabel = id(), selected = id(), first = id(), result = id(), inner = id()
+    const target = functionTarget()
+    const region = loopTarget()
+    const tag = id()
+    const failLabel = id()
+    const selected = id()
+    const first = id()
+    const result = id()
+    const inner = id()
     /** @type {Value} */
     const laterLabel = ['if', ref(failLabel), block(['throw', 'unreached label']), block(['yield', [1]])]
     return { target, parameters: [tag, failLabel], rest: null, self: null, captures: [],
@@ -185,7 +236,15 @@ const fallingSwitch = () => {
 
 /** A switch-local break resumes the iteration; continue skips its remaining work. @type {() => FastFunction} */
 const switchInLoop = () => {
-    const target = functionTarget(), outer = loopTarget(), region = loopTarget(), count = id(), total = id(), next = id(), contribution = id(), rounds = id(), result = id()
+    const target = functionTarget()
+    const outer = loopTarget()
+    const region = loopTarget()
+    const count = id()
+    const total = id()
+    const next = id()
+    const contribution = id()
+    const rounds = id()
+    const result = id()
     /** @type {Loop} */
     const selected = { target: region, parameters: [], initial: [], results: [contribution],
         body: block(['break', region, [ref(next)]], [
@@ -207,7 +266,13 @@ const switchInLoop = () => {
 
 /** The false test completes the loop without entering its body. @type {() => FastFunction} */
 const conditionalLoop = () => {
-    const target = functionTarget(), loop = loopTarget(), limit = id(), failBody = id(), state = id(), result = id(), unused = id()
+    const target = functionTarget()
+    const loop = loopTarget()
+    const limit = id()
+    const failBody = id()
+    const state = id()
+    const result = id()
+    const unused = id()
     return { target, parameters: [limit, failBody], rest: null, self: null, captures: [],
         body: block(['return', target, ref(result)], [
             ['loop', { target: loop, parameters: [state], initial: [0], results: [result], body: block(['yield', []], [
@@ -229,9 +294,12 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(evaluated(fn, [true, incoming, objectFactory(true), failing()]), [41])
         assertError(called(fn, [true, incoming, failing(), duplicateArgument()]))
         assertError(called(fn, [true, incoming, objectFactory(false), failing()]))
+        return undefined
     },
     establishedCallResultKeepsAllocationSharing: () => {
-        const target = functionTarget(), factory = id(), local = id()
+        const target = functionTarget()
+        const factory = id()
+        const local = id()
         /** @type {FastFunction} */
         const fn = { target, parameters: [factory], rest: null, self: null, captures: [],
             body: block(['return', target, ['array', [['.', ref(local), 'a'], ['.', ref(local), 'c']]]], [
@@ -239,6 +307,7 @@ export const proof = /** @type {const} */ ({
             ]),
         }
         sharedPair(evaluated(fn, [objectFactory(false)]), [41])
+        return undefined
     },
     parameterizedContinuationsAgreeAcrossEncodings: () => {
         for (const fn of [_controlFlowFunctions.parameterizedJoin, _controlFlowFunctions.parameterizedHelper]) {
@@ -249,14 +318,17 @@ export const proof = /** @type {const} */ ({
             assertError(called(fn, [false, false, failing()]))
             assertError(called(fn, [true, false, failing()]))
         }
+        return undefined
     },
     multiStateBreakAndContinueUseCurrentVersions: () => {
         assertStructurallySame(evaluated(multiState()), [5, 8])
+        return undefined
     },
     loopTransfersKeepCreatingIterationSnapshots: () => {
         const fn = snapshots()
         assertStructurallySame(evaluated(fn, [0]), [1, 2, -1])
         assertStructurallySame(evaluated(fn, [3]), [5, 8, 3])
+        return undefined
     },
     loopReturnSkipsNormalContinuation: () => {
         const fn = returningLoop()
@@ -268,6 +340,7 @@ export const proof = /** @type {const} */ ({
         }
         assertError(called(fn, [1, failing(), tagged('early')]))
         assertError(called(fn, [2, tagged('normal'), failing()]))
+        return undefined
     },
     switchFallsThroughWithoutRetestingLabels: () => {
         const fn = fallingSwitch()
@@ -275,14 +348,17 @@ export const proof = /** @type {const} */ ({
         assertEq(evaluated(fn, [1, false]), 2)
         assertEq(evaluated(fn, [2, false]), 9)
         assertError(called(fn, [1, true]))
+        return undefined
     },
     switchBreakAndOuterContinueHaveDifferentOwners: () => {
         assertStructurallySame(evaluated(switchInLoop()), [5, 49])
+        return undefined
     },
     conditionalLoopHasZeroAndRepeatedIterations: () => {
         const fn = conditionalLoop()
         assertEq(evaluated(fn, [0, true]), 0)
         for (const limit of [1, 4]) { assertEq(evaluated(fn, [limit, false]), limit) }
         assertError(called(fn, [1, true]))
+        return undefined
     },
 })

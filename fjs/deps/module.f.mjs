@@ -1,48 +1,80 @@
 /**
- * Checks that each FunctionalScript implementation module can form a syntax AST.
- * This is the first dependency-command step: source is read and parsed, with
- * no module execution, import resolution, FJS admission or FAST/EDAG lowering.
- *
+ * Export syntax-AST module dependencies without executing or compiling source.
  * @module
- *
  * @import { Effect, IoChannel } from '../effects/types.ts'
- * @import { NodeProgram, ReadWhole, Write } from '../effects/node/types.ts'
+ * @import { NodeProgram, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
+ * @import { AstImport } from '../compiler/ast/types.ts'
+ * @import { ParseError } from '../compiler/parser/types.ts'
+ * @import { _Source } from '../compiler/source/types.ts'
  * @import { _Checked } from './private.ts'
  */
 
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { basename } from '../path/module.f.js'
-import { readSource } from '../compiler/source/module.f.mjs'
+import { basename, join, normalize } from '../path/module.f.js'
+import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.mjs'
-import { errorLocation } from '../compiler/parser/module.f.mjs'
+import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
-import { error as errorLine, errorExit, errorMessage, log } from '../effects/node/module.f.mjs'
+import { error as errorLine, errorExit, errorMessage, log, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
 
-/** Implementation entry points selected for the initial coverage dependency check. @type {(path: string) => boolean} */
+/** Implementation entry points selected for the dependency graph. @type {(path: string) => boolean} */
 const isModule = path => ['module.f.js', 'module.f.mjs'].includes(basename(path))
 
-/** Read one source without resolving or evaluating any of its imports. @type {(path: string) => (count: _Checked) => Effect<ReadWhole | Write, _Checked, IoChannel>} */
-const checkOne = path => ({ checked, refused }) => {
+/** Read syntax imports through the same attribute reader and resolver as compilation. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
+const dependencies = source => {
+    const { path, json } = source
+    const mismatch = _attributeError(source)
+    if (mismatch !== null) { return pureError(mismatch) }
+    if (json) { return pureOk([]) }
     const parsed = step(readSource(path), text => pure(parseSyntax(tokenize(stringToList(text))(path))))
-    return resultStep(parsed, ([tag, value]) => tag === 'ok'
-        ? pureOk({ checked: checked + 1, refused })
-        : mapStep(errorLine(`${errorLocation(path)(value)} - error: ${value.message}`), () => ({
-            checked: checked + 1, refused: refused + 1,
-        })))
+    /** @type {readonly AstImport[]} */
+    const empty = []
+    const imports = step(parsed, module => foldStep(pureOk(module.imports), empty, statement => records =>
+        mapStep(pure(_readImport(statement)), record => [...records, { ...record, name: null }])))
+    return step(imports, _importSources(source))
 }
 
-/** Recursively check the caller's source tree. No arguments or graph output yet. @type {NodeProgram} */
+/** Visit a module once, recording it before descent so cycles remain graph edges. @type {(source: _Source) => (state: _Checked) => Effect<ReadWhole | ResolveFileModule | Write, _Checked, IoChannel>} */
+const visit = source => state => {
+    const { id, path } = source
+    if (state.seen.includes(id) && _attributeError(source) === null) { return pureOk(state) }
+    const entered = { ...state, seen: [...state.seen, id], checked: state.checked + 1 }
+    const recorded = resultStep(dependencies(source), ([tag, value]) => {
+        if (tag === 'error') {
+            return mapStep(errorLine(`${errorLocation(path)(value)} - error: ${value.message}`), () => ({
+                state: { ...entered, refused: entered.refused + 1 }, sources: [],
+            }))
+        }
+        return pureOk({
+            state: { ...entered, graph: { ...entered.graph, [normalize(path)]: value.map(({ path }) => normalize(path)).filter((path, i, paths) => paths.indexOf(path) === i) } },
+            sources: value,
+        })
+    })
+    return step(recorded, ({ state, sources }) => foldStep(pureOk(sources), state, visit))
+}
+
+/** Resolve a discovered entry point through the compiler's host resolver. @type {(path: string) => (state: _Checked) => Effect<ReadWhole | ResolveFileModule | Write, _Checked, IoChannel>} */
+const checkOne = path => state => {
+    return resultStep(_rootSource(path), ([tag, value]) => tag === 'ok'
+        ? visit(value)(state)
+        : mapStep(errorLine(`${errorLocation(path)(value)} - error: ${value.message}`), () => ({ ...state, checked: state.checked + 1, refused: state.refused + 1 })))
+}
+
+/** Scan entry points and write a complete JSON graph only after a successful scan. @type {NodeProgram} */
 export const main = ({ args, env }) => {
     if (args.length !== 0) { return errorExit('Usage: fjs deps') }
-    const files = allFiles(sourceRoot(env), isModule)
-    const results = foldStep(files, { checked: 0, refused: 0 }, checkOne)
+    const root = sourceRoot(env)
+    const files = allFiles(root, isModule)
+    const results = foldStep(files, { checked: 0, refused: 0, seen: [], graph: {} }, checkOne)
     const reported = historyStep(history(results), ({ checked, refused }) =>
         log(`AST: ${checked - refused} parsed, ${refused} failed, ${checked} total`))
     return resultStep(reported, ([tag, value]) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
-        const [, { refused }] = value
-        return refused === 0 ? pureOk(0) : pureError(1)
+        const [, { refused, graph }] = value
+        if (refused !== 0) { return pureError(1) }
+        return resultStep(writeUtf8File(join(root, '_deps.json'), `${JSON.stringify(graph, null, 2)}\n`),
+            ([tag, value]) => tag === 'error' ? errorExit(errorMessage(value)) : pureOk(0))
     })
 }

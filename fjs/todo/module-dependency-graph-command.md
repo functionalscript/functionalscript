@@ -6,28 +6,29 @@
 ### Problem
 
 The [smart-build epic](./smart-build-epic.md) needs an `fjs` CLI command to
-export a module dependency graph as `.data.js`. The exported graph will
+export a module dependency graph as JSON. The exported graph will
 support website visualization and later build-cache integration.
 
 ### Proposal
 
 Use the generic AST and dependency extraction to build a module dependency
-DAG for FJS and the supported subsets of JavaScript and TypeScript. Forming a
+graph for FJS and the supported subsets of JavaScript and TypeScript. Forming a
 source AST must not require admission or lowering into FAST or EDAG.
 
-Write the graph as `.data.js`. Reject module dependency cycles, including
-cycles permitted by JavaScript and TypeScript, with a clear diagnostic.
+Write the graph as `_deps.json` in the caller's directory with no filename
+argument. Record cycles in this graph; cycle rejection remains a compiler rule.
+Use the same syntax-AST import reader and module resolver as compilation.
 
 ### Graph format
 
 Represent the graph as a record mapping each module identifier to an array
 of its direct dependency identifiers:
 
-```javascript
-import { array, record, string } from '../rtti/module.f.mjs'
-
-const moduleDependencies = array(string)
-const modules = record(moduleDependencies)
+```json
+{
+  "main.f.js": ["lib/module.f.mjs"],
+  "lib/module.f.mjs": []
+}
 ```
 
 For the current implementation, record keys and dependency entries are module
@@ -39,15 +40,18 @@ module paths. Replace paths with hashes in both record keys and dependency
 arrays, keeping the same graph shape. The hash definition and migration are
 future work.
 
-The initial command is `fjs deps`, with no arguments. It recursively checks
-source AST formation only for files named exactly `module.f.js` or
-`module.f.mjs` under the caller's directory, preparing coverage checks for
-those modules.
-It reports the files the current tokenizer and syntax parser cannot handle;
-extending the parser is a separate step.
-Arguments, dependency extraction and the graph output destination are later
-steps. Website rendering and build-cache integration are tracked separately
-in the epic.
+`fjs deps` accepts no arguments. It recursively discovers files named exactly
+`module.f.js` or `module.f.mjs` under the caller's directory, then follows their
+runtime imports transitively. It reads generic syntax ASTs without FJS admission
+or FAST/EDAG lowering. JSON dependencies are leaves. The host resolver supplies
+module identity and paths, as for compilation. Import attributes use the same
+AST reader as compilation; selected exports and bindings remain compiler checks.
+
+The output is `_deps.json` in the caller's directory (`INIT_CWD` under npm).
+Each module appears once, each direct dependency path appears once per module,
+and cycles are retained. A failed scan reports errors and does not replace an
+existing graph. An empty scan writes an empty JSON object.
+Website rendering and build-cache integration remain separate epic tasks.
 
 ### Constructor-expression syntax
 
@@ -164,13 +168,17 @@ The approval and rationale are part of the
           selected by `fjs deps`, without requiring FAST or EDAG admission.
     - [x] Enforce implementation-module AST readiness in CI with `npm start deps`.
           The canonical Node job runs it uncached and fails on AST errors.
-- [ ] Define the command interface and input/output behavior.
-- [ ] Connect the command to AST-based dependency extraction and graph construction.
-- [ ] Emit the module-to-dependencies record as `.data.js`.
-- [ ] Reject cyclic module dependencies with a diagnostic.
-- [ ] Add command documentation and proofs for output, shared dependencies and cycle rejection.
+- [x] Normalize newly reached FAST fixtures, control-flow proofs and the B-tree
+      demo into existing syntax forms so transitive scanning succeeds.
+- [x] Define the command interface and input/output behavior.
+- [x] Connect the command to AST-based dependency extraction and graph construction,
+      sharing import reading and resolution with compilation.
+- [x] Emit the module-to-dependencies record as `_deps.json`.
+- [x] Retain cycles in the JSON graph; compilation continues rejecting cycles.
+- [x] Add command documentation and proofs for output, shared dependencies, cycles
+      and scan/write failures.
 
 ### Related
 
 - [Smart build epic](./smart-build-epic.md) — foundation tasks and consumers.
-- [DataJS](../../spec/datajs/README.md) — output data format.
+- [Dependency command](../deps/README.md) — JSON output and command behavior.

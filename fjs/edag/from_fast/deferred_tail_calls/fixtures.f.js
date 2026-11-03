@@ -15,7 +15,8 @@ const yielded = value => block(['yield', [value]])
 
 /** A closure observes its creating invocation's immutable value. @type {(value: Value) => Value} */
 const capture = value => {
-    const target = owner(), binding = id()
+    const target = owner()
+    const binding = id()
     return ['function', { target, parameters: [], rest: null, self: null,
         captures: [{ binding, value }], body: block(['return', target, ref(binding)]) }]
 }
@@ -39,7 +40,10 @@ const deferred = (target, parameters, self, cell, initializer, consumer, rest = 
 
 /** @type {(ordinary: boolean) => FastFunction} */
 const basic = ordinary => {
-    const target = owner(), self = id(), n = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const cell = id()
     const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
     /** @type {Block} */
     const consumer = ordinary ? block(['return', target, 7], [['loop', {
@@ -52,7 +56,11 @@ const basic = ordinary => {
 
 /** A dependent recipe must forward its prerequisite's abrupt completion. @type {() => FastFunction} */
 const nestedRecipe = () => {
-    const target = owner(), self = id(), n = id(), inner = id(), outer = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const inner = id()
+    const outer = id()
     return deferred(target, [n], self, outer, ['array', [ref(inner), ref(inner)]], terminal(target, ref(outer)), null, [
         ['define', inner, ['block', countdown(target, ref(self), ref(n), [['-', ref(n), 1]])], 'lazy'],
     ])
@@ -60,7 +68,11 @@ const nestedRecipe = () => {
 
 /** Immutable aliases retain the same self identity on either side of a recipe. @type {(inside: boolean) => FastFunction} */
 const aliased = inside => {
-    const target = owner(), self = id(), alias = id(), n = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const alias = id()
+    const n = id()
+    const cell = id()
     const body = countdown(target, ref(alias), ref(n), [['-', ref(n), 1]])
     /** @type {Statement} */
     const definition = ['define', alias, ref(self), 'lazy']
@@ -70,7 +82,13 @@ const aliased = inside => {
 
 /** Selected if/block/comma results retain one old argument snapshot. @type {() => FastFunction} */
 const tailValues = () => {
-    const target = owner(), self = id(), n = id(), left = id(), right = id(), pair = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const left = id()
+    const right = id()
+    const pair = id()
+    const cell = id()
     /** @type {readonly Item<Value>[]} */
     const args = [['...', ['array', [['-', ref(n), 1], ['.', ref(pair), 1], ['.', ref(pair), 0]]]], 5]
     /** @type {Value} */
@@ -85,7 +103,12 @@ const tailValues = () => {
 
 /** A recipe-local allocation remains captured after the next invocation. @type {() => FastFunction} */
 const captures = () => {
-    const target = owner(), self = id(), n = id(), saved = id(), value = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const saved = id()
+    const value = id()
+    const cell = id()
     const body = countdown(target, ref(self), ref(n), [['-', ref(n), 1], capture(ref(value))], ['array', [ref(value), ['()', ref(saved), []]]])
     return deferred(target, [n, saved], self, cell, ['block', { ...body, statements: [
         ['define', value, ['array', [ref(n)]], 'required'], ...body.statements,
@@ -94,7 +117,11 @@ const captures = () => {
 
 /** Undemanded recipes and unselected arguments stay skipped. @type {() => FastFunction} */
 const extraArguments = () => {
-    const target = owner(), self = id(), n = id(), selected = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const selected = id()
+    const cell = id()
     /** @type {Value} */
     const extra = ['if', ref(selected), yielded(['+', 1n, 1]), yielded(undefined)]
     return deferred(target, [n, selected], self, cell, ['block', countdown(target, ref(self), ref(n), [
@@ -106,7 +133,10 @@ const extraArguments = () => {
 
 /** A reached failed expansion is not erased by the fixed invocation prefix. @type {() => FastFunction} */
 const failedSpread = () => {
-    const target = owner(), self = id(), n = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const cell = id()
     return deferred(target, [n], self, cell, ['block', countdown(target, ref(self), ref(n), [
         ['-', ref(n), 1], ['...', undefined],
     ])], terminal(target, ref(cell)))
@@ -114,7 +144,12 @@ const failedSpread = () => {
 
 /** Empty or populated rest arrays are fresh, shared, and captured per invocation. @type {() => FastFunction} */
 const rest = () => {
-    const target = owner(), self = id(), n = id(), saved = id(), items = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const saved = id()
+    const items = id()
+    const cell = id()
     return deferred(target, [n, saved], self, cell, ['block', countdown(target, ref(self), ref(n), [
         ['-', ref(n), 1], capture(ref(items)), ['...', ref(items)],
     ], ['array', [['()', ref(saved), []], ref(items), ref(items), capture(ref(items))]])], terminal(target, ref(cell)), items)
@@ -122,7 +157,10 @@ const rest = () => {
 
 /** The observed rest array is the whole public invocation signature. @type {() => FastFunction} */
 const restOnly = () => {
-    const target = owner(), self = id(), items = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const items = id()
+    const cell = id()
     /** @type {Value} */
     const count = ['.', ref(items), 0]
     return deferred(target, [], self, cell, ['block', countdown(target, ref(self), count, [
@@ -132,7 +170,12 @@ const restOnly = () => {
 
 /** Normal memo values can resemble any private completion packet. @type {() => FastFunction} */
 const normalPayload = () => {
-    const target = owner(), self = id(), n = id(), selected = id(), tag = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const selected = id()
+    const tag = id()
+    const cell = id()
     /** @type {Value} */
     const condition = ['if', ref(selected), yielded(['>', ref(n), 0]), yielded(false)]
     return deferred(target, [n, selected, tag], self, cell, ['block', block(['yield', [['array', [ref(tag), ['array', [ref(n)]]]]]], [
@@ -142,7 +185,10 @@ const normalPayload = () => {
 
 /** This recursion has required work after its call and must remain ordinary. @type {() => FastFunction} */
 const nonTail = () => {
-    const target = owner(), self = id(), n = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const cell = id()
     return deferred(target, [n], self, cell, ['block', block(['return', target, ['+', ['()', ref(self), [['-', ref(n), 1]]], 1]], [
         ['if', [], ['===', ref(n), 0], block(['return', target, 0]), block(['yield', []])],
     ])], terminal(target, ref(cell)))
@@ -150,7 +196,12 @@ const nonTail = () => {
 
 /** The loop-local cell is declared only after two ordinary iterations. @type {() => FastFunction} */
 const localReset = () => {
-    const target = owner(), self = id(), n = id(), total = id(), step = id(), cell = id()
+    const target = owner()
+    const self = id()
+    const n = id()
+    const total = id()
+    const step = id()
+    const cell = id()
     const loop = /** @type {const} */ ({ kind: 'loop', index: 0 })
     /** @type {Value} */
     const updated = ['+', ref(total), ref(step)]

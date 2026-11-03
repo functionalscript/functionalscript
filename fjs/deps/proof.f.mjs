@@ -3,14 +3,15 @@
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.js'
+import { assert, assertEq, assertOk, assertError } from '../asserts/module.f.js'
 import { exitCode, nodeCommands } from '../effects/node/module.f.mjs'
 import { ioError } from '../effects/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { vec8 } from '../types/bit_vec/module.f.mjs'
 import { error } from '../types/result/module.f.js'
+import { readSource } from '../compiler/source/module.f.mjs'
 import { main } from './module.f.mjs'
 
 /**
@@ -26,6 +27,7 @@ const sources = /** @type {const} */ ({
     nested: {
         'module.f.mjs': [utf8('throw "must not execute";')],
         deeper: {
+            'absent.f.mjs': [utf8('export default 0;')],
             'module.f.js': [utf8('import missing from "./absent.f.mjs"; export default missing;')],
         },
         'demo.f.mjs': [utf8('not valid syntax')],
@@ -43,25 +45,88 @@ const sources = /** @type {const} */ ({
 })
 
 export const proof = /** @type {const} */ ({
+    graphOutput: () => {
+        const [state, result] = execute({
+            'module.f.js': [utf8('import { a, b } from "./shared.f.mjs"; import c from "./branch.f.mjs"; import {} from "./shared.f.mjs"; export default missing;')],
+            'shared.f.mjs': [utf8('import main from "./module.f.js"; export default new Missing();')],
+            'branch.f.mjs': [utf8('import shared from "./shared.f.mjs"; import data from "./data.json" with {type:"json"}; export default 0;')],
+            'data.json': [utf8('{}')],
+            '_deps.json': [utf8('stale')],
+        })
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertEq(assertOk(written), `${JSON.stringify({
+            'module.f.js': ['shared.f.mjs', 'branch.f.mjs'],
+            'shared.f.mjs': ['module.f.js'],
+            'branch.f.mjs': ['shared.f.mjs', 'data.json'],
+            'data.json': [],
+        }, null, 2)}\n`)
+        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
+    },
+    dependenciesOutsideEntrySubtree: () => {
+        const [state, result] = execute({
+            inside: { 'module.f.mjs': [utf8('import value from "../outside.f.mjs"; export default value;')] },
+            'outside.f.mjs': [utf8('export default unknown;')],
+        }, { env: { INIT_CWD: 'inside' } })
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('inside/_deps.json'))
+        assertEq(assertOk(written), `${JSON.stringify({
+            'inside/module.f.mjs': ['outside.f.mjs'],
+            'outside.f.mjs': [],
+        }, null, 2)}\n`)
+    },
+    importFailuresDoNotPublishPartialGraphs: () => {
+        for (const source of [
+            'import value from "./missing.f.js"; export default value;',
+            'import value from "package"; export default value;',
+            'import value from "./data.json"; export default value;',
+            'import first from "./data.json" with {type:"json"}; import second from "./data.json"; export default second;',
+            'import value from "./data.json" with {wrong:"json"}; export default value;',
+            'import value from "./data.json" with {type:"wrong"}; export default value;',
+        ]) {
+            const [state, result] = execute({
+                'module.f.js': [utf8(source)],
+                'data.json': [utf8('{}')],
+                '_deps.json': [utf8('previous graph')],
+            })
+            assertEq(exitCode(result), 1)
+            assert(state.stderr.includes('error:'), state.stderr)
+            const [, written] = virtual(state)(readSource('_deps.json'))
+            assertEq(assertOk(written), 'previous graph')
+        }
+    },
+    fileWriteFailure: () => {
+        const run = partialRun(nodeCommands)({
+            ...virtualOperationMap,
+            writeFile: () => state => [state, error(ioError({ code: 'EACCES', message: 'access denied' }))],
+        })
+        const [state, result] = run(emptyState)(main(defaultNodeProgramOptions))
+        assertEq(exitCode(result), 1)
+        assert(state.stderr.includes('access denied'), state.stderr)
+    },
     sourceDiscovery: () => {
         const [state, result] = execute(sources)
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
         assertEq(state.stderr, '')
     },
     invocationDirectory: () => {
         const [state, result] = execute(sources, { env: { INIT_CWD: 'nested' } })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        const [, written] = virtual(state)(readSource('nested/_deps.json'))
+        assert(assertOk(written).includes('nested/module.f.mjs'))
+        const [, absent] = virtual(state)(readSource('_deps.json'))
+        assertError(absent)
     },
     forOfSyntaxDoesNotRequireCompilationOrExecution: () => {
         const [state, result] = execute({
             'module.f.mjs': [utf8('for(const item of notDefined){throw "must not execute";}export default 0;')],
             nested: { 'module.f.js': [utf8('export default ()=>{for(let [key,value] of missing){continue;}return 0;};')] },
-            imported: { 'module.f.mjs': [utf8('import {of} from "./absent.f.mjs";export default ()=>{for(const {value} of of){return value;}return undefined;};')] },
+            imported: { 'absent.f.mjs': [utf8('export default 0;')], 'module.f.mjs': [utf8('import {of} from "./absent.f.mjs";export default ()=>{for(const {value} of of){return value;}return undefined;};')] },
         })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
         assertEq(state.stderr, '')
     },
     patternDefaultsDoNotResolveOrExecuteInitializers: () => {
@@ -77,28 +142,28 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute({
             'module.f.mjs': [utf8('export default new Missing(null.x);')],
             nested: { 'module.f.js': [utf8('const value=new absent.Constructor(...unresolved);export default value;')] },
-            imported: { 'module.f.mjs': [utf8('import Constructor from "./absent.f.js";export default new Constructor(missing());')] },
+            imported: { 'absent.f.js': [utf8('export default 0;')], 'module.f.mjs': [utf8('import Constructor from "./absent.f.js";export default new Constructor(missing());')] },
         })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
+        assertEq(state.stdout, 'AST: 4 parsed, 0 failed, 4 total\n')
         assertEq(state.stderr, '')
     },
     numericObjectKeysDoNotExecuteTheirValues: () => {
         const [state, result] = execute({
             'module.f.mjs': [utf8('export default { 0x70: unknown(), 0b11: null.x };')],
-            nested: { 'module.f.js': [utf8('import value from "./absent.f.js"; const { 0: picked = missing() } = value; export default picked;')] },
+            nested: { 'absent.f.js': [utf8('export default 0;')], 'module.f.js': [utf8('import value from "./absent.f.js"; const { 0: picked = missing() } = value; export default picked;')] },
         })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
-    singleQuotedEscapesDoNotResolveImportsOrExecuteValues: () => {
+    singleQuotedEscapesDecodeImportPathsWithoutExecution: () => {
         const [state, result] = execute({
             'module.f.mjs': [utf8("export default {'\\x61': unknown('\\v')};")],
-            nested: { 'module.f.js': [utf8("import value from './missing\\x2ef\\x2ejs'; export default [value,'\\x41'];")] },
+            nested: { 'missing.f.js': [utf8('export default 0;')], 'module.f.js': [utf8("import value from './missing\\x2ef\\x2ejs'; export default [value,'\\x41'];")] },
         })
         assertEq(exitCode(result), 0, state.stderr)
-        assertEq(state.stdout, 'AST: 2 parsed, 0 failed, 2 total\n')
+        assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         assertEq(state.stderr, '')
     },
     omittedLetInitializersNeedNoResolutionOrExecution: () => {
@@ -140,6 +205,17 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 1)
         assertEq(state.stdout, '')
         assert(state.stderr !== '')
+    },
+    entryResolutionFailure: () => {
+        const run = partialRun(nodeCommands)({
+            ...virtualOperationMap,
+            resolveFileModule: () => state => [state, error(ioError({ code: 'EACCES', message: 'cannot resolve entry' }))],
+        })
+        const [state, result] = run({ ...emptyState, root: { 'module.f.js': [utf8('export default 1;')] } })(
+            main(defaultNodeProgramOptions))
+        assertEq(exitCode(result), 1)
+        assertEq(state.stdout, 'AST: 0 parsed, 1 failed, 1 total\n')
+        assert(state.stderr.includes('cannot resolve entry'), state.stderr)
     },
     unreadableFile: () => {
         const run = partialRun(nodeCommands)({
