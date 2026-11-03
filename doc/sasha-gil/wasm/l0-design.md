@@ -7,7 +7,7 @@ our own linker. Nothing here is decided yet.
 
 ## Summary
 
-L0 is 30 imported functions and 4 imported constants in one import module,
+L0 is 31 imported functions and 4 imported constants in one import module,
 `fjs:l0`. A value is an opaque `i64`. Bytes cross through a memory both
 modules share. Containers are built through a builder handle and then sealed,
 values are reference counted, and a call returns a status and a value.
