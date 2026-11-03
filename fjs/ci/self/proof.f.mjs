@@ -4,7 +4,7 @@
  * @import { Effect } from '../../effects/types.ts'
  */
 
-import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesScript } from './module.f.mjs'
+import { main, packageConsumer, websiteJob, repositoryWorkflow, websiteWorkflow, websitePath, personalNotesPath, personalNotesWorkflow, personalNotesJob } from './module.f.mjs'
 import { ciWorkflow, main as builtIn } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
@@ -42,12 +42,11 @@ export const proof = {
         // The base branch's workflow, never the pull request's.
         assertStructurallySame(generated.on, { pull_request_target: { types: ['opened', 'synchronize', 'reopened', 'edited'] } })
         const steps = generated.jobs.approve?.steps ?? []
-        // Nothing from the pull request is checked out or run.
-        assert(steps.every(step => step.uses === undefined))
+        assertStructurallySame(steps, personalNotesJob.steps)
+        // The checkout names no ref, so it is the base branch's.
+        assertStructurallySame(steps[0]?.with, { 'persist-credentials': 'false' })
+        assertEq(steps[2]?.run, 'node ./fjs/ci/personal-notes/main.mjs')
         assertStructurallySame(generated.jobs.approve?.permissions, { contents: 'read', 'pull-requests': 'write' })
-        // Values GitHub substitutes reach the script only through its environment.
-        assert(!personalNotesScript.includes('${{'))
-        assert(personalNotesScript.includes('prefix="doc/$AUTHOR/"'))
     },
     sharedChecks: () => {
         const generated = unwrap(parseGitHubAction(unwrap(jsonParse(workflowOf(main())))))

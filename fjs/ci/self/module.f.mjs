@@ -18,6 +18,7 @@ import { step } from '../../effects/module.f.mjs'
 import { exitStep, writeFiles } from '../../effects/node/module.f.mjs'
 import { images, jobTimeout } from '../config/module.f.js'
 import { miseDevelop, miseInstall } from '../mise/module.f.mjs'
+import { installNode } from '../node/module.f.mjs'
 import { buildScriptPath } from '../../nanvm/demos/module.f.mjs'
 import { rustdocHeadPath, rustdocHeaderPath, rustdocFooterPath, rustdocStylesheetPath } from '../../website/cargo-doc/module.f.mjs'
 
@@ -152,43 +153,26 @@ export const personalNotesPath = /** @type {const} */ (`${_workflowsDirectory}/g
 
 /**
  * The approval of a pull request that changes only its author's personal
- * notes, the files under `doc/<author's login>/`, such as `doc/sergey`. The
- * author must hold write access. Anything else is left to people, and an
- * approval this workflow gave earlier is dismissed once a file outside the
- * notes changes, because the repository keeps approvals across pushes. The
- * script reads the pull request through the API and checks nothing out, so
- * no code from the pull request runs with the token.
+ * notes: [`../personal-notes`](../personal-notes/module.f.mjs) decides, and
+ * its GitHub boundary approves, or dismisses the approval it gave once a file
+ * outside the notes changes. The checkout is the base branch's, the default
+ * on `pull_request_target`, so the code that runs with the token is never the
+ * pull request's.
+ *
+ * @type {Job}
  */
-export const personalNotesScript = [
-    'set -euo pipefail',
-    'prefix="doc/$AUTHOR/"',
-    'permission=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission)',
-    "outside=$(gh api --paginate \"repos/$REPO/pulls/$PR/files\" --jq '.[] | .filename, .previous_filename // empty' | awk -v p=\"$prefix\" 'index($0, p) != 1')",
-    'if { [ "$permission" = admin ] || [ "$permission" = write ]; } && [ -z "$outside" ]; then',
-    '  gh pr review "$PR" --repo "$REPO" --approve --body "Every changed file is under $prefix, the personal notes of its author."',
-    'else',
-    '  echo "Not only the personal notes of $AUTHOR ($permission access): review is left to people."',
-    "  for id in $(gh api --paginate \"repos/$REPO/pulls/$PR/reviews\" --jq '.[] | select(.user.login == \"github-actions[bot]\" and .state == \"APPROVED\") | .id'); do",
-    '    gh api -X PUT "repos/$REPO/pulls/$PR/reviews/$id/dismissals" -f event=DISMISS -f message="A file outside $prefix changed."',
-    '  done',
-    'fi',
-].join('\n')
-
-/** @type {Job} */
 export const personalNotesJob = {
     'runs-on': images.ubuntu.intel,
     'timeout-minutes': jobTimeout,
     permissions: { contents: 'read', 'pull-requests': 'write' },
-    steps: [{
-        run: personalNotesScript,
-        shell: 'bash',
-        env: {
-            GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
-            REPO: '${{ github.repository }}',
-            PR: '${{ github.event.pull_request.number }}',
-            AUTHOR: '${{ github.event.pull_request.user.login }}',
+    steps: [
+        uses('actions/checkout', { 'persist-credentials': 'false' }),
+        installNode({}),
+        {
+            run: 'node ./fjs/ci/personal-notes/main.mjs',
+            env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' },
         },
-    }],
+    ],
 }
 
 /**
