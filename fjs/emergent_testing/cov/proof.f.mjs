@@ -97,8 +97,12 @@ const full = path => ({
 
 export const proof = /** @type {const} */ ({
     targets: () => {
-        for (const path of ['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs']) assert(isCoverageTarget(path))
-        for (const path of ['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js']) assert(!isCoverageTarget(path))
+        for (const path of ['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs']) {
+            assert(isCoverageTarget(path))
+        }
+        for (const path of ['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js']) {
+            assert(!isCoverageTarget(path))
+        }
     },
     grouping: () => {
         assertStructurallySame(_modules(['./z/module.f.js', './a/module.f.mjs', './a/demo.f.mjs']), [
