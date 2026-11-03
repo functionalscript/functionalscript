@@ -355,16 +355,16 @@ const proofItem = proof => proof.blockers.length === 0
 const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
 
 /** Fixed section headings capture their links once, before any page is built.
- * @type {(id: string, label: string, demo?: boolean) => (...rest: readonly Node[]) => Element}
+ * @type {(id: string, label: string) => (...rest: readonly Node[]) => Element}
  */
-const linkedSummary = (id, label, demo = false) => {
+const linkedSummary = (id, label) => {
     /** @type {Element} */
     const heading = ['h2', { id }, label]
-    const link = permalink(id, label, demo)
+    const link = permalink(id, label)
     return (...rest) => ['summary', heading, link, ...rest]
 }
 
-const demoSummary = linkedSummary('demo', 'Demo', true)
+const demoSummary = linkedSummary('demo', 'Demo')
 const testSummary = linkedSummary('emergent-testing', 'Emergent Testing')
 
 /**
@@ -416,7 +416,7 @@ const inactive = view => {
  * @type {(demo: PageDemo, scope?: string) => readonly Node[]}
  */
 export const demoSection = ({ path, view }, scope = path) => [['details', { 'data-section': '', open: '' },
-    scope === path ? demoSummary(sharingStatus()) : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo', true)(sharingStatus()),
+    scope === path ? demoSummary(sharingStatus()) : linkedSummary(`demo-section:${scope.length}:${scope}`, 'Demo')(sharingStatus()),
     ['div', { [demoMarker]: path, [scopeMarker]: scope }, ...(view === null ? [] : [inactive(scopeIds(scope)(view))])],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'

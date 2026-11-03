@@ -33,6 +33,10 @@ const fn = source => {
 }
 
 export const proof = {
+    numericNamespaceMember: () => {
+        assertStructurallySame(result('const {MAX_SAFE_INTEGER: max}=Number;export default max;'), { default: Number.MAX_SAFE_INTEGER })
+        assertStructurallySame(result('export default (()=>{let {MAX_SAFE_INTEGER: max}=Number;max-=1;return max;})();'), { default: Number.MAX_SAFE_INTEGER - 1 })
+    },
     patternDefaultsSelectOnceBeforeNestedReads: () => {
         const cases = /** @type {const} */ ([
             ['const {a=5,b=a+1}={};export default [a,b];', [5, 6]],

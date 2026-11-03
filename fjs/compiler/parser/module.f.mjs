@@ -1,9 +1,7 @@
 /**
- * Resolve admitted source names and preserve source blocks, assignments,
- * parameter plans and loop source evidence for the common sugar pass.
+ * Resolve source bindings and control structure for the common sugar pass.
  *
  * Explicit work steps keep source depth independent of the host stack.
- * Admission resolves bindings; sugar owns graph normalization.
  *
  * @module
  * @import { Result } from '../../types/result/types.ts'
@@ -157,7 +155,7 @@ const captureShadowed = foldError('capture shadowed')
  * A keyword where JavaScript wants an identifier, at the word — or a
  * reserved global, `Number`, `String`, or `BigInt`, bound or read anywhere but as the
  * callee of the conversion, {@link conversion}, or `Object` or `Number`
- * anywhere but as the namespace of an admitted static function,
+ * anywhere but as the namespace of an admitted static member,
  * {@link staticRead}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
  * no value, so `Number.MAX_VALUE`, `Object.keys` and a bare `Number` are
@@ -500,7 +498,7 @@ const planned = check => planPattern({
 /** The source admission owner supplies each refused spelling's diagnostic. */
 const patternRefusals = { invalid: invalidTarget, rest: restTarget, computed: computedPatternKey, duplicate: duplicateId }
 
-/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic, ParseError>} */
+/** @type {(namespace: ModuleTokenWithMetadata, key: ModuleTokenWithMetadata) => Result<ValueStatic | number, ParseError>} */
 const namespaceMember = (namespace, key) => {
     const member = staticMember(nameOf(namespace), keyNamed(key))
     if (member !== null) { return ok(member) }
@@ -1155,16 +1153,13 @@ const forOfReturned = (stack, scope, frame, value) => {
     return bodyRound(stack, outer, advanced(frame.body, [statement]))
 }
 
-/** Resolve lexical braces without creating a source invocation. @type {(stack: _Stack, scope: _Scope, block: StandaloneBlock, body: _BodyFrame | null) => _State} */
+/** Enter a standalone lexical region. @type {(stack: _Stack, scope: _Scope, block: StandaloneBlock, body: _BodyFrame | null) => _State} */
 const enterStandalone = (stack, scope, block, body) => [{ top: { scoped: body }, rest: stack }, regionScope(scope, empty, null), ['region', {
     statements: standaloneStatements(block.block), first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
 }]]
 
 /**
- * Enter the next declaration, branch condition, loop initializer or terminal
- * value in document order. Source guards retain their lexical block and the
- * remaining statements as terminal branches rather than generated invocations.
- *
+ * Resolve the next statement; guards retain their remaining statements as terminal branches.
  * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, scope, frame) => {
@@ -1339,16 +1334,21 @@ const isConversionWord = name => name === 'Number' || name === 'String' || name 
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
 
 /**
- * The static function the key `named` names in the namespace `global`, as
+ * The static member the key `named` names in the namespace `global`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
- * admits none: `is` of `Object` and the four predicates of `Number`
+ * admits none: the functions of `Object`, the predicates of `Number`,
+ * and `Number.MAX_SAFE_INTEGER`
  * ([spec: built-in static functions](../../../spec/built-ins/static-functions/README.md)),
  * each a tag of the EDAG's `staticIds`, where a later name is a row of
  * its own decision.
  *
- * @type {(global: string, named: string | number) => ValueStatic | null}
+ * Numeric constants lower directly to their host-defined value, without
+ * introducing an EDAG operation or copying the constant's digits here.
+ *
+ * @type {(global: string, named: string | number) => ValueStatic | number | null}
  */
 const staticMember = (global, named) => {
+    if (global === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
     const id = staticIds.find(id => id === `${global}.${named}`)
     if (id === undefined) { return null }
     /** @type {ValueStatic} */
@@ -1357,26 +1357,26 @@ const staticMember = (global, named) => {
 }
 
 /**
- * The static function an access reads, where its base is the bare word
+ * The static member an access reads, where its base is the bare word
  * of a namespace and its key a constant naming an admitted member, in
  * either spelling, {@link staticMember}; `null` for every other access,
  * which is resolved as any is — so `Object.keys` and `Number.MAX_VALUE`
  * enter the word and are refused at it. The word is a reserved global,
  * which no scope binds, so it alone decides.
  *
- * @type {(node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>) => ValueStatic | null}
+ * @type {(node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>) => ValueStatic | number | null}
  */
 const staticOf = ([, base, key]) => base[0] !== 'ref' || key instanceof Array ? null : staticMember(nameOf(base[1]), keyNamed(key))
 
 /**
- * A read of a static function entered, `member`: `Object.is` or
- * `Object['is']` — the AST's `['Object.is']`. Unguarded only: a guard asks
+ * A read of a static member entered, `member`: a function such as
+ * `Object.is`, or a numeric constant. Unguarded only: a guard asks
  * whether a value is nullish, and a namespace is no value, so `Object?.is`
  * is refused at the word, {@link enter}. A guarded call of the read,
  * `Object.is?.(a, b)`, is the chain over the plain read it is, the read
  * entered again as its head.
  *
- * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>, member: ValueStatic) => _State}
+ * @type {(stack: _Stack, scope: _Scope, node: Extract<Node, readonly ['.', Node, Key, ...unknown[]]>, member: ValueStatic | number) => _State}
  */
 const staticRead = (stack, scope, node, member) => {
     const step = node[3]

@@ -21,7 +21,7 @@ UTF-16 *encoder* does the opposite — it silently truncates to 16 bits, losing 
 error tag:
 
 ```js
-// fjs/text/utf16/module.f.mjs, `codePointToUtf16`
+// fjs/text/utf16/module.f.js, `codePointToUtf16`
 const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
     const pair = tryToSurrogatePair(codePoint)
@@ -33,7 +33,7 @@ const codePointToUtf16 = codePoint => {
 So two encoders that share one `errorMask` contract handle the invalid case with
 opposite philosophies: UTF-8 preserves+tags, UTF-16 discards. The UTF-16
 *decoder* (`utf16ByteToCodePointOp` and `utf16StateToError` in
-`fjs/text/utf16/module.f.mjs`) does set `errorMask` on bad input per its own
+`fjs/text/utf16/module.f.js`) does set `errorMask` on bad input per its own
 JSDoc, so the encoder is the asymmetric side. `codePointToUtf16` is used
 internally by `fromCodePointList`, via `flatMap`, and by `codePointToString`.
 

@@ -379,7 +379,7 @@ export const proof = {
             // Folded: the suite is asked for, not what a reader came for.
             assert(html.startsWith('<body><details data-section=""><summary>'), html)
             // The title carries a slot the runner fills with the run's counts.
-            assert(html.includes('data-copy-fragment="emergent-testing"'), html)
+            assert(html.includes('<a href="#emergent-testing" aria-label="Link to Emergent Testing" data-heading-anchor="">'), html)
             assert(html.includes('<span data-test-counts=""></span></summary>'), html)
             // A runnable entry names its source, so a run can mark it if it
             // reports no tests.
@@ -456,9 +456,9 @@ export const proof = {
             assert(html.includes('<div data-demo="/a/demo.f.mjs" data-demo-scope="/a/demo.f.mjs"></div>'), html)
             assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
             const summary = html.slice(html.indexOf('<summary>'), html.indexOf('</summary>'))
-            assert(summary.includes('data-copy-demo=""'), html)
+            assert(summary.includes('<a href="#demo" aria-label="Link to Demo" data-heading-anchor="">'), html)
+            assert(!summary.includes('<button'), html)
             assert(summary.includes('data-demo-link-status=""'), html)
-            assertEq(occurrences('data-copy-demo=""')(html), 1)
         },
         scopedControlsBeforeScripts: () => {
             const html = concat(element(['body', ...demoSection({ path: '/a/demo.f.mjs', view: ['p',

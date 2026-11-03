@@ -30,7 +30,7 @@ import {
     digitsValue, greaterThanSign as gt, hyphenMinus, isCanonicalDigits, isDigit, lessThanSign as lt, lf,
     plusSign, space as sp,
 } from '../../text/ascii/module.f.js'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
 import { flat } from '../../types/list/module.f.js'
 
 const digit = range('09')

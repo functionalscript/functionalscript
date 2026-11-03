@@ -8,7 +8,7 @@ import { one, union, empty, range as byteSetRange } from '../types/byte_set/modu
 import { toKey } from '../types/sorted_set/module.f.js'
 import { fold } from '../types/list/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
-import { stringToList } from '../text/utf16/module.f.mjs'
+import { stringToList } from '../text/utf16/module.f.js'
 import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 
 

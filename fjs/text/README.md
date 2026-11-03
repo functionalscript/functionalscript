@@ -91,7 +91,7 @@ Requirement: no loss for UTF16 => codepoint => UTF16
 
 Total error states: 11 bit
 
-### utf16/module.f.mjs
+### utf16/module.f.js
 
 ```ts
 const toCodePointList : List<u16|null>) => List<CodePoint>

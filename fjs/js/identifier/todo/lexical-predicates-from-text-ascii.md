@@ -29,7 +29,7 @@ Kelvin sign, was a letter — it lowercases to `k` — and the writer emitted
 such answer to give.
 
 The classes now live in `fjs/text/ascii`, exported, and JavaScript's rule
-over them in [`fjs/js/identifier`](../module.f.mjs), which the writer in
+over them in [`fjs/js/identifier`](../module.f.js), which the writer in
 [`fjs/compiler/serializer`](../../../compiler/serializer/module.f.mjs), the
 tokenizer and `fjs/emergent_testing` ask.
 
@@ -44,7 +44,7 @@ module already states as its reason for existing: no consumer rederives the
 offsets for itself.
 
 Above the classes, JavaScript's own rule wants a home of its own, which is
-the module this `todo/` sits in: `fjs/js/identifier/module.f.mjs`, with
+the module this `todo/` sits in: `fjs/js/identifier/module.f.js`, with
 
 - `isIdentifier`, a word the tokenizer reads as one `id` token —
   `[A-Za-z_$][A-Za-z0-9_$]*` over the classes, not over literals;
@@ -70,7 +70,7 @@ written out again.
 - [x] Decide whether `text/ascii` also offers the classes over a
       one-character string, which most rows above ask about, or each
       consumer converts to a code point first: it does, as `charIs`.
-- [x] `fjs/js/identifier/module.f.mjs`: `isIdentifier` over `text/ascii`'s
+- [x] `fjs/js/identifier/module.f.js`: `isIdentifier` over `text/ascii`'s
       classes and `isInteger` over `isCanonicalDigits`, with a co-located proof
       at 100% (the cases in `fjs/emergent_testing/proof.f.mjs` are the start).
       No `deno.json` `exports` entry: the file has no map today, and

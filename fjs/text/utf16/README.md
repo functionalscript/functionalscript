@@ -10,7 +10,7 @@ and surrogate tables are in the [text README](../README.md#utf-16).
 import {
     stringToCodePointList, codePointListToString,
     isWellFormed, floorCodePointBoundary,
-} from './module.f.mjs'
+} from './module.f.js'
 
 stringToCodePointList('a😀')               // 0x61, 0x1f600 (as a List)
 codePointListToString([0x61, 0x1f600])    // 'a😀'

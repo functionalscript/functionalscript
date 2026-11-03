@@ -7,7 +7,7 @@
 
 import { assertEq } from '../../../asserts/module.f.js'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import { forClassicTail, forDeclarationTail, forHeader, module, symbolOf } from './module.f.mjs'

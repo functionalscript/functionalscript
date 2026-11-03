@@ -22,7 +22,7 @@
  * @example
  *
  * ```js
- * import { cmp, tryParse } from './module.f.mjs'
+ * import { cmp, tryParse } from './module.f.js'
  *
  * tryParse('26.1.0') // [26, 1, 0]
  * tryParse('1.bad') // null
@@ -71,7 +71,7 @@ const isPart = part => {
  */
 export const tryParse = version => {
     const parts = version.split('.')
-    return parts.every(isPart) ? parts.map(Number) : null
+    return parts.every(isPart) ? parts.map(v => Number(v)) : null
 }
 
 /** @type {(version: string) => readonly number[]} */

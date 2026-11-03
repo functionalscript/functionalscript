@@ -40,10 +40,10 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-import { decodeLower } from '../../../basen/base16/module.f.mjs'
+import { decodeLower } from '../../../basen/base16/module.f.js'
 import { pushAll } from '../../../types/stack_walk/module.f.js'
 
-const { is, keys } = Object
+const { keys } = Object
 
 /**
  * The bytes a `['hex', …]` document spells, or `null` where the string is
@@ -92,7 +92,7 @@ const at = (path, what) => `at ${path}: ${what}`
 
 /** @type {(value: Unknown) => string} */
 const show = value =>
-    is(value, -0) ? '-0' :
+    Object.is(value, -0) ? '-0' :
     typeof value === 'bigint' ? `${value}n` :
     typeof value === 'string' ? JSON.stringify(value) :
     isArray(value) ? 'an array' :
@@ -149,7 +149,7 @@ const children = (stack, path, expected, actual) => {
 const compare = ([stack, pairs], task) => {
     const [path, expected, actual] = task
     if (typeof expected !== 'object' || expected === null) {
-        return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
+        return Object.is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }
     if (typeof actual !== 'object' || actual === null) {
         return at(path, `expected ${show(expected)}, got ${show(actual)}`)

@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { decode, decodeCodePoints, decodeLower, encode, encodeCodePoints, encodeScalar } from './module.f.mjs'
+import { decode, decodeCodePoints, decodeLower, encode, encodeCodePoints, encodeScalar } from './module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
 
 /** Every byte, in order, for the round trips. */

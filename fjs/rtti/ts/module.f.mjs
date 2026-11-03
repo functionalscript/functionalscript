@@ -22,7 +22,7 @@
 
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { assoc, dedup } from '../../types/array/module.f.mjs'
-import { isIdentifier } from '../../js/identifier/module.f.mjs'
+import { isIdentifier } from '../../js/identifier/module.f.js'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { _taggedPrimitive as primitive, _taggedUnion as union, _taggedPrinter as tsPrinter } from '../../types/ts/module.f.mjs'
