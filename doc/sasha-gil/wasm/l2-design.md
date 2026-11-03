@@ -11,9 +11,9 @@ L2 is [`fjs/js/runtime`](../../../fjs/js/runtime/module.f.js), unchanged in
 meaning, compiled by our WASM backend into the same stock module as L1.
 Today's natives, the primitives that
 [the runtime README](../../../fjs/js/runtime/README.md#the-names-without-a-body)
-lists, get FunctionalScript bodies over the L0 view. After that, the
-whole stock runtime is FunctionalScript, and a host runtime supplies only
-L0 and L1's native rows.
+lists, become L1 operations with FunctionalScript bodies over the L0 view.
+After that, the whole stock runtime is FunctionalScript, and a host runtime
+supplies only L0 and L1's native rows.
 
 ## Design choices
 
@@ -27,11 +27,17 @@ L0 and L1's native rows.
   ([DESIGN.md §13](../../DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
   The WASM backend is one more consumer of the same source.
 
-### 2. Today's natives get FunctionalScript bodies
+### 2. Today's natives become L1 operations
 
-Each primitive in the table below becomes FunctionalScript over the
-[L0 view](./l0-design.md#17-a-functionalscript-view-of-l0). The L0 string
-functions were added for this.
+Each primitive in the table below becomes an L1 operation, with a
+FunctionalScript body in `fjs/js/l1` over the
+[L0 view](./l0-design.md#17-a-functionalscript-view-of-l0), as
+[l2-stock-runtime.md](./l2-stock-runtime.md#proposed) proposed. The L0
+string functions were added for this. `fjs/js/runtime` does not change: its
+`statics` table still names `Object.entries` and `String.fromCharCode`, and
+the WASM backend binds those names to the L1 operations. The interpreter
+and the Rust backend keep answering them natively. Their answers are
+substitutions of the same bodies, checked by the same proof tables.
 
 | Today | Body over the L0 view |
 | --- | --- |
@@ -43,6 +49,10 @@ functions were added for this.
 
 - **Why:** each was native only because no body could read a unit or a key.
   The L0 view can, so the list of natives shrinks to L1's native rows.
+  Writing the bodies in `fjs/js/l1`, not in `fjs/js/runtime`, keeps the L0
+  view out of the modules that the interpreter and the Rust backend
+  compile. Those executors would otherwise have to recognise every
+  intrinsic of the view as well.
 - **Cost:** `String.fromCharCode` and `Object.entries` are quadratic as
   written. That is the price of a reference body, and it is the first place
   for a native substitution.
@@ -77,6 +87,9 @@ functions were added for this.
 - **Why:** dispatch depends on the receiver, so it is dynamic, and `dot`
   already writes the order once: own property, then member body, then
   `undefined`.
+- **Termination:** `fjs/js/runtime` keeps its rule of no member call
+  ([DESIGN.md §13](../../DESIGN.md#13-one-source-of-truth-optimize-by-substitution)),
+  so `resolveMember` calling `dot` never calls `resolveMember` again.
 - **Later:** where the compiler knows the receiver's kind and the key is a
   literal, it can call the member body directly, such as `startsWith` on a
   known string. That is an optimization of the program and needs no new
@@ -108,8 +121,8 @@ functions were added for this.
 
 1. The L0 view, `fjs/js/l0`, with JavaScript bodies, and its proofs.
 2. The L1 bodies in `fjs/js/l1`, proved against JavaScript's operators.
-3. The bodies of today's natives in `fjs/js/runtime`, proved against the
-   host's built-ins, as the static bodies are proved today.
+3. The bodies of today's natives, as L1 operations in `fjs/js/l1`, proved
+   against the host's built-ins, as the static bodies are proved today.
 4. A WASM backend that compiles the stock module, and a small program
    linked with it, on a host that provides L0 and L1's native rows: NaNVM
    in Rust, or a runtime in JavaScript.

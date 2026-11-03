@@ -4,13 +4,15 @@ The core describes the FunctionalScript data model, not JavaScript. Values
 are immutable and come in a few kinds: numbers, booleans, `undefined` and
 `null`, strings, bigints, arrays, ordered objects and functions. L0 is how a
 module makes, reads, shares, frees and calls them. The sections below name
-24 functions, and L0 should stay near that size: a new one needs a reason
-that L1 cannot serve.
+24 functions, and the design names 30. L0 should stay near that size: a new
+function needs a reason that L1 cannot serve.
 
 Every section below is a **proposal**, with the options considered.
 
 [l0-design.md](./l0-design.md) picks one option on each axis, as a first
-detailed design for discussion.
+detailed design for discussion. Where the two differ, the design is the
+later word. For example, `make_function` takes its text as a string value,
+not as a pointer and a length.
 
 ## Today
 

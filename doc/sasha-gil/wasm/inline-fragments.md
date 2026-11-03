@@ -29,8 +29,9 @@ parameters become locals of the caller.
   functions, which become imports of the program.
 - **Two modes.** A *portable* program imports everything and runs on any
   runtime. A *specialized* program has fragments inlined and is compiled for
-  one runtime and version. This is the same trade as choosing the WASM type
-  of `any` per runtime, and the two are decided together.
+  one runtime and version. The [L0 design](./l0-design.md#1-the-wasm-type-of-any-i64-fixed-for-abi-version-1)
+  fixes `any` as `i64` for version 1, so a specialized program differs from
+  a portable one only by its fragments, and both use the same signatures.
 - **Equivalence.** A fragment behaves exactly as the function it replaces.
   The conformance run covers both modes.
 

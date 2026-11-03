@@ -38,6 +38,9 @@ A module reads a static at run time by a string,
 
 ## Open
 
+The [L2 design](./l2-design.md) proposes an answer to both: one stock module
+with L1, and substitution by our linker.
+
 - Whether L2 is one module or one module per table.
 - How a runtime that implements a static natively, as NaNVM does for
   `Object.entries`, overrides the L2 body at link time.
