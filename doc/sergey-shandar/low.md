@@ -66,4 +66,3 @@ assert_eq!(address & MASK, 0, "pointer exceeds NaNPtr address range");
 |`pointer`| `2^51` |`01`    | Pointer + data types                        |
 |`bigint` | `2^52` |`1X`    | Sign and 51 bit uint                        |
 |**Total**| `2^53` |        |                                             |
-
