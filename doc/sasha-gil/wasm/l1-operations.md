@@ -52,6 +52,8 @@ C applies that to all of L1.
 ## Open
 
 - Which operations have no reasonable reference body? Number to string and
-  string to number are the likely ones, and they may stay native-only.
+  string to number are the likely ones, and they may stay native-only. Every
+  native-only operation is one more thing a runtime must implement before
+  its first program runs, so this list should stay as short as it can.
 - Whether member access on a primitive, which `runtime.dot` and the native
   member table answer today, is one L1 operation or a call into L2.

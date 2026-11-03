@@ -76,9 +76,11 @@ runtimes.
 
 Values are immutable, so allocation and initialisation can be one step.
 
-- **Byte containers.** A string of UTF-16 units or a bigint of sign and
-  `u64` words is copied from linear memory: `make_string(ptr, len)`. This is
-  how literals in data segments get in.
+- **Byte containers.** Copied from linear memory, which is how literals in
+  data segments get in. A string of UTF-16 units is
+  `make_string(ptr, len)`, and a bigint is `make_bigint(sign, ptr, len)`,
+  with `len` counting its `u64` words. A bigint needs its own call because
+  its sign is a header the string has no place for.
 - **Value containers.** An array, an object or a frame is built: `begin`
   with a kind and a length, `push` once per item, then `seal`, which returns
   the value. After `seal` the value never changes. This matches
@@ -102,12 +104,12 @@ Reference counting is therefore sound without a cycle collector.
 
 | Option | Runtime | Program |
 | --- | --- | --- |
-| Reference counting: `dup` and `drop`, arguments borrowed, results owned | Frees memory, as NaNVM's `Rc` does today | Emits `drop` at last use, which the prepare pass already tracks as invocation lifetimes |
+| Reference counting: `dup` and `drop`, arguments borrowed, results owned | Frees memory, as NaNVM's `Rc` does today | Emits `drop` at last use. That needs an ownership and last-use analysis over the EDAG, which no pass does today: preparation does not choose value owners |
 | An arena per run, where `drop` does nothing | Trivial | Same code as the row above |
 | WasmGC | Nothing to do | No `dup` or `drop`; needs `any` to be a reference type |
 
 **Proposed:** `dup` and `drop` in the ABI, with borrowed arguments and owned
-results. An arena runtime is then a legal runtime whose `drop` does nothing,
+results, and a new ownership analysis in the compiler to place them. An arena runtime is then a legal runtime whose `drop` does nothing,
 which is the cheapest start for an alternative runtime.
 
 **Risk:** the proposed object-grouping forward references,

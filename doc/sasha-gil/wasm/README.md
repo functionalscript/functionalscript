@@ -26,8 +26,9 @@ lets it be written in something other than Rust.
 ## Layers
 
 The interface has three layers. A program and the stock runtime are both
-ordinary modules that import L1 and L0. A runtime must provide L0. It
-provides L1 natively, or by linking the reference bodies.
+ordinary modules that import L1 and L0. A runtime must provide L0, and
+natively every L1 operation that has no reference body. It provides the
+rest of L1 natively, or by linking the reference bodies.
 
 ```text
   program module          stock runtime module (L2)
