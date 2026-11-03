@@ -157,6 +157,16 @@ export const proof = {
         // A body of spaces only keeps them all, as CommonMark keeps them.
         doubleCodeSpaces: () => assertStructurallySame(spans(`${tick}${tick}  ${tick}${tick}`), [['code', '  ']]),
         doubleCodeInALabel: () => assertStructurallySame(spans(`[${tick}${tick}a${tick}${tick}](u)`), [['link', [['code', 'a']], 'u']]),
+        // A single-backtick body keeps a space at one end, and loses one
+        // from each end where both have one, as CommonMark strips it.
+        codeSpaces: () => {
+            assertStructurallySame(spans(`the open ${tick}name: ${tick} write`), [['text', 'the open '], ['code', 'name: '], ['text', ' write']])
+            assertStructurallySame(spans(`${tick} a${tick}`), [['code', ' a']])
+            assertStructurallySame(spans(`${tick} a ${tick}`), [['code', 'a']])
+            assertStructurallySame(spans(`${tick}  a  ${tick}`), [['code', ' a ']])
+            // A body of spaces only keeps them all.
+            assertStructurallySame(spans(`${tick} ${tick}`), [['code', ' ']])
+        },
         // An asterisk with a space inside it is no delimiter on GitHub.
         spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'bold or emphasis padded with a space'),
         paddedStrong: () => assertEq(tryParseEntry('** a**')[1], 'bold or emphasis padded with a space'),
