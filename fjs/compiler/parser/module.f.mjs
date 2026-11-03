@@ -479,7 +479,7 @@ const isCall = node => {
  */
 const constPlan = check => (target, value, namespace) => {
     if (target[0] === 'discard') {
-        if (nameOf(target[1]) === 'new') { return error(unsupportedNew(target[1])) }
+        if (target[1].token.kind === 'id' && target[1].token.value === 'new') { return error(unsupportedNew(target[1])) }
         if (!isCall(value)) { return error(unexpectedToken(target[1])) }
     }
     return planned(check)(target, namespace)

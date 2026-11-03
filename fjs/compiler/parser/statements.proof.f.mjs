@@ -172,9 +172,9 @@ export const proof = {
             }
         },
     ],
-    // A JSON document is not a module: a statement begins with `import`,
-    // `const`, `export` or a call statement's name, and never with another
-    // value. `fjs/media/json` is the reader for these texts.
+    // A JSON document is not a module. An array can begin a statement,
+    // but still lacks the required module export. `fjs/media/json`
+    // is the reader for these texts.
     jsonDocumentIsNotAModule: [
         () => {
             const tokenList = tokenizeString('null')
@@ -192,7 +192,7 @@ export const proof = {
             const tokenList = tokenizeString('[]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
+            assertEq(obj[1].message, 'unexpected end')
         },
         () => {
             const tokenList = tokenizeString('{"valid":"json"}')

@@ -306,6 +306,18 @@ const array1 = /**@type {const}*/(['array', [[s('[')], [], [[[one1, []], []]], [
 const json1 = [[], array1, []]
 
 export const proof = {
+    explicitContinuationSymbolsConsumeGreedily: () => {
+        const rule = /** @type {const} */ ([repeatFrom0('x'), option('x')])
+        const greedy = /** @type {const} */ ([c('x'), c('x') + 1])
+        const parse = parser(rule, [], greedy)
+        const input = cps('xxx')
+        const [tree, end] = unwrap(parse(input))
+        assertEq(tree[0].length, 3)
+        assertEq(tree[1].length, 0)
+        assertEq(end, 3)
+        const [set, entry] = toData(rule)
+        assertStructurallySame(parserRuleSet(set, entry, greedy)(input), parse(input))
+    },
     firstMap: {
         // A set begins with its symbols; a sequence with its items' up to
         // and including the first that cannot match empty, so `int`'s holds
@@ -749,6 +761,8 @@ export const proof = {
         // sequence it ends — and an option repeated, where the round that
         // follows a round begins with what the option does.
         firstFollowConflict: () => parser([option('x'), 'x']),
+        greedyKeepsOtherFollowConflicts: () => parser([option('y'), 'y'], [], [c('x'), c('x') + 1]),
+        greedyKeepsFirstFirstConflicts: () => parser({ a: 'x', b: 'x' }, [], [c('x'), c('x') + 1]),
         firstFollowConflictRepeat: () => parser([repeatFrom0('x'), 'x']),
         firstFollowConflictVariant: () => parser([{ a: 'x', n: '' }, 'x']),
         firstFollowConflictNested: () => parser([['y', option('x')], 'x']),
