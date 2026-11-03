@@ -7,8 +7,9 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { element } from '../../media/html/module.f.mjs'
 import { concat, occurrences } from '../../types/string/module.f.js'
-import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
+import { demoSection, directoryLayout, footer, header, fileHref, issueOrder, page, pageHeading, pageHref, pagePath, cardImageHref, siteMeta, descriptionLimit, readmeDescription, repository, sections, siteDescription, subtree, testSection, urlPath } from './module.f.mjs'
 import { origin, productionOrigin } from '../origin/module.f.js'
+import { linkedHeading } from '../permalink/module.f.js'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
@@ -529,6 +530,24 @@ export const proof = {
         emptyCatalogue: () => assertEq(
             concat(element(directoryLayout(local)(empty)(['main']))),
             '<div data-directory-layout=""><aside data-catalogue="" aria-label="Directory catalogue"></aside><main></main></div>'),
+    },
+    /**
+     * A page's heading is its README's title; without one, a directory's
+     * name: no README, one that is not rendered, or one whose article has no
+     * `h1` among its linked headings — prose, another element, or a section
+     * heading only.
+     */
+    pageHeading: {
+        title: () => assertStructurallySame(
+            pageHeading([['article', { 'data-readme': '' }, linkedHeading(1, 't', 'T', ['T']), ['p', 'x']]])('d'),
+            []),
+        noReadme: () => assertStructurallySame(pageHeading([])('d'), [['h1', 'd']]),
+        refused: () => assertStructurallySame(
+            pageHeading([['p', { 'data-readme-refused': '' }, 'no']])('d'),
+            [['h1', 'd']]),
+        untitled: () => assertStructurallySame(
+            pageHeading([['article', { 'data-readme': '' }, 'x', ['p', 'y'], ['div', 'z'], linkedHeading(2, 's', 'S', ['S'])]])('d'),
+            [['h1', 'd']]),
     },
     page: {
         /**
