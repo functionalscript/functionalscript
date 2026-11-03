@@ -1,5 +1,6 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
 import {
+    add, divide, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate, subtract,
     functionText, stringEquals, stringLess, strictEquals, toBoolean, toNumber, toNumeric,
     toPrimitive, toPropertyKey, toString, typeOf,
 } from './module.f.js'
@@ -37,6 +38,15 @@ const convertible = /** @type {readonly unknown[]} */ ([
     { toString: undefined, valueOf: () => null },
     { valueOf: () => undefined },
 ])
+
+/** {@link convertible} and the bigints, the operands of the operators. */
+const operands = [...convertible, ...values.filter(v => typeof v === 'bigint'), 2n, -7n, '7', '1e3', ' 12 ', 'x1']
+
+/** Whether a value's primitive, a number preferred, is a string. @type {(v: unknown) => boolean} */
+const stringy = v => typeof toPrimitive(v, false) === 'string'
+
+/** Whether one of two values is a bigint and the other is not. @type {(x: unknown, y: unknown) => boolean} */
+const mixed = (x, y) => (typeof x === 'bigint') !== (typeof y === 'bigint')
 
 /** The strings of {@link values}. */
 const strings = values.filter(v => typeof v === 'string')
@@ -110,6 +120,48 @@ export const proof = {
     functionText: () => {
         assertEq(functionText('() => 0'), '() => 0')
     },
+    // `add` is `+` on every pair that does not mix a bigint with a
+    // number: two strings, a string with anything, or two numerics.
+    add: () => {
+        pairs(operands).forEach(([x, y]) => {
+            if (!mixed(x, y) || stringy(x) || stringy(y)) {
+                assert(Object.is(add(x, y), /** @type {any} */ (x) + y), `${String(x)} + ${String(y)}`)
+            }
+        })
+    },
+    // `subtract`, `multiply` and `divide` are `- * /` on every pair that
+    // does not mix a bigint with a number, nor divide a bigint by `0n`.
+    arithmetic: () => {
+        /** @type {readonly (readonly [(a: unknown, b: unknown) => unknown, (x: any, y: any) => unknown])[]} */
+        const ops = [[subtract, (x, y) => x - y], [multiply, (x, y) => x * y], [divide, (x, y) => x / y]]
+        pairs(operands).forEach(([x, y]) => {
+            if (!mixed(x, y)) {
+                ops.forEach(([op, js]) => {
+                    if (op !== divide || y !== 0n) {
+                        assert(Object.is(op(x, y), js(x, y)), `${String(x)} ${String(y)}`)
+                    }
+                })
+            }
+        })
+    },
+    // `negate` is unary `-`, a bigint's too.
+    negate: () => {
+        operands.forEach(x => assert(Object.is(negate(x), -/** @type {any} */ (x)), String(x)))
+    },
+    // The relations are `< > <= >=` on every pair: strings by units, a
+    // bigint against a number or a string, and `NaN` false either way.
+    relations: () => {
+        /** @type {readonly (readonly [(a: unknown, b: unknown) => boolean, (x: any, y: any) => unknown])[]} */
+        const ops = [
+            [lessThan, (x, y) => x < y],
+            [greaterThan, (x, y) => x > y],
+            [lessThanOrEqual, (x, y) => x <= y],
+            [greaterThanOrEqual, (x, y) => x >= y],
+        ]
+        pairs(operands).forEach(([x, y]) => {
+            ops.forEach(([op, js]) => assertEq(op(x, y), js(x, y), `${String(x)} ${String(y)}`))
+        })
+    },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {
         // both operands of a string comparison must be strings
@@ -117,6 +169,15 @@ export const proof = {
         stringEqualsSecond: () => { stringEquals('', []) },
         stringLessFirst: () => { stringLess([], '') },
         stringLessSecond: () => { stringLess('', [1]) },
+        // a bigint and a number do not mix
+        addMixed: () => { add(1n, 1) },
+        subtractMixed: () => { subtract(1, 1n) },
+        multiplyMixed: () => { multiply(1n, true) },
+        divideMixed: () => { divide(null, 1n) },
+        // a bigint divided by zero
+        divideZero: () => { divide(1n, 0n) },
+        // the left primitive is taken first, and its throw wins
+        lessThanLeft: () => { lessThan({ valueOf: () => { throw 'left' } }, {}) },
         // a bigint has no number
         toNumberBigInt: () => { toNumber(1n) },
         toNumberValueOf: () => { toNumber({ valueOf: () => 1n }) },
