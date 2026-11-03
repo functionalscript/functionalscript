@@ -49,7 +49,7 @@
  * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _TemplateContext, _TemplateDecode, _Trivia } from './private.ts'
+ * @import { _Cursor, _Failure, _Kind, _Lexed, _Lexeme, _TemplateContext, _EscapeDecode, _Trivia } from './private.ts'
  */
 import { assert } from '../../asserts/module.f.js'
 import { items, variant } from '../../ebnf/ast/module.f.js'
@@ -58,7 +58,7 @@ import { lineTerminators, mergeTrivia, templateContinuation, token } from '../..
 import { isKeyword } from '../keywords/module.f.js'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
-    apostrophe, asterisk, cr, lf, one,
+    asterisk, cr, lf, one,
     reverseSolidus,
     hexDigitValue, hexDigitsValue, isDigit,
     latinSmallLetterU,
@@ -66,7 +66,7 @@ import {
 import { maxCodePoint } from '../../text/code_point/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { mapUnwrap } from '../../types/nullable/module.f.js'
-import { concat, empty, flat, fold, stateScan } from '../../types/list/module.f.js'
+import { concat, empty, fold, stateScan } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 
 // -- layer 1: the grammar, one token at a time ------------------------------
@@ -263,53 +263,8 @@ const fixedHexValue = digits => Number(unwrapHexDigitsValue(digits))
  */
 const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 
-/**
- * The code point a simple escape denotes: JSON's table, shared with the
- * JSON serializer, with `\'` and `\v` above it. Those single-quoted
- * escapes are decoded here rather than added to the table, whose encode
- * view must keep writing valid JSON.
- *
- * @type {(letter: number) => number | null}
- */
-const simpleEscapeToCodePoint = letter => letter === apostrophe ? apostrophe : letter === one('v') ? 0xb : escapeToCodePoint(letter)
-
-/** @type {StateScan<number, _StringDecodeState, List<number>>} */
-const stringDecodeScan = (cp, state) => {
-    switch (state.kind) {
-        case 'escape': {
-            const codePoint = simpleEscapeToCodePoint(cp)
-            // The grammar admits JSON's simple escapes and `u`, plus
-            // `\'`, `\v` and `x` inside single quotes. It validates the
-            // complete escape before this scan; only `u` and `x` need the
-            // following digits to decide their value.
-            assert(codePoint !== null || cp === latinSmallLetterU || cp === one('x'), cp)
-            return codePoint === null
-                ? [null, { kind: cp === one('x') ? 'hex' : 'unicode', digits: [] }]
-                : [[codePoint], { kind: 'normal' }]
-        }
-        case 'unicode':
-        case 'hex': {
-            const digits = [...state.digits, cp]
-            return digits.length === (state.kind === 'hex' ? 2 : 4)
-                ? [[fixedHexValue(digits)], { kind: 'normal' }]
-                : [null, { kind: state.kind, digits }]
-        }
-        default: {
-            return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
-        }
-    }
-}
-
-/**
- * A string token's value: its text between the two quotes, either kind,
- * with every escape decoded.
- *
- * @type {(codePoints: readonly number[]) => string}
- */
-const decodeString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
-
-/** @type {(cp: number) => (decode: _TemplateDecode) => _TemplateDecode} */
-const templateNormal = cp => decode => {
+/** @type {(cp: number) => (decode: _EscapeDecode) => _EscapeDecode} */
+const escapeNormal = cp => decode => {
     if (cp === reverseSolidus) {
         return { ...decode, state: { kind: 'escape' }, previous: cp }
     }
@@ -322,19 +277,19 @@ const templateNormal = cp => decode => {
 }
 
 /**
- * Decode the grammar's JavaScript template escapes. Raw CR
+ * Decode the grammar's quoted-string and template escapes. Raw CR
  * and CRLF cook to LF; escaped line terminators cook to nothing. The grammar
  * supplies complete hex escapes, while the decoder validates the code point
  * limit and the digit boundary after `\0`.
  *
- * @type {(cp: number) => (decode: _TemplateDecode) => _TemplateDecode}
+ * @type {(cp: number) => (decode: _EscapeDecode) => _EscapeDecode}
  */
-const templateDecodeStep = cp => decode => {
+const escapeDecodeStep = cp => decode => {
     const { state } = decode
     switch (state.kind) {
-        case 'normal': { return templateNormal(cp)(decode) }
+        case 'normal': { return escapeNormal(cp)(decode) }
         case 'zero': {
-            return templateNormal(cp)({ ...decode, valid: decode.valid && !isDigit(cp) })
+            return escapeNormal(cp)({ ...decode, valid: decode.valid && !isDigit(cp) })
         }
         case 'escape': {
             if (cp === latinSmallLetterU) {
@@ -387,11 +342,11 @@ const templateDecodeStep = cp => decode => {
     }
 }
 
-/** @type {(source: readonly number[]) => _TemplateDecode} */
-const decodeTemplate = source => {
-    /** @type {_TemplateDecode} */
+/** @type {(source: readonly number[]) => _EscapeDecode} */
+const decodeEscapes = source => {
+    /** @type {_EscapeDecode} */
     const start = { state: { kind: 'normal' }, value: empty, valid: true, previous: undefined }
-    return fold(templateDecodeStep)(start)(source)
+    return fold(escapeDecodeStep)(start)(source)
 }
 
 /**
@@ -404,13 +359,17 @@ const decodeTemplate = source => {
 const toJsToken = ({ kind, text }) => {
     const value = codePointListToString(text)
     switch (kind) {
-        case 'string': { return { kind: 'string', value: decodeString(text) } }
+        case 'string': {
+            const decoded = decodeEscapes(text.slice(1, -1))
+            return decoded.valid ? { kind: 'string', value: codePointListToString(decoded.value) }
+                : { kind: 'error', message: 'invalid token' }
+        }
         case 'noSubstitutionTemplate':
         case 'templateHead':
         case 'templateMiddle':
         case 'templateTail': {
             const source = text.slice(1, kind === 'templateHead' || kind === 'templateMiddle' ? -2 : -1)
-            const decoded = decodeTemplate(source)
+            const decoded = decodeEscapes(source)
             return decoded.valid
                 ? { kind, value: codePointListToString(decoded.value), source: codePointListToString(source) }
                 : { kind: 'error', message: 'invalid token' }

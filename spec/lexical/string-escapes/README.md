@@ -1,15 +1,15 @@
 # String Escapes and Quotes
 
-**Status:** JSON's escapes implemented; single quotes also admit `\'`, `\xHH` and `\v`
+**Status:** implemented, including braced Unicode escapes
 
-A double-quoted string is JSON's. Single quotes admit the additional escapes
+Quoted strings admit JSON escapes and `\u{…}`. Single quotes add the escapes
 described below:
 
 ```js
 export default ["hello!", 'hello!'];
 ```
 
-Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
+Between double quotes it admits JSON's escapes — `\"`,
 `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
 `\` or C0 control character (U+0000 through U+001F). Between single quotes
 the delimiters are swapped: a `"` stands for itself, and `\'` escapes the
@@ -24,12 +24,24 @@ above U+FFFF included. The quote is a spelling, not part of the value, and
 every output writes the string between double quotes.
 
 `\'`, `\xHH` and `\v` stay refused between double quotes, where JavaScript
-accepts them, so a double-quoted string is always a JSON string. JavaScript's
-other spellings — the `\0` and `\u{…}` escapes, a raw TAB or other C0 control
+accepts them, while braced Unicode escapes are accepted in either quote style. JavaScript's
+other spellings — the `\0` escape, a raw TAB or other C0 control
 character, a line continuation — are refused in both quotes; see
 [js-string-literals](../../todo/2460-js-string-literals.md). Backtick-delimited
 [template literals](../../values/template-literals/README.md) have their own
 expression syntax and escape policy; `\xHH` and `\v` remain refused there.
+
+A braced Unicode escape has one or more hexadecimal digits between braces,
+with a value from `0` through `0x10ffff`. Leading zeros and either hex case
+are allowed. For example, `'\u{1f600}'`, `"\ud83d\ude00"` and `"😀"`
+denote the same string. Surrogate values such as `\u{d800}` remain lone
+UTF-16 code units, as in JavaScript. Empty braces, malformed digits, missing
+braces and values above the limit are rejected. The spelling is also admitted
+in templates. JSON and DataJS retain their own string grammars.
+
+The language designer `sergey-shandar` approved this increment in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
+under DESIGN.md §12.
 
 The NUL shorthand `\0` is intentionally prohibited. Use `\u0000` in
 any delimiter, or `\x00` in single quotes. Both are fixed-width and remain

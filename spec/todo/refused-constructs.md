@@ -168,8 +168,8 @@ describes:
 | `lit.leading-dot` | `.5` | planned (with the optional-chain-before-digit work, [roadmap](./README.md)) |
 | `lit.trailing-dot` | `5.` | open |
 | `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md); page: [An Array Hole Is Refused](../values/arrays/holes/README.md)) |
-| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
-| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | design for double-quoted escapes ([string escapes](../lexical/string-escapes/README.md) keeps them JSON); the remaining single-quoted spellings and raw controls are open in [string literals](./2460-js-string-literals.md) |
+| `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): quoted-string restrictions are specified separately; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
+| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, a raw TAB | design for double-quoted escapes ([string escapes](../lexical/string-escapes/README.md) lists the admitted spellings); the remaining single-quoted spellings and raw controls are open in [string literals](./2460-js-string-literals.md) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
 | `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
 

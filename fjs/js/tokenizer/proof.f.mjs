@@ -7,6 +7,7 @@ import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.j
 import { toArray } from '../../types/list/alt/module.f.js'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
+import { string as jsonString } from '../../ebnf/lib/json/module.f.mjs'
 import { assertRecognizes, recognizer } from '../../ebnf/testlib.f.mjs'
 import { _positions, tokenize } from './module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
@@ -83,6 +84,32 @@ const step = event => state => {
 }
 
 export const proof = {
+    bracedUnicode: () => {
+        for (const quote of ["'", '"']) {
+            for (const [digits, value] of [
+                ['0', '\u0000'], ['41', 'A'], ['00000000000041', 'A'],
+                ['d800', '\ud800'], ['DFFF', '\udfff'], ['ffff', '\uffff'],
+                ['10000', '𐀀'], ['1f600', '😀'], ['10FFFF', '􏿿'],
+            ]) {
+                assertStructurallySame(tokenizeString(quote + '\\u{' + digits + '}' + quote), [
+                    { kind: 'string', value }, { kind: 'eof' },
+                ])
+            }
+            for (const escape of ['\\u{}', '\\u{g}', '\\u{41', '\\u{41G}', '\\u{110000}', '\\u{FFFFFFFFFFFFFFFF}', '\\u{-1}']) {
+                assertEq(tokenizeString(quote + escape + quote), 'error', escape)
+            }
+            assertStructurallySame(tokenizeString(quote + '\\u{5c}u{41}' + quote), [
+                { kind: 'string', value: '\\u{41}' }, { kind: 'eof' },
+            ])
+            assertStructurallySame(tokenizeString(quote + '\\u{0}9\\u0041' + quote), [
+                { kind: 'string', value: '\u00009A' }, { kind: 'eof' },
+            ])
+        }
+        assertEq(errorAt("'\\u{110000}'"), '1:1..1:13')
+        const json = parser(jsonString)
+        assertEq(json(Array.from('"\\u{41}"', character => ({ symbol: character.charCodeAt(0), meta: null })))[0], 'error')
+    },
+
     templates: {
         chunks: () => {
             assertStructurallySame(tokenizeString('``'), [
@@ -657,7 +684,6 @@ export const proof = {
             // Other JavaScript escapes remain outside this subset.
             assertEq(tokenizeString("'\\0'"), 'error')
             assertEq(tokenizeString("'\\1'"), 'error')
-            assertEq(tokenizeString("'\\u{41}'"), 'error')
             assertEq(tokenizeString("'\\\n'"), 'error')
             // no raw control character, no line terminator, no end
             assertEq(tokenizeString("'\t'"), 'error')

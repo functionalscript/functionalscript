@@ -22,7 +22,7 @@
  *   followed by the identifier `abc`, and the layer above the tokens
  *   refuses the two for standing side by side, as that record says.
  *
- * A double-quoted string is JSON's; single quotes also admit delimiter,
+ * Quoted strings add braced Unicode escapes to JSON's; single quotes admit delimiter,
  * vertical-tab and two-digit hexadecimal escapes ({@link string}). Decimal
  * and hexadecimal digits reuse JSON's rules;
  * JavaScript's digit runs add optional separators between digits. A
@@ -42,7 +42,7 @@
  */
 
 import { literals, option, range, remove, repeatFrom0, set, union, unicodeMax } from '../../module.f.mjs'
-import { digit, escape, hex, string as jsonString, uint } from '../json/module.f.mjs'
+import { digit, escape, hex, uint } from '../json/module.f.mjs'
 
 /** Every symbol of the alphabet: a code point. */
 const any = range(`\u0000${unicodeMax}`)
@@ -98,7 +98,16 @@ const idStart = /**@type {const}*/({
 const idChar = /**@type {const}*/({ ...idStart, digit })
 
 /** JSON's escape: the backslash, then a simple escape's character or `u`. */
-const [backslash, { c: simple, u: unicode }] = escape
+const [backslash, { c: simple }] = escape
+
+/** Unicode code unit or code point; the decoder checks the code-point range. */
+export const unicodeEscape = /** @type {const} */ (['u', {
+    braced: ['{', hex, repeatFrom0(hex), '}'],
+    fixed: [hex, hex, hex, hex],
+}])
+
+/** Common quoted-string escapes, sharing Unicode syntax with templates. */
+export const stringEscape = /** @type {const} */ ([backslash, { c: simple, u: unicodeEscape }])
 
 /**
  * An escape inside a single-quoted string: JSON's, plus the delimiter
@@ -106,7 +115,7 @@ const [backslash, { c: simple, u: unicode }] = escape
  * after `\x`. Other JavaScript escapes remain separate proposals
  * (`spec/todo/2460-js-string-literals.md`).
  */
-const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'v")), u: unicode, x: ['x', hex, hex] }])
+const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'v")), u: unicodeEscape, x: ['x', hex, hex] }])
 
 /**
  * A string between single quotes: a `"` stands for itself and a `'` is
@@ -118,11 +127,17 @@ const singleQuoted = /**@type {const}*/(["'", repeatFrom0({
 }), "'"])
 
 /**
- * A string: JSON's between double quotes, or `singleQuoted`. Both denote
+ * A double-quoted or single-quoted string, with fixed-width or braced Unicode
+ * escapes. Both denote
  * the value their characters and escapes spell; which
  * quote was used is a spelling, and the token does not keep it.
  */
-export const string = /**@type {const}*/({ double: jsonString, single: singleQuoted })
+const doubleQuoted = /** @type {const} */ (['"', repeatFrom0({
+    c: remove(range(` ${unicodeMax}`), set('"\\')),
+    escape: stringEscape,
+}), '"'])
+
+export const string = /**@type {const}*/({ double: doubleQuoted, single: singleQuoted })
 
 /**
  * A template escape. Unlike ordinary strings, templates recognize JavaScript's
@@ -131,10 +146,7 @@ export const string = /**@type {const}*/({ double: jsonString, single: singleQuo
  * refused here, and `\0`'s following character is checked while decoding.
  */
 export const templateEscape = /**@type {const}*/(['\\', {
-    unicode: ['u', {
-        braced: ['{', hex, repeatFrom0(hex), '}'],
-        fixed: [hex, hex, hex, hex],
-    }],
+    unicode: unicodeEscape,
     hex: ['x', hex, hex],
     other: remove(any, set('ux123456789')),
 }])

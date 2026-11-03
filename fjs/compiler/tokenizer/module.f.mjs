@@ -100,9 +100,8 @@ const templateSourceAccepted = source => {
         const character = source[i]
         const cp = source.charCodeAt(i)
         if (escaped) {
-            const admitted = character === 'u' ? source[i + 1] !== '{'
-                : character === '$' ? source[i + 1] === '{'
-                : escapeToCodePoint(cp) !== null || character === '`'
+            const admitted = character === '$' ? source[i + 1] === '{'
+                : character === 'u' || escapeToCodePoint(cp) !== null || character === '`'
             if (!admitted) { return false }
             escaped = false
         } else if (character === '\\') {
