@@ -2,9 +2,8 @@
  * Resolve admitted source names and preserve source blocks, assignments,
  * parameter plans and loop source evidence for the common sugar pass.
  *
- * The explicit work stack keeps source depth independent of the host stack.
- * The parser owns declaration, key and capture admission; sugar owns generated
- * bindings, invocation layout and graph normalization.
+ * Explicit work steps keep source depth independent of the host stack.
+ * Admission resolves bindings; sugar owns graph normalization.
  *
  * @module
  * @import { Result } from '../../types/result/types.ts'
@@ -1157,9 +1156,9 @@ const forOfReturned = (stack, scope, frame, value) => {
 }
 
 /** Resolve lexical braces without creating a source invocation. @type {(stack: _Stack, scope: _Scope, block: StandaloneBlock, body: _BodyFrame | null) => _State} */
-const enterStandalone = (stack, scope, block, body) => bodyRound({ top: { scoped: body }, rest: stack }, regionScope(scope, empty, null), {
+const enterStandalone = (stack, scope, block, body) => [{ top: { scoped: body }, rest: stack }, regionScope(scope, empty, null), ['region', {
     statements: standaloneStatements(block.block), first: 0, index: 0, plan: null, assigned: null, done: null, branch: true, targetedReturn: true,
-})
+}]]
 
 /**
  * Enter the next declaration, branch condition, loop initializer or terminal
@@ -2027,9 +2026,9 @@ const loopRound = (stack, scope, frame) => {
             return [stack, scope, error(unexpectedToken(statement.start))]
         }
         if (kind === 'block') {
-            return loopRound({ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), {
+            return [{ top: { scoped: frame }, rest: stack }, regionScope(scope, empty, null), ['region', {
                 block: statement.block[1], target: frame.target, breakTarget: frame.breakTarget, index: 0, plan: null, assigned: null, done: null,
-            })
+            }]]
         }
         if (kind === 'break' || kind === 'continue') {
             frame = advanced(frame, [[kind, kind === 'break' ? frame.breakTarget : frame.target]])
@@ -2138,7 +2137,9 @@ const evaluateState = initial => {
     while (true) {
         const [stack, scope, step] = state
         const [tag, payload] = step
-        if (tag === 'enter') {
+        if (tag === 'region') {
+            state = 'block' in payload ? loopRound(stack, scope, payload) : bodyRound(stack, scope, payload)
+        } else if (tag === 'enter') {
             state = enter(stack, scope, payload)
         } else if (tag === 'define') {
             // a `const`'s value: a function is entered under its own name

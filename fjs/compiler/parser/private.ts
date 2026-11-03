@@ -132,6 +132,6 @@ export type _Frame = _ScopedFrame | _ContainerFrame | _CallFrame | _AccessFrame 
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]
-export type _Step = readonly ['enter', Node] | readonly ['define', Node, _Self] | Result<SourceValue, ParseError>
+export type _Step = readonly ['region', _BodyFrame | _LoopBodyFrame] | readonly ['enter', Node] | readonly ['define', Node, _Self] | Result<SourceValue, ParseError>
 export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]
 export type _Evaluated = { readonly value: SourceValue; readonly scope: _Scope }

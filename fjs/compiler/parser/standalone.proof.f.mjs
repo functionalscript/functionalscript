@@ -77,6 +77,15 @@ export const proof = {
         const nested = _function('export default ()=>{{if(true){return 1;}else{return 2;}}return 3;};')
         assertEq(nested.body.statements[0][0], 'if')
     },
+    deepScopes: () => {
+        const braces = '{'.repeat(5000)
+        const ends = '}'.repeat(5000)
+        for (const source of [
+            `${braces}${ends}export default 0;`,
+            `export default ()=>{${braces}${ends}return 0;};`,
+            `export default ()=>{while(false){${braces}${ends}}return 0;};`,
+        ]) { assertOk(parse('')(source)) }
+    },
     admission: () => {
         for (const [source, message] of [
             ['{const x=1;const x=2;}export default 0;', 'duplicate id'],
