@@ -98,11 +98,14 @@ L1 is called only where it does not.
 ### 6. Errors are FunctionalScript throws
 
 - **Pick:** an L1 body throws, as the runtime does today, for example
-  `throw 'TypeError: not a function'`. The throw becomes status 1.
-- **Why:** there is nothing new to design. The text follows NaNVM's
-  format, the error's name, a colon and the message
-  ([`error.rs`](../../../nanvm/lib/src/vm/error.rs)), so a native
-  substitution and its body throw the same value. Whether the thrown value should
+  `throw 'TypeError: unexpected type'` from `call` of a value that is not a
+  function. The throw becomes status 1.
+- **Why:** there is nothing new to design. Each throw copies the text of
+  the matching constructor in NaNVM's
+  [`error.rs`](../../../nanvm/lib/src/vm/error.rs), the error's name, a
+  colon and the message, so a native substitution and its body throw the
+  same value and the proof tables can compare it. A case `error.rs` does
+  not have yet gets a constructor there first. Whether the thrown value should
   be an error object, rather than a string, is a separate question for the
   whole runtime.
 
@@ -127,10 +130,18 @@ Some operators need no operation of their own. Unary `+` is `toNumber`.
 A template literal is `toString` of each part, then `concat`. A computed key
 in an object literal is `toPropertyKey`. `in` is L2's `runtime.in`.
 
-Optional chaining stays in the program. For `a?.b`, `f?.(x)` and `a.k?.(x)` the
-compiler emits the guard itself: it gets the callee, through
-`resolveMember` for a member, tests it for `undefined` and `null` with L0
-`kind`, and evaluates the arguments only after the test passes. No L1
+Optional chaining stays in the program, and the compiler emits the guard
+itself with L0 `kind`. What it tests depends on where the `?.` stands, as
+in NaNVM's `option_dot` and `option_call`:
+
+- `a?.b`, `a?.[k]` and `a?.k(x)` test the receiver `a` for `undefined` and
+  `null` first. Only after that does the program evaluate `k` and read the
+  member, or call `resolveMember`, so `undefined?.x` answers `undefined`
+  and does not throw.
+- `f?.(x)` and `a.k?.(x)` get the callee first, through `resolveMember` for
+  a member, then test the callee.
+
+Either way the arguments are evaluated only after the test passes. No L1
 operation takes an argument that has not been evaluated yet, so no thunk
 crosses the boundary, and the order stays the one
 [the runtime README](../../../fjs/js/runtime/README.md) sets: the guard
