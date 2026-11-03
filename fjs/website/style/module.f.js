@@ -325,7 +325,7 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    column GitHub reads a rendered Markdown file in — so a page here is as wide
    as the same directory's view on GitHub. It is in rem, like every other
    length here, so it grows with a reader's own font size. */
-main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 1rem }
+main { margin: 1.5rem auto 3rem; max-width: 63.25rem; padding: 0 2.5rem }
 /* Keep the catalogue in a fixed left column and let desktop content fill
    the remaining width. The divider spans the content, independently of
    the sticky catalogue's height. Mobile navigation opens a drawer. */
@@ -523,32 +523,36 @@ ${bars}/* Every section of a page is a disclosure, so a reader can fold away wha
    renders exactly the word above. */
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
-/* A heading's anchor sits in its left margin, as on GitHub, and shows while
-   the heading is hovered or the anchor focused. It is positioned against the
-   heading's box, so the heading text keeps the body's left edge. Where there is
-   no hover or no margin to hold it, it follows the heading, always shown. */
-[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; margin: 1.5rem 0 .75rem }
+/* A heading's anchor sits in its left margin, as on GitHub, so the heading
+   text keeps the body's left edge. Where the reader can hover it shows while
+   the heading is hovered or the anchor focused; on a touch screen, where
+   nothing hovers, it is always shown. The page's gutters hold it. */
+[data-linked-heading] { display: flex; align-items: baseline; gap: .35rem; margin: 1.5rem 0 .75rem }
 [data-linked-heading] > :is(h2,h3,h4,h5,h6) { margin: 0; min-width: 0 }
-[data-permalink] { display: inline-flex; vertical-align: middle; margin-left: .25rem; font-size: .75rem; font-weight: normal }
-[data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: .375rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
+[data-permalink] { display: inline-flex; vertical-align: middle; font-size: .75rem; font-weight: normal }
+[data-permalink] > a { position: relative; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 1.75rem; height: 2rem; padding: .25rem; color: var(--muted); border: 0; border-radius: .25rem; background: transparent; cursor: pointer; font: inherit }
 [data-permalink] svg { width: 1.1875rem; height: 1.1875rem }
 [data-permalink] > a:hover { color: var(--text) }
 [data-permalink] > a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px }
-@media (hover: hover) and (min-width: 70rem) {
-    [data-permalink] > [data-heading-anchor] { opacity: 0; box-sizing: border-box; width: 1.75rem; padding: .25rem }
+/* A README heading's anchor leads the row and its negative margin takes it
+   out to the left — its 1.75rem and the row's .35rem gap — so it keeps the
+   row's baseline. */
+[data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
+/* A section's summary is one line of text, the disclosure triangle first;
+   its anchor is pinned to the left of that first line, the same gap from it
+   as a README heading's, so every anchor on a page lines up. */
+[data-section] > summary:has(> [data-permalink]) { position: relative }
+[data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: calc(100% + .35rem); top: 0; height: 1.5rem }
+@media (hover: hover) {
+    [data-heading-anchor] { opacity: 0 }
     :is([data-linked-heading], [data-section] > summary):hover [data-heading-anchor], [data-heading-anchor]:focus-visible { opacity: 1 }
-    /* A README heading's anchor leads the row and its negative margin takes
-       it out to the left, so it keeps the row's baseline. */
-    [data-linked-heading] > [data-permalink] { order: -1; margin-left: -2.1rem }
-    /* A section's summary is one line of text, the disclosure triangle first;
-       its anchor is pinned to the left of that first line, the same gap from
-       it as a README heading's, so every anchor on a page lines up. */
-    [data-section] > summary:has(> [data-permalink]) { position: relative }
-    [data-section] > summary > [data-permalink] > [data-heading-anchor] { position: absolute; right: calc(100% + .35rem); top: 0; height: 1.5rem }
-    [data-section] > summary > [data-permalink] { margin-left: 0 }
-    /* The directory layout's gap holds the anchor clear of the catalogue's
-       divider: the anchor's 2.1rem, and room on either side of it. */
-    [data-directory-layout] { column-gap: 3rem }
+}
+/* The gutters that hold the anchor, 2.1rem and some room: \`main\`'s own
+   padding, the directory layout's gap clear of the catalogue's divider, and
+   the narrow directory layout's padding beside the screen's edge. */
+[data-directory-layout] { column-gap: 3rem }
+@media (max-width: 48rem) {
+    [data-directory-layout] > main { padding-inline: 1.5rem }
 }
 [id] { scroll-margin-top: 1rem }
 

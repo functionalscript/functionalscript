@@ -63,8 +63,9 @@ native link to the heading's fragment, in the heading's left margin, shown
 while the heading is hovered or the anchor has keyboard focus. Clicking it
 scrolls the heading to the top and puts its fragment in the address bar, with a
 history entry; copying the link is the browser's own link menu. It needs no
-JavaScript. On a touch screen or a window too narrow for the margin, the anchor
-follows the heading and is always shown. It sits outside the heading's
+JavaScript. On a touch screen, where nothing hovers, the anchor stays in the
+margin and is always shown, as on GitHub's mobile view. The page's side gutters
+are wide enough to hold it at every width. It sits outside the heading's
 accessible name.
 
 Initial fragment navigation, hash changes, back/forward navigation, and repeated
