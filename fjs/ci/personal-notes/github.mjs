@@ -52,11 +52,12 @@ export const reviewPersonalNotes = async ({ token, eventPath }, request = fetch)
         }
     }
     const { permission } = await call(`/collaborators/${encodeURIComponent(author)}/permission`)
+    const { changed_files: changedFiles } = await call(`/pulls/${number}`)
     const files = await all(`/pulls/${number}/files`)
     const ours = (await all(`/pulls/${number}/reviews`))
         .filter(review => review.user?.login === bot && review.state === 'APPROVED')
     const prefix = notesPrefix(author)
-    if (onlyPersonalNotes(author, permission, files)) {
+    if (onlyPersonalNotes(author, permission, files, changedFiles)) {
         if (ours.length !== 0) { return 'kept' }
         await call(`/pulls/${number}/reviews`, 'POST', {
             event: 'APPROVE',

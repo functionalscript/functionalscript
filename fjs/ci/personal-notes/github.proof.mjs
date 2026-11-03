@@ -30,9 +30,9 @@ const withEvent = async (payload, run) => {
  * A REST API that answers the permission, the files and the reviews, and
  * records every write.
  *
- * @type {(permission: string, files: readonly unknown[], reviews: readonly unknown[], writes: string[]) => typeof fetch}
+ * @type {(permission: string, files: readonly unknown[], reviews: readonly unknown[], writes: string[], changed?: number) => typeof fetch}
  */
-const api = (permission, files, reviews, writes) => async (input, init) => {
+const api = (permission, files, reviews, writes, changed = undefined) => async (input, init) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
     if (method !== 'GET') {
@@ -40,6 +40,7 @@ const api = (permission, files, reviews, writes) => async (input, init) => {
         return Response.json({})
     }
     if (url === `${base}/collaborators/sasha-gil/permission`) { return Response.json({ permission }) }
+    if (url === `${base}/pulls/7`) { return Response.json({ changed_files: changed ?? files.length }) }
     if (url === `${base}/pulls/7/files?per_page=100&page=1`) { return Response.json(files) }
     if (url === `${base}/pulls/7/reviews?per_page=100&page=1`) { return Response.json(reviews) }
     return new Response('', { status: 404 })
@@ -86,8 +87,14 @@ export const proof = /** @type {const} */ ({
         /** @type {typeof fetch} */
         const request = async (input, init) => String(input) === `${base}/pulls/7/files?per_page=100&page=2`
             ? Response.json([{ filename: 'fjs/a.mjs' }])
-            : api('write', full, [], writes)(input, init)
+            : api('write', full, [], writes, 101)(input, init)
         assertEq(await reviewPersonalNotes({ token, eventPath }, request), 'left')
+    }),
+    refusesTruncatedList: async () => withEvent(event, async eventPath => {
+        /** @type {string[]} */
+        const writes = []
+        assertEq(await reviewPersonalNotes({ token, eventPath }, api('write', notes, [], writes, 3001)), 'left')
+        assertEq(writes.length, 0)
     }),
     refusesWithoutToken: async () => withEvent(event, async eventPath => {
         let message = ''
