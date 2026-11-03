@@ -98,6 +98,8 @@ export const proof = {
             assertStructurallySame(read('0b101 '), ['number', '0b101', 5])
             assertStructurallySame(read('0B01n;'), ['number', '0B01n', 5])
             assertStructurallySame(read('0b0'), ['number', '0b0', 3])
+            assertStructurallySame(read('0o7_1 '), ['number', '0o7_1', 5])
+            assertStructurallySame(read('0O17n;'), ['number', '0O17n', 5])
             assertStructurallySame(read('1_000.2_5e+1_0 '), ['number', '1_000.2_5e+1_0', 14])
             assertStructurallySame(read('0xF_Fn'), ['number', '0xF_Fn', 6])
             assertStructurallySame(read('0B1_0n'), ['number', '0B1_0n', 6])

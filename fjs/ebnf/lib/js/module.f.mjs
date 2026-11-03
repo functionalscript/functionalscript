@@ -203,7 +203,8 @@ const int = (prefix, d) => [set(prefix), d, intTail(d), option('n')]
 /**
  * A number: an unsigned integer, then either the bigint suffix or
  * an optional fraction and exponent; or, after a leading `0`, `x` or
- * `X`, hexadecimal digits, or `b` or `B`, binary digits, and an optional bigint suffix
+ * `X`, hexadecimal digits, `b` or `B`, binary digits, or `o` or `O`, octal
+ * digits, and an optional bigint suffix
  * ([numbers](../../../../spec/values/numbers/README.md)). A hexadecimal literal
  * has no fraction and no exponent, so an `e` after `0x` is a digit. The
  * sign is an operator token.
@@ -212,6 +213,7 @@ export const number = /**@type {const}*/({
     zero: [uint[0], {
         hex: int('xX', hex),
         binary: int('bB', set('01')),
+        octal: int('oO', set('01234567')),
         bigint: 'n',
         real: optionFloatSuffix,
     }],
