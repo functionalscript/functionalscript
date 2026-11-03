@@ -10,7 +10,9 @@ file only after the scan succeeds. No arguments are accepted. Under npm,
 
 The JSON object maps each module path to an array of its direct dependency
 paths. Each module appears once, modules without dependencies have empty arrays,
-and repeated imports produce one edge. Paths are the host resolver's paths.
+and repeated imports produce one edge. Paths are relative to the output
+directory, with `/` separators and `../` for dependencies outside it. A dependency on another filesystem root (such as
+a different Windows drive) keeps its absolute path.
 Cycles are recorded; compilation still rejects them.
 
 Entry points are files named exactly `module.f.js` or `module.f.mjs`, discovered

@@ -12,7 +12,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { vec8 } from '../types/bit_vec/module.f.mjs'
 import { error } from '../types/result/module.f.js'
 import { readSource } from '../compiler/source/module.f.mjs'
-import { main } from './module.f.mjs'
+import { main, _relativeGraph } from './module.f.mjs'
 
 /**
  * @param {Dir} root
@@ -45,6 +45,38 @@ const sources = /** @type {const} */ ({
 })
 
 export const proof = /** @type {const} */ ({
+    relativeGraphPaths: () => {
+        assertEq(JSON.stringify(_relativeGraph('/repo/pkg', {
+            '/repo/pkg/module.f.js': ['/repo/pkg/sub/helper.f.js', '/repo/pkg-other/shared.f.js'],
+            '/repo/pkg/sub/helper.f.js': [],
+            '/repo/pkg-other/shared.f.js': ['/repo/pkg/module.f.js'],
+        })), JSON.stringify({
+            'module.f.js': ['sub/helper.f.js', '../pkg-other/shared.f.js'],
+            'sub/helper.f.js': [],
+            '../pkg-other/shared.f.js': ['module.f.js'],
+        }))
+        assertEq(JSON.stringify(_relativeGraph('C:/repo', {
+            'C:/repo/module.f.js': ['D:/shared.f.js'],
+            'D:/shared.f.js': [],
+        })), JSON.stringify({ 'module.f.js': ['D:/shared.f.js'], 'D:/shared.f.js': [] }))
+        assertEq(JSON.stringify(_relativeGraph('/repo', { '/repo': [], '/': [] })), JSON.stringify({ '.': [], '..': [] }))
+    },
+    canonicalHostPathsBecomeRelative: () => {
+        const run = partialRun(nodeCommands)({
+            ...virtualOperationMap,
+            resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(parent === null ? `/${name}` : name, parent),
+        })
+        const [state, result] = run({ ...emptyState, root: {
+            repo: { 'module.f.js': [utf8('import value from "../repo-other/helper.f.js"; export default value;')] },
+            'repo-other': { 'helper.f.js': [utf8('export default missing;')] },
+        } })(main({ ...defaultNodeProgramOptions, env: { INIT_CWD: 'repo' } }))
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('repo/_deps.json'))
+        assertEq(assertOk(written), `${JSON.stringify({
+            'module.f.js': ['../repo-other/helper.f.js'],
+            '../repo-other/helper.f.js': [],
+        }, null, 2)}\n`)
+    },
     graphOutput: () => {
         const [state, result] = execute({
             'module.f.js': [utf8('import { a, b } from "./shared.f.mjs"; import c from "./branch.f.mjs"; import {} from "./shared.f.mjs"; export default missing;')],
@@ -71,8 +103,8 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0, state.stderr)
         const [, written] = virtual(state)(readSource('inside/_deps.json'))
         assertEq(assertOk(written), `${JSON.stringify({
-            'inside/module.f.mjs': ['outside.f.mjs'],
-            'outside.f.mjs': [],
+            'module.f.mjs': ['../outside.f.mjs'],
+            '../outside.f.mjs': [],
         }, null, 2)}\n`)
     },
     importFailuresDoNotPublishPartialGraphs: () => {
@@ -115,7 +147,8 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0, state.stderr)
         assertEq(state.stdout, 'AST: 3 parsed, 0 failed, 3 total\n')
         const [, written] = virtual(state)(readSource('nested/_deps.json'))
-        assert(assertOk(written).includes('nested/module.f.mjs'))
+        assert(assertOk(written).includes('module.f.mjs'))
+        assert(!assertOk(written).includes('nested/'))
         const [, absent] = virtual(state)(readSource('_deps.json'))
         assertError(absent)
     },

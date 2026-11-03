@@ -44,8 +44,10 @@ future work.
 `module.f.js` or `module.f.mjs` under the caller's directory, then follows their
 runtime imports transitively. It reads generic syntax ASTs without FJS admission
 or FAST/EDAG lowering. JSON dependencies are leaves. The host resolver supplies
-module identity and paths, as for compilation. Import attributes use the same
-AST reader as compilation; selected exports and bindings remain compiler checks.
+module identity and canonical paths, as for compilation. Graph keys and edges
+are relative to the caller's directory, using `/` separators and `../` for
+outside dependencies; paths on other filesystem roots stay absolute.
+Import attributes use the same AST reader as compilation; selected exports and bindings remain compiler checks.
 
 The output is `_deps.json` in the caller's directory (`INIT_CWD` under npm).
 Each module appears once, each direct dependency path appears once per module,

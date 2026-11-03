@@ -6,17 +6,19 @@
  * @import { AstImport } from '../compiler/ast/types.ts'
  * @import { ParseError } from '../compiler/parser/types.ts'
  * @import { _Source } from '../compiler/source/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  * @import { _Checked } from './private.ts'
  */
 
 import { allFiles, sourceRoot } from '../dev/module.f.mjs'
-import { basename, join, normalize } from '../path/module.f.js'
+import { basename, join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
 import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.mjs'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
-import { error as errorLine, errorExit, errorMessage, log, writeUtf8File } from '../effects/node/module.f.mjs'
+import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
 
 /** Implementation entry points selected for the dependency graph. @type {(path: string) => boolean} */
@@ -62,6 +64,23 @@ const checkOne = path => state => {
         : mapStep(errorLine(`${errorLocation(path)(value)} - error: ${value.message}`), () => ({ ...state, checked: state.checked + 1, refused: state.refused + 1 })))
 }
 
+/** Express graph paths relative to the output directory; other filesystem roots stay absolute. @type {(base: string, graph: StringMap<readonly string[]>) => StringMap<readonly string[]>} */
+export const _relativeGraph = (base, graph) => {
+    const baseParts = pathParts(base)
+    const baseRoot = pathRoot(base)
+    /** @type {(path: string) => string} */
+    const relative = path => {
+        if (pathRoot(path) !== baseRoot) { return normalize(path) }
+        const parts = pathParts(path)
+        let common = 0
+        while (common < baseParts.length && common < parts.length && baseParts[common] === parts[common]) {
+            common += 1
+        }
+        return [...baseParts.slice(common).map(() => '..'), ...parts.slice(common)].join('/') || '.'
+    }
+    return Object.fromEntries(definedEntries(graph).map(([path, dependencies]) => [relative(path), dependencies.map(relative)]))
+}
+
 /** Scan entry points and write a complete JSON graph only after a successful scan. @type {NodeProgram} */
 export const main = ({ args, env }) => {
     if (args.length !== 0) { return errorExit('Usage: fjs deps') }
@@ -74,7 +93,9 @@ export const main = ({ args, env }) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
         const [, { refused, graph }] = value
         if (refused !== 0) { return pureError(1) }
-        return resultStep(writeUtf8File(join(root, '_deps.json'), `${JSON.stringify(graph, null, 2)}\n`),
+        const written = step(resolveFileModule(root, null), ({ path }) =>
+            writeUtf8File(join(root, '_deps.json'), `${JSON.stringify(_relativeGraph(path, graph), null, 2)}\n`))
+        return resultStep(written,
             ([tag, value]) => tag === 'error' ? errorExit(errorMessage(value)) : pureOk(0))
     })
 }
