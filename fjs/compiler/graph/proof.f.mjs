@@ -513,6 +513,8 @@ export const proof = {
         // place among the module's bindings, and then the names: a spread
         // copy first, then items by index and members by key.
         destructuring: () => {
+            const numeric = sourceOf('const {MAX_SAFE_INTEGER: max}=Number;export default max;')
+            assert(numeric.edges.some(edge => edge.label === String(Number.MAX_SAFE_INTEGER)))
             const g = sourceOf('const [p, { q }] = [1, { q: 2 }]; export default [p, q];')
             assertStructurallySame(from(g, nodeOf(g, 'initialize')).map(e => e.label), ['...=', '0[0]', '0[1]', '2.q', 'value'])
             assertStructurallySame(g.nodes.filter(n => n.kind === 'binding').map(n => n.label), ['$0', 'p', '$2', 'q'])

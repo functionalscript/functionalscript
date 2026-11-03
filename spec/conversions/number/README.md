@@ -41,12 +41,15 @@ such keyword. A module cannot bind it, as a `const`, a parameter or an
 import's local name ([shared values](../../bindings/constants/README.md)), and it is
 no value: it stands as the callee of a call and as the namespace of the
 four predicates the language admits, `Number.isInteger`,
-`Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, read
+`Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, and the
+numeric constant `Number.MAX_SAFE_INTEGER`, read
 unguarded ([built-in static functions](../../built-ins/static-functions/README.md)), and is a
 compilation error (`reserved word`) anywhere else — bare,
 `const f = Number;`, or as the namespace of any other member,
-`Number.MAX_SAFE_INTEGER` or `Number.parseFloat(x)`, each an admission of
+`Number.parseFloat(x)`, each an admission of
 its own ([built-ins](../../todo/2360-built-in.md)).
+The constant is desugared to its value
+([static members](../../built-ins/static-functions/README.md#numeric-constants)).
 A key or a property name is not a reference, so `{ Number: 1 }` and
 `o.Number` mean what they mean in JavaScript. `Number()` is `0`, as in
 JavaScript, and reaches the graph as the literal, folded as `-1` is. The
