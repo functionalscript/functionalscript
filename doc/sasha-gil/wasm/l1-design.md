@@ -106,6 +106,7 @@ L1 is called only where it does not.
 | Numbers, native | `%`, `**`, `numberToString`, `stringToNumber` | Native |
 | Integers, native | `& \| ^ ~ << >> >>>` and `ToInt32` | Native |
 | Bigints, native | every operation on a bigint, and the mixed comparisons | Native |
+| Members, native | `nativeMember(self, key)`: the member functions with no body in `fjs/js/runtime` yet, such as `map` | Native, shrinking as bodies are written |
 
 Optional chaining stays in the program. For `f?.(x)` and `a.k?.(x)` the
 compiler emits the guard itself: it gets the callee, through

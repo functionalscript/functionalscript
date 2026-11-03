@@ -38,7 +38,7 @@ functions were added for this.
 | `charCodeAt(s, i)` | `unit` after the position check, `NaN` outside the string |
 | `slice(s, start, end)` | the clamped positions, then `substring` |
 | `String.fromCharCode(...units)` | a loop of `from_unit` and `concat` |
-| `Object.entries(o)` | a loop of `key` and `item` that builds pairs |
+| `Object.entries(o)` | by kind: an object through `key` and `item`; an array through index keys and `item`; a string through index keys and one-unit `substring`; `undefined` and `null` throw, as JavaScript's `TypeError` does; any other kind answers `[]` |
 | `entry(o, k)`, `hasEntry(o, k)` | by kind, after L1 `toPropertyKey(k)`: an object through `find` and `item`; an array or a string through a canonical index below `length`, then `item` or `substring`; any other kind owns nothing |
 
 - **Why:** each was native only because no body could read a unit or a key.
@@ -66,7 +66,11 @@ functions were added for this.
 ### 4. Member calls go through `runtime.dot`
 
 - **Pick:** L1's `resolveMember(self, key)` calls the FunctionalScript
-  `runtime.dot(self, key)` and answers the callee. The program then
+  `runtime.dot(self, key)`. When `dot` answers `undefined`, it asks the
+  host's native member table, `nativeMember(self, key)`, a native row of L1
+  that answers the member functions with no body yet, such as `map`. That
+  keeps today's order: own property, then body, then native. The answer is
+  the callee. The program then
   evaluates the arguments and calls it through L1 `call`, which throws for
   `undefined`. For an optional call the program tests the callee first
   ([L1 design](./l1-design.md#the-operations)).
