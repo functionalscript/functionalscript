@@ -33,6 +33,10 @@ values are reference counted, and a call returns a status and a value.
 | | `frame`, `text` | `(self, i) -> any`, `(f) -> any` |
 | Identity | `same` | `(a, b) -> i32` |
 
+`kind` answers a fixed tag: 0 `undefined`, 1 `null`, 2 boolean, 3 number,
+4 string, 5 bigint, 6 array, 7 object, 8 function. The tags are part of the
+ABI version, so a program and a runtime built apart agree on them.
+
 Every value, as an argument or a result, is an `i64`. `ptr`, `len`,
 `start`, `i`, `sign`, `code`, `length` and `builder` are `i32`.
 
@@ -86,7 +90,10 @@ Each choice gives the pick first, then the alternatives and the reason.
   per call.
 - **Why:** this works the same for a WASM runtime and a JavaScript runtime,
   and needs only WASM 2.0. The program states its sizes in a custom section,
-  `fjs.layout`, so the loader can reserve them before instantiating it.
+  `fjs.layout`, so the loader can reserve them before instantiating it. Its
+  payload is three unsigned LEB128 numbers, in this order: the size of the
+  data segments in bytes, the size of the scratch space in bytes, and the
+  number of table entries.
 
 ### 6. Literals: built once at start-up
 
