@@ -6,6 +6,8 @@ member bodies, such as `startsWith`. These notes read "stock runtime
 building ops" as that set. If a narrower set was meant, such as only the
 natives, this note changes.
 
+[l2-design.md](./l2-design.md) is a first detailed design.
+
 ## Today
 
 [`fjs/js/runtime/module.f.js`](../../../fjs/js/runtime/module.f.js) holds
