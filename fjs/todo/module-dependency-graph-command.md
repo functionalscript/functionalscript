@@ -122,6 +122,10 @@ The approval and rationale are part of the
 
 ### Tasks
 
+- [ ] Extend discovery to every `.f.js` and `.f.mjs` file, including proofs,
+      demos, helpers and standalone samples, using the test runner's authored-source
+      predicate. Preserve syntax diagnostics and avoid publishing partial graphs.
+
 - [ ] First priority: make coverage tests run only on `module.f.js` and `module.f.mjs` files.
   - [x] Add `fjs deps` to report AST parsing failures for `module.f.js` and
         `module.f.mjs` files using the current parser.
