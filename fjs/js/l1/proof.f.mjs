@@ -8,17 +8,17 @@ import {
 /** A function value. @type {(a: unknown) => unknown} */
 const f = a => a
 
-const a = [1]
-const o = { a: 1 }
+const a = /** @type {const} */ ([1])
+const o = /** @type {const} */ ({ a: 1 })
 
 /** Values of every kind, with the edge cases of each operation. */
-const values = [
+const values = /** @type {readonly unknown[]} */ ([
     undefined, null, true, false,
     0, -0, NaN, 1, -1.5, Infinity, -Infinity,
     '', 'a', 'ab', 'b', 'B', '\u{1F600}', '\uffff', '0', 'false',
     0n, 1n, -1n, 0x1_0000_0000_0000_0000n,
     a, [1], [], o, { a: 1 }, {}, f, () => 0,
-]
+])
 
 /**
  * Values every coercion converts without a throw: {@link values} but the
@@ -47,8 +47,6 @@ const stringy = v => typeof toPrimitive(v, false) === 'string'
 
 /** Whether one of two values is a bigint and the other is not. @type {(x: unknown, y: unknown) => boolean} */
 const mixed = (x, y) => (typeof x === 'bigint') !== (typeof y === 'bigint')
-
-/** JavaScript's own operator, an expected value. @typedef {(x: any, y: any) => unknown} Op */
 
 /** The strings of {@link values}. */
 const strings = values.filter(v => typeof v === 'string')
@@ -116,6 +114,7 @@ export const proof = {
         assertEq(toNumeric('3'), 3)
         assertEq(toNumeric([4]), 4)
         assert(Number.isNaN(toNumeric({})))
+        assert(Number.isNaN(toNumeric(f)))
     },
     // `functionText` passes a function's text through.
     functionText: () => {
@@ -133,7 +132,7 @@ export const proof = {
     // `subtract`, `multiply` and `divide` are `- * /` on every pair that
     // does not mix a bigint with a number, nor divide a bigint by `0n`.
     arithmetic: () => {
-        /** @type {readonly (readonly [(a: unknown, b: unknown) => unknown, Op])[]} */
+        /** @type {readonly (readonly [(a: unknown, b: unknown) => unknown, (x: any, y: any) => unknown])[]} */
         const ops = [[subtract, (x, y) => x - y], [multiply, (x, y) => x * y], [divide, (x, y) => x / y]]
         pairs(operands).forEach(([x, y]) => {
             if (!mixed(x, y)) {
@@ -152,7 +151,7 @@ export const proof = {
     // The relations are `< > <= >=` on every pair: strings by units, a
     // bigint against a number or a string, and `NaN` false either way.
     relations: () => {
-        /** @type {readonly (readonly [(a: unknown, b: unknown) => boolean, Op])[]} */
+        /** @type {readonly (readonly [(a: unknown, b: unknown) => boolean, (x: any, y: any) => unknown])[]} */
         const ops = [
             [lessThan, (x, y) => x < y],
             [greaterThan, (x, y) => x > y],
@@ -165,6 +164,11 @@ export const proof = {
     },
     // Each throw is JavaScript's, with NaNVM's text.
     throw: {
+        // both operands of a string comparison must be strings
+        stringEqualsFirst: () => { stringEquals([], []) },
+        stringEqualsSecond: () => { stringEquals('', []) },
+        stringLessFirst: () => { stringLess([], '') },
+        stringLessSecond: () => { stringLess('', [1]) },
         // a bigint and a number do not mix
         addMixed: () => { add(1n, 1) },
         subtractMixed: () => { subtract(1, 1n) },
