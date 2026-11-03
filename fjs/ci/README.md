@@ -67,8 +67,11 @@ changes only its author's personal notes, the files under
 branch changes its files. The workflow and the code it runs are the base
 branch's, so a pull request cannot change what approves it, and the pull
 request itself is read through the API, never checked out. Once a file outside
-the notes changes, it dismisses the approval it gave. It needs the repository
-setting "Allow GitHub Actions to create and approve pull requests".
+the notes changes, it dismisses the approval it gave. It needs two repository
+settings: "Allow GitHub Actions to create and approve pull requests", and an
+Actions policy that lets `pull_request_target` run, since GitHub's default
+policy for public repositories can block that event. Without the second, the
+workflow never starts and every pull request waits for a person.
 
 ## Usage
 
