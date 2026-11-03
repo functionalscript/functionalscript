@@ -984,7 +984,8 @@ const isClosingFence = line => {
  * room for, or `null` for a line it reads as these do.
  *
  * **Each is refused, not read as prose.** An indented block quote, a table row, raw
- * HTML, a numbered list, another bullet, an indented code block, a
+ * HTML, a numbered list that does not end a paragraph (one starting at 1
+ * with text does, {@link opensNumberedList}), another bullet, an indented code block, a
  * fence, heading, list item or thematic break indented by up to three
  * spaces, and a heading's underline, a `---` or `===` right under a
  * paragraph's line, are each a structure on GitHub, and prose here would
@@ -1115,6 +1116,20 @@ const listMarker = line => {
     const delimiter = line[digits]
     if (digits === 0 || digits > 9 || (delimiter !== '.' && delimiter !== ')') || line[digits + 1] !== ' ') { return null }
     return { delimiter, start: Number(line.slice(0, digits)), width: digits + 2 }
+}
+
+/**
+ * Whether a line opens a numbered list that ends the paragraph before it.
+ * CommonMark lets a list interrupt a paragraph only where its first item
+ * has text and, if numbered, starts at 1, so `Remaining work:` then
+ * `1. a` is a paragraph and a list on GitHub, while `2. a` there is more of
+ * the paragraph's text, which the paragraph refuses.
+ *
+ * @type {(line: string) => boolean}
+ */
+const opensNumberedList = line => {
+    const marker = listMarker(line)
+    return marker !== null && marker.start === 1 && line.slice(marker.width).trim() !== ''
 }
 
 /**
@@ -1313,6 +1328,7 @@ const readBlocks = (base, container) => lines => {
         let end = i + 1
         while (end < lines.length && lines[end].trim() !== ''
             && headingLevel(lines[end]) === 0 && !isFence(lines[end]) && !lines[end].startsWith('- ')
+            && !opensNumberedList(lines[end])
             // A quote ends a paragraph, as GitHub reads it, and so does a
             // thematic break but `---`, which underlines the paragraph.
             && !lines[end].startsWith('>') && !(isThematicBreak(lines[end]) && lines[end][0] !== '-')) {

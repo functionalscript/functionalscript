@@ -540,6 +540,12 @@ export const proof = {
         // A numbered list starts at its first number; its items are a list's.
         olist: () => assertStructurallySame(blocks('3. a\n4. b\n   - c\n'),
             [['olist', 3, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]], ['list', false, [[['paragraph', [['text', 'c']]]]]]]]]]),
+        // A numbered list that starts at 1 ends the paragraph before it, as
+        // CommonMark reads it, and so in an item's text too.
+        olistAfterAParagraph: () => assertStructurallySame(blocks('Remaining:\n1. a\n2. b\n'),
+            [['paragraph', [['text', 'Remaining:']]], ['olist', 1, false, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
+        olistInAnItemsText: () => assertStructurallySame(blocks('- On POSIX:\n  1) a\n     b\n'),
+            [['list', false, [[['paragraph', [['text', 'On POSIX:']]], ['olist', 1, false, [[['paragraph', [['text', 'a b']]]]]]]]]]),
         olistParen: () => assertStructurallySame(blocks('1) a\n\n1) b\n'),
             [['olist', 1, true, [[['paragraph', [['text', 'a']]]], [['paragraph', [['text', 'b']]]]]]]),
         // Another delimiter ends the list, as GitHub starts another.
@@ -698,6 +704,8 @@ export const proof = {
             plusWord: () => assertEq(refusal('+a\n'), null),
             // A numbered item continuing a paragraph, which GitHub reads only from 1.
             numbered: () => assertEq(refusal('a\n2. b\n'), 'line 2: a numbered list'),
+            // An item with no text cannot interrupt a paragraph either.
+            numberedEmptyAfterParagraph: () => assertEq(refusal('a\n1. \n'), 'line 2: a numbered list'),
             numberedParen: () => assertEq(refusal('12)\n'), 'line 1: a numbered list'),
             numberedIndent: () => assertEq(refusal('1. a\nb\n'), 'line 2: a line that GitHub reads as part of the list item above it'),
             numberedTab: () => assertEq(refusal('1.\titem'), 'line 1: a numbered list'),
