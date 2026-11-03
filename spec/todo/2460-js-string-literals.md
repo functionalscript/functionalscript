@@ -7,7 +7,7 @@ language ([strings](../values/strings/README.md)); the remaining spellings are d
 A JSON string literal is double-quoted, with the JSON escapes (`\"` `\\` `\/`
 `\b` `\f` `\n` `\r` `\t` `\uXXXX`) and no literal control characters
 ([RFC 8259 §7](https://www.rfc-editor.org/rfc/rfc8259#section-7)), and so is
-a DataJS one. A FunctionalScript double-quoted string literal remains JSON's.
+a DataJS one. A FunctionalScript double-quoted string literal additionally admits braced Unicode escapes.
 Single quotes have been accepted since
 [#2251](https://github.com/functionalscript/functionalscript/pull/2251), and
 also accept the hexadecimal and vertical-tab escapes described below.
@@ -16,7 +16,7 @@ ECMAScript's string literal syntax has four spellings beyond JSON's:
 
 - single-quoted strings: `'hello'` — FunctionalScript's, as above,
 - additional escapes: `\v` and `\xHH` are accepted in single quotes;
-  `\u{XXXXXX}` remains deferred; `\0` is intentionally prohibited,
+  `\u{XXXXXX}` is now admitted in both quote styles and templates; `\0` is intentionally prohibited,
 - literal C0 control characters, e.g. a raw TAB inside a string,
 - line continuations: `\` before a line terminator.
 
@@ -48,7 +48,7 @@ it follows is its own admission decision.
 ### Single-quoted hexadecimal and vertical-tab escapes
 
 This increment admits `\xHH` (exactly two hexadecimal digits) and `\v`
-in single-quoted strings. Double-quoted strings remain exactly JSON strings,
+in single-quoted strings. At that increment, double-quoted strings remained JSON strings,
 and template admission remains unchanged. Both spellings decode to the existing
 string value: for example, `'\x1b'` equals `'\u001b'` and `'\v'` equals
 `'\u000b'`. No FAST, EDAG or runtime operation is needed.
@@ -66,9 +66,10 @@ This records approval under [DESIGN.md §12](../../doc/DESIGN.md#new-language-fe
 
 ### Deferred: the remaining spellings
 
-The remaining extra escapes (`\u{…}` and identity escapes), raw control
-characters and line continuations stay deferred. Double-quoted strings keep
-JSON's escape rules, and the single-quoted increment does not widen templates.
+The remaining extra escapes (identity escapes), raw control
+characters and line continuations stay deferred. Braced Unicode escapes
+are now shared by quoted strings and templates; the earlier double-quoted
+JSON-only boundary has been superseded.
 They are alternative spellings of values JSON already expresses. The NUL
 shorthand is separately prohibited below; other spellings remain at the lowest
 priority until a concrete need appears.
@@ -133,3 +134,6 @@ See
 - [ ] Admit the other escapes, raw control characters or line continuations
       only when a measured need appears, through the admission checks in
       `fjs/compiler/tokenizer`'s fold.
+
+Braced Unicode escapes are implemented; see [string escapes](../lexical/string-escapes/README.md)
+for the current contract and designer approval.

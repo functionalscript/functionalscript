@@ -1,6 +1,7 @@
 import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { tokenize } from './module.f.mjs'
+import { parseSyntax } from '../parser/syntax/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { _line, _tokensOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
@@ -8,6 +9,22 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
+    bracedUnicode: () => {
+        assertEq(parseSyntax(tokenize(stringToList('export default [\"\\u{1f600}\",`\\u{41}`];'))('unicode.f.js'))[0], 'ok')
+        for (const source of ["'\\u{1f600}'", '"\\u{1f600}"', '`\\u{1f600}`']) {
+            const tokens = toArray(tokenize(stringToList(source))('unicode.f.js'))
+            const first = tokens[0].token
+            assert(first.kind === 'string' || first.kind === 'noSubstitutionTemplate')
+            assertEq(first.value, '😀')
+            assertStructurallySame(tokens[0].metadata, { path: 'unicode.f.js', line: 1, column: 1 })
+        }
+        const chunks = toArray(tokenize(stringToList('`\\u{41}${1}\\u{42}${2}\\u{43}`'))(''))
+        assertEq(chunks.flatMap(({ token }) => hasEntry(token, 'source') ? [token.value] : []).join(''), 'ABC')
+        for (const source of ["'\\u{110000}'", '"\\u{}"', '`\\u{110000}`']) {
+            assertEq(toArray(tokenize(stringToList(source))(''))[0].token.kind, 'error')
+        }
+    },
+
     compoundAssignmentTokens: () => {
         const operators = /** @type {const} */ (['+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=', '&&=', '||=', '??='])
         for (const operator of operators) {
@@ -40,7 +57,7 @@ export const proof = {
         },
         refusedEscapes: () => {
             // Cooking must not turn a deferred spelling into an admitted one.
-            for (const spelling of ['\\x41', '\\v', '\\0', '\\u{41}', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
+            for (const spelling of ['\\x41', '\\v', '\\0', '\\q', "\\'", '\\$', '\\\n', '\\\r\n', '\t', '\u0000']) {
                 const tokens = toArray(tokenize(stringToList('`' + spelling + '`'))('template.f.js'))
                 assertEq(tokens[0].token.kind, 'error', spelling)
                 assertStructurallySame(tokens[0].metadata, { path: 'template.f.js', line: 1, column: 1 }, spelling)
