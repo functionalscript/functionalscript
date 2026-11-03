@@ -10,6 +10,8 @@ import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { error, ok, unwrap } from '../result/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
+import { min } from '../function/compare/module.f.js'
 import {
     sum,
     abs,
@@ -46,8 +48,6 @@ const candidateNames = [
     'string32Log2',
     'mathLog2',
 ]
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { min } from '../function/compare/module.f.js'
 
 /** @type {(v: bigint) => bigint} */
 const oldLog2 = v => {
