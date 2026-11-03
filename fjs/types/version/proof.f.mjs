@@ -1,4 +1,4 @@
-import { cmp, tryParse } from './module.f.mjs'
+import { cmp, tryParse } from './module.f.js'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 
 export const proof = {
