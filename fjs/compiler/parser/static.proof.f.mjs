@@ -114,6 +114,7 @@ export const proof = {
     },
     maxSafeInteger: () => {
         // An independent numeric spelling pins the host's value on every engine.
+        /** @type {number} */
         const expected = 0x1f_ffff_ffff_ffff
         assertEq(Number.MAX_SAFE_INTEGER, expected)
         for (const source of ['Number.MAX_SAFE_INTEGER', 'Number["MAX_SAFE_INTEGER"]', '(Number.MAX_SAFE_INTEGER)']) {
