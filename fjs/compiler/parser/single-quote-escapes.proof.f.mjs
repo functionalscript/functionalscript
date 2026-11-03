@@ -34,6 +34,19 @@ export const proof = /** @type {const} */ ({
         const access = /** @type {const} */ ("const value={}; export default value['\\x74oString'];")
         expectRefused(access, 'prohibited property name', access.indexOf("'") + 1)
     },
+    bracedUnicodeSharesFixedWidthValues: () => {
+        const fixed = admitted('export default ["\\u0041","\\ud83d\\ude00","\\u00009"];')
+        for (const source of [
+            "export default ['\\u{41}','\\u{1f600}','\\u{0}9'];",
+            'export default ["\\u{41}","\\u{1f600}","\\u{0}9"];',
+            'export default [`\\u{41}`,`\\u{1f600}`,`\\u{0}9`];',
+        ]) {
+            const parsed = admitted(source)
+            assertStructurallySame(normalize(parsed, []), normalize(fixed, []))
+            assertEq(stringifyModule(parsed), stringifyModule(fixed))
+            assertStructurallySame(assertOk(toData(_evaluate(parsed))), { default: ['A', '😀', '\u00009'] })
+        }
+    },
     otherEscapeBoundariesRemainRefused: () => {
         for (const source of [
             'export default "\\x41";',
@@ -43,7 +56,6 @@ export const proof = /** @type {const} */ ({
             "export default '\\x4';",
             "export default '\\x4Z';",
             "export default '\\0';",
-            "export default '\\u{41}';",
         ]) { assertError(parseFromTokens(tokenizeString(source))) }
     },
 })
