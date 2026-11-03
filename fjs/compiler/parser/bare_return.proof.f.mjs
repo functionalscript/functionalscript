@@ -37,17 +37,19 @@ export const proof = /** @type {const} */ ({
             assert(fn !== undefined && fn[0] === '=>' && fn[2][0] === 'block')
             const statement = fn[2][1][0]
             assert(statement[0] === 'return')
-            assertStructurallySame(statement[1].value, ['primitive', undefined])
+            assertEq(statement[1].value, null)
             assertEq(statement[1].semicolon, semicolon)
             assertEq(statement[1].start.metadata.line, 2)
             assertEq(statement[1].start.metadata.column, 2)
             assertEq(statement[1].start.newline, true)
-            assertEq(statement[1].first.newline, false)
-            assertEq(statement[1].first.metadata, statement[1].start.metadata)
+            assertEq(statement[1].first, null)
         }
         const source = 'export default ()=>{return;const unreachable=1;};'
-        const error = assertError(parseSyntax(tokenizeString(source)))
-        assertEq(error.metadata?.column, source.indexOf('const') + 1)
+        const ast = assertOk(parseSyntax(tokenizeString(source))).exported?.value
+        assert(ast !== undefined && ast[0] === '=>' && ast[2][0] === 'block')
+        const following = ast[2][1][1]
+        assert(following[0] === 'const')
+        assertEq(following[1].start.metadata.column, source.indexOf('const') + 1)
     },
     ownershipAndRefusals: () => {
         const fn = _function('export default ()=>{{return;}return;};')
@@ -55,8 +57,8 @@ export const proof = /** @type {const} */ ({
         assert(statement[0] === 'return' && statement[1] === fn.target)
         for (const source of [
             'return;', '{return;}export default 0;', 'while(false){return;}export default 0;',
-            'export default ()=>{};', 'export default ()=>{return\n1;};',
-            'export default ()=>{return;return 1;};', 'export default ()=>{throw;};',
+'export default ()=>{return\n1;};',
+'export default ()=>{throw;};',
         ]) { assertError(parse('')(source)) }
     },
     returnIdentifiersArePreserved: () => {

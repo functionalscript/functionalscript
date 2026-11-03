@@ -548,11 +548,10 @@ events and the shared binding facts; the parser creates no helper function or
 recursive call.
 
 The common sugar pass expands these records into normalized FAST regions,
-immutable definitions and explicit loop transfers. The grammar still requires
-function-body statements followed by a terminating `return`, `throw` or switch,
-or an `implicit-return` marker for normal fallthrough,
-and a module ends in exports or a throw. Source admission and ASI rules remain
-the same.
+immutable definitions and explicit loop transfers. Every syntax block retains
+one ordered list of written statements. Parsing does not classify terminal
+statements, insert implicit returns or discard unreachable code. Modules still
+end in exports or a throw; declaration and ASI checks remain source checks.
 
 `parseSyntax`, in `./syntax`, exposes that tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
@@ -586,17 +585,12 @@ public types in `./types.ts`, as the rewrite set is.
 
 ## Bare returns
 
-`return;` and `return` immediately before `}` desugar to `return undefined`
-in the syntax AST. The original keyword, location and semicolon information
-are retained. `symbolsOf` uses the following token to give bare returns a
-distinct grammar symbol; identifier positions accept that symbol too, so
-members and shorthand keys named `return` remain unchanged. This avoids the
-LL(1) ambiguity between an optional operand and a following loop statement.
-The AST rewrite emits the existing return node with primitive `undefined`;
-source resolution, FAST and EDAG need no new form.
-
-Implicit function endings still require an explicit terminator for FJS admission.
-A written return operand beginning on a new line retains its existing refusal.
+`return;` and `return` immediately before `}` retain a missing operand
+(`null`) in the syntax AST, along with the keyword, location and semicolon.
+Resolution supplies `undefined` for that explicit return. `symbolsOf` uses one
+following token to distinguish a bare return from a return with an operand;
+identifier positions accept either symbol so property names stay unchanged.
+An operand beginning on a new line retains its existing refusal.
 
 ## Required keywords are terminals of their own
 
@@ -676,15 +670,16 @@ values, positions, the order errors are reported in, the syntax failure found
 before the unresolved name — was met unchanged, with the `;` added to its
 inputs.
 
-### Syntax-only implicit function returns
+### Function completion belongs to FAST
 
-The generic AST accepts empty function bodies and bodies that end after ordinary
-statements without a final `return undefined`. It retains the omission as an
-`implicit-return` ending with the closing-brace token, distinct from an explicit
-return statement. FunctionalScript admission still refuses this ending with
-`implicit return is not admitted`; no implicit return is lowered to FAST or EDAG.
-Final-loop candidates keep their existing representation and admission checks.
-Bare `return` and `throw` remain unsupported syntax.
+Empty bodies, normal fallthrough and statements after a return or throw retain
+their written AST shape. There is no `implicit-return` ending or terminal-loop
+syntax classification. All statements still undergo binding and capture checks.
+FAST normalization discards unreachable computations and adds an owning
+`return undefined` only on a normally completing function path. An `if` with
+terminal arms and a literal-true loop with no reachable owning break need no
+extra return. Breaks belonging to inner loops or switches do not end the outer
+loop. Bare returns preserve their missing operand until resolution.
 
 ### Const declaration lists
 

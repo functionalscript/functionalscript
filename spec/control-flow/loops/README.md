@@ -107,9 +107,8 @@ An owning `break` resumes the following statements with the current outer
 values. An owning-function `return` and a throw skip those statements.
 Nested loops, switches and source functions keep their existing transfer
 owners. Empty input runs no body and immediately resumes following code.
-A function ending with `for…of` still needs a following explicit terminator,
-because the input may be empty; a normal conditional arm may end with one
-and resume its surrounding block.
+A function ending with `for…of` returns `undefined` on normal completion,
+including empty input; a normal conditional arm resumes its surrounding block.
 
 Assignment-target headers, `for…in`, `for await…of` and unbraced bodies remain
 outside the admitted forms. The contextual separator `of` is an ordinary
@@ -281,8 +280,9 @@ with a following return keeps its existing rules.
 Only a break to this loop disqualifies it. Breaks in an inner loop or switch
 target that inner construct and remain allowed. A continue cannot complete
 the loop normally, and returns retain their owning function. Nested functions
-own their own control flow. All source breaks are considered, including an
-unreachable `if (false) { break; }` and a break after a return or throw.
+own their own control flow. FAST ignores breaks after an unconditional return or throw. A break in a
+conditional arm is conservatively retained, including `if (false) { break; }`;
+syntax AST retains all of these statements.
 
 Such a loop has no normal completion: an execution may return explicitly,
 throw, or continue indefinitely. It cannot silently fall through and return
@@ -290,8 +290,8 @@ throw, or continue indefinitely. It cannot silently fall through and return
 unreachable source text. Module loops do not replace the module's required
 exports or terminal throw.
 
-Source resolution retains the loop's target identity and verifies the absence
-of an owning break before desugaring. Normalization uses the existing loop
+Source resolution retains the loop's target identity. FAST normalization
+determines whether a reachable owning break permits normal completion. Normalization uses the existing loop
 operations with no normal result or false-condition exit. The loop itself ends
 its FAST block; there is no synthetic throw or implicit returned value after
 it. Graph construction uses the terminal computation directly. A helper whose

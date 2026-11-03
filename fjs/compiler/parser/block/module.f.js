@@ -1,19 +1,10 @@
 /**
  * Lexical region payloads and statement sequences after binding resolution.
  * @module
- * @import { BranchBlock, BlockStatement, BlockEnd } from '../syntax/types.ts'
  * @import { SourceBlock, SourceStatement, SourceValue } from '../../../js/ast/sugar/source.ts'
  */
-import { assert } from '../../../asserts/module.f.js'
 
-/** A final loop in lexical braces is an ordinary statement, not a function ending. @type {(block: BranchBlock) => readonly (BlockStatement | BlockEnd)[]} */
-export const _standaloneStatements = block => {
-    const end = block[2]
-    if (end === null) { return block[1] }
-    return [...block[1], end[0] === 'terminal-while' ? ['while', end[1]]
-        : end[0] === 'terminal-for' ? ['for', end[1]]
-            : end[0] === 'terminal-for-of' ? ['for-of', end[1]] : end]
-}
+import { assert } from '../../../asserts/module.f.js'
 
 /** Binding identities and lexical events already preserve the erased scope. @type {(body: SourceBlock) => readonly SourceStatement[]} */
 export const _flattenedStandalone = body => {

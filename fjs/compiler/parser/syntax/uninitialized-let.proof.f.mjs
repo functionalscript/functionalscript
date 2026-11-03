@@ -32,7 +32,7 @@ export const proof = /** @type {const} */ ({
     ordinaryStatementsKeepOmissionAndAsiEvidence: () => {
         const block = functionBlock('export default a=>{let local\nif(a){let branch;}while(false){let loop;}return local;};')
         const [local, conditional, loop] = block[1]
-        assert(local[0] === 'let' && conditional[0] === 'normal-if' && loop[0] === 'while')
+        assert(local[0] === 'let' && conditional[0] === 'if' && loop[0] === 'while')
         assertEq(local[1].value, null)
         assertEq(local[1].semicolon, false)
         const branch = conditional[1].block[1][0]

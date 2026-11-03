@@ -41,31 +41,24 @@
   an object, so the spelling is refused rather than read another way, and the
   object is written in parentheses instead ([grouping](../../operators/grouping/README.md)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
-  is any number of statements — declarations, assignments, call statements
-  ([call statements](../../functions/call-statements/README.md)), and `if` statements
-  (below) — and then one terminating statement, a `return` or a `throw` (below), or a
-  switch with a `default` ([switch](../switch/README.md)), or a
-  [terminal unconditional loop](../loops/README.md#a-terminal-unconditional-loop), each
-  ended as every statement is — by its `;`, or by the newline before the
-  next statement, a guard's by its `}`, and the last one's by the `}`
-  ([module structure](../../modules/README.md)) — and an object literal is an
-  ordinary value again, since after `return` JavaScript expects an
-  expression. `return` and the value share a line: a newline between them
-  ends the statement in JavaScript, which would return `undefined`, so it is
-  refused here rather than read another way, exactly as a newline before
-  `=>` is. Nothing follows the terminating statement: a statement after it
-  is unreachable, and JavaScript's admitting the text does not make it
-  anything but a mistake.
+  retains its written statements in order. A function whose end is reached
+  returns `undefined`, including an empty body. `return` with an operand
+  requires the operand on the same line; a bare `throw` is refused.
 - An explicit bare `return;`, or `return` followed by the closing brace,
-  means `return undefined`. Syntax parsing supplies the existing primitive
-  `undefined` operand and preserves the written return's source location and
-  semicolon. This applies to function bodies, guards, switches and loops;
-  ownership and unreachable-code checks stay the same. A bare `throw` is
-  refused. A function with no return still has an implicit ending and is not
-  admitted. The language designer `sergey-shandar` explicitly approved this
-  desugaring in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
-  under DESIGN.md §12. It preserves familiar JavaScript syntax without adding
-  an AST, FAST or EDAG node kind; symbol classification needs one token of lookahead.
+  means `return undefined`. Syntax AST retains the missing operand and the
+  original source information; resolution supplies the value.
+- Syntax AST does not analyze control flow. It retains statements after a
+  return, throw, terminal conditional or loop, and source binding/capture
+  checks still apply to them. FAST discards computations that cannot execute.
+  FAST adds `return undefined` only when the function can complete normally.
+  An `if` whose arms both terminate and an unconditional loop with no reachable
+  owning break are terminal and need no fallback return.
+
+  The language designer `sergey-shandar` explicitly approved source-shaped
+  AST blocks and FAST completion in the
+  [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019),
+  under DESIGN.md §12. This preserves JavaScript fallthrough and unreachable
+  source syntax while keeping control-flow decisions in FAST.
 - A parameterless function **called where it is written**, with no
   arguments, denotes its body where the call stands:
   `a ? (() => { const x = f(); return [x, x]; })() : 4` is the idiom for a
@@ -202,7 +195,7 @@
 
 An ordinary function also admits a braced `if` whose selected arm can finish
 normally, with an optional braced `else`. A path may instead return from the
-owning function. The function still has its own explicit terminator:
+owning function. The following example writes its function result explicitly:
 
 ```js
 export default (condition, f) => {

@@ -67,11 +67,10 @@ A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
 `module.f.js` keeps a `proof.f.mjs` for now: a proof's assertion calls are
 call statements the language reads
-([spec: call statements](../spec/functions/call-statements/README.md)), but each of
-its functions ends without a `return`, which a block body must not
-([CONVERTING.md rule 7](../doc/CONVERTING.md#7-a-body-that-ends-without-return)),
-and many loop with `for`, which the language does not have
-([`compiler/README.md`](./compiler/README.md)).
+([spec: call statements](../spec/functions/call-statements/README.md)). Proof
+filenames retain the `.f.mjs` discovery convention, including proofs accepted
+by the compiler. Function fallthrough and `for` loops are now supported;
+remaining unsupported constructs are tracked by the dependency scan.
 `fjs/asserts` itself is an `.f.js`. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
 Its leading JSDoc block may include, for example:

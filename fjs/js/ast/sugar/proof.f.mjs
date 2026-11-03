@@ -357,7 +357,7 @@ export const proof = {
             'export default (()=>{while(true){switch(0){case 0:{throw 7;}default:{return 3;}}const skipped=null.x;}return 0;})();',
         ]) { assertError(memo(assertOk(analysis(graph(source))))({ args: [] })) }
         const normalized = fn('export default ()=>{while(true){switch(1){case 1:{return 7;}default:{throw 8;}}const skipped=null.x;}return 0;};')
-        const loop = normalized.body.statements[0]
+        const loop = normalized.body.exit
         assert(loop[0] === 'loop')
         assertEq(loop[1].body.statements.length, 1)
         assertEq(loop[1].body.statements[0][0], 'define')
@@ -450,7 +450,7 @@ export const proof = {
     },
     normalizedOwningExitsKeepTargetsAndInvocationReads: () => {
         const normalized = fn('export default n=>{while(true){const alias=n;return alias;const skipped=null.x;}return 0;};')
-        const statement = normalized.body.statements[0]
+        const statement = normalized.body.exit
         assert(statement[0] === 'loop')
         const returned = statement[1].body.exit
         assert(returned[0] === 'return')
@@ -481,18 +481,17 @@ export const proof = {
             'export default ()=>{while(true){while(true){throw 3;}}return 0;};',
         ]) {
             const normalized = fn(source)
-            const outer = normalized.body.statements[0]
+            const outer = normalized.body.exit
             assert(outer[0] === 'loop')
-            const inner = outer[1].body.statements[0]
+            const inner = outer[1].body.exit
             assert(inner[0] === 'loop')
             assert(inner[1].body.exit[0] === 'return' || inner[1].body.exit[0] === 'throw')
         }
         const normalized = fn('export default ()=>{while(true){const local=()=>{while(true){return 1;}return 0;};}return 0;};')
-        const outer = normalized.body.statements[0]
+        const outer = normalized.body.exit
         assert(outer[0] === 'loop')
-        const guard = outer[1].body.statements[0]
-        assert(guard[0] === 'if')
-        assertEq(guard[2], true)
+        assertEq(outer[1].results.length, 0)
+        assertEq(outer[1].body.exit[0], 'continue')
     },
     directLoopExitsKeepStateAndSkipRemainingWork: () => {
         /** @type {readonly (readonly [string, unknown])[]} */
@@ -538,8 +537,8 @@ export const proof = {
     },
     loopTransferSignaturesUseCurrentVersionsAndNoDeadDefinitions: () => {
         const normalized = fn('export default ()=>{let a=1;let b=2;while(true){a=b;b=3;continue;const skipped=null.x;}return [a,b];};')
-        const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
-        assert(statement !== undefined && statement[0] === 'loop')
+        const statement = normalized.body.exit
+        assert(statement[0] === 'loop')
         const loop = statement[1]
         assertEq(loop.parameters.length, 2)
         const step = loop.body
@@ -567,11 +566,10 @@ export const proof = {
             'export default ()=>{while(true){const local=()=>{while(true){break;}return 1;};}return 0;};',
         ]) {
             const normalized = fn(source)
-            const statement = normalized.body.statements.find(statement => statement[0] === 'loop')
-            assert(statement !== undefined && statement[0] === 'loop')
-            const guard = statement[1].body.statements[0]
-            assert(guard[0] === 'if')
-            assertEq(guard[2], true)
+            const statement = normalized.body.exit
+            assert(statement[0] === 'loop')
+            assertEq(statement[1].results.length, 0)
+            assertEq(statement[1].body.exit[0], 'continue')
         }
     },
     nestedLoopSignaturesSelectEnclosingStateAndKeepLocals: () => {
@@ -686,6 +684,23 @@ export const proof = {
         assertEq(pruned.captures.length, 0)
         assertStructurallySame(result('const self=n=>n?self(n-1):7; export default self(3);'), { default: 7 })
         assertStructurallySame(result('const self=n=>n?(()=>self)(n-1)(n-1):7; export default self(2);'), { default: 7 })
+    },
+    suppliedTerminalLoopMatchesInferredCompletion: () => {
+        const source = assertOk(parse('')('export default n=>{while(true){n=n+1;if(n>2){return n;}}};'))
+        assert(source.body.exit[0] === 'yield')
+        const object = source.body.exit[1]
+        assert(object instanceof Array && object[0] === 'object')
+        const member = object[1][0]
+        assert(member[0] === ':' && member[2] instanceof Array && member[2][0] === 'function')
+        const fn = member[2][1]
+        const loop = fn.body.statements[0]
+        assert(loop[0] === 'while')
+        const supplied = /** @type {import('../../../compiler/parser/types.ts').ResolvedModule} */ ({ ...source, body: {
+            statements: [], exit: ['yield', ['object', [[':', 'default', ['function', {
+                ...fn, body: { statements: [], exit: ['terminal-loop', loop[1]] },
+            }]]]]],
+        } })
+        assertStructurallySame(normalize(supplied, []), normalize(source, []))
     },
     directRegions: () => {
         const guarded = fn('export default value=>{if(value){const answer=value+1; return answer;} const answer=value+2; return answer;};')
@@ -828,8 +843,8 @@ export const proof = {
             const branch = normalized.body.statements.find(statement => statement[0] === 'if')
             assert(branch !== undefined && branch[0] === 'if')
             assertEq(branch[1].length, 1)
-            assert(branch[3].exit[0] === 'loop')
-            assertEq(branch[3].exit[1].results.length, 0)
+            if (branch[3].exit[0] === 'loop') { assertEq(branch[3].exit[1].results.length, 0) }
+            else { assertEq(branch[3].exit[0], 'return') }
             let current = graph(source)
             for (let round = 0; round < 2; round += 1) {
                 assert(!assertOk(analysis(current)).nodes.some(node => node[0] === 'throw'))

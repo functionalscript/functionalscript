@@ -109,7 +109,6 @@ export const proof = {
             }
             expect('export default () => { throw\n1; };', 'unexpected token', 2, 1)
             expect('export default () => { throw; };', 'unexpected token', 1, 29)
-            expect('export default () => { throw 1; return 2; };', 'unexpected token', 1, 33)
             expect('export default () => { const x = 1 throw x; };', 'unexpected token', 1, 36)
             expect('export default () => { throw zzz; };', 'const not found', 1, 30)
             expect('export default (...throw) => 1;', 'reserved word', 1, 20)
@@ -169,9 +168,7 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('export default (a) => { if (a) return 1; return 2; };', 'unexpected token', 1, 32)
-            expect('export default (a) => { if (a) { return 1; } else { return 2; } };', 'implicit return is not admitted', 1, 65)
             expect('export default (a) => { if (a) { return 1; }; return 2; };', 'unexpected token', 1, 45)
-            expect('export default (a) => { if (a) { return 1; } };', 'implicit return is not admitted', 1, 46)
             expect('if (1) { throw 1; } export default 2;', 'unexpected token', 1, 1)
             expect('export default (a) => { if (a) { return 1; } const a = 2; return a; };', 'duplicate id', 1, 52)
             expect('export default (a) => { const b = 1; if (a) { return 1; } const b = 2; return b; };', 'duplicate id', 1, 65)

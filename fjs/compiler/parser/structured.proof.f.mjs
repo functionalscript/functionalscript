@@ -37,11 +37,14 @@ export const proof = {
     },
     lexicalControl: () => {
         const { fn, module } = sourceFunction('export default n=>{if(n){const snapshot=n;return ()=>snapshot;}let state=0;while(state<n){const before=state;state=before+1;}return state;};')
-        assert(fn.body.exit[0] === 'if')
-        const [, , consequent, alternate] = fn.body.exit
-        assertEq(consequent.exit[0], 'return')
-        assertEq(alternate.statements.length, 2)
-        const [declaration, statement] = alternate.statements
+        assert(fn.body.exit[0] === 'return')
+        const [conditional, declaration, statement] = fn.body.statements
+        assert(conditional[0] === 'if')
+        const consequent = conditional[2]
+        const returned = consequent.statements[1]
+        assert(returned[0] === 'return')
+        assertEq(returned[1], fn.target)
+        assertEq(conditional[3].statements.length, 0)
         assert(declaration[0] === 'initialize' && statement[0] === 'while')
         const state = assertNotNullish(module.origins.find(origin => origin.name === 'state')).id
         assertEq(declaration[1].ids[0], state)
@@ -54,7 +57,6 @@ export const proof = {
         assertEq(assignment[1], state)
         assertEq(statement[1].body.exit[0], 'yield')
         assertEq(assertNotNullish(module.bindings.find(binding => binding.id === state)).isMutable, true)
-        assert(alternate.exit[0] === 'return')
-        assertEq(alternate.exit[1], fn.target)
+        assertEq(fn.body.exit[1], fn.target)
     },
 }

@@ -49,24 +49,33 @@ export const proof = /** @type {const} */ ({
             assertEq(assertError(parse(path)(source)).message, 'switch case does not terminate')
         }
     },
-    switchBreakOutsideALoopStillNeedsSyntaxAdmission: () => {
+    switchBreakOutsideALoopIsAdmitted: () => {
         const source = /** @type {const} */ ('export default tag=>{let m=0;switch(tag){case 1:{m=m+1;break;}}return m;};')
-        assertError(syntax(source))
-        assertError(parse(path)(source))
+        assertOk(syntax(source))
+        assertOk(parse(path)(source))
     },
-    implicitFunctionReturnsRemainRefused: () => {
+    normalFunctionEndsAreAdmitted: () => {
         for (const source of [
             'export default ()=>{};',
             'export default ()=>{const x=1;};',
             'export default a=>{if(a){return 1;}};',
         ]) {
             assertOk(syntax(source))
-            assertEq(assertError(parse(path)(source)).message, 'implicit return is not admitted')
+            assertOk(parse(path)(source))
         }
         // An explicit throw or an admitted non-returning terminal loop has no
         // successful function-end fallthrough; neither gains an implicit return.
         assertOk(parse(path)('export default ()=>{throw 1;};'))
         assertOk(parse(path)('export default ()=>{while(true){}};'))
+    },
+    switchTerminalLoopsKeepNestedBreakOwners: () => {
+        for (const body of [
+            'while(a){break;}',
+            'for(const x of []){break;}',
+            'if(a){while(true){break;}}',
+            'switch(a){case 1:{break;}default:{continue;}}',
+        ]) { assertOk(parse(path)(`export default a=>{switch(a){case 0:{while(true){${body}}}default:{return 1;}}};`)) }
+        assertEq(assertError(parse(path)('export default a=>{switch(a){case 0:{while(true){if(a){break;}}}default:{return 1;}}};')).message, 'switch case does not terminate')
     },
     normalRegionCompletionResumesTheFollowingStatements: () => {
         assertStructurallySame(evaluated(`

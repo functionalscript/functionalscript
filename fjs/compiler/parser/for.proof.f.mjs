@@ -99,8 +99,8 @@ export const proof = {
             'export default ()=>{for(;;){return 1;break;}};',
             'export default ()=>{for(;false;){}};',
             'export default ()=>{for(;1;){}};',
-            'export default ()=>{for(;;){const inner=()=>{break;};}};',
-        ]) { assertError(parse('')(source)) }
+        ]) { assertOk(parse('')(source)) }
+        assertError(parse('')('export default ()=>{for(;;){const inner=()=>{break;};}};'))
     },
     callsRequiredWorkAndSkippedUpdates: () => {
         assertStructurallySame(result('const fail=()=>{throw 7;};for(;true;fail()){break;}export default 3;'), { default: 3 })

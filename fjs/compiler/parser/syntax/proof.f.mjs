@@ -50,6 +50,7 @@ const returned = node => {
     assert(body[0] === 'block')
     const last = body[1][body[1].length - 1]
     assert(last[0] === 'return')
+    assert(last[1].value !== null)
     return last[1].value
 }
 
@@ -142,15 +143,15 @@ export const proof = {
             assertEq(named[1].step[1].semicolon, true)
         }
     },
-    finalForCandidatesRemainDistinctFromOrdinaryLoops: () => {
+    finalForLoopsKeepTheirWrittenShape: () => {
         const module = unwrap(parseSyntax(tokenizeString('export default ()=>{for(;false;){}for(;;){return 1;}};')))
         const value = module.exported?.value
         assert(value !== undefined && value[0] === '=>')
         const body = value[2]
         assert(body[0] === 'block')
-        assertStructurallySame(body[1].map(statement => statement[0]), ['for', 'terminal-for'])
+        assertStructurallySame(body[1].map(statement => statement[0]), ['for', 'for'])
         const terminal = body[1][1]
-        assert(terminal[0] === 'terminal-for')
+        assert(terminal[0] === 'for')
         assertStructurallySame(terminal[1].condition, ['primitive', true])
         const ordinary = unwrap(parseSyntax(tokenizeString('export default ()=>{for(;;){}return 1;};'))).exported?.value
         assert(ordinary !== undefined && ordinary[0] === '=>')
@@ -174,15 +175,15 @@ export const proof = {
         assert(assignment[0] === 'assign')
         assertEq(assignment[1].operator, null)
     },
-    finalWhileCandidatesRemainDistinctFromOrdinaryLoops: () => {
+    finalWhileLoopsKeepTheirWrittenShape: () => {
         const module = unwrap(parseSyntax(tokenizeString('export default ()=>{let n=0;while(false){}while((true)){return n;}};')))
         const value = module.exported?.value
         assert(value !== undefined && value[0] === '=>')
         const body = value[2]
         assert(body[0] === 'block')
-        assertStructurallySame(body[1].map(statement => statement[0]), ['let', 'while', 'terminal-while'])
+        assertStructurallySame(body[1].map(statement => statement[0]), ['let', 'while', 'while'])
         const terminal = body[1][2]
-        assert(terminal[0] === 'terminal-while')
+        assert(terminal[0] === 'while')
         assertStructurallySame(terminal[1].condition, ['primitive', true])
         const ordinary = unwrap(parseSyntax(tokenizeString('export default ()=>{while(true){}return 1;};'))).exported?.value
         assert(ordinary !== undefined && ordinary[0] === '=>')
@@ -221,6 +222,7 @@ export const proof = {
         assertStructurallySame(returned[1].start.token, { kind: 'id', value: 'return' })
         assertEq(returned[1].start.metadata.line, 2)
         assertEq(returned[1].semicolon, false)
+        assert(returned[1].first !== null && returned[1].value !== null)
         assertEq(returned[1].first.newline, false)
         assertEq(returned[1].value[0], 'array')
         assertStructurallySame(thrown[1].start.token, { kind: 'id', value: 'throw' })
@@ -238,6 +240,7 @@ export const proof = {
         assert(broken[0] === 'while')
         for (const statement of broken[1].block[1]) {
             assert(statement[0] === 'return' || statement[0] === 'throw')
+            assert(statement[1].first !== null)
             assertEq(statement[1].first.newline, true)
         }
     },
@@ -297,7 +300,7 @@ export const proof = {
         assertEq(conditional[1].otherwise, null)
         assertEq(conditional[1].start.metadata.line, 2)
         assertEq(conditional[1].condition[0], '===')
-        assertEq(conditional[1].block[0], 'loop')
+        assertEq(conditional[1].block[0], 'block')
         assertStructurallySame(conditional[1].block[1].map(statement => statement[0]), ['const', 'if'])
         const nested = conditional[1].block[1][1]
         assert(nested[0] === 'if')
@@ -331,7 +334,7 @@ export const proof = {
         assertStructurallySame(loop[1].start.token, { kind: 'id', value: 'while' })
         assertEq(loop[1].start.metadata.line, 3)
         assertEq(loop[1].condition[0], '<')
-        assertEq(loop[1].block[0], 'loop')
+        assertEq(loop[1].block[0], 'block')
         assertEq(loop[1].block[1].length, 1)
         const assignment = loop[1].block[1][0]
         assert(assignment[0] === 'assign')
@@ -402,7 +405,7 @@ export const proof = {
                 assertEq(last[1].start.metadata.column, 50)
                 assertStructurallySame([first[1].semicolon, second[1].semicolon, last[1].semicolon], [true, true, true])
                 const array = last[1].value
-                assert(array[0] === 'array')
+                assert(array !== null && array[0] === 'array')
                 const [x, y] = array[1]
                 assert(x[0] === 'ref' && y[0] === 'ref')
                 assertStructurallySame(x[1].token, xTarget[1].token)

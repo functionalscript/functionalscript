@@ -75,7 +75,6 @@ export const proof = /** @type {const} */ ({
             'for(let [value];false;){}export default 0;',
             'export let value;export default value;',
             'export default ()=>{let value return value;};',
-            'export default ()=>{let value;};',
         ]) { assertError(parseFromTokens(tokenizeString(source))) }
     },
 })

@@ -1,4 +1,4 @@
-/** Terminal candidates retain source control evidence until admission. */
+/** Source loops retain control evidence; FAST decides completion. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parseFromTokens } from './module.f.mjs'
@@ -15,11 +15,11 @@ const fn = body => {
 }
 
 export const proof = {
-    candidateHasItsOwnTerminalExit: () => {
+    loopRetainsItsSourceStatements: () => {
         const source = fn('let n=2;while((true)){if(n===0){return n;}n=n-1;}')
-        assertEq(source.body.statements.length, 1)
-        const terminal = source.body.exit
-        assert(terminal[0] === 'terminal-loop')
+        assertEq(source.body.statements.length, 2)
+        const terminal = source.body.statements[source.body.statements.length - 1]
+        assert(terminal[0] === 'while')
         assertEq(terminal[1].condition, true)
         const returned = terminal[1].body.statements[0]
         assert(returned[0] === 'if')
@@ -29,8 +29,8 @@ export const proof = {
     },
     innerBreaksAndOuterContinuesKeepTheirOwners: () => {
         const source = fn('while(true){while(true){break;}switch(1){case 1:{break;}default:{continue;}}return 1;}')
-        const terminal = source.body.exit
-        assert(terminal[0] === 'terminal-loop')
+        const terminal = source.body.statements[source.body.statements.length - 1]
+        assert(terminal[0] === 'while')
         const [inner, switched] = terminal[1].body.statements
         assert(inner[0] === 'while' && switched[0] === 'switch')
         const innerBreak = inner[1].body.statements[0]
@@ -46,8 +46,8 @@ export const proof = {
     },
     sourceAfterAnExitIsStillChecked: () => {
         const source = fn('while(true){return 1;let unused=0;if(false){unused=unused+1;}}')
-        const terminal = source.body.exit
-        assert(terminal[0] === 'terminal-loop')
+        const terminal = source.body.statements[source.body.statements.length - 1]
+        assert(terminal[0] === 'while')
         assertStructurallySame(terminal[1].body.statements.map(statement => statement[0]), ['return', 'initialize', 'if'])
         for (const body of [
             'while(true){return 1;missing;}',
@@ -72,18 +72,16 @@ export const proof = {
         // function's return belongs to that function and keeps no outer call.
         assertOk(parseFromTokens(tokenizeString('export default n=>(()=>{n=n+1;while(true){const inner=()=>{while(true){return 0;}};throw n;}})();')))
     },
-    terminalAdmissionUsesSourceConditionAndBreaks: () => {
+    loopAdmissionDoesNotAnalyzeCompletion: () => {
         for (const body of [
             'while(false){}', 'while(1){}', 'while(!false){}',
             'const always=true;while(always){}', 'while(true||false){}',
             'while(true){break;}', 'while(true){if(false){break;}}',
             'while(true){return 1;break;}', 'while(true){throw 1;break;}',
         ]) {
-            const failure = assertError(parseFromTokens(tokenizeString(`export default ()=>{${body}};`)))
-            assertEq(failure.message, 'terminal while must be literal true with no break targeting it', body)
+            assertOk(parseFromTokens(tokenizeString(`export default ()=>{${body}};`)))
         }
         for (const source of [
-            'export default ()=>{};', 'export default ()=>{const n=1;};',
             'while(true){}', 'export default ()=>{while(true){};};',
         ]) { assertError(parseFromTokens(tokenizeString(source))) }
     },

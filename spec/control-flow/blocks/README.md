@@ -28,9 +28,9 @@ inner bindings after the block ends, and assignments still reach their resolved
 enclosing bindings.
 
 A block preserves the enclosing function's return target and the enclosing
-loop or switch's break/continue targets. It does not supply an implicit return
-for a function: the existing explicit function-ending admission still applies.
-Loops at the end of a standalone block are ordinary loops and may finish
+loop or switch's break/continue targets. A block completing normally resumes its enclosing sequence. FAST supplies
+`return undefined` if execution reaches the end of the owning function.
+Loops retain their transfer owners; FAST decides whether they can finish
 normally. Existing restrictions on conditional joins and EDAG conversion of
 nonlocal transfers in value regions remain in force.
 

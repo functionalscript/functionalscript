@@ -5,8 +5,9 @@ signature and one whole public result. It supports zero through sixteen fixed
 parameters, following the shared function-length limit. An observed rest binding
 adds one internal loop input without changing the function's fixed arity. Only
 aliases of invocation inputs, captures and self may precede the loop. It requires
-matching positional entry values and a
-direct return of the loop result to its owning function. One-time computation,
+matching positional entry values and either a
+direct return of the loop result to its owning function or a terminal loop
+exit without normal results. One-time computation,
 changed input order and following result processing do not qualify.
 
 The body must read invocation inputs through the loop's iteration bindings.
@@ -78,3 +79,11 @@ root, including a terminal root without normal results. Completion packets can
 replace the original rest recipe with projections; the trusted resolver then
 calls self with the fixed payloads and a spread of the established fresh rest
 payload. Strict structural root matching remains unchanged for other loops.
+
+Terminal loops inferred during AST-to-FAST conversion use the same invocation
+root matching as loops with a returned result. A function ending in a loop
+exit has zero loop results and no normal successor; its entire statement
+prefix must consist of the established invocation aliases. The same input
+lineage and rest-transition checks apply. Reuse the owning function when
+lowering this form, rather than wrapping it in another helper on each source
+round trip.

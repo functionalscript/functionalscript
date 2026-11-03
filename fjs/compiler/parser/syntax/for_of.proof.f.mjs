@@ -52,16 +52,16 @@ export const proof = /** @type {const} */ ({
         assert(nested[0] === 'for-of')
         assertStructurallySame(nested[1].block[1].map(statement => statement[0]), ['continue', 'throw'])
         const candidate = statements('export default rows=>{for(const row of rows){return row;}};')[0]
-        assertEq(candidate[0], 'terminal-for-of')
+        assertEq(candidate[0], 'for-of')
     },
     conditionalArmsRetainFinalAndFollowingLoopPositions: () => {
         const terminal = statements('export default (b,rows)=>{if(b){for(const row of rows){}}return 0;};')[0]
-        assert(terminal[0] === 'normal-if')
-        assertEq(terminal[1].block[2]?.[0], 'terminal-for-of')
+        assert(terminal[0] === 'if')
+        assertEq(terminal[1].block[1][0][0], 'for-of')
         const following = statements('export default (b,rows)=>{if(b){for(const row of rows){}const x=1;}return 0;};')[0]
-        assert(following[0] === 'normal-if')
+        assert(following[0] === 'if')
         assertStructurallySame(following[1].block[1].map(statement => statement[0]), ['for-of', 'const'])
-        assertEq(following[1].block[2], null)
+        assertEq(following[1].block.length, 2)
         const ended = statements('export default (b,rows)=>{if(b){for(const row of rows){}return 1;}return 0;};')[0]
         assert(ended[0] === 'if')
         assertStructurallySame(ended[1].block[1].map(statement => statement[0]), ['for-of', 'return'])
