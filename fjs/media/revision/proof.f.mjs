@@ -15,14 +15,6 @@ const h2 = 'r'
 // `I` is accepted as an alias spelling of canonical cBase32 `1`.
 const alias = /** @type {const} */ ('I')
 
-/** @type {LockMap} */
-const _lockMapAllowsMissingSubjects = {}
-
-// A lock map's values are `string | LockMap | undefined` at every depth, so
-// the same value is a legal binding for a direct hash and for a nested scope.
-/** @type {LockMap} */
-const _lockMapNests = { direct: h1, scope: { direct: h2, deeper: { direct: h1 } } }
-
 // A shape-valid revision: every required field present (`snapshot` and
 // `generation` included), with `extra` overriding or adding fields per test.
 /** @type {(extra: JsonObject) => JsonObject} */
@@ -373,6 +365,3 @@ export const proof = {
         },
     },
 }
-
-void _lockMapAllowsMissingSubjects
-void _lockMapNests
