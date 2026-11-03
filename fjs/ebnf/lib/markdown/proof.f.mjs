@@ -109,6 +109,18 @@ export const proof = {
         emphasisOpeningStrong: () => refuses(`***a* b**`),
         emphasisBesideEmphasisInsideStrong: () => refuses(`**a *b**c* d**`),
         strongInsideEmphasisInsideStrong: () => refuses(`**a *b **c** d* e**`),
+        // Emphasis holds bold after a space, before a space or its own
+        // closing asterisk, as a file writes it.
+        strongInsideEmphasis: () => accepts(`*a **b** c*`),
+        strongClosingEmphasis: () => accepts(`*a **b***`),
+        // A word may follow a code span or a link in emphasis directly.
+        wordAfterASpanInsideEmphasis: () => accepts(`*(an ${tick}exp${tick}) [b](u)s*`),
+        spansAroundStrongInsideEmphasis: () => accepts(`*${tick}a${tick} [b](u) **${tick}c${tick} d** e*`),
+        // A word right after bold, and bold opening emphasis, are refused:
+        // each is a run GitHub reads otherwise.
+        wordAfterStrongInsideEmphasis: () => refuses(`*a **b**c*`),
+        strongOpeningEmphasis: () => refuses(`***a** b*`),
+        emphasisInsideStrongInsideEmphasis: () => refuses(`*a **b *c* d** e*`),
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.
         loneBracketInsideStrong: () => refuses(`**a [ b**`),
@@ -148,13 +160,14 @@ export const proof = {
         anOrdinaryLink: () => accepts(`[#1421](https://example.com/pull/1421)`),
         /**
          * **A space beside an asterisk is not emphasis.** CommonMark reads
-         * `a * b * c` as the three words and two asterisks they are. The
-         * grammar matches the padded body, since a body holding code cannot
-         * say "no space before the closing asterisk" with one symbol of
-         * lookahead, and `fjs/media/markdown` refuses it after.
+         * `a * b * c` as the three words and two asterisks they are. An
+         * asterisk after a space in emphasis opens bold, so a space before
+         * the closing one is refused here; a space after the opening one is
+         * matched, and `fjs/media/markdown` refuses it after.
          */
-        spaceFlankedAsterisks: () => accepts(`a * b * c`),
-        paddedEm: () => accepts(`* a *`),
+        spaceFlankedAsterisks: () => refuses(`a * b * c`),
+        paddedEm: () => refuses(`* a *`),
+        leadingSpaceInEm: () => accepts(`* a*`),
         // A code span may hold a space at either end, as GitHub's does;
         // the one CommonMark strips from each end is stripped where it is
         // read.

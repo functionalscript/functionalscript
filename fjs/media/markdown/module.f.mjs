@@ -25,7 +25,7 @@
  * @import { Utf16 } from '../../ebnf/utf16/types.ts'
  * @import { RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Label, LinkLabel, ListMarker, Struck } from './types.ts'
+ * @import { Align, Block, Blocks, Bolded, Document, Emphasised, Entry, Image, Inline, Italicised, Label, LinkLabel, ListMarker, Struck } from './types.ts'
  */
 
 import { unmapped } from '../../ebnf/ast/module.f.js'
@@ -215,6 +215,51 @@ const strongOf = node => {
 }
 
 /**
+ * An emphasised body as its spans, from the grammar's states: words and
+ * spaces read together as text, code, links, and bold, each state naming
+ * the one after it until the asterisk that closes the body. A link right
+ * after an `!` would be an image on GitHub, which a body here does not
+ * hold, so it is refused.
+ *
+ * @type {(node: unknown) => Result<readonly Italicised[], string>}
+ */
+const emOf = node => {
+    /** @type {readonly Italicised[]} */
+    let out = []
+    let text = ''
+    /** @type {() => readonly Italicised[]} */
+    const flushed = () => text === '' ? out : [...out, ['text', text]]
+    let state = node
+    while (true) {
+        const [tag, body] = arr(state)
+        if (tag === 'close') { return ok(flushed()) }
+        const parts = arr(body)
+        if (tag === 'word' || tag === 'space') {
+            text = text + lexeme(parts[0])
+            state = parts[1]
+            continue
+        }
+        if (tag === 'code') { out = [...flushed(), ['code', codeText(parts[0])]] }
+        else if (tag === 'link') {
+            if (text.endsWith('!')) { return error('an image inside bold or emphasis') }
+            out = [...flushed(), ['link', ...plainLinkOf(parts[0])]]
+        }
+        else {
+            const read = emphasisOf(parts[1])
+            if (read[0] === 'error') { return read }
+            out = [...flushed(), ['strong', read[1]]]
+            const [after, rest] = arr(parts[3])
+            if (after === 'close') { return ok(out) }
+            text = lexeme(arr(rest)[0])
+            state = arr(rest)[1]
+            continue
+        }
+        text = ''
+        state = parts[1]
+    }
+}
+
+/**
  * One delimited span, by the branch the grammar took. Each case indexes the
  * rule's own tuple: `strong` is the body after the two asterisks it opens
  * with, `em` the body before the one it closes with, and a `link` its label
@@ -236,7 +281,7 @@ const spanOf = node => {
         const read = strongOf(inner)
         return read[0] === 'error' ? read : ok(['strong', read[1]])
     }
-    const read = emphasisOf(arr(inner)[0])
+    const read = emOf(inner)
     return read[0] === 'error' ? read : ok(['em', read[1]])
 }
 
@@ -529,12 +574,12 @@ const firstChar = span => span[0] === 'text' ? span[1][0] : span[0] === 'code' ?
 
 /**
  * A span's last character, as the delimiter after it sees it: an asterisk
- * for emphasis inside bold, a tilde for strikethrough, and a parenthesis
- * for a link.
+ * for emphasis inside bold or bold inside emphasis, a tilde for
+ * strikethrough, and a parenthesis for a link.
  *
  * @type {(span: Inline) => string}
  */
-const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' ? '*' : span[0] === 'del' ? '~' : ')'
+const lastChar = span => span[0] === 'text' ? span[1][span[1].length - 1] : span[0] === 'code' ? '`' : span[0] === 'em' || span[0] === 'strong' ? '*' : span[0] === 'del' ? '~' : ')'
 
 /**
  * Whether an asterisk run between `outer` and `inner` fails to open or close
@@ -741,17 +786,17 @@ const strikethrough = entry => {
 }
 
 /**
- * Each emphasis inside a bold body, checked as {@link readProse} checks
- * emphasis on its own, and against the spans beside it in the bold: its
- * asterisks must open and close it on GitHub as they would outside. The
- * grammar never lets emphasis open a bold body, so a span stands before
- * each one.
+ * Each emphasis inside a bold body, or bold inside an emphasised one,
+ * checked as {@link readProse} checks it on its own, and against the spans
+ * beside it in the body: its asterisks must open and close it on GitHub as
+ * they would outside. The grammar never lets one open the other's body, so
+ * a span stands before each one.
  *
- * @type {(body: readonly Bolded[]) => Result<void, string>}
+ * @type {(body: readonly (Bolded | Italicised)[]) => Result<void, string>}
  */
 const nestedEmphasis = body => {
     for (const [i, b] of body.entries()) {
-        if (b[0] !== 'em') { continue }
+        if (b[0] !== 'em' && b[0] !== 'strong') { continue }
         if (unflanked(lastChar(body[i - 1]))(firstChar(b[1][0]))
             || unflanked(i === body.length - 1 ? undefined : firstChar(body[i + 1]))(lastChar(b[1][b[1].length - 1]))) {
             return error('bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
@@ -819,9 +864,9 @@ const readProse = entry => {
             const read = l[0] === 'link' ? readProse([l]) : ok([])
             if (read[0] === 'error') { return read }
         }
-        // Emphasis inside bold is checked as emphasis is, against the
-        // spans beside it in the bold.
-        if (span[0] === 'strong') {
+        // Emphasis inside bold, and bold inside emphasis, is checked as it
+        // is on its own, against the spans beside it.
+        if (span[0] === 'strong' || span[0] === 'em') {
             const nested = nestedEmphasis(span[1])
             if (nested[0] === 'error') { return nested }
         }

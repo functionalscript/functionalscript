@@ -168,10 +168,38 @@ export const proof = {
             assertStructurallySame(spans(`${tick} ${tick}`), [['code', ' ']])
         },
         // An asterisk with a space inside it is no delimiter on GitHub.
-        spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'bold or emphasis padded with a space'),
+        // An asterisk after a space in emphasis opens bold, so a space
+        // before the closing one stops the grammar.
+        spaceFlanked: () => assertEq(tryParseEntry('a * b * c')[1], 'entry: unexpected symbol at 7'),
         paddedStrong: () => assertEq(tryParseEntry('** a**')[1], 'bold or emphasis padded with a space'),
-        paddedEm: () => assertEq(tryParseEntry(`*a ${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
-        paddedAfterCode: () => assertEq(tryParseEntry(`*${tick}b${tick} *`)[1], 'bold or emphasis padded with a space'),
+        paddedEm: () => assertEq(tryParseEntry(`*a ${tick}b${tick} *`)[1], 'entry: unexpected symbol at 8'),
+        paddedAfterCode: () => assertEq(tryParseEntry(`*${tick}b${tick} *`)[1], 'entry: unexpected symbol at 6'),
+        leadingSpaceInEm: () => assertEq(tryParseEntry('* a*')[1], 'bold or emphasis padded with a space'),
+        // Emphasis holds bold, between its words or right before it closes,
+        // and the bold holds what a body holds.
+        emStrong: () => {
+            assertStructurallySame(spans('*a **b** c*'), [['em', [['text', 'a '], ['strong', [['text', 'b']]], ['text', ' c']]]])
+            assertStructurallySame(spans('*a **b***'), [['em', [['text', 'a '], ['strong', [['text', 'b']]]]]])
+            assertStructurallySame(spans(`*${tick}a${tick} [b](u) **${tick}c${tick} d** e*`), [['em', [
+                ['code', 'a'], ['text', ' '], ['link', [['text', 'b']], 'u'], ['text', ' '],
+                ['strong', [['code', 'c'], ['text', ' d']]], ['text', ' e'],
+            ]]])
+        },
+        // A word may follow a code span or a link directly.
+        emWordAfterASpan: () => assertStructurallySame(spans(`*(an ${tick}exp${tick}) [b](u)s*`),
+            [['em', [['text', '(an '], ['code', 'exp'], ['text', ') '], ['link', [['text', 'b']], 'u'], ['text', 's']]]]),
+        // Bold inside emphasis is checked as bold is.
+        emStrongRefusals: () => {
+            assertEq(tryParseEntry('*a ** b** c*')[1], 'bold or emphasis padded with a space')
+            assertEq(tryParseEntry('*a **b** (c)*d')[1], 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+            // Bold right after a word is no bold the grammar reads there:
+            // it matches emphasis side by side, which is refused.
+            assertEq(tryParseEntry('*a**b** c*')[1], 'bold or emphasis side by side, which GitHub reads otherwise')
+            // The emphasis's closing run sees the bold's asterisk inside it.
+            assertEq(tryParseEntry('*a **b***c')[1], 'bold or emphasis that GitHub does not read as one, with punctuation inside and a letter outside')
+            assertStructurallySame(tryParseEntry('*a **![b](u)** c*'), error('an image inside bold or emphasis'))
+            assertStructurallySame(tryParseEntry('*a ![b](u) c*'), error('an image inside bold or emphasis'))
+        },
         em: () => assertStructurallySame(spans('*a*'), [['em', [['text', 'a']]]]),
         link: () => assertStructurallySame(spans('[a](b)'), [['link', [['text', 'a']], 'b']]),
         // A target is folded from two parts; the address is both, whole.
