@@ -3,8 +3,9 @@
 The core describes the FunctionalScript data model, not JavaScript. Values
 are immutable and come in a few kinds: numbers, booleans, `undefined` and
 `null`, strings, bigints, arrays, ordered objects and functions. L0 is how a
-module makes, reads, shares, frees and calls them. It should stay at about
-15 functions.
+module makes, reads, shares, frees and calls them. The sections below name
+23 functions, and L0 should stay near that size: a new one needs a reason
+that L1 cannot serve.
 
 Every section below is a **proposal**, with the options considered.
 
