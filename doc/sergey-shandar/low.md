@@ -23,7 +23,7 @@
 
 | Length  | Char Size  | States |Bits| Prefix | Suffix    |
 |---------|------------|--------|----|--------|-----------|
-| `0`     |            | `2^0`  |    |`00.000`| `0` bits  |
+| `0`     |            | `2^0`  |    |`00.000`| `00` bits |
 | `1`     | `16` Utf16 | `2^16` |    |`00.001`| `16` bits |
 | `2`     | `16`       | `2^32` |    |`00.010`| `32` bits |
 | `3`     | `16`       | `2^48` |`48`|`00.1--`| `46` bits |
@@ -59,4 +59,3 @@ Alignments:
 const MASK: u64 = 0xFFFF_0000_0000_0000;
 assert_eq!(address & MASK, 0, "pointer exceeds NaNPtr address range");
 ```
-
