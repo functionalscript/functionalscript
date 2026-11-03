@@ -40,8 +40,9 @@ module paths. Replace paths with hashes in both record keys and dependency
 arrays, keeping the same graph shape. The hash definition and migration are
 future work.
 
-`fjs deps` accepts no arguments. It recursively discovers files named exactly
-`module.f.js` or `module.f.mjs` under the caller's directory, then follows their
+`fjs deps` accepts no arguments. It recursively discovers every `.f.js` and
+`.f.mjs` file under the caller's directory, including proofs, demos, helpers and
+standalone samples, then follows their
 runtime imports transitively. It reads generic syntax ASTs without FJS admission
 or FAST/EDAG lowering. JSON dependencies are leaves. The host resolver supplies
 module identity and canonical paths, as for compilation. Graph keys and edges
@@ -54,6 +55,21 @@ Each module appears once, each direct dependency path appears once per module,
 and cycles are retained. A failed scan reports errors and does not replace an
 existing graph. An empty scan writes an empty JSON object.
 Website rendering and build-cache integration remain separate epic tasks.
+
+### All-source scan readiness
+
+Discovery now includes proofs, demos, helpers and standalone sources. This does
+not yet mean that every discovered file forms a generic AST. On the
+`0ee6caee` base with the expanded discovery, the repository scan selects 1,195
+source files and reports 697 parsed, 499 failed, 1,196 total visits (including a
+JSON dependency). It exits with code 1 and does not publish a partial graph.
+
+For example, [the assertion proofs](../asserts/proof.f.mjs) have function bodies
+that end after assertion calls without an explicit return; the current block
+syntax still requires a terminal form. Many first diagnostics occur at closing
+blocks, while other files expose additional syntax gaps. Each diagnostic names
+only the first unsupported form in that file. The unchecked generic-AST task
+below remains the next work; this increment changes discovery and diagnostics.
 
 ### Constructor-expression syntax
 
@@ -122,7 +138,7 @@ The approval and rationale are part of the
 
 ### Tasks
 
-- [ ] Extend discovery to every `.f.js` and `.f.mjs` file, including proofs,
+- [x] Extend discovery to every `.f.js` and `.f.mjs` file, including proofs,
       demos, helpers and standalone samples, using the test runner's authored-source
       predicate. Preserve syntax diagnostics and avoid publishing partial graphs.
 

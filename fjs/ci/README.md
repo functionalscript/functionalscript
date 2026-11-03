@@ -19,9 +19,9 @@ test because parser stress proofs can exceed its default five seconds. `node26` 
 FJS-only Node coverage via `npm run cov`, retaining the 100% thresholds;
 SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
-compilation and coverage. It checks generic AST formation for authored
-`module.f.js` and `module.f.mjs` implementation files and fails the job on a
-parsing error. This step runs uncached even when other checks hit build-cache.
+compilation and coverage. It checks generic AST formation for every authored
+`.f.js` and `.f.mjs` file, including proofs, demos and helpers, and fails the job
+on a parsing error. This step runs uncached even when other checks hit build-cache.
 Host-JS proofs currently have Node coverage across all six platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
