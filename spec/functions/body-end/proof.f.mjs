@@ -8,7 +8,7 @@ export const proof = {
     refused: () => {
         const r = report(sample)
         assert(r[0] === 'error', 'st.body-end is accepted')
-        assertEq(r[1][1], "sample.mjs:2:18 - error: unexpected token")
+        assertEq(r[1][1], "sample.mjs:2:18 - error: implicit return is not admitted")
     },
     alternative: () => assertEq(String(alternative), "undefined"),
     // The proposed message is at the refused token, and its fix is the alternative's line.
