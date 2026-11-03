@@ -49,8 +49,8 @@ it follows is its own admission decision.
 
 This increment admits `\xHH` (exactly two hexadecimal digits) and `\v`
 in single-quoted strings. At that increment, double-quoted strings remained JSON strings,
-and template admission was unchanged. Templates now also admit `\xHH`; their
-vertical-tab escape remains refused. Both spellings decode to the existing
+and template admission was unchanged. Templates now also admit `\xHH` and `\v`, as specified in
+[template literals](../values/template-literals/README.md). Both spellings decode to the existing
 string value: for example, `'\x1b'` equals `'\u001b'` and `'\v'` equals
 `'\u000b'`. No FAST, EDAG or runtime operation is needed.
 

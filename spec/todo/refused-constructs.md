@@ -168,7 +168,7 @@ describes:
 | `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): quoted-string restrictions are specified separately; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
 | `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, a raw TAB | design for double-quoted escapes ([string escapes](../lexical/string-escapes/README.md) lists the admitted spellings); the remaining single-quoted spellings and raw controls are open in [string literals](./2460-js-string-literals.md) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
-| `lit.template-escape` | `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
+| `lit.template-escape` | a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
 
 ### Not on this register
 

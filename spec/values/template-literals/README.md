@@ -21,7 +21,8 @@ call argument or property-access base, as in `` `abc`.length ``. Empty templates
 and adjacent substitutions are admitted too.
 
 Text chunks accept JSON's escapes (`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`,
-`\t`, `\uXXXX`, `\u{…}`), hexadecimal escapes (`\xHH`), escaped backticks and the escaped substitution opener `\${`.
+`\t`, `\uXXXX`, `\u{…}`), hexadecimal escapes (`\xHH`), vertical-tab escapes
+(`\v`), escaped backticks and the escaped substitution opener `\${`.
 Quotes stand raw. Only an unescaped `${` opens a substitution. Literal LF, CR
 and CRLF are admitted; raw CR and CRLF cook to LF, while escaped `\r` or
 `\u000D` stays CR. Raw U+2028 and U+2029 keep their values. Additional JavaScript
@@ -38,11 +39,13 @@ is ordinary text: `\x414` denotes `A4`. Missing or non-hexadecimal digits
 are errors, including `\x8?`. This uses the existing shared lexer and
 cooked-value decoder, without a new AST or FAST node.
 
-The language designer `sergey-shandar` approved this increment in the
+The language designer `sergey-shandar` approved the hexadecimal and vertical-tab
+increments in the
 [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
-Hexadecimal escapes are also admitted in single-quoted strings; double-quoted
-strings keep their existing escape subset. Vertical-tab and identity escapes,
-raw C0 controls other than CR/LF, and line continuations remain refused here.
+Hexadecimal and vertical-tab escapes are also admitted in single-quoted strings;
+double-quoted strings keep their existing escape subset. `\v` denotes U+000B,
+exactly as `\u000b` does, in every template chunk. Identity escapes, raw C0
+controls other than CR/LF, and line continuations remain refused here.
 
 The NUL shorthand `\0` is intentionally prohibited, even when followed by
 an otherwise valid character. Use the fixed-width `\u0000` or `\x00` spelling instead.
@@ -51,7 +54,6 @@ The codebase rule also applies to proofs, helpers and host adapters.
 | Refused template spelling | Admitted spelling with the same value |
 | --- | --- |
 | `` `\0${"key"}\0` `` | `` `\u0000${"key"}\u0000` `` |
-| `` `\v` `` | `` `\u000b` `` |
 
 For a refused line continuation, join the lines without the continuation
 sequence to preserve the value. Before marking a module compiler-compatible
