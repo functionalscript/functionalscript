@@ -36,9 +36,9 @@
  * @import { Primitive } from '../../../media/datajs/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
- * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Element, Elision, Entry, For, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
- * @import { ForStatement, NameExpression } from '../grammar/types.ts'
- * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
+ * @import { BranchBlock, NormalIf, BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, BlockEnd, BlockStatement, Case, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ValueStatement, While } from './types.ts'
+ * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
+ * @import { BranchBlock as BranchBlockRule, BranchContents, BranchElse, IfStatement, BlockContents, ArrowOrRest, BindingTarget as BindingTargetRule, Block as BlockRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, SimpleStatement, AfterCase, CaseTail, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
  */
@@ -53,7 +53,7 @@ import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, module, eagerTail, importBinding, importBindings,
+    afterCase, binaryOpTag, blockContents, branchContents, branchElse, simpleStatement, body, bodyNameStatement, callArguments, caseTail, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -179,7 +179,7 @@ const entriesAt = node => {
  * `const [(a)] = x;` being a syntax error in JavaScript, so the `paren`
  * id is what decides it, at the `(`.
  *
- * @type {(node: _Leaf) => BindingTarget}
+ * @type {(node: _Leaf) => PlainBindingTarget}
  */
 const valueTargetAt = node => {
     const out = outAt(node)
@@ -229,10 +229,10 @@ const entryTargetsAt = node => {
     return out.targets
 }
 
-/** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => BindingTarget} */
+/** A value that is no binding target, at the token it begins with. @type {(first: ModuleTokenWithMetadata) => PlainBindingTarget} */
 const invalid = first => ['invalid', first]
 
-/** A name as a binding target, by its token. @type {(token: ModuleTokenWithMetadata) => BindingTarget} */
+/** A name as a binding target, by its token. @type {(token: ModuleTokenWithMetadata) => PlainBindingTarget} */
 const named = token => ['name', token]
 
 /** @type {(node: _Leaf) => Import} */
@@ -246,6 +246,13 @@ const importAt = node => {
 const constAt = node => {
     const out = outAt(node)
     assert(out.id === 'const')
+    return out.statement
+}
+
+/** @type {(node: _Leaf) => Let} */
+const letAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'let')
     return out.statement
 }
 
@@ -463,7 +470,7 @@ const entryTargetsOf = listOf(entryTargetAt, entryTargetsAt)
  * its bracket, and the targets its list's mapping kept beside the items,
  * `[ open [ items ] close ]`'s list at the second position.
  *
- * @type {(tag: 'array' | 'object', open: ModuleTokenWithMetadata, list: _OptionalList) => BindingTarget}
+ * @type {(tag: 'array' | 'object', open: ModuleTokenWithMetadata, list: _OptionalList) => PlainBindingTarget}
  */
 const containerTarget = (tag, open, list) => {
     if (tag === 'array') { return ['array', open, toArray(elementTargets(list))] }
@@ -487,17 +494,24 @@ const parametersAfter = node => {
 }
 
 /**
- * A fixed parameter from its target and its default, `[ '=' value ]`: the
- * target alone where it has none, and otherwise the target with the `=`
- * and the value, {@link Parameter}.
+ * A binding target with its optional default, shared by parameters and
+ * array/object binding elements. The `=` and initializer retain their source.
  *
- * @type {(target: BindingTarget, init: _DefaultNode) => Parameter}
+ * @type {(target: PlainBindingTarget, init: _DefaultNode) => BindingTarget}
  */
-const parameterWith = (target, init) => {
+const targetWith = (target, init) => {
     const rounds = unmapped(init)
     if (rounds.length === 0) { return target }
     const [eq, v] = unmapped(rounds[0])
     return ['=', target, tokenAt(eq), nodeAt(v)]
+}
+
+/** A cover default remains explicitly refused where a value is wanted. @type {(node: Node, init: _DefaultNode) => Node} */
+const valueWith = (node, init) => {
+    const rounds = unmapped(init)
+    if (rounds.length === 0) { return node }
+    const [eq, value] = unmapped(rounds[0])
+    return ['binding-default', node, tokenAt(eq), nodeAt(value)]
 }
 
 /**
@@ -607,7 +621,7 @@ const parameterOf = node => {
  * is no target inside a pattern, `([(a)]) => 1`, is the pattern's to carry
  * and the fold's to refuse where it stands, as it is in a `const`.
  *
- * @type {(open: ModuleTokenWithMetadata, head: _Leaf, init: (target: BindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
+ * @type {(open: ModuleTokenWithMetadata, head: _Leaf, init: (target: PlainBindingTarget) => Parameter, more: _ParameterTail) => ParameterList}
  */
 const namedList = (open, head, init, more) => {
     const out = outAt(head)
@@ -615,7 +629,7 @@ const namedList = (open, head, init, more) => {
     return { fixed: [init(out.target), ...toArray(more.fixed)], rest: more.rest }
 }
 
-/** A head with no default: the target itself. @type {(target: BindingTarget) => Parameter} */
+/** A head with no default: the target itself. @type {(target: PlainBindingTarget) => Parameter} */
 const bare = target => target
 
 /**
@@ -735,6 +749,35 @@ const accessed = closed => (base, round) => {
  * @type {(base: Node, accesses: readonly _AccessNode[], closed: boolean) => Node}
  */
 const steps = (base, accesses, closed) => accesses.reduce((node, round, i) => accessed(closed && i === 0)(node, round), base)
+
+/** A callee's member steps stop before the construction's argument list. @type {(node: Children<ConstructorCallee, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toConstructorCallee = ([tag, branch]) => {
+    if (tag === 'group') {
+        const [open, v, more, , accesses] = unmapped(branch)
+        const first = tokenAt(open)
+        return symbol({ id: 'value', node: steps(grouped(v, more), unmapped(accesses), true), first, target: invalid(first) })
+    }
+    if (tag === 'name') {
+        const [id, accesses] = unmapped(branch)
+        const first = tokenAt(unmapped(id)[1])
+        return symbol({ id: 'value', node: steps(['ref', first], unmapped(accesses), false), first, target: invalid(first) })
+    }
+    const [constructed, accesses] = unmapped(branch)
+    const first = firstAt(constructed)
+    return symbol({ id: 'value', node: steps(nodeAt(constructed), unmapped(accesses), false), first, target: invalid(first) })
+}
+
+/** Construction is retained independently from ordinary calls and has its own source token. @type {(node: Children<NewExpression, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpression = ([keyword, callee, , args]) => {
+    const first = tokenAt(keyword)
+    return symbol({ id: 'value', node: ['new', nodeAt(callee), toArray(valueItems(args)), first], first, target: invalid(first) })
+}
+
+/** A constructor statement uses the existing discard record and retains its starting token. @type {(node: Children<NewExpressionStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toNewExpressionStatement = ([constructed, accesses, end]) => {
+    const start = firstAt(constructed)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: steps(nodeAt(constructed), unmapped(accesses), false) } })
+}
 
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
@@ -890,7 +933,7 @@ export const _baseOf = ([tag, branch]) => {
             const p = unmapped(x)[0]
             return ['primitive', _primitiveOf(unmapped(p))]
         }
-        case 'template': {
+        case 'template': case 'construct': {
             const x = unmapped(branch)[0]
             return nodeAt(unmapped(x)[0])
         }
@@ -930,9 +973,9 @@ const firstAt = node => {
  * token, under the alternative it matched, or a container's opening
  * bracket, the first symbol of `[ open [ items ] close ]`.
  *
- * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object', base: _Leaf) => ModuleTokenWithMetadata}
+ * @type {(tag: 'primitive' | 'template' | 'ref' | 'array' | 'object' | 'construct', base: _Leaf) => ModuleTokenWithMetadata}
  */
-const baseFirst = (tag, base) => tag === 'template' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
+const baseFirst = (tag, base) => tag === 'template' || tag === 'construct' ? firstAt(base) : tokenAt(/** @type {_Leaf} */ (unmapped(base)[tag === 'array' || tag === 'object' ? 0 : 1]))
 
 /**
  * A function's parameter list against its `=>`: the list, or the `=>`
@@ -1009,7 +1052,7 @@ const parenNode = (open, [tag, branch]) => {
     }
     if (kind === 'default') {
         const [eq, d, more, , arrow, b] = unmapped(rest)
-        /** @type {(target: BindingTarget) => Parameter} */
+        /** @type {(target: PlainBindingTarget) => Parameter} */
         const init = target => ['=', target, tokenAt(eq), nodeAt(d)]
         return ['=>', arrowed(namedList(open, v, init, parametersAfter(more)), tokenAt(arrow)), nodeAt(b)]
     }
@@ -1160,8 +1203,8 @@ const toBlockContents = ([statements, ending]) => {
     if (kind === 'for') {
         const read = forAt(unmapped(branch)[0])
         return symbol({ id: 'blockContents', statements: following === undefined
-            ? [...prefix, ['terminal-for', read]]
-            : [...prefix, ['for', read], ...blockContentsAt(following)] })
+            ? [...prefix, read[0] === 'for' ? ['terminal-for', read[1]] : ['terminal-for-of', read[1]]]
+            : [...prefix, read, ...blockContentsAt(following)] })
     }
     const read = loopConditionAt(unmapped(branch)[0])
     return symbol({ id: 'blockContents', statements: following === undefined
@@ -1197,8 +1240,8 @@ const toBranchContents = ([statements, ending]) => {
     if (kind === 'for') {
         const read = forAt(unmapped(branch)[0])
         return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
-            ? ['branch', prefix, ['terminal-for', read]]
-            : ['branch', [...prefix, ['for', read], ...following[1]], following[2]] })
+            ? ['branch', prefix, read[0] === 'for' ? ['terminal-for', read[1]] : ['terminal-for-of', read[1]]]
+            : ['branch', [...prefix, read, ...following[1]], following[2]] })
     }
     const read = loopConditionAt(unmapped(branch)[0])
     return symbol({ id: 'branchContents', block: following[1].length === 0 && following[2] === null
@@ -1224,6 +1267,7 @@ const normalIfAt = node => {
 /** Preserve explicit terminating/no-else guards; final-loop completion needs resolved owners. @type {(statement: NormalIf) => BlockStatement} */
 const ordinaryIf = statement => statement.otherwise === null && statement.block[2] !== null
     && statement.block[2][0] !== 'terminal-while' && statement.block[2][0] !== 'terminal-for'
+    && statement.block[2][0] !== 'terminal-for-of'
     ? ['if', { start: statement.start, condition: statement.condition, block: ['block', [...statement.block[1], statement.block[2]]] }]
     : ['normal-if', statement]
 
@@ -1339,26 +1383,63 @@ const loopConditionAt = node => {
     return { start: tokenAt(first), condition: nodeAt(condition), block: loopBlockOf(unmapped(blk)) }
 }
 
-/** Retain each clause, using literal true only when the test is omitted. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => For} */
+/**
+ * Share the classic/iteration header read after preserving the target's spelling.
+ * @type {(node: Children<Pick<ForHeader, 'const' | 'let'>, ModuleTokenWithMetadata, Out>) => readonly [ModuleTokenWithMetadata, PlainBindingTarget, Ast<ForNamedLetTail, ModuleTokenWithMetadata, Out>]}
+ */
+const forDeclarationOf = node => {
+    const [kind, branch] = node
+    if (kind === 'const') {
+        const [keyword, target, continuation] = unmapped(branch)
+        return [tokenAt(keyword), targetOf(unmapped(target)), continuation]
+    }
+    const [keyword, binding] = unmapped(branch)
+    const [form, selected] = unmapped(binding)
+    if (form === 'name') {
+        const [name, continuation] = unmapped(selected)
+        return [tokenAt(keyword), named(tokenAt(unmapped(name)[1])), continuation]
+    }
+    const [target, continuation] = unmapped(selected)
+    return [tokenAt(keyword), targetOf(unmapped(target)), continuation]
+}
+
+/** Keep `for...of` distinct while classic clauses retain their existing AST. @type {(node: Ast<ForStatement, ModuleTokenWithMetadata, Out>) => readonly ['for', For] | readonly ['for-of', ForOf]} */
 const forAt = node => {
-    const [first, , initial, , condition, , step, , block] = unmapped(node)
-    const initializer = unmapped(initial)[0]
+    const [first, , header, , block] = unmapped(node)
+    const choice = unmapped(header)
+    const [kind, branch] = choice
     /** @type {For['initializer']} */
     let declaration = null
-    if (initializer !== undefined) {
-        const [kind, branch] = unmapped(initializer)
-        if (kind === 'name') { declaration = namedExpressionOf(unmapped(branch), true) }
-        else {
-            const [first, target, , value] = unmapped(branch)
-            declaration = [kind, { start: tokenAt(first), semicolon: true, target: targetOf(unmapped(target)), value: nodeAt(value) }]
+    /** @type {Ast<ForClassicTail, ModuleTokenWithMetadata, Out> | null} */
+    let classic = null
+    if (kind === 'empty') { classic = unmapped(branch)[1] }
+    else if (kind === 'name') {
+        const [initial, , tail] = unmapped(branch)
+        declaration = namedExpressionOf(unmapped(initial), true)
+        classic = tail
+    } else {
+        const [keyword, target, continuation] = forDeclarationOf(choice)
+        const [form, following] = unmapped(continuation)
+        if (form === 'of') {
+            return ['for-of', { start: tokenAt(first), kind, target,
+                iterable: nodeAt(unmapped(following)[1]), block: loopBlockOf(unmapped(block)) }]
+        }
+        if (form === 'uninitialized') {
+            declaration = ['let', { start: keyword, semicolon: true, target, value: null }]
+            classic = unmapped(following)[1]
+        } else {
+            const [, value, , tail] = unmapped(following)
+            declaration = [kind, { start: keyword, semicolon: true, target, value: nodeAt(value) }]
+            classic = tail
         }
     }
+    const [condition, , step] = unmapped(classic)
     const test = unmapped(condition)[0]
     const update = unmapped(step)[0]
-    return { start: tokenAt(first), initializer: declaration,
+    return ['for', { start: tokenAt(first), initializer: declaration,
         condition: test === undefined ? ['primitive', true] : nodeAt(test),
         step: update === undefined ? null : namedExpressionOf(unmapped(update), true),
-        block: loopBlockOf(unmapped(block)) }
+        block: loopBlockOf(unmapped(block)) }]
 }
 
 /** An alternate has already been rewritten, so chained conditionals cost no host recursion. @type {(node: _Leaf) => LoopBlock} */
@@ -1392,7 +1473,9 @@ const toLoopElse = ([kind, branch]) => {
  */
 const toStatement = ([kind, branch]) => {
     switch (kind) {
-        case 'const': case 'let': { return symbol({ id: 'statement', statement: [kind, constAt(branch)] }) }
+        case 'construct': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
+        case 'const': { return symbol({ id: 'statement', statement: ['const', constAt(branch)] }) }
+        case 'let': { return symbol({ id: 'statement', statement: ['let', letAt(branch)] }) }
         case 'name': { return symbol({ id: 'statement', statement: namedAt(branch) }) }
         default: { return symbol({ id: 'statement', statement: ordinaryIf(normalIfAt(branch)) }) }
     }
@@ -1411,13 +1494,16 @@ const discarded = (name, rest, semicolon) =>
 
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
+    if (kind === 'construct') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
     if (kind === 'name') {
         const named = namedAt(branch)
         return symbol({ id: 'moduleStatement', statement: named[0] === 'assign' ? named : ['const', { declaration: named[1], exported: false }] })
     }
-    return symbol({ id: 'moduleStatement', statement: [kind, { declaration: constAt(branch), exported: false }] })
+    return symbol({ id: 'moduleStatement', statement: kind === 'let'
+        ? ['let', { declaration: letAt(branch), exported: false }]
+        : ['const', { declaration: constAt(branch), exported: false }] })
 }
 
 /**
@@ -1454,6 +1540,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
  * @type {(node: Children<LoopStatementRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toLoopStatement = ([kind, branch]) => {
+    if (kind === 'construct') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
     if (kind === 'break' || kind === 'continue') {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
@@ -1462,9 +1549,10 @@ const toLoopStatement = ([kind, branch]) => {
     if (kind === 'throw') { return symbol({ id: 'loopStatement', statement: ['throw', valueStatementOf(unmapped(branch))] }) }
     if (kind === 'if') { return symbol({ id: 'loopStatement', statement: ['if', loopIfAt(branch)] }) }
     if (kind === 'while') { return symbol({ id: 'loopStatement', statement: ['while', loopConditionAt(branch)] }) }
-    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: ['for', forAt(branch)] }) }
+    if (kind === 'for') { return symbol({ id: 'loopStatement', statement: forAt(branch) }) }
     if (kind === 'switch') { return symbol({ id: 'loopStatement', statement: ['switch', loopSwitchAt(branch)] }) }
-    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch) : [kind, constAt(branch)] })
+    return symbol({ id: 'loopStatement', statement: kind === 'name' ? namedAt(branch)
+        : kind === 'let' ? ['let', letAt(branch)] : ['const', constAt(branch)] })
 }
 
 /**
@@ -1505,18 +1593,28 @@ export const _toMember = ([tag, branch]) => {
             if (rounds.length === 0) {
                 return memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['ref', key] }, { key, target: ['name', key] })
             }
-            const v = unmapped(rounds[0])[1]
-            return memberOf({ key, spelling: 'plain', name: nameOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
+            const [kind, tail] = unmapped(rounds[0])
+            if (kind === 'default') {
+                const [eq, v] = unmapped(tail)
+                return memberOf({ key, spelling: 'shorthand', name: nameOf(key), value: ['binding-default', ['ref', key], tokenAt(eq), nodeAt(v)] }, { key, target: ['=', ['name', key], tokenAt(eq), nodeAt(v)] })
+            }
+            const [, v, init] = unmapped(tail)
+            return memberOf({ key, spelling: 'plain', name: nameOf(key), value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
         }
         case 'string': {
-            const [s, , v] = unmapped(branch)
+            const [s, , v, init] = unmapped(branch)
             const key = tokenAt(s)
-            return memberOf({ key, spelling: 'string', name: textOf(key), value: nodeAt(v) }, { key, target: valueTargetAt(v) })
+            return memberOf({ key, spelling: 'string', name: textOf(key), value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
+        }
+        case 'number': {
+            const [n, , v, init] = unmapped(branch)
+            const key = tokenAt(n)
+            return memberOf({ key, spelling: 'number', node: ['primitive', _primitiveOf(['number', n])], value: valueWith(nodeAt(v), init) }, { key, target: targetWith(valueTargetAt(v), init) })
         }
         case 'computed': {
-            const [, k, , , v] = unmapped(branch)
+            const [, k, , , v, init] = unmapped(branch)
             const first = firstAt(k)
-            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: nodeAt(v) }, { key: bracketKey(k), target: valueTargetAt(v) })
+            return memberOf({ key: first, spelling: 'computed', node: nodeAt(k), value: valueWith(nodeAt(v), init) }, { key: bracketKey(k), target: targetWith(valueTargetAt(v), init) })
         }
         default: { throw ['not a member', tag] }
     }
@@ -1623,7 +1721,7 @@ const toImport = ([first, clause, , module, attribute, end]) => {
  * `[ open [ items ] close ]`, read from its list's mapping as a value's
  * is, {@link containerTarget}.
  *
- * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => BindingTarget}
+ * @type {(node: Children<BindingTargetRule, ModuleTokenWithMetadata, Out>) => PlainBindingTarget}
  */
 const targetOf = ([tag, branch]) => {
     if (tag === 'name') { return ['name', tokenAt(unmapped(branch)[1])] }
@@ -1634,6 +1732,20 @@ const targetOf = ([tag, branch]) => {
 /** @type {(node: Children<ConstStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([first, target, , v, end]) =>
     symbol({ id: 'const', statement: { start: tokenAt(first), semicolon: ended(end), target: targetOf(unmapped(target)), value: nodeAt(v) } })
+
+/** @type {(node: Children<LetStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toLet = ([first, binding, end]) => {
+    const [kind, branch] = unmapped(binding)
+    if (kind === 'name') {
+        const [name, initializer] = unmapped(branch)
+        const initial = unmapped(initializer)[0]
+        return symbol({ id: 'let', statement: { start: tokenAt(first), semicolon: ended(end),
+            target: named(tokenAt(unmapped(name)[1])), value: initial === undefined ? null : nodeAt(unmapped(initial)[1]) } })
+    }
+    const [target, initializer] = unmapped(branch)
+    return symbol({ id: 'let', statement: { start: tokenAt(first), semicolon: ended(end),
+        target: targetOf(unmapped(target)), value: nodeAt(unmapped(initializer)[1]) } })
+}
 
 /** @type {(node: _Leaf) => ModuleStatementRecord} */
 const moduleStatementAt = node => {
@@ -1705,7 +1817,10 @@ const map = mapping
  * @type {(node: Children<ItemRule, ModuleTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toItem = ([tag, branch]) => {
-    if (tag === 'value') { return symbol({ id: 'item', item: nodeAt(branch), target: valueTargetAt(branch) }) }
+    if (tag === 'value') {
+        const [v, init] = unmapped(branch)
+        return symbol({ id: 'item', item: valueWith(nodeAt(v), init), target: targetWith(valueTargetAt(v), init) })
+    }
     const [dots, v] = unmapped(branch)
     return symbol({ id: 'item', item: ['...', nodeAt(v)], target: ['...', tokenAt(dots), valueTargetAt(v)] })
 }
@@ -1739,7 +1854,7 @@ const toEntries = node => symbol({ id: 'entries', items: entriesOf(node), target
 /**
  * The parameters after a named list's first, from `parameterNames`'s
  * branch: a fixed parameter — its target, {@link targetOf}, with its
- * default where it has one, {@link parameterWith} — before the parameters
+ * default where it has one, {@link targetWith} — before the parameters
  * its tail's mapping already returned, `target [ '=' value ] [ ',' [
  * parameters ] ]` — so a list of any length costs one step at each of its
  * nodes, as an array's items do — or the rest parameter's token, which
@@ -1754,13 +1869,13 @@ const toParameterNames = ([tag, branch]) => {
     }
     const [target, init, more] = unmapped(branch)
     const tail = parametersAfter(more)
-    return symbol({ id: 'parameters', fixed: { first: parameterWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
+    return symbol({ id: 'parameters', fixed: { first: targetWith(targetOf(unmapped(target)), init), tail: tail.fixed }, rest: tail.rest })
 }
 
 /**
  * What follows `(` value `,`, from `parenItems`'s branch, read both ways
  * the `)` may decide: a fixed item — its target as a parameter, with its
- * default where it has one, {@link parameterWith}, and its node as an
+ * default where it has one, {@link targetWith}, and its node as an
  * operand — before the items its tail's mapping already returned, the
  * first token no operand list holds kept, the default's `=` before the
  * tail's; or the rest parameter's token, which ends the list and is that
@@ -1778,7 +1893,7 @@ const toParenItems = ([tag, branch]) => {
     const rounds = unmapped(init)
     return symbol({
         id: 'parenItems',
-        fixed: { first: parameterWith(valueTargetAt(v), init), tail: tail.fixed },
+        fixed: { first: targetWith(valueTargetAt(v), init), tail: tail.fixed },
         rest: tail.rest,
         operands: { first: nodeAt(v), tail: tail.operands },
         refusal: rounds.length === 0 ? tail.refusal : tokenAt(unmapped(rounds[0])[0]),
@@ -1795,6 +1910,9 @@ const toParenItems = ([tag, branch]) => {
  * @type {RewriteSet<ModuleTokenWithMetadata, Out>}
  */
 export const mappings = [
+    map(constructorCallee, toConstructorCallee),
+    map(newExpression, toNewExpression),
+    map(newExpressionStatement, toNewExpressionStatement),
     map(template, toTemplate),
     map(value, toNode),
     map(body, toNode),
@@ -1823,8 +1941,7 @@ export const mappings = [
     map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
-    // a `let` is the record a `const` is, under the other keyword
-    map(letStatement, toConst),
+    map(letStatement, toLet),
     map(bodyNameStatement, toBodyNameStatement),
     map(moduleStatement, toModuleStatement),
     map(simpleStatement, toStatement),

@@ -16,7 +16,6 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { iterable } from '../../types/list/iterable/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isSpread, mapOperator, operatorOperands } from '../../js/ast/module.f.mjs'
 import { scalarLoopOf } from '../../js/ast/loop/module.f.js'
@@ -412,7 +411,7 @@ const summaries = (root, known = new Map(), external = []) => {
         results = { first: value, tail: results }
         entries = { first: [visit[1][1], value], tail: entries }
     }
-    return new Map(iterable(entries))
+    return new Map(toArray(entries))
 }
 
 /** @type {(block: Block, context: Context) => Summary} */

@@ -52,8 +52,7 @@
  */
 
 import { length, u8ListMsb, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
-import { iterable } from '../../types/list/iterable/module.f.mjs'
-import { run } from '../../types/list/module.f.js'
+import { next, run } from '../../types/list/module.f.js'
 import { run as runStream } from '../../effects/list/module.f.mjs'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
@@ -199,10 +198,10 @@ const initial = {
 /** @type {(magic: _MagicState, utf8: _Utf8Detect) => boolean} */
 const isSettled = (magic, utf8) => {
     switch (magic.tag) {
-        case 'matched': return true
-        case 'dead': return !utf8.valid || !utf8.text
+        case 'matched': { return true }
+        case 'dead': { return !utf8.valid || !utf8.text }
         // `'scan'`, the one tag left: every magic state is built in this module
-        default: return false
+        default: { return false }
     }
 }
 
@@ -219,7 +218,8 @@ const update = (s, chunk) => {
     let magic = s.magic
     let utf8 = s.utf8
     if (!isSettled(magic, utf8)) {
-        for (const byte of iterable(u8ListMsb(chunk))) {
+        for (let item = next(u8ListMsb(chunk)); item !== null; item = next(item.tail)) {
+            const { first: byte } = item
             magic = magicStep(magic, byte)
             utf8 = utf8Step(utf8, byte)
             if (isSettled(magic, utf8)) { break }

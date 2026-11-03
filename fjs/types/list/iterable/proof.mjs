@@ -1,4 +1,9 @@
-import { iterable, toArray } from './module.f.mjs'
+/**
+ * Proves the host adapter through JavaScript iteration and Array.from.
+ * FunctionalScript does not expose the host iterator protocol.
+ */
+
+import { iterable, toArray } from './module.mjs'
 import { countdown } from '../module.f.js'
 import { stringifySorted } from '../../../media/json/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.js'

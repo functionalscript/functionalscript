@@ -136,11 +136,17 @@ const encodedBody = (loop, target, cases, direct = false) => walk(loop.body, fal
         /** @type {Statement} */
         let mapped = statement
         if (statement[0] === 'block') {
-            const part = parts[Number(index++)]
+            const partIndex = index
+            index += 1
+            const part = parts[Number(partIndex)]
             if (part.block !== statement[2]) { changed = true; mapped = ['block', statement[1], part.block] }
         } else if (statement[0] === 'if') {
-            const then = parts[Number(index++)].block
-            const otherwise = parts[Number(index++)].block
+            const thenIndex = index
+            index += 1
+            const then = parts[Number(thenIndex)].block
+            const otherwiseIndex = index
+            index += 1
+            const otherwise = parts[Number(otherwiseIndex)].block
             if (then !== statement[3] || otherwise !== statement[4]) { changed = true; mapped = ['if', statement[1], statement[2], then, otherwise] }
         }
         reversed = { first: mapped, tail: reversed }
@@ -244,19 +250,27 @@ const completeBlock = (block, target, root) => {
             /** @type {readonly Statement[]} */
             let added = [statement]
             if (statement[0] === 'block') {
-                const part = parts[Number(index++)]
+                const partIndex = index
+                index += 1
+                const part = parts[Number(partIndex)]
                 flow = mergeFlow(flow, part.flow)
                 if (part.block !== statement[2]) { changed = true; added = [['block', statement[1], part.block]] }
             } else if (statement[0] === 'if') {
-                const then = parts[Number(index++)]
-                const otherwise = parts[Number(index++)]
+                const thenIndex = index
+                index += 1
+                const then = parts[Number(thenIndex)]
+                const otherwiseIndex = index
+                index += 1
+                const otherwise = parts[Number(otherwiseIndex)]
                 flow = mergeFlow(mergeFlow(flow, then.flow), otherwise.flow)
                 if (then.block !== statement[3] || otherwise.block !== statement[4]) {
                     changed = true
                     added = [['if', statement[1], statement[2], then.block, otherwise.block]]
                 }
             } else if (statement[0] === 'loop') {
-                const part = parts[Number(index++)]
+                const partIndex = index
+                index += 1
+                const part = parts[Number(partIndex)]
                 const loop = part.block === statement[1].body ? statement[1] : { ...statement[1], body: part.block }
                 const outgoing = /** @type {_Flow} */ ({
                     returns: part.flow.returns,
@@ -275,7 +289,9 @@ const completeBlock = (block, target, root) => {
         }
         let exit = block.exit
         if (exit[0] === 'loop') {
-            const part = parts[Number(index++)]
+            const partIndex = index
+            index += 1
+            const part = parts[Number(partIndex)]
             const loop = part.block === exit[1].body ? exit[1] : { ...exit[1], body: part.block }
             /** @type {_Flow} */
             const outgoing = { returns: part.flow.returns,

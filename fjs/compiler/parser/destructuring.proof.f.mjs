@@ -126,7 +126,6 @@ export const proof = {
             expectRefused('export default ([a, ...r]) => 1;', 'rest element not supported', 21)
             expectRefused('export default ({ [k]: a }) => 1;', 'computed key in a binding pattern not supported', 20)
             expectRefused('export default (...[a]) => 1;', 'unexpected token', 20)
-            expectRefused('export default ({ a = 1 }) => 1;', 'unexpected token', 21)
             expectRefused('export default ({ a })\n=> 1;', 'unexpected token', 1)
         },
         // A pattern names no function as its whole value, so no name in it
@@ -173,9 +172,6 @@ export const proof = {
             expectRefused('const x = {}; const { [(3)]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { [-1]: a } = x; export default 1;', 'computed key in a binding pattern not supported', 24)
             expectRefused('const x = {}; const { ["toString"]: a } = x; export default 1;', 'prohibited property name', 24)
-            // a default is no literal, so the grammar stops at its `=`
-            expectRefused('const x = []; const [a = 1] = x; export default 1;', 'unexpected token', 24)
-            expectRefused('const x = {}; const { a = 1 } = x; export default 1;', 'unexpected token', 25)
             // a rest element after an elision is still the rest element
             expectRefused('const x = []; const [, ...r] = x; export default 1;', 'rest element not supported', 24)
         },

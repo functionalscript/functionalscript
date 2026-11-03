@@ -90,6 +90,10 @@ over `source`. The remaining escapes in
 [single-quote-and-template-lexing](../../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
 then become one grammar branch plus one mapping arm each.
 
+The move must preserve the quote-specific language policy: single-quoted
+strings accept `\'`, `\xHH` and `\v` above the JSON table; double-quoted
+strings remain JSON's. Template admission remains the separate policy above.
+
 ### Tasks
 
 - [ ] After mapping-precheck: `tagged` and `Tagged` into `fjs/ebnf/ast`, as

@@ -7,6 +7,21 @@ import { assertEq, assertStructurallySame } from '../../../../asserts/module.f.j
 import { writes } from './module.f.mjs'
 
 export const proof = {
+    patternDefaultsContributeOnlyWhenTheirRegionRuns: () => {
+        const id = /** @type {BindingId} */ ({ index: 0 })
+        const selected = /** @type {SourceBlock} */ ({ statements: [['write', id, 1]], exit: ['yield', 2] })
+        const fallback = /** @type {SourceValue} */ (['block', selected])
+        const plan = /** @type {const} */ ({ reads: [{ source: null, spread: false }, { source: [0, 'a'], spread: false, default: { value: fallback } }], ids: [{ index: 1 }, { index: 2 }] })
+        const root = /** @type {SourceBlock} */ ({ statements: [['initialize', plan, ['object', []]]], exit: ['yield', 0] })
+        const indexed = writes(root, new Map())
+        assertStructurallySame(indexed.get(root), [id])
+        assertStructurallySame(indexed.get(fallback), [id])
+        const target = /** @type {FunctionTarget} */ ({ kind: 'function', index: 0 })
+        const held = /** @type {SourceValue} */ (['function', { target, length: 1, parameters: [{ plan, default: null }], rest: null, self: null, body: { statements: [], exit: ['yield', 0] } }])
+        const behind = writes(held, new Map())
+        assertStructurallySame(behind.get(fallback), [id])
+        assertStructurallySame(behind.get(held), [])
+    },
     forUpdatesContributeToNormalAndTerminalLoopEffects: () => {
         const id = /** @type {BindingId} */ ({ index: 0 })
         const target = /** @type {LoopTarget} */ ({ kind: 'loop', index: 0 })

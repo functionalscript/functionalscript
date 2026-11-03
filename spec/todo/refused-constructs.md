@@ -99,7 +99,6 @@ describes:
 | `acc.guarded-namespace` | `Object?.is`, `Number?.["isInteger"]` | design ([built-in static functions](../built-ins/static-functions/README.md): a namespace is no value, so it has no nullishness to guard; page: [A Guarded Namespace Is Refused](../built-ins/static-functions/guarded/README.md)) |
 | `acc.proto-key` | `{ __proto__: 1 }` | design ([`__proto__`](../values/objects/README.md#the-__proto__-key); page: [A `__proto__:` Key Is Refused](../values/objects/proto-key/README.md)) |
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
-| `acc.numeric-key` | `{ 0: 1 }` | planned (roadmap, property key as number) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md); page: [Binding a Literal Word Is Refused](../bindings/literal-words/README.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value; page: [Binding a Built-in's Name Is Refused](../bindings/intrinsic-names/README.md)) |
 | `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
@@ -140,8 +139,6 @@ describes:
 | `decl.method` | `{ f() { return 1 } }` | open |
 | `decl.pattern-array-rest` | `[a, ...r]` in a pattern or a parameter | planned ([destructuring](./2450-destructuring.md), the next task) |
 | `decl.pattern-object-rest` | `{ a, ...r }` in a pattern or a parameter | open ([destructuring](./2450-destructuring.md) files it as a follow-up) |
-| `decl.let-uninitialized` | `let x;` | planned ([definite assignment](./3225-definite-assignment.md), P5: admitted where every path assigns the variable before a read; refused by design until then — [variables](../bindings/variables/README.md): a variable names its value where it is declared, as a body ends in an explicit `return`, and no path is tracked to a first assignment) |
-| `decl.pattern-default` | `{ a = 1 }`, `[a = 1]` in a pattern | planned ([default parameters](./3125-default-parameters.md)) |
 | `decl.pattern-computed-key` | `{ [k]: a }`, `{ [Number(i)]: a }`, `{ [(3)]: a }` | open ([destructuring](./2450-destructuring.md)) |
 | `decl.parameter-limit` | 17 fixed parameters | design ([functions](../functions/README.md); page: [More Than 16 Fixed Parameters Are Refused](../functions/parameters/limit/README.md)) |
 
@@ -172,7 +169,7 @@ describes:
 | `lit.trailing-dot` | `5.` | open |
 | `lit.array-hole` | `[,]`, `[1,,2]` | design ([arrays](../values/arrays/README.md): an array has no holes; the same comma in a pattern is an elision, [destructuring](../bindings/destructuring/README.md); page: [An Array Hole Is Refused](../values/arrays/holes/README.md)) |
 | `lit.double-quoted-apostrophe` | `"\'"` | design ([strings](../values/strings/README.md): a double-quoted string stays a JSON string; page: [`\'` in a Double-Quoted String Is Refused](../values/strings/apostrophe-escape/README.md)) |
-| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | open ([string literals](./2460-js-string-literals.md) defers them until a measured need appears) |
+| `lit.string-escape` | `"\x41"`, `"\v"`, `"\0"`, `"\u{41}"`, a raw TAB | design for double-quoted escapes ([string escapes](../lexical/string-escapes/README.md) keeps them JSON); the remaining single-quoted spellings and raw controls are open in [string literals](./2460-js-string-literals.md) |
 | `lit.string-continuation` | a `\` before a line terminator in a string | open ([string literals](./2460-js-string-literals.md) defers it until a measured need appears) |
 | `lit.template-escape` | `` `\x41` ``, `` `\v` ``, a raw TAB in a template | open ([template literals](../values/template-literals/README.md) calls them deferred; no roadmap item admits them) |
 

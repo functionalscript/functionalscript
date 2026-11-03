@@ -265,36 +265,38 @@ const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 
 /**
  * The code point a simple escape denotes: JSON's table, shared with the
- * JSON serializer, and `\'` above it. `\'` is JavaScript's and not JSON's,
- * so it is decoded here rather than added to the table, whose encode view
- * would then write `\'` into JSON.
+ * JSON serializer, with `\'` and `\v` above it. Those single-quoted
+ * escapes are decoded here rather than added to the table, whose encode
+ * view must keep writing valid JSON.
  *
  * @type {(letter: number) => number | null}
  */
-const simpleEscapeToCodePoint = letter => letter === apostrophe ? apostrophe : escapeToCodePoint(letter)
+const simpleEscapeToCodePoint = letter => letter === apostrophe ? apostrophe : letter === one('v') ? 0xb : escapeToCodePoint(letter)
 
 /** @type {StateScan<number, _StringDecodeState, List<number>>} */
 const stringDecodeScan = (cp, state) => {
     switch (state.kind) {
         case 'escape': {
             const codePoint = simpleEscapeToCodePoint(cp)
-            // The grammar's `string` rule only ever accepts one of the eight
-            // simple escapes, `\'` inside single quotes, or `u` right after
-            // a backslash — any other character fails to parse before a
-            // token reaches this scan at all, so narrowing to those ten is
-            // provable, not merely assumed. `u` is the one no table answers
-            // for: the four hex digits that follow decide its meaning.
-            assert(codePoint !== null || cp === latinSmallLetterU, cp)
+            // The grammar admits JSON's simple escapes and `u`, plus
+            // `\'`, `\v` and `x` inside single quotes. It validates the
+            // complete escape before this scan; only `u` and `x` need the
+            // following digits to decide their value.
+            assert(codePoint !== null || cp === latinSmallLetterU || cp === one('x'), cp)
             return codePoint === null
-                ? [null, { kind: 'unicode', digits: [] }]  // \u → start 4 hex digits
+                ? [null, { kind: cp === one('x') ? 'hex' : 'unicode', digits: [] }]
                 : [[codePoint], { kind: 'normal' }]
         }
-        case 'unicode': {
+        case 'unicode':
+        case 'hex': {
             const digits = [...state.digits, cp]
-            return digits.length === 4 ? [[fixedHexValue(digits)], { kind: 'normal' }] : [null, { kind: 'unicode', digits }]
+            return digits.length === (state.kind === 'hex' ? 2 : 4)
+                ? [[fixedHexValue(digits)], { kind: 'normal' }]
+                : [null, { kind: state.kind, digits }]
         }
-        default:
+        default: {
             return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
+        }
     }
 }
 

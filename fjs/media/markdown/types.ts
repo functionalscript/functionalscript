@@ -29,14 +29,16 @@
  * **`strong` and `em` hold {@link Emphasised} spans**: text and code, as a
  * link's label does, and links. A README sets a name in bold as
  * `` **`Object` is a reserved word** `` and links from bold as
- * `**[capl.md](./capl.md)**`. Neither holds another emphasis, so neither
- * carries {@link Inline}: a nested shape would be a generality no file
- * uses, and the parser would owe it a meaning.
+ * `**[capl.md](./capl.md)**`. **Bold may also hold emphasis**
+ * ({@link Bolded}), as a file stresses a word in a bold sentence,
+ * `**… *be* …**`; emphasis holds no bold, and neither holds itself. So
+ * neither carries {@link Inline}: a deeper shape would be a generality no
+ * file uses, and the parser would owe it a meaning.
  */
 export type Inline =
     | readonly ['text', string]
     | readonly ['code', string]
-    | readonly ['strong', readonly Emphasised[]]
+    | readonly ['strong', readonly Bolded[]]
     | readonly ['em', readonly Emphasised[]]
     | readonly ['link', readonly LinkLabel[], string]
     | Image
@@ -54,6 +56,12 @@ export type Label = readonly ['text', string] | readonly ['code', string]
  * refused there.
  */
 export type Emphasised = Label | readonly ['link', readonly Label[], string]
+
+/**
+ * One span of a bold body: an {@link Emphasised} span, or emphasis holding
+ * them.
+ */
+export type Bolded = Emphasised | readonly ['em', readonly Emphasised[]]
 
 /**
  * An image: its alternative text, then its source. GitHub reads `![alt](u)`

@@ -1,8 +1,9 @@
 # String Escapes and Quotes
 
-**Status:** JSON's escapes and `\'` implemented; JavaScript's other escapes are refused
+**Status:** JSON's escapes implemented; single quotes also admit `\'`, `\xHH` and `\v`
 
-A string is JSON's, between double quotes or between single quotes:
+A double-quoted string is JSON's. Single quotes admit the additional escapes
+described below:
 
 ```js
 export default ["hello!", 'hello!'];
@@ -10,20 +11,25 @@ export default ["hello!", 'hello!'];
 
 Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
 `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
-`\` or C0 control character (U+0000 through U+001F). Between single quotes it
-is the same with the delimiters swapped: a `"` stands for itself, and `\'` is
-the one escape it adds, so `'it\'s'` and `"it's"` are one string. Every other
+`\` or C0 control character (U+0000 through U+001F). Between single quotes
+the delimiters are swapped: a `"` stands for itself, and `\'` escapes the
+apostrophe, so `'it\'s'` and `"it's"` are one string. Single quotes also
+accept `\xHH`, exactly two hexadecimal digits denoting a UTF-16 code unit
+from U+0000 through U+00FF, and `\v`, denoting U+000B (vertical tab).
+Hexadecimal digits may use either case: `'\x41'` and `"A"` are one string,
+as are `'\v'` and `"\u000b"`. Every other
 code point may stand raw in either quote, as in JSON: DEL (U+007F), the C1
 controls (U+0080 through U+009F), U+FEFF, U+2028 and U+2029, and a code point
 above U+FFFF included. The quote is a spelling, not part of the value, and
 every output writes the string between double quotes.
 
-`\'` stays refused between double quotes, where JavaScript accepts it, so a
-double-quoted string is always a JSON string. JavaScript's other spellings —
-the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw TAB or other C0 control
+`\'`, `\xHH` and `\v` stay refused between double quotes, where JavaScript
+accepts them, so a double-quoted string is always a JSON string. JavaScript's
+other spellings — the `\0` and `\u{…}` escapes, a raw TAB or other C0 control
 character, a line continuation — are refused in both quotes; see
 [js-string-literals](../../todo/2460-js-string-literals.md). Backtick-delimited
-[template literals](../../values/template-literals/README.md) have their own expression syntax.
+[template literals](../../values/template-literals/README.md) have their own
+expression syntax and escape policy; `\xHH` and `\v` remain refused there.
 
 This holds at every string position of a module: a value, an object key,
 plain or in brackets, the key of a property access in brackets (`o['k']`),

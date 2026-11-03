@@ -71,7 +71,12 @@ export const planPattern = policy => (target, namespace) => {
             continue
         }
         const { target: current, source } = item
+        const fallback = item.default === undefined ? {} : { default: item.default }
         switch (current[0]) {
+            case '=': {
+                pending = pushed(pending, { target: current[1], source, default: { value: current[3] } })
+                break
+            }
             case 'invalid': { return error(policy.refused('invalid', current[1])) }
             case 'name': {
                 const found = policy.bindingName(current[1])
@@ -79,21 +84,21 @@ export const planPattern = policy => (target, namespace) => {
                 const word = found[1]
                 if (at(word)(seen) !== null) { return error(policy.refused('duplicate', current[1])) }
                 seen = setReplace(word)(true)(seen)
-                reads = { first: { source, spread: false }, tail: reads }
+                reads = { first: { source, spread: false, ...fallback }, tail: reads }
                 names = { first: [current[1], count], tail: names }
                 count += 1
                 break
             }
             case 'array': {
                 const parent = count
-                reads = { first: { source, spread: true }, tail: reads }
+                reads = { first: { source, spread: true, ...fallback }, tail: reads }
                 count += 1
                 pending = pushAll(current[2].map((element, index) => /** @type {Pending} */ ({ element, source: [parent, index] })), pending)
                 break
             }
             case 'object': {
                 const parent = count
-                reads = { first: { source, spread: false }, tail: reads }
+                reads = { first: { source, spread: false, ...fallback }, tail: reads }
                 count += 1
                 if (current[2].length === 0) { reads = { first: { source: [parent, 'length'], spread: false }, tail: reads }; count += 1 }
                 pending = properties(pending, current[2], parent)
@@ -101,5 +106,5 @@ export const planPattern = policy => (target, namespace) => {
             }
         }
     }
-    return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)), ids: generate(count, index => ({ index })), metadata: target[1].metadata })
+    return ok({ reads: toArray(reverse(reads)), names: toArray(reverse(names)), ids: generate(count, index => ({ index })), metadata: target[0] === '=' ? target[2].metadata : target[1].metadata })
 }

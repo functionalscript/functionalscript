@@ -4,10 +4,11 @@ import type { Result } from '../../../../types/result/types.ts'
 import type { ParseError } from '../../../../compiler/parser/types.ts'
 import type { ModuleTokenWithMetadata } from '../../../../compiler/tokenizer/types.ts'
 import type { StaticId } from '../../../../edag/types.ts'
+import type { Node } from '../../../../compiler/parser/syntax/types.ts'
 import type { ExpansionPlan } from '../source.ts'
 
 /** Tokens and declaration names remain available to the source admission owner. */
-export type PatternPlan = ExpansionPlan & {
+export type PatternPlan = ExpansionPlan<Node> & {
     readonly names: readonly (readonly [ModuleTokenWithMetadata, number])[]
     readonly metadata: ModuleTokenWithMetadata['metadata']
 }

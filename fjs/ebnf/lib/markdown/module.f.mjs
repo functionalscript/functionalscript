@@ -25,11 +25,12 @@
  *
  * **Emphasis holds text, code and plain links, and refuses what it cannot
  * hold.** A README sets a name in bold as `` **`Object` is reserved** ``,
- * and a document links from bold, `**[capl.md](./capl.md)**`, but no
- * emphasised span in the tree nests, so the rules say so. Where
- * CommonMark would nest, this refuses rather than reading the delimiters as
- * text: the same file is read on GitHub too, and a body that swallowed them
- * would give the two renderings different answers about one source.
+ * and a document links from bold, `**[capl.md](./capl.md)**`. Bold holds
+ * emphasis, `**… *be* …**`, and no other emphasised span in the tree nests,
+ * so the rules say so. Where CommonMark would nest otherwise, this refuses
+ * rather than reading the delimiters as text: the same file is read on
+ * GitHub too, and a body that swallowed them would give the two renderings
+ * different answers about one source.
  *
  * What this grammar does **not** do, and what processing must do after it:
  * derive a link from a bare `(#NNN)` pull request reference, which is
@@ -179,8 +180,9 @@ const emphasisSpan = {
  * the form a README sets a name in bold with, and a plain link, as GitHub
  * renders `**see [details](url)**` bold around a working link. Its label
  * holds text and code, as an image's does; emphasis inside emphasis stays
- * out. A body opens with text or with a span, the two branches told apart
- * by their first symbol. Its padding — a space
+ * out, but for emphasis inside bold ({@link strongRest}). A body opens with
+ * text or with a span, the two branches told apart by their first symbol.
+ * Its padding — a space
  * just inside an asterisk — is matched here and refused after, in
  * [`media/markdown`](../../../media/markdown/module.f.mjs): with code inside,
  * "no space before the closing asterisk" is no longer a choice one symbol
@@ -193,6 +195,29 @@ const emphasised = {
 }
 
 /**
+ * What follows a run of a bold body, from the asterisk that ends the run:
+ * a second asterisk closes the bold, and anything else opens emphasis
+ * inside it, `**a *b* c**`. After that emphasis's closing asterisk, the
+ * bold goes on with another run, or closes at once, `**a *b***`.
+ *
+ * **One asterisk of lookahead decides it**, as {@link emphasis} decides
+ * between bold and emphasis: the asterisk is consumed, and the symbol after
+ * it is a second asterisk or the first symbol of an emphasis body. The
+ * emphasis holds what a body holds, and no bold: CommonMark reads
+ * `**a *b **c** d* e**` too, and no file writes it. Two emphasis spans side
+ * by side, `*b**c*`, are refused, as the two asterisks between them are a
+ * run GitHub reads otherwise.
+ *
+ * The rest names itself, so it is a thunk, as {@link doubleBody} is.
+ *
+ * @type {Const<DataRule>}
+ */
+export const strongRest = () => ['const', ['*', {
+    end: '*',
+    em: [emphasised, '*', { more: [emphasised, strongRest], end: '**' }],
+}]]
+
+/**
  * Bold or emphasis, **factored through the asterisk they share**. Written as
  * two alternatives, `** … **` and `* … *`, both would begin with the same
  * symbol and the backend could not choose between them with the one symbol
@@ -201,9 +226,14 @@ const emphasised = {
  * anything else is the first symbol of `em`'s body. That body is non-empty
  * for the same reason — an empty one would let `em` begin with the asterisk
  * `strong` begins with.
+ *
+ * **Bold may hold emphasis**, the one nesting a file in the tree writes:
+ * `**… *be* …**` stresses a word inside a bold sentence. Its body is runs
+ * and the emphasis between them ({@link strongRest}); emphasis holds no
+ * bold.
  */
 export const emphasis = /**@type {const}*/(['*', {
-    strong: ['*', emphasised, '**'],
+    strong: ['*', emphasised, strongRest],
     em: [emphasised, '*'],
 }])
 
