@@ -23,7 +23,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { listToString, stringToList } from '../../text/utf16/module.f.mjs'
+import { listToString, stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isUintUpTo } from '../../types/number/module.f.js'
 import { isObject } from '../../types/object/module.f.mjs'

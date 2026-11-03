@@ -1,4 +1,4 @@
-import { stringToList } from '../../text/utf16/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { tokenize } from './module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'

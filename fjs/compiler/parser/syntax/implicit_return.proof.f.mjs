@@ -1,7 +1,7 @@
 /** Function-body fallthrough is syntax evidence, not an admitted return. */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
+import { stringToList } from '../../../text/utf16/module.f.js'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
 import { parseSyntax } from './module.f.mjs'

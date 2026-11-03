@@ -5,7 +5,7 @@
 
 ### Problem
 
-The codec is [`fjs/basen/base16`](../base16/module.f.mjs): `encode` and
+The codec is [`fjs/basen/base16`](../base16/module.f.js): `encode` and
 `encodeCodePoints` spell a byte list in lowercase, and `decode` (either
 case), `decodeCodePoints` (either case, over code points) and `decodeLower`
 (lowercase only) read a continuous run of pairs back, or refuse it. A

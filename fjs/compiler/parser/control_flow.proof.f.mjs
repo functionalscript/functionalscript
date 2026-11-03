@@ -8,7 +8,7 @@ import { assertEq, assertError, assertOk, assertStructurallySame } from '../../a
 import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
-import { stringToList } from '../../text/utf16/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.js'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../source/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'

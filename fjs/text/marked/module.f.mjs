@@ -34,7 +34,8 @@ import { toArray } from '../../types/list/alt/module.f.js'
 import { assert } from '../../asserts/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { charIs } from '../ascii/module.f.js'
-import { isIdentifierPart, isIdentifierStart } from '../../js/identifier/module.f.mjs'
+import { isIdentifierPart, isIdentifierStart } from '../../js/identifier/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * The text the runs spell.
@@ -87,12 +88,12 @@ const nameStep = word => name => c => {
  * @type {(text: string) => Marked}
  */
 const nameRuns = text => {
-    const chars = Array.from(text)
+    const chars = [...text]
     const flags = toArray(scan(nameStep(false)(false))(chars))
-    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[i - 1] ? [i] : [])
+    const starts = flags.flatMap((flag, i) => i === 0 || flag !== flags[Number(i - 1)] ? [i] : [])
     return starts.map((start, k) => {
-        const run = chars.slice(start, starts[k + 1]).join('')
-        return flags[start] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
+        const run = chars.slice(start, starts[Number(k + 1)]).join('')
+        return flags[Number(start)] ? /** @type {Run} */ ([run, 'identifier']) : /** @type {Run} */ ([run])
     })
 }
 
@@ -184,7 +185,7 @@ const close = '\u0002'
  */
 export const tagged = kind => text => {
     assert(!text.includes(open) && !text.includes(close), ['a tagged text holding a marker', text])
-    return `${open}${kindCodes[kind]}${text}${close}`
+    return `${open}${entry(kindCodes, kind)}${text}${close}`
 }
 
 /** Kinds by their letter. @type {ReadonlyMap<string, TokenKind>} */
@@ -246,13 +247,13 @@ export const toTagged = marked => marked.map(([text, kind]) => {
  * @type {(text: string) => (spans: readonly Span[]) => Result<Marked, string>}
  */
 export const fromSpans = text => spans => {
-    const symbols = Array.from(text)
+    const symbols = [...text]
     /** @type {(from: number, to: number) => readonly Run[]} */
     const plain = (from, to) => from < to ? [[symbols.slice(from, to).join('')]] : []
     /** @type {(i: number) => number} */
     const endBefore = i => {
         if (i === 0) { return 0 }
-        const { start, length } = spans[i - 1]
+        const { start, length } = spans[Number(i - 1)]
         return start + length
     }
     /** @type {(span: Span, i: number) => string | null} */

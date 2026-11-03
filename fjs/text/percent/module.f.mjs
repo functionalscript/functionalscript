@@ -12,10 +12,10 @@ import {
     solidus, tilde,
 } from '../ascii/module.f.js'
 import { fromU8List, stringToU8List } from '../utf8/module.f.mjs'
-import { codeUnitToString } from '../utf16/module.f.mjs'
+import { codeUnitToString } from '../utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { unwrap } from '../../types/nullable/module.f.js'
-import { decode, encodeScalar } from '../../basen/base16/module.f.mjs'
+import { decode, encodeScalar } from '../../basen/base16/module.f.js'
 
 /** @type {(s: string) => readonly number[]} */
 const utf8Bytes = s => toArray(stringToU8List(s))

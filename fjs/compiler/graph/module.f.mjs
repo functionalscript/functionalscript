@@ -506,13 +506,14 @@ export const fastGraph = module => {
 /**
  * How a pattern's read spells where it reads from: `=` for the value it
  * binds, `n.key` or `n[i]` for a key of read `n`, a static function's
- * name, and `...` before a read that copies an iterable first.
+ * name or a namespace number, and `...` before a read that copies an iterable first.
  *
  * @type {(read: ExpansionPlan['reads'][number]) => string}
  */
 const readLabel = ({ source, spread }) => {
     const from = source === null ? '='
-        : source.length === 1 ? source[0]
+        : typeof source === 'number' ? String(source)
+            : source.length === 1 ? source[0]
             : typeof source[1] === 'number' ? `${source[0]}[${source[1]}]` : `${source[0]}.${source[1]}`
     return spread ? `...${from}` : from
 }

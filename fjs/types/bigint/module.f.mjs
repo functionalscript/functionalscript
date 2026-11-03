@@ -26,40 +26,6 @@ import { addition as additionOp } from '../function/operator/module.f.js'
 import { fold } from '../../common/monoid/module.f.js'
 
 /**
- * Adds two `bigint` values.
- *
- * @type {Reduce}
- */
-export const addition = additionOp
-
-/** How heavy a `bigint` is for a fold: the bits it takes, which is what its addition and multiplication cost. @type {(v: bigint) => number} */
-const bits = v => Number(bitLength(v))
-
-/**
- * Calculates the sum of a list of `bigint` values.
- *
- * @param {List<bigint>} input - A list of bigint values.
- * @returns {bigint} The sum of all values in the list.
- */
-export const sum = fold({ identity: 0n, operation: addition, weight: bits })
-
-/**
- * Multiplies two `bigint` values.
- *
- * @param {bigint} a - The first bigint value.
- * @returns {Unary} A function that takes the second bigint value and returns the product.
- */
-export const multiple = a => b => a * b
-
-/**
- * Calculates the product of a list of `bigint` values.
- *
- * @param {List<bigint>} input - A list of bigint values.
- * @returns {bigint} The product of all values in the list.
- */
-export const product = fold({ identity: 1n, operation: multiple, weight: bits })
-
-/**
  * Calculates the absolute value of a `bigint`.
  *
  * @param {bigint} a - The bigint value.
@@ -180,6 +146,40 @@ export const log2 = v => {
  * and adds `1n` to account for the MSB itself. For negative numbers, the absolute value is used.
  */
 export const bitLength = v => log2(abs(v)) + 1n
+
+/**
+ * Adds two `bigint` values.
+ *
+ * @type {Reduce}
+ */
+export const addition = additionOp
+
+/** How heavy a `bigint` is for a fold: the bits it takes, which is what its addition and multiplication cost. @type {(v: bigint) => number} */
+const bits = v => Number(bitLength(v))
+
+/**
+ * Calculates the sum of a list of `bigint` values.
+ *
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The sum of all values in the list.
+ */
+export const sum = fold({ identity: 0n, operation: addition, weight: bits })
+
+/**
+ * Multiplies two `bigint` values.
+ *
+ * @param {bigint} a - The first bigint value.
+ * @returns {Unary} A function that takes the second bigint value and returns the product.
+ */
+export const multiple = a => b => a * b
+
+/**
+ * Calculates the product of a list of `bigint` values.
+ *
+ * @param {List<bigint>} input - A list of bigint values.
+ * @returns {bigint} The product of all values in the list.
+ */
+export const product = fold({ identity: 1n, operation: multiple, weight: bits })
 
 /**
  * Generates a bitmask with the specified number of bits set to 1.

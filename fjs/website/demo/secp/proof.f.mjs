@@ -45,6 +45,8 @@ export const proof = {
             frames.forEach((p, i) => assert(eq(p)(toy.mul(BigInt(i))(toy.g))))
         }
         assertEq(sequence(29n).at(-1), null)
+        assertEq(sequence(-1n).length, 0)
+        assertEq(sequence(-2n).length, 0)
         // The toy prime-order group has no finite y=0 point. Test the module
         // identity rule on a different nonsingular curve with such a point.
         const even = curve({ p: 7n, c: [0n, 6n], g: [0n, 0n], n: 2n })

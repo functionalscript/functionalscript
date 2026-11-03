@@ -11,7 +11,7 @@
  */
 
 import { dollarSign, isCanonicalDigits, isDigit, isLatinLetter, lowLine } from '../../text/ascii/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 
 /** @type {(s: string) => readonly number[]} */

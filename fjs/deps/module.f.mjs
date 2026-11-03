@@ -19,7 +19,7 @@ import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
 import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
-import { stringToList } from '../text/utf16/module.f.mjs'
+import { stringToList } from '../text/utf16/module.f.js'
 
 /** Read syntax imports through the same attribute reader and resolver as compilation. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
 const dependencies = source => {

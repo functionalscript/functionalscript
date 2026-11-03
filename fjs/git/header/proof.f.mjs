@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.js'
 import { fromArrayLike } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { commitPayload, headerOnlyTagPayload, hole, latin1 } from '../testlib.f.mjs'

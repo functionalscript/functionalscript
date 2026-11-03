@@ -5,7 +5,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import { errorMask } from '../../../text/code_point/module.f.js'
-import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'

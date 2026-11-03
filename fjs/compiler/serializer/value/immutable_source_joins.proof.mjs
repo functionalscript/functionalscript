@@ -18,7 +18,7 @@ import { _defaultExport, unresolved } from '../../edag/module.f.mjs'
 import { parse } from '../../source/module.f.mjs'
 import { tryStringify } from '../module.f.mjs'
 import { tokenize } from '../../../js/tokenizer/module.f.mjs'
-import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
 /** @type {(source: string) => Exp} */
