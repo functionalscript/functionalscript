@@ -42,9 +42,9 @@ export const proof = /** @type {const} */ ({
     abruptTransfersSkipTheCondition: () => {
         assertEq(result('let i=0;do{i+=1;break;}while((()=>{throw "condition";})());export default i;'), 1)
         assertEq(result('export default (()=>{do{return 7;}while((()=>{throw "condition";})());})();'), 7)
-        const source = 'do{throw "body";}while((()=>{throw "condition";})());export default 0;'
+        const source = /** @type {const} */ ('do{throw "body";}while((()=>{throw "condition";})());export default 0;')
         assertEq(assertError(memo(assertOk(analysis(graph(source))))({ args: [] })), 'body')
-        const failed = 'do{continue;}while((()=>{throw "condition";})());export default 0;'
+        const failed = /** @type {const} */ ('do{continue;}while((()=>{throw "condition";})());export default 0;')
         assertEq(assertError(memo(assertOk(analysis(graph(failed))))({ args: [] })), 'condition')
     },
     nestedOwnersAndShadowedNames: () => {
@@ -57,7 +57,7 @@ export const proof = /** @type {const} */ ({
         assertEq(result('let i=0;do{i+=1;const f=()=>{while(true){return 1;}};f();}while(i<2);export default i;'), 2)
     },
     sourceMarkerAndExistingOutputs: () => {
-        const source = 'let i=0;do{i+=1;}while(i<3);export default i;'
+        const source = /** @type {const} */ ('let i=0;do{i+=1;}while(i<3);export default i;')
         const ast = assertOk(parse('do.f.js')(source))
         const loop = ast.body.statements[1]
         assert(loop[0] === 'while')
