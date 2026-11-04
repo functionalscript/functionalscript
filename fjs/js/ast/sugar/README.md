@@ -219,3 +219,7 @@ conversion refuses every occurrence, including unreachable source, with
 index identifies actual value nodes, so literal `"+"` data and binary addition
 are unaffected. Compiler linking and interpretation propagate this as a normal
 file diagnostic. See the [remaining lowering work](../../../../spec/todo/unary-plus.md).
+
+Loose equality `==` is accepted in source AST and explicitly refused by
+`tryNormalize` before FAST construction, including unreachable occurrences.
+See the [lowering TODO](../../../../spec/todo/loose-equality.md).

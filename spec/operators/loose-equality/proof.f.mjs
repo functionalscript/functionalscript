@@ -8,15 +8,15 @@ export const proof = {
     refused: () => {
         const r = report(sample)
         assert(r[0] === 'error', 'op.loose-equality is accepted')
-        assertEq(r[1][1], "sample.mjs:2:26 - error: unexpected token")
+        assertEq(r[1][1], "sample.mjs - error: == AST-to-FAST conversion is not implemented")
     },
     alternative: () => assertEq(String(alternative), "true"),
-    // The proposed message is at the refused token, and its fix is the alternative's line.
+    // The proposed message is for the conversion refusal, and its fix is the alternative's line.
     suggested: () => {
         const r = report(sample)
         assert(r[0] === 'error')
         const text = suggestedText(suggestion)(sample)(r[1])
-        assert(text.includes(`\n          ${suggestion.fix}\n`), text)
+        assert(text.includes(`\n         ${suggestion.fix}\n`), text)
     },
     demo: () => assertEq(demo.init.source[0], 'loading'),
 }

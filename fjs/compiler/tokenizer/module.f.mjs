@@ -36,7 +36,7 @@
  * the negation of the access and of the call, as JavaScript reads them,
  * rather than an access and a call on a negative literal — recognized is
  * not accepted, and the same is true of every operator token
- * `fjs/js/tokenizer` already carries that this layer does not admit, `==`,
+ * `fjs/js/tokenizer` already carries that this layer does not admit,
  * `++` among them. The four template chunk kinds keep their cooked
  * text, but only when their exact `source` spelling uses the accepted
  * escape subset.
@@ -72,7 +72,7 @@ export const _moduleTokenKinds = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
     '+', '*', '/', '%', '**',
-    '===', '!==', '>', '>=', '<', '<=',
+    '==', '===', '!==', '>', '>=', '<', '<=',
     '&', '|', '^', '~', '<<', '>>', '>>>',
     '!', '&&', '||', '??', '?', '?.',
     '+=', '-=', '*=', '/=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '^=', '|=',

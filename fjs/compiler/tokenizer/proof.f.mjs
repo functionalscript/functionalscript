@@ -9,6 +9,12 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
+    equalityTokensRemainDistinct: () => {
+        const tokens = toArray(tokenize(stringToList('a==b===c'))('equality.f.js'))
+        assertEq(tokens.map(({ token }) => token.kind).join(' '), 'id == id === id eof')
+        assertEq(tokens[1].metadata.column, 2)
+        assertEq(toArray(tokenize(stringToList('a!=b'))('equality.f.js'))[1].token.kind, 'error')
+    },
     bracedUnicode: () => {
         assertEq(parseSyntax(tokenize(stringToList('export default [\"\\u{1f600}\",`\\u{41}`];'))('unicode.f.js'))[0], 'ok')
         for (const source of ["'\\u{1f600}'", '"\\u{1f600}"', '`\\u{1f600}`']) {

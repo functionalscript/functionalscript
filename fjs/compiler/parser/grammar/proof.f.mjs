@@ -88,6 +88,11 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    looseEqualityIsSyntaxOnly: () => {
+        assertStructurallySame(read('export default 1=="1";'), ['ok'])
+        assertStructurallySame(read('export default (a,b)=>a==b;'), ['ok'])
+        assertStructurallySame(read('export default 1==;'), ['error', ';'])
+    },
     arrayLedStatementsAndRestrictedReturnBoundaries: () => {
         assertStructurallySame(read('[1,2].forEach(f);export default 0;'), ['ok'])
         assertStructurallySame(read('export default f=>{return\n[f][0]();};'), ['ok'])
