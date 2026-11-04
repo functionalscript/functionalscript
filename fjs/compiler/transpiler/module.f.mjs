@@ -23,7 +23,7 @@ import { findProperty, read } from '../../edag/value/property/module.f.mjs'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'
 import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { unresolved } from '../edag/module.f.mjs'
+import { tryUnresolved } from '../edag/module.f.mjs'
 import { _fileError, _jsonModule, _program, parse as sourceParse } from '../source/module.f.mjs'
 import { mapStep, pureError, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 
@@ -34,7 +34,7 @@ export const parse = sourceParse
  * object, initialized over its imports' complete export objects. A module's
  * graph selects each import's export itself; `select` only requires it.
  *
- * @type {(runtime: Runtime | undefined) => _Load<ValueObject, ValueObject, InitializationError>}
+ * @type {(runtime: Runtime | undefined) => _Load<ValueObject, ValueObject, SourceError>}
  */
 const interpreting = runtime => ({
     json: _jsonModule,
@@ -42,7 +42,9 @@ const interpreting = runtime => ({
     module: ({ path }, imports, module) => {
         // An unresolved module selects its imports from complete export
         // objects. Shared imported values keep their established identities.
-        const graph = unresolved(module).edag
+        const converted = tryUnresolved(module)
+        if (converted[0] === 'error') { return error(_fileError(path)(converted[1])) }
+        const graph = converted[1].edag
         const [kind, value] = memo(assertOk(identityAnalysis(graph)))({ args: imports, runtime })
         return kind === 'error'
             ? error({ message: 'module initialization failed', metadata: null, path, thrown: value })

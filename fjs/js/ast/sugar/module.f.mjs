@@ -6,6 +6,7 @@
  * @module
  *
  * @import { BindingEvent, BindingId, BindingScope, Block, Function as FastFunction, Loop, Operator, Statement, Value } from '../types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { ResolvedModule } from '../../../compiler/parser/types.ts'
  * @import { ExpansionPlan, SourceBlock, SourceExit, SourceForOf, SourceFunction, SourceLoop, SourceOperator, SourceStatement, SourceSwitch, SourceValue } from './source.ts'
  * @import { Module } from './types.ts'
@@ -13,6 +14,7 @@
  * @import { Context, Environment, Established, _Evaluated, _EvaluatedValues, Normalized, _Recipes, ReferenceTask, Results, Work } from './private.ts'
  */
 
+import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { mapOperator, operatorOperands } from '../module.f.mjs'
 import { exitValues, hasLoopTransfer } from '../control/module.f.mjs'
@@ -937,9 +939,9 @@ const normalizedBlock = (source, environment, context, retained = []) => {
  * keep unused or lazy-only module loads eager; graph construction removes
  * anchors already reached through eager dependencies.
  *
- * @type {(resolved: ResolvedModule, imports: readonly unknown[]) => Module}
+ * @type {(resolved: ResolvedModule, imports: readonly unknown[]) => Result<Module, string>}
  */
-export const normalize = (resolved, imports) => {
+export const tryNormalize = (resolved, imports) => {
     const parameters = resolved.imports.map((_, i) => binding(i))
     const established = resolved.imports.map((_, i) => binding(i))
     const representatives = resolved.imports.map((_, i) => imports.findIndex(value => Object.is(value, imports[i])))
@@ -949,7 +951,11 @@ export const normalize = (resolved, imports) => {
     /** @type {Context} */
     const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
         writes: sourceWrites(resolved.body, new Map(scopes.map(scope => [scope.target, eventFacts(scope.events).writes]))) }
+    if ([...context.writes.keys()].some(node => node instanceof Array && node[0] === '+' && node.length === 2)) { return error('unary + AST-to-FAST conversion is not implemented') }
     const normalized = normalizedBlock(resolved.body, environment, context).block
     const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])
-    return { parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } }
+    return ok({ parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } })
 }
+
+/** Normalize an admitted source module; throws its conversion refusal otherwise. @type {(resolved: ResolvedModule, imports: readonly unknown[]) => Module} */
+export const normalize = (resolved, imports) => unwrap(tryNormalize(resolved, imports))
