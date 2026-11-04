@@ -31,20 +31,26 @@ stable Rust on `wasm32-unknown-unknown` emits it for every panic.
 - **`init` answers `any`.** A module's top level that throws traps like
   any other code.
 - **The host reads the throw.** When a call from the host into the program
-  traps, the host asks the runtime's `thrown()`, a host-only export,
-  not an L0 import. It answers the value kept by the last `throw` and
-  clears it. If nothing was thrown, the trap was a misuse (choice 11), a
-  bug and not a throw, so the host stops.
-- **A runtime in JavaScript** throws a JavaScript exception instead. It
-  crosses the WASM frames to the host, which sees the same value.
+  traps, the host asks two host-only exports of the runtime, not L0
+  imports. `has_thrown() -> i32` answers 1 when a `throw` caused the trap,
+  and `thrown() -> any` answers its value. A flag apart from the value is
+  needed because a program may `throw undefined`. If `has_thrown()`
+  answers 0, the trap was a misuse (choice 11), a bug and not a throw, so
+  the host stops.
+- **A runtime in JavaScript** throws a JavaScript exception instead, an
+  instance of a class private to the runtime that holds the value. It
+  crosses the WASM frames to the host. The host answers `error(v)` only
+  for that class. Any other exception, such as an L0 precondition the
+  runtime checks, is a misuse, because a program's own thrown value can
+  never be an instance of the private class.
 
 **The host can go on after a throw.** For `catch` and `sandbox`, the host
 answers `error(e)` and calls the continuation on the same instance. The
 abandoned frames never run their `drop`s, so the values they held leak.
 A caught throw costs memory but never correctness, because nothing reads
 those values again. Before it goes on, the host calls the runtime's
-`recover()`, also host-only, which closes any builder that a frame left
-open.
+`recover()`, also host-only. It closes any builder that a frame left
+open and clears `has_thrown()`.
 
 **NaNVM throws only where its own state is whole.** Its Rust code keeps
 returning `Result` inside, and calls `throw` only at an export, where it
@@ -55,7 +61,8 @@ holds no borrow and no half-built value. So a trap never leaves a
 
 A NaNVM stand-in built with stable Rust 1.99.1 and `-C panic=abort`
 exports `throw: (i64) -> ()`, `call: (i64, i64) -> (i64)` and
-`thrown_flag` / `thrown_value`, the probe's spelling of `thrown`. In node
+`thrown_flag` / `thrown_value`, the probe's spelling of `has_thrown` and
+`thrown`. In node
 22:
 
 - `call(2n, 10n)` answers `5n`;
@@ -84,8 +91,10 @@ formatting code into the module.
   program would catch inside WASM, and only WASM exceptions can do that
   without leaks. The trap design stays correct for the host-side `catch`
   effect, and `try` would be a new ABI version.
-- **Leaks under `catch`.** A program that catches many throws in one run
-  grows its memory. Today's `catch` and `sandbox` users make one call per
-  effect, so the leak is a frame's worth per caught throw.
+- **Leaks under `catch`.** A trap abandons every frame between the
+  `throw` and the host's call, not only one. So a caught throw leaks
+  everything those frames held, which is unbounded for a deep recursion
+  with large temporaries. A program that catches many throws in one run
+  grows its memory by that much each time.
 - **Hosts other than node.** Wasmtime also keeps an instance usable after
   a trap. That is not checked here.
