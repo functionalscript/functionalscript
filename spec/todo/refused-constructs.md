@@ -113,7 +113,7 @@ describes:
 | `st.guard` | an unbraced `if`, an `if` at module level, ordinary conditionals outside the terminating-guard or normal/owning-return one-outer-binding profiles, including explicit throws in mixed arms | planned ([bodies and guards](../control-flow/guards/README.md#normally-completing-conditionals); broader completion and join profiles in [reachable block ends](./3210-reachable-block-end.md)) |
 | `st.for` | `for (const key in value) { }` | open ([remaining for iteration forms](./3270-for.md)); braced declaration `for…of` over arrays/strings is [admitted](../control-flow/loops/README.md#forof) |
 | `st.for-in-of` | `for (k in o)`, `for (x of a)` | open |
-| `st.do-while` | `do { } while (c)` | open |
+| `st.do-while` | `do { } while (c)` | implemented ([loops](../control-flow/loops/README.md#post-test-dowhile)) |
 | `st.switch` | a case without braces, a case path that falls through, `break` in a case outside a loop-body switch, a label stacked with the `default`, a switch with no case or of a `default` alone, a switch directly at module level | planned ([switch](./3230-switch.md), "Later": follow-ups additive on [switch](../control-flow/switch/README.md); loop-body cases also admit switch-local `break` and enclosing-loop `continue`) |
 | `st.switch-default` | a `default` that is not last | design ([switch](../control-flow/switch/README.md): last is the one spelling, the position saying nothing once every branch terminates; page: [A `default` Before a `case` Is Refused](../control-flow/switch/default-position/README.md)) |
 | `st.try` | `try`, `catch`, `finally` | open |

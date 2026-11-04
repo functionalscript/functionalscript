@@ -137,6 +137,9 @@ export type While = {
     readonly block: LoopBlock
 }
 
+/** A post-test loop retains its written kind and semicolon. */
+export type DoWhile = While & { readonly postTest: true; readonly semicolon: boolean }
+
 /** A loop's block: statements in order, including syntax after transfers, and no required terminator. */
 export type LoopBlock = readonly ['block', readonly LoopStatement[]]
 
@@ -175,7 +178,7 @@ export type LoopSwitch = {
 }
 
 /** A loop block's statement, tagged: a declaration, assignment, conditional, nested loop, switch, loop transfer or function exit. Following syntax remains available for source checks after every exit. */
-export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ReturnStatement] | readonly ['throw', ValueStatement]
+export type LoopStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', Const] | readonly ['let', Let] | readonly ['assign', Assignment] | readonly ['if', LoopIf] | readonly ['while', While] | readonly ['do', DoWhile] | readonly ['for', For] | readonly ['for-of', ForOf] | readonly ['switch', LoopSwitch] | readonly ['break', Statement] | readonly ['continue', Statement] | readonly ['return', ReturnStatement] | readonly ['throw', ValueStatement]
 
 /**
  * An assignment, `name = value`: the token naming the variable, which the
@@ -445,7 +448,7 @@ export type ModuleLet = {
 }
 
 /** A module's statement before its exports, tagged: a `const`, exported or not, a `let`, an assignment or a plain loop. */
-export type ModuleStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['for', For] | readonly ['for-of', ForOf]
+export type ModuleStatement = readonly ['block', StandaloneLoopBlock] | readonly ['const', ModuleConst] | readonly ['let', ModuleLet] | readonly ['assign', Assignment] | readonly ['while', While] | readonly ['do', DoWhile] | readonly ['for', For] | readonly ['for-of', ForOf]
 
 /**
  * A whole module as matched: its statements in order, and what ends it — an

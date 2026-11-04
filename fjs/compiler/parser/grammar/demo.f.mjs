@@ -38,7 +38,7 @@ import {
     identifier, identifierName, importBinding, importBindings, importClause, importStatement, item,
     lastStatement, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, namedImports, object, optionalStep, parameterNames, parameters, paren, parenItems,
     parenGroup, parenGroupOperand, parenthesized, primitive, afterCase, caseTail, template, terminator, unary, unaryOperand,
-    value, values, whileStatement,
+    value, values, whileStatement, doWhileStatement,
 } from './module.f.mjs'
 import { eagerLayers } from '../../ast/module.f.js'
 import { encoding } from '../../../ebnf/token_symbol/module.f.js'
@@ -78,6 +78,7 @@ export const diagrams = [
     ['value', value],
     ['body', body],
     ['whileStatement', whileStatement],
+    ['doWhileStatement', doWhileStatement],
     ['forStatement', forStatement],
     ['forHeader', forHeader],
     ['forDeclarationTail', forDeclarationTail],

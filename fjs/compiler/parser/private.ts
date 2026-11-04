@@ -15,7 +15,7 @@ import type { StaticId, IntrinsicId } from '../../edag/types.ts'
 import type { BinaryTag, UnaryTag } from '../ast/types.ts'
 import type { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
 import type { BindingOrigin, ParseError } from './types.ts'
-import type { BindingElement, BindingProperty, BindingTarget, Chain, Container, For, ForOf, Item as SyntaxItem, Key as SyntaxKey, LoopBlock, LoopSwitch, Node, While } from './syntax/types.ts'
+import type { BindingElement, BindingProperty, BindingTarget, Chain, Container, For, ForOf, Item as SyntaxItem, Key as SyntaxKey, LoopBlock, LoopSwitch, Node, While, DoWhile } from './syntax/types.ts'
 
 export type ValueItem = Item<SourceValue>
 export type ValueEntry = Entry<SourceValue>
@@ -73,6 +73,7 @@ export type _PatternFrame = {
 }
 /** The statement being read: a declaration's plan, or an assignment's resolved target. */
 export type _Declaring = { readonly plan: _Plan | null; readonly assigned: BindingId | null }
+export type _DoLoopFrame = { readonly doLoop: DoWhile; readonly target: LoopTarget; readonly body: _LoopBodyFrame | null; readonly resolvedBody: SourceBlock | null }
 export type _LoopFrame = { readonly loop: While | For; readonly target: LoopTarget; readonly body: _LoopBodyFrame | null; readonly condition: readonly [SourceValue] | null; readonly step: SourceBlock | null }
 /** The initializer's lexical scope surrounds the condition, step and body only. */
 export type _ForFrame = { readonly for: For; readonly body: _LoopBodyFrame | null; readonly initial: readonly SourceStatement[] | null }
@@ -108,7 +109,7 @@ export type _BinaryRightFrame = { readonly tag: BinaryTag; readonly left: Source
 export type _ConditionalFrame = _Counted<SourceValue> & { readonly conditional: readonly ['?:', Node, Node, Node] }
 export type _CommaFrame = _Counted<SourceValue> & { readonly comma: readonly Node[] }
 export type _ScopedFrame = { readonly scoped: _LoopBodyFrame | null }
-export type _Frame = _ScopedFrame | _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _PatternFrame | _LoopFrame | _ForFrame | _ForOfFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
+export type _Frame = _ScopedFrame | _ContainerFrame | _CallFrame | _AccessFrame | _IndexFrame | _ChainFrame | _UnaryFrame | _InstanceOfFrame | _InFrame | _BinaryLeftFrame | _BinaryRightFrame | _ConditionalFrame | _CommaFrame | _FunctionFrame | _LateFrame | _PatternFrame | _LoopFrame | _DoLoopFrame | _ForFrame | _ForOfFrame | _LoopBodyFrame | _LoopGuardFrame | _LoopSwitchFrame
 export type _Stack = { readonly top: _Frame; readonly rest: _Stack } | null
 /** A named declaration's value entered under its name: the word, its binding, and whether the declaration is a variable's. */
 export type _Self = readonly [string, BindingId, boolean]

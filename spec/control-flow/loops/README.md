@@ -1,6 +1,6 @@
 # Loops
 
-**Status:** implemented — nested `while`, classic `for` and declaration `for…of` bodies with conditionals and explicit exits
+**Status:** implemented — nested `while`, `do…while`, classic `for` and declaration `for…of` bodies with conditionals and explicit exits
 
 ```js
 export default n => {
@@ -31,6 +31,28 @@ It may assign zero, one or several outer variables, including parameters.
 Assignments take effect in source order: a later
 assignment reads the value an earlier one established. Loop-local declarations
 belong to that round, and a shadowed name denotes its own binding.
+
+## Post-test `do…while`
+
+`do { body } while (condition);` runs the braced body at least once. Normal
+completion and an owning `continue` evaluate the condition exactly once;
+a falsy value ends the loop, and a truthy value starts the next iteration.
+An owning `break`, `return` or `throw` leaves without evaluating the condition.
+Nested loops and functions retain their own transfers. Body-local declarations
+are out of scope in the condition, including when they shadow an outer name.
+
+The trailing semicolon is optional, including before a following statement on
+the same line, as JavaScript permits. Syntax AST retains the `do` statement,
+its condition, written semicolon and unreachable body statements. Resolved
+source uses the shared loop record with `postTest: true`; it does not move the
+condition or analyze the body's control flow. The language designer approved
+this lowering in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+
+AST-to-FAST conversion uses the existing unconditional loop, body, conditional
+break and targeted transfers. The existing resolved-step mechanism places the
+condition check both at normal body completion and before an owning continue.
+A continue nested in a switch still tests and, when false, breaks the loop.
+No new FAST operation, generated function boundary or runtime primitive is needed.
 
 ## Classic `for`
 

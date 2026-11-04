@@ -693,7 +693,7 @@ const statefulSwitch = (source, environment, context) => {
 }
 
 /**
- * Run a for's resolved update before its continues. Inner loops and functions
+ * Run a resolved update or post-test check before its owning continues. Inner loops and functions
  * own their transfers; resolved header identities survive body shadowing.
  * @type {(block: SourceBlock, step: SourceBlock) => SourceBlock}
  */
@@ -722,6 +722,13 @@ const continuedSteps = (block, step) => ({
  * @type {(loop: SourceLoop, environment: Environment, context: Context, terminal: boolean) => Normalized}
  */
 const normalizedLoop = (loop, environment, context, terminal) => {
+    if (loop.postTest) {
+        const check = /** @type {SourceBlock} */ ({ statements: [['if', loop.condition,
+            { statements: [], exit: ['yield', undefined] },
+            { statements: [['break', loop.target]], exit: ['yield', undefined] },
+        ]], exit: ['yield', undefined] })
+        return normalizedLoop({ target: loop.target, events: loop.events, body: loop.body, condition: true, step: check }, environment, context, false)
+    }
     const events = eventFacts(loop.events)
     const sources = loopSources(events.references, environment, context)
     const parameters = sources.map(source => binding(source.index))
@@ -832,7 +839,7 @@ const normalizedBlock = (source, environment, context, retained = []) => {
             return { block: pruneAliases({ statements: [...statements, ...made.statements], exit }, []), environment: made.environment, normal: false, hasLoopExit: true, hasFunctionExit: true }
         }
         if (statement[0] === 'break' || statement[0] === 'continue') {
-            const loop = assertNotNullish(statement[0] === 'break' ? context.breakRegion : context.loop, 'a source transfer has no target')
+            const loop = assertNotNullish(statement[0] === 'break' && context.breakRegion?.target === statement[1] ? context.breakRegion : context.loop, 'a source transfer has no target')
             assert(loop.target === statement[1], 'a source loop exit targets another loop')
             const values = [...statement[0] === 'continue' ? loop.continuePrefix ?? [] : [], ...loop.sources.map(source => lookup(inner, source))]
             return { block: pruneAliases({ statements, exit: [statement[0], loop.target, values] }, []), environment: inner, normal: false,

@@ -51,7 +51,7 @@ import type {
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'for' | 'switch' | 'case' | 'as' | 'of' | 'typeof' | 'new' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return' | 'throw' | 'if' | 'let' | 'while' | 'do' | 'for' | 'switch' | 'case' | 'as' | 'of' | 'typeof' | 'new' | 'instanceof' | 'in' | 'else' | 'break' | 'continue'
 
 /**
  * Every infix operator the grammar's binary layers read: the AST's own
@@ -535,6 +535,7 @@ export type ModuleStatement = {
     readonly construct: NewExpressionStatement
     readonly array: ArrayExpressionStatement
     readonly let: LetStatement
+    readonly do: DoWhileStatement
     readonly while: WhileStatement
     readonly for: ForStatement
     readonly name: BodyNameStatement
@@ -542,6 +543,8 @@ export type ModuleStatement = {
 
 /** The plain loop form shared by module and function statements. */
 export type WhileStatement = readonly [number, number, Value, number, LoopBlock]
+/** The do body precedes its trailing condition and optional semicolon. */
+export type DoWhileStatement = readonly [number, LoopBlock, number, number, Value, number, End]
 
 /** A classic loop's condition and step, separated by an explicit semicolon. */
 export type ForClassicTail = readonly [Option<Value>, number, Option<NameExpression>]
@@ -592,6 +595,7 @@ export type LoopStatement = () => readonly ['const', {
     readonly bareReturn: Terminator['bareReturn']
     readonly switch: LoopSwitch
     readonly throw: Terminator['throw']
+    readonly do: DoWhileStatement
     readonly while: WhileStatement
     readonly for: ForStatement
 }]

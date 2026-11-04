@@ -223,3 +223,9 @@ file diagnostic. See the [remaining lowering work](../../../../spec/todo/unary-p
 Loose equality `==` and inequality `!=` are accepted in source AST and refused by
 `tryNormalize` before FAST construction, including unreachable occurrences.
 See the [lowering TODO](../../../../spec/todo/loose-equality.md).
+
+Post-test loops retain `postTest: true` until normalization. This pass expands
+them to an unconditional loop with the condition check after normal completion
+and before every owning continue, reusing the existing resolved-step machinery.
+Breaks from that check retain their loop target even inside a switch.
+Body breaks, returns and throws bypass the check.
