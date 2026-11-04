@@ -3,7 +3,10 @@
 This draft turns the options in [l0-core.md](./l0-core.md) into one concrete
 design, for discussion. It follows the decisions already recorded in the
 [README](./README.md#decisions): a separate L1, no boxing chosen by L0, and
-our own linker. Nothing here is decided yet.
+our own linker. Of its own choices, the builders of
+[§22](#22-building-in-one-pass) and the throw that traps of
+[§13](#13-errors-a-throw-traps), with what it changes in §12, §20 and §21,
+are decided there too. The rest is not decided yet.
 
 ## Summary
 

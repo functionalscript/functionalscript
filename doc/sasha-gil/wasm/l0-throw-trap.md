@@ -20,7 +20,7 @@ frame between the `throw` and the host can be abandoned.
 A WASM trap does exactly that. It also needs nothing beyond WASM 2.0, and
 stable Rust on `wasm32-unknown-unknown` emits it for every panic.
 
-## The suggestion
+## The design
 
 - **Code and `call` have one result.** All code has the type
   `(param $self i64) (param $args i64) (result i64)`, and `call(f, args)`
