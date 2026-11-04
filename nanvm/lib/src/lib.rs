@@ -3,6 +3,7 @@
 extern crate self as nanvm_lib;
 
 pub mod common;
+pub mod l0;
 pub mod naive;
 pub mod nanenum;
 pub mod sign;
