@@ -20,6 +20,12 @@ export const proof = {
     declaration: () => assertEq(typed('const x: string = number'), 'string'),
     // A `,` declares again; a destructured name is annotated too.
     declarations: () => assertEq(typed('let a: A = 1, b: B; var { c }: C = d, [e]: E = f'), 'A B C E'),
+    // A declaration's word as a property's name declares nothing, in an
+    // object literal or after `.` or `?.`.
+    declarationWordsAsNames: () => {
+        assertEq(typed('const x = { const: 1, a: number }'), '')
+        assertEq(typed('x.let, a: number; y?.var, b: string; { let, c: boolean }'), '')
+    },
     // An object literal, a call, an import: values all.
     values: () => assertEq(typed('const s = { a: or(option, number) }; import { string } from "m"'), ''),
     // A ternary's `:` is no annotation, in a statement or in parentheses.
@@ -67,6 +73,8 @@ export const proof = {
         assertEq(typed('d((a): b, c)'), '')
         assertEq(typed('(a): b\n=> c'), '')
         assertEq(typed('(a'), '')
+        // A method named `function` is called, not declared.
+        assertEq(typed('o.function(a ? b : number); p?.function f(c ? d : string)'), '')
         // A return type that runs to the end of the text, with no arrow.
         assertEq(typed('(a): b'), '')
     },

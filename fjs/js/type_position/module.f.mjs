@@ -81,6 +81,8 @@ export const typePositions = tokens => {
     /** @type {(j: number) => JsToken | undefined} */
     const tok = j => j < 0 || j >= at.length ? undefined : tokens[at[j]]
     const kinds = at.map(i => tokens[i].kind)
+    /** Whether the word at `j` names a property: after `.` or `?.`. @type {(j: number) => boolean} */
+    const isProperty = j => kinds[j - 1] === '.' || kinds[j - 1] === '?.'
     /** Whether a line ends between the token before `j` and `j`. @type {(j: number) => boolean} */
     const lineBefore = j => j > 0 && tokens.slice(at[j - 1] + 1, at[j]).some(t => t.kind === 'nl')
     /**
@@ -122,7 +124,7 @@ export const typePositions = tokens => {
      */
     const isParams = (j, ternary) => {
         const before = tok(j - 1)
-        if (before?.kind === 'function' || (isName(before) && tok(j - 2)?.kind === 'function')) { return true }
+        if ((before?.kind === 'function' && !isProperty(j - 1)) || (isName(before) && tok(j - 2)?.kind === 'function' && !isProperty(j - 2))) { return true }
         const c = closing(j)
         const after = tok(c + 1)?.kind
         if (c === -1) { return false }
@@ -211,7 +213,10 @@ export const typePositions = tokens => {
             continue
         }
         if (mode === 'value') {
-            if (kind === 'const' || kind === 'let' || kind === 'var') { update({ decl: true, declStatement: true }) }
+            // A declaration's word opens a declaration where a binding
+            // follows it, and is a name where it is a property's.
+            if ((kind === 'const' || kind === 'let' || kind === 'var') && !isProperty(j)
+                && (isName(next) || next?.kind === '{' || next?.kind === '[')) { update({ decl: true, declStatement: true }) }
             else if (kind === ';') { update({ decl: false, declStatement: false }); alias = false }
             else if (kind === ',') { update({ decl: top().declStatement }) }
             else if (kind === '?' && next?.kind !== ':') { update({ ternary: top().ternary + 1 }) }
