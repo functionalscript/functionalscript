@@ -40,19 +40,20 @@ import { refusal } from '../../website/demo/module.f.mjs'
 import { render } from '../../website/demo/highlight/module.f.mjs'
 import { graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { fastGraph, sourceGraph } from '../graph/module.f.mjs'
-import { normalize } from '../../js/ast/sugar/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
+import { tryNormalize } from '../../js/ast/sugar/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 
 /**
  * `text`'s two trees, each a pane with its heading, its graph and the
- * value it draws, or the parser's message.
+ * value it draws, or a parsing or AST-to-FAST conversion diagnostic.
  *
  * @type {(text: string) => Result<readonly { readonly heading: string, readonly graph: Graph, readonly tree: Unknown }[], string>}
  */
 export const _panes = parsed(resolved => {
     const { imports, body } = resolved
-    const fast = normalize(resolved, imports)
+    const [kind, fast] = tryNormalize(resolved, imports)
+    if (kind === 'error') { return error(fast) }
     return ok([
         { heading: 'Source AST', graph: sourceGraph(resolved), tree: { imports, body } },
         { heading: 'FAST', graph: fastGraph(fast), tree: fast },

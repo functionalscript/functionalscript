@@ -4,7 +4,7 @@
  *
  * **It is the `.rs` output, not a lookalike.** The text is parsed and lowered
  * exactly as the compiler does, then printed by [`toRust`](./module.f.mjs); a
- * refusal — a parse error, or a shape Rust has no spelling for — is shown in
+ * refusal — parsing, AST-to-FAST conversion, or a shape Rust has no spelling for — is shown in
  * the compiler's own words rather than as an empty box, since what a stage
  * will not accept is half of what it is.
  *
@@ -25,7 +25,7 @@
  * @import { Marked } from '../../text/marked/types.ts'
  */
 
-import { unresolved } from '../edag/module.f.mjs'
+import { tryUnresolved } from '../edag/module.f.mjs'
 import { codeOutput } from '../../website/demo/highlight/module.f.mjs'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { toRustMarked } from './module.f.mjs'
@@ -36,7 +36,10 @@ import { toRustMarked } from './module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _rustOf = parsed(ast => toRustMarked(unresolved(ast).edag))
+export const _rustOf = parsed(ast => {
+    const lowered = tryUnresolved(ast)
+    return lowered[0] === 'error' ? lowered : toRustMarked(lowered[1].edag)
+})
 
 export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module without imports into Rust calls that build its value in NaNVM. Compare the output with the .rs module written by fjs compile.',

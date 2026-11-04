@@ -26,7 +26,7 @@
  */
 
 import { codeOutput } from '../../website/demo/highlight/module.f.mjs'
-import { unresolved } from '../edag/module.f.mjs'
+import { tryUnresolved } from '../edag/module.f.mjs'
 import { parsed, stageDemo } from '../stage_demo/module.f.mjs'
 import { tryModuleMarked } from './module.f.mjs'
 
@@ -35,7 +35,10 @@ import { tryModuleMarked } from './module.f.mjs'
  *
  * @type {(text: string) => Result<Marked, string>}
  */
-export const _sourceOf = parsed(ast => tryModuleMarked(unresolved(ast).edag))
+export const _sourceOf = parsed(ast => {
+    const lowered = tryUnresolved(ast)
+    return lowered[0] === 'error' ? lowered : tryModuleMarked(lowered[1].edag)
+})
 
 export const demo = stageDemo({
     intro: 'Compiles a FunctionalScript module without imports into JavaScript. Compare the output with the .js module written by fjs compile.',
