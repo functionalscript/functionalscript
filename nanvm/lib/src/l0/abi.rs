@@ -548,9 +548,9 @@ pub fn text(f: i64) -> i64 {
 pub fn throw(v: i64) -> ! {
     let v = take("throw", v);
     with(|s| s.thrown = Some(v));
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", panic = "abort"))]
     core::arch::wasm32::unreachable();
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", panic = "abort")))]
     std::panic::panic_any(Thrown)
 }
 
@@ -585,7 +585,9 @@ pub fn recover() {
 }
 
 /// A native host's call into the program: `Ok` with the result, or `Err`
-/// with the thrown value, after [`recover`]. A misuse panics on.
+/// with the thrown value, after [`recover`]. A misuse panics on. It needs
+/// `panic = "unwind"`: with `abort`, every trap ends the process, and a
+/// WASM host catches the trap itself.
 pub fn catch(f: impl FnOnce() -> i64) -> Result<i64, i64> {
     match catch_unwind(AssertUnwindSafe(f)) {
         Ok(v) => Ok(v),

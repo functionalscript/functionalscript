@@ -3,6 +3,13 @@
 
 use super::*;
 
+/// A new runtime for each test. Natively each test has a thread, and so a
+/// runtime, of its own, but under `wasm32-wasip1` the tests share one
+/// thread.
+fn fresh() {
+    STATE.with_borrow_mut(|s| *s = State::new());
+}
+
 /// A string, through the memory at `0`.
 fn string(x: &str) -> i64 {
     let units: Vec<u8> = x.encode_utf16().flat_map(u16::to_le_bytes).collect();
@@ -34,15 +41,9 @@ fn array(items: &[i64]) -> i64 {
     seal(b)
 }
 
-fn panic_text(f: impl FnOnce()) -> std::string::String {
-    let e = catch_unwind(AssertUnwindSafe(f)).unwrap_err();
-    e.downcast_ref::<std::string::String>()
-        .cloned()
-        .unwrap_or_default()
-}
-
 #[test]
 fn constants() {
+    fresh();
     assert_eq!([UNDEFINED, NULL, FALSE, TRUE].map(kind), [0, 1, 2, 2]);
     assert_eq!(to_bool(TRUE), 1);
     assert_eq!(to_bool(FALSE), 0);
@@ -56,6 +57,7 @@ fn constants() {
 
 #[test]
 fn numbers() {
+    fresh();
     let x = from_f64(1.5);
     assert_eq!(kind(x), 3);
     assert_eq!(to_f64(x), 1.5);
@@ -69,6 +71,7 @@ fn numbers() {
 
 #[test]
 fn strings() {
+    fresh();
     let a = string("h\u{e9}llo");
     assert_eq!(kind(a), 4);
     assert_eq!(length(a), 5);
@@ -93,6 +96,7 @@ fn strings() {
 
 #[test]
 fn bigints() {
+    fresh();
     let words: Vec<u8> = [1u64, 2].iter().flat_map(|w| w.to_le_bytes()).collect();
     with_memory(|m| m[16..32].copy_from_slice(&words));
     let b = make_bigint(-1, 16, 2);
@@ -110,6 +114,7 @@ fn bigints() {
 
 #[test]
 fn containers() {
+    fresh();
     let outer = begin_object(3);
     let inner = begin_array(1);
     push(inner, from_f64(1.0));
@@ -135,6 +140,7 @@ fn containers() {
 
 #[test]
 fn push_takes_its_value() {
+    fresh();
     let b = begin_array(1);
     push(b, from_f64(1.0));
     assert_eq!(live(), 0);
@@ -151,6 +157,7 @@ fn first_and_args(self_: i64, args: i64) -> i64 {
 
 #[test]
 fn functions() {
+    fresh();
     let code = add_code(first_and_args);
     let f = make_function(code, array(&[string("x")]), 2, string("(a, b) => 0"));
     assert_eq!(kind(f), 8);
@@ -173,6 +180,7 @@ fn functions() {
 
 #[test]
 fn texts_are_interned() {
+    fresh();
     let code = add_code(first_and_args);
     let f = make_function(code, array(&[]), 0, string("() => 0"));
     let g = make_function(code, array(&[]), 0, string("() => 0"));
@@ -181,13 +189,18 @@ fn texts_are_interned() {
     drop(g);
 }
 
+// A throw caught by the host needs `panic = "unwind"` natively, like
+// `should_panic`.
+
 /// `(v) => { throw v }`, after it opens a builder it never seals.
+#[cfg(panic = "unwind")]
 fn thrower(_: i64, args: i64) -> i64 {
     begin_array(2);
     throw(item(args, 0))
 }
 
 /// `(f, v) => f(v)`: one more frame between the host and the throw.
+#[cfg(panic = "unwind")]
 fn caller(_: i64, args: i64) -> i64 {
     let f = item(args, 0);
     let v = array(&[item(args, 1)]);
@@ -198,7 +211,9 @@ fn caller(_: i64, args: i64) -> i64 {
 }
 
 #[test]
+#[cfg(panic = "unwind")]
 fn a_throw_reaches_the_host() {
+    fresh();
     let t = make_function(add_code(thrower), array(&[]), 1, UNDEFINED);
     let c = make_function(add_code(caller), array(&[]), 2, UNDEFINED);
     for _ in 0..3 {
@@ -218,7 +233,9 @@ fn a_throw_reaches_the_host() {
 }
 
 #[test]
+#[cfg(panic = "unwind")]
 fn throw_undefined_is_a_throw() {
+    fresh();
     let t = make_function(add_code(thrower), array(&[]), 1, UNDEFINED);
     let args = array(&[UNDEFINED]);
     assert_eq!(catch(|| call(t, args)), Err(UNDEFINED));
@@ -226,12 +243,15 @@ fn throw_undefined_is_a_throw() {
 
 /// A NaNVM function whose Rust code answers `Err`, as the runtime's own
 /// throws do.
+#[cfg(panic = "unwind")]
 fn native(_: &<A as IVm>::InternalFunction, _: Array<A>) -> Result<V, V> {
     Err("TypeError: no".into())
 }
 
 #[test]
+#[cfg(panic = "unwind")]
 fn a_rust_err_becomes_a_throw() {
+    fresh();
     let f = put(super::super::make_function(
         native,
         super::super::begin_array(0).seal(),
@@ -243,115 +263,120 @@ fn a_rust_err_becomes_a_throw() {
     assert_eq!(text_of(e), "TypeError: no");
 }
 
+/// A trap that is not a throw passes through [`catch`].
 #[test]
+#[cfg(panic = "unwind")]
+#[should_panic(expected = "l0.to_f64: not a number")]
 fn a_misuse_is_not_caught() {
+    fresh();
     let s = string("a");
-    let text = panic_text(|| {
-        let _ = catch(|| from_f64(to_f64(s)));
-    });
-    assert_eq!(text, "l0.to_f64: not a number");
+    let _ = catch(|| from_f64(to_f64(s)));
 }
 
-/// A misuse, and the trap it causes.
-type Case = (&'static str, Box<dyn FnOnce()>);
+// The traps. With `panic = "abort"`, as on `wasm32-wasip1`, the test
+// harness does not run a `should_panic` test.
 
 #[test]
-fn traps() {
-    let s = string("a");
-    let cases: [Case; 11] = [
-        (
-            "l0.kind: not a value",
-            Box::new(|| {
-                kind(99);
-            }),
-        ),
-        (
-            "l0.drop: not a value",
-            Box::new(move || {
-                drop(s);
-                drop(s)
-            }),
-        ),
-        (
-            "l0.make_string: out of bounds",
-            Box::new(|| {
-                make_string(0xffff, 1);
-            }),
-        ),
-        (
-            "l0.read_units: out of bounds",
-            Box::new(|| {
-                let a = string("ab");
-                read_units(a, 0, 2, 0xfffe);
-            }),
-        ),
-        (
-            "l0.to_f64: not a value",
-            Box::new(|| {
-                let old = from_f64(1.0);
-                drop(old);
-                let new = from_f64(2.0);
-                assert_ne!(old, new);
-                to_f64(old);
-            }),
-        ),
-        (
-            "l0.push: not a builder",
-            Box::new(|| {
-                let old = begin_array(0);
-                seal(old);
-                let new = begin_array(1);
-                assert_ne!(old, new);
-                push(old, TRUE);
-            }),
-        ),
-        (
-            "l0.read_units: out of bounds",
-            Box::new(|| {
-                let a = string("ab");
-                read_units(a, 0, -1, 0);
-            }),
-        ),
-        (
-            "l0.from_unit: not a unit",
-            Box::new(|| {
-                from_unit(0x1_0000);
-            }),
-        ),
-        (
-            "l0.seal: not a builder",
-            Box::new(|| {
-                let b = begin_array(0);
-                seal(b);
-                seal(b);
-            }),
-        ),
-        (
-            "l0.make_function: not a code index",
-            Box::new(|| {
-                make_function(5, array(&[]), 0, UNDEFINED);
-            }),
-        ),
-        (
-            "l0.frame: not an index",
-            Box::new(|| {
-                let f = make_function(
-                    add_code(|self_, _| frame(self_, 0)),
-                    array(&[]),
-                    0,
-                    UNDEFINED,
-                );
-                call(f, array(&[]));
-            }),
-        ),
-    ];
-    for (expected, f) in cases {
-        assert_eq!(panic_text(f), expected);
-    }
+#[should_panic(expected = "l0.kind: not a value")]
+fn not_a_value() {
+    fresh();
+    kind(99);
 }
 
 #[test]
+#[should_panic(expected = "l0.drop: not a value")]
+fn drop_twice() {
+    fresh();
+    let s = string("a");
+    drop(s);
+    drop(s);
+}
+
+#[test]
+#[should_panic(expected = "l0.to_f64: not a value")]
+fn a_dropped_handle_is_not_its_slot_s_next_value() {
+    fresh();
+    let old = from_f64(1.0);
+    drop(old);
+    let new = from_f64(2.0);
+    assert_ne!(old, new);
+    to_f64(old);
+}
+
+#[test]
+#[should_panic(expected = "l0.push: not a builder")]
+fn a_sealed_builder_is_not_its_slot_s_next_builder() {
+    fresh();
+    let old = begin_array(0);
+    seal(old);
+    let new = begin_array(1);
+    assert_ne!(old, new);
+    push(old, TRUE);
+}
+
+#[test]
+#[should_panic(expected = "l0.make_string: out of bounds")]
+fn make_string_out_of_bounds() {
+    fresh();
+    make_string(0xffff, 1);
+}
+
+#[test]
+#[should_panic(expected = "l0.read_units: out of bounds")]
+fn read_units_out_of_bounds() {
+    fresh();
+    let a = string("ab");
+    read_units(a, 0, 2, 0xfffe);
+}
+
+#[test]
+#[should_panic(expected = "l0.read_units: out of bounds")]
+fn read_units_negative_length() {
+    fresh();
+    let a = string("ab");
+    read_units(a, 0, -1, 0);
+}
+
+#[test]
+#[should_panic(expected = "l0.from_unit: not a unit")]
+fn from_unit_not_a_unit() {
+    fresh();
+    from_unit(0x1_0000);
+}
+
+#[test]
+#[should_panic(expected = "l0.seal: not a builder")]
+fn seal_twice() {
+    fresh();
+    let b = begin_array(0);
+    seal(b);
+    seal(b);
+}
+
+#[test]
+#[should_panic(expected = "l0.make_function: not a code index")]
+fn make_function_not_a_code_index() {
+    fresh();
+    make_function(5, array(&[]), 0, UNDEFINED);
+}
+
+#[test]
+#[should_panic(expected = "l0.frame: not an index")]
+fn frame_not_an_index() {
+    fresh();
+    let f = make_function(
+        add_code(|self_, _| frame(self_, 0)),
+        array(&[]),
+        0,
+        UNDEFINED,
+    );
+    call(f, array(&[]));
+}
+
+#[test]
+#[should_panic(expected = "l0.seal: not a builder")]
 fn a_spent_builder_slot_is_retired() {
+    fresh();
     let first = begin_array(0);
     seal(first);
     for _ in 0..0x8000 {
@@ -359,10 +384,5 @@ fn a_spent_builder_slot_is_retired() {
         assert_ne!(b, first);
         seal(b);
     }
-    assert_eq!(
-        panic_text(|| {
-            seal(first);
-        }),
-        "l0.seal: not a builder"
-    );
+    seal(first);
 }
