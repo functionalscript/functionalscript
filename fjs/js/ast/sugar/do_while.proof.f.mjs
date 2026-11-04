@@ -24,6 +24,9 @@ const result = source => {
 }
 
 export const proof = /** @type {const} */ ({
+    formerlyUndecidedSampleIsAccepted: () => {
+        assertEq(result('const f = () => { let i = 0; do { i = i + 1; } while (i < 3); return i; };\nexport default f();\n'), 3)
+    },
     onceEvenWhenFalseAndStateAcrossIterations: () => {
         assertEq(result('let i=0;do{i+=1;}while(false);export default i;'), 1)
         assertEq(result('let i=0;do{i+=1;}while(i<4);export default i;'), 4)
