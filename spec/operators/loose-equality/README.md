@@ -1,11 +1,16 @@
-# `==` Is Refused
+# Loose equality: AST admission, deferred FJS support
 
-**Status:** refused by design
+**Status:** syntax AST implemented; FAST lowering deferred
 
-**`==` is not FunctionalScript.** `a == b` is valid JavaScript, and
-`fjs compile` refuses it by design: the demo below shows what it prints.
+`a == b` is retained in syntax and resolved source AST as `['==', a, b]`,
+with JavaScript equality precedence and left associativity. The language designer
+approved AST admission and deferred FJS support in the
+[working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+AST-to-FAST conversion explicitly fails, even for unreachable occurrences.
+The [TODO](../../todo/loose-equality.md) tracks semantics and lowering.
+`!=` remains unsupported syntax.
 
-JavaScript's `==` and `!=` convert their operands before comparing them, by rules that depend on both types: `0 == ""` and `0 == "0"` are `true` while `"" == "0"` is `false`, and `null == undefined` is `true` while `null == 0` is `false`. A reader cannot tell what a comparison does without knowing both types, so the operators are refused rather than given a meaning of their own. `===` and `!==` compare without converting, and a conversion that is meant is written, `Number(x)` or `String(x)`.
+JavaScript's `==` and `!=` convert their operands before comparing them, by rules that depend on both types: `0 == ""` and `0 == "0"` are `true` while `"" == "0"` is `false`, and `null == undefined` is `true` while `null == 0` is `false`. A reader cannot tell what a comparison does without knowing both types, so AST admission alone does not enable their execution. `===` and `!==` compare without converting, and a conversion that is meant is written, `Number(x)` or `String(x)`.
 
 The row `op.loose-equality` of [refused constructs](../../todo/refused-constructs.md)
 registers the refusal, and [operators](../README.md) gives its reason.
@@ -18,9 +23,8 @@ const same = (a, b) => a == b;
 export default same(0, "");
 ```
 
-The demo on this page compiles [`sample.mjs`](./sample.mjs), the module
-above, with this build's `fjs compile`, and shows the line it prints and the
-token it refuses. Below that it shows what JavaScript answers for the same
+The demo compiles [`sample.mjs`](./sample.mjs), the module above,
+and displays the AST-to-FAST conversion failure. Below that it shows what JavaScript answers for the same
 module: `true`.
 
 ## What to Write Instead
@@ -37,8 +41,8 @@ It answers `true`. `""` converts to `0`, the conversion `==` made, now written w
 
 ## A Better Message
 
-Today `fjs compile` prints `unexpected token` at the refused token. The demo
-proposes what it should print instead: the reason at the same token, what
+Today `fjs compile` prints `== AST-to-FAST conversion is not implemented`
+for the module. The demo proposes additional guidance: the reason for the module, what
 JavaScript does there, and the allowed spelling, the line
 `alternative.f.js` writes, as `help`. The page compiles the alternative
 too, so the suggestion is one the compiler accepts.

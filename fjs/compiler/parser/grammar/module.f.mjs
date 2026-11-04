@@ -403,8 +403,8 @@ export const items = item => {
  * [`spec/operators/README.md`](../../../../spec/operators/README.md):
  * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
  * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
- * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
- * comma stage waits on `tail`'s current top, the conditional.
+ * (`&& || ??`) and the conditional (`?:`). `==` is AST-only pending
+ * FAST lowering; `!=` remains refused.
  *
  * Declared before {@link access}, which an index embeds it in: `[ value ]`
  * holds any value, so that a key computed at run time, `a[Number(i)]`, is

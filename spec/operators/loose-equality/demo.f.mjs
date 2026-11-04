@@ -18,12 +18,12 @@ import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.mjs'
  * @type {Suggestion}
  */
 export const suggestion = {
-    message: "`==` is not FunctionalScript: it converts its operands by rules that depend on both types",
+    message: "`==` lowering is not implemented; its AST retains JavaScript loose equality",
     width: 2,
     label: "JavaScript converts `\"\"` to `0` here and answers `true`",
     help: "compare with `===`, and write the conversion you mean, `Number(b)` or `String(a)`:",
     fix: "const same = (a, b) => a === Number(b);",
-    note: "refused by design, see spec/operators/loose-equality/README.md",
+    note: "AST admitted; lowering tracked in spec/todo/loose-equality.md",
 }
 
 /**

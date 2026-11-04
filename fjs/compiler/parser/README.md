@@ -693,3 +693,8 @@ last one retains the written semicolon or ASI boundary. Module, body, branch,
 switch, standalone and loop-body statements share this lowering, including
 named exports. Trailing commas, missing initializers and classic-for/let lists
 are outside this increment.
+
+Loose equality `==` is retained as its own binary AST node at the equality
+precedence level. Source binding checks remain active. AST-to-FAST conversion
+explicitly refuses it pending [lowering](../../../spec/todo/loose-equality.md);
+`!=` remains unsupported syntax.

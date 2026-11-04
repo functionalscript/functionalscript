@@ -490,8 +490,7 @@ export const proof = {
             }
             expect('export default { in: 1 };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"in\",1]]]]]]")
         },
-        // `==` and `!=` are refused too, since neither language reads them
-        // the same way twice (`spec/operators/README.md`), at the operator
+        // Loose equality is AST-only; `!=` and incomplete operands remain refused.
         looseEquality: () => {
             /** @type {(source: string, column: number) => void} */
             const expect = (source, column) => {
@@ -500,9 +499,8 @@ export const proof = {
                 assertEq(value.message, 'unexpected token')
                 assertEq(value.metadata?.column, column)
             }
-            expect('export default 1 == 1;', 18)
             expect('export default 1 != 1;', 18)
-            expect('export default 1 == ;', 18)
+            expect('export default 1 == ;', 21)
         },
     },
 }
