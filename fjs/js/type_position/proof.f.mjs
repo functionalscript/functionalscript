@@ -49,6 +49,11 @@ export const proof = {
     names: () => assertEq(
         typed('type A = { readonly a?: B, m(x: C): D, [k: E]: F, [K in G]: H, i: typeof v, j: N.O, p: (q: R) => q is S }'),
         'B C D E F G H N R S'),
+    // A member's computed key is a value; an index signature's and a mapped
+    // type's brackets hold types, as a tuple's do.
+    computedKey: () => assertEq(
+        typed('type X = { [symbol]: string, [a.b]: C; [g(h)]: L, [k: D]: E, [K in F]: G, h: [I, J] }'),
+        'string C L D E F G I J'),
     // A conditional's branches are types, its `:` no member's.
     conditional: () => assertEq(typed('type A = { a: B extends string ? C : never, d?: E }'), 'B string C never E'),
     // An interface's header and body.
@@ -83,6 +88,12 @@ export const proof = {
         assertEq(typed('function f(): A; function g(): B { return c }'), 'A B')
         // A block that closes while a return type is open ends it.
         assertEq(typed('{ function h(): C }'), 'C')
+    },
+    // An import's or export's `as` renames a value, in its names or after
+    // `*`; an export's value may still be asserted.
+    renames: () => {
+        assertEq(typed('import { foo as number } from "m"; import type { a as string } from "n"; import * as symbol from "o"'), '')
+        assertEq(typed('export { a as string }; export type { b as number }; export * as bigint from "p"; export default q as boolean'), 'boolean')
     },
     // The name after `as` or `satisfies`, and its type arguments.
     as: () => {

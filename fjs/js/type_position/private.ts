@@ -24,4 +24,6 @@ export type _Frame = {
     readonly ternary: number
     /** In a parameter list: whether a default value is being read. */
     readonly default: boolean
+    /** In a value: whether these braces are an import's or export's names, whose `as` renames. */
+    readonly clause: boolean
 }

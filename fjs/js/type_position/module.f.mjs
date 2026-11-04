@@ -46,7 +46,7 @@ const continuations = ['|', '&', '?', ':', '=>', 'extends']
 const operators = ['asserts', 'infer', 'is', 'keyof', 'readonly', 'unique']
 
 /** The frame a text starts in: a value, holding no declaration. */
-const valueFrame = /** @type {_Frame} */ ({ mode: 'value', close: null, ends: [], newline: false, decl: false, declStatement: false, ternary: 0, default: false })
+const valueFrame = /** @type {_Frame} */ ({ mode: 'value', close: null, ends: [], newline: false, decl: false, declStatement: false, ternary: 0, default: false, clause: false })
 
 /**
  * A frame of `mode`, closed by `close`.
@@ -86,17 +86,35 @@ export const typePositions = tokens => {
     /** Whether a line ends between the token before `j` and `j`. @type {(j: number) => boolean} */
     const lineBefore = j => j > 0 && tokens.slice(at[j - 1] + 1, at[j]).some(t => t.kind === 'nl')
     /**
-     * The `)` closing the `(` at `j`, or `-1` where none does.
+     * The `)` or `]` closing the `(` or `[` at `j`, or `-1` where none does.
      *
      * @type {(j: number) => number}
      */
     const closing = j => {
+        const open = kinds[j]
+        const close = open === '(' ? ')' : ']'
         let depth = 0
         for (let k = j; k < at.length; k = k + 1) {
-            depth = kinds[k] === '(' ? depth + 1 : kinds[k] === ')' ? depth - 1 : depth
+            depth = kinds[k] === open ? depth + 1 : kinds[k] === close ? depth - 1 : depth
             if (depth === 0) { return k }
         }
         return -1
+    }
+    /**
+     * Whether the `[` at `j`, opening a member of a type literal, holds a
+     * computed key, a value, rather than an index signature's `k: T` or a
+     * mapped type's `K in T`.
+     *
+     * @type {(j: number) => boolean}
+     */
+    const computedKey = j => {
+        const c = closing(j)
+        let depth = 0
+        for (let k = j + 1; k < c; k = k + 1) {
+            if (depth === 0 && (kinds[k] === ':' || kinds[k] === 'in')) { return false }
+            depth = '([{'.includes(kinds[k]) ? depth + 1 : ')]}'.includes(kinds[k]) ? depth - 1 : depth
+        }
+        return c !== -1
     }
     /**
      * Whether the type after a `:` at `j` runs to `=>` before anything that
@@ -186,11 +204,15 @@ export const typePositions = tokens => {
             continue
         }
         if (kind === '[') {
-            frames = [...frames, frame(mode === 'type' ? 'type' : 'value', ']')]
+            // A member's computed key, in a type literal, is a value.
+            const key = mode === 'type' && top().close === '}' && ['{', ';', ','].includes(kinds[j - 1]) && computedKey(j)
+            frames = [...frames, frame(mode === 'type' && !key ? 'type' : 'value', ']')]
             continue
         }
         if (kind === '{') {
-            frames = [...frames, frame(mode === 'type' || iface ? 'type' : 'value', '}')]
+            // An import's or export's names, whose `as` renames a value.
+            const clause = mode === 'value' && (kinds[j - 1] === 'import' || kinds[j - 1] === 'export' || (isWord('type')(tok(j - 1)) && (kinds[j - 2] === 'import' || kinds[j - 2] === 'export')))
+            frames = [...frames, { ...frame(mode === 'type' || iface ? 'type' : 'value', '}'), clause }]
             iface = false
             continue
         }
@@ -235,7 +257,10 @@ export const typePositions = tokens => {
                     asGeneric = next?.kind === '<'
                 }
                 else if (isWord('type')(t) && isName(next) && !lineBefore(j + 1)) { alias = true }
-                else if ((isWord('as')(t) || isWord('satisfies')(t)) && isName(next) && !lineBefore(j + 1)) { asNext = true }
+                // An import's or export's `as`, in its names or after `*`,
+                // renames a value: it asserts no type.
+                else if ((isWord('as')(t) || isWord('satisfies')(t)) && isName(next) && !lineBefore(j + 1)
+                    && !top().clause && kinds[j - 1] !== '*') { asNext = true }
             }
             continue
         }
