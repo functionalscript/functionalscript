@@ -91,6 +91,8 @@ export const proof = /** @type {const} */ ({
     looseEqualityIsSyntaxOnly: () => {
         assertStructurallySame(read('export default 1=="1";'), ['ok'])
         assertStructurallySame(read('export default (a,b)=>a==b;'), ['ok'])
+        assertStructurallySame(read('export default (a,b)=>a!=b;'), ['ok'])
+        assertStructurallySame(read('export default 1!=;'), ['error', ';'])
         assertStructurallySame(read('export default 1==;'), ['error', ';'])
     },
     arrayLedStatementsAndRestrictedReturnBoundaries: () => {

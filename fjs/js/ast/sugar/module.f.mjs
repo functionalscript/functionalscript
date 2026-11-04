@@ -952,7 +952,8 @@ export const tryNormalize = (resolved, imports) => {
     const context = { bindings: resolved.bindings, scopes, loop: null, breakRegion: null,
         writes: sourceWrites(resolved.body, new Map(scopes.map(scope => [scope.target, eventFacts(scope.events).writes]))) }
     if ([...context.writes.keys()].some(node => node instanceof Array && node[0] === '+' && node.length === 2)) { return error('unary + AST-to-FAST conversion is not implemented') }
-    if ([...context.writes.keys()].some(node => node instanceof Array && node[0] === '==')) { return error('== AST-to-FAST conversion is not implemented') }
+    const equality = [...context.writes.keys()].find(node => node instanceof Array && (node[0] === '==' || node[0] === '!='))
+    if (equality instanceof Array) { return error(`${equality[0]} AST-to-FAST conversion is not implemented`) }
     const normalized = normalizedBlock(resolved.body, environment, context).block
     const prefix = parameters.flatMap((id, i) => representatives[i] === i ? [/** @type {Statement} */ (['define', established[i], reference(id), 'required'])] : [])
     return ok({ parameters, body: { statements: [...prefix, ...normalized.statements], exit: normalized.exit } })

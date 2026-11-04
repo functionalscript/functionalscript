@@ -10,10 +10,10 @@ import { hasEntry } from '../../types/object/entry/module.f.js'
 
 export const proof = {
     equalityTokensRemainDistinct: () => {
-        const tokens = toArray(tokenize(stringToList('a==b===c'))('equality.f.js'))
-        assertEq(tokens.map(({ token }) => token.kind).join(' '), 'id == id === id eof')
+        const tokens = toArray(tokenize(stringToList('a==b===c!=d!==e'))('equality.f.js'))
+        assertEq(tokens.map(({ token }) => token.kind).join(' '), 'id == id === id != id !== id eof')
         assertEq(tokens[1].metadata.column, 2)
-        assertEq(toArray(tokenize(stringToList('a!=b'))('equality.f.js'))[1].token.kind, 'error')
+        assertEq(tokens[5].metadata.column, 9)
     },
     bracedUnicode: () => {
         assertEq(parseSyntax(tokenize(stringToList('export default [\"\\u{1f600}\",`\\u{41}`];'))('unicode.f.js'))[0], 'ok')
