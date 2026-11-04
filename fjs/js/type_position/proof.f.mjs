@@ -49,6 +49,12 @@ export const proof = {
     names: () => assertEq(
         typed('type A = { readonly a?: B, m(x: C): D, [k: E]: F, [K in G]: H, i: typeof v, j: N.O, p: (q: R) => q is S }'),
         'B C D E F G H N R S'),
+    // A function type's parameter bound by a pattern names values; a
+    // parenthesized tuple or type literal is a type.
+    patterns: () => {
+        assertEq(typed('type F = ({ number, a: string }: T, [bigint]: U) => V'), 'T U V')
+        assertEq(typed('type G = ([W]) | ({ x: X }) | ([Y'), 'W X Y')
+    },
     // A member's computed key is a value; an index signature's and a mapped
     // type's brackets hold types, as a tuple's do.
     computedKey: () => {
@@ -61,6 +67,8 @@ export const proof = {
             typed('type Y = { readonly [symbol]: string, a: readonly [M]\n  [bigint]: N\n  b: O |\n  [P]\n  c: keyof\n  [Q] }'),
             'string M N O P Q')
         assertEq(typed('type Z = { get [number](): string; set [bigint](v: R); get a(): S; get: T }'), 'string R S T')
+        // A member's name opens it, a generic or optional method's too.
+        assertEq(typed('type W = { number<T>(): T; string?(): U; readonly boolean?: V; w: A ? B : C }'), 'T T U V A B C')
     },
     // A conditional's branches are types, its `:` no member's.
     conditional: () => assertEq(typed('type A = { a: B extends string ? C : never, d?: E }'), 'B string C never E'),

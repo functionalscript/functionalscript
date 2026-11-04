@@ -89,13 +89,13 @@ export const typePositions = tokens => {
     /** Whether a line ends between the token before `j` and `j`. @type {(j: number) => boolean} */
     const lineBefore = j => j > 0 && tokens.slice(at[j - 1] + 1, at[j]).some(t => t.kind === 'nl')
     /**
-     * The `)` or `]` closing the `(` or `[` at `j`, or `-1` where none does.
+     * The bracket closing the `(`, `[` or `{` at `j`, or `-1` where none does.
      *
      * @type {(j: number) => number}
      */
     const closing = j => {
         const open = kinds[j]
-        const close = open === '(' ? ')' : ']'
+        const close = open === '(' ? ')' : open === '[' ? ']' : '}'
         let depth = 0
         for (let k = j; k < at.length; k = k + 1) {
             depth = kinds[k] === open ? depth + 1 : kinds[k] === close ? depth - 1 : depth
@@ -219,16 +219,20 @@ export const typePositions = tokens => {
             frames = [...frames, mode === 'type' ? frame('type', ')') : isParams(j, top().ternary) ? frame('params', ')') : frame('value', ')')]
             continue
         }
+        // A function type's parameter bound by a pattern, `([a]: T) =>`,
+        // names values.
+        const pattern = (kind === '[' || kind === '{') && mode === 'type' && top().close === ')'
+            && ['(', ','].includes(kinds[j - 1]) && closing(j) !== -1 && kinds[closing(j) + 1] === ':'
         if (kind === '[') {
             // A member's computed key, in a type literal, is a value.
             const key = mode === 'type' && top().close === '}' && memberStart(j) && computedKey(j)
-            frames = [...frames, frame(mode === 'type' && !key ? 'type' : 'value', ']')]
+            frames = [...frames, frame(mode === 'type' && !key && !pattern ? 'type' : 'value', ']')]
             continue
         }
         if (kind === '{') {
             // An import's or export's names, whose `as` renames a value.
             const clause = mode === 'value' && (kinds[j - 1] === 'import' || kinds[j - 1] === 'export' || (isWord('type')(tok(j - 1)) && (kinds[j - 2] === 'import' || kinds[j - 2] === 'export')))
-            frames = [...frames, { ...frame(mode === 'type' || iface ? 'type' : 'value', '}'), clause }]
+            frames = [...frames, { ...frame((mode === 'type' && !pattern) || iface ? 'type' : 'value', '}'), clause }]
             iface = false
             continue
         }
@@ -288,17 +292,16 @@ export const typePositions = tokens => {
         }
         // A type. A conditional's `?` and `:` are counted, so a name before
         // its `:` is a type, not a member's name.
-        if (kind === '?' && next?.kind !== ':') { update({ ternary: top().ternary + 1 }); continue }
+        if (kind === '?' && next?.kind !== ':' && !(top().close === '}' && memberStart(j - 1))) { update({ ternary: top().ternary + 1 }); continue }
         if (kind === ':' && top().ternary > 0) { update({ ternary: top().ternary - 1 }); continue }
         if (!isName(t)) { continue }
         if (skipNext) { skipNext = false; continue }
         const after = next?.kind
         const named = (after === ':' && top().ternary === 0) || (after === '?' && tok(j + 2)?.kind === ':')
             || isWord('is')(next) || after === 'in'
-            || (after === '(' && top().close === '}')
             || tok(j - 1)?.kind === '.'
-            // a member's modifier, before its key
-            || (top().close === '}' && modifiers.includes(t.value) && memberStart(j) && (after === '[' || isName(next)))
+            // a type literal's member opens with its name, or a modifier
+            || (top().close === '}' && memberStart(j))
         if (!named && !operators.includes(t.value)) { typed = [...typed, at[j]] }
     }
     return tokens.map((_, i) => typed.includes(i))
