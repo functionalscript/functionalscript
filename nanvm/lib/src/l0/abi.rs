@@ -1,8 +1,8 @@
 //! L0's ABI over handles: step 2 of
-//! [`todo/l0-interface.md`](../../../todo/l0-interface.md).
+//! [`todo/l0-interface.md`](../../todo/l0-interface.md).
 //!
 //! The functions a compiled program imports from `fjs:l0`, with the WASM
-//! types of the [summary](../../../../../doc/sasha-gil/wasm/l0-design.md#summary),
+//! types of the [summary](../../../../doc/sasha-gil/wasm/l0-design.md#summary),
 //! over [`super`], the typed L0. It is still native Rust: step 3 exports it
 //! from a `.wasm`.
 //!
@@ -21,7 +21,7 @@
 //!   item `0` of its NaNVM frame, before the frame the program gave, so one
 //!   Rust [`StaticCode`](crate::vm::StaticCode) runs every code index.
 //! - **A throw traps**
-//!   ([`l0-throw-trap.md`](../../../../../doc/sasha-gil/wasm/l0-throw-trap.md)).
+//!   ([`l0-throw-trap.md`](../../../../doc/sasha-gil/wasm/l0-throw-trap.md)).
 //!   [`throw`] keeps the value and traps: in WASM it reaches `unreachable`,
 //!   and here it panics with [`Thrown`]. A throw from NaNVM's own Rust code
 //!   is an `Err`, turned into a [`throw`] only at the export, in [`call`],
@@ -53,7 +53,7 @@ type A = Naive;
 type V = Any<A>;
 
 /// The code of a function: `(param $self i64) (param $args i64) (result i64)`
-/// ([`l0-design.md` §12](../../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
+/// ([`l0-design.md` §12](../../../../doc/sasha-gil/wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
 /// It borrows both handles and answers an owned one, or calls [`throw`].
 pub type Code = fn(self_: i64, args: i64) -> i64;
 
@@ -247,6 +247,11 @@ fn on_builder(name: &str, b: i32, f: impl FnOnce(&mut Builder<A>)) {
     })
 }
 
+/// A count, which an `i32` carries: a negative one traps.
+fn count(name: &str, n: i32) -> u32 {
+    u32::try_from(n).unwrap_or_else(|_| trap(name, "not a count"))
+}
+
 // Memory.
 
 /// The host's access to the memory, as a loader writes the program's bytes.
@@ -394,12 +399,15 @@ pub fn join(parts: i64, separator: i64) -> i64 {
 
 /// L0 `begin_array`.
 pub fn begin_array(len: i32) -> i32 {
-    put_builder("begin_array", super::begin_array(len as u32))
+    put_builder("begin_array", super::begin_array(count("begin_array", len)))
 }
 
 /// L0 `begin_object`.
 pub fn begin_object(len: i32) -> i32 {
-    put_builder("begin_object", super::begin_object(len as u32))
+    put_builder(
+        "begin_object",
+        super::begin_object(count("begin_object", len)),
+    )
 }
 
 /// L0 `push`. It takes `v`.
@@ -505,6 +513,7 @@ pub fn make_function(code: i32, frame: i64, length: i32, text: i64) -> i64 {
     if !with(|s| usize::try_from(code).is_ok_and(|i| i < s.table.len())) {
         trap("make_function", "not a code index")
     }
+    let length = count("make_function", length);
     let frame = take("make_function", frame);
     let text = take("make_function", text);
     let text = match super::kind(&text) {
@@ -516,7 +525,7 @@ pub fn make_function(code: i32, frame: i64, length: i32, text: i64) -> i64 {
     let items: Vec<V> = core::iter::once(super::from_f64(code as f64))
         .chain(frame.index_iter())
         .collect();
-    put(A::static_function(run, length as u32, items.to_array(), text).to_any())
+    put(A::static_function(run, length, items.to_array(), text).to_any())
 }
 
 /// L0 `call`. A throw, from the code or from NaNVM's own, becomes

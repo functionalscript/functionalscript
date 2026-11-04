@@ -386,3 +386,24 @@ fn a_spent_builder_slot_is_retired() {
     }
     seal(first);
 }
+
+#[test]
+#[should_panic(expected = "l0.begin_array: not a count")]
+fn begin_array_negative() {
+    fresh();
+    begin_array(-1);
+}
+
+#[test]
+#[should_panic(expected = "l0.begin_object: not a count")]
+fn begin_object_negative() {
+    fresh();
+    begin_object(-1);
+}
+
+#[test]
+#[should_panic(expected = "l0.make_function: not a count")]
+fn make_function_negative_length() {
+    fresh();
+    make_function(add_code(first_and_args), array(&[]), -1, UNDEFINED);
+}
