@@ -16,8 +16,10 @@ fn text_of(s: i64) -> std::string::String {
     read_units(s, 0, n, 0x8000);
     let units: Vec<u16> = with_memory(|m| {
         m[0x8000..0x8000 + 2 * n as usize]
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&c| u16::from_le_bytes(c))
             .collect()
     });
     std::string::String::from_utf16(&units).unwrap()

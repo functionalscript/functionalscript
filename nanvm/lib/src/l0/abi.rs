@@ -233,8 +233,10 @@ fn load_units(name: &str, ptr: i32, len: i32) -> Vec<u16> {
     let r = bytes(name, ptr, len, 2);
     with(|s| {
         s.memory[r]
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&c| u16::from_le_bytes(c))
             .collect()
     })
 }
@@ -243,8 +245,10 @@ fn load_words(name: &str, ptr: i32, len: i32) -> Vec<u64> {
     let r = bytes(name, ptr, len, 8);
     with(|s| {
         s.memory[r]
-            .chunks_exact(8)
-            .map(|c| u64::from_le_bytes(c.try_into().unwrap()))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|&c| u64::from_le_bytes(c))
             .collect()
     })
 }
