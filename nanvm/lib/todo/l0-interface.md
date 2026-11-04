@@ -39,18 +39,21 @@ own.
 Steps 2 and 3 have open questions, each for the task owner before its step
 starts:
 
-- **The encoding of `any` for `naive`.** `naive` holds an `Rc` enum, not a
-  NaN-boxed word, so the `i64` is a handle, an owned pointer, or the
-  values move to [`nanenum`](../src/nanenum.rs) first.
+- **The encoding of `any` for `naive`.** Step 2 picks a handle, an index
+  into a table of values, with the constants at `0` to `3`. An owned
+  pointer, or moving to [`nanenum`](../src/nanenum.rs), can replace it
+  later under the same ABI.
 - **The loader-owned memory.** Rust's allocator assumes it owns the memory
   above its heap base, where the design has the loader reserve the
   program's regions.
 - **A function's text.** L0's `make_function` takes the text as a string
-  value; NaNVM's functions hold a `&'static str`.
+  value; NaNVM's functions hold a `&'static str`. Step 2 interns each
+  distinct text once, as a leaked `&'static str`, and an unpaired
+  surrogate in it becomes U+FFFD.
 
 ### Tasks
 
-- [ ] `nanvm_lib::l0`, the typed Rust L0, with tests that mirror
+- [x] `nanvm_lib::l0`, the typed Rust L0, with tests that mirror
       the FunctionalScript view's proofs.
-- [ ] The ABI over handles.
+- [x] The ABI over handles, `nanvm_lib::l0::abi`.
 - [ ] NaNVM as a `.wasm` exporting L0.

@@ -18,6 +18,8 @@
 //! FunctionalScript view do. NaNVM keeps an object's properties as they
 //! were written, so a read computes that view each time.
 
+pub mod abi;
+
 #[cfg(test)]
 mod test;
 
