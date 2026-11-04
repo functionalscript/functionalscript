@@ -109,7 +109,8 @@ answered `[1, 40n]`, as the stand-in computes.
 - **(C) The two functions in WASM assembly, inside the crate**, through
   nightly's `asm_experimental_arch`. There is no extra module, but the
   `.wasm` build would need a nightly toolchain and an unstable feature.
-  It was proposed in #3633 and declined.
+  It was proposed in #3633 and declined in favour of this design, which
+  replaces that note.
 - **(B) Change L0 so no runtime needs two results**, for example by
   having `call` answer the value and set a status global. That changes L0
   for every runtime because of one Rust limitation.
