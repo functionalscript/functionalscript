@@ -281,9 +281,14 @@ and the website's `highlight(text)` draws them:
 - `tsSpansOf(text)` and `tsHighlight(text)`, beside them, read TypeScript: the same tokens,
   and TypeScript's own words (`type`, `readonly`, `as`, `keyof`, …) as
   `keyword`s where an operand follows them on their line, so a variable named
-  `type` stays an `identifier`. The primitive type names stay `identifier`s:
-  one is a keyword only where a type stands, which a token's neighbours cannot
-  tell. A README's `ts` fence is drawn this way.
+  `type` stays an `identifier`. The primitive type names (`string`, `number`,
+  `boolean`, `unknown`, …) are `keyword`s where a type stands for certain, as
+  [`js/type_position`](../../js/type_position/module.f.mjs) reads it from the
+  brackets around them: an annotation, an alias, an interface, a return type,
+  `as`. Anywhere they may be values they stay `identifier`s, as the `rtti`
+  builders `string` and `number` are in `or(option, number)`: a token's
+  neighbours cannot tell those apart, so a type missed costs a colour, never a
+  value coloured as a type. A README's `ts` fence is drawn this way.
 
 The fallback is also the **oracle** a producer is held to
 ([§9](#9-proving-a-producer)): `disagreement(marked)`, in `js/marked`, answers where a

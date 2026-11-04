@@ -50,14 +50,16 @@ export const proof = {
         // an operand follows: a name, a keyword, a string, `{`, and `[` after `readonly`
         assertEq(keywords('export type A = readonly B[]'), '["export","type","readonly"]')
         assertEq(keywords('x as const; declare module "m"; import type { A }'), '["as","const","declare","module","import","type"]')
-        assertEq(keywords('type A = readonly [unique symbol]'), '["type","readonly","unique"]')
+        assertEq(keywords('type A = readonly [unique symbol]'), '["type","readonly","unique","symbol"]')
         // a variable: an operator or the line's end follows, or it is a
         // property; the `as` casting one is a keyword still
         assertEq(keywords('const type = out; f(type, readonly)'), '["const"]')
         assertEq(keywords('type\nA; type /* c */ in x; out of xs; type as T; type [0]'), '["in","as"]')
         assertEq(keywords('x.type A'), '[]')
-        // a primitive type name is a name, as no neighbour says it is a type
-        assertEq(keywords('let a: string'), '["let"]')
+        // a primitive type name is a keyword where a type stands for
+        // certain, and a name where it may be a value, as `rtti`'s are
+        assertEq(keywords('let a: string'), '["let","string"]')
+        assertEq(keywords('const b = or(option, number)'), '["const"]')
         // JavaScript reads them all as names
         assertEq(JSON.stringify(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
     },

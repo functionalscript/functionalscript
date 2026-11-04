@@ -17,8 +17,10 @@
  * reads TypeScript's own words — `type`, `readonly`, `as`, `keyof` and the
  * rest — as keywords where an operand follows them on their line, and as
  * names everywhere else, so a variable named `type` stays a name. The
- * primitive type names, `string` among them, stay names: one is a keyword
- * only where a type stands, which takes a parser to know.
+ * primitive type names, `string` among them, are keywords where a type
+ * stands for certain ([`type_position`](../type_position/module.f.mjs)), and
+ * names everywhere else, so the `rtti` builder `number` in
+ * `or(option, number)` stays a name.
  *
  * @module
  *
@@ -28,6 +30,7 @@
  */
 
 import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
+import { typePositions } from '../type_position/module.f.mjs'
 import { _positions, tokenize } from '../tokenizer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { isKeyword, literalWords } from '../keywords/module.f.js'
@@ -50,10 +53,18 @@ const jsContextual = () => false
  * operators of its type language. `interface`, `implements`, `private` and
  * the like are reserved in JavaScript already. The primitive type names,
  * `string` and `number` among them, are not here: one is a keyword only
- * where a type stands, which a token's neighbours cannot tell.
+ * where a type stands, which a token's neighbours cannot tell
+ * ({@link primitives}).
  */
 const tsWords = ['abstract', 'accessor', 'as', 'asserts', 'declare', 'global', 'infer', 'is',
     'keyof', 'module', 'namespace', 'out', 'override', 'readonly', 'satisfies', 'type', 'unique']
+
+/**
+ * TypeScript's primitive type names, keywords where a type stands. `void`
+ * is reserved in JavaScript already, and `null` and `undefined` are literal
+ * words in both.
+ */
+const primitives = ['any', 'bigint', 'boolean', 'never', 'number', 'object', 'string', 'symbol', 'unknown']
 
 /** The words that join two operands: a name before one is an operand. */
 const operatorWords = ['as', 'extends', 'in', 'instanceof', 'is', 'of', 'satisfies']
@@ -106,9 +117,12 @@ const kindOf = contextual => (token, next) => {
  * and an `identifier` whatever it spells: the tokenizer reads it as the word
  * it spells, which the language does not mean there.
  *
- * @type {(contextual: typeof jsContextual) => (text: string) => readonly Span[]}
+ * **A primitive type name is a keyword where `typed` says a type stands**,
+ * and a name elsewhere.
+ *
+ * @type {(contextual: typeof jsContextual, typed: (tokens: readonly JsToken[]) => readonly boolean[]) => (text: string) => readonly Span[]}
  */
-const spansWith = contextual => text => {
+const spansWith = (contextual, typed) => text => {
     // code points, not UTF-16 units, so that an offset counts what `Span` does
     const input = toArray(stringToCodePointList(text))
     const tokens = toArray(tokenize(input)(''))
@@ -131,13 +145,15 @@ const spansWith = contextual => text => {
     /** @type {StateScan<{ token: JsToken }, string, string>} */
     const word = ({ token }, prior) => [prior, isTrivia(token.kind) ? prior : token.kind]
     const afterWords = toArray(stateScan(word)('')(kept))
+    const types = typed(kept.map(({ token }) => token))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
     return kept.slice(0, -1).flatMap(({ token, start, next }, i) => {
         const kind = kindOf(contextual)(token, next)
         const before = afterWords[i]
         const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
-        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : kind }]
+        const primitive = kind === 'identifier' && types[i] && token.kind === 'id' && primitives.includes(token.value)
+        return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
     })
 }
 
@@ -147,16 +163,17 @@ const spansWith = contextual => text => {
  *
  * @type {(text: string) => readonly Span[]}
  */
-export const spansOf = spansWith(jsContextual)
+export const spansOf = spansWith(jsContextual, tokens => tokens.map(() => false))
 
 /**
  * The spans in TypeScript `text`: JavaScript's, with TypeScript's own
  * keywords where an operand follows them (`type X`, `readonly x`,
- * `as const`, `import type {`).
+ * `as const`, `import type {`), and its primitive type names where a type
+ * stands (`x: string`).
  *
  * @type {(text: string) => readonly Span[]}
  */
-export const tsSpansOf = spansWith(tsContextual)
+export const tsSpansOf = spansWith(tsContextual, typePositions)
 
 /** The starting offset before each run's length. @type {(at: number) => Scan<number, number>} */
 const before = at => length => [at, before(at + length)]
