@@ -200,8 +200,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   3.0).
 - **Why:** FunctionalScript has `throw` and no `try`, so a throw only has
   to reach the host, and every frame in between can be abandoned. A trap
-  needs only WASM 2.0, and it is what a Rust panic compiles to. A caught
-  throw leaks what the abandoned frames held. A `try` in the language would
+  needs only WASM 2.0, and it is what a Rust panic compiles to. The
+  abandoned frames run no `drop`, so the runtime frees what they held
+  when the host recovers (choice 21). A `try` in the language would
   need WASM exceptions, as a new ABI version. See
   [l0-throw-trap.md](./l0-throw-trap.md).
 
@@ -314,11 +315,14 @@ object, L1 reads its `length` property through `find`.
   and `read_units`. It answers through L0's builders and continues through
   `call`. Serialising a value as JSON for the harness is host code over the
   same reads.
-- **After a trap:** a runtime also exports three host-only functions, not
-  L0 imports. `has_thrown() -> i32` answers 1 when a `throw` caused the
+- **After a trap:** a runtime also exports five host-only functions, not
+  L0 imports. The host calls `enter()` before each call into the program
+  and `leave()` after it returns. `has_thrown() -> i32` answers 1 when a `throw` caused the
   trap, and `thrown() -> any` answers its value. Otherwise the trap was a
-  misuse and the host stops. Before it goes on, the host calls `recover()`,
-  which closes any open builder and clears the flag. A runtime that keeps a
+  misuse and the host stops. Before it goes on, the host calls `recover()`.
+  It frees every value and builder made since the innermost `enter()` and
+  before the `throw`, which the abandoned frames held, then clears the
+  flag and ends that call. A runtime that keeps a
   stack in linear memory also exports `__stack_pointer`. The host saves it
   before each call into the program and writes it back after a caught trap.
 - **Why:** NaNVM's effect loop already works this way over `Any`

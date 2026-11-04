@@ -27,7 +27,7 @@ own.
    `dup` and `drop` are `Clone` and `Drop` here.
 2. **The ABI over handles.** Every value an `i64`, builders `i32`,
    `dup` and `drop` explicit, the four constants, `throw` and the
-   host-only `has_thrown`, `thrown` and `recover`
+   host-only `has_thrown`, `thrown`, `recover`, `enter` and `leave`
    ([a throw traps](../../../doc/sasha-gil/wasm/l0-throw-trap.md)), and `make_string`,
    `read_units`, `make_bigint` and `read_words` over a byte buffer. Still
    native Rust, tested natively.

@@ -26,7 +26,8 @@
 //!   and here it panics with [`Thrown`]. A throw from NaNVM's own Rust code
 //!   is an `Err`, turned into a [`throw`] only at the export, in [`call`],
 //!   so nothing is borrowed or half made when it traps. The host reads it
-//!   through [`has_thrown`], [`thrown`] and [`recover`], which are not L0
+//!   through [`has_thrown`], [`thrown`] and [`recover`], with [`enter`]
+//!   and [`leave`] around each call, which are not L0
 //!   imports. [`catch`] is a native host's whole sequence.
 //!
 //! A misuse traps as [`super`] does, with the text `l0.<name>: <reason>`,
@@ -82,6 +83,9 @@ pub struct Thrown;
 /// A slot is retired after its last generation.
 struct Slab<T> {
     slots: Vec<(u32, Option<T>)>,
+    /// Each slot's birth: the runtime's count of handles made, when the
+    /// slot's value was put.
+    born: Vec<u64>,
     free: Vec<usize>,
     bits: u32,
     generations: u32,
@@ -91,6 +95,7 @@ impl<T> Slab<T> {
     fn new(bits: u32, generation_bits: u32) -> Self {
         Slab {
             slots: Vec::new(),
+            born: Vec::new(),
             free: Vec::new(),
             bits,
             generations: u32::MAX >> (32 - generation_bits),
@@ -127,7 +132,7 @@ impl<T> Slab<T> {
         v.take()
     }
 
-    fn put(&mut self, name: &str, v: T) -> u64 {
+    fn put(&mut self, name: &str, birth: u64, v: T) -> u64 {
         let i = match self.free.pop() {
             Some(i) => i,
             None => {
@@ -135,18 +140,22 @@ impl<T> Slab<T> {
                     trap(name, "too many handles")
                 }
                 self.slots.push((0, None));
+                self.born.push(0);
                 self.slots.len() - 1
             }
         };
         self.slots[i].1 = Some(v);
+        self.born[i] = birth;
         (u64::from(self.slots[i].0) << self.bits) | i as u64
     }
 
-    /// Frees every slot.
-    fn clear(&mut self) {
+    /// Frees every slot whose birth is in `births`.
+    fn free_born(&mut self, births: core::ops::RangeInclusive<u64>) {
         for i in 0..self.slots.len() {
-            let h = (u64::from(self.slots[i].0) << self.bits) | i as u64;
-            self.take(h);
+            if births.contains(&self.born[i]) {
+                let h = (u64::from(self.slots[i].0) << self.bits) | i as u64;
+                self.take(h);
+            }
         }
     }
 
@@ -161,7 +170,21 @@ struct State {
     memory: Vec<u8>,
     table: Vec<Code>,
     texts: HashMap<Vec<u16>, &'static str>,
-    thrown: Option<V>,
+    /// The number of handles made so far, values and builders: the birth
+    /// of the next one.
+    births: u64,
+    /// For each call of the host into the program, [`enter`], the births
+    /// before it.
+    marks: Vec<u64>,
+    /// The value of the last [`throw`], and the births before it.
+    thrown: Option<(V, u64)>,
+}
+
+impl State {
+    fn birth(&mut self) -> u64 {
+        self.births += 1;
+        self.births
+    }
 }
 
 impl State {
@@ -175,7 +198,7 @@ impl State {
             super::from_bool(false),
             super::from_bool(true),
         ] {
-            values.put("constant", v);
+            values.put("constant", 0, v);
         }
         State {
             values,
@@ -183,6 +206,8 @@ impl State {
             memory: core::iter::repeat_n(0, MEMORY).collect(),
             table: Vec::new(),
             texts: HashMap::new(),
+            births: 0,
+            marks: Vec::new(),
             thrown: None,
         }
     }
@@ -225,7 +250,10 @@ fn put(v: V) -> i64 {
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
         _ => {}
     }
-    with(|s| s.values.put("put", v)) as i64
+    with(|s| {
+        let birth = s.birth();
+        s.values.put("put", birth, v)
+    }) as i64
 }
 
 fn take_builder(name: &str, b: i32) -> Builder<A> {
@@ -233,7 +261,10 @@ fn take_builder(name: &str, b: i32) -> Builder<A> {
 }
 
 fn put_builder(name: &str, b: Builder<A>) -> i32 {
-    with(|s| s.builders.put(name, b)) as i32
+    with(|s| {
+        let birth = s.birth();
+        s.builders.put(name, birth, b)
+    }) as i32
 }
 
 /// Runs `f` on an open builder, which stays open.
@@ -556,7 +587,7 @@ pub fn text(f: i64) -> i64 {
 /// L0 `throw`: keeps `v`, which it takes, and traps.
 pub fn throw(v: i64) -> ! {
     let v = take("throw", v);
-    with(|s| s.thrown = Some(v));
+    with(|s| s.thrown = Some((v, s.births)));
     #[cfg(all(target_arch = "wasm32", panic = "abort"))]
     core::arch::wasm32::unreachable();
     #[cfg(not(all(target_arch = "wasm32", panic = "abort")))]
@@ -580,15 +611,34 @@ pub fn has_thrown() -> i32 {
 
 /// The value the last [`throw`] kept, as an owned handle, or `undefined`.
 pub fn thrown() -> i64 {
-    with(|s| s.thrown.clone()).map_or(UNDEFINED, put)
+    with(|s| s.thrown.as_ref().map(|(v, _)| v.clone())).map_or(UNDEFINED, put)
 }
 
-/// Makes the runtime ready to go on after a caught throw: it closes every
-/// open builder and clears [`has_thrown`]. The values the abandoned frames
-/// held stay, unreachable.
+/// Marks the start of a call of the host into the program, for
+/// [`recover`]. Calls may nest, as when the host answers an effect.
+pub fn enter() {
+    with(|s| s.marks.push(s.births))
+}
+
+/// Ends the call [`enter`] marked, after it returned.
+pub fn leave() {
+    with(|s| s.marks.pop());
+}
+
+/// Makes the runtime ready to go on after a caught throw, and ends the
+/// call [`enter`] marked. It frees every value handle and builder made
+/// after that mark and before the [`throw`]: what the abandoned frames
+/// held, since a program keeps no handle across a call of the host but its
+/// literals, made before any. Then it clears [`has_thrown`]. A handle that
+/// [`thrown`] made stays. Without a mark it frees nothing.
 pub fn recover() {
     with(|s| {
-        s.builders.clear();
+        let mark = s.marks.pop();
+        if let (Some(mark), Some((_, at))) = (mark, &s.thrown) {
+            let births = mark + 1..=*at;
+            s.values.free_born(births.clone());
+            s.builders.free_born(births);
+        }
         s.thrown = None;
     })
 }
@@ -598,8 +648,12 @@ pub fn recover() {
 /// `panic = "unwind"`: with `abort`, every trap ends the process, and a
 /// WASM host catches the trap itself.
 pub fn catch(f: impl FnOnce() -> i64) -> Result<i64, i64> {
+    enter();
     match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            leave();
+            Ok(v)
+        }
         Err(payload) => {
             if has_thrown() == 0 {
                 resume_unwind(payload)

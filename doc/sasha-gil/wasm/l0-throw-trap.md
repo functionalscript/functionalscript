@@ -46,11 +46,21 @@ stable Rust on `wasm32-unknown-unknown` emits it for every panic.
 
 **The host can go on after a throw.** For `catch` and `sandbox`, the host
 answers `error(e)` and calls the continuation on the same instance. The
-abandoned frames never run their `drop`s, so the values they held leak.
-A caught throw costs memory but never correctness, because nothing reads
-those values again. Before it goes on, the host calls the runtime's
-`recover()`, also host-only. It closes any builder that a frame left
-open and clears `has_thrown()`.
+abandoned frames never run their `drop`s. Before it goes on, the host
+calls the runtime's `recover()`, also host-only. It frees what the
+abandoned frames held, closes any builder that a frame left open, and
+clears `has_thrown()`.
+
+**What the abandoned frames held is freed.** The host calls `enter()`
+before each call into the program and `leave()` after it returns, both
+host-only. Calls may nest, as when the host answers an effect. A program
+keeps no value across a call of the host but its literals, which its start
+function made before any call, so every value and builder made since the
+innermost `enter()`, up to the `throw`, belonged to an abandoned frame.
+`recover()` frees those and ends that call. A value `thrown()` made after
+the `throw` stays. A runtime that cannot tell what it made when, such as
+one in JavaScript whose collector frees the values anyway, may treat
+`enter()` and `leave()` as doing nothing.
 
 **The shadow stack is restored too.** Rust keeps a stack in linear memory
 whose top is the mutable global `__stack_pointer`, and a trap skips the
@@ -99,7 +109,7 @@ formatting code into the module.
 | L0 | unchanged | code, `call` and `init` have one result; `throw` added |
 | Every call | the status is tested after it returns | nothing is tested |
 | NaNVM build | stable Rust and two adapter modules | stable Rust only |
-| A caught throw | every `drop` runs | the abandoned frames' values leak |
+| A caught throw | every `drop` runs | `recover()` frees what the abandoned frames held |
 | A future `try` in the language | works as it is | needs WASM exceptions then |
 
 ## Risks
@@ -108,10 +118,10 @@ formatting code into the module.
   program would catch inside WASM, and only WASM exceptions can do that
   without leaks. The trap design stays correct for the host-side `catch`
   effect, and `try` would be a new ABI version.
-- **Leaks under `catch`.** A trap abandons every frame between the
-  `throw` and the host's call, not only one. So a caught throw leaks
-  everything those frames held, which is unbounded for a deep recursion
-  with large temporaries. A program that catches many throws in one run
-  grows its memory by that much each time.
+- **Freeing by age.** `recover()` relies on a program keeping no value
+  across a call of the host except its literals. A program that caches a
+  computed value in a global during a call would break that, so the
+  compiler must not. A runtime that frees by age needs to record when
+  each value was made, which NaNVM does in its handle table.
 - **Hosts other than node.** Wasmtime also keeps an instance usable after
   a trap. That is not checked here.
