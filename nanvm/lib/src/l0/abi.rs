@@ -7,12 +7,13 @@
 //! from a `.wasm`.
 //!
 //! - **A value is an `i64` handle,** an index into a table of `naive`
-//!   values. The four constants are the handles `0` to `3`, which `dup`
+//!   values, with the slot's generation in the high 32 bits, so a handle
+//!   used after its `drop` traps even when its slot holds a new value. The four constants are the handles `0` to `3`, which `dup`
 //!   answers as they are and `drop` leaves alone, and every `undefined`,
 //!   `null` or boolean an L0 function answers is one of them. Every other handle is one
 //!   owned reference: `dup` makes a new handle and `drop` frees one.
 //! - **A builder is an `i32` handle,** an index into a table of open
-//!   builders.
+//!   builders, with a generation the same way.
 //! - **Bytes** cross through [`with_memory`], which stands in for the
 //!   memory the loader makes.
 //! - **Code** is a [`Code`] in a table, [`add_code`], which stands in for
@@ -75,11 +76,83 @@ const MEMORY: usize = 0x1_0000;
 #[derive(Debug)]
 pub struct Thrown;
 
+/// A table of handles. A handle is a slot's index in its low `bits` and the
+/// slot's generation above, and freeing a slot moves its generation on, so
+/// a handle freed before refers to nothing, even after its slot is reused.
+struct Slab<T> {
+    slots: Vec<(u32, Option<T>)>,
+    free: Vec<usize>,
+    bits: u32,
+    generations: u32,
+}
+
+impl<T> Slab<T> {
+    fn new(bits: u32, generation_bits: u32) -> Self {
+        Slab {
+            slots: Vec::new(),
+            free: Vec::new(),
+            bits,
+            generations: u32::MAX >> (32 - generation_bits),
+        }
+    }
+
+    /// The slot a handle names, while it holds a value.
+    fn find(&self, h: u64) -> Option<usize> {
+        let i = (h & ((1 << self.bits) - 1)) as usize;
+        let generation = u32::try_from(h >> self.bits).ok()?;
+        match self.slots.get(i) {
+            Some((g, Some(_))) if *g == generation => Some(i),
+            _ => None,
+        }
+    }
+
+    fn get(&self, h: u64) -> Option<&T> {
+        self.find(h).and_then(|i| self.slots[i].1.as_ref())
+    }
+
+    fn get_mut(&mut self, h: u64) -> Option<&mut T> {
+        self.find(h).and_then(|i| self.slots[i].1.as_mut())
+    }
+
+    fn take(&mut self, h: u64) -> Option<T> {
+        let i = self.find(h)?;
+        let (generation, v) = &mut self.slots[i];
+        *generation = generation.wrapping_add(1) & self.generations;
+        self.free.push(i);
+        v.take()
+    }
+
+    fn put(&mut self, name: &str, v: T) -> u64 {
+        let i = match self.free.pop() {
+            Some(i) => i,
+            None => {
+                if (self.slots.len() as u64) >> self.bits != 0 {
+                    trap(name, "too many handles")
+                }
+                self.slots.push((0, None));
+                self.slots.len() - 1
+            }
+        };
+        self.slots[i].1 = Some(v);
+        (u64::from(self.slots[i].0) << self.bits) | i as u64
+    }
+
+    /// Frees every slot.
+    fn clear(&mut self) {
+        for i in 0..self.slots.len() {
+            let h = (u64::from(self.slots[i].0) << self.bits) | i as u64;
+            self.take(h);
+        }
+    }
+
+    fn count(&self) -> usize {
+        self.slots.iter().filter(|(_, v)| v.is_some()).count()
+    }
+}
+
 struct State {
-    values: Vec<Option<V>>,
-    free_values: Vec<usize>,
-    builders: Vec<Option<Builder<A>>>,
-    free_builders: Vec<usize>,
+    values: Slab<V>,
+    builders: Slab<Builder<A>>,
     memory: Vec<u8>,
     table: Vec<Code>,
     texts: HashMap<Vec<u16>, &'static str>,
@@ -88,17 +161,21 @@ struct State {
 
 impl State {
     fn new() -> Self {
+        // A value handle is 32 bits of index and 32 of generation. A
+        // builder handle, an `i32`, is 16 and 15, so it is never negative.
+        let mut values = Slab::new(32, 32);
+        for v in [
+            super::undefined(),
+            super::null(),
+            super::from_bool(false),
+            super::from_bool(true),
+        ] {
+            values.put("constant", v);
+        }
         State {
-            values: vec![
-                Some(super::undefined()),
-                Some(super::null()),
-                Some(super::from_bool(false)),
-                Some(super::from_bool(true)),
-            ],
-            free_values: Vec::new(),
-            builders: Vec::new(),
-            free_builders: Vec::new(),
-            memory: vec![0; MEMORY],
+            values,
+            builders: Slab::new(16, 15),
+            memory: core::iter::repeat_n(0, MEMORY).collect(),
             table: Vec::new(),
             texts: HashMap::new(),
             thrown: None,
@@ -117,36 +194,21 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
 // Handles. No borrow of the state is held while a typed L0 function or a
 // code runs, so either may call back into the ABI.
 
-fn slot(name: &str, h: i64, len: usize) -> usize {
-    match usize::try_from(h) {
-        Ok(i) if i < len => i,
-        _ => trap(name, "not a value"),
-    }
+fn is_constant(h: i64) -> bool {
+    (0..CONSTANTS as i64).contains(&h)
 }
 
 /// The value of a borrowed handle.
 fn get(name: &str, h: i64) -> V {
-    with(|s| {
-        let i = slot(name, h, s.values.len());
-        s.values[i].clone()
-    })
-    .unwrap_or_else(|| trap(name, "not a value"))
+    with(|s| s.values.get(h as u64).cloned()).unwrap_or_else(|| trap(name, "not a value"))
 }
 
 /// The value of a handle the function takes: the handle is freed.
 fn take(name: &str, h: i64) -> V {
-    with(|s| {
-        let i = slot(name, h, s.values.len());
-        if i < CONSTANTS {
-            return s.values[i].clone();
-        }
-        let v = s.values[i].take();
-        if v.is_some() {
-            s.free_values.push(i);
-        }
-        v
-    })
-    .unwrap_or_else(|| trap(name, "not a value"))
+    if is_constant(h) {
+        return get(name, h);
+    }
+    with(|s| s.values.take(h as u64)).unwrap_or_else(|| trap(name, "not a value"))
 }
 
 /// A new owned handle. `undefined`, `null` and the booleans answer their
@@ -158,56 +220,23 @@ fn put(v: V) -> i64 {
         super::Kind::Boolean => return from_bool(super::to_bool(&v) as i32),
         _ => {}
     }
-    with(|s| {
-        let i = match s.free_values.pop() {
-            Some(i) => {
-                s.values[i] = Some(v);
-                i
-            }
-            None => {
-                s.values.push(Some(v));
-                s.values.len() - 1
-            }
-        };
-        i as i64
-    })
+    with(|s| s.values.put("put", v)) as i64
 }
 
 fn take_builder(name: &str, b: i32) -> Builder<A> {
-    with(|s| {
-        let i = usize::try_from(b).ok().filter(|&i| i < s.builders.len());
-        let v = i.and_then(|i| s.builders[i].take());
-        if let (Some(i), Some(_)) = (i, &v) {
-            s.free_builders.push(i);
-        }
-        v
-    })
-    .unwrap_or_else(|| trap(name, "not a builder"))
+    with(|s| s.builders.take(b as u32 as u64)).unwrap_or_else(|| trap(name, "not a builder"))
 }
 
-fn put_builder(b: Builder<A>) -> i32 {
-    with(|s| {
-        let i = match s.free_builders.pop() {
-            Some(i) => {
-                s.builders[i] = Some(b);
-                i
-            }
-            None => {
-                s.builders.push(Some(b));
-                s.builders.len() - 1
-            }
-        };
-        i as i32
-    })
+fn put_builder(name: &str, b: Builder<A>) -> i32 {
+    with(|s| s.builders.put(name, b)) as i32
 }
 
 /// Runs `f` on an open builder, which stays open.
 fn on_builder(name: &str, b: i32, f: impl FnOnce(&mut Builder<A>)) {
     with(|s| {
-        let builder = usize::try_from(b)
-            .ok()
-            .and_then(|i| s.builders.get_mut(i))
-            .and_then(Option::as_mut)
+        let builder = s
+            .builders
+            .get_mut(b as u32 as u64)
             .unwrap_or_else(|| trap(name, "not a builder"));
         f(builder)
     })
@@ -294,7 +323,8 @@ pub fn make_string(ptr: i32, len: i32) -> i64 {
 
 /// L0 `read_units`: `len` units of `s` from `start`, written at `ptr`.
 pub fn read_units(s: i64, start: i32, len: i32, ptr: i32) {
-    let mut out = vec![0u16; len as u32 as usize];
+    bytes("read_units", ptr, len, 2);
+    let mut out: Vec<u16> = core::iter::repeat_n(0, len as u32 as usize).collect();
     super::read_units(&get("read_units", s), start as u32, &mut out);
     let data: Vec<u8> = out.iter().flat_map(|u| u.to_le_bytes()).collect();
     store("read_units", ptr, len, 2, &data);
@@ -316,7 +346,8 @@ pub fn sign(b: i64) -> i32 {
 /// L0 `read_words`: `len` words of `b`'s magnitude from `start`, written
 /// at `ptr`.
 pub fn read_words(b: i64, start: i32, len: i32, ptr: i32) {
-    let mut out = vec![0u64; len as u32 as usize];
+    bytes("read_words", ptr, len, 8);
+    let mut out: Vec<u64> = core::iter::repeat_n(0, len as u32 as usize).collect();
     super::read_words(&get("read_words", b), start as u32, &mut out);
     let data: Vec<u8> = out.iter().flat_map(|w| w.to_le_bytes()).collect();
     store("read_words", ptr, len, 8, &data);
@@ -358,12 +389,12 @@ pub fn join(parts: i64, separator: i64) -> i64 {
 
 /// L0 `begin_array`.
 pub fn begin_array(len: i32) -> i32 {
-    put_builder(super::begin_array(len as u32))
+    put_builder("begin_array", super::begin_array(len as u32))
 }
 
 /// L0 `begin_object`.
 pub fn begin_object(len: i32) -> i32 {
-    put_builder(super::begin_object(len as u32))
+    put_builder("begin_object", super::begin_object(len as u32))
 }
 
 /// L0 `push`. It takes `v`.
@@ -409,7 +440,7 @@ pub fn find(o: i64, key: i64) -> i32 {
 /// L0 `dup`.
 pub fn dup(v: i64) -> i64 {
     let x = get("dup", v);
-    if (v as usize) < CONSTANTS { v } else { put(x) }
+    if is_constant(v) { v } else { put(x) }
 }
 
 /// L0 `drop`. It takes `v`.
@@ -453,7 +484,7 @@ impl Drop for Handles {
 /// A function's text as NaNVM keeps it: one `&'static str` per distinct
 /// text, made once. An unpaired surrogate becomes U+FFFD.
 fn intern(text: &V) -> &'static str {
-    let mut units = vec![0u16; super::length(text) as usize];
+    let mut units: Vec<u16> = core::iter::repeat_n(0, super::length(text) as usize).collect();
     super::read_units(text, 0, &mut units);
     if let Some(t) = with(|s| s.texts.get(&units).copied()) {
         return t;
@@ -544,7 +575,6 @@ pub fn thrown() -> i64 {
 pub fn recover() {
     with(|s| {
         s.builders.clear();
-        s.free_builders.clear();
         s.thrown = None;
     })
 }
@@ -568,5 +598,5 @@ pub fn catch(f: impl FnOnce() -> i64) -> Result<i64, i64> {
 /// The number of handles in use, besides the constants: for tests of
 /// ownership.
 pub fn live() -> usize {
-    with(|s| s.values[CONSTANTS..].iter().filter(|v| v.is_some()).count())
+    with(|s| s.values.count() - CONSTANTS)
 }

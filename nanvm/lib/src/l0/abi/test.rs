@@ -206,7 +206,7 @@ fn a_throw_reaches_the_host() {
         let e = catch(|| call(c, args)).unwrap_err();
         assert_eq!(text_of(e), "boom");
         assert_eq!(has_thrown(), 0);
-        assert_eq!(STATE.with_borrow(|s| s.builders.len()), 0);
+        assert_eq!(STATE.with_borrow(|s| s.builders.count()), 0);
         drop(e);
         drop(args);
     }
@@ -258,7 +258,7 @@ type Case = (&'static str, Box<dyn FnOnce()>);
 #[test]
 fn traps() {
     let s = string("a");
-    let cases: [Case; 8] = [
+    let cases: [Case; 11] = [
         (
             "l0.kind: not a value",
             Box::new(|| {
@@ -283,6 +283,33 @@ fn traps() {
             Box::new(|| {
                 let a = string("ab");
                 read_units(a, 0, 2, 0xfffe);
+            }),
+        ),
+        (
+            "l0.to_f64: not a value",
+            Box::new(|| {
+                let old = from_f64(1.0);
+                drop(old);
+                let new = from_f64(2.0);
+                assert_ne!(old, new);
+                to_f64(old);
+            }),
+        ),
+        (
+            "l0.push: not a builder",
+            Box::new(|| {
+                let old = begin_array(0);
+                seal(old);
+                let new = begin_array(1);
+                assert_ne!(old, new);
+                push(old, TRUE);
+            }),
+        ),
+        (
+            "l0.read_units: out of bounds",
+            Box::new(|| {
+                let a = string("ab");
+                read_units(a, 0, -1, 0);
             }),
         ),
         (
