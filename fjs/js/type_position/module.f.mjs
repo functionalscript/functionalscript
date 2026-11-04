@@ -36,6 +36,9 @@
 
 import { isTrivia } from '../../ebnf/lib/js/module.f.mjs'
 
+/** The words a type literal's member may open with before its key. */
+const modifiers = ['readonly', 'get', 'set']
+
 /** The tokens a line that goes on with a type opens with. */
 const continuations = ['|', '&', '?', ':', '=>', 'extends']
 
@@ -119,7 +122,7 @@ export const typePositions = tokens => {
     /**
      * Whether a type literal's member starts at `j`: after `{`, `;` or `,`,
      * on a new line that does not go on with a type, or after a member's
-     * `readonly`.
+     * modifier: `readonly`, or an accessor's `get` or `set`.
      *
      * @type {(j: number) => boolean}
      */
@@ -127,7 +130,7 @@ export const typePositions = tokens => {
         const before = tok(j - 1)
         return ['{', ';', ','].includes(kinds[j - 1])
             || (lineBefore(j) && !continuations.includes(kinds[j - 1]) && !(isName(before) && operators.includes(before.value)))
-            || (isWord('readonly')(before) && memberStart(j - 1))
+            || (isName(before) && modifiers.includes(before.value) && memberStart(j - 1))
     }
     /**
      * Whether the type after a `:` at `j` runs to `=>` before anything that
@@ -294,6 +297,8 @@ export const typePositions = tokens => {
             || isWord('is')(next) || after === 'in'
             || (after === '(' && top().close === '}')
             || tok(j - 1)?.kind === '.'
+            // a member's modifier, before its key
+            || (top().close === '}' && modifiers.includes(t.value) && memberStart(j) && (after === '[' || isName(next)))
         if (!named && !operators.includes(t.value)) { typed = [...typed, at[j]] }
     }
     return tokens.map((_, i) => typed.includes(i))

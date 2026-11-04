@@ -55,11 +55,12 @@ export const proof = {
         assertEq(
             typed('type X = { [symbol]: string, [a.b]: C; [g(h)]: L, [k: D]: E, [K in F]: G, h: [I, J] }'),
             'string C L D E F G I J')
-        // A member starts after `readonly` too, and on a new line, unless
+        // A member starts after `readonly`, `get` or `set` too, and on a new line, unless
         // the line goes on with the type before it.
         assertEq(
             typed('type Y = { readonly [symbol]: string, a: readonly [M]\n  [bigint]: N\n  b: O |\n  [P]\n  c: keyof\n  [Q] }'),
             'string M N O P Q')
+        assertEq(typed('type Z = { get [number](): string; set [bigint](v: R); get a(): S; get: T }'), 'string R S T')
     },
     // A conditional's branches are types, its `:` no member's.
     conditional: () => assertEq(typed('type A = { a: B extends string ? C : never, d?: E }'), 'B string C never E'),
