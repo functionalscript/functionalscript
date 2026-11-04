@@ -30,7 +30,7 @@ supplies only L0 and L1's native rows.
 ### 2. Today's natives become L1 operations
 
 Each primitive in the table below becomes an L1 operation, with a
-FunctionalScript body in `fjs/js/l1` over the
+FunctionalScript body in `fjs/wasm/runtime/l1` over the
 [L0 view](./l0-design.md#17-a-functionalscript-view-of-l0), as
 [l2-stock-runtime.md](./l2-stock-runtime.md#proposed) proposed. The L0
 string functions were added for this. `fjs/js/runtime` does not change: its
@@ -49,7 +49,7 @@ substitutions of the same bodies, checked by the same proof tables.
 
 - **Why:** each was native only because no body could read a unit or a key.
   The L0 view can, so the list of natives shrinks to L1's native rows.
-  Writing the bodies in `fjs/js/l1`, not in `fjs/js/runtime`, keeps the L0
+  Writing the bodies in `fjs/wasm/runtime/l1`, not in `fjs/js/runtime`, keeps the L0
   view out of the modules that the interpreter and the Rust backend
   compile. Those executors would otherwise have to recognise every
   intrinsic of the view as well.
@@ -119,9 +119,9 @@ substitutions of the same bodies, checked by the same proof tables.
 
 ## The first implementation
 
-1. The L0 view, `fjs/js/l0`, with JavaScript bodies, and its proofs.
-2. The L1 bodies in `fjs/js/l1`, proved against JavaScript's operators.
-3. The bodies of today's natives, as L1 operations in `fjs/js/l1`, proved
+1. The L0 view, `fjs/wasm/runtime/l0`, with JavaScript bodies, and its proofs.
+2. The L1 bodies in `fjs/wasm/runtime/l1`, proved against JavaScript's operators.
+3. The bodies of today's natives, as L1 operations in `fjs/wasm/runtime/l1`, proved
    against the host's built-ins, as the static bodies are proved today.
 4. A WASM backend that compiles the stock module, and a small program
    linked with it, on a host that provides L0 and L1's native rows: NaNVM

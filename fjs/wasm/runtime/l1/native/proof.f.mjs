@@ -1,4 +1,4 @@
-import { assert, assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq } from '../../../../asserts/module.f.js'
 import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
     bigintToString, numberToString, stringToNumber,

@@ -221,7 +221,7 @@ are written in FunctionalScript.
 
 ### 17. A FunctionalScript view of L0
 
-- **Pick:** a module of intrinsics, proposed as `fjs/js/l0`, names the L0
+- **Pick:** a module of intrinsics, `fjs/wasm/runtime/l0`, names the L0
   functions that FunctionalScript code may call: `kind`, `length`, `item`,
   `key`, `find`, `same`, `text` and the four string functions, plus the kind tags
   as constants. It also has casts: `asNumber`, `asBoolean`, `asString`,
@@ -248,7 +248,7 @@ are written in FunctionalScript.
   unless its argument is an integer in range. In WASM the same mistake
   traps, so a proof on a JavaScript host finds every misuse that would trap.
 - **Who reads the view:** only the WASM backend recognises the intrinsics,
-  and only `fjs/js/l1` imports the view. The interpreter and the Rust
+  and only `fjs/wasm/runtime/l1` imports the view. The interpreter and the Rust
   backend never see it, so each intrinsic costs one recognised body in one
   backend, not one in every executor, as `fjs/js/intrinsic` costs today.
 - **Numbers:** FunctionalScript numbers are `f64`. Where L0 takes an

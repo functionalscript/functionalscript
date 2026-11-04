@@ -1,6 +1,6 @@
 /**
  * The FunctionalScript view of L0, the core of the WASM runtime interface
- * ([`l0-design.md` §17](../../../doc/sasha-gil/wasm/l0-design.md#17-a-functionalscript-view-of-l0)):
+ * ([`l0-design.md` §17](../../../../doc/sasha-gil/wasm/l0-design.md#17-a-functionalscript-view-of-l0)):
  * the L0 functions FunctionalScript code may call, the kind tags, and the
  * casts, each with a plain JavaScript body. The WASM backend will recognise
  * each function by its body and lower it to its `fjs:l0` import, or a cast
@@ -15,9 +15,9 @@
  * thrown is `l0.<name>: <reason>`; a trap carries no value, so the text is
  * only for whoever reads a failed proof.
  *
- * Only `fjs/js/l1` imports this view, and only the WASM backend will read
+ * Only `fjs/wasm/runtime/l1` imports this view, and only the WASM backend will read
  * it. The interpreter and the Rust backend never see it, and
- * [`../runtime`](../runtime/module.f.js) stays as it is.
+ * [`fjs/js/runtime`](../../../js/runtime/module.f.js) stays as it is.
  *
  * Allocation, `dup`, `drop`, the builders and memory are not in the view:
  * the compiler emits them from literals, spreads and its ownership pass.
@@ -27,7 +27,7 @@
  * @import { Cast, Kind, L0Array, L0Function, L0Object } from './types.ts'
  */
 
-import { charCodeAt, slice } from '../intrinsic/module.f.js'
+import { charCodeAt, slice } from '../../../js/intrinsic/module.f.js'
 
 /** The kind tag of `undefined`. @type {Kind} */
 export const UNDEFINED = 0
@@ -162,7 +162,7 @@ const index = (name, i, n) => {
 /**
  * The number of `u64` words of a bigint's magnitude: `0` for `0n`, since
  * bigints are canonical
- * ([`l0-design.md` §19](../../../doc/sasha-gil/wasm/l0-design.md#19-bigints-are-canonical)).
+ * ([`l0-design.md` §19](../../../../doc/sasha-gil/wasm/l0-design.md#19-bigints-are-canonical)).
  *
  * @type {(b: bigint) => number}
  */
@@ -186,7 +186,7 @@ const properties = (name, o) => {
 
 /**
  * L0 `length`, per kind
- * ([`l0-design.md` §18](../../../doc/sasha-gil/wasm/l0-design.md#18-what-length-item-and-key-mean-for-each-kind)):
+ * ([`l0-design.md` §18](../../../../doc/sasha-gil/wasm/l0-design.md#18-what-length-item-and-key-mean-for-each-kind)):
  * a string's UTF-16 units, a bigint's `u64` words, an array's items, an
  * object's properties, and a function's declared parameters. `undefined`,
  * `null`, a boolean and a number throw.
@@ -258,7 +258,7 @@ const isReference = v => {
  * L0 `same`: whether two arrays, objects or functions are the same value.
  * Any other kind throws: L1 compares primitives by content. A runtime may
  * also answer `true` for two equal values
- * ([`l0-design.md` §14](../../../doc/sasha-gil/wasm/l0-design.md#14-identity-same-is-reference-identity-and-a-runtime-may-merge-equal-values)),
+ * ([`l0-design.md` §14](../../../../doc/sasha-gil/wasm/l0-design.md#14-identity-same-is-reference-identity-and-a-runtime-may-merge-equal-values)),
  * which a JavaScript host does not.
  *
  * @type {(a: unknown, b: unknown) => boolean}

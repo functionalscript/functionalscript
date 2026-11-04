@@ -45,8 +45,6 @@ the website colours source text by.
 |[`static`](./static/README.md)              |the static functions a module may call, such as `Object.is`                 |compiler, edag, nanvm                        |
 |[`members`](./members/module.f.js)          |the member functions of the built-in types, as one table                    |none yet; executors will be generated from it|
 |[`intrinsic`](./intrinsic/module.f.js)      |the primitives no function body can define: `slice`, `charCodeAt`           |compiler, edag                               |
-|[`l0`](./l0/module.f.js)                    |the FunctionalScript view of the WASM runtime's L0 core, with JavaScript bodies|`l1`, its one importer|
-|[`l1`](./l1/module.f.js)                    |the WASM runtime's L1 operations with FunctionalScript bodies, and its native rows|none yet; the WASM backend will compile it|
 |[`runtime`](./runtime/README.md)            |the built-in functions, defined once for every executor                     |compiler, edag, nanvm, effects/node          |
 |[`ast`](./ast/README.md)                    |the Foundation AST, the compiler's intermediate representation              |compiler, edag, nanvm, rust                  |
 

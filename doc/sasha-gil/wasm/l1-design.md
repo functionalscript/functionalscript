@@ -23,7 +23,7 @@ it wants to make faster.
 ### 1. L1 bodies are FunctionalScript over typed values
 
 - **Pick:** an L1 body is an ordinary FunctionalScript function in a new
-  module, proposed as `fjs/js/l1`, which only the WASM backend compiles. It
+  module, `fjs/wasm/runtime/l1`, which only the WASM backend compiles. It
   reads values through the L0 view and
   works on the typed results. For example, `+` is:
 
@@ -46,7 +46,7 @@ it wants to make faster.
 
 ### 2. The closure rule
 
-- **Pick:** inside `fjs/js/l1`, the compiler refuses any operator it
+- **Pick:** inside `fjs/wasm/runtime/l1`, the compiler refuses any operator it
   would lower to an L1 import. An operator there must have typed operands,
   or the body must call another L1 body by name.
 - **Why:** the rule makes the definition well founded, the same way the
