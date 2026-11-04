@@ -60,6 +60,8 @@ export const proof = {
         // certain, and a name where it may be a value, as `rtti`'s are
         assertEq(keywords('let a: string'), '["let","string"]')
         assertEq(keywords('const b = or(option, number)'), '["const"]')
+        // a block comment's line break ends a type as a line's end does
+        assertEq(keywords('type T = string /*\n*/ const x = number'), '["type","string","const"]')
         // JavaScript reads them all as names
         assertEq(JSON.stringify(spansOf('type A').map(({ kind }) => kind)), '["identifier","identifier"]')
     },

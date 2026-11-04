@@ -140,19 +140,21 @@ const spansWith = (contextual, typed) => text => {
     /** @type {StateScan<JsToken, JsToken | null, JsToken | null>} */
     const ahead = (token, next) => [next, token.kind === 'nl' ? null : isTrivia(token.kind) ? next : token]
     const following = toArray(stateScan(ahead)(null)(tokens.map(({ token }) => token).toReversed())).toReversed()
-    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i], next: following[i] }])
+    // Every token, the `nl` after a block comment included, so a type ends
+    // at the line that comment ends.
+    const types = typed(tokens.map(({ token }) => token))
+    const kept = tokens.flatMap(({ token }, i) => i > 0 && starts[i] === starts[i - 1] ? [] : [{ token, start: starts[i], next: following[i], type: types[i] }])
     // The kind of the word before each token, trivia skipped, in one pass.
     /** @type {StateScan<{ token: JsToken }, string, string>} */
     const word = ({ token }, prior) => [prior, isTrivia(token.kind) ? prior : token.kind]
     const afterWords = toArray(stateScan(word)('')(kept))
-    const types = typed(kept.map(({ token }) => token))
     // The last token is `eof`, which stays plain, so every token that has a
     // kind has a next one to end at.
-    return kept.slice(0, -1).flatMap(({ token, start, next }, i) => {
+    return kept.slice(0, -1).flatMap(({ token, start, next, type }, i) => {
         const kind = kindOf(contextual)(token, next)
         const before = afterWords[i]
         const property = (kind === 'keyword' || kind === 'literal') && (before === '.' || before === '?.')
-        const primitive = kind === 'identifier' && types[i] && token.kind === 'id' && primitives.includes(token.value)
+        const primitive = kind === 'identifier' && type && token.kind === 'id' && primitives.includes(token.value)
         return kind === undefined ? [] : [{ start, length: Array.from(symbols.slice(start, kept[i + 1].start).join('').trimEnd()).length, kind: property ? 'identifier' : primitive ? 'keyword' : kind }]
     })
 }
