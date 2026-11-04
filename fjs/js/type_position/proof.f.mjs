@@ -51,9 +51,16 @@ export const proof = {
         'B C D E F G H N R S'),
     // A member's computed key is a value; an index signature's and a mapped
     // type's brackets hold types, as a tuple's do.
-    computedKey: () => assertEq(
-        typed('type X = { [symbol]: string, [a.b]: C; [g(h)]: L, [k: D]: E, [K in F]: G, h: [I, J] }'),
-        'string C L D E F G I J'),
+    computedKey: () => {
+        assertEq(
+            typed('type X = { [symbol]: string, [a.b]: C; [g(h)]: L, [k: D]: E, [K in F]: G, h: [I, J] }'),
+            'string C L D E F G I J')
+        // A member starts after `readonly` too, and on a new line, unless
+        // the line goes on with the type before it.
+        assertEq(
+            typed('type Y = { readonly [symbol]: string, a: readonly [M]\n  [bigint]: N\n  b: O |\n  [P]\n  c: keyof\n  [Q] }'),
+            'string M N O P Q')
+    },
     // A conditional's branches are types, its `:` no member's.
     conditional: () => assertEq(typed('type A = { a: B extends string ? C : never, d?: E }'), 'B string C never E'),
     // An interface's header and body.

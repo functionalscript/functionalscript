@@ -117,6 +117,19 @@ export const typePositions = tokens => {
         return c !== -1
     }
     /**
+     * Whether a type literal's member starts at `j`: after `{`, `;` or `,`,
+     * on a new line that does not go on with a type, or after a member's
+     * `readonly`.
+     *
+     * @type {(j: number) => boolean}
+     */
+    const memberStart = j => {
+        const before = tok(j - 1)
+        return ['{', ';', ','].includes(kinds[j - 1])
+            || (lineBefore(j) && !continuations.includes(kinds[j - 1]) && !(isName(before) && operators.includes(before.value)))
+            || (isWord('readonly')(before) && memberStart(j - 1))
+    }
+    /**
      * Whether the type after a `:` at `j` runs to `=>` before anything that
      * would end it: a return type and then an arrow.
      *
@@ -205,7 +218,7 @@ export const typePositions = tokens => {
         }
         if (kind === '[') {
             // A member's computed key, in a type literal, is a value.
-            const key = mode === 'type' && top().close === '}' && ['{', ';', ','].includes(kinds[j - 1]) && computedKey(j)
+            const key = mode === 'type' && top().close === '}' && memberStart(j) && computedKey(j)
             frames = [...frames, frame(mode === 'type' && !key ? 'type' : 'value', ']')]
             continue
         }
