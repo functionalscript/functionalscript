@@ -207,7 +207,7 @@ export const proof = {
     },
     // `objectSpread` is what `{ ...v }` copies, for every kind.
     objectSpread: () => {
-        ;[...values, 'a\u{1F600}', [1, [2]]].forEach(v => {
+        [...values, 'a\u{1F600}', [1, [2]]].forEach(v => {
             assertEq(JSON.stringify(Object.entries(objectSpread(v))), JSON.stringify(Object.entries({ .../** @type {object} */ (v) })), String(v))
         })
     },
