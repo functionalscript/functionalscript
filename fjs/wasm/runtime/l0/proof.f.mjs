@@ -1,8 +1,8 @@
 import { assert, assertEq } from '../../../asserts/module.f.js'
 import {
     ARRAY, BIGINT, BOOLEAN, FUNCTION, NULL, NUMBER, OBJECT, STRING, UNDEFINED,
-    asArray, asBigInt, asBoolean, asFunction, asNumber, asObject, asString,
-    concat, find, fromUnit, item, key, kind, length, same, substring, text, unit,
+    asArray, asBigInt, asBoolean, asFunction, asNumber, asObject, asString, buildArray, buildObject,
+    concat, find, fromUnit, item, join, key, kind, length, same, substring, text, unit,
 } from './module.f.js'
 
 /** A function of two parameters. @type {(a: unknown, b: unknown) => unknown} */
@@ -112,6 +112,22 @@ export const proof = {
         assertEq(substring('abcdef', 6, 6), '')
         assertEq(substring('', 0, 0), '')
     },
+    // `join` puts the separator between two parts only.
+    join: () => {
+        assertEq(join([], ','), '')
+        assertEq(join(['a'], ','), 'a')
+        assertEq(join(['a', '', 'b'], ', '), 'a, , b')
+    },
+    // The builders visit `n` states, calling `next` only between two items.
+    build: () => {
+        assertEq(JSON.stringify(buildArray(0, 0, () => { throw 'next' }, () => { throw 'at' })), '[]')
+        assertEq(JSON.stringify(buildArray(1, 5, () => { throw 'next' }, i => i * 2)), '[10]')
+        assertEq(JSON.stringify(buildArray(4, 1, i => i * 3, i => i)), '[1,3,9,27]')
+        assertEq(JSON.stringify(buildObject(0, 0, () => { throw 'next' }, () => { throw 'key' }, () => { throw 'value' })), '{}')
+        assertEq(JSON.stringify(buildObject(3, 0, i => i + 1, i => 'k' + i, i => i)), '{"k0":0,"k1":1,"k2":2}')
+        // Two equal keys: the first position, the last value.
+        assertEq(JSON.stringify(buildObject(3, 0, i => i + 1, i => i === 1 ? 'b' : 'a', i => i)), '{"a":2,"b":1}')
+    },
     // Every misuse that traps in WASM throws here.
     throw: {
         ...castThrows,
@@ -145,5 +161,12 @@ export const proof = {
         substringEndPast: () => { substring('ab', 0, 3) },
         substringBackwards: () => { substring('ab', 2, 1) },
         substringNegative: () => { substring('ab', -1, 1) },
+        joinNotArray: () => { join('ab', ',') },
+        joinPart: () => { join(['a', 1], ',') },
+        joinSeparator: () => { join(['a'], 0) },
+        buildArrayNegative: () => { buildArray(-1, 0, i => i, i => i) },
+        buildArrayFraction: () => { buildArray(0.5, 0, i => i, i => i) },
+        buildArrayLarge: () => { buildArray(0x8000_0000, 0, i => i, i => i) },
+        buildObjectKey: () => { buildObject(1, 0, i => i, i => i, i => i) },
     },
 }
