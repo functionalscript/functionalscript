@@ -40,10 +40,9 @@ starts:
 - **The encoding of `any` for `naive`.** `naive` holds an `Rc` enum, not a
   NaN-boxed word, so the `i64` is a handle, an owned pointer, or the
   values move to [`nanenum`](../src/nanenum.rs) first.
-- **`(i32, any)` results.** `call` and every code index return two values.
-  Stable Rust's `extern "C"` on `wasm32` returns a pair through memory, and
-  a function pointer cannot name a multi-value type, so step 3 needs a thin
-  wrapper not written in Rust, or another shape for the status.
+- **`(i32, any)` results.** Decided 2026-11-04: NaNVM splits each into a
+  status and a value on stable Rust, and two adapter modules join them
+  ([`nanvm-adapter.md`](../../../doc/sasha-gil/wasm/nanvm-adapter.md)).
 - **The loader-owned memory.** Rust's allocator assumes it owns the memory
   above its heap base, where the design has the loader reserve the
   program's regions.

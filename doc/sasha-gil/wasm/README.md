@@ -94,6 +94,7 @@ inliner.
 | 2026-11-02 | The boundary has a separate L1 layer for the JavaScript operations, between the core and the stock runtime. |
 | 2026-11-02 | L0 does not choose a boxing: a value is an opaque `any`, unpacked once into typed values where the compiler knows the type ([l0-core.md](./l0-core.md#values)). |
 | 2026-11-02 | Linking and inlining use our own tools, built on `fjs/media/wasm`. Binaryen is at most a later comparison ([inline-fragments.md](./inline-fragments.md#our-own-linker-first)). |
+| 2026-11-04 | NaNVM stays on stable Rust and gets L0's two-value results through two small adapter modules, built with `fjs/media/wasm` ([nanvm-adapter.md](./nanvm-adapter.md)). |
 
 ## Open questions
 
