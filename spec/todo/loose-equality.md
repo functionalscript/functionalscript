@@ -14,3 +14,5 @@ Read `a == b` as `['==', a, b]` in syntax and resolved source AST, with JavaScri
 - [ ] Specify and implement JavaScript-compatible abstract equality, including mixed primitive types, null/undefined, BigInt/Number boundaries and object-to-primitive conversion.
 - [ ] Preserve left-to-right, exactly-once operand evaluation and conversion failures.
 - [ ] Prove behavior across FJS output paths before lifting the AST-to-FAST refusal; decide `!=` support separately.
+
+The language designer also approved `!=` AST admission with explicit FAST refusal in the same working session. Implementation and validation are in progress.
