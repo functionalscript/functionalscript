@@ -1,10 +1,10 @@
 /**
- * The module grammar over token symbols, spelled LL(1) for
+ * The predictive module grammar over token symbols for
  * `fjs/ebnf/ll1`, which `../syntax/module.f.mjs` reads a module with:
  *
  * ```text
  * module ::= import* moduleStatement* last eof
- * moduleStatement ::= const | let | while | for | bodyNameStatement | newExpressionStatement
+ * moduleStatement ::= const | let | while | for | bodyNameStatement | newExpressionStatement | arrayExpressionStatement
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
@@ -41,11 +41,12 @@
  *                     | newExpression memberAccess*
  * memberAccess ::= '.' id | '[' value ']'
  * newExpressionStatement ::= newExpression access* end
+ * arrayExpressionStatement ::= array access* powTail tail end
  * template ::= noSubstitutionTemplate
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
  * blockContents ::= simpleStatement* [terminator | (while | for) blockContents]
- * statement ::= const | ifStatement | let | newExpressionStatement
+ * statement ::= const | ifStatement | let | newExpressionStatement | arrayExpressionStatement
  *             | while | for | bodyNameStatement
  * ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
  * branchBlock ::= '{' branchContents '}'
@@ -69,7 +70,7 @@
  * loopBlock ::= '{' loopStatement* '}'
  * loopStatement ::= const | let | loopIfStatement | whileStatement | forStatement
  *                 | 'break' end | 'continue' end | 'return' value end
- *                 | 'throw' value end | loopSwitch | bodyNameStatement | newExpressionStatement
+ *                 | 'throw' value end | loopSwitch | bodyNameStatement | newExpressionStatement | arrayExpressionStatement
  * loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
  * loopCase ::= ( 'case' value ':' )+ loopBlock
  * loopIfStatement ::= 'if' '(' value ')' loopBlock [ 'else' loopElse ]
@@ -134,7 +135,7 @@
  *
  * Three more things are spelled for one symbol of lookahead, each a
  * conflict the classical grammar this replaced had, measured before the
- * port and recorded in `fjs/compiler/README.md` ("Both grammars are LL(1)"):
+ * port and recorded in `fjs/compiler/README.md` ("Both grammars use predictive parsing"):
  *
  * - **Trivia is no symbol.** Whitespace, newlines and comments are not in
  *   the stream the grammar reads: the tokenizer leaves them out and marks
@@ -170,7 +171,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule, Variant } from '../../../ebnf/types.ts'
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
+ * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
  * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
  */
@@ -286,7 +287,7 @@ export const symbolOf = t => {
 export const symbolsOf = tokens => tokens.map((token, index) => {
     const encoded = symbolOf(token)
     const next = tokens[index + 1]?.token.kind
-    return encoded.symbol === sym('return') && (next === ';' || next === '}')
+    return encoded.symbol === sym('return') && (next === ';' || next === '}' || next === '[' && tokens[index + 1]?.newline === true)
         ? { ...encoded, symbol: sym('bare-return') } : encoded
 })
 
@@ -1302,11 +1303,10 @@ export const assignable = /** @type {const} */ ({ id: sym('id'), from: sym('from
  * ([spec: call statements](../../../../spec/functions/call-statements/README.md)):
  * the grammar reads any value a name begins, and the fold admits a call
  * alone, refusing any other at the name, as the grammar refused it before.
- * A statement opening with anything but a name is not read: `(` and `[`
- * continue the statement before it as a call and an index where no `;`
- * ends it — JavaScript reads `f` on one line and `(g)(x)` on the next as
- * `f(g)(x)` — so one symbol could not tell them from a new statement's;
- * and a prefix or a literal opens no call worth a statement. An assignment
+ * Array-led statements use the same value grammar under an explicit indexing
+ * continuation policy: `[` continues a preceding expression until an explicit
+ * separator ends it. Parenthesis-led and other literal statement heads remain
+ * separate work. An assignment
  * operator decides the assignment in one symbol, an assignment being no
  * value of the language; and the {@link end} of either. Which names an
  * assignment may rebind is the fold's to say.
@@ -1317,6 +1317,15 @@ export const assignmentOperator = /** @type {AssignmentOperator} */ (fromEntries
 
 /** The assignment or call shared by ordinary statements and `for` clauses. @type {NameExpression} */
 export const nameExpression = [assignable, { assign: [assignmentOperator, value], ...arrowOrRest }]
+
+/** Array-led value syntax uses the same precedence and trailing access branches as a value. @type {ArrayStatementValue} */
+export const arrayStatementValue = () => ['const', { array: valueBranches().array }]
+
+/** A written array-led statement retains its value and ending boundary. @type {ArrayExpressionStatement} */
+export const arrayExpressionStatement = [arrayStatementValue, end]
+
+/** The source language gives indexing continuation priority over a new array statement. */
+export const statementContinuations = /** @type {const} */ ([sym('['), sym('[') + 1])
 
 export const bodyNameStatement = /** @type {const} */ ([...nameExpression, end])
 
@@ -1338,6 +1347,7 @@ export const loopStatement = () => ['const', {
     break: [sym('break'), end],
     const: constStatement,
     construct: newExpressionStatement,
+    array: arrayExpressionStatement,
     continue: [sym('continue'), end],
     if: loopIfStatement,
     let: letStatement,
@@ -1501,7 +1511,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ block: loopBlock, const: constStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ block: loopBlock, const: constStatement, array: arrayExpressionStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

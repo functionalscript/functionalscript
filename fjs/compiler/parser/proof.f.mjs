@@ -660,7 +660,7 @@ export const proof = {
                 ["42", "unexpected token", [1, 1]],
                 ["", "unexpected end", [1, 1]],
                 ["export default", "unexpected end", [1, 15]],
-                ["[1,2]", "unexpected token", [1, 1]],
+                ["[1,2]", "unexpected end", [1, 6]],
                 // Braces now begin a lexical block; its string is the unexpected statement.
                 ["{\"a\":1}", "unexpected token", [1, 2]],
                 ["export default [", "unexpected end", [1, 17]],

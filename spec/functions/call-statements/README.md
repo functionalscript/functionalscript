@@ -110,3 +110,19 @@ export default (...a) => at([1, 2, 3], a[0]);
 
 - ECMA-262: [Expression statement](https://tc39.es/ecma262/#sec-expression-statement)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/Expression_statement>
+
+Array-led expressions are admitted into syntax AST at the same statement
+positions, for example `[1, 2].forEach(f);` or `[f][0](x);`. The syntax reader
+uses the same discard record, preserving the opening bracket, trailing steps,
+precedence and semicolon. The language designer `sergey-shandar` approved this
+increment in the [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
+Source admission still requires a call for a discarded value, and accepted
+calls use the existing required-evaluation lowering. Bare arrays and operator
+results are retained in syntax AST but remain refused by source admission.
+
+JavaScript's indexing continuation wins over a new statement:
+`f()\n[0](x)` is one expression; `f();\n[0](x)` is two statements. The parser
+explicitly declares only `[` as a greedy continuation symbol. The predictive
+backend keeps its default strict conflict checks everywhere else. A bare
+`return` followed by a newline and an array-led statement retains its omitted
+operand and the following, potentially unreachable statement.

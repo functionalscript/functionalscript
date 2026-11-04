@@ -374,12 +374,13 @@ A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here, where a
 value output, which reads the value the constructor built, never sees it.
 
-## Both grammars are LL(1)
+## Both grammars use predictive parsing
 
 The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs),
 and the parser's, [`parser/grammar`](./parser/grammar/module.f.mjs), are read
-by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which refuses a grammar that one
-symbol of lookahead cannot decide, before any input. The classical grammars
+by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which checks one-symbol choices before any input. Its default policy refuses
+conflicts; the source parser explicitly prefers indexing continuations on `[`
+over a new array-led statement. The classical grammars
 they replaced were read by a backtracking backend, and neither was LL(1) as
 spelled. Measured before the ports — the classical rule sets bridged into the
 EBNF form, every rule's closure run through `parserRuleSet`, each conflict
@@ -730,7 +731,7 @@ grammar refuse what the language does not admit, at the token, as they refuse
 the language has no rule for it. The rules the grammar shares with JSON flow the other way — it imports
 JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
 this grammar — so widening it regresses no codec. The parser stays the
-FunctionalScript grammar, LL(1) over those tokens, and grows one production
+FunctionalScript predictive grammar over those tokens, and grows one production
 at a time as the EDAG stages ask.
 
 A full ECMAScript parser with a filter behind it — accept everything, then

@@ -12,7 +12,7 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { diagramPage } from '../../../ebnf/testlib.f.mjs'
 import { railroadLabelMarker } from '../../../website/style/module.f.js'
 import { demo, diagrams } from './demo.f.mjs'
-import { parser } from '../../../ebnf/ll1/module.f.mjs'
+import { parser as predictiveParser } from '../../../ebnf/ll1/module.f.mjs'
 import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
@@ -22,10 +22,14 @@ import {
     module, elements, func, group, identifier, importStatement, items, lastStatement, entry, loopBlock, loopCase, loopElse, loopIfStatement, loopStatement, loopSwitch, member, object, parameters, paren, statement,
     afterCase, caseTail, bodyNameStatement, forStatement, nameExpression, moduleStatement, parenGroup, parenthesized, primitive, sym, symbolOf, symbolsOf, template, terminator, value, whileStatement,
 } from './module.f.mjs'
+import { statementContinuations } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
 // type for `tsc` to unroll through `parser`'s return type (TS2589); the
 // rules are widened to `Rule` here, where only acceptance is read.
+/** The source grammar declares JavaScript's greedy indexing continuation. @type {typeof predictiveParser} */
+const parser = (rule, set = [], greedy = statementContinuations) => predictiveParser(rule, set, greedy)
+
 const parseModule = parser(/** @type {Rule} */ (module))
 
 /**
@@ -84,6 +88,11 @@ const categoryNames = /** @type {const} */ ([
 ])
 
 export const proof = /** @type {const} */ ({
+    arrayLedStatementsAndRestrictedReturnBoundaries: () => {
+        assertStructurallySame(read('[1,2].forEach(f);export default 0;'), ['ok'])
+        assertStructurallySame(read('export default f=>{return\n[f][0]();};'), ['ok'])
+        assertStructurallySame(read('f()\n[0](x);export default 0;'), ['ok'])
+    },
     namedLetInitializersMayBeOmitted: () => {
         for (const source of [
             'let value;export default value;',
@@ -554,10 +563,10 @@ export const proof = /** @type {const} */ ({
         // remain a separate admission check
         assertStructurallySame(read('export default (...a) => { a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { a; a.b(1); a?.(2)\nreturn a; };'), ['ok'])
-        // one opening with anything but a name is no statement: `(` and `[`
-        // would continue the one before it, and a prefix opens no call
+        // Parenthesized and prefix-led statements remain unsupported.
+        // Array-led statements use the explicit indexing continuation policy.
         assertStructurallySame(read('export default (...a) => { (a)(1); return a; };'), ['error', '('])
-        assertStructurallySame(read('export default (...a) => { [a].at(0); return a; };'), ['error', '['])
+        assertStructurallySame(read('export default (...a) => { [a].at(0); return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { !a(1); return a; };'), ['error', '!'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return; };'), ['ok'])

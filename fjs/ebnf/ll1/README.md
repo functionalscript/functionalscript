@@ -347,3 +347,20 @@ slices the input at the index gets the remainder.
   the rule that failed there is available and not returned.
 - **Streaming input**, a parser as a fold over one symbol at a time, which
   [043-stateful-parser](../todo/043-stateful-parser.md) proposes.
+
+### Explicit continuation symbols
+
+`parser(rule, mappings, greedy)` and `parserRuleSet(set, entry, greedy)` accept
+an optional range set of continuation symbols. The default is empty and keeps
+strict FIRST/FOLLOW validation. An explicit symbol assigns any overlapping
+continuation decision on that symbol to consumption: the existing predictive
+matcher takes the next branch or repetition round instead of ending the rule.
+It never backtracks. FIRST/FIRST conflicts, left recursion and FIRST/FOLLOW
+conflicts on every other symbol still fail at construction.
+
+This opt-in gives a deliberately disambiguated, greedy grammar rather than a
+claim that its overlapping productions are LL(1). The source grammar declares
+`[` because JavaScript reads `f()\n[0](x)` as a continued call. A semicolon in
+`f();\n[0](x)` ends the first statement and permits a new array-led statement.
+Only that token receives continuation priority; unrelated token choices remain
+strictly checked.

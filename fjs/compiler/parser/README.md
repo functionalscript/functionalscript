@@ -8,8 +8,7 @@ A loop ends at its closing `}`. Other statements end with `;`, or where
 JavaScript inserts one; a module that does not throw needs at least one export.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
-tokens, and this turns tokens into a `ResolvedModule`. Both layers are an LL(1)
-grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
+tokens, and this turns tokens into a `ResolvedModule`. Both layers use predictive grammars read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
 symbols here. This layer is two modules along the line its two questions
 draw: [`./syntax`](./syntax/module.f.mjs) holds the rewrite set, which turns
@@ -256,8 +255,10 @@ existing computed-key path for `{ [0x70]: value }`, yielding the same numeric
 key operand in FAST. Number literal keys in binding patterns similarly reuse
 the existing constant-key read. This adds no FAST/EDAG operation or runtime rule.
 
-It is LL(1): one symbol of lookahead decides every choice, and the backend
-refuses a grammar where it would not, before any input.
+The backend checks one-symbol choices before reading input. The source grammar
+explicitly prefers indexing continuations on `[` when they could also begin
+another statement. Other FIRST/FOLLOW conflicts and all FIRST/FIRST conflicts
+remain errors; see the backend’s [continuation policy](../../ebnf/ll1/README.md).
 
 A `(` opens an empty/rest-only function or a shared expression/parameter
 prefix. `afterValue` factors the comma, the closing parenthesis and the `=`
@@ -335,7 +336,7 @@ the repeat lists a value's own tail is, plus one reader for the two arms.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
-([the record](../README.md#both-grammars-are-ll1) of all eight):
+([the record](../README.md#both-grammars-use-predictive-parsing) of all eight):
 
 - **Trivia is no symbol.** Whitespace, newlines and comments are not in the
   stream the grammar reads: `fjs/compiler/tokenizer` leaves them out and

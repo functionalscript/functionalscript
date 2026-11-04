@@ -37,7 +37,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { BindingElement, BindingProperty, BindingTarget, PlainBindingTarget, Block, Chain, Const, Let, Element, Elision, Entry, For, ForOf, Import, ImportBinding, Item, Key, LoopBlock, LoopIf, LoopStatement, LoopSwitch, Member, ModuleStatement as ModuleStatementRecord, NamedStatement, Module, ModuleConst, Node, Out, Parameter, ParameterList, Parameters, Step, ReturnStatement, ValueStatement, While } from './types.ts'
- * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
+ * @import { ConstructorCallee, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ForClassicTail, ForHeader, ForNamedLetTail, ForStatement, NameExpression } from '../grammar/types.ts'
  * @import { ArrowOrRest, BindingTarget as BindingTargetRule, Body, ConstStatement, LetStatement, Elements, Entry as EntryRule, Group, Item as ItemRule, Items, LastStatement, LoopBlock as LoopBlockRule, LoopElse, LoopIfStatement, LoopStatement as LoopStatementRule, LoopSwitch as LoopSwitchRule, Member as MemberRule, ModuleStatement, BodyNameStatement, ParameterNames, ParenItems, Parenthesized, Template, Terminator, Unary, UnaryOperand, Value, WhileStatement } from '../grammar/types.ts'
  * @import { namedImports, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _CallBranch, _ChainState, _CircuitNode, _ConditionalNode, _DefaultNode, _EndNode, _IndexBranch, _NameNode, _KeyBranch, _Leaf, _ListNode, _OptionalBranch, _OptionalList, _ParameterNode, _ParametersAfterNode, _ParameterTail, _ParenItems, _CommaOperandsNode, _PowTailNode, _StepRead, _TailRound, _TokenStream } from './private.ts'
@@ -53,7 +53,7 @@ import { assignmentOperators, prefixLayer } from '../../ast/module.f.js'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 import {
-    binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
+    arrayExpressionStatement, arrayStatementValue, statementContinuations, binaryOpTag, body, bodyNameStatement, callArguments, constStatement, constructorCallee, newExpression, newExpressionStatement, module, eagerTail, importBinding, importBindings,
     importStatement, item, lastStatement, letStatement, elements, entries, entry, loopElse, loopStatement, member, moduleStatement, parameterNames, parenItems, symbolsOf, template, terminator, unary, unaryOperand, value, values,
 } from '../grammar/module.f.mjs'
 
@@ -759,6 +759,12 @@ const toNewExpressionStatement = ([constructed, accesses, end]) => {
     return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: steps(nodeAt(constructed), unmapped(accesses), false) } })
 }
 
+/** Array-led statements share the established discard record. @type {(node: Children<ArrayExpressionStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
+const toArrayExpressionStatement = ([value, end]) => {
+    const start = firstAt(value)
+    return symbol({ id: 'const', statement: { start, semicolon: ended(end), target: ['discard', start], value: nodeAt(value) } })
+}
+
 /**
  * `**`'s round, when a primitive, a reference, an array, an object or a
  * group is raised to a power: the operand at the second position of `'**'
@@ -1278,7 +1284,7 @@ const discarded = (name, rest, semicolon) =>
 /** A module's statement before its exports, tagged: a plain loop; a `const` or a `let`, unexported; or what begins with a name, {@link toBodyNameStatement}. @type {(node: Children<ModuleStatement, ModuleTokenWithMetadata, Out>) => Meta<Out>} */
 const toModuleStatement = ([kind, branch]) => {
     if (kind === 'block') { return symbol({ id: 'moduleStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
-    if (kind === 'construct') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
+    if (kind === 'construct' || kind === 'array') { return symbol({ id: 'moduleStatement', statement: ['const', { declaration: constAt(branch), exported: false }] }) }
     if (kind === 'while') { return symbol({ id: 'moduleStatement', statement: ['while', loopConditionAt(branch)] }) }
     if (kind === 'for') { return symbol({ id: 'moduleStatement', statement: forAt(branch) }) }
     if (kind === 'name') {
@@ -1325,7 +1331,7 @@ const namedExpressionOf = ([name, rest], semicolon) => {
  */
 const toLoopStatement = ([kind, branch]) => {
     if (kind === 'block') { return symbol({ id: 'loopStatement', statement: ['block', { start: tokenAt(unmapped(branch)[0]), block: loopBlockOf(unmapped(branch)) }] }) }
-    if (kind === 'construct') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
+    if (kind === 'construct' || kind === 'array') { return symbol({ id: 'loopStatement', statement: ['const', constAt(branch)] }) }
     if (kind === 'break' || kind === 'continue') {
         const [keyword, end] = unmapped(branch)
         return symbol({ id: 'loopStatement', statement: [kind, { start: tokenAt(keyword), semicolon: ended(end) }] })
@@ -1712,6 +1718,8 @@ const toParenItems = ([tag, branch]) => {
  */
 export const mappings = [
     map(constructorCallee, toConstructorCallee),
+    map(arrayStatementValue, toNode),
+    map(arrayExpressionStatement, toArrayExpressionStatement),
     map(newExpression, toNewExpression),
     map(newExpressionStatement, toNewExpressionStatement),
     map(template, toTemplate),
@@ -1754,7 +1762,7 @@ export const mappings = [
 // The tree of a whole module is too deep a type for `tsc` to unroll
 // through `parser`'s return type (TS2589); the rule is widened to `Rule`
 // here, and `moduleAt` reads the one symbol the match is.
-const parseModule = parser(/** @type {Rule} */ (module), mappings)
+const parseModule = parser(/** @type {Rule} */ (module), mappings, statementContinuations)
 
 /**
  * Reads the token list as the syntax tree of a module: the tokenizer's

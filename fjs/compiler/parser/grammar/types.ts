@@ -192,6 +192,9 @@ export type NewExpression = () => readonly ['const', readonly [number, Construct
 /** A constructor expression statement preserves its ordinary trailing steps. */
 export type NewExpressionStatement = readonly [NewExpression, RepeatFrom<0, Access>, End]
 
+export type ArrayStatementValue = () => readonly ['const', { readonly array: ValueBranches['array'] }]
+export type ArrayExpressionStatement = readonly [ArrayStatementValue, End]
+
 /**
  * What follows `?.`: {@link Access}'s three steps less the `.` a property's
  * spelling begins with, which the `?.` has — a property by its name alone,
@@ -530,6 +533,7 @@ export type ModuleStatement = {
     readonly block: LoopBlock
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement
+    readonly array: ArrayExpressionStatement
     readonly let: LetStatement
     readonly while: WhileStatement
     readonly for: ForStatement
@@ -579,6 +583,7 @@ export type LoopStatement = () => readonly ['const', {
     readonly break: readonly [number, End]
     readonly const: ConstStatement
     readonly construct: NewExpressionStatement
+    readonly array: ArrayExpressionStatement
     readonly continue: readonly [number, End]
     readonly if: LoopIfStatement
     readonly let: LetStatement
