@@ -71,7 +71,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { _defaultExport, _moduleExports, unresolved } from './module.f.mjs'
+import { _defaultExport, _moduleExports, tryUnresolved } from './module.f.mjs'
 import { graphOf, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { operatorShape, unsupported } from '../graph/module.f.mjs'
 import { refusal } from '../../website/demo/module.f.mjs'
@@ -148,7 +148,7 @@ const drawn = module => {
 }
 
 /**
- * `text` as the EDAG its module lowers to, or the parser's own error if it
+ * `text` as the EDAG its module lowers to, or the compiler's diagnostic if it
  * does not compile. An operand drawn beside a value names the node it
  * leads to, its key in the values' key column, so a node's operands line
  * up whether they are constants or nodes. A shared node is still drawn
@@ -157,7 +157,10 @@ const drawn = module => {
  *
  * @type {(text: string) => Result<Graph, string>}
  */
-export const graphOfText = parsed(ast => ok(graphOf(_shapeOf)(drawn(unresolved(ast).edag))))
+export const graphOfText = parsed(ast => {
+    const lowered = tryUnresolved(ast)
+    return lowered[0] === 'error' ? lowered : ok(graphOf(_shapeOf)(drawn(lowered[1].edag)))
+})
 
 /**
  * The drop-down is [the compiler's shared list](../examples/module.f.mjs), one

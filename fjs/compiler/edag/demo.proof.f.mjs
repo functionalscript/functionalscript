@@ -35,6 +35,17 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    deferredLoweringIsDisplayed: () => {
+        for (const source of ['export default +1;', 'export default (a,x)=>a[+x];', 'export default ()=>{return 1;const unused=+2;};']) {
+            const result = graphOfText(source)
+            assert(result[0] === 'error')
+            assertEq(result[1], 'unary + AST-to-FAST conversion is not implemented')
+            const html = htmlToString(demo.view(source))
+            assert(html.includes('unary + AST-to-FAST conversion is not implemented'), html)
+            assert(html.includes('data-result="error"'), html)
+            assert(!html.includes('<svg'), html)
+        }
+    },
     demo: {
         /**
          * `_shapeOf` against hand-built `Exp` values, not source text, for
