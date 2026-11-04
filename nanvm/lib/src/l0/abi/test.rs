@@ -216,6 +216,7 @@ fn a_throw_reaches_the_host() {
     fresh();
     let t = make_function(add_code(thrower), array(&[]), 1, UNDEFINED);
     let c = make_function(add_code(caller), array(&[]), 2, UNDEFINED);
+    let before = live();
     for _ in 0..3 {
         let args = array(&[dup(t), string("boom")]);
         let e = catch(|| call(c, args)).unwrap_err();
@@ -224,6 +225,8 @@ fn a_throw_reaches_the_host() {
         assert_eq!(STATE.with_borrow(|s| s.builders.count()), 0);
         drop(e);
         drop(args);
+        // What the abandoned frames held is freed: nothing leaks.
+        assert_eq!(live(), before);
     }
     // The runtime goes on: a call after the throws answers.
     let args = array(&[UNDEFINED]);
@@ -406,4 +409,33 @@ fn begin_object_negative() {
 fn make_function_negative_length() {
     fresh();
     make_function(add_code(first_and_args), array(&[]), -1, UNDEFINED);
+}
+
+#[test]
+#[cfg(panic = "unwind")]
+fn recover_frees_only_the_inner_call() {
+    fresh();
+    let t = make_function(add_code(thrower), array(&[]), 1, UNDEFINED);
+    let r = catch(|| {
+        let kept = from_f64(7.0);
+        let args = array(&[string("inner")]);
+        let e = catch(|| call(t, args)).unwrap_err();
+        assert_eq!(text_of(e), "inner");
+        // The outer call's handles survive the inner call's recovery.
+        assert_eq!(to_f64(kept), 7.0);
+        drop(e);
+        drop(args);
+        kept
+    })
+    .unwrap();
+    assert_eq!(to_f64(r), 7.0);
+    assert_eq!(STATE.with_borrow(|s| s.marks.len()), 0);
+}
+
+#[test]
+fn recover_without_a_mark_frees_nothing() {
+    fresh();
+    let x = from_f64(1.0);
+    recover();
+    assert_eq!(to_f64(x), 1.0);
 }
