@@ -62,11 +62,13 @@ export type SourceValue =
 
 /** Resolved loops retain source evidence; sugar selects their mutable state. */
 export type SourceLoop = {
+    /** A written do-while tests after the body; only sugar expands this mode. */
+    readonly postTest?: true
     readonly target: LoopTarget
     readonly events: readonly BindingEvent[]
     readonly condition: SourceValue
     readonly body: SourceBlock
-    /** A classic for's header-scoped update; its block exits normally. */
+    /** Continuation work: a written for update, or a normalized post-test check. */
     readonly step?: SourceBlock
 }
 

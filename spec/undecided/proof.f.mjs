@@ -36,7 +36,6 @@ const refusals = {
     'acc.property-assignment': ':1:22 - error: unexpected token',
     'name.forward-reference': ':1:17 - error: const not found',
     'st.for-in-of': ':1:42 - error: unexpected token',
-    'st.do-while': ':1:30 - error: unexpected token',
     'st.try': ':1:19 - error: unexpected token',
     'st.debugger': ':1:19 - error: unexpected token',
     'st.label': ':1:31 - error: unexpected token',

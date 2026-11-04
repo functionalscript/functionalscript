@@ -624,8 +624,9 @@ export const sourceGraph = module => {
             }
             case 'if': { return { kind: 'op', label: 'if', children: [['cond', exp[1]], ['then', exp[2], 'lazy'], ['else', exp[3], 'lazy']] } }
             case 'while': {
-                const { condition, body } = /** @type {SourceLoop} */ (exp[1])
-                return { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
+                const { condition, body, postTest } = /** @type {SourceLoop} */ (exp[1])
+                return postTest ? { kind: 'op', label: 'do...while', children: [['body', body], ['cond', condition, 'lazy']] }
+                    : { kind: 'op', label: 'while', children: [['cond', condition], ['body', body, 'lazy']] }
             }
             case 'terminal-loop': {
                 const { condition, body } = /** @type {SourceLoop} */ (exp[1])

@@ -4,7 +4,7 @@
  *
  * ```text
  * module ::= import* moduleStatement* last eof
- * moduleStatement ::= const | let | while | for | bodyNameStatement | newExpressionStatement | arrayExpressionStatement
+ * moduleStatement ::= const | let | while | doWhile | for | bodyNameStatement | newExpressionStatement | arrayExpressionStatement
  * import ::= 'import' clause 'from' string [ 'with' '{' id ':' string '}' ] end
  * clause ::= named | id [ ',' named ]
  * named  ::= '{' [ items(binding) ] '}'
@@ -46,12 +46,13 @@
  *            | templateHead value { templateMiddle value } templateTail
  * block  ::= '{' blockContents '}'
  * blockContents ::= simpleStatement* [terminator | (while | for) blockContents]
- * statement ::= const | ifStatement | let | newExpressionStatement | arrayExpressionStatement
+ * statement ::= const | ifStatement | let | doWhile | newExpressionStatement | arrayExpressionStatement
  *             | while | for | bodyNameStatement
  * ifStatement ::= 'if' '(' value ')' branchBlock [ 'else' branchElse ]
  * branchBlock ::= '{' branchContents '}'
  * branchContents ::= simpleStatement* [terminator | (while | for) branchContents]
  * branchElse ::= branchBlock | ifStatement
+ * doWhile ::= 'do' loopBlock 'while' '(' value ')' end
  * while  ::= 'while' '(' value ')' loopBlock
  * for    ::= 'for' '(' forHeader ')' loopBlock
  * forHeader ::= 'const' bindingTarget forDeclarationTail
@@ -68,7 +69,7 @@
  * afterCase ::= 'case' value ':' caseTail | 'default' ':' block '}'
  *            | '}' blockContents
  * loopBlock ::= '{' loopStatement* '}'
- * loopStatement ::= const | let | loopIfStatement | whileStatement | forStatement
+ * loopStatement ::= const | let | loopIfStatement | whileStatement | doWhile | forStatement
  *                 | 'break' end | 'continue' end | 'return' value end
  *                 | 'throw' value end | loopSwitch | bodyNameStatement | newExpressionStatement | arrayExpressionStatement
  * loopSwitch ::= 'switch' '(' value ')' '{' loopCase+ [ 'default' ':' loopBlock ] '}'
@@ -173,7 +174,7 @@
  * @import { ModuleTokenWithMetadata } from '../../tokenizer/types.ts'
  * @import { AssignmentOperator, ConstructorCallee, MemberAccess, NewExpression, NewExpressionStatement, ArrayExpressionStatement, ArrayStatementValue, DeclarationInitializer, ForClassicTail, ForDeclarationTail, ForNamedLetTail, ForHeader, ForStatement, NameExpression } from './types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
- * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement } from './types.ts'
+ * @import { BranchBlock, BranchContents, BranchElse, IfStatement, BlockContents, SimpleStatement, Access, AfterValue, ArrayLiteral, ArrowOrRest, BindingTarget, Block, Body, CircuitTail, ConditionalTail, ConstStatement, EagerTail, End, Entry, Func, Group, GroupOperand, InfixTag, Item, Items, LastStatement, LetStatement, LoopBlock, LoopCase, LoopElse, LoopIfStatement, LoopStatement, LoopSwitch, Member, OptionalStep, ParameterNames, Parameters, Paren, ParenGroup, ParenItems, CommaOperands, AfterCase, Elements, CaseTail, ParenGroupOperand, Parenthesized, PowTail, PrefixBranches, Statement, Tail, Template, Terminator, Unary, UnaryOperand, Value, ValueBranches, WhileStatement, DoWhileStatement } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.js'
@@ -233,7 +234,7 @@ export const _tokenKindNames = _moduleTokenKinds.filter(kind => kind !== 'eof')
  * and a binding takes that wider rule too, so `const typeof = 1;` still
  * reaches the fold and is refused as a `reserved word`, as `const if = 1;` is.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'for', 'switch', 'case', 'as', 'of', 'typeof', 'new', 'instanceof', 'in', 'else', 'break', 'continue'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'throw', 'if', 'let', 'while', 'do', 'for', 'switch', 'case', 'as', 'of', 'typeof', 'new', 'instanceof', 'in', 'else', 'break', 'continue'])
 
 /**
  * The complete alphabet: one name per `ModuleToken` kind except `eof`, plus
@@ -313,6 +314,7 @@ export const identifier = /** @type {const} */ ({
     else: sym('else'),
     let: sym('let'),
     while: sym('while'),
+    do: sym('do'),
     for: sym('for'),
     break: sym('break'),
     continue: sym('continue'),
@@ -1357,6 +1359,7 @@ export const loopStatement = () => ['const', {
     switch: loopSwitch,
     throw: terminator.throw,
     while: whileStatement,
+    do: doWhileStatement,
     for: forStatement,
 }]
 
@@ -1393,6 +1396,9 @@ export const loopIfStatement = [sym('if'), sym('('), value, sym(')'), loopBlock,
 
 /** The plain loop statement shared by module and function bodies. @type {WhileStatement} */
 export const whileStatement = [sym('while'), sym('('), value, sym(')'), loopBlock]
+
+/** A written post-test loop, including its optional terminating semicolon. @type {DoWhileStatement} */
+export const doWhileStatement = [sym('do'), loopBlock, sym('while'), sym('('), value, sym(')'), end]
 
 /** Classic clauses keep their explicit separators; neither separator uses ASI. @type {ForClassicTail} */
 export const forClassicTail = [option(value), sym(';'), option(nameExpression)]
@@ -1511,7 +1517,7 @@ export const importStatement = /** @type {const} */ ([
  * or what begins with a name, an assignment or a call statement,
  * {@link bodyNameStatement}, as a body's. Each begins with a distinct symbol.
  */
-export const moduleStatement = /** @type {const} */ ({ block: loopBlock, const: constStatement, array: arrayExpressionStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, for: forStatement, name: bodyNameStatement })
+export const moduleStatement = /** @type {const} */ ({ block: loopBlock, const: constStatement, array: arrayExpressionStatement, construct: newExpressionStatement, let: letStatement, while: whileStatement, do: doWhileStatement, for: forStatement, name: bodyNameStatement })
 
 /**
  * What a module ends with, after its imports and constants: its exports —

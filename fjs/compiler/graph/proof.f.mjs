@@ -55,6 +55,11 @@ const nodeShapeOf = (exp, msg) => {
 }
 
 export const proof = {
+    postTestLoopSourceShape: () => {
+        const graph = sourceOf('export default c=>{do{}while(c);};')
+        const loop = nodeOf(graph, 'do...while')
+        assertStructurallySame(from(graph, loop).map(edge => [edge.label, edge.kind]), [['body', undefined], ['cond', 'lazy']])
+    },
     terminalLoopFastHasNoInventedFailure: () => {
         const graph = ofText('export default n=>{let i=n;while(true){if(i===0){return i;}i-=1;}};')
         const loop = nodeOf(graph, 'loop')

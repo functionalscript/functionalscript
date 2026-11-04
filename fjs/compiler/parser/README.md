@@ -697,3 +697,8 @@ are outside this increment.
 Loose equality `==` and inequality `!=` retain their own binary AST nodes at the equality
 precedence level. Source binding checks remain active. AST-to-FAST conversion
 explicitly refuses both pending [lowering](../../../spec/todo/loose-equality.md).
+
+Braced `do { … } while (condition);` statements retain their written `do` tag,
+condition, body and optional semicolon in syntax AST. Resolved source uses the
+shared loop record with `postTest: true`. Body scope closes before the condition
+is resolved; control-flow lowering belongs to FAST conversion.

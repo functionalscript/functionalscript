@@ -11,7 +11,7 @@
  * @import { ModuleTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstImport } from '../ast/types.ts'
  * @import { BindingOrigin, ParseError, ResolvedModule } from './types.ts'
- * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, StandaloneLoopBlock } from './syntax/types.ts'
+ * @import { Assignment, BindingTarget, Chain, ComputedKey, ConstantMember, Const, Container, Discard, Element, Entry, For, ForOf, Import, Item, Key, Let, LoopSwitch, Module, Node, ParameterList, Statement, Step, ValueStatement, While, DoWhile, StandaloneLoopBlock } from './syntax/types.ts'
  * @import { ValueAccess, ValueArray, ValueBinary, ValueIn, ValueInstanceOf, ValueKey, ValueCall, ValueComma, ValueConditional, ValueEntryFunction, ValueHasEntryFunction, ValueIntrinsic, ValueEntry, ValueItem, ValueMember, ValueObject, ValueStatic, ValueSpread, ValueStep, ValueUnary, _AccessFrame, _Bound, _CallFrame, _CasePath, _ChainFrame, _ChainPart, _CommaFrame, _ConditionalFrame, _Counted, _IndexFrame, _ContainerFrame, _DeclarationKind, _Env, _Self, _Evaluated, _Frame, _ForOfFrame, _LateFrame, _LoopBodyFrame, _LoopSwitchFrame, _PatternFrame, _Plan, _Ref, _Scope, _Stack, _State } from './private.ts'
  */
 
@@ -223,7 +223,7 @@ const brokenLine = statement => statement.first !== null && statement.first.newl
  *
  * @type {(previous: { readonly start: ModuleTokenWithMetadata } | null, next: { readonly start: ModuleTokenWithMetadata }) => boolean}
  */
-const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !previous.semicolon && !next.start.newline
+const unterminated = (previous, next) => previous !== null && hasEntry(previous, 'semicolon') && !hasEntry(previous, 'postTest') && !previous.semicolon && !next.start.newline
 
 /** A fixed parameter past the language's limit on a function's `length`, at the first one past it. */
 const tooManyParameters = foldError(`more than ${maxLength} fixed parameters`)
@@ -1100,6 +1100,14 @@ const hasTargetBreak = (root, target) => {
 const enterLoop = (stack, scope, loop, body) =>
     [{ top: { loop, target: { kind: 'loop', index: scope.trace.count + 1 }, body, condition: null, step: null }, rest: stack }, regionScope(scope, empty, null), ['enter', loop.condition]]
 
+/** Resolve the body before the condition, in a separate lexical region. @type {(stack: _Stack, scope: _Scope, loop: DoWhile, body: _LoopBodyFrame | null) => _State} */
+const enterDoLoop = (stack, scope, loop, body) => {
+    const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
+    return loopRound({ top: { doLoop: loop, target, body, resolvedBody: null }, rest: stack }, regionScope(regionScope(scope, empty, null), empty, null), {
+        block: loop.block[1], target, breakTarget: target, index: 0, plan: null, assigned: null, done: null,
+    })
+}
+
 /** Resolve a for initializer in a lexical region that remains open for its loop. @type {(stack: _Stack, scope: _Scope, loop: For, body: _LoopBodyFrame | null) => _State} */
 const enterFor = (stack, scope, loop, body) => {
     const target = /** @type {const} */ ({ kind: 'loop', index: scope.trace.count + 1 })
@@ -1654,6 +1662,15 @@ const returned = (stack, scope, frame, value) => {
         if (frame.body === null) { return [stack, outer, ok(['block', { statements, exit: ['yield', undefined] }])] }
         return loopRound(stack, outer, advanced(frame.body, statements))
     }
+    if (hasEntry(frame, 'doLoop')) {
+        if (frame.resolvedBody === null) {
+            return [{ top: { ...frame, resolvedBody: regionBlock(value) }, rest: stack }, scope, ['enter', frame.doLoop.condition]]
+        }
+        const loop = /** @type {const} */ ({ target: frame.target, events: completedTrace(scope).events, condition: value, body: frame.resolvedBody, postTest: true })
+        const outer = restoredScope(scope, false)
+        if (frame.body === null) { return [stack, outer, ok(['block', { statements: [['while', loop]], exit: ['yield', undefined] }])] }
+        return loopRound(stack, outer, advanced(frame.body, [['while', loop]]))
+    }
     if (hasEntry(frame, 'loop')) {
         if (frame.condition === null) {
             if ('initializer' in frame.loop && frame.loop.step !== null) {
@@ -1687,7 +1704,7 @@ const returned = (stack, scope, frame, value) => {
         }
         if (kind === 'return') { return loopRound(stack, scope, advanced(frame, [['return', scope.trace.target, value]])) }
         if (kind === 'throw') { return loopRound(stack, scope, advanced(frame, [['throw', value]])) }
-        assert(kind !== 'block' && kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
+        assert(kind !== 'block' && kind !== 'do' && kind !== 'while' && kind !== 'for' && kind !== 'for-of' && kind !== 'switch' && kind !== 'break' && kind !== 'continue', 'a loop or transfer completes without a value')
         return landed(loopRound, stack, scope, frame, kind, value)
     }
     if (hasEntry(frame, 'loopGuard')) {
@@ -1861,6 +1878,7 @@ const loopRound = (stack, scope, frame) => {
             return [{ top: frame, rest: stack }, scope, ['enter', statement.value ?? ['primitive', undefined]]]
         }
         if (kind === 'if') { return [{ top: frame, rest: stack }, scope, ['enter', statement.condition]] }
+        if (kind === 'do') { return enterDoLoop(stack, scope, statement, frame) }
         if (kind === 'while') { return enterLoop(stack, scope, statement, frame) }
         if (kind === 'for') { return enterFor(stack, scope, statement, frame) }
         if (kind === 'for-of') { return enterForOf(stack, scope, statement, frame) }
@@ -2086,11 +2104,11 @@ const foldModule = ({ imports, statements: syntaxStatements, exported, thrown: f
             body = [...body, ...regionBlock(evaluated.value).statements]
             continue
         }
-        if (statement[0] === 'while' || statement[0] === 'for' || statement[0] === 'for-of') {
+        if (statement[0] === 'while' || statement[0] === 'do' || statement[0] === 'for' || statement[0] === 'for-of') {
             const loop = statement[1]
             if (unterminated(previous, loop)) { return error(unexpectedToken(loop.start)) }
             previous = loop
-            const [tag, evaluated] = evaluateState(statement[0] === 'for-of' ? enterForOf(null, scope, statement[1], null) : statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, statement[1], null))
+            const [tag, evaluated] = evaluateState(statement[0] === 'do' ? enterDoLoop(null, scope, statement[1], null) : statement[0] === 'for-of' ? enterForOf(null, scope, statement[1], null) : statement[0] === 'for' ? enterFor(null, scope, statement[1], null) : enterLoop(null, scope, statement[1], null))
             if (tag === 'error') { return error(evaluated) }
             scope = evaluated.scope
             body = [...body, ...regionBlock(evaluated.value).statements]
