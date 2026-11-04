@@ -85,7 +85,7 @@ L1 is called only where it does not.
 ### 5. One calling convention for every L1 operation
 
 - **Pick:** each operation is a WASM function from `any` values to
-  `(i32 status, any)`, the shape of [`call`](./l0-design.md#13-errors-an-i32-status-and-an-any).
+  `any`, the shape of [`call`](./l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text).
   The arguments are borrowed and the result is owned, as in L0.
 - **Alternative:** a narrower type for an operation that cannot throw, such
   as `typeof`. That can come later as a specialised version.
@@ -96,7 +96,7 @@ L1 is called only where it does not.
   the general `(self, args)` code that every function value has.
 - **Variadic operations:** an operation that takes any number of
   arguments, such as the body of `String.fromCharCode`, has one parameter,
-  the arguments as an array: `(any args) -> (i32, any)`. Its function value
+  the arguments as an array: `(any args) -> any`. Its function value
   passes the `args` of its `(self, args)` code straight through. A direct
   call such as `String.fromCharCode(a, b)` builds the array with L0's
   builder, as a spread does.
@@ -105,7 +105,8 @@ L1 is called only where it does not.
 
 - **Pick:** an L1 body throws, as the runtime does today, for example
   `throw 'TypeError: unexpected type'` from `call` of a value that is not a
-  function. The throw becomes status 1.
+  function. The throw calls L0's
+  [`throw`](./l0-design.md#13-errors-a-throw-traps), which traps.
 - **Why:** there is nothing new to design. Each throw copies the text of
   the matching constructor in NaNVM's
   [`error.rs`](../../../nanvm/lib/src/vm/error.rs), the error's name, a

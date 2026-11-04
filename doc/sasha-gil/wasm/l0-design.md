@@ -3,14 +3,17 @@
 This draft turns the options in [l0-core.md](./l0-core.md) into one concrete
 design, for discussion. It follows the decisions already recorded in the
 [README](./README.md#decisions): a separate L1, no boxing chosen by L0, and
-our own linker. Nothing here is decided yet.
+our own linker. Of its own choices, the builders of
+[§22](#22-building-in-one-pass) and the throw that traps of
+[§13](#13-errors-a-throw-traps), with what it changes in §12, §20 and §21,
+are decided there too. The rest is not decided yet.
 
 ## Summary
 
-L0 is 31 imported functions and 4 imported constants in one import module,
+L0 is 32 imported functions and 4 imported constants in one import module,
 `fjs:l0`. A value is an opaque `i64`. Bytes cross through a memory both
 modules share. Containers are built through a builder handle and then sealed,
-values are reference counted, and a call returns a status and a value.
+values are reference counted, and a throw traps, so a call returns one value.
 
 | Group | Imports | WASM signature |
 | --- | --- | --- |
@@ -32,7 +35,8 @@ values are reference counted, and a call returns a status and a value.
 | | `find` | `(o, key) -> i32`, the index or -1 |
 | Lifetime | `dup`, `drop` | `(v) -> any`, `(v)` |
 | Functions | `make_function` | `(code, frame, length, text) -> any` |
-| | `call` | `(f, args) -> (i32, any)` |
+| | `call` | `(f, args) -> any` |
+| | `throw` | `(v)`, then traps |
 | | `frame`, `text` | `(self, i) -> any`, `(f) -> any` |
 | Identity | `same` | `(a, b) -> i32` |
 
@@ -162,7 +166,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 - **Pick:** L0 functions have preconditions. For example, `to_f64` on a
   string or `item` past the end reaches `unreachable`, and running out of
-  memory traps. Only `call` returns a status.
+  memory traps. No L0 function returns a status.
 - **Alternative:** a status from every L0 function.
 - **Why:** L0 stays unchecked and fast. L1 checks types and throws the
   JavaScript errors, such as `TypeError`.
@@ -170,7 +174,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 ### 12. Functions: a code index, a frame, a length and a text
 
 - **Pick:** all code has one type,
-  `(param $self i64) (param $args i64) (result i32 i64)`, and borrows `self`
+  `(param $self i64) (param $args i64) (result i64)`, and borrows `self`
   and `args`. `make_function(code, frame, length, text)` takes a sealed frame
   array, and the text as a string or `undefined`. `length(f)` answers the
   declared parameter count. `call(f, args)` takes a sealed array of
@@ -182,12 +186,24 @@ Each choice gives the pick first, then the alternatives and the reason.
 - **Why:** this matches `StaticCode` today, and rest parameters come free.
   The cost is one allocation per call, until a fixed-arity path is added.
 
-### 13. Errors: an `i32` status and an `any`
+### 13. Errors: a throw traps
 
-- **Pick:** status 0 carries a result and status 1 a thrown value. The
-  program branches after each call.
-- **Alternative:** WASM exception handling (WASM 3.0), later, as a second
-  calling convention.
+- **Pick:** L0's `throw(v)` keeps the value and traps. The program emits
+  `call $throw` and `unreachable` where it throws, and L1 throws its errors
+  the same way. Code, `call` and `init` have one result, and nothing is
+  tested after a call. Only the host catches a throw, through the `catch`
+  and `sandbox` effects: it reads the value through the runtime's host-only
+  exports and can go on with the same instance (choice 21). A runtime in
+  JavaScript throws an instance of a private class instead.
+- **Alternatives:** an `i32` status beside every result, which stable Rust
+  cannot return without adapter modules; WASM exception handling (WASM
+  3.0).
+- **Why:** FunctionalScript has `throw` and no `try`, so a throw only has
+  to reach the host, and every frame in between can be abandoned. A trap
+  needs only WASM 2.0, and it is what a Rust panic compiles to. A caught
+  throw leaks what the abandoned frames held. A `try` in the language would
+  need WASM exceptions, as a new ABI version. See
+  [l0-throw-trap.md](./l0-throw-trap.md).
 
 ### 14. Identity: `same` is reference identity, and a runtime may merge equal values
 
@@ -280,13 +296,14 @@ object, L1 reads its `length` property through `find`.
 ### 20. A program is one module, with an `init` export
 
 - **Pick:** the compiler links all the FunctionalScript modules of one
-  program into one WASM module. It exports `init`, of type `() -> (i32, any)`,
+  program into one WASM module. It exports `init`, of type `() -> any`,
   which evaluates the modules in import order and answers the main module's
-  default export, or the value it throws.
+  default export. A throw at a module's top level traps, as anywhere else.
 - **Alternative:** one WASM module per FunctionalScript module, linked by the
   loader.
-- **Why:** a module's top level can throw, and the WASM start function cannot
-  report that. One module per program also keeps calls between modules
+- **Why:** a module's top level can throw, and the host cannot catch a
+  trap in the WASM start function, which runs while the module is
+  instantiated. One module per program also keeps calls between modules
   direct. Modules can be split later, because each one is already a function
   of its imports.
 
@@ -297,6 +314,13 @@ object, L1 reads its `length` property through `find`.
   and `read_units`. It answers through L0's builders and continues through
   `call`. Serialising a value as JSON for the harness is host code over the
   same reads.
+- **After a trap:** a runtime also exports three host-only functions, not
+  L0 imports. `has_thrown() -> i32` answers 1 when a `throw` caused the
+  trap, and `thrown() -> any` answers its value. Otherwise the trap was a
+  misuse and the host stops. Before it goes on, the host calls `recover()`,
+  which closes any open builder and clears the flag. A runtime that keeps a
+  stack in linear memory also exports `__stack_pointer`. The host saves it
+  before each call into the program and writes it back after a caught trap.
 - **Why:** NaNVM's effect loop already works this way over `Any`
   ([`effects-node`](../../../nanvm/effects-node/src/native.rs)), so no new
   import is needed.

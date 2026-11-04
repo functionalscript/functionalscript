@@ -1,16 +1,16 @@
 # A throw that traps: one-value results for L0
 
-A design suggestion for review. It is option D among the ways to give NaNVM L0's
+Decided on 2026-11-04 ([README](./README.md#decisions)). It is option D among the ways to give NaNVM L0's
 two-value results (#3639's `nanvm-adapter.md`), using a trap, which
 is what a Rust panic compiles to, instead of WASM exceptions. Unlike the
-adapter design, it changes L0: choices
+adapter design, it changed L0: choices
 [12](./l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text),
-[13](./l0-design.md#13-errors-an-i32-status-and-an-any) and
+[13](./l0-design.md#13-errors-a-throw-traps) and
 [20](./l0-design.md#20-a-program-is-one-module-with-an-init-export).
 
 ## Why a trap is enough
 
-L0 returns `(i32, any)` so that a caller can tell a throw from a result and
+L0 returned `(i32, any)` so that a caller can tell a throw from a result and
 go on. But a FunctionalScript program never catches a throw. The language
 has `throw` and no `try`. Only the host catches, through the `catch` and
 `sandbox` effects (`fjs/effects/common`): the host runs a thunk and answers
@@ -20,7 +20,7 @@ frame between the `throw` and the host can be abandoned.
 A WASM trap does exactly that. It also needs nothing beyond WASM 2.0, and
 stable Rust on `wasm32-unknown-unknown` emits it for every panic.
 
-## The suggestion
+## The design
 
 - **Code and `call` have one result.** All code has the type
   `(param $self i64) (param $args i64) (result i64)`, and `call(f, args)`

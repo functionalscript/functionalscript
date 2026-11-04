@@ -130,7 +130,8 @@ A function is code plus a frame, a `length`, and optionally its text. The
 code is an entry in a function table that program and runtime share.
 
 - **Make:** `make_function(code_index, frame, length, text_ptr, text_len)`.
-- **Call:** `call(f, args)` returns a status and a value. The runtime calls
+- **Call:** `call(f, args)` returns the value, and a throw traps
+  ([Errors](#errors)). The runtime calls
   the code through `call_indirect` on the shared table, passing `self` and
   `args`. A program and a runtime call each other the same way, which
   callbacks need.
@@ -153,9 +154,13 @@ by code index.
 | A multi-value result, an `i32` status and an `any` | WASM 2.0, which the existing writer supports. It is `Result<Any, Any>` spelled out, at the cost of one branch after each call. |
 | A reserved error bit in `any` | Saves a result, but takes a bit of every runtime's encoding, which L0 no longer chooses. |
 | WASM exception handling, `try_table` and tags | No branch on success, but WASM 3.0, outside the scope of `fjs/media/wasm`, and Rust supports it only behind a flag. |
+| A throw that traps, `throw(v)` | No branch and WASM 2.0. Only the host catches, which is enough while FunctionalScript has no `try`. |
 
-**Proposed:** the multi-value result now. Exception handling can come later
-as a second calling convention.
+**Decided (2026-11-04):** a throw that traps, so every result is one
+value ([l0-throw-trap.md](./l0-throw-trap.md),
+[l0-design.md §13](./l0-design.md#13-errors-a-throw-traps)). This
+replaces the multi-value result proposed here at first, which stable Rust
+cannot return.
 
 ## Identity
 
