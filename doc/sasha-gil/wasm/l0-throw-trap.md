@@ -52,6 +52,17 @@ those values again. Before it goes on, the host calls the runtime's
 `recover()`, also host-only. It closes any builder that a frame left
 open and clears `has_thrown()`.
 
+**The shadow stack is restored too.** Rust keeps a stack in linear memory
+whose top is the mutable global `__stack_pointer`, and a trap skips the
+epilogues that would raise it again. Left as it is, every caught throw
+loses the stack that the abandoned Rust frames reserved, until a later
+valid call runs out and traps. So the runtime exports the global, through
+the linker's `--export=__stack_pointer`, which stable Rust supports. The
+host reads it before each call into the program and writes it back after
+a caught trap. Stable Rust cannot write that global itself, which is why
+the host does it and `recover()` does not. A runtime that keeps no stack
+in linear memory exports no such global, and the host skips the step.
+
 **NaNVM throws only where its own state is whole.** Its Rust code keeps
 returning `Result` inside, and calls `throw` only at an export, where it
 holds no borrow and no half-built value. So a trap never leaves a
@@ -70,6 +81,12 @@ exports `throw: (i64) -> ()`, `call: (i64, i64) -> (i64)` and
   (`unreachable`), and `thrown_flag()` and `thrown_value()` answer `1`
   and `42n`;
 - the same instance keeps working after that trap.
+
+A second stand-in reserves 4 KiB of Rust stack in `call`. Without the
+restore, each caught throw lowers `__stack_pointer` by 4,112 bytes, and
+the 255th caught throw traps with `memory access out of bounds`. With the
+host writing the saved value back, 100,000 caught throws leave it where it
+started, and `call(2n, 10n)` still answers `5n`.
 
 `throw` is written as a store and `core::arch::wasm32::unreachable()`. A
 `panic!` after the store gives the same trap, but it brings the panic
