@@ -349,3 +349,20 @@ fn traps() {
         assert_eq!(panic_text(f), expected);
     }
 }
+
+#[test]
+fn a_spent_builder_slot_is_retired() {
+    let first = begin_array(0);
+    seal(first);
+    for _ in 0..0x8000 {
+        let b = begin_array(0);
+        assert_ne!(b, first);
+        seal(b);
+    }
+    assert_eq!(
+        panic_text(|| {
+            seal(first);
+        }),
+        "l0.seal: not a builder"
+    );
+}

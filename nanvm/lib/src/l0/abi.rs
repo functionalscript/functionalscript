@@ -79,6 +79,7 @@ pub struct Thrown;
 /// A table of handles. A handle is a slot's index in its low `bits` and the
 /// slot's generation above, and freeing a slot moves its generation on, so
 /// a handle freed before refers to nothing, even after its slot is reused.
+/// A slot is retired after its last generation.
 struct Slab<T> {
     slots: Vec<(u32, Option<T>)>,
     free: Vec<usize>,
@@ -117,8 +118,12 @@ impl<T> Slab<T> {
     fn take(&mut self, h: u64) -> Option<T> {
         let i = self.find(h)?;
         let (generation, v) = &mut self.slots[i];
-        *generation = generation.wrapping_add(1) & self.generations;
-        self.free.push(i);
+        // A slot whose generations are spent is retired, never reused, so
+        // no handle ever names two values.
+        if *generation < self.generations {
+            *generation += 1;
+            self.free.push(i);
+        }
         v.take()
     }
 
