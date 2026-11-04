@@ -2,13 +2,14 @@
 
 **Status:** syntax AST implemented; FAST lowering deferred
 
-`a == b` is retained in syntax and resolved source AST as `['==', a, b]`,
+`a == b` and `a != b` are retained in syntax and resolved source AST as
+`['==', a, b]` and `['!=', a, b]`, respectively,
 with JavaScript equality precedence and left associativity. The language designer
 approved AST admission and deferred FJS support in the
 [working session](https://chatgpt.com/local/01a19f43-23cd-76b0-9836-c24644dc8019).
 AST-to-FAST conversion explicitly fails, even for unreachable occurrences.
 The [TODO](../../todo/loose-equality.md) tracks semantics and lowering.
-`!=` remains unsupported syntax.
+Neither operator is rewritten to its strict counterpart.
 
 JavaScript's `==` and `!=` convert their operands before comparing them, by rules that depend on both types: `0 == ""` and `0 == "0"` are `true` while `"" == "0"` is `false`, and `null == undefined` is `true` while `null == 0` is `false`. A reader cannot tell what a comparison does without knowing both types, so AST admission alone does not enable their execution. `===` and `!==` compare without converting, and a conversion that is meant is written, `Number(x)` or `String(x)`.
 

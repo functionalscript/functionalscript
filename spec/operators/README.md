@@ -15,9 +15,9 @@ logical not and the type tag, the prefixes neither stage had — and
 `instanceof Array`, the one instance check ([below](instanceof/README.md)) — and
 `"k" in o`, the entry check with a literal key ([below](in/README.md)) — and
 the comma operator, written in parentheses ([below](comma/README.md)).
-`==` is admitted into syntax and resolved source AST, with explicit refusal at
+`==` and `!=` are admitted into syntax and resolved source AST, with explicit refusal at
 AST-to-FAST conversion pending [loose-equality lowering](../todo/loose-equality.md).
-`!=` remains unsupported syntax. Unary `+` is admitted into the syntax and resolved source AST, including
+Unary `+` is admitted into the syntax and resolved source AST, including
 numeric-index syntax such as `a[+x]`. Its AST-to-FAST conversion is explicitly
 refused pending [unary-plus lowering](../todo/unary-plus.md). It must not be
 silently replaced with `Number(x)`: unary `+` rejects BigInts, whereas `Number`
@@ -25,7 +25,7 @@ accepts them. The existing `Number(x)` conversion remains available.
 
 Precedence and associativity follow JavaScript's own. From the tightest, the
 levels are the prefixes `+`, `-`, `~`, `!` and `typeof`; `**`; `* / %`; `+ -`;
-the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `== === !==`; `&`; `^`;
+the shifts `<< >> >>>`; `< <= > >=` and `instanceof`; `== != === !==`; `&`; `^`;
 `|`; `&&`; `||`,
 with `??` a chain of its own at the same level; the conditional above
 them; and the comma above them all, in its parentheses. The shifts therefore sit between arithmetic and comparison, unlike

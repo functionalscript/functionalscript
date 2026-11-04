@@ -16,13 +16,15 @@ export const proof = /** @type {const} */ ({
             'export default ()=>{return 1;const unused=1=="1";};',
             'let x=0;export default (()=>{x+=1;return x;})()=="1";',
         ]) {
-            const ast = assertOk(parse('equality.f.js')(source))
-            assertEq(assertError(tryNormalize(ast, [])), '== AST-to-FAST conversion is not implemented')
-            assertEq(assertError(tryUnresolved(ast)), '== AST-to-FAST conversion is not implemented')
+            for (const operator of ['==', '!=']) {
+                const ast = assertOk(parse('equality.f.js')(source.replaceAll('==', operator)))
+                assertEq(assertError(tryNormalize(ast, [])), `${operator} AST-to-FAST conversion is not implemented`)
+                assertEq(assertError(tryUnresolved(ast)), `${operator} AST-to-FAST conversion is not implemented`)
+            }
         }
     },
     strictEqualityAndLiteralDataStillLower: () => {
-        for (const source of ['export default 1===1;', 'export default 1!=="1";', 'export default ["==",1,2];', 'export default {"==":1};']) {
+        for (const source of ['export default 1===1;', 'export default 1!=="1";', 'export default ["==",1,2];', 'export default ["!=",1,2];', 'export default {"==":1};', 'export default {"!=":1};']) {
             assertOk(tryNormalize(assertOk(parse('equality.f.js')(source)), []))
         }
     },

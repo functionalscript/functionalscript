@@ -490,7 +490,7 @@ export const proof = {
             }
             expect('export default { in: 1 };', "[\"{}\",[[\":\",\"default\",[\"{}\",[[\":\",\"in\",1]]]]]]")
         },
-        // Loose equality is AST-only; `!=` and incomplete operands remain refused.
+        // Loose equality is AST-only; incomplete operands remain refused.
         looseEquality: () => {
             /** @type {(source: string, column: number) => void} */
             const expect = (source, column) => {
@@ -499,7 +499,7 @@ export const proof = {
                 assertEq(value.message, 'unexpected token')
                 assertEq(value.metadata?.column, column)
             }
-            expect('export default 1 != 1;', 18)
+            expect('export default 1 != ;', 21)
             expect('export default 1 == ;', 21)
         },
     },
