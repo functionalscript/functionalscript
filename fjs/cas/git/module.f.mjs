@@ -307,6 +307,20 @@ const malformed = rel => es => {
 }
 
 /**
+ * The refusal of a tree a walk is about to take, or `null` where it may
+ * take it: the root, where `rel` is `null`, for being {@link illFormed},
+ * since the layout shares it with the rest of the branch, and a tree below
+ * `.cas` for the layout ({@link malformed}). The one spelling of the check
+ * every walk makes before it reads a tree's entries.
+ *
+ * @type {(rel: Nullable<string>, es: readonly TreeEntry[]) => Nullable<string>}
+ */
+const treeRefusal = (rel, es) => {
+    const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
+    return wrong.length === 0 ? null : rel === null ? `the root tree ${wrong[0]}` : wrong[0]
+}
+
+/**
  * The subtree an entry names, as the next item of the listing's walk, or
  * none where the entry is a file.
  *
@@ -363,8 +377,8 @@ const walkTo = entriesOf => {
         if (state.at === null) { return pureOk(lost) }
         const { rel } = state
         return step(entriesOf(state.at), es => {
-            const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
-            if (wrong.length !== 0) { return refuseEntry(rel === null ? `the root tree ${wrong[0]}` : wrong[0]) }
+            const wrong = treeRefusal(rel, es)
+            if (wrong !== null) { return refuseEntry(wrong) }
             const text = nameText(name)
             const found = es.find(e => nameText(e.name) === text)
             if (found === undefined) { return pureOk(lost) }
@@ -398,8 +412,8 @@ const named = name => e => sameItems(e.name)(name)
  * @type {(name: readonly number[], rel: Nullable<string>) => (es: readonly TreeEntry[]) => Effect<never, { readonly es: readonly TreeEntry[], readonly found: Nullable<TreeEntry> }, IoChannel>}
  */
 const onlyNamed = (name, rel) => es => {
-    const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
-    if (wrong.length !== 0) { return refuseEntry(rel === null ? `the root tree ${wrong[0]}` : wrong[0]) }
+    const wrong = treeRefusal(rel, es)
+    if (wrong !== null) { return refuseEntry(wrong) }
     const found = es.find(x => sameItems(x.name)(name))
     return pureOk({ es, found: found === undefined ? null : found })
 }
@@ -482,9 +496,9 @@ export const casAt = (read, oidBytes) => {
      * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: List<Vec>) => Effect<O, readonly [List<Vec>, readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
      */
     const listStep = ({ id, rel }) => keys => step(entriesOf(id), es => {
-        const wrong = malformed(rel)(es)
-        return wrong.length !== 0
-            ? refuseEntry(wrong[0])
+        const wrong = treeRefusal(rel, es)
+        return wrong !== null
+            ? refuseEntry(wrong)
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
