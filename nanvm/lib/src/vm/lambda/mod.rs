@@ -244,11 +244,8 @@ impl<A: IVm> PropertyLambda<A> {
         runtime: &Any<A>,
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Result<Any<A>, Any<A>> {
-        self.0.and_then(|m| {
-            m.resolve(runtime)
-                .and_then(|()| args())
-                .and_then(|a| m.call(runtime, a))
-        })
+        // A `Result`-sourced region is never skipped, so `end` is exact.
+        Region::from(self.0).call(runtime, args).end()
     }
     /// `|()` of an intrinsic's helper, `slice(s, a, b)`: the member call
     /// that asks no runtime, the own property else the native else the
@@ -336,12 +333,8 @@ impl<A: IVm> OptionPropertyLambda<A> {
         args: impl FnOnce() -> Result<Any<A>, Any<A>>,
     ) -> Result<Any<A>, Any<A>> {
         match self.0 {
-            Region::Live(m) => m
-                .resolve(runtime)
-                .and_then(|()| args())
-                .and_then(|a| m.call(runtime, a)),
             Region::Skipped => args().and_then(|a| Any::undefined().call(a)),
-            Region::Thrown(e) => Err(e),
+            region => region.call(runtime, args).end(),
         }
     }
 }
