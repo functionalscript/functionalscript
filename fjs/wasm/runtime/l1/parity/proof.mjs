@@ -6,6 +6,11 @@
  * throw. The interpreter is the executor whose semantics NaNVM's are
  * checked against, so this checks the bodies against the semantics they
  * copy, where `../proof.f.mjs` checks them against JavaScript's.
+ *
+ * It is a host proof because it needs what FunctionalScript has not: it
+ * builds each host value from its source with `Function`, and it catches
+ * what an L1 body throws with `try`/`catch`, so that a throw on both sides
+ * counts as agreement.
  */
 
 import { assertEq, assertOk } from '../../../../asserts/module.f.js'
