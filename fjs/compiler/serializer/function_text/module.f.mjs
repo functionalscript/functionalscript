@@ -14,6 +14,7 @@ import {
     _entryText as intrinsicEntryText, _entryChunks as intrinsicEntryChunks,
     _hasEntryText as intrinsicHasEntryText, _hasEntryChunks as intrinsicHasEntryChunks,
     _intrinsicText as intrinsicIntrinsicText, _intrinsicChunks as intrinsicIntrinsicChunks,
+    _helperText as intrinsicHelperText,
 } from '../../../js/ast/serializer/intrinsic/module.f.mjs'
 
 export const _entryText = intrinsicEntryText
@@ -22,6 +23,7 @@ export const _hasEntryText = intrinsicHasEntryText
 export const _hasEntryChunks = intrinsicHasEntryChunks
 export const _intrinsicText = intrinsicIntrinsicText
 export const _intrinsicChunks = intrinsicIntrinsicChunks
+export const _helperText = intrinsicHelperText
 
 /** Render one already admitted function from its identity table. @type {(a: Analysis, i: number) => string} */
 export const renderFunction = (a, i) => functionStringify(prepareFunction(functionFromAnalysis(a, i)))

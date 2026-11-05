@@ -19,9 +19,9 @@ import { next, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'
-import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
+import { _helperChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'
-import { isIntrinsic } from '../../../edag/module.f.mjs'
+import { isHelper } from '../../../edag/module.f.mjs'
 import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -151,7 +151,7 @@ const precedence = input => {
     const value = syntaxValue(input)
     if (!(value instanceof Array)) { return typeof value === 'number' && (value < 0 || Object.is(value, -0)) || typeof value === 'bigint' && value < 0n ? 14 : 16 }
     const op = value[0]
-    if (op === 'function' || op === 'entry' || op === 'hasEntry' || (value.length === 1 && isIntrinsic(value))) { return 1 }
+    if (op === 'function' || isHelper(value)) { return 1 }
     if (op === 'if' || op === '?:') { return 2 }
     const binary = value.length === 3 ? binaryLevels.find(([tag]) => tag === op) : undefined
     if (binary !== undefined) { return binary[1] }
@@ -249,9 +249,7 @@ const optionalRegion = input => {
 const operatorText = (context, operator) => {
     if (operator.length === 1) {
         const path = `helper${context.values.indexOf(operator)}`
-        if (operator[0] === 'entry') { return taggedChunks(_entryChunks(path)) }
-        if (operator[0] === 'hasEntry') { return taggedChunks(_hasEntryChunks(path)) }
-        return isIntrinsic(operator) ? taggedChunks(_intrinsicChunks(operator[0])(path)) : operator[0]
+        return isHelper(operator) ? taggedChunks(_helperChunks(operator[0])(path)) : operator[0]
     }
     switch (operator[0]) {
         case 'array': { return `[${itemText(context, operator[1])}]` }

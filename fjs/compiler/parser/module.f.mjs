@@ -31,7 +31,7 @@ import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
-import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 
@@ -1441,7 +1441,7 @@ const intrinsicFunction = ([, list, body]) => {
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
     const intrinsic = intrinsics.find(([id]) => id === key)
-    if (intrinsic === undefined || list.fixed.length !== intrinsicLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
+    if (intrinsic === undefined || list.fixed.length !== helperLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
     const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
     if (tokens.length !== list.fixed.length) { return null }
     const names = tokens.map(nameOf)

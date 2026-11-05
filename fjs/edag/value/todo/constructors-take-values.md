@@ -57,9 +57,3 @@ deferred items" rows are reworded.
 - [ ] Rewrite the wrapping sites in `operations`, `method`, `array_method`,
       `property` and `coercion`.
 - [ ] Delete the thunk types and the unused `control` exports.
-
-### Related
-
-- [`fjs/edag/todo/helper-node-table`](../../todo/helper-node-table.md) — the
-  `length` ladders in `prepare` and `property.read`; a different duplication
-  in the same functions.
