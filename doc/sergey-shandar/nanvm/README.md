@@ -98,12 +98,12 @@ s111_1111_1111_1vvv - short bigint
 s111_1111_1111_00.00_000 - primitives and an empty string
                   00_001 - string 1x16
                   00_010 - string 2x16
-                  00_1   - string 3x16
                   01_000 - string 4x7
                   01_001 - string 5x7
                   01_010 - string 6x7
                   10     - string 7x7
-                  11.0   - string 8x6
+                  11_1   - string 3x16
+                  11_1   - string 8x6
 ```
 
 | `0`     |            | `2^0`  |    |`00.000`| `00` bits |
