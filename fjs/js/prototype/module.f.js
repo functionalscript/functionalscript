@@ -71,7 +71,7 @@ export const functionPrototype = /** @type {const} */ ([
  * object's is `Object.prototype`; every other type's is its own, which is
  * where its own member functions are, `toString` among them.
  */
-export const prototypes = {
+export const prototypes = /** @type {const} */ ({
     Object: objectPrototype,
     Array: arrayPrototype,
     String: stringPrototype,
@@ -79,7 +79,7 @@ export const prototypes = {
     Boolean: booleanPrototype,
     BigInt: bigintPrototype,
     Function: functionPrototype,
-}
+})
 
 /** The seven lists in declaration order, a name shared by two lists once per list. */
 const lists = Object.entries(prototypes).flatMap(([, list]) => list)
