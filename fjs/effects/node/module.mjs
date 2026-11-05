@@ -41,11 +41,12 @@ import { asyncRunAll, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
 import {
-    _maxVecBytes, emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage, invalidModuleSpecifier,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage, invalidModuleSpecifier,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
+import { maxVecBytes } from '../../types/bit_vec/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
@@ -833,11 +834,11 @@ export const runNodeEffect = asyncRunAll({
             // through a handle instead.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
-                const chunk = await fill(fh, Buffer.alloc(_maxVecBytes), null)
+                const chunk = await fill(fh, Buffer.alloc(maxVecBytes), null)
                 if (chunk.length !== 0) {
                     chunks = [...chunks, toVec(chunk)]
                 }
-                if (chunk.length < _maxVecBytes) {
+                if (chunk.length < maxVecBytes) {
                     return chunks
                 }
             }
@@ -858,7 +859,7 @@ export const runNodeEffect = asyncRunAll({
         // typings do not spell, so the shape is stated here, once, at the
         // boundary.
         const { buffer, engine } = /** @type {{ readonly buffer: Uint8Array, readonly engine: { readonly bytesWritten: number } }} */
-            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: _maxVecBytes })))
+            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: maxVecBytes })))
         if (engine.bytesWritten !== input.length) {
             throw hostError(inflateTrailingCode, inflateTrailingMessage(input.length - engine.bytesWritten))
         }

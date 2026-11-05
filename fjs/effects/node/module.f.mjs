@@ -31,7 +31,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
@@ -562,19 +562,12 @@ export const writeFromStream = (path, e) => {
 }
 
 /**
- * The most bytes one `Vec` holds, as a `number`: what a chunk may not exceed,
- * and the window a host's `readWhole` reads in. Linkage between this module
- * and the hosts that implement its operations, not API.
- */
-export const _maxVecBytes = Number(maxLengthBytes)
-
-/**
  * The most UTF-16 code units a piece has, less one, so that a piece of
  * `chunkUnits + 1` units always encodes to at most one `Vec`: a unit takes at
  * most three bytes, a surrogate pair four for its two. The extra unit is the
  * one a cut may take back, below.
  */
-const chunkUnits = Math.floor(_maxVecBytes / 3) - 1
+const chunkUnits = Math.floor(maxVecBytes / 3) - 1
 
 /**
  * The pieces of `s`, each of at most `units + 1` code units: the cut after
@@ -673,7 +666,7 @@ export const writeFiles = files => forEachStep(
  * the other.
  *
  * **Bounded, it advances by the length it got.** Both `fjs/cas` loops stepped
- * `offset + _maxVecBytes` whatever the read returned, which is sound only
+ * `offset + maxVecBytes` whatever the read returned, which is sound only
  * because an unbounded fold ends at the first empty read — on a local regular
  * file a short read is the last one. Under a declared length a short chunk is
  * not the last, and a fixed step would leave a hole in a body whose size the
@@ -709,7 +702,7 @@ export const readChunks = (source, bound) => {
     }
     /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
-        const remaining = bound === null ? _maxVecBytes : bound - offset
+        const remaining = bound === null ? maxVecBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
         // A source that performs a command suspends here, so the list is built
         // one cell per pull. A source that answers purely does not: `nonEmpty`
@@ -717,7 +710,7 @@ export const readChunks = (source, bound) => {
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.
-        return ioStep(source(offset, min(_maxVecBytes, remaining)), chunk => cell(chunk, offset))
+        return ioStep(source(offset, min(maxVecBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
 }
