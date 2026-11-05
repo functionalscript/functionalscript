@@ -1,4 +1,4 @@
-import { _dotSegmentFold, _foldRejoin, ancestors, basename, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.js"
+import { _dotSegmentFold, _foldRejoin, ancestors, basename, concat, extension, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parent, parse, relativize, root, toPosix, under } from "./module.f.js"
 import { assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { fold } from '../types/list/module.f.js'
 import { toArray } from '../types/list/alt/module.f.js'
@@ -497,6 +497,18 @@ const parentTest = [
     },
 ]
 
+const extensionTest = () => {
+    assertEq(extension('a/b/x.rs'), 'rs')
+    assertEq(extension('x.tar.gz'), 'gz')
+    assertEq(extension('a/X.MD/'), 'MD')
+    // A leading dot begins a name.
+    assertEq(extension('.gitignore'), '')
+    assertEq(extension('a/.config.json'), 'json')
+    assertEq(extension('x.'), '')
+    assertEq(extension('a.b/x'), '')
+    assertEq(extension('/'), '')
+}
+
 const basenameTest = [
     () => {
         assertEq(basename('a/b/x.rs'), 'x.rs')
@@ -760,4 +772,4 @@ const underThrowTest = {
     },
 }
 
-export const proof = { dotSegmentFoldTest, foldRejoinTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { dotSegmentFoldTest, foldRejoinTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, parentTest, basenameTest, extensionTest, ancestorsTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
