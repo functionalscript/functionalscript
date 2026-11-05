@@ -5,6 +5,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Element } from '../../../media/html/types.ts'
  * @import { StringMap } from '../../../types/object/types.ts'
+ * @import { Nullable } from '../../../types/nullable/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -88,6 +89,14 @@ export const restoreInputs = (sharing, query) => {
 }
 /** @type {(a: Inputs, b: Inputs) => boolean} */
 const same = (a, b) => keys(a).length === keys(b).length && entries(a).every(([name, value]) => Object.hasOwn(b, name) && b[name] === value)
+/** One `name=value` query parameter, or `null` when either holds a lone surrogate.
+ * @type {(pair: readonly [string, string]) => Nullable<string>}
+ */
+const queryPair = ([name, value]) => {
+    const n = percentEncodeComponent(name)
+    const v = percentEncodeComponent(value)
+    return n === null || v === null ? null : `${n}=${v}`
+}
 /** Defaults use #demo; complete example matches use a stable ID. All other
  * inputs are individual query parameters with ordinary URL escaping.
  * @type {<S>(sharing: Sharing<S>, inputs: Inputs) => Result<string, string>}
@@ -99,8 +108,12 @@ export const encodeQuery = (sharing, inputs) => {
     const example = sharing.examples.find(e => same(valid[1], { ...defaultsOf(sharing.fields), ...fromEntries(entries(e.inputs)) })
         && (!Object.hasOwn(sharing.fields, 'example') || valid[1].example === e.id))
     if (Object.values(valid[1]).some(v => typeof v === 'string' && v.length > queryLimit)) { return error('Inputs exceed the 16 KiB sharing limit') }
-    const query = example !== undefined ? `example=${percentEncodeComponent(example.id)}`
-        : keys(valid[1]).toSorted().map(name => `${percentEncodeComponent(name)}=${percentEncodeComponent(String(assertNotNullish(valid[1][name])))}`).join('&')
+    /** @type {readonly (readonly [string, string])[]} */
+    const pairs = example !== undefined ? [['example', example.id]]
+        : keys(valid[1]).toSorted().map(name => [name, String(assertNotNullish(valid[1][name]))])
+    const parts = pairs.map(queryPair)
+    if (parts.includes(null)) { return error('Inputs hold a lone surrogate, which a URL cannot carry') }
+    const query = parts.join('&')
     const link = `?${query}#demo`
     return link.length > queryLimit ? error('Demo query exceeds the 16 KiB sharing limit') : ok(link)
 }

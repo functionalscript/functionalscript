@@ -117,6 +117,11 @@ export const percentEncodePath = s => {
  * letters, digits, `-`, `.`, `_` and `~` is escaped, `/` and `%` included,
  * which is what sets it apart from {@link percentEncodePath}.
  *
- * @type {(s: string) => string}
+ * Returns `null` for a lone surrogate, which has no UTF-8 bytes to encode.
+ *
+ * @type {(s: string) => Nullable<string>}
  */
-export const percentEncodeComponent = s => utf8Bytes(s).map(componentByte).join('')
+export const percentEncodeComponent = s => {
+    const bytes = utf8Bytes(s)
+    return fromU8List(bytes) === null ? null : bytes.map(componentByte).join('')
+}

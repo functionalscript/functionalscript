@@ -39,6 +39,8 @@ export const proof = {
         assertEq(unwrap(restore('?amount=1e3')).amount, 1000)
         assertEq(unwrap(restore('?checked=true')).checked, true)
     },
+    // A lone surrogate has no UTF-8 bytes, so no link can carry it.
+    loneSurrogate: () => assertEq(encodeQuery(sharing, { text: 'a\uD800' })[0], 'error'),
     emptyQueries: () => {
         assertStructurallySame(decodeQuery(''), ['ok', { kind: 'defaults' }])
         assertStructurallySame(decodeQuery('?'), ['ok', { kind: 'defaults' }])
