@@ -661,10 +661,10 @@ const crateDirs = tree => crates => tree
  * @type {<T>(path: string, parse: (text: string) => Result<T, string>) => Effect<ReadFile, T, IoChannel>}
  */
 const readParsed = (path, parse) => step(readUtf8File(path), text => {
-    const parsed = parse(text)
-    return parsed[0] === 'error'
-        ? pureError(ioError({ message: `${path}: ${parsed[1]}` }))
-        : pureOk(parsed[1])
+    const [kind, value] = parse(text)
+    return kind === 'error'
+        ? pureError(ioError({ message: `${path}: ${value}` }))
+        : pureOk(value)
 })
 
 /**
