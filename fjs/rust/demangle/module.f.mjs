@@ -27,6 +27,11 @@
  */
 
 import { isValidCodePoint } from '../../text/code_point/module.f.js'
+import {
+    charIs, digit0, isDigit as isDigitCodePoint, isLatinCapitalLetter, isLatinSmallLetter, latinCapitalLetterA,
+    latinCapitalLetterAFRange, latinSmallLetterA, lowerHexDigitValue,
+} from '../../text/ascii/module.f.js'
+import { contains } from '../../types/range/module.f.js'
 import { fromU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { reverse } from '../../types/list/module.f.js'
@@ -48,14 +53,27 @@ const basicTypes = {
     z: '!', p: '_', v: '...',
 }
 
-/** @type {(c: string | undefined) => boolean} */
-const isUpper = c => c !== undefined && c >= 'A' && c <= 'Z'
+/**
+ * A `text/ascii` class asked of a character a read past the end may have
+ * left `undefined`, which is in no class.
+ *
+ * @type {(isClass: (codePoint: number) => boolean) => (c: string | undefined) => boolean}
+ */
+const has = isClass => c => c !== undefined && charIs(isClass)(c)
 
-/** @type {(c: string | undefined) => boolean} */
-const isDigit = c => c !== undefined && c >= '0' && c <= '9'
+const isUpper = has(isLatinCapitalLetter)
 
-/** @type {(c: string | undefined) => boolean} */
-const isLower = c => c !== undefined && c >= 'a' && c <= 'z'
+const isDigit = has(isDigitCodePoint)
+
+const isLower = has(isLatinSmallLetter)
+
+/** `0-9` and `a-f`, a lowercase hexadecimal digit. */
+const isLowerHex = has(c => lowerHexDigitValue(c) !== null)
+
+const isLatinCapitalLetterAF = contains(...latinCapitalLetterAFRange)
+
+/** `0-9` and `A-F`, an uppercase hexadecimal digit. */
+const isUpperHex = has(c => isDigitCodePoint(c) || isLatinCapitalLetterAF(c))
 
 /**
  * Decodes Punycode's insertions into `ascii`, answering `null` where they
@@ -84,7 +102,7 @@ const punycodeDecode = (ascii, punycode) => {
             const t = Math.min(Math.max(k - bias, tMin), tMax)
             const c = punycode[at]
             at = at + 1
-            const d = isLower(c) ? c.charCodeAt(0) - 0x61 : isDigit(c) ? 26 + c.charCodeAt(0) - 0x30 : -1
+            const d = isLower(c) ? c.charCodeAt(0) - latinSmallLetterA : isDigit(c) ? 26 + c.charCodeAt(0) - digit0 : -1
             if (d < 0) { return null }
             delta = delta + d * w
             if (d < t) { break }
@@ -158,9 +176,9 @@ const demangler = s => {
         let j = i
         while (s[j] !== '_') {
             const c = s[j]
-            const d = isDigit(c) ? c.charCodeAt(0) - 0x30
-                : isLower(c) ? 10 + c.charCodeAt(0) - 0x61
-                : isUpper(c) ? 36 + c.charCodeAt(0) - 0x41
+            const d = isDigit(c) ? c.charCodeAt(0) - digit0
+                : isLower(c) ? 10 + c.charCodeAt(0) - latinSmallLetterA
+                : isUpper(c) ? 36 + c.charCodeAt(0) - latinCapitalLetterA
                 : -1
             if (d < 0) { return null }
             x = x * 62n + BigInt(d)
@@ -183,7 +201,7 @@ const demangler = s => {
         let j = i
         while (s[j] !== '_') {
             const c = s[j]
-            if (!(isDigit(c) || (c >= 'a' && c <= 'f'))) { return null }
+            if (!isLowerHex(c)) { return null }
             j = j + 1
         }
         return [s.slice(i, j), j + 1]
@@ -243,7 +261,7 @@ const demangler = s => {
     const lifetime = (lt, bound) => {
         if (lt === 0n) { return "'_" }
         const depth = BigInt(bound) - lt
-        return depth < 0n ? null : depth < 26n ? `'${String.fromCharCode(0x61 + Number(depth))}` : `'_${depth}`
+        return depth < 0n ? null : depth < 26n ? `'${String.fromCharCode(latinSmallLetterA + Number(depth))}` : `'_${depth}`
     }
 
     /**
@@ -582,7 +600,7 @@ const isSymbolChar = c => c >= '!' && c <= '~'
 export const demangle = name => {
     const llvm = name.indexOf('.llvm.')
     const hash = llvm < 0 ? '' : name.slice(llvm + 6)
-    const s = llvm >= 0 && Array.from(hash).every(c => (c >= 'A' && c <= 'F') || isDigit(c) || c === '@')
+    const s = llvm >= 0 && Array.from(hash).every(c => isUpperHex(c) || c === '@')
         ? name.slice(0, llvm)
         : name
     const start = s.length > 2 && s.startsWith('_R') ? 2
