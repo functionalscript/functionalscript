@@ -35,6 +35,7 @@ import { generate } from '../../../types/array/generate/module.f.js'
 import { abs } from '../../../types/number/abs/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { entry } from '../../../types/object/entry/module.f.js'
+import { encodeScalar } from '../../../basen/base16/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 import { fromTagged, tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.js'
@@ -75,10 +76,13 @@ const strContents = text => [...text].map(c => {
 /** @type {(text: string) => string} */
 const str = text => string(`"${strContents(text)}"`)
 
+/** A byte as the two hex digits of a `\hh` escape. */
+const hexByte = encodeScalar(2)
+
 /** Bytes as a string literal, printable ASCII as itself and the rest as `\hh`. @type {(bytes: Bytes) => string} */
 const bytesLiteral = bytes => string(`"${bytes.map(b => b >= 0x20 && b < 0x7f && b !== 0x22 && b !== 0x5c
     ? String.fromCharCode(b)
-    : `\\${b.toString(16).padStart(2, '0')}`).join('')}"`)
+    : `\\${hexByte(b)}`).join('')}"`)
 
 // names
 

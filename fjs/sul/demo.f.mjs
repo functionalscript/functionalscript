@@ -60,7 +60,11 @@ import { codeBlock } from '../website/demo/code/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { pureOk } from '../effects/module.f.mjs'
 import { asBase } from '../types/nominal/module.f.js'
+import { encodeScalar } from '../basen/base16/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
+
+/** A root, a 256-bit number, as its 64 hex digits. */
+const rootHex = encodeScalar(64)
 
 /** The most input bits the demo draws: 128 bytes. */
 export const maxBits = 0x400
@@ -215,7 +219,7 @@ const stripesView = units => {
         ],
         ['p', `${n} input bits and ${padding.length} padding bits: ${names.map((name, i) => `${name} ${words[i].length}`).join(', ')} words.`],
         caption(`Root, ${rootKind(root)}:`),
-        codeBlock(`0x${asBase(root).toString(16).padStart(64, '0')}`, 'Copy the root'),
+        codeBlock(`0x${rootHex(asBase(root))}`, 'Copy the root'),
     ]
 }
 
