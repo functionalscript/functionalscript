@@ -74,7 +74,7 @@ import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
-import { changelogDir, cliDir, demoSection, directoryLayout, fileHref, page, pagePath, pageHeading, pageHref, prsDir, shell, siteDescription, siteName, subtree, testSection, testsMain } from './page/module.f.mjs'
+import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
@@ -82,44 +82,6 @@ import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
 import { header, isIssue } from './issue/module.f.js'
 import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
-
-/**
- * The root page: the project's name, the catalogue every directory page
- * carries, and the browser test suite under it.
- *
- * It is the repository root's instance of the page rule rather than a page
- * beside it — the sections are the same ones {@link page} writes — but it
- * keeps its own frame, because the heading and the runner are the site's and
- * not the root directory's.
- *
- * **The catalogue sits beside the demo and test suite.** A reader can
- * navigate the directory without a growing demo or report moving its links.
- *
- * The heading is the project, not the suite: the README's title, or the
- * site's name where it has none. The suite is one section of the
- * page — named for what it is, with the prose that introduces it inside —
- * and the page is the repository's root.
- *
- * The repository and the releases are linked from the header every page
- * carries ({@link shell}), not from this page's own frame.
- *
- * @type {(build: Build) => (dir: Dir) => string}
- */
-const rootPage = build => dir => shell(build)({ href: pageHref('.'), title: siteName, description: siteDescription })(directoryLayout(build)(dir)(testsMain(
-    ...pageHeading(dir.readme)(siteName),
-    ...dir.readme,
-    ...(dir.demo === null ? [] : demoSection(dir.demo)),
-    ...testSection(dir)([
-        ['p',
-            'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
-            ['a',
-                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
-                'Read “Emergent Testing in JavaScript”'
-            ],
-            '.'
-        ],
-    ]),
-)))
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -907,7 +869,7 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     const writeDir = dir => cards => step(readReadme(build.commit)(isPage)(dir), readme => {
         const written = writeUtf8File(
             pagePath(dir.path),
-            dir.path === '.' ? rootPage(build)({ ...dir, readme }) : page(build)({ ...dir, readme }))
+            page(build)({ ...dir, readme }))
         const content = cardContent(dir.path)(readme)
         return content === null
             ? mapStep(written, () => cards)
