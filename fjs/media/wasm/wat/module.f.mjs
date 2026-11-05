@@ -52,8 +52,8 @@ const string = tagged('string')
 
 // strings
 
-/** @type {(codePoint: number) => boolean} */
-const isLetterOrDigit = c => isLatinLetter(c) || isDigit(c)
+/** A one-character string that is a Latin letter or a digit. */
+const isLetterOrDigit = charIs(c => isLatinLetter(c) || isDigit(c))
 
 /**
  * Whether `c` may stand in an identifier unquoted: a letter, a digit, or
@@ -61,7 +61,7 @@ const isLetterOrDigit = c => isLatinLetter(c) || isDigit(c)
  *
  * @type {(c: string) => boolean}
  */
-const isIdChar = c => charIs(isLetterOrDigit)(c) || "!#$%&'*+-./:<=>?@\\^_`|~".includes(c)
+const isIdChar = c => isLetterOrDigit(c) || "!#$%&'*+-./:<=>?@\\^_`|~".includes(c)
 
 /**
  * The contents of a string literal: printable ASCII as itself, and every

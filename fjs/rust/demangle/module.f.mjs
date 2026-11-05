@@ -59,7 +59,10 @@ const basicTypes = {
  *
  * @type {(isClass: (codePoint: number) => boolean) => (c: string | undefined) => boolean}
  */
-const has = isClass => c => c !== undefined && charIs(isClass)(c)
+const has = isClass => {
+    const is = charIs(isClass)
+    return c => c !== undefined && is(c)
+}
 
 const isUpper = has(isLatinCapitalLetter)
 
