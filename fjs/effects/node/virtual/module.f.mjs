@@ -1425,21 +1425,14 @@ const onMemory = f => state => {
     return [{ ...state, memory }, result]
 }
 
-/** Virtual operations, available for composing a runtime with additional capabilities. @satisfies {PartialMemOperationMap<NodeOp, State>} */
+/**
+ * Virtual operations, available for composing a runtime with additional
+ * capabilities. `all` is not among them: `partialRun` answers it over the
+ * runner a map is composed into, so its effects reach every handler there.
+ *
+ * @satisfies {PartialMemOperationMap<NodeOp, State>}
+ */
 export const virtualOperationMap = {
-    all: (...a) => state => {
-        // Each entry is the effect's whole `Result`: `all`'s own envelope says
-        // only whether the runner could dispatch it, so the inner answers pass
-        // through untouched for `allOk` to collapse.
-        /** @type {readonly Result<unknown, unknown>[]} */
-        let e = []
-        for (const i of a) {
-            const [ns, ei] = virtual(state)(i)
-            state = ns
-            e = [...e, ei]
-        }
-        return [state, ok(e)]
-    },
     memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
