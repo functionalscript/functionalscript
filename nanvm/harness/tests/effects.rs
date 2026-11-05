@@ -3,15 +3,15 @@
 //! a performed command, in one test.
 
 use nanvm_effects_node::{Native, run};
-use nanvm_harness::{fixtures::effect, runtime};
+use nanvm_harness::fixtures::effect;
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Array, Nullish, Object, ToAny, unstable::string_any},
+    vm::{Any, Array, Nullish, ToAny, unstable::string_any},
 };
 
 /// An export of the compiled module, which is an effect.
 fn export(name: &str) -> Any<Naive> {
-    Object::try_from(effect::module::<Naive>(runtime()).unwrap())
+    nanvm_lib::vm::exports(effect::module::<Naive>)
         .unwrap()
         .own_property(&name.into())
         .unwrap()
