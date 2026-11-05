@@ -8,6 +8,7 @@
  */
 
 import { fromUndefined } from '../nullable/module.f.js'
+import { entry } from '../object/entry/module.f.js'
 import { repeat as arrayRepeat } from './repeat/module.f.js'
 import { generate as arrayGenerate } from './generate/module.f.js'
 
@@ -142,19 +143,23 @@ export const dedup = a => a.filter((v, i) => a.slice(0, i).every(x => x !== v))
  * every name of a list is quadratic through `Array`'s own methods, and linear
  * here.
  *
- * A `Map` keeps the later of two entries with one key, so the names' positions
- * in order are their last ones and in reverse their first. Names are strings,
- * which a `Map` and `===` compare alike.
+ * `Object.fromEntries` keeps the later of two entries with one key, so the
+ * names' positions in order are their last ones and in reverse their first.
+ * The two tables are read with `entry`, so a name an object inherits,
+ * `toString` say, is no occurrence, and `__proto__` is an own entry like any
+ * other.
  *
  * @type {(names: readonly string[]) => Occurrences}
  */
 export const occurrences = names => {
     const positions = names.map((n, i) => /** @type {const} */ ([n, i]))
-    const first = new Map(positions.toReversed())
-    const last = new Map(positions)
+    /** @type {Readonly<Record<string, number>>} */
+    const first = Object.fromEntries(positions.toReversed())
+    /** @type {Readonly<Record<string, number>>} */
+    const last = Object.fromEntries(positions)
     return {
-        indexOf: n => first.get(n) ?? -1,
-        lastIndexOf: n => last.get(n) ?? -1,
+        indexOf: n => entry(first, n) ?? -1,
+        lastIndexOf: n => entry(last, n) ?? -1,
     }
 }
 

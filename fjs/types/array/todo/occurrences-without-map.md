@@ -1,4 +1,4 @@
-## `occurrences` without `Map`
+## `occurrences` in a module the compiler accepts
 
 **Priority:** P2
 **Status:** open
@@ -6,22 +6,28 @@
 ### Problem
 
 `occurrences` in [`../module.f.mjs`](../module.f.mjs) answers `indexOf` and
-`lastIndexOf` over a list of names from one pass, with two `Map`s, so asking
-either for every name is linear rather than quadratic. `new Map` is not
-FunctionalScript, and it is the module's last construct of its own the
-compiler refuses. Array repetition now comes from the independent
-[`repeat`](../repeat/module.f.js) module, so it no longer brings a list
-dependency into this module. Rewriting `occurrences` is the remaining
-planned conversion work; check the complete module before renaming it to
-`module.f.js`, then check its importers, including `fjs/rtti/module.f.mjs`.
+`lastIndexOf` over a list of names from one pass, so asking either for every
+name is linear rather than quadratic. It no longer builds `Map`s: two plain
+objects from `Object.fromEntries`, read with `entry`, keep the later of two
+entries with one key, as a `Map` did. Array repetition comes from the
+independent [`repeat`](../repeat/module.f.js) module.
+
+The module is still not one the compiler accepts, so it cannot be renamed
+to `module.f.js`, and its importers, including `fjs/rtti/module.f.mjs`, wait
+on it. The first refusal is now `occurrences`' own answer: its fields are
+named `indexOf` and `lastIndexOf`, which are `Array.prototype` names, and the
+compiler refuses every prototype name as a property key
+([spec: property accessor](../../../../spec/todo/2330-property-accessor.md)).
 
 ### Direction
 
-Build the two lookups as plain objects keyed by name and read them with
-`entry`: `Object.fromEntries(positions)` keeps the later of two entries with
-one key, as the `Map` does, so the positions in order give the last
-occurrence and in reverse the first. `Object.fromEntries` is admitted, so
-this rewrite needs no language extension. A spread with a computed key
-would make the build quadratic, which is the cost this function exists
-to avoid. Rewrite `occurrences`, then rename each complete module the
-compiler accepts.
+Rename the two fields of `Occurrences` (`types.ts`) to names that are no
+prototype's and update the callers, most of them proofs, then compile the module and rename it if
+nothing else is refused.
+
+### Tasks
+
+- [x] Build the two lookups as plain objects and read them with `entry`.
+- [ ] Rename `Occurrences`' fields; update every caller.
+- [ ] Rename the module to `module.f.js` once the compiler accepts it; check
+      its importers.
