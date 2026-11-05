@@ -6,6 +6,7 @@
  */
 
 import type { Ts } from '../../rtti/ts/types.ts'
+import type { Result } from '../../types/result/types.ts'
 import type { configSchema, exchangeFailureSchema, exchangeSchema, pendingSchema, tokenSchema, userSchema } from './module.f.mjs'
 
 /** Public application ID and registered callback. */
@@ -16,6 +17,31 @@ export type CallbackOrigin = {
     readonly protocol: string
     readonly hostname: string
     readonly port: string
+}
+
+/** The parsed callback URL's components `validCallback` reads. */
+export type CallbackUrl = {
+    readonly protocol: string
+    readonly hostname: string
+    readonly pathname: string
+    readonly search: string
+    readonly hash: string
+    readonly username: string
+    readonly password: string
+}
+
+/** The Worker's 503 body when its bindings do not configure sign-in. */
+export type ConfigDiagnostics = {
+    readonly error: string
+    readonly missingBindings: readonly string[]
+    readonly invalidRedirectUri: boolean
+    readonly invalidPreviewRedirectUri?: boolean
+}
+
+/** The client credentials of a Worker whose bindings configure sign-in. */
+export type WorkerConfig = {
+    readonly clientId: string
+    readonly clientSecret: string
 }
 
 /** One pending authorization, held in tab-local sessionStorage. */
@@ -29,6 +55,9 @@ export type ExchangeFailure = Ts<typeof exchangeFailureSchema>
 
 /** The bearer token held only in browser memory. */
 export type Token = Ts<typeof tokenSchema>
+
+/** GitHub's exchange answer: the token, or the reason and status to answer with. */
+export type ProviderOutcome = Result<Token, readonly [ExchangeFailure['reason'], number]>
 
 /** The identity verified directly with GitHub. */
 export type User = Ts<typeof userSchema>

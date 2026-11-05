@@ -10,11 +10,9 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, tokenPath, validVerifier } from './github/module.f.mjs'
+import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerOutcome, tokenPath, validCallback, validExchange, workerConfig } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)
-const readProviderToken = parse(providerTokenSchema)
-const readProviderError = parse(providerErrorSchema)
 
 /** All authorization responses are excluded from caches, including refusals. */
 /** @type {(value: unknown, status?: number, headers?: Record<string, string>) => Response} */
@@ -27,16 +25,13 @@ const json = (value, status = 200, headers = {}) => Response.json(value, {
 /** @type {(reason: ExchangeFailure['reason'], status: number) => Response} */
 const signInFailure = (reason, status) => json({ error: 'GitHub sign-in failed. Try again.', reason }, status)
 
-/** URL parsing and transport safety belong to this host boundary. */
+/** URL parsing belongs to this host boundary; `validCallback` judges the parts. */
 /** @type {(value: string | undefined) => URL | null} */
 const callback = value => {
     if (value === undefined) { return null }
     try {
         const url = new URL(value)
-        const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-        const secure = url.protocol === 'https:' || (url.protocol === 'http:' && loopback)
-        return secure && url.pathname === callbackPath && url.search === '' && url.hash === ''
-            && url.username === '' && url.password === '' ? url : null
+        return validCallback(url) ? url : null
     } catch {
         return null
     }
@@ -59,27 +54,18 @@ export const handleGithubRequest = async (request, env, host = {}) => {
     const method = config ? 'GET' : 'POST'
     if (request.method !== method) { return json({ error: 'Method not allowed.' }, 405, { Allow: method }) }
     const redirect = callback(env.GITHUB_REDIRECT_URI)
-    const previewConfigured = env.GITHUB_PREVIEW_REDIRECT_URI !== undefined && env.GITHUB_PREVIEW_REDIRECT_URI !== ''
     const previewRedirect = callback(env.GITHUB_PREVIEW_REDIRECT_URI)
-    if (redirect === null || !env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET
-        || (previewConfigured && previewRedirect === null)) {
-        if (!config) { return json({ error: 'GitHub login is not configured.' }, 503) }
-        const bindingNames = /** @type {const} */ ([
-            'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI',
-        ])
-        return json({
-            error: 'GitHub login is not configured.',
-            missingBindings: bindingNames.filter(name => env[name] === undefined || env[name] === ''),
-            invalidRedirectUri: env.GITHUB_REDIRECT_URI !== undefined && env.GITHUB_REDIRECT_URI !== '' && redirect === null,
-            ...(previewConfigured ? { invalidPreviewRedirectUri: previewRedirect === null } : {}),
-        }, 503)
+    const [configTag, configured] = workerConfig(env, { redirect: redirect !== null, preview: previewRedirect !== null })
+    if (configTag === 'error' || redirect === null) {
+        return json(config ? configured : { error: 'GitHub login is not configured.' }, 503)
     }
+    const { clientId, clientSecret } = configured
     if (!allowedCallbackOrigin(url, redirect)
         && (previewRedirect === null || !allowedCallbackOrigin(url, previewRedirect))) {
         return json({ error: 'GitHub login is unavailable on this origin.' }, 403)
     }
     const redirectUri = `${url.origin}${callbackPath}`
-    if (config) { return json({ clientId: env.GITHUB_CLIENT_ID, redirectUri }) }
+    if (config) { return json({ clientId, redirectUri }) }
     if (request.headers.get('Origin') !== url.origin) { return json({ error: 'Origin not allowed.' }, 403) }
     const contentType = request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()
     if (contentType !== 'application/json') { return json({ error: 'JSON is required.' }, 415) }
@@ -94,10 +80,8 @@ export const handleGithubRequest = async (request, env, host = {}) => {
     }
     const [tag, admitted] = readExchange(body)
     if (tag === 'error') { return json({ error: 'Invalid sign-in request.' }, 400) }
+    if (!validExchange(admitted)) { return json({ error: 'Invalid sign-in request.' }, 400) }
     const { code, verifier } = admitted
-    if (code.length === 0 || code.length > 1_024 || !validVerifier(verifier)) {
-        return json({ error: 'Invalid sign-in request.' }, 400)
-    }
     const fetchRequest = host.fetch ?? globalThis.fetch
     let response
     try {
@@ -105,8 +89,8 @@ export const handleGithubRequest = async (request, env, host = {}) => {
             method: 'POST',
             headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-                client_id: env.GITHUB_CLIENT_ID,
-                client_secret: env.GITHUB_CLIENT_SECRET,
+                client_id: clientId,
+                client_secret: clientSecret,
                 redirect_uri: redirectUri,
                 code,
                 code_verifier: verifier,
@@ -119,28 +103,17 @@ export const handleGithubRequest = async (request, env, host = {}) => {
     } catch {
         return signInFailure('network_error', 502)
     }
-    // Workers supports manual redirects; never forward app credentials or
-    // accept an authorization response from a redirected endpoint.
-    if (response.status >= 300 && response.status < 400) {
-        return signInFailure('provider_error', 502)
-    }
+    // Workers supports manual redirects, so a redirect reaches
+    // `providerOutcome` as its status and is refused there: app credentials
+    // are never forwarded.
     let value
     try {
         value = await response.json()
     } catch {
         return signInFailure('provider_error', 502)
     }
-    const [errorTag, providerError] = readProviderError(value)
-    if (errorTag === 'ok') {
-        return signInFailure(providerErrorReason(providerError.error), response.status >= 500 ? 502 : 400)
-    }
-    if (!response.ok) { return signInFailure('provider_error', response.status >= 500 ? 502 : 400) }
-    const [tokenTag, token] = readProviderToken(value)
-    if (tokenTag === 'error' || token.access_token === '') {
-        return signInFailure('provider_error', 400)
-    }
-    if (token.scope !== '') { return signInFailure('unexpected_scope', 400) }
-    return json({ access_token: token.access_token, token_type: token.token_type })
+    const [outcomeTag, outcome] = providerOutcome(response.status, value)
+    return outcomeTag === 'ok' ? json(outcome) : signInFailure(outcome[0], outcome[1])
 }
 
 /** Cloudflare's ExecutionContext is not part of the optional proof host. */

@@ -6,10 +6,14 @@
  *
  * @module
  *
- * @import { CallbackOrigin, ExchangeFailure, Pending } from './types.ts'
+ * @import { CallbackOrigin, CallbackUrl, ConfigDiagnostics, Exchange, ExchangeFailure, Pending, ProviderOutcome, WorkerConfig, WorkerEnv } from './types.ts'
+ * @import { Unknown } from '../../rtti/ts/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { number, open, or, string } from '../../rtti/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.js'
 
 /**
  * The prefix of the Worker's routes: a path under it that is neither route
@@ -130,3 +134,78 @@ export const validPending = ({ state: expected, verifier, createdAt }, state, no
     && Number.isFinite(now)
     && createdAt <= now
     && now - createdAt <= 600_000
+
+/** The hosts a callback may name over plain `http:`: this machine only. */
+const loopbackHosts = /** @type {const} */ (['localhost', '127.0.0.1', '[::1]'])
+
+/**
+ * A registered callback the Worker accepts: `https:`, or `http:` on a loopback
+ * host, whose path is exactly {@link callbackPath}, with no query, fragment or
+ * credentials. Parsing the URL stays in the host.
+ *
+ * @type {(url: CallbackUrl) => boolean}
+ */
+export const validCallback = ({ protocol, hostname, pathname, search, hash, username, password }) =>
+    (protocol === 'https:' || (protocol === 'http:' && loopbackHosts.some(host => host === hostname)))
+    && pathname === callbackPath && search === '' && hash === '' && username === '' && password === ''
+
+/** The bindings a configured Worker needs, named in its 503 body. */
+const bindingNames = /** @type {const} */ (['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'])
+
+/** @type {(value: string | undefined) => boolean} */
+const present = value => value !== undefined && value !== ''
+
+/**
+ * The Worker's credentials when its bindings configure sign-in, or what is
+ * wrong with them: the 503 body. `redirect` and `preview` say whether each
+ * callback binding passed {@link validCallback}; an absent preview binding is
+ * no fault.
+ *
+ * @type {(env: WorkerEnv, admitted: { readonly redirect: boolean, readonly preview: boolean }) => Result<WorkerConfig, ConfigDiagnostics>}
+ */
+export const workerConfig = (env, { redirect, preview }) => {
+    const { GITHUB_CLIENT_ID: clientId, GITHUB_CLIENT_SECRET: clientSecret } = env
+    const previewConfigured = present(env.GITHUB_PREVIEW_REDIRECT_URI)
+    if (redirect && clientId !== undefined && clientId !== '' && clientSecret !== undefined && clientSecret !== ''
+        && (!previewConfigured || preview)) {
+        return ok({ clientId, clientSecret })
+    }
+    return error({
+        error: 'GitHub login is not configured.',
+        missingBindings: bindingNames.filter(name => !present(env[name])),
+        invalidRedirectUri: present(env.GITHUB_REDIRECT_URI) && !redirect,
+        ...(previewConfigured ? { invalidPreviewRedirectUri: !preview } : {}),
+    })
+}
+
+/**
+ * An exchange request within GitHub's limits: a non-empty code of at most
+ * 1,024 characters and a {@link validVerifier}.
+ *
+ * @type {(exchange: Exchange) => boolean}
+ */
+export const validExchange = ({ code, verifier }) => code.length > 0 && code.length <= 1_024 && validVerifier(verifier)
+
+const readProviderToken = parse(providerTokenSchema)
+const readProviderError = parse(providerErrorSchema)
+
+/**
+ * GitHub's answer to the token exchange, by its status and parsed body: the
+ * token, or the fixed reason and the status the Worker answers with. A
+ * redirect is never followed, a provider error keeps only a documented
+ * reason, and a token that carries any scope is refused, since the page asks
+ * for none.
+ *
+ * @type {(status: number, body: Unknown) => ProviderOutcome}
+ */
+export const providerOutcome = (status, body) => {
+    if (status >= 300 && status < 400) { return error(['provider_error', 502]) }
+    const failureStatus = status >= 500 ? 502 : 400
+    const [errorTag, providerError] = readProviderError(body)
+    if (errorTag === 'ok') { return error([providerErrorReason(providerError.error), failureStatus]) }
+    if (status < 200 || status >= 300) { return error(['provider_error', failureStatus]) }
+    const [tokenTag, token] = readProviderToken(body)
+    if (tokenTag === 'error' || token.access_token === '') { return error(['provider_error', 400]) }
+    if (token.scope !== '') { return error(['unexpected_scope', 400]) }
+    return ok({ access_token: token.access_token, token_type: token.token_type })
+}
