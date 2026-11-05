@@ -17,7 +17,7 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { isFunctionNode, isStatic } from '../../module.f.mjs'
+import { isHelper, isStatic } from '../../module.f.mjs'
 
 /** Untags undefined for primitive operations, retaining every other value. @param {EdagValue} value */
 export const untagUndefined = value => isArray(value) && value[0] === 'undefined' ? undefined : value
@@ -39,7 +39,7 @@ export const truthy = value => Boolean(untagUndefined(value))
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (isFunctionNode(value) || isStatic(value))
+export const isFunction = value => isArray(value) && (value[0] === '=>' || isHelper(value) || isStatic(value))
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
