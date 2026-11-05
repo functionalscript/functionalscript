@@ -1,7 +1,7 @@
 ## `github-worker.mjs` carries the token exchange's decisions
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -23,8 +23,9 @@ if (code.length === 0 || code.length > 1_024 || !validVerifier(verifier)) { … 
 if (errorTag === 'ok') { return signInFailure(providerErrorReason(providerError.error), response.status >= 500 ? 502 : 400) }
 ```
 
-The two route paths and `/prs/` are also written in `github-runtime.mjs`, so
-the worker and the page agree on them by coincidence. The loopback list is
+The two route paths and `/prs/` were also written in `github-runtime.mjs`;
+both hosts now import them from `github/module.f.mjs` (`configPath`,
+`tokenPath`, `callbackPath`, `authPrefix`). The loopback list is
 [`fjs/web`](../../web/module.f.mjs)'s `servedHosts` again.
 
 ### Proposal
@@ -40,8 +41,9 @@ a separate question; the two serve different purposes.
 
 ### Tasks
 
-- [ ] The constants and predicates, with proof.
-- [ ] `github-worker.mjs` and `github-runtime.mjs` import the paths.
+- [x] The route and callback paths as constants, with proof.
+- [x] `github-worker.mjs` and `github-runtime.mjs` import the paths.
+- [ ] The predicates, with proof.
 
 ### Related
 

@@ -2,12 +2,19 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { allowedCallbackOrigin, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
+import { allowedCallbackOrigin, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenPath, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })
 
 export const proof = /** @type {const} */ ({
+    // The wire paths both hosts import, pinned: a change here moves the
+    // Worker's routes and the page's requests together, and nothing else.
+    routes: () => {
+        assertEq(configPath, '/auth/github/config')
+        assertEq(tokenPath, '/auth/github/token')
+        assertEq(callbackPath, '/prs/')
+    },
     schemas: () => {
         assertStructurallySame(assertOk(parse(configSchema)({ clientId: 'public', redirectUri: 'https://example.com/prs/', extra: true })),
             { clientId: 'public', redirectUri: 'https://example.com/prs/' })

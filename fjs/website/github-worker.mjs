@@ -10,7 +10,7 @@
  */
 
 import { parse } from '../rtti/parse/module.f.mjs'
-import { allowedCallbackOrigin, exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, validVerifier } from './github/module.f.mjs'
+import { allowedCallbackOrigin, authPrefix, callbackPath, configPath, exchangeSchema, providerErrorSchema, providerErrorReason, providerTokenSchema, tokenPath, validVerifier } from './github/module.f.mjs'
 
 const readExchange = parse(exchangeSchema)
 const readProviderToken = parse(providerTokenSchema)
@@ -35,7 +35,7 @@ const callback = value => {
         const url = new URL(value)
         const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
         const secure = url.protocol === 'https:' || (url.protocol === 'http:' && loopback)
-        return secure && url.pathname === '/prs/' && url.search === '' && url.hash === ''
+        return secure && url.pathname === callbackPath && url.search === '' && url.hash === ''
             && url.username === '' && url.password === '' ? url : null
     } catch {
         return null
@@ -50,10 +50,10 @@ const callback = value => {
  */
 export const handleGithubRequest = async (request, env, host = {}) => {
     const url = new URL(request.url)
-    const config = url.pathname === '/auth/github/config'
-    const exchange = url.pathname === '/auth/github/token'
+    const config = url.pathname === configPath
+    const exchange = url.pathname === tokenPath
     if (!config && !exchange) {
-        if (url.pathname.startsWith('/auth/github/')) { return json({ error: 'Not found.' }, 404) }
+        if (url.pathname.startsWith(authPrefix)) { return json({ error: 'Not found.' }, 404) }
         return env.ASSETS === undefined ? new Response('Not found.', { status: 404 }) : env.ASSETS.fetch(request)
     }
     const method = config ? 'GET' : 'POST'
@@ -78,7 +78,7 @@ export const handleGithubRequest = async (request, env, host = {}) => {
         && (previewRedirect === null || !allowedCallbackOrigin(url, previewRedirect))) {
         return json({ error: 'GitHub login is unavailable on this origin.' }, 403)
     }
-    const redirectUri = `${url.origin}/prs/`
+    const redirectUri = `${url.origin}${callbackPath}`
     if (config) { return json({ clientId: env.GITHUB_CLIENT_ID, redirectUri }) }
     if (request.headers.get('Origin') !== url.origin) { return json({ error: 'Origin not allowed.' }, 403) }
     const contentType = request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()

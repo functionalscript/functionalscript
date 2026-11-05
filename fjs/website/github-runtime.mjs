@@ -12,7 +12,7 @@ import { parse } from '../rtti/parse/module.f.mjs'
 import { assertNotNullish } from '../asserts/module.f.js'
 import { encode } from '../basen/base64url/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { configSchema, exchangeFailureMessage, exchangeFailureSchema, pendingSchema, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
+import { callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, pendingSchema, tokenPath, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
 
 /** @type {string} */
 const pendingKey = 'functionalscript.github.login'
@@ -94,7 +94,7 @@ export const startGitHubLogin = (root, host = {}) => {
                 signal: AbortSignal.timeout(15_000),
             })
             if (!response.ok) {
-                if (url === '/auth/github/token') {
+                if (url === tokenPath) {
                     try {
                         const [tag, rejected] = readExchangeFailure(await response.json())
                         if (tag === 'ok') { failure = exchangeFailureMessage(rejected.reason) }
@@ -128,9 +128,9 @@ export const startGitHubLogin = (root, host = {}) => {
             // Consume a pending login even when GitHub declined authorization.
             const pendingText = callback ? view.sessionStorage.getItem(pendingKey) : null
             if (callback) { view.sessionStorage.removeItem(pendingKey) }
-            const config = await request('/auth/github/config', {}, readConfig)
+            const config = await request(configPath, {}, readConfig)
             const redirect = new URL(config.redirectUri)
-            if (config.clientId === '' || redirect.href !== `${url.origin}/prs/`) {
+            if (config.clientId === '' || redirect.href !== `${url.origin}${callbackPath}`) {
                 throw new Error('GitHub login configuration does not match this site.')
             }
             available = true
@@ -180,7 +180,7 @@ export const startGitHubLogin = (root, host = {}) => {
             note.textContent = 'Completing GitHub login…'
             login.disabled = true
             failure = 'Could not exchange the GitHub login code. Please try again.'
-            const result = await request('/auth/github/token', {
+            const result = await request(tokenPath, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: codes[0], verifier: pending.verifier }),

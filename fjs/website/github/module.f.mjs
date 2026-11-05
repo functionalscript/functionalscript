@@ -11,6 +11,28 @@
 
 import { number, open, or, string } from '../../rtti/module.f.mjs'
 
+/**
+ * The prefix of the Worker's routes: a path under it that is neither route
+ * is the Worker's 404, not an asset.
+ */
+export const authPrefix = /** @type {const} */ ('/auth/github/')
+
+/**
+ * The public-configuration route, one of the Worker's two. The Worker that
+ * serves them and the page that calls them both import
+ * these, so the two hosts agree on them by construction.
+ */
+export const configPath = /** @type {const} */ (`${authPrefix}config`)
+
+/** The code-exchange route, beside {@link configPath}. */
+export const tokenPath = /** @type {const} */ (`${authPrefix}token`)
+
+/**
+ * The page GitHub redirects back to: the one callback path the Worker
+ * admits in its configuration and the page accepts as its redirect.
+ */
+export const callbackPath = /** @type {const} */ ('/prs/')
+
 /** Public configuration, with no application secret. */
 export const configSchema = open({ clientId: string, redirectUri: string })
 
