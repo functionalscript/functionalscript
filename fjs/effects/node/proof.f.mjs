@@ -13,7 +13,7 @@ import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
@@ -110,6 +110,14 @@ export const proof = {
         assertEq(badPortCode, 'ERR_SOCKET_BAD_PORT')
         assertEq(badPortMessage(-1), 'options.port should be >= 0 and < 65536. Received type number (-1).')
         assertEq(badPortMessage(NaN), 'options.port should be >= 0 and < 65536. Received type number (NaN).')
+    },
+    // A root name is its own path; an import resolves against its importer;
+    // the identity is the path normalized.
+    lexicalFileModule: () => {
+        assertStructurallySame(lexicalFileModule('./dir/../main.mjs', null), ok({ id: 'main.mjs', path: './dir/../main.mjs' }))
+        assertStructurallySame(lexicalFileModule('../lib/dep.mjs', 'app/main.mjs'), ok({ id: 'lib/dep.mjs', path: 'lib/dep.mjs' }))
+        assertStructurallySame(lexicalFileModule('./bad%', 'main.mjs'), error(invalidModuleSpecifier))
+        assertEq(invalidModuleSpecifier, 'invalid module specifier')
     },
     isNotFound: {
         enoent: () => {

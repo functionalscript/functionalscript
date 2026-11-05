@@ -41,7 +41,7 @@ import { asyncRunAll, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
 import {
-    _maxVecBytes, emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
+    _maxVecBytes, emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage, invalidModuleSpecifier,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
@@ -730,7 +730,7 @@ export const runNodeEffect = asyncRunAll({
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
     resolveFileModule: (name, parent) => io(async () => {
         if (parent !== null && decodeImportPath(name) === null) {
-            throw new Error('invalid module specifier')
+            throw new Error(invalidModuleSpecifier)
         }
         const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
         if (url.protocol !== 'file:') {

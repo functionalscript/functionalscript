@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileModule, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -33,7 +33,7 @@ import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
+import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
     commandsOf, do_, errorMessage as effectsErrorMessage, ioError as effectsIoError, toIoError as effectsToIoError,
 } from '../module.f.mjs'
@@ -47,7 +47,8 @@ import {
 import {
     catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
-import { parent } from '../../path/module.f.js'
+import { normalize, parent } from '../../path/module.f.js'
+import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
@@ -316,6 +317,24 @@ export const mkdir = do_('mkdir')
 
 /** @type {Func<ResolveFileModule>} */
 export const resolveFileModule = do_('resolveFileModule')
+
+/** What every host answers an import specifier with that names no path. */
+export const invalidModuleSpecifier = 'invalid module specifier'
+
+/**
+ * A module's identity by lexical resolution, for a host that has no
+ * `realpath`: `name` itself where there is no importer, else `name` resolved
+ * against the importer's path, and the identity is that path normalized. A module
+ * reached through two symbolic links is then two modules. The virtual host
+ * resolves this way, and the SpiderMonkey host does after anchoring a root
+ * `name` to its working directory.
+ *
+ * @type {(name: string, importer: string | null) => Result<FileModule, string>}
+ */
+export const lexicalFileModule = (name, importer) => {
+    const path = importer === null ? name : resolveImportPath(importer)(name)
+    return path === null ? resultError(invalidModuleSpecifier) : ok({ id: normalize(path), path })
+}
 
 // readFile
 
