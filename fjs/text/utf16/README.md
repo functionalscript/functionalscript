@@ -9,13 +9,14 @@ and surrogate tables are in the [text README](../README.md#utf-16).
 ```js
 import {
     stringToCodePointList, codePointListToString,
-    isWellFormed, floorCodePointBoundary,
+    isWellFormed, codePoints, floorCodePointBoundary,
 } from './module.f.js'
 
 stringToCodePointList('a😀')               // 0x61, 0x1f600 (as a List)
 codePointListToString([0x61, 0x1f600])    // 'a😀'
 isWellFormed('a😀')                       // true
 isWellFormed('a\ud800b')                  // false: an unpaired surrogate
+codePoints('a😀')                         // [0x61, 0x1f600]; throws where not well-formed
 floorCodePointBoundary('a😀')(2)           // 1: index 2 is inside the pair
 ```
 
@@ -23,7 +24,9 @@ An unpaired surrogate is not an error that stops the decode. It becomes a
 code point tagged with `errorMask`, and encoding it gives the same code unit
 back, so a string survives the round trip unchanged. `isWellFormed` is the
 question to ask before handing a string to something that needs valid
-Unicode, such as the [UTF-8](../utf8/README.md) encoder.
+Unicode, such as the [UTF-8](../utf8/README.md) encoder; `codePoints` asks it
+and reads the code points into an array in one step, refusing a string that is
+not well-formed.
 
 ## Functions
 

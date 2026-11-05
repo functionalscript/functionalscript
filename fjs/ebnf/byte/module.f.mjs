@@ -31,7 +31,8 @@ import { tryFold } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { isByte } from '../../types/number/module.f.js'
 import { rangeEncode, remove, union } from '../module.f.mjs'
-import { codePoints, toData } from '../data/module.f.mjs'
+import { toData } from '../data/module.f.mjs'
+import { codePoints } from '../../text/utf16/module.f.js'
 import { parser } from '../ll1/module.f.mjs'
 
 /** One past the last byte: the boundary a byte set never reaches past. */
