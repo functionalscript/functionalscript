@@ -87,31 +87,37 @@ Additional bits:
 ```
 0
 0    4    8    C
-s111_1111_1111_ppvv
+s111_1111_1111_vvvv - rest: 48bit
 
 s111_1111_1111_00vv - primitives and short strings
 s111_1111_1111_01vv - ptr + data_type
 s111_1111_1111_1vvv - short bigint
 ```
 
-```
-s111_1111_1111_00.00_000 - primitives and an empty string
-                  00_001 - string 1x16
-                  00_010 - string 2x16
-                  01_000 - string 4x7
-                  01_001 - string 5x7
-                  01_010 - string 6x7
-                  10     - string 7x7
-                  11_1   - string 3x16
-                  11_1   - string 8x6
-```
+### Primitives and Short Strings
 
-| `0`     |            | `2^0`  |    |`00.000`| `00` bits |
-| `1`     | `16` Utf16 | `2^16` |    |`00.001`| `16` bits |
-| `2`     | `16`       | `2^32` |    |`00.010`| `32` bits |
-| `4`     | `7` ASCII  | `2^28` |    |`01.000`| `28` bits |
-| `5`     | `7`        | `2^35` |    |`01.001`| `35` bits |
-| `6`     | `7`        | `2^42` |    |`01.010`| `42` bits |
-| `7`     | `7`        | `2^49` |`49`|`10.---`| `49` bits |
-| `3`     | `16`       | `2^48` |`48`|`11.0--`| `48` bits |
-| `8`     | `6` Id     | `2^48` |`48`|`11.1--`| `48` bits |
+`s-vv` + 48 bit
+
+| s | vv |             |       |
+|---|----|-------------|-------|
+|`s`|`00`|primitive:   |       |
+|`s`|`00`|`00`         |inf    |
+|`s`|`00`|`01`         |NaN    |
+|`s`|`00`|`10`         |bool   |
+|`s`|`00`|`11`         |nullish|
+|`s`|`01`|short string:|       |
+|   |    |             |       |
+|`s`|`1v`|short string:|       |
+|`0`|`10`|`3x16`       |`48`   |
+|`0`|`11`|`8x6`        |`48`   |
+|`1`|`1v`|`7x7`        |`49`   |
+
+### Ptr and Data Types
+
+- `s` - is static;
+- `vv` - data type: `object`, `string`, `bigint`, `function`.
+
+### Short BigInt
+
+- `s` - sign;
+- `vvv` - 3 high bits of uint51.
