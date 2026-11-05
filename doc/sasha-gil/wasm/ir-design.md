@@ -81,7 +81,8 @@ export const subtract = (a, b) => {
 The same body in the IR, as the lowering would produce it, before the
 lifetime pass. It is part of the stock module, so `toNumeric` and the
 private `bigintPair` are functions of that same module and are called
-through its own table, `self`. `bigintSubtract` is a native row, so it is
+through its own table, `self`. `bigintPair` is private, so it keeps the
+`bool` result its body computes. `bigintSubtract` is a native row, so it is
 an `l1` import:
 
 ```js
@@ -94,14 +95,15 @@ import { l1 } from '…/ir/l1/module.f.mjs'
 const subtract = func([['a', any], ['b', any]], any, [
     let_('x', self.toNumeric(get('a'))),
     let_('y', self.toNumeric(get('b'))),
-    if_(l0.to_bool(self.bigintPair(get('x'), get('y'))),
+    if_(self.bigintPair(get('x'), get('y')),
         l1.bigintSubtract(get('x'), get('y')),
         l0.from_f64(prim.f64_sub(l0.to_f64(get('x')), l0.to_f64(get('y'))))),
 ])
 ```
 
-Every boxing is visible: `to_bool` unpacks the condition, `to_f64` unpacks
-each operand and `from_f64` boxes the result. `prim.f64_sub` is `f64.sub`
+Every boxing is visible: `to_f64` unpacks each operand and `from_f64`
+boxes the result, and the condition needs no `to_bool`, because it is
+already a `bool`. `prim.f64_sub` is `f64.sub`
 in WASM and `-` on two `f64` in Rust. The normalized form of the call to
 `f64_sub` is the tuple `['call', 'prim', 'f64_sub', x, y]`.
 
