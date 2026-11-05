@@ -100,6 +100,12 @@ export const bitsIn = bytes => {
 export const maxLengthBytes = bytesIn(maxLength)
 
 /**
+ * {@link maxLengthBytes} as a `number`: the most bytes one `Vec` holds, the
+ * size of a chunk or a read window over a longer byte sequence.
+ */
+export const maxVecBytes = Number(maxLengthBytes)
+
+/**
  * An empty vector of bits.
  *
  * @type {Vec}
@@ -552,7 +558,7 @@ const u8ListToVecLsb = u8ListToVec(lsb)
  */
 export const u8ListToVecChunksMsb = chunkBytes => {
     assert(
-        Number.isInteger(chunkBytes) && chunkBytes >= 1 && chunkBytes <= Number(maxLengthBytes),
+        Number.isInteger(chunkBytes) && chunkBytes >= 1 && chunkBytes <= maxVecBytes,
         ['not a chunk length', chunkBytes])
     /** @type {(list: List<number>) => List<Vec>} */
     const chunks = list => () => {
@@ -573,6 +579,14 @@ export const u8ListToVecChunksMsb = chunkBytes => {
     }
     return chunks
 }
+
+/**
+ * {@link u8ListToVecChunksMsb} at {@link maxVecBytes}: a byte sequence as the
+ * fewest `Vec`s that hold it, each as long as a `Vec` may be but the last.
+ *
+ * @type {(list: List<number>) => List<Vec>}
+ */
+export const u8ListToMaxVecChunksMsb = u8ListToVecChunksMsb(maxVecBytes)
 
 /** @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<Unpacked>} */
 const unpackChunkList = ({ unpackSplit }) => n => {

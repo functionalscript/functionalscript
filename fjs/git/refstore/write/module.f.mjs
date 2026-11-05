@@ -48,7 +48,7 @@ import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapSte
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.js'
-import { length, maxLengthBytes, u8ListToVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
+import { length, u8ListToMaxVecChunksMsb, u8ListToVecMsb } from '../../../types/bit_vec/module.f.mjs'
 import { solidus as slash } from '../../../text/ascii/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
@@ -654,9 +654,6 @@ const within = (dir, text, e) => {
     return step(madeFor(dir, text), made => finallyStep(e, r => r[0] === 'ok' ? pruned : emptied(made)))
 }
 
-/** {@link u8ListToVecChunksMsb} at the longest `Vec`, bound once for {@link chunked}. */
-const vecChunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
-
 /**
  * `bytes` as the chunks {@link writeExclusive} takes, each as long as a `Vec` may
  * be. A `packed-refs` passes that length at about 1,870 refs; see
@@ -664,7 +661,7 @@ const vecChunks = u8ListToVecChunksMsb(Number(maxLengthBytes))
  *
  * @type {(bytes: readonly number[]) => readonly Vec[]}
  */
-const chunked = bytes => toArray(vecChunks(bytes))
+const chunked = bytes => toArray(u8ListToMaxVecChunksMsb(bytes))
 
 /**
  * What taking the name out of `packed-refs` comes to: a refusal, `false` where
