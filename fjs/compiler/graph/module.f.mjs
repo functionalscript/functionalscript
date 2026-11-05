@@ -83,7 +83,7 @@
  * @import { _Chain, _Child, _Definition, _DefinitionTask } from './private.ts'
  */
 
-import { intrinsicIds, staticIds } from '../../edag/module.f.mjs'
+import { helperIds, staticIds } from '../../edag/module.f.mjs'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { chunksText } from '../../text/marked/module.f.mjs'
 import { graphOf } from '../../website/demo/graph/module.f.mjs'
@@ -97,7 +97,8 @@ import { operatorOperands } from '../../js/ast/module.f.mjs'
 // for a flat list of strings simple enough to check against the type file
 // by eye. The static functions are the one group a later row grows, so
 // they are the EDAG's own list.
-const leaves = new Set(['entry', 'hasEntry', ...intrinsicIds, ...staticIds])
+/** @type {ReadonlySet<string>} */
+const leaves = new Set([...helperIds, ...staticIds])
 const op1 = new Set(['String', 'Number', 'BigInt', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',

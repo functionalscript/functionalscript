@@ -46,7 +46,7 @@ import { htmlToString } from '../media/html/module.f.mjs'
 import { runPure } from '../effects/module.f.mjs'
 import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
-    intrinsicIds, intrinsicLength, intrinsics, isIntrinsic,
+    helperIds, helperLength, helpers, intrinsicIds, intrinsics, isFunctionNode, isHelper, isIntrinsic,
     noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
 } from './module.f.mjs'
 
@@ -242,10 +242,23 @@ export const proof = {
     intrinsics: () => {
         assertStructurallySame(intrinsics, [['slice', 3], ['charCodeAt', 2]])
         assertStructurallySame(intrinsicIds, ['slice', 'charCodeAt'])
-        assertEq(intrinsicLength('slice'), 3)
-        assertEq(intrinsicLength('charCodeAt'), 2)
         for (const id of intrinsicIds) { assert(isIntrinsic([id]), id) }
         for (const node of [['entry'], ['hasEntry'], ['Object.is'], ['slice', 1], ['charCodeAt', 1], 'slice', [], null]) { assert(!isIntrinsic(node), node) }
+    },
+    // The helpers: `entry` and `hasEntry`, of `length` `2`, and the
+    // intrinsics; a function node is a lambda or a helper, and a static
+    // function is neither.
+    helpers: () => {
+        assertStructurallySame(helpers, [['entry', 2], ['hasEntry', 2], ['slice', 3], ['charCodeAt', 2]])
+        assertStructurallySame(helperIds, ['entry', 'hasEntry', 'slice', 'charCodeAt'])
+        assertEq(helperLength('entry'), 2)
+        assertEq(helperLength('hasEntry'), 2)
+        assertEq(helperLength('slice'), 3)
+        assertEq(helperLength('charCodeAt'), 2)
+        for (const id of helperIds) { assert(isHelper([id]), id) }
+        for (const node of [['Object.is'], ['entry', 1], ['=>', 0], 'entry', [], null]) { assert(!isHelper(node), node) }
+        for (const node of [['=>', 0, [], 1], ['entry'], ['hasEntry'], ['slice'], ['charCodeAt']]) { assert(isFunctionNode(node), node) }
+        for (const node of [['Object.is'], ['slice', 1], ['[]', []], 'entry', [], null]) { assert(!isFunctionNode(node), node) }
     },
     staticIds: () => {
         assertStructurallySame(staticIds.map(staticPath), [['Object', 'is'], ['Object', 'entries'], ['String', 'fromCharCode'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite']])

@@ -16,9 +16,9 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { intrinsicLength, isIntrinsic, isStatic, staticText } from '../../edag/module.f.mjs'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.mjs'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
-import { _entryText, _hasEntryText, _intrinsicText } from '../../compiler/serializer/function_text/module.f.mjs'
+import { _helperText } from '../../compiler/serializer/function_text/module.f.mjs'
 import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
 import { pushAll, walk } from '../../types/stack_walk/module.f.js'
 import { toArray as listToArray } from '../../types/list/alt/module.f.js'
@@ -486,15 +486,16 @@ const operation = (s, n, result) => {
         }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
     }
-    if (tag === 'entry' || tag === 'hasEntry') {
-        const text = helperText(tag === 'entry' ? _entryText('helper') : _hasEntryText('helper'))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', tag === 'entry' ? 'Any::entry(' : 'Any::has_entry(', argRead(0), ', ', argRead(1), tag === 'entry' ? ')' : ').map(|v| v.to_any())', ', ', num('2'), ', ', vm('Array'), `::default(), ${represented(text)})`, toAny])))
-    }
-    if (isIntrinsic([tag])) {
-        const id = /** @type {import('../../edag/types.ts').IntrinsicId} */ (tag)
-        const length = intrinsicLength(id)
+    if (isHelper([tag])) {
+        // the arity and the text are the helper table's; only the native
+        // body is this writer's own
+        const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
+        const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_intrinsicText(id)('helper')))})`, toAny])))
+        const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
+            : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
+            : ['Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
+        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
     }
     switch (tag) {
         case 'array': { return array(s, n[1], result) }

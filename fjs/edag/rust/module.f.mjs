@@ -19,7 +19,7 @@ import { identityAnalysis, checked } from '../analysis/module.f.mjs'
 import { fromAnalysis } from '../to_fast/module.f.mjs'
 import { prepare } from '../../js/ast/prepare/module.f.mjs'
 import { functionStringify } from '../../js/ast/serializer/module.f.mjs'
-import { isIntrinsic, isStatic } from '../module.f.mjs'
+import { isFunctionNode, isIntrinsic, isStatic } from '../module.f.mjs'
 import { operandsOf, visit } from '../sharing/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
@@ -112,8 +112,7 @@ export const readsArgs = root => reads('args')(root) || reads('arg')(root) || re
 const withBodies = node => node[0] === '=>' ? [...operandsOf(node), node[3]] : operandsOf(node)
 
 /** The public Rust VM capability required by a graph. @type {(root: Exp) => boolean} */
-export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => node instanceof Array
-    && (node[0] === '=>' || node[0] === 'entry' || node[0] === 'hasEntry' || isIntrinsic(node)))
+export const holdsFunction = root => visit(withBodies)([])(root).some(([node]) => isFunctionNode(node))
 
 /** @type {(step: StepOver<Exp, Index> | undefined, member: boolean) => boolean} */
 const memberCall = (step, member) => step === undefined ? false : step[0] === '|.' ? memberCall(step[2], true) : member || memberCall(step[2], false)

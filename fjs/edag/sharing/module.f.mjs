@@ -13,7 +13,7 @@
  * @import { Exp, StepOver } from '../types.ts'
  */
 
-import { isIntrinsic, stepOperands } from '../module.f.mjs'
+import { isHelper, stepOperands } from '../module.f.mjs'
 
 /**
  * The conditional establishes its condition, then the selected arm. Source
@@ -114,7 +114,7 @@ export const visit = operands => visited => root => {
 export const operandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
-        : id === 'arg' || id === 'entry' || id === 'hasEntry' || isIntrinsic(node) ? []
+        : id === 'arg' || isHelper(node) ? []
         // the constructor name is metadata, not a string-literal operand
         : id === 'instanceof' ? [node[1]]
         // and so is the key of an entry check

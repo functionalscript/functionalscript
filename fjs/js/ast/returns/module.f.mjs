@@ -11,7 +11,7 @@
  */
 
 import { isBinary, isUnary, lazyLayers } from '../../../compiler/ast/module.f.js'
-import { isIntrinsic, isStatic } from '../../../edag/module.f.mjs'
+import { isHelper, isStatic } from '../../../edag/module.f.mjs'
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { bind, call, done, run } from '../task/module.f.js'
@@ -29,8 +29,7 @@ const operandContext = (owner, permitted) => ({ owner, operand: true, loops: per
 
 /** References and native leaves are bare callees; member lookup syntax must stay intact. @type {(source: Value, callee?: boolean) => _Value} */
 const plain = (source, callee = !(source instanceof Array) || source[0] === 'ref' || source[0] === 'function'
-    || source[0] === 'array' || source[0] === 'object' || isStatic(source) || isIntrinsic(source)
-    || source[0] === 'entry' || source[0] === 'hasEntry') =>
+    || source[0] === 'array' || source[0] === 'object' || isStatic(source) || isHelper(source)) =>
     ({ statement: null, value: source, normal: true, callee })
 
 /** A reached spread uses the ordinary array expansion kernel in either FAST stage. @type {<V>(value: V) => readonly ['array', readonly [readonly ['...', V]]]} */

@@ -17,7 +17,7 @@
 
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { isIntrinsic, isStatic } from '../../module.f.mjs'
+import { isFunctionNode, isStatic } from '../../module.f.mjs'
 
 /** Untags undefined for primitive operations, retaining every other value. @param {EdagValue} value */
 export const untagUndefined = value => isArray(value) && value[0] === 'undefined' ? undefined : value
@@ -34,12 +34,12 @@ export const tagUndefined = value => value === undefined ? ['undefined'] : value
 export const truthy = value => Boolean(untagUndefined(value))
 
 /**
- * Whether a value is a function: a closure, the `entry` helper, or a
- * static function, `Object.is`.
+ * Whether a value is a function: a closure, a helper (`entry`, `slice`),
+ * or a static function, `Object.is`.
  *
  * @type {(value: EdagValue) => value is ValueFunction}
  */
-export const isFunction = value => isArray(value) && (value[0] === '=>' || value[0] === 'entry' || value[0] === 'hasEntry' || isIntrinsic(value) || isStatic(value))
+export const isFunction = value => isArray(value) && (isFunctionNode(value) || isStatic(value))
 
 /** JavaScript typeof of the represented value. @type {(value: EdagValue) => string} */
 export const typeOf = value => isFunction(value) ? 'function' : typeof untagUndefined(value)
