@@ -1,6 +1,7 @@
 /**
- * Percent-decoding of UTF-8 text, and the percent-encoding of a URL path that
- * keeps the escapes it already has.
+ * Percent-decoding of UTF-8 text, the percent-encoding of a URL path that
+ * keeps the escapes it already has, and the percent-encoding of a URL
+ * component.
  *
  * @module
  *
@@ -52,23 +53,38 @@ export const percentDecode = s => {
     return fromU8List([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
 }
 
-/** The bytes besides letters and digits that stand for themselves in a URL
- * path: RFC 3986's other unreserved characters, and the segment separator.
+/** RFC 3986's unreserved characters besides letters and digits.
  *
  * @type {readonly number[]}
  */
-const pathMarks = [hyphenMinus, fullStop, lowLine, tilde, solidus]
+const unreservedMarks = [hyphenMinus, fullStop, lowLine, tilde]
 
-/** Whether `b` stands for itself in a URL path. @type {(b: number) => boolean} */
-const isPathByte = b =>
-    isDigit(b) || isLatinSmallLetter(b) || isLatinCapitalLetter(b) || pathMarks.includes(b)
+/** The bytes besides letters and digits that stand for themselves in a URL
+ * path: the unreserved marks, and the segment separator.
+ *
+ * @type {readonly number[]}
+ */
+const pathMarks = [...unreservedMarks, solidus]
 
 /** A byte as two hexadecimal digits. */
 const hexByte = encodeScalar(2)
 
-/** `b` as it reads in a URL path: itself, or its escape. @type {(b: number) => string} */
-const pathByte = b =>
-    isPathByte(b) ? codeUnitToString(b) : `%${hexByte(b).toUpperCase()}`
+/**
+ * `b` itself where it is a letter, a digit or one of `marks`, its uppercase
+ * `%XX` escape otherwise.
+ *
+ * @type {(marks: readonly number[]) => (b: number) => string}
+ */
+const encodeByteWith = marks => b =>
+    isDigit(b) || isLatinSmallLetter(b) || isLatinCapitalLetter(b) || marks.includes(b)
+        ? codeUnitToString(b)
+        : `%${hexByte(b).toUpperCase()}`
+
+/** `b` as it reads in a URL path. */
+const pathByte = encodeByteWith(pathMarks)
+
+/** `b` as it reads in a URL component. */
+const componentByte = encodeByteWith(unreservedMarks)
 
 /** Every UTF-8 byte of `s` as it reads in a URL path. @type {(s: string) => string} */
 const encodeLiteral = s => utf8Bytes(s).map(pathByte).join('')
@@ -95,3 +111,12 @@ export const percentEncodePath = s => {
         ...escaped.map(part => `%${part.slice(0, 2)}${encodeLiteral(part.slice(2))}`),
     ].join('')
 }
+
+/**
+ * `s` as one URL component, a query name or value: every UTF-8 byte but
+ * letters, digits, `-`, `.`, `_` and `~` is escaped, `/` and `%` included,
+ * which is what sets it apart from {@link percentEncodePath}.
+ *
+ * @type {(s: string) => string}
+ */
+export const percentEncodeComponent = s => utf8Bytes(s).map(componentByte).join('')
