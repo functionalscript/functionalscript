@@ -57,8 +57,13 @@ does the same for the two serializers as a second step.
 
 ### Tasks
 
-- [ ] Export `children`, `declared` and `nodes`; move `exitValues`.
-- [ ] Rewrite the four predicate walkers over `nodes`.
+- [x] `children` and `someBlock` (the preorder walk asking a predicate of
+      each block) in `control`, beside `exitValues`, which stays there:
+      `js/ast/module.f.mjs` cannot import `control`, which imports it.
+- [x] `hasLoopTransfer` and `memo/cells`' `_hasReturn` over `someBlock`.
+- [ ] `ownsMemo` (which walks only `required` definitions) and `sugar`'s
+      `references` (which collects rather than asks) over `children`.
+- [ ] Export `declared`.
 - [ ] Rewrite the five table sites over `children` and `declared`.
 - [ ] `preparedChildren` for the two serializers.
 

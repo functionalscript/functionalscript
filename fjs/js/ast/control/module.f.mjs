@@ -31,6 +31,46 @@ export const exitValues = exit => exit[0] === 'yield' ? exit[1]
     : exit[0] === 'throw' ? [exit[1]] : [exit[2]]
 
 /**
+ * A node's direct children in lexical order, the one table the walkers over
+ * FAST share. A value's are its operands; a function's are its captures
+ * alone, since its body runs in another invocation; a block's are each
+ * statement's values and regions, then its exit's values and a terminal
+ * loop's body. A primitive has none.
+ *
+ * @type {(node: Value | Block) => readonly (Value | Block)[]}
+ */
+export const children = node => {
+    if (node === null || typeof node !== 'object') { return [] }
+    if (node instanceof Array) {
+        return node[0] === 'ref' ? [] : node[0] === 'function' ? node[1].captures.map(capture => capture.value)
+            : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
+    }
+    const { exit } = node
+    return [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
+        : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
+            : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit),
+        ...exit[0] === 'loop' ? [exit[1].body] : []]
+}
+
+/**
+ * Whether `found` holds of a block reached from `root` through
+ * {@link children}, in preorder over an explicit stack, so depth is bounded
+ * by memory and not by the host's call stack.
+ *
+ * @type {(found: (block: Block) => boolean) => (root: Value | Block) => boolean}
+ */
+export const someBlock = found => root => {
+    /** @type {Link<Value | Block> | null} */
+    let work = { first: root, tail: null }
+    while (work !== null) {
+        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
+        if (node !== null && typeof node === 'object' && !(node instanceof Array) && found(node)) { return true }
+        work = children(node).reduceRight((tail, first) => ({ first, tail }), tail)
+    }
+    return false
+}
+
+/**
  * Expand statements in lexical order. Each work item holds its immutable
  * scope snapshot, so sibling block locals never become caller bindings.
  *
@@ -105,27 +145,5 @@ export const freeLoopBindings = loop => freeBindings(loop.body, loop.parameters)
  * An optional kind distinguishes an invocation backedge from a normal break.
  * @type {(root: Value | Block, target: LoopTarget, kind?: 'break' | 'continue') => boolean}
  */
-export const hasLoopTransfer = (root, target, kind = undefined) => {
-    /** @type {Link<Value | Block> | null} */
-    let work = { first: root, tail: null }
-    while (work !== null) {
-        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
-        work = tail
-        if (node === null || typeof node !== 'object') { continue }
-        /** @type {readonly (Value | Block)[]} */
-        let children
-        if (node instanceof Array) {
-            children = node[0] === 'ref' ? [] : node[0] === 'function' ? node[1].captures.map(capture => capture.value)
-                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]] : operatorOperands(node)
-        } else {
-            const exit = node.exit
-            if ((exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target && (kind === undefined || exit[0] === kind)) { return true }
-            children = [...node.statements.flatMap(/** @returns {readonly (Value | Block)[]} */ statement => statement[0] === 'define' ? [statement[2]]
-                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(exit),
-                ...exit[0] === 'loop' ? [exit[1].body] : []]
-        }
-        work = children.reduceRight((tail, first) => ({ first, tail }), work)
-    }
-    return false
-}
+export const hasLoopTransfer = (root, target, kind = undefined) => someBlock(({ exit }) =>
+    (exit[0] === 'continue' || exit[0] === 'break') && exit[1] === target && (kind === undefined || exit[0] === kind))(root)
