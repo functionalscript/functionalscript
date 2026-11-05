@@ -221,11 +221,16 @@ Each choice gives the pick first, then the alternatives and the reason.
   says `own`, and an `any` result is always owned.
 - **Alternatives:** no effects at all, with every call opaque; a full
   effect system with reads and writes.
+- **Rule:** only a `pure` call may be moved, merged with an equal call,
+  or removed when its result is unused. Every other call is a barrier: it
+  stays, in its order.
 - **Why:** the lifetime pass needs ownership, and nothing else. The effects
-  cost one word per row and let later passes move, merge or drop a call
-  safely: a `pure` call whose result is unused can go. FunctionalScript has
-  no mutable state a call could change, so reads and writes need no
-  tracking.
+  cost one word per row and let later passes optimize pure code safely.
+  The only state a call can change is the runtime's: a builder that `push`
+  fills, and the reference counts `dup` and `drop` change. Those rows are
+  never `pure`, so the rule keeps them in order without a finer effect
+  system. A finer one, with reads and writes per handle, can come when an
+  optimization needs it.
 
 ### 6. Locals have names, and only loop state is mutable
 
