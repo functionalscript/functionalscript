@@ -18,12 +18,19 @@ mod files;
 mod inflate;
 mod native;
 mod resolve;
-#[cfg(all(test, not(target_family = "wasm")))]
+#[cfg(all(any(test, feature = "test-support"), not(target_family = "wasm")))]
 mod scratch;
 
 pub use files::{Dirent, IoError, MAX_FILE_SIZE_BYTES, normalize};
 pub use native::Native;
 pub use resolve::{FileModule, resolve_file_module};
+
+/// The `test-support` feature: what this crate's tests build their fixtures
+/// with, for the harness's tests to build theirs the same way.
+#[cfg(feature = "test-support")]
+pub use codec::decode_result;
+#[cfg(all(feature = "test-support", not(target_family = "wasm")))]
+pub use scratch::Scratch;
 
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 

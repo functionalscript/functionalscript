@@ -277,8 +277,9 @@ pub fn encode_error<A: IVm>(error: Any<A>) -> Any<A> {
 
 /// The inverse of [`encode_result`]: an `['ok', value]` or `['error', error]`
 /// tuple as the `Result` it spells. The runners never read one back, so it
-/// is the tests' own: they unwrap a program's answer with it.
-#[cfg(test)]
+/// is the tests' own: they unwrap a program's answer with it, and the
+/// harness's through the `test-support` feature.
+#[cfg(any(test, feature = "test-support"))]
 pub fn decode_result<A: IVm>(any: Any<A>) -> Result<Result<Any<A>, Any<A>>, Malformed> {
     let Ok(tuple) = Array::try_from(any) else {
         return malformed("not a result tuple");

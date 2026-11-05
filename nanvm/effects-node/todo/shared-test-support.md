@@ -45,10 +45,12 @@ fixtures by hand:
       is `#[cfg(test)]` in the private `codec`, so the crate's own tests
       unwrap with it; `Native::buffered` is public, and the harness's
       `effects.rs`, `parity.rs` and `console.rs` build their hosts with it.
-- [ ] The harness's tuple unwraps (`common/mod.rs` `perform_case`,
-      `effects.rs`) over `decode_result`, once the harness can reach it —
-      a `test-support` feature, with the `Scratch` below.
-- [ ] One `Scratch`; delete the harness copy.
+- [x] The harness's tuple unwraps (`common/mod.rs` `perform_case`,
+      `effects.rs`) over `decode_result`, which this crate's `test-support`
+      feature exports; the harness's dev-dependency enables it.
+- [x] One `Scratch`, exported under the same feature; the harness's copy in
+      `parity.rs` is gone, so a parity case gets the counter and the
+      canonicalization.
 - [x] `lib.rs`'s test `result` and `node` are `encode_tuple` and
       `encode_object`.
 - [ ] `native.rs`'s test `object(members)`, which takes any number of
