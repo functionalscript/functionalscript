@@ -5,6 +5,7 @@
  *
  * @import { Nullable } from '../nullable/types.ts'
  * @import { FixedArray, Occurrences } from './types.ts'
+ * @import { StringMap } from '../object/types.ts'
  */
 
 import { fromUndefined } from '../nullable/module.f.js'
@@ -153,9 +154,9 @@ export const dedup = a => a.filter((v, i) => a.slice(0, i).every(x => x !== v))
  */
 export const occurrences = names => {
     const positions = names.map((n, i) => /** @type {const} */ ([n, i]))
-    /** @type {Readonly<Record<string, number>>} */
+    /** @type {StringMap<number>} */
     const first = Object.fromEntries(positions.toReversed())
-    /** @type {Readonly<Record<string, number>>} */
+    /** @type {StringMap<number>} */
     const last = Object.fromEntries(positions)
     return {
         indexOf: n => entry(first, n) ?? -1,

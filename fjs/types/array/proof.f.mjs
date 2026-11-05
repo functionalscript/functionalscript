@@ -214,8 +214,10 @@ export const proof = {
         // an inherited name is no occurrence, and `__proto__` is a name
         // like any other
         () => {
+            /** @type {readonly string[]} */
             const names = ['__proto__', 'a', '__proto__']
             const { indexOf, lastIndexOf } = occurrences(names)
+            /** @type {readonly string[]} */
             const asked = [...names, 'toString', 'constructor', 'hasOwnProperty']
             assertStructurallySame(asked.map(indexOf), asked.map(n => names.indexOf(n)))
             assertStructurallySame(asked.map(lastIndexOf), asked.map(n => names.lastIndexOf(n)))
