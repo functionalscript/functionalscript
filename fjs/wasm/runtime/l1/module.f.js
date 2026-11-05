@@ -429,7 +429,7 @@ const digit = u => u >= 0x30 && u <= 0x39 ? u - 0x30 : -1
  *
  * @type {(s: unknown) => number}
  */
-const stringIndex = s => {
+export const stringIndex = s => {
     const n = length(s)
     if (n === 0 || n > 1 && unit(s, 0) === 0x30) { return -1 }
     let r = { i: 0, value: 0 }
