@@ -15,7 +15,7 @@
  * @import { _DeferredBinding, _DeferredBlock, _DeferredScope, _DeferredSummary, _LoopInfo, _Owned, _OwnedBlock, _OwnedValue, _OwnedValues, _Root, _Scope, _Transfer } from './private.ts'
  */
 
-import { exitValues, freeBindings, freeLoopBindings } from '../../control/module.f.mjs'
+import { exitValues, freeBindings, freeLoopBindings, someBlock } from '../../control/module.f.mjs'
 import { concat } from '../../../../types/list/module.f.js'
 import { toArray } from '../../../../types/list/alt/module.f.js'
 import { mapOperator, operatorOperands } from '../../module.f.mjs'
@@ -23,30 +23,7 @@ import { bind, call, done, run } from '../../task/module.f.js'
 import { assertNotNullish } from '../../../../asserts/module.f.js'
 
 /** Owning returns inside deferred recipes, without crossing ordinary bodies. @type {(value: Value, target: FunctionTarget) => boolean} */
-export const _hasReturn = (value, target) => {
-    /** @type {Link<Value | Block> | null} */
-    let pending = { first: value, tail: null }
-    while (pending !== null) {
-        const { first: node, tail } = /** @type {Link<Value | Block>} */ (pending)
-        pending = tail
-        if (node === null || typeof node !== 'object') { continue }
-        if (!(node instanceof Array)) {
-            if (node.exit[0] === 'return' && node.exit[1] === target) { return true }
-            /** @type {readonly (Value | Block)[]} */
-            const values = [...node.statements.flatMap(statement => statement[0] === 'define' ? [statement[2]]
-                : statement[0] === 'loop' ? [...statement[1].initial, statement[1].body]
-                    : statement[0] === 'block' ? [statement[2]] : [statement[2], statement[3], statement[4]]), ...exitValues(node.exit),
-                ...node.exit[0] === 'loop' ? [node.exit[1].body] : []]
-            pending = values.reduceRight((tail, first) => ({ first, tail }), pending)
-        } else {
-            const values = node[0] === 'function' ? node[1].captures.map(capture => capture.value)
-                : node[0] === 'block' ? [node[1]] : node[0] === 'if' ? [node[1], node[2], node[3]]
-                    : node[0] === 'ref' ? [] : operatorOperands(node)
-            pending = values.reduceRight((tail, first) => ({ first, tail }), pending)
-        }
-    }
-    return false
-}
+export const _hasReturn = (value, target) => someBlock(({ exit }) => exit[0] === 'return' && exit[1] === target)(value)
 
 /** Established values shadow any enclosing deferred entry. @type {(scope: _Scope, bindings: readonly BindingId[]) => _Scope} */
 const established = (scope, bindings) => bindings.some(binding => scope.has(binding))
