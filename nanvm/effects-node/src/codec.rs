@@ -33,15 +33,10 @@ fn malformed<T>(what: impl Into<String>) -> Result<T, Malformed> {
 
 /// Argument `index` of the payload, which must be there.
 pub fn argument<A: IVm>(payload: &Array<A>, index: u32, name: &str) -> Result<Any<A>, Malformed> {
-    match optional_argument(payload, index) {
+    match payload.present(index) {
         Some(any) => Ok(any),
         None => malformed(format!("missing argument {index}, `{name}`")),
     }
-}
-
-/// Argument `index` of the payload, if it is there.
-pub fn optional_argument<A: IVm>(payload: &Array<A>, index: u32) -> Option<Any<A>> {
-    (index < payload.length()).then(|| payload[index].clone())
 }
 
 /// The payload may hold no more than the operation's parameters: its

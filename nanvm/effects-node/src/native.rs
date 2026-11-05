@@ -12,7 +12,7 @@ use crate::{
         decode_literal, decode_nullable, decode_number, decode_object, decode_optional,
         decode_string, decode_true, encode_array, encode_bool, encode_bytes, encode_error,
         encode_nothing, encode_nullable, encode_number, encode_object, encode_ok, encode_result,
-        encode_string, encode_tuple, member, optional_argument, required,
+        encode_string, encode_tuple, member, required,
     },
     common,
     files::{self, Dirent, IoError, Stat},
@@ -174,7 +174,7 @@ impl<R: Read, O: Write, E: Write> Native<R, O, E> {
             "mkdir" => {
                 arity(payload, 2)?;
                 let path = decode_string(argument(payload, 0, "path")?)?;
-                let recursive = decode_optional(optional_argument(payload, 1), |options| {
+                let recursive = decode_optional(payload.present(1), |options| {
                     let options = decode_object(options, &["recursive"])?;
                     decode_true(required(&options, "recursive")?)
                 })?
