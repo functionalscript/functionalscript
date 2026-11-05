@@ -319,6 +319,20 @@ export const parent = path => {
 export const basename = path => last('')(parse(path))
 
 /**
+ * What follows the last `.` of a path's {@link basename}, as written, or `''`
+ * where there is none: `rs` for `a/b/x.rs`, `gz` for `x.tar.gz`. A leading
+ * dot begins a name, not an extension, so `.gitignore` has none, and neither
+ * does `x.` past its dot.
+ *
+ * @type {(path: string) => string}
+ */
+export const extension = path => {
+    const name = basename(path)
+    const dot = name.lastIndexOf('.')
+    return dot > 0 ? name.slice(dot + 1) : ''
+}
+
+/**
  * The directories a path lies under, between its root and itself, shortest
  * first: `a` and `a/b` for `a/b/c`, and `/a` for `/a/b`. Neither the root —
  * nor `.`, a relative path's — nor the path itself is one of them.
