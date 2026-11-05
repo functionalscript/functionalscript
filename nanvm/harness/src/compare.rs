@@ -44,8 +44,7 @@ pub struct Case {
 /// Whether two graphs are the same value, and, where they are not, the first
 /// difference found, with the path to it.
 ///
-/// Leaves compare as `Object.is` does, numbers by their bits (`NaN`, `-0`),
-/// everything else by `==`. Arrays compare by their elements. Objects compare
+/// Leaves compare by [`Any::same_value`], which is `Object.is`. Arrays compare by their elements. Objects compare
 /// by their [`Object::own_entries`], pairwise and in order, so a duplicated
 /// raw slot (an object spread's overwrite) equals the interpreter's
 /// normalized object while the right entries in the wrong observable order
@@ -69,14 +68,6 @@ struct Walk<A: IVm> {
 impl<A: IVm> Walk<A> {
     fn walk(&mut self, path: &str, actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
         match (actual.clone().into(), expected.clone().into()) {
-            (Unpacked::Number(a), Unpacked::Number(e)) => {
-                let (a, e) = (f64::from(a), f64::from(e));
-                if a.to_bits() == e.to_bits() {
-                    Ok(())
-                } else {
-                    Err(format!("{path}: {a:?} is not {e:?}"))
-                }
-            }
             (Unpacked::Array(a), Unpacked::Array(e)) => {
                 if self.entered(path, actual, expected)? {
                     return Ok(());
@@ -106,7 +97,7 @@ impl<A: IVm> Walk<A> {
                     }
                 })
             }
-            _ if actual == expected => Ok(()),
+            _ if actual.same_value(expected) => Ok(()),
             _ => Err(format!("{path}: {actual:?} is not {expected:?}")),
         }
     }
