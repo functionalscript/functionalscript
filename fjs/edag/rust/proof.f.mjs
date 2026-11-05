@@ -1,23 +1,29 @@
 /**
  * Proofs for EDAG admission through common FAST preparation and Rust spelling.
  *
- * `nodeExpr`/`expExpr` return a `Result` rather than throwing (see the
+ * `expExpr` returns a `Result` rather than throwing (see the
  * module's own doc comment for why), so every case here reads it through
  * {@link printed}/{@link printedWith}, which `unwrap` back to a throwing
  * convenience — the ordinary FunctionalScript panic `fjs/AGENTS.md` §1.5
  * describes, exactly what the `throw` cases below need.
  *
  * @import { Exp, Property, Spread } from '../types.ts'
- * @import { Printed, Uses } from './types.ts'
+ * @import { Printed, Scope, Uses } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { ok, unwrap } from '../../types/result/module.f.js'
-import { bindingLine, braced, expExpr, expExprTagged, holdsFunction, needsRuntime, nodeExpr, readsArgs, readsFrame, readsSelf, restLine, scope, scopeTagged, statementsOf, useLines, useLinesTagged, helperExpr } from './module.f.mjs'
-import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
+import { mapOk, ok, unwrap } from '../../types/result/module.f.js'
+import { bindingLine, expExpr, expExprTagged, holdsFunction, needsRuntime, readsArgs, scopeTagged, statementsOf } from './module.f.mjs'
+import { fromTagged, untagged } from '../../text/marked/module.f.mjs'
 import { unmarkedWords } from './unmarked/module.f.js'
 import { conditional } from '../testlib.f.js'
+
+/** A fragment with no externally supplied bindings and no runtime. */
+const nodeExpr = expExpr([])
+
+/** Plain Rust for a graph scope: `scopeTagged`'s lines without their tags. @type {(root: Exp, runtime?: string | null) => Result<Scope, readonly unknown[]>} */
+const scope = (root, runtime = null) => mapOk(({ lines, uses }) => ({ lines: lines.map(untagged), uses }))(scopeTagged(root, undefined, runtime))
 
 /** A node as a value in a scope whose runtime value is `runtime`, a compiled module's. @type {(e: Exp) => string} */
 const printed = e => {
@@ -321,65 +327,6 @@ export const proof = {
             })
         },
     },
-    useLines: () => {
-        assertStructurallySame(useLines({ vm: [], unstable: [] }, 'IVm'), ['use nanvm_lib::vm::{Any, IVm};'])
-        assertStructurallySame(useLines({ vm: ['ToAny', 'Array'], unstable: ['f64_any'] }, 'IStaticFunction'), [
-            'use nanvm_lib::vm::unstable::f64_any;',
-            'use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny};',
-        ])
-        assertStructurallySame(useLines({ vm: ['Any'], unstable: ['f64_any', 'strict_eq'] }, 'IVm'), [
-            'use nanvm_lib::vm::unstable::{f64_any, strict_eq};',
-            'use nanvm_lib::vm::{Any, IVm};',
-        ])
-        // past rustfmt's 100 columns the braced names wrap as it wraps them:
-        // on lines of their own, filled to the width
-        // the boundary rustfmt draws: a braced `use` of 99 columns wraps,
-        // one of 98 stays, and a continuation line reaches 99 at most
-        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_key'] }, 'IVm'), [
-            'use nanvm_lib::vm::unstable::{',
-            '    bigint_any, f64_any, static_read, strict_eq, string_any, string_key,',
-            '};',
-            'use nanvm_lib::vm::{Any, IVm};',
-        ])
-        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_ke'] }, 'IVm'), [
-            'use nanvm_lib::vm::unstable::{bigint_any, f64_any, static_read, strict_eq, string_any, string_ke};',
-            'use nanvm_lib::vm::{Any, IVm};',
-        ])
-        const long = 'b'.repeat(87)
-        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', long, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', `    aaaa, ${long},`, '    cc,', '};', 'use nanvm_lib::vm::{Any, IVm};'])
-        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', `${long}bb`, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', '    aaaa,', `    ${long}bb, cc,`, '};', 'use nanvm_lib::vm::{Any, IVm};'])
-        assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
-            'use nanvm_lib::vm::unstable::{',
-            '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
-            '};',
-            'use nanvm_lib::vm::{Any, IVm};',
-        ])
-        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
-            'use nanvm_lib::vm::unstable::{',
-            '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
-            '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
-            '    helper_number_10,',
-            '};',
-            'use nanvm_lib::vm::{Any, IVm};',
-        ])
-    },
-    // The `use` of each statement is a keyword, whether the names fit one
-    // line, wrap, or are a single name, and the text is `useLines`'s.
-    useLinesTagged: () => {
-        /** @type {readonly (readonly [Uses, string, number])[]} */
-        const cases = [
-            [{ vm: [], unstable: [] }, 'IVm', 1],
-            [{ vm: [], unstable: ['f64_any'] }, 'IVm', 2],
-            [{ vm: ['ToAny'], unstable: ['f64_any', 'strict_eq'] }, 'IStaticFunction', 2],
-            [{ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm', 2],
-        ]
-        for (const [uses, bound, statements] of cases) {
-            const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))
-            assertEq(JSON.stringify(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), JSON.stringify(Array(statements).fill('use')))
-            assertEq(toText(marked), useLines(uses, bound).join('\n'))
-            assertEq(JSON.stringify(unmarkedWords(marked)), '[]')
-        }
-    },
     // Each kind the printer says it marks, where it spells one.
     markedKinds: () => {
         /** @type {(e: Exp) => string} */
@@ -418,8 +365,6 @@ export const proof = {
         assertStructurallySame(unwrap(statementsOf([[inner, 'x.clone()']])(['+', inner, 1])), [
             'x.clone() + f64_any(0x3ff0000000000000)',
         ])
-        assertEq(braced(['a']), '{ a }')
-        assertEq(braced(['a;', 'b']), '{\n    a;\n    b\n}')
     },
     /** Every primitive kind, as {@link printed} prints it standalone. */
     primitives: () => {
@@ -454,17 +399,6 @@ export const proof = {
             "if Any::<A>::to_boolean(true.to_any()) { Ok(f64_any(0x3ff0000000000000)) } else { Ok(f64_any(0x4000000000000000)) }")
         assertEq(printed(['=>', 0, [], ['undefined']]), "A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 0, Array::default(), Some(\"()=>undefined\")).to_any()")
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
-    },
-    /**
-     * A helper as a value with the names it spells, what a frame slot
-     * holding one prints as in the static runtime: tagged, as
-     * `scopeTagged`'s lines are.
-     */
-    helperExpr: () => {
-        const [text, uses] = unwrap(helperExpr(['slice']))
-        assertEq(untagged(text), printed(['slice']))
-        assertStructurallySame([...new Set(uses.map(([m, n]) => `${m}::${n}`))].toSorted(), ['unstable::string_any', 'vm::Array', 'vm::ToAny', 'vm::ToArray'])
-        assertEq(unwrap(helperExpr(['entry']))[1].some(([, n]) => n === 'Array'), true)
     },
     /**
      * A caller's text for a function node, in place of the writer's, where
@@ -1068,8 +1002,6 @@ export const proof = {
             const deep = chain(40, ['[]', []])
             assertEq(readsArgs(deep), false)
             assertEq(readsArgs(chain(40, ['args'])), true)
-            assertEq(readsFrame(deep), false)
-            assertEq(readsFrame(chain(40, ['frame', 0])), true)
             assertEq(holdsFunction(deep), false)
             assertEq(holdsFunction(chain(40, ['=>', 0, [], 1])), true)
         },
@@ -1201,9 +1133,6 @@ export const proof = {
         assertEq(printed(['frame', 1]), 'A::frame(self_)[1].clone()')
         assertEq(printed(['rest']), 'rest.clone().to_any()')
         assertEq(printed(['self']), 'Function::new(self_.clone()).to_any()')
-        assert(readsSelf(['self']))
-        assert(!readsSelf(['=>', 0, [], ['self']]))
-        assertEq(untagged(restLine(2)[0]), 'let rest = args.rest(2);')
         assertEq(unwrap(bindingLine([], 'value')(['[]', []])), 'let value: Any<A> = Array::default().to_any();')
         const text = unwrap(scopeTagged(['=>', 0, [], 1], () => 'custom callable')).lines.map(untagged).join('\n')
         assert(text.includes('Some("custom callable")'))
