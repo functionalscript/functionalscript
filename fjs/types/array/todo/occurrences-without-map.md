@@ -22,8 +22,8 @@ compiler refuses every prototype name as a property key
 ### Direction
 
 Rename the two fields of `Occurrences` (`types.ts`) to names that are no
-prototype's and update the callers, most of them proofs, then compile the module and rename it if
-nothing else is refused.
+prototype's and update the callers, most of them proofs, then compile the
+module and rename it if nothing else is refused.
 
 ### Tasks
 
