@@ -26,6 +26,8 @@ import { functionAt } from '../property/module.f.mjs'
 import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.mjs'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
+import { at } from '../at/module.f.mjs'
+import { slice } from '../slice/module.f.mjs'
 import { max } from '../../../types/number/max/module.f.js'
 
 /** The prototype a call on each receiver type looks in, by the type's global's name, as `fjs/js/runtime` keys it. */
@@ -202,7 +204,7 @@ const stringMethod = (receiver, key, args, invoke) => {
             const [kind, index] = result
             if (kind === 'error') { return result }
             switch (key) {
-                case 'at': { return ok(tagUndefined(receiver.at(index))) }
+                case 'at': { return ok(at(receiver, index)) }
                 case 'charAt': { return ok(receiver.charAt(index)) }
                 case 'charCodeAt': { return ok(receiver.charCodeAt(index)) }
                 case 'repeat': {
@@ -221,7 +223,7 @@ const stringMethod = (receiver, key, args, invoke) => {
                     const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                     const [endKind, last] = end
                     if (endKind === 'error') { return end }
-                    return ok(key === 'slice' ? receiver.slice(index, last) : receiver.substring(index, last))
+                    return ok(key === 'slice' ? slice(receiver, index, last) : receiver.substring(index, last))
                 }
             }
         }
