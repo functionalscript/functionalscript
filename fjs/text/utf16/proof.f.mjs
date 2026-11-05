@@ -13,6 +13,7 @@ import {
     codeUnitToString,
     floorCodePointBoundary,
     isWellFormed,
+    codePoints,
     utf16Decoder,
 } from './module.f.js'
 import { stringifySorted as stringify } from '../../media/json/module.f.mjs'
@@ -203,6 +204,19 @@ export const proof = {
         // a lone surrogate is kept as its own code unit
         () => { assertEq(codeUnitToString(0xd800), '\ud800') },
     ],
+    // One code point per element: an astral character is one, not the two
+    // UTF-16 units it occupies. A lone surrogate, high or low, is no code
+    // point and is refused rather than tagged into a negative number.
+    codePoints: {
+        text: () => {
+            assertEq(stringify(codePoints('')), '[]')
+            assertEq(stringify(codePoints('a\u{1F600}')), '[97,128512]')
+        },
+        throw: {
+            loneHigh: () => codePoints('\uD800'),
+            loneLow: () => codePoints('a\uDC00'),
+        },
+    },
     isWellFormed: () => {
         assertEq(isWellFormed(''), true)
         assertEq(isWellFormed('abc'), true)
