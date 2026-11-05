@@ -22,7 +22,7 @@ them ([Comparison round](#comparison-round)). Nothing here is decided yet.
   `any` values. Only an `i32` needs a constructor, `i32(3)`.
 - **Every operation comes from a table**. One row gives its name, its
   parameter and result types, whether it borrows or takes each `any`, and
-  its effects. The tables are `prim` (typed arithmetic), `l0`, `l1` and the
+  its effects. The tables are `prim` (typed arithmetic), `l0`, `l1` and `self`, the
   module's own functions. The eDSL's constructors and their TypeScript types
   are derived from the rows.
 - **Lifetimes are a pass over the IR**, not each target's job. A module
@@ -79,19 +79,22 @@ export const subtract = (a, b) => {
 ```
 
 The same body in the IR, as the lowering would produce it, before the
-lifetime pass:
+lifetime pass. It is part of the stock module, so `toNumeric` and the
+private `bigintPair` are functions of that same module and are called
+through its own table, `self`. `bigintSubtract` is a native row, so it is
+an `l1` import:
 
 ```js
-import { func, get, if_, let_ } from '…/ir/module.f.mjs'
+import { func, get, if_, let_, self } from '…/ir/module.f.mjs'
 import { any } from '…/ir/type/module.f.mjs'
 import { prim } from '…/ir/prim/module.f.mjs'
 import { l0 } from '…/ir/l0/module.f.mjs'
 import { l1 } from '…/ir/l1/module.f.mjs'
 
 const subtract = func([['a', any], ['b', any]], any, [
-    let_('x', l1.toNumeric(get('a'))),
-    let_('y', l1.toNumeric(get('b'))),
-    if_(l0.to_bool(l1.bigintPair(get('x'), get('y'))),
+    let_('x', self.toNumeric(get('a'))),
+    let_('y', self.toNumeric(get('b'))),
+    if_(l0.to_bool(self.bigintPair(get('x'), get('y'))),
         l1.bigintSubtract(get('x'), get('y')),
         l0.from_f64(prim.f64_sub(l0.to_f64(get('x')), l0.to_f64(get('y'))))),
 ])
@@ -191,8 +194,11 @@ Each choice gives the pick first, then the alternatives and the reason.
     take a pointer (choice 10).
   - `l1` holds the L1 operations, all `any` to `any`
     ([L1 design §5](./l1-design.md#5-one-calling-convention-for-every-l1-operation)).
-  - The module's own functions form a fourth table, built from its
-    definitions.
+    A module imports what it calls from this table.
+  - `self` is the module's own functions, built from its definitions. A
+    call through it is a direct call, never an import. The stock module
+    calls its own L1 bodies this way, and the `l1` table only for the
+    native rows.
 
   `table` turns the rows into the constructors the example uses, so
   `l0.to_f64(x)` is the call node, and TypeScript checks its arity and
@@ -244,8 +250,8 @@ Each choice gives the pick first, then the alternatives and the reason.
     type;
   - `if_(c, then, else)`, whose condition is a `bool`;
   - `loop(label, statements)`, whose body falls through to leave;
-  - `br(label, value)`, which leaves a block with a value, or repeats a
-    loop;
+  - `br(label, value)`, which leaves a block with a value, and
+    `br(label)`, which repeats a loop and carries no value;
   - `return_(value)`, `throw_(value)` and `unreachable`.
 
   A Rust emitter spells `br` to a block as `break 'label value`, and `br`
@@ -280,9 +286,11 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 - **Pick:** the IR has two stages. The lowering writes the *plain* stage,
   where an `any` is read with `get` as often as needed. The lifetime pass
-  writes the *owned* stage. There, each `any` local is consumed exactly
-  once on every path, `l0.dup` and `l0.drop` are explicit, and a borrowed
-  argument stays a plain `get`. The validator checks the owned stage, and
+  writes the *owned* stage. There, each owned `any` local is consumed
+  exactly once on every path, and `l0.dup` and `l0.drop` are explicit.
+  A parameter is borrowed, as every L1 operation and every
+  `(self, args)` code borrows its arguments, so it is never consumed: the
+  pass passes it on as a borrow, or `dup`s it where a call takes it. The validator checks the owned stage, and
   only it reaches an emitter.
 - **Alternatives:** each emitter places `dup` and `drop` itself; Rust's
   ownership for Rust and a WASM-only pass for WASM.
