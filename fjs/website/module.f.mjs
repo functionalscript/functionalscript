@@ -649,24 +649,35 @@ const crateDirs = tree => crates => tree
     .map(walked => walked.path)
 
 /**
- * Every issue under a `todo/`, at any depth, with its header, in the walk's
- * order: a `todo/`'s own issues, then each subfolder's.
+ * A file the build reads and parses with `parse`.
  *
- * **An issue whose header cannot be read stops the build**, naming the file,
- * rather than being listed without a status or left out — the same answer
- * {@link writeChangelog} gives a release file that does not parse.
+ * **A file that does not parse stops the build**, naming the file, rather than
+ * being listed without what it would say or left out — an issue without its
+ * status, a release without its notes, a footer without a channel. The build's
+ * channel is `IoChannel`, so the refusal is reported through it rather than
+ * beside it: `exitStep` prints the message and exits 1, as it does for a file
+ * that could not be read.
+ *
+ * @type {<T>(path: string, parse: (text: string) => Result<T, string>) => Effect<ReadFile, T, IoChannel>}
+ */
+const readParsed = (path, parse) => step(readUtf8File(path), text => {
+    const [kind, value] = parse(text)
+    return kind === 'error'
+        ? pureError(ioError({ message: `${path}: ${value}` }))
+        : pureOk(value)
+})
+
+/**
+ * Every issue under a `todo/`, at any depth, with its header, in the walk's
+ * order: a `todo/`'s own issues, then each subfolder's. An issue whose header
+ * cannot be read stops the build ({@link readParsed}).
  *
  * @type {(tree: readonly _Walked[]) => Effect<ReadFile, readonly { readonly path: string, readonly header: Header }[], IoChannel>}
  */
 const readIssues = tree => foldStep(
     pureOk(tree.filter(walked => isTodoDir(walked.path)).flatMap(walked => walked.files.filter(isIssue).map(inDir(walked)))),
     /** @type {readonly { readonly path: string, readonly header: Header }[]} */ ([]),
-    path => read => step(readUtf8File(path), text => {
-        const found = header(text)
-        return found[0] === 'error'
-            ? pureError(ioError({ message: `${path}: ${found[1]}` }))
-            : pureOk([...read, { path, header: found[1] }])
-    }))
+    path => read => mapStep(readParsed(path, header), found => [...read, { path, header: found }]))
 
 /**
  * What a page needs about one directory, from what the walk found in it and
@@ -732,8 +743,8 @@ const versionOf = name => {
  * out of the tree. A release is not a directory and cannot take the first
  * name, so it takes the second, as `_main.css` does.
  *
- * **A file that does not parse stops the build**, rather than being skipped
- * into a page that quietly lacks a release. The entry format is a convention
+ * **A file that does not parse stops the build** ({@link readParsed}), rather
+ * than being skipped into a page that quietly lacks a release. The entry format is a convention
  * the repository keeps ([`changelog/README.md`](../../changelog/README.md)),
  * so a file that breaks it is a mistake to report, not a case to handle.
  *
@@ -756,17 +767,8 @@ const writeChangelog = build => tree => {
     const versions = dir.files.map(versionOf).filter(v => v !== null)
     return step(
         forEachStep(pureOk(releases(versions)), release => step(
-            readUtf8File(`${changelogDir}/${release.version}.md`),
-            text => {
-                const document = tryParse(text)
-                return document[0] === 'error'
-                    // The build's channel is `IoChannel`, so a refusal of ours
-                    // is reported through it rather than beside it: `exitStep`
-                    // prints the message and exits 1, as it does for a file
-                    // that could not be read.
-                    ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
-                    : writeUtf8File(releasePath(release.version), releasePage(build)(release)(document[1]))
-            })),
+            readParsed(`${changelogDir}/${release.version}.md`, tryParse),
+            document => writeUtf8File(releasePath(release.version), releasePage(build)(release)(document)))),
         () => step(
             writeUtf8File(pagePath(changelogDir), indexPage(build)(versions)),
             () => log(`releases: ${versions.length}`)))
@@ -971,19 +973,13 @@ const linksNote = env => commit =>
             : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
 
 /**
- * The funding channels in `funding.json`, which is there.
- *
- * A file that cannot be linked stops the build, so the published site never
+ * The funding channels in `funding.json`, which is there. A file that cannot
+ * be linked stops the build ({@link readParsed}), so the published site never
  * quietly lacks a channel.
  *
  * @type {Effect<ReadFile, readonly Funding[], IoChannel>}
  */
-const fundingRead = step(readUtf8File(fundingPath), text => {
-    const funding = parseFunding(text)
-    return funding[0] === 'error'
-        ? pureError(ioError({ message: `${fundingPath}: ${funding[1]}` }))
-        : pureOk(funding[1])
-})
+const fundingRead = readParsed(fundingPath, parseFunding)
 
 /**
  * The funding channels every page's footer links, read from `funding.json`.
@@ -1014,15 +1010,13 @@ export const _readBuild = env => mapStep(readFunding, funding => ({ commit: comm
 /**
  * The whole build: the walk, then everything written from it.
  *
- * `env` is what the environment says about the build — its commit and
- * branch — and the funding channels are added once the tree has been read,
- * so every page builder receives one whole {@link Build}.
+ * The {@link Build} is read once the tree has been walked
+ * ({@link _readBuild}), so every page builder receives one whole record.
  *
- * @type {(env: Omit<Build, 'funding'>) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
+ * @type {(env: Env) => (note: string) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>}
  */
 const program = env => note => exitStep(mapStep(
-    step(log(note), () => step(walk('.'), tree => step(readFunding, funding => {
-        const build = { ...env, funding }
+    step(log(note), () => step(walk('.'), tree => step(_readBuild(env), build => {
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
@@ -1047,7 +1041,4 @@ const program = env => note => exitStep(mapStep(
     () => undefined))
 
 /** @type {(options: NodeProgramOptions) => Effect<Access | Readdir | ReadFile | ReadWhole | Rm | WriteBytes | WriteFile | Write | All | Mkdir | Import | Catch, 0, number>} */
-export const main = ({ env }) => {
-    const commit = commitOf(env)
-    return program({ commit, branch: branchOf(env) })(linksNote(env)(commit))
-}
+export const main = ({ env }) => program(env)(linksNote(env)(commitOf(env)))
