@@ -16,6 +16,7 @@ import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spaw
 import { basename, join, normalize, parent } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
+import { shellQuote } from '../../text/shell/module.f.js'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
 export const isCoverageTarget = path =>
@@ -40,12 +41,9 @@ export const _nodeArgs = (packageRoot, files, reporter) => [
     normalize(join(packageRoot, 'fjs/emergent_testing/one.mjs')),
 ]
 
-/** Quote display text as a literal shell word; execution still uses argv. @type {(value: string) => string} */
-const quote = value => `'${value.replaceAll("'", "'\\''")}'`
-
-/** The cwd and complete invocation, printed before starting its child. @type {(directory: string, args: readonly string[]) => string} */
+/** The cwd and complete invocation, printed before starting its child, as shell words; execution still uses argv. @type {(directory: string, args: readonly string[]) => string} */
 export const _commandLine = (directory, args) =>
-    `cwd: ${quote(directory)}\ncommand: ${['node', ...args].map(quote).join(' ')}`
+    `cwd: ${shellQuote(directory)}\ncommand: ${['node', ...args].map(shellQuote).join(' ')}`
 
 /** A missing, invalid or rounded-away uncovered count cannot pass. @type {(covered: number, total: number) => boolean} */
 const complete = (covered, total) =>
