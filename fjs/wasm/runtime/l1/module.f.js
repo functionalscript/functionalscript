@@ -22,9 +22,9 @@
  * array spread, `for...of` and array destructuring of an unknown value
  * through `toIterable`, and object spread through `objectSpread`.
  *
- * A thrown value copies the text NaNVM throws for the same case
- * ([`error.rs`](../../../../nanvm/lib/src/vm/error.rs)), so a native
- * substitution and its body throw the same value.
+ * A thrown value is one of [`error`](./error/module.f.js), each the text
+ * NaNVM throws for the same case, so a native substitution and its body
+ * throw the same value.
  *
  * @module
  */
@@ -38,6 +38,7 @@ import {
     bigintAdd, bigintDivide, bigintEquals, bigintLess, bigintMultiply, bigintNegate, bigintSubtract,
     bigintToString, numberToString, stringToNumber,
 } from './native/module.f.js'
+import { error } from './error/module.f.js'
 
 /** The answer of `typeof` for each kind tag, in tag order. */
 const typeNames = /** @type {const} */ (['undefined', 'object', 'boolean', 'number', 'string', 'bigint', 'object', 'object', 'function'])
@@ -143,7 +144,7 @@ const isPrimitive = v => kind(v) < ARRAY
  * @type {(t: unknown) => string}
  */
 export const functionText = t => {
-    if (kind(t) !== STRING) { throw 'TypeError: Cannot convert a function to its text' }
+    if (kind(t) !== STRING) { throw error.functionText }
     return /** @type {string} */ (t)
 }
 
@@ -180,7 +181,7 @@ const objectToPrimitive = (o, preferString) => {
     const first = preferString ? toString() : valueOf()
     if (length(first) !== 0) { return item(first, 0) }
     const second = preferString ? valueOf() : toString()
-    if (length(second) === 0) { throw 'TypeError: Cannot convert to primitive value' }
+    if (length(second) === 0) { throw error.cannotConvertToPrimitive }
     return item(second, 0)
 }
 
@@ -243,7 +244,7 @@ export const toNumber = v => {
     if (k === BOOLEAN) { return asBoolean(v) ? 1 : 0 }
     if (k === NUMBER) { return asNumber(v) }
     if (k === STRING) { return stringToNumber(v) }
-    if (k === BIGINT) { throw 'TypeError: Cannot convert a BigInt value to a number' }
+    if (k === BIGINT) { throw error.bigintToNumber }
     return toNumber(toPrimitive(v, false))
 }
 
@@ -279,7 +280,7 @@ export const toPropertyKey = v => toString(v)
  */
 const bigintPair = (x, y) => {
     const kx = kind(x)
-    if (kx !== kind(y)) { throw 'TypeError: Cannot mix BigInt and other types, use explicit conversions' }
+    if (kx !== kind(y)) { throw error.mixedNumericOperands }
     return kx === BIGINT
 }
 
@@ -454,7 +455,7 @@ const stringIndex = s => {
  */
 export const get = (a, k) => {
     const ka = kind(a)
-    if (ka === UNDEFINED || ka === NULL) { throw 'TypeError: Cannot convert undefined or null to object' }
+    if (ka === UNDEFINED || ka === NULL) { throw error.nullishToObject }
     const kk = kind(k)
     if (kk !== NUMBER && kk !== STRING) { return undefined }
     if (ka === OBJECT) {
@@ -477,7 +478,7 @@ export const get = (a, k) => {
  * @type {(f: unknown, args: unknown) => unknown}
  */
 export const call = (f, args) => {
-    if (kind(f) !== FUNCTION) { throw 'TypeError: unexpected type' }
+    if (kind(f) !== FUNCTION) { throw error.unexpectedType }
     return asFunction(f)(...asArray(args))
 }
 
@@ -510,7 +511,7 @@ const pointEnd = (s, n, o) =>
 export const toIterable = v => {
     const k = kind(v)
     if (k === ARRAY) { return asArray(v) }
-    if (k !== STRING) { throw 'TypeError: value is not iterable' }
+    if (k !== STRING) { throw error.notIterable }
     const n = length(v)
     let r = { o: 0, count: 0 }
     while (r.o < n) {
