@@ -88,7 +88,7 @@ import { compare, tryRead as readTree, validate, write as writeTree } from '../.
 import { join, parent, under } from '../../path/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, map, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toOption } from '../../types/nullable/module.f.js'
@@ -235,11 +235,6 @@ const components = key => toPath(key).split('/').map(ascii)
 
 /** The path of the `.cas` directory itself: where a listing starts. */
 const casDir = [ascii(prefix)]
-
-/**
- * A blob's bytes as the chunks `Cas<O>.read` streams, at most a `Vec` each.
- */
-const chunksOf = u8ListToVecChunksMsb(Number(maxLengthBytes))
 
 /**
  * An entry's name as text, byte for code point: a cBase32 name is ASCII and
@@ -444,7 +439,7 @@ const treeOfCommit = (read, oidBytes, ref) => {
  */
 const blobOf = (e, o) => o === null || o.type !== 'blob'
     ? refuseEntry(`${hexText(e.oid)} is no blob`)
-    : fromList(chunksOf(o.payload))
+    : fromList(u8ListToMaxVecChunksMsb(o.payload))
 
 /**
  * The CAS map the tree `tree` holds, read through `read`, a store's reader
@@ -645,7 +640,7 @@ export const writeObject = (dir, oidBytes) => {
             if (found) { return pureOk(id) }
             const named = history(mapStep(random256, rnd => join(od, `tmp_obj_${vecToCBase32(rnd)}`)))
             const made = historyStep(named, () => mkdir(parent(path), { recursive: true }))
-            const filled = historyStep(made, (_, tmp) => writeExclusive(tmp, toArray(chunksOf(stored(writeEnvelope(type, payload))))))
+            const filled = historyStep(made, (_, tmp) => writeExclusive(tmp, toArray(u8ListToMaxVecChunksMsb(stored(writeEnvelope(type, payload))))))
             return step(filled, ([, , tmp]) => {
                 const moved = catchStep(rename(tmp, path), e => resultStep(rm(tmp), () => pureError(e)))
                 return mapStep(moved, () => id)

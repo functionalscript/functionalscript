@@ -1,36 +1,23 @@
-## The largest `Vec` chunker, exported once
+## The largest `Vec` size, imported by the hosts too
 
 **Priority:** P4
-**Status:** open
+**Status:** wip
 
 ### Problem
 
-Three modules cut a byte list into the longest `Vec`s the representation
-holds, and each writes the same line under its own name:
-
-```js
-const vecChunks = u8ListToVecChunksMsb(Number(maxLengthBytes))   // git/refstore/write
-const chunksOf  = u8ListToVecChunksMsb(Number(maxLengthBytes))   // cas/git
-const chunks    = u8ListToVecChunksMsb(Number(maxLengthBytes))   // ci/cache
-```
-
-The conversion `Number(maxLengthBytes)` is written again as
-`effects/node`'s `_maxVecBytes`, `git/packstore`'s `windowBytes`, and inline
-in `git/refstore/name` and in this module's own argument check. Every caller
-means the same thing — bytes as stream chunks of the largest size — and
-[`module.f.mjs`](../module.f.mjs) is where that size is defined.
-
-### Proposal
-
-Two exports from this module: the limit as a `number`, named for what it is,
-and `u8ListToMaxVecChunksMsb`, the chunker at that limit. The three private
-bindings and `_maxVecBytes` become imports.
+[`module.f.mjs`](../module.f.mjs) exports the most bytes a `Vec` holds as a
+`number`, `maxVecBytes`, and the chunker at that size,
+`u8ListToMaxVecChunksMsb`; `git/refstore/write`, `cas/git`, `ci/cache`,
+`git/packstore` and `git/refstore/name` use them. One copy is left:
+`effects/node`'s `_maxVecBytes`, which is `Number(maxLengthBytes)` again and
+which the Node and SpiderMonkey hosts import for their read windows and
+`inflate`'s output limit.
 
 ### Tasks
 
-- [ ] The two exports with proof lines.
-- [ ] `git/refstore/write`, `cas/git`, `ci/cache`, `effects/node`,
-      `git/packstore`, `git/refstore/name` over them.
+- [ ] `effects/node/module.f.mjs`, `effects/node/module.mjs` and
+      `effects/spidermonkey/module.mjs` import `maxVecBytes`; `_maxVecBytes`
+      goes.
 
 ### Related
 
