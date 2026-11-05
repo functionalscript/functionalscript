@@ -433,7 +433,6 @@ const advance = (idx, path, at, chain, e, data) => {
         ]))
 }
 
-
 /**
  * The offsets of the windows that read `from` up to `end`, one read each. Lazy:
  * a pack file can be as long as a disk, and the index decides how far an entry

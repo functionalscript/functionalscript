@@ -236,7 +236,6 @@ const components = key => toPath(key).split('/').map(ascii)
 /** The path of the `.cas` directory itself: where a listing starts. */
 const casDir = [ascii(prefix)]
 
-
 /**
  * An entry's name as text, byte for code point: a cBase32 name is ASCII and
  * reads as itself, and a byte above `0x7F` spells a code point no cBase32
