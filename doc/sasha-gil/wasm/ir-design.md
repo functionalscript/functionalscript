@@ -209,9 +209,12 @@ Each choice gives the pick first, then the alternatives and the reason.
   as [`instruction/module.f.js`](../../../fjs/media/wasm/instruction/module.f.js)
   does for the WASM parser and writers. One row is read by the validator,
   the lifetime pass, the printer and every emitter. A new L1 operation is
-  then a new row, and not a change to each of them. A proof checks that the
-  `l0` table and the [L0 view](../../../fjs/wasm/runtime/l0/module.f.js)
-  name the same functions, and that the `l1` table and the L1 module do.
+  then a new row, and not a change to each of them. The `l0` table is the
+  ABI itself, so it is written from the L0 design and not derived from the
+  [L0 view](../../../fjs/wasm/runtime/l0/module.f.js), whose names and
+  helpers, such as `asNumber` and `buildArray`, are the source-level ones.
+  A proof checks that the `l1` table and the L1 module name the same
+  operations.
 
 ### 5. A row says what a call may do
 
@@ -362,11 +365,14 @@ Each step is a PR or a short stack, proved before the next starts.
 1. **The IR itself.** The schema, the constructors, the four tables, the
    validator and the printer, with proofs over hand-written functions such
    as `subtract` above.
-2. **A WASM emitter.** From the IR to `fjs/media/wasm`'s AST, run on a
-   JavaScript host whose `fjs:l0` imports are the L0 view's JavaScript
-   bodies. A test compares each emitted function with its FunctionalScript
-   original on the parity tables.
-3. **The lifetime pass**, and the validator for the owned stage.
+2. **The lifetime pass**, and the validator for the owned stage, so that
+   the first emitter has its input contract from the start.
+3. **A WASM emitter.** From the owned IR to `fjs/media/wasm`'s AST, run on
+   a small L0 host in JavaScript: it implements the `fjs:l0` imports by ABI
+   name, keeping values in a JavaScript array that an `i64` handle
+   indexes, with reference counts, builders and `throw`. It reuses the L0
+   view's bodies for what a value means. A test compares each emitted
+   function with its FunctionalScript original on the parity tables.
 4. **The lowering** from prepared FAST with types, first for the L1 module,
    whose closure rule makes every operand's type known
    ([L1 design §2](./l1-design.md#2-the-closure-rule)).
