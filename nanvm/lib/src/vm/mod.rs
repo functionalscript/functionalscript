@@ -52,6 +52,9 @@ pub use crate::vm::{
 /// (`fjs/js/runtime/README.md`, "How NaNVM finds it").
 pub use crate::vm::runtime::compiled::runtime;
 
+/// A compiled module, and its export object read through the runtime value.
+pub use crate::vm::runtime::{Module, exports};
+
 pub(crate) use crate::vm::impls::ContainerWrapper;
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ mod common;
 
 use common::{V, member, names, perform_case};
 use nanvm_effects_node::Native;
-use nanvm_harness::{fixtures::console, runtime};
+use nanvm_harness::fixtures::console;
 use nanvm_lib::{
     naive::Naive,
     vm::{Array, Number, Object, ToArray},
@@ -31,7 +31,7 @@ fn json(bytes: &[u8]) -> String {
 
 #[test]
 fn the_native_host_answers_what_the_cases_expect() {
-    let exports = Object::try_from(console::module::<Naive>(runtime()).unwrap()).unwrap();
+    let exports = nanvm_lib::vm::exports(console::module::<Naive>).unwrap();
     let cases = names(&exports);
     assert!(!cases.is_empty());
     for case in cases {

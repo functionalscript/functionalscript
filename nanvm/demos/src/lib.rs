@@ -9,7 +9,10 @@
 use nanvm_effects_node::{Native, run};
 use nanvm_lib::{
     naive::Naive,
-    vm::{Any, Array, Function, Nullish, Object, ToAny, ToArray, Unpacked, unstable::string_any},
+    vm::{
+        Any, Array, Function, Module, Nullish, ToAny, ToArray, Unpacked, exports,
+        unstable::string_any,
+    },
 };
 use std::cell::RefCell;
 
@@ -18,16 +21,10 @@ use std::cell::RefCell;
 #[path = "../gen.samples/mod.rs"]
 pub mod samples;
 
-/// A compiled module: what `fjs compile` writes as `module`, a function of
-/// the runtime value, on the VM the samples run on.
-pub type Module = fn(Any<Naive>) -> Result<Any<Naive>, Any<Naive>>;
-
 /// Loads a sample: initializes its module with the runtime value, and answers
 /// its `default` export, or what it threw.
-pub fn load(module: Module) -> Result<Function<Naive>, Any<Naive>> {
-    let exports = Object::try_from(module(nanvm_lib::vm::runtime::<Naive>()?)?)
-        .map_err(|_| Any::from("module is not an object"))?;
-    exports
+pub fn load(module: Module<Naive>) -> Result<Function<Naive>, Any<Naive>> {
+    exports(module)?
         .own_property(&"default".into())
         .and_then(|value| Function::try_from(value).ok())
         .ok_or_else(|| Any::from("module has no default function"))
@@ -129,7 +126,7 @@ thread_local! {
 /// Loads `module` and keeps its entry for [`run_sample`]: `0`, or `-1` if
 /// the module threw. Apart from the run, so that a page times the entry call
 /// alone, as it does the JavaScript one, whose module the page imported.
-fn export(module: Module) -> i32 {
+fn export(module: Module<Naive>) -> i32 {
     let entry = load(module);
     let status = if entry.is_ok() { 0 } else { -1 };
     ENTRY.with(|kept| *kept.borrow_mut() = entry.ok());

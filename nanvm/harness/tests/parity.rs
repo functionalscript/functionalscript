@@ -11,7 +11,7 @@ mod common;
 mod host {
     use super::common::{member, names, perform_case};
     use nanvm_effects_node::Native;
-    use nanvm_harness::{fixtures::parity, runtime};
+    use nanvm_harness::fixtures::parity;
     use nanvm_lib::{
         naive::Naive,
         vm::{Object, ToArray, unstable::string_any},
@@ -41,7 +41,7 @@ mod host {
     /// directory to give a test.
     #[test]
     fn the_native_host_answers_what_the_cases_expect() {
-        let exports = Object::try_from(parity::module::<Naive>(runtime()).unwrap()).unwrap();
+        let exports = nanvm_lib::vm::exports(parity::module::<Naive>).unwrap();
         let cases = names(&exports);
         assert!(!cases.is_empty());
         for case in cases {
