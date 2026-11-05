@@ -318,7 +318,7 @@ export const mkdir = do_('mkdir')
 /** @type {Func<ResolveFileModule>} */
 export const resolveFileModule = do_('resolveFileModule')
 
-/** What every host answers an import specifier with that names no path. */
+/** What every host answers an import specifier with that names no path. @type {string} */
 export const invalidModuleSpecifier = 'invalid module specifier'
 
 /**
