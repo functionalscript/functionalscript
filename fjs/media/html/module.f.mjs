@@ -18,7 +18,10 @@ import { compose } from '../../types/function/module.f.js'
 import { codeUnitToString, stringToList } from '../../text/utf16/module.f.js'
 import { findMap, includes } from '../../types/array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../text/ascii/module.f.js'
+import {
+    quotationMark, ampersand, lessThanSign, greaterThanSign, hyphenMinus, lowLine, fullStop, colon,
+    isDigit, isLatinLetter,
+} from '../../text/ascii/module.f.js'
 
 /**
  * Void Elements
@@ -138,20 +141,17 @@ export const isRawText = includes(rawText)
 export const scriptRefusal = 'media/html: a `script` element is refused: built into a page, it would run'
 
 /** @type {(c: number) => boolean} */
-const isAsciiLetter = c => (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a)
+const tagUnit = c => isLatinLetter(c) || isDigit(c) || c === hyphenMinus
 
 /** @type {(c: number) => boolean} */
-const tagUnit = c => isAsciiLetter(c) || (c >= 0x30 && c <= 0x39) || c === 0x2d
-
-/** @type {(c: number) => boolean} */
-const attributeUnit = c => tagUnit(c) || c === 0x5f || c === 0x2e || c === 0x3a
+const attributeUnit = c => tagUnit(c) || c === lowLine || c === fullStop || c === colon
 
 /**
  * Whether `name` is an ASCII letter followed by code units `rest` accepts.
  *
  * @type {(rest: (c: number) => boolean) => (name: string) => boolean}
  */
-const plainName = rest => name => name.length > 0 && isAsciiLetter(name.charCodeAt(0))
+const plainName = rest => name => name.length > 0 && isLatinLetter(name.charCodeAt(0))
     && name.split('').every((_, i) => i === 0 || rest(name.charCodeAt(i)))
 
 /** A tag a parser reads as written: an ASCII letter, then letters, digits and `-`. */

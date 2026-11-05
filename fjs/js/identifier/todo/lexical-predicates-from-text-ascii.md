@@ -103,7 +103,7 @@ written out again.
 - [x] `fjs/compiler/serializer`: `identifierKey` becomes `isIdentifier`, with
       nothing added. Its proof walks every keyword and expects `.k` for each,
       so a rule creeping back in fails there.
-- [ ] `fjs/media/html`: `isAsciiLetter`, `tagUnit` and `attributeUnit` over
+- [x] `fjs/media/html`: `isAsciiLetter`, `tagUnit` and `attributeUnit` over
       `isLatinLetter`, `isDigit` and the named code points, keeping HTML's
       rule — letters, digits and `-` for a tag, plus `_`, `.` and `:` for an
       attribute. The module arrived after this list was written and imports
