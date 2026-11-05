@@ -1449,8 +1449,8 @@ export const virtualOperationMap = {
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
     resolveFileModule: (name, parent) => state => {
-        const found = lexicalFileModule(name, parent)
-        return [state, found[0] === 'error' ? fail(found[1]) : found]
+        const [kind, found] = lexicalFileModule(name, parent)
+        return [state, kind === 'error' ? fail(found) : ok(found)]
     },
     readFile,
     readdir: (path, { recursive }) => readdir(path, recursive === true)(path),
