@@ -10,6 +10,12 @@
 
 When exponent `x` is `0b_111_1111_1111`.
 
+Three special values:
+
+- Infinity: `0x7FF0_0000_0000_0000`,
+- Neg. Infinity: `0xFFF0_0000_0000_0000`,
+- NaN: `0x7FF0_0000_0000_0001`.
+
 Format:
 
 ```
@@ -26,12 +32,6 @@ The sign `s` and fraction `v`: 53 bits = 0x35 bits
 |`s111_1111_1111_00vv_...`|primitives and short str|
 |`s111_1111_1111_01vv_...`|pointer                 |
 |`s111_1111_1111_1vvv_...`|short bigint            |
-
-Three special values:
-
-- Infinity: `0x7FF0_0000_0000_0000`,
-- Neg. Infinity: `0xFFF0_0000_0000_0000`,
-- NaN: `0x7FF0_0000_0000_0001`.
 
 ### Primitives and Short Strings
 
