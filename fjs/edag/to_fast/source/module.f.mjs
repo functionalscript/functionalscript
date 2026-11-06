@@ -13,13 +13,13 @@
 import { itemOperand, operandsOf } from '../../analysis/module.f.mjs'
 import { operatorOperands } from '../../../js/ast/module.f.mjs'
 import { exitValues } from '../../../js/ast/control/module.f.mjs'
-import { _prohibitedAccess } from '../../../compiler/parser/module.f.mjs'
+import { prohibitedAccess } from '../../../js/prototype/module.f.js'
 import { hasEntry } from '../../../types/object/entry/module.f.js'
 
 /** @type {(a: Analysis, key: Operand, method: boolean) => string | null} */
 const keyReason = (a, key, method) => {
     if (typeof key === 'string') {
-        const why = _prohibitedAccess(method)(key)
+        const why = prohibitedAccess(method)(key)
         return why === null ? null : `a prohibited ${why}`
     }
     if (typeof key === 'number') { return Number.isFinite(key) && !Object.is(key, -0) ? null : 'a number key no literal reads back' }
