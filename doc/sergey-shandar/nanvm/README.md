@@ -89,7 +89,7 @@ Additional bits:
 0    4    8    C
 s111_1111_1111_vvvv - rest: 48bit
 
-s111_1111_1111_00vv - primitives and short strings
+s111_1111_1111_00vv - infs/nan, primitives and short strings
 s111_1111_1111_01vv - ptr + data_type
 s111_1111_1111_1vvv - short bigint
 ```
@@ -103,8 +103,7 @@ s111_1111_1111_1vvv - short bigint
 |+|`s`|`00`|primitive:   |         |    |
 | |`s`|`00`|`00`         |inf/NaN  |    |
 | |`s`|`00`|`01`         |bool     |    |
-| |`s`|`00`|`10`         |null     |    |
-| |`s`|`00`|`11`         |undefined|    |
+| |`s`|`00`|`10`         |nullish  |    |
 |+|`s`|`01`|short string:|         |    |
 | |`0`|`01`|`00`         |`""`     |    |
 | |`0`|`01`|`01`         |`1x16`   |    |
@@ -117,7 +116,7 @@ s111_1111_1111_1vvv - short bigint
 | |`0`|`11`|             |`8x6`    |`48`|
 | |`1`|`1v`|             |`7x7`    |`49`|
 
-### Ptr and Data Types
+### Ptr
 
 - `s` - is static;
 - `vv` - data type: `object`, `string`, `bigint`, `function`.
