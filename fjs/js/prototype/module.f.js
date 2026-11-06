@@ -149,3 +149,21 @@ export const allowedCalls = /** @type {const} */ ([
     'toExponential', 'toFixed', 'toLowerCase', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced',
     'toString', 'toUpperCase', 'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
 ])
+
+/**
+ * Why an access of the name is refused, or `null` when it is allowed: a
+ * member function a module may not call where the access is a method
+ * call's callee, `method` ({@link prohibitedCalls}), and a name of the
+ * prototype chain where it is read ({@link prototypeNames} but `length`,
+ * which a value owns).
+ *
+ * The rule is the language's, so it has one owner: the parser refuses the
+ * accesses, and the source writer refuses to write one the parser would
+ * not read back, each consumer wrapping the answer in its own error.
+ *
+ * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
+ */
+export const prohibitedAccess = method => name =>
+    method
+        ? (/** @type {readonly string[]} */ (prohibitedCalls).includes(name) ? 'member function' : null)
+        : (name !== 'length' && /** @type {readonly string[]} */ (prototypeNames).includes(name) ? 'property name' : null)
