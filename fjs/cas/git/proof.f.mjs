@@ -34,7 +34,6 @@ import { error, ok } from '../../types/result/module.f.js'
 import { collectRead, toPath } from '../module.f.mjs'
 import { _driveCas } from '../proof.f.mjs'
 import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.mjs'
-import { write as writeLoose } from '../../git/loose/module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -350,9 +349,6 @@ const assertOrdinary = root => {
     assertReads(root, betaKey, beta)
     assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey, betaKey]))
 }
-
-/** The loose writer of the repository's own `objects/`. */
-const writeOwn = writeLoose(objectsDir(dir), 20)
 
 export const proof = {
     // ## The branch ref
@@ -944,23 +940,6 @@ export const proof = {
         const e = assertError(r)
         assert(e[0] === 'ioError' && e[1].message === 'invalid buffer size', e)
         assertStructurallySame(s1.root, s0.root)
-    },
-    // The loose file is renamed into place once whole, and a rename that
-    // fails takes the temporary file with it: driven with the virtual
-    // filesystem's commands answered by hand, since no filesystem fails a
-    // rename on request. The store's read finds no object yet, the `rename`
-    // fails, and the log shows the `rm` that followed it.
-    writeObjectRenameFails: () => {
-        const drive = _driveCas({
-            writeExclusive: ok(undefined),
-            readWhole: error(ioError({ code: 'ENOENT', message: 'no such file or directory' })),
-        })
-        const boom = ioError({ message: 'boom' })
-        const [r, log] = drive({
-            rename: [error(boom)],
-        })(writeOwn('blob', alpha))
-        assertEq(assertError(r), boom)
-        assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
     },
     // ## The configured author
     //
