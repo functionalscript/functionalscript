@@ -61,8 +61,12 @@ does the same for the two serializers as a second step.
       each block) in `control`, beside `exitValues`, which stays there:
       `js/ast/module.f.mjs` cannot import `control`, which imports it.
 - [x] `hasLoopTransfer` and `memo/cells`' `_hasReturn` over `someBlock`.
-- [ ] `ownsMemo` (which walks only `required` definitions) and `sugar`'s
-      `references` (which collects rather than asks) over `children`.
+- [x] `sugar`'s `references` (which collects rather than asks) over
+      `children`, through `control`'s `foldNodes`, the preorder fold beside
+      `someBlock`.
+- [ ] `ownsMemo` over `children`: it walks only `required` definitions, which
+      `children` does not tell apart, so it needs a filter or a second
+      table first.
 - [ ] Export `declared`.
 - [ ] Rewrite the five table sites over `children` and `declared`.
 - [ ] `preparedChildren` for the two serializers.

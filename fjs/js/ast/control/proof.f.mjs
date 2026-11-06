@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.js'
-import { children, exitValues, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.mjs'
+import { children, exitValues, foldNodes, freeBindings, freeLoopBindings, hasLoopTransfer, someBlock } from './module.f.mjs'
 
 const a = /** @type {const} */ ({ index: 0 })
 const b = /** @type {const} */ ({ index: 1 })
@@ -39,6 +39,15 @@ const identities = (bindings, expected) => {
     assertEq(bindings.length, expected.length)
     bindings.forEach((binding, i) => assertEq(binding, expected[i]))
 }
+
+/** Every binding a `ref` reads, in the order the walk meets it, repeats kept. */
+const reads = foldNodes(
+    /** @type {(found: readonly BindingId[], node: Value | Block) => readonly BindingId[]} */
+    (found, node) => node instanceof Array && node[0] === 'ref' ? [...found, node[1]] : found,
+    [])
+
+/** How many nodes the walk meets. */
+const count = foldNodes(/** @type {(n: number) => number} */ (n => n + 1), 0)
 
 export const proof = {
     transferKindsKeepLoopOwnershipAndFunctionBoundaries: () => {
@@ -204,5 +213,19 @@ export const proof = {
         assertEq(someBlock(() => true)(1), false)
         const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['block', inner]))
         assertEq(someBlock(block => block === inner)(deep), true)
+    },
+    // Every node, the root first, in preorder: a block's statement values
+    // before its exit's, a condition before its branches, and a function's
+    // captures without its body; the walk carries any depth.
+    foldNodes: () => {
+        const body = returning(['ref', b])
+        const block = /** @type {Block} */ ({
+            statements: [['define', local, ['ref', a], 'required']],
+            exit: ['yield', [['if', ['ref', b], yielding(['ref', c]), yielding(fn([{ binding: local, value: ['ref', a] }], body))]]],
+        })
+        identities(reads(block), [a, b, c, a])
+        assertEq(count(1), 1)
+        const deep = Array.from({ length: 20_000 }).reduce((/** @type {Value} */ value) => /** @type {Value} */ (['!', value]), /** @type {Value} */ (['ref', a]))
+        assertEq(count(deep), 20_001)
     },
 }
