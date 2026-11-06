@@ -5,7 +5,7 @@
 
 import { chunksText, keyword, literal } from '../../../../text/marked/module.f.mjs'
 import { helperLength } from '../../../../edag/module.f.mjs'
-import { _name as name, _binding as binding, _arg as argName } from '../../../../compiler/serializer/names/module.f.mjs'
+import { _name as name, _binding as binding, _arg as argName } from '../names/module.f.mjs'
 
 /**
  * The `entry` helper's text, the one spelling of `['entry']` — the

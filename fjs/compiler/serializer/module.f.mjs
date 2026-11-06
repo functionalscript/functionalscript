@@ -22,7 +22,7 @@ import { isIdentifier } from '../../js/identifier/module.f.js'
 import { chunkStrings, chunksMarked, chunksText, fromTagged, withNames } from '../../text/marked/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.js'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
-import { _resolve } from './names/module.f.mjs'
+import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
 
 const reservedExports = new Set([...keywords, ...literalWords, ...reservedGlobals, 'then'])
 

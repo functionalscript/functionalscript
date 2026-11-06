@@ -19,7 +19,7 @@ import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/mod
 import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.mjs'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _helperText } from '../../compiler/serializer/function_text/module.f.mjs'
-import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
+import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
 import { pushAll, walk } from '../../types/stack_walk/module.f.js'
 import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 
