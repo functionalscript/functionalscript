@@ -12,7 +12,7 @@ four sites:
 - `writeFromStream` and `writeChunks` in
   [`fjs/effects/node`](../node/module.f.mjs):
   `catchStep(writeLoop(path)(…), err => resultStep(rm(path), () => pureError(err)))`
-- `writeObject` in [`fjs/cas/git`](../../cas/git/module.f.mjs):
+- `write` in [`fjs/git/loose`](../../git/loose/module.f.mjs):
   `catchStep(rename(tmp, path), e => resultStep(rm(tmp), () => pureError(e)))`
 - `givenBack` in [`fjs/git/refstore/write`](../../git/refstore/write/module.f.mjs):
   `lock => err => resultStep(rm(lock), () => pureError(err))`, wrapped by
