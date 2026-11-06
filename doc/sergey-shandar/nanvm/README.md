@@ -2,22 +2,13 @@
 
 ## Structure
 
-- `1` bit: sign
-- `11` bits: exponent
-- `52` bits: fraction
+- `1` bit: `s` sign
+- `11` bits: `x` exponent
+- `52` bits: `v` fraction
 
 ## NaN and Infinities
 
-- exponent: `0b_111_1111_1111`.
-- sign and fraction: 53 bits = 0x35 bits
-- 3 special values:
-  ```js
-  //               3    3    2    2    2    2    1    1    1    1    0    0    0    0
-  //               4    0    C    8    4    0    C    8    4    0    C    8    4    0
-   Infinity === 0b_0_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
-  -Infinity === 0b_1_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
-   NaN // everything else
-  ```
+When exponent `x` is `0b_111_1111_1111`.
 
 Format:
 
@@ -28,11 +19,19 @@ vvvv_vvvv_vvvv_vvvv
 vvvv_vvvv_vvvv_vvvv
 ```
 
-|                     |                        |
-|---------------------|------------------------|
-|`s111_1111_1111_00vv`|primitives and short str|
-|`s111_1111_1111_01vv`|pointer                 |
-|`s111_1111_1111_1vvv`|short bigint            |
+The sign `s` and fraction `v`: 53 bits = 0x35 bits
+
+|                         |                        |
+|-------------------------|------------------------|
+|`s111_1111_1111_00vv_...`|primitives and short str|
+|`s111_1111_1111_01vv_...`|pointer                 |
+|`s111_1111_1111_1vvv_...`|short bigint            |
+
+Three special values:
+
+- Infinity: `0x7FF0_0000_0000_0000`,
+- Neg. Infinity: `0xFFF0_0000_0000_0000`,
+- NaN: `0x7FF0_0000_0000_0001`.
 
 ### Primitives and Short Strings
 
