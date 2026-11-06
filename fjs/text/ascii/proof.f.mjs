@@ -1,5 +1,5 @@
 import {
-    charIs, codePoints, decimalValue, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
+    asciiLowercase, charIs, codePoints, decimalValue, digitsValue, hexDigitCodePoint, hexDigitValue, hexDigitsValue, isCanonicalDigits, isDigit, isDigits,
     isLatinLetter, lowerHexDigitValue, one, range,
 } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
@@ -80,6 +80,16 @@ export const proof = {
         roundTrip: () => {
             assertEq(stringifySorted(values.map(v => hexDigitValue(hexDigitCodePoint(v)))), stringifySorted(values))
         },
+    },
+    // `A` to `Z` and nothing else: the Kelvin sign and a capital beyond ASCII
+    // stay as they are, and a character outside the Basic Multilingual Plane
+    // is kept whole.
+    asciiLowercase: () => {
+        assertEq(asciiLowercase('AZaz09-'), 'azaz09-')
+        assertEq(asciiLowercase('chec\u212abox'), 'chec\u212abox')
+        assertEq(asciiLowercase('\u00c9\u0130'), '\u00c9\u0130')
+        assertEq(asciiLowercase('A\u{1d7ce}B'), 'a\u{1d7ce}b')
+        assertEq(asciiLowercase(''), '')
     },
     charIs: {
         member: () => {
