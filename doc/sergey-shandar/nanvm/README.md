@@ -19,15 +19,20 @@
    NaN // everything else
   ```
 
-```
-0
-0    4    8    C
-s111_1111_1111_vvvv - rest: 48bit
+Format:
 
-s111_1111_1111_00vv - infs/nan, primitives and short strings
-s111_1111_1111_01vv - ptr + data_type
-s111_1111_1111_1vvv - short bigint
 ```
+s111_1111_1111_vvvv
+vvvv_vvvv_vvvv_vvvv
+vvvv_vvvv_vvvv_vvvv
+vvvv_vvvv_vvvv_vvvv
+```
+
+|                     |                        |
+|---------------------|------------------------|
+|`s111_1111_1111_00vv`|primitives and short str|
+|`s111_1111_1111_01vv`|pointer                 |
+|`s111_1111_1111_1vvv`|short bigint            |
 
 ### Primitives and Short Strings
 
