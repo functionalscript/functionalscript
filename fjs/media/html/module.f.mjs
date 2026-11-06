@@ -20,7 +20,7 @@ import { findMap, includes } from '../../types/array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import {
     quotationMark, ampersand, lessThanSign, greaterThanSign, hyphenMinus, lowLine, fullStop, colon,
-    isDigit, isLatinLetter,
+    asciiLowercase, isDigit, isLatinLetter,
 } from '../../text/ascii/module.f.js'
 
 /**
@@ -191,7 +191,7 @@ export const pageRefusal = e => {
     if (!plainTag(tag)) {
         return `media/html: the tag '${tag}' is not a plain name: a page would read other markup`
     }
-    if (tag.toLowerCase() === 'script') { return scriptRefusal }
+    if (asciiLowercase(tag) === 'script') { return scriptRefusal }
     const name = definedEntries(attributes).map(([n]) => n).find(n => !plainAttribute(n))
     if (name !== undefined) {
         return `media/html: the attribute '${name}' is not a plain name: a page would read other markup`

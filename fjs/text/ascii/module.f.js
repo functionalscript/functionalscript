@@ -297,6 +297,21 @@ export const isLatinLetter = codePoint =>
  */
 export const charIs = isClass => c => c.length === 1 && isClass(one(c))
 
+/** Whether a one-character string is `A` to `Z`. */
+const isCapitalChar = charIs(isLatinCapitalLetter)
+
+/**
+ * The string with `A` to `Z` lowercased and every other character as it
+ * is: the "ASCII lowercase" an ASCII case-insensitive comparison asks,
+ * as HTML's attribute values and Git's section names are compared. Not
+ * `toLowerCase()`, which folds beyond ASCII: `'\u212a'`, the Kelvin
+ * sign, lowercases to `k`, so `'chec\u212abox'` would read as
+ * `checkbox`.
+ *
+ * @type {(s: string) => string}
+ */
+export const asciiLowercase = s => [...s].map(c => isCapitalChar(c) ? c.toLowerCase() : c).join('')
+
 // hexadecimal digits
 
 const isLatinSmallLetterAF = contains(...latinSmallLetterAFRange)
