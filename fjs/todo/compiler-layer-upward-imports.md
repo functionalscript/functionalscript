@@ -44,7 +44,7 @@ graph function's text is owned, which the epic should record.
 ### Tasks
 
 - [x] `prohibitedAccess` to `js/prototype`; JSDoc corrected.
-- [ ] `names` moved; dead exports gone.
+- [x] `names` moved; dead exports gone.
 - [x] `function_text` removed; `rust/serializer` imports directly.
 - [ ] Decide the owner of `functionText` and `factoryStringify` for
       `edag/value`; record it in the epic's module map.

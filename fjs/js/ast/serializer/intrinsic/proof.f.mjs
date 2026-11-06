@@ -1,6 +1,6 @@
 import { assertEq } from '../../../../asserts/module.f.js'
 import { chunksText } from '../../../../text/marked/module.f.mjs'
-import { _resolve } from '../../../../compiler/serializer/names/module.f.mjs'
+import { _resolve } from '../names/module.f.mjs'
 import { _entryChunks, _entryText, _hasEntryChunks, _hasEntryText, _helperText, _intrinsicChunks, _intrinsicText } from './module.f.mjs'
 
 export const proof = {
