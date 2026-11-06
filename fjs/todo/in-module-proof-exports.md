@@ -46,7 +46,7 @@ PR. A breaking notice is optional before 1.0.
 
 - [ ] `fjs/dev`: move the suite into `proof.f.mjs`; drop the `asserts` and
       `effects/node/virtual` imports from the module.
-- [ ] `fjs/mcp`: move the `casMcpServer` case into `proof.f.mjs`.
+- [x] `fjs/mcp`: move the `casMcpServer` case into `proof.f.mjs`.
 - [ ] `fjs/compiler/transpiler`, `fjs/types/bigfloat`, `fjs/types/btree/remove`:
       remove the unreachable branches, then the `proof` exports.
 - [ ] Explain the API change; `tsc`, `fjs test`, `npm run cov` at 100%.
