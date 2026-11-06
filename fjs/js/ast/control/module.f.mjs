@@ -71,6 +71,28 @@ export const someBlock = found => root => {
 }
 
 /**
+ * `f` folded over every node reached from `root` through {@link children},
+ * `root` first, in preorder over an explicit stack, as {@link someBlock}
+ * walks: for a walker that collects rather than asks.
+ *
+ * @template A
+ * @param {(acc: A, node: Value | Block) => A} f
+ * @param {A} init
+ * @returns {(root: Value | Block) => A}
+ */
+export const foldNodes = (f, init) => root => {
+    /** @type {Link<Value | Block> | null} */
+    let work = { first: root, tail: null }
+    let acc = init
+    while (work !== null) {
+        const { first: node, tail } = /** @type {Link<Value | Block>} */ (work)
+        acc = f(acc, node)
+        work = children(node).reduceRight((tail, first) => ({ first, tail }), tail)
+    }
+    return acc
+}
+
+/**
  * Expand statements in lexical order. Each work item holds its immutable
  * scope snapshot, so sibling block locals never become caller bindings.
  *
