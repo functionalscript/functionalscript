@@ -31,7 +31,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
@@ -45,7 +45,7 @@ import {
     read as commonRead, readLine as commonReadLine, sandbox as commonSandbox, write as commonWrite,
 } from '../common/module.f.mjs'
 import {
-    catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    catchStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 import { normalize, parent } from '../../path/module.f.js'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
@@ -83,6 +83,21 @@ export const errorExit = commonErrorExit
 export const import_ = commonImport_
 export const log = commonLog
 export const randomInt = commonRandomInt
+
+/**
+ * A 256-bit random `Vec`, built from 8 sequential {@link randomInt} (32-bit)
+ * calls: what a name nobody else is writing to is made of — a CAS staging
+ * file ([`fjs/cas`](../../cas/module.f.mjs)) and a loose object's temporary
+ * file ([`fjs/git/loose`](../../git/loose/module.f.mjs)).
+ *
+ * @type {Effect<RandomInt, Vec, NotImplemented>}
+ */
+export const random256 =
+    foldStep(
+        pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
+        emptyVec,
+        () => (/** @type {Vec} */ acc) =>
+            ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 export const read = commonRead
 export const readLine = commonReadLine
 export const sandbox = commonSandbox

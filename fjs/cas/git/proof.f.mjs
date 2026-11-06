@@ -33,7 +33,8 @@ import { storedBytes } from '../../zlib/testlib.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { collectRead, toPath } from '../module.f.mjs'
 import { _driveCas } from '../proof.f.mjs'
-import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode, writeObject } from './module.f.mjs'
+import { authorCode, branchCas, branchRef, casAt, casEntryCode, configuredAuthor, repositoryFormatCode, snapshot, snapshotHeadCode } from './module.f.mjs'
+import { write as writeLoose } from '../../git/loose/module.f.mjs'
 
 /** The repository every case reads, and the branch the snapshot is of. */
 const dir = /** @type {const} */ ('repo')
@@ -349,6 +350,9 @@ const assertOrdinary = root => {
     assertReads(root, betaKey, beta)
     assertStructurallySame(spelled(assertOk(listed(root))), spelled([alphaKey, betaKey]))
 }
+
+/** The loose writer of the repository's own `objects/`. */
+const writeOwn = writeLoose(objectsDir(dir), 20)
 
 export const proof = {
     // ## The branch ref
@@ -954,7 +958,7 @@ export const proof = {
         const boom = ioError({ message: 'boom' })
         const [r, log] = drive({
             rename: [error(boom)],
-        })(writeObject(dir, 20)('blob', alpha))
+        })(writeOwn('blob', alpha))
         assertEq(assertError(r), boom)
         assertStructurallySame(log.slice(log.indexOf('rename')), ['rename', 'rm'])
     },

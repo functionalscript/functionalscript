@@ -1,7 +1,7 @@
 ## A loose object's writer belongs beside its reader
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -43,7 +43,13 @@ gets its writer from `fjs/git` instead of reaching into `fjs/cas/git`.
 
 ### Tasks
 
-- [ ] Move `writeObject` and its proofs here; move `random256` out of `cas`.
+- [x] Move `writeObject` here, as `write(od, oidBytes)` beside `path`, the
+      loose layout `fjs/git/store` now imports; move `random256` out of
+      `cas`, to `fjs/effects/node`. It takes the object directory, as
+      `path` does, since `fjs/git/store` imports this module and so cannot be
+      imported back. Its `writeObject*` proofs stay in `fjs/cas/git`, whose
+      repositories they write into through `branchCas`; the one that drives
+      the writer by hand calls it from there.
 - [ ] Export the publish helper and use it at the three sites.
 
 ### Related
