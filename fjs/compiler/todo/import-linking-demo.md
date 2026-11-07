@@ -21,31 +21,91 @@ import and a call") parse and lower, but no page can link them.
 
 ### Proposal
 
-Let the side-by-side page compile a program of several files. Its in-memory
-file system ([`fjs/effects/node/virtual`](../../effects/node/virtual/module.f.mjs)'s
-`virtualAt`) already holds any number of files, and `_outputMarked` already
-resolves imports through it, so no output logic changes.
+**An import opens a box for its module.** The side-by-side page keeps its
+`Source` box for the main module. When the main module parses and imports a
+relative module path, a box for that module appears below it, labelled with
+the file name and empty until the reader writes in it. A module's own imports
+open boxes the same way, so the boxes follow the whole import tree, each file
+once however many modules import it, in the order the tree first reaches it.
+The reader never names a file or presses a button to add one: the import is
+the name.
 
-What has to be decided is how a reader supplies the other files:
+```js
+import a from './a.f.js'
+import b from './b.f.js'
+export default [a, b]
+```
 
-- **Fixed dependencies per example.** An example in the shared list carries
-  its dependency files with it, and the page writes them beside the input. The
-  reader edits the input only. Smallest change, and the proofs pin each
-  example's output as they do now.
-- **Editable files.** The page gets a text box, or a tab, per file, and the
-  reader can add and edit them. More to learn from, and more interface and
-  state.
+opens `a.f.js` and `b.f.js`; if both import `./shared.f.js`, one
+`shared.f.js` box opens under them. That is the lesson the page is for: the
+shared module is one `const` in `.js` and `.data.js`, one node in the EDAG and
+in Rust, and written twice in `.json`, which has no identity to keep.
 
-The stage pages keep compiling one module: their stages run before
-resolution.
+**Which imports open a box.** A relative path to a module file
+(`./x.f.js`, `../lib/y.f.mjs`, `./d.json`), once the importing module parses.
+A box does not appear for a path still being typed (`'./m'`, `'./m.f'`): it
+waits for the module to parse with a complete file name. While a module does
+not parse, the boxes stay as they were rather than flicker. A package import
+(`functionalscript/…`) opens no box; the compiler refuses it, and the panes say
+so. A module that imports `./input.f.js` reaches the main box, not a new one,
+and the compiler's answer to the cycle is what the panes show.
+
+**Removing an import keeps its box, marked "not imported".** The box stays
+where it was, greyed and labelled *not imported* in words, so its state does
+not rest on colour alone, with a **Remove** button, a `data-demo-click`
+control a keyboard reaches. Its text is kept: the page shows every file it
+holds, and the compiler reads only the files the program imports, so a box
+that is not imported changes no output. Typing the import again marks the box
+imported again, with its text as it was. **Remove** deletes the box and its
+text. A module that only a removed import reached is marked the same way.
+Picking an example or opening a shared link replaces every box, so a file
+from one program never turns up in another.
+
+**The state is still one text.** Behind the boxes the page holds the files in
+one string: the main module first, then each other file after a line
+`// @filename: <name>`, the convention the TypeScript playground uses for
+several files in one editor. So:
+
+- a shared link still carries one text field, and restores every box,
+  imported or not ([`website/demo/sharing`](../../website/demo/sharing/types.ts)
+  takes a fixed set of fields, which a box per file would not fit);
+- an example in [`../examples/module.f.js`](../examples/module.f.js) is still
+  one string, and a multi-file example opens with its boxes written;
+- a program with no marker is one module, as every example and shared link
+  is today.
+
+Each box is an input named after its file; an edit replaces that file's part
+of the text, and the page recomputes which boxes the imports reach.
+
+**Compiling.** The page writes every file into the in-memory file system
+(`virtualAt`, as now) and compiles `input.f.js`. `_outputMarked` already
+resolves imports through it, so no output logic changes. A refusal names the
+file it is in: with one file the page could drop the location, with several it
+shows the compiler's diagnostic, which carries it.
+
+**The stage pages compile the main module only.** They show one stage of one
+module; a multi-file example shows its main module there, and says that its
+dependencies are compiled on the side-by-side page.
+
+### Open questions
+
+- **Subdirectories.** Whether a box can stand for `./lib/m.f.js` depends on the
+  in-memory file system's directories; refuse such a path until it does.
+- **An empty box's hint.** An empty module is refused, in the compiler's words,
+  in the panes; a placeholder such as `export default …` in the box may help.
 
 ### Tasks
 
-- [ ] Decide between fixed and editable dependency files.
-- [ ] Let an example in [`../examples/module.f.js`](../examples/module.f.js)
-      carry its dependency files, and write them into the page's file system.
-- [ ] Add an example that imports one module twice, so the linked outputs show
-      it shared.
+- [ ] List a module's relative imports from its parse result.
+- [ ] Split the page's text into files at `// @filename:` lines, and join it
+      back, refusing a repeated name or a marker that is not a line of its
+      own.
+- [ ] Draw a box per file the import tree reaches, and each file it does not
+      as *not imported* with a **Remove** button.
+- [ ] Write every file into the page's file system, and show a refusal's file.
+- [ ] Have the stage pages compile the main module of a multi-file example.
+- [ ] Add an example that imports one module through two others, so the
+      outputs show it shared.
 - [ ] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
       import examples.
 
