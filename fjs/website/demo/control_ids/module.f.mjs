@@ -3,10 +3,10 @@
  * Apply the same pure transformation to prerendered and live views, including
  * manual controls, labels, datalists, accessibility links and SVG paint URLs.
  * @module
- * @import { Element, Node } from '../../../media/html/types.ts'
+ * @import { Element } from '../../../media/html/types.ts'
  */
 
-import { parseElement } from '../../../media/html/module.f.mjs'
+import { foldElement, mapElement } from '../../../media/html/module.f.mjs'
 import { definedEntries } from '../../../types/object/module.f.mjs'
 
 /** @type {string} */
@@ -25,13 +25,8 @@ const paintReferences = ['style', 'fill', 'stroke', 'clip-path', 'filter', 'mask
 
 const { fromEntries } = Object
 
-/** @type {(node: Node) => readonly string[]} */
-const idsOf = node => {
-    if (typeof node === 'string') { return [] }
-    const [, attributes, children] = parseElement(node)
-    const { id } = attributes
-    return [...(id === undefined ? [] : [id]), ...children.flatMap(idsOf)]
-}
+/** The IDs a view defines, in document order. @type {(view: Element) => readonly string[]} */
+const idsOf = foldElement((/** @type {readonly string[]} */ ids, _, { id }) => id === undefined ? ids : [...ids, id])([])
 
 /** HTML ID-reference lists use ASCII whitespace, not only ordinary spaces.
  * @type {(value: string) => readonly string[]}
@@ -68,16 +63,13 @@ export const scopeIds = scope => {
                         : fragmentReferences.includes(name) && value.startsWith('#') ? `#${reference(value.slice(1))}`
                             : paintReferences.includes(name) ? paint(value) : value,
         ]
-        /** @type {(element: Element) => Element} */
-        const element = value => {
-            const [tag, attributes, children] = parseElement(value)
+        return mapElement((tag, attributes) => {
             const { type, name } = attributes
             const radio = tag.toLowerCase() === 'input' && type?.toLowerCase() === 'radio' && name !== undefined
             return [tag, {
                 ...fromEntries(definedEntries(attributes).map(attribute)),
                 ...(radio ? { name: scoped(name), [eventNameMarker]: name } : {}),
-            }, ...children.map(node => typeof node === 'string' ? node : element(node))]
-        }
-        return element(view)
+            }]
+        })(view)
     }
 }
