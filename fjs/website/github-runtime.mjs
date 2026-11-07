@@ -12,7 +12,7 @@ import { parse } from '../rtti/parse/module.f.mjs'
 import { assertNotNullish } from '../asserts/module.f.js'
 import { encode } from '../basen/base64url/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
-import { callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, pendingSchema, tokenPath, tokenSchema, userSchema, validPending } from './github/module.f.mjs'
+import { authorizeEndpoint, authorizeParams, callbackCode, callbackParams, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, isCallback, loginMessages, pending, pendingSchema, redirectMatches, tokenPath, tokenSchema, userSchema, withStatus } from './github/module.f.mjs'
 
 /** @type {string} */
 const pendingKey = 'functionalscript.github.login'
@@ -59,16 +59,16 @@ export const startGitHubLogin = (root, host = {}) => {
             login.disabled = !available
             logout.hidden = true
             login.hidden = false
-            account.textContent = 'Not logged in to GitHub.'
+            account.textContent = loginMessages.notLoggedIn
             userLink.hidden = true
             userLink.removeAttribute('href')
             userLink.textContent = ''
-            note.textContent = 'Logged out. Refresh to read public GitHub results.'
+            note.textContent = loginMessages.loggedOut
         }
         const auth = /** @type {const} */ ({ token: () => token, clear })
         login.disabled = true
         logout.hidden = true
-        account.textContent = 'Not logged in to GitHub.'
+        account.textContent = loginMessages.notLoggedIn
         userLink.hidden = true
         logout.addEventListener('click', clear)
         // Back/forward caching must not preserve a login after leaving.
@@ -102,7 +102,7 @@ export const startGitHubLogin = (root, host = {}) => {
                         // Unrecognized or malformed bodies never become UI messages.
                     }
                 }
-                failure = `${failure} (HTTP ${response.status})`
+                failure = withStatus(failure, response.status)
                 throw new Error('GitHub login request failed.')
             }
             const [tag, value] = read(await response.json())
@@ -112,81 +112,73 @@ export const startGitHubLogin = (root, host = {}) => {
 
         const url = new URL(view.location.href)
         const params = url.searchParams
-        const callback = params.has('code') || params.has('state') || params.has('error')
+        const callback = isCallback([...params.keys()])
         // Remove credentials before any asynchronous request or UI update.
         // The page's referrer meta also protects its initial subresource loads.
         if (callback) {
             const clean = new URL(url)
-            for (const key of ['code', 'state', 'error', 'error_description', 'error_uri']) {
+            for (const key of callbackParams) {
                 clean.searchParams.delete(key)
             }
             view.history.replaceState(null, '', clean.href)
         }
 
-        let failure = 'GitHub login is unavailable on this site.'
+        /** @type {string} */
+        let failure = loginMessages.unavailable
         try {
             // Consume a pending login even when GitHub declined authorization.
             const pendingText = callback ? view.sessionStorage.getItem(pendingKey) : null
             if (callback) { view.sessionStorage.removeItem(pendingKey) }
             const config = await request(configPath, {}, readConfig)
-            const redirect = new URL(config.redirectUri)
-            if (config.clientId === '' || redirect.href !== `${url.origin}${callbackPath}`) {
+            // The URL parser normalizes the registered redirect before it is compared.
+            if (!redirectMatches({ ...config, redirectUri: new URL(config.redirectUri).href }, url.origin)) {
                 throw new Error('GitHub login configuration does not match this site.')
             }
             available = true
             login.disabled = false
-            note.textContent = 'Log in to use your GitHub API rate limit.'
+            note.textContent = loginMessages.ready
 
             login.addEventListener('click', async () => {
                 if (login.disabled) { return }
                 login.disabled = true
-                note.textContent = 'Opening GitHub login…'
+                note.textContent = loginMessages.opening
                 try {
                     const state = base64url(view.crypto.getRandomValues(new Uint8Array(32)))
                     const verifier = base64url(view.crypto.getRandomValues(new Uint8Array(32)))
                     const challenge = base64url(new Uint8Array(await view.crypto.subtle.digest(
                         'SHA-256', new TextEncoder().encode(verifier))))
-                    view.sessionStorage.setItem(pendingKey, JSON.stringify({ state, verifier, createdAt: now() }))
-                    const authorize = new URL('https://github.com/login/oauth/authorize')
-                    authorize.search = new URLSearchParams({
-                        client_id: config.clientId,
-                        redirect_uri: config.redirectUri,
-                        prompt: 'select_account',
-                        state,
-                        code_challenge: challenge,
-                        code_challenge_method: 'S256',
-                    }).toString()
+                    view.sessionStorage.setItem(pendingKey, JSON.stringify(pending(state, verifier, now())))
+                    const authorize = new URL(authorizeEndpoint)
+                    authorize.search = new URLSearchParams(authorizeParams(config, state, challenge)).toString()
                     view.location.assign(authorize.href)
                 } catch {
                     login.disabled = false
-                    note.textContent = 'Could not open GitHub login. Allow browser session storage and try again.'
+                    note.textContent = loginMessages.openFailed
                 }
             })
 
             if (!callback) { return auth }
-            failure = 'GitHub login details could not be verified. Please log in again.'
+            failure = loginMessages.unverified
             if (params.has('error')) {
-                note.textContent = 'GitHub login was cancelled or denied. You can try again.'
+                note.textContent = loginMessages.denied
                 return auth
             }
-            const [tag, pending] = readPending(JSON.parse(pendingText ?? 'null'))
-            const codes = params.getAll('code')
-            const states = params.getAll('state')
-            if (tag === 'error' || codes.length !== 1 || codes[0] === ''
-                || states.length !== 1 || !validPending(pending, states[0], now())) {
-                note.textContent = 'GitHub login expired or could not be verified. Please log in again.'
+            const [tag, record] = readPending(JSON.parse(pendingText ?? 'null'))
+            const code = tag === 'error' ? null : callbackCode(params.getAll('code'), params.getAll('state'), record, now())
+            if (tag === 'error' || code === null) {
+                note.textContent = loginMessages.expired
                 return auth
             }
-            note.textContent = 'Completing GitHub login…'
+            note.textContent = loginMessages.completing
             login.disabled = true
-            failure = 'Could not exchange the GitHub login code. Please try again.'
+            failure = loginMessages.exchangeFailed
             const result = await request(tokenPath, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: codes[0], verifier: pending.verifier }),
+                body: JSON.stringify({ code, verifier: record.verifier }),
             }, readToken)
             if (result.access_token === '') { throw new Error('GitHub returned no token.') }
-            failure = 'Could not verify your GitHub account. Please try again.'
+            failure = loginMessages.accountFailed
             const user = await request('https://api.github.com/user', {
                 headers: {
                     Authorization: `Bearer ${result.access_token}`,
@@ -199,11 +191,11 @@ export const startGitHubLogin = (root, host = {}) => {
             token = result.access_token
             login.hidden = true
             logout.hidden = false
-            account.textContent = 'Logged in as'
+            account.textContent = loginMessages.loggedInAs
             userLink.textContent = `@${user.login}`
             userLink.setAttribute('href', `https://github.com/${encodeURIComponent(user.login)}`)
             userLink.hidden = false
-            note.textContent = 'Login lasts until you reload or leave this page.'
+            note.textContent = loginMessages.lifetime
         } catch {
             note.textContent = failure
         } finally {
