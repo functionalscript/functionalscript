@@ -95,10 +95,12 @@ const numbers = [
  * is none at all, `0x`, `0b` and `k` spell no number, a number too large
  * for the `int` Git reads it into is none either, and the conversion's whitespace comes off the
  * front alone, so a trailing space is read as a unit and found to be none.
+ * A unit is cased as ASCII: `'\u212a'`, the Kelvin sign, is no `k`, though
+ * `toLowerCase()` would make it one.
  *
  * @type {readonly string[]}
  */
-const noNumbers = ['08', '019', '0a', '1a', '0b1a', '0xg', '0x1h', '0x٤', '٤', '0x80000000', '0x', '0b', '0b2', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999', '1.5', '"1 "', '" "']
+const noNumbers = ['08', '019', '0a', '1a', '0b1a', '0xg', '0x1h', '0x٤', '٤', '0x80000000', '0x', '0b', '0b2', 'k', '-', '1kb', '1\u212a', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999', '1.5', '"1 "', '" "']
 
 export const proof = {
     // Every entry, in order, with its section: a tab before the key, the

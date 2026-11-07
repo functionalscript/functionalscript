@@ -7,14 +7,11 @@
 
 [`asciiLowercase`](../module.f.js) is the "ASCII lowercase" an ASCII
 case-insensitive comparison asks: `A` to `Z` lowercased and nothing else.
-`fjs/media/html` compares through it. Other modules still compare names a
+`fjs/media/html` and `fjs/git/config` compare through it. Other modules still compare names a
 format defines as ASCII case-insensitive through `toLowerCase()`, which folds
 beyond ASCII — `'K'`, the Kelvin sign, lowercases to `k` — so a name the
 format's own reader refuses or keeps apart is taken for another:
 
-- [`fjs/git/config`](../../../git/config/module.f.js) — section names, the
-  size suffix and prefixes, and boolean words. Git lowercases with the C
-  locale's `tolower`, ASCII only.
 - [`fjs/web`](../../../web/module.f.mjs) — the authority's host and the
   scheme, both ASCII case-insensitive in RFC 3986.
 - [`fjs/effects/node`](../../../effects/node/module.f.mjs) — header names,
@@ -34,7 +31,7 @@ non-ASCII fold would have matched.
 
 ### Tasks
 
-- [ ] `fjs/git/config`.
+- [x] `fjs/git/config`.
 - [ ] `fjs/web`.
 - [ ] `fjs/effects/node` and its virtual host.
 - [ ] `fjs/media/type` and `fjs/media/mermaid`.
