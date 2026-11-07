@@ -41,24 +41,34 @@ opens `a.f.js` and `b.f.js`; if both import `./shared.f.js`, one
 shared module is one `const` in `.js` and `.data.js`, one node in the EDAG and
 in Rust, and written twice in `.json`, which has no identity to keep.
 
-**Which imports open a box: every one the compiler reads.** A box opens for
-exactly the file `fjs compile` would read: a relative (`./`, `../`) or rooted
-(`/`) specifier, resolved against the importing file, that stays inside the
-program's directory, once the importing module parses. The file's name is
-whatever the path names (`./x.f.js`, `../lib/y.f.mjs`, `./d.json`, and as
-well `./dep` or `/lib/d.mjs`), since the compiler reads any file the path
-names, not only `.f.js`, `.f.mjs` and `.json` ones. A box is named by its path
-from the program's directory, so `/lib/d.mjs` and `../lib/d.mjs` from `a/`
-are one box, `lib/d.mjs`. While a module does not parse, the boxes stay as
-they were rather than flicker. A bare specifier (`functionalscript/…`) and a
-path above the program's directory open no box; the compiler refuses them,
-and the panes say so. The main box is labelled `input.f.js (main module)`, so
-a reader knows the name a dependency imports it by. A module that imports
-`./input.f.js` reaches the main box, not a new one. The panes show the
-compiler's answer to a cycle, `circular dependency`, and the page names every
-file the cycle passes through (`Import cycle: input.f.js → a.f.js →
-input.f.js`), which that message does not.
+**Which imports open a box.** A box opens for the file an import names: a
+relative (`./`, `../`) or rooted (`/`) specifier, resolved against the
+importing file, once the importing module parses. The file's name is whatever
+the path names (`./x.f.js`, `../lib/y.f.mjs`, `./d.json`, and as well `./dep`
+or `/lib/d.mjs`), since the compiler reads any file the path names, not only
+`.f.js`, `.f.mjs` and `.json` ones. While a module does not parse, the boxes
+stay as they were rather than flicker. A bare specifier (`functionalscript/…`)
+opens no box; the compiler refuses it, and the panes say so. The main box is
+labelled `input.f.js (main module)`, so a reader knows the name a dependency
+imports it by. A module that imports `./input.f.js` reaches the main box, not
+a new one. The panes show the compiler's answer to a cycle, `circular
+dependency`, and the page names every file the cycle passes through
+(`Import cycle: input.f.js → a.f.js → input.f.js`), which that message does
+not.
 
+**The page is a sandbox: the program's directory is its root.** The page
+compiles over the in-memory file system it has always used, whose root holds
+the main module. So `/` names the program's directory, a box is named by its
+path from there, and `/lib/d.mjs` and `../lib/d.mjs` from `a/` are one box,
+`lib/d.mjs`. Nothing is above the root, so a path that climbs above it opens
+no box and the compiler refuses it as a file it cannot find. This is the
+page's contract, not the compiler's: `fjs compile` resolves an import as
+the host does (`resolveFileModule` in
+[`fjs/effects/node`](../../effects/node/module.mjs)), where `/` is the root of
+the disk and `../` may leave the main module's directory. A program that
+imports by either reads other files on the command line than on the page, so
+the page says so, under the boxes, naming each such import: a rooted one,
+and a relative one that climbs above the program's directory.
 
 **Removing an import keeps its box, marked "not imported".** The box stays
 where it was, greyed and labelled *not imported* in words, so its state does
