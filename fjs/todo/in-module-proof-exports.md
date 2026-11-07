@@ -5,8 +5,9 @@
 
 ### Problem
 
-Five implementation modules export a `proof` object of their own, although
-each already has a `proof.f.mjs` beside it:
+Five implementation modules exported a `proof` object of their own, although
+each already has a `proof.f.mjs` beside it; only `fjs/types/btree/remove`
+still does:
 
 - [`fjs/dev`](../dev/module.f.mjs) — a whole suite (`allFilesSkipsNodeModules`,
   `allFilesFindsFunctionalScript`, the `loadModuleMap…` cases). The module
@@ -47,8 +48,13 @@ PR. A breaking notice is optional before 1.0.
 - [x] `fjs/dev`: move the suite into `proof.f.mjs`; drop the `asserts` and
       `effects/node/virtual` imports from the module.
 - [x] `fjs/mcp`: move the `casMcpServer` case into `proof.f.mjs`.
-- [ ] `fjs/compiler/transpiler`, `fjs/types/bigfloat`, `fjs/types/btree/remove`:
-      remove the unreachable branches, then the `proof` exports.
+- [x] `fjs/compiler/transpiler`: its `proof` export and the
+      `mapDjsUnresolvedImport` guard are gone.
+- [x] `fjs/types/bigfloat`: `increaseMantissa` reads its shift off the bit
+      lengths, so no zero guard and no loop is left to cover; the `proof`
+      export is gone.
+- [ ] `fjs/types/btree/remove`: remove the unreachable branches, then the
+      `proof` export.
 - [ ] Explain the API change; `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
