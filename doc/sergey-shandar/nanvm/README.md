@@ -14,7 +14,7 @@ Three special values:
 
 - Infinity: `0x7FF0_0000_0000_0000`,
 - Neg. Infinity: `0xFFF0_0000_0000_0000`,
-- NaN: `0x7FF0_0000_0000_0001`.
+- NaN: `0x7FF8_0000_0000_0000`.
 
 Format:
 
