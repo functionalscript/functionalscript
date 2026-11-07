@@ -16,8 +16,21 @@ const exports = [
 
 /** @type {Examples} */
 const imports = [
-    ['An import', 'import m from "./m.f.js";\nexport default m;', 'an-import'],
-    ['A named import and a call', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);', 'a-named-import-and-a-call'],
+    ['An import', [
+        'import m from "./m.f.js";',
+        'export default m;',
+        '// @filename: m.f.js',
+        'export default 42;',
+    ].join('\n'), 'an-import'],
+    ['A named import and a call', [
+        'import m from "./m.f.js";',
+        'import { x } from "./n.f.js";',
+        'export default m(x);',
+        '// @filename: m.f.js',
+        'export default x => x * 2;',
+        '// @filename: n.f.js',
+        'export const x = 21;',
+    ].join('\n'), 'a-named-import-and-a-call'],
     ['A module imported twice', [
         'import a from "./a.f.js";',
         'import b from "./b.f.js";',
