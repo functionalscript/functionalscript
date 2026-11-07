@@ -21,7 +21,7 @@ import { conditional } from '../../edag/testlib.f.js'
 import { mainOf } from '../demo_files/module.f.mjs'
 
 /** The shared examples the Rust output refuses: the two the front end does, and the imports it has no file set for. */
-const refusedByRust = ['An import', 'A named import and a call', 'A module imported twice', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
+const refusedByRust = ['An import', 'A named import and a call', 'A module imported twice', 'A cyclic import', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
 
 export const proof = {
     deferredLoweringIsDisplayed: () => {

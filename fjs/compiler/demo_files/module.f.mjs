@@ -203,3 +203,31 @@ export const lastImports = previous => files => {
         return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : before(name)])
     })
 }
+
+/**
+ * The first import cycle of `files`, walking the tree from the main module
+ * depth first: each file of the cycle, the first written again at the end
+ * (`input.f.js → m.f.js → input.f.js`), or `null` where the imports form
+ * none. A module that does not parse imports nothing here. The compiler
+ * refuses a cycle in its own words, `circular dependency`; this names every
+ * file the cycle passes through, which its message does not.
+ *
+ * @type {(files: Files) => readonly string[] | null}
+ */
+export const cycleOf = files => {
+    /** @type {(name: string) => readonly string[]} */
+    const importsAt = name => {
+        const imports = importsOf(name)(files.find(([n]) => n === name)?.[1] ?? '')
+        return imports[0] === 'ok' ? imports[1] : []
+    }
+    /** @type {(path: readonly string[]) => readonly string[] | null} */
+    const from = path => {
+        const last = path[path.length - 1]
+        for (const next of importsAt(last)) {
+            const cycle = path.includes(next) ? [...path.slice(path.indexOf(next)), next] : from([...path, next])
+            if (cycle !== null) { return cycle }
+        }
+        return null
+    }
+    return from([main])
+}

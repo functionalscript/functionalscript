@@ -1540,6 +1540,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'An import': 'ooooo',
                 'A named import and a call': 'ooooo',
                 'A module imported twice': 'ooooo',
+                'A cyclic import': 'xxxxx',
                 'Hex escape': 'xxxxx',
                 'Parse error': 'xxxxx',
             }
@@ -1671,6 +1672,13 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(nextDemo(refused, { kind: 'input', name: 'file:m.f.js', value: 'x' }), refused)
             assertEq(nextDemo(refused, { kind: 'click', name: 'remove:m.f.js' }), refused)
             assertEq(nextDemo(refused, { kind: 'input', name: 'compiler', value: 'export default 5;' }).text, 'export default 5;')
+            // the main box says which file it is, and a cycle is named whole
+            assert(shown.includes('<label for="compiler">input.f.js (main module) </label>'), shown)
+            assert(!shown.includes('Import cycle'), shown)
+            const cyclic = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A cyclic import' })
+            assert(html(cyclic).includes('<p role="status">Import cycle: input.f.js → a.f.js → input.f.js</p>'), html(cyclic))
+            assertEq(cyclic.panes.map(([, v]) => v).join(), Array(5).fill('circular dependency').join())
+            assert(html(refused).includes('<label for="compiler">input.f.js (main module) </label>'), html(refused))
             // an event no box sends changes nothing
             assertEq(nextDemo(twice, { kind: 'input', name: 'other', value: 'x' }), twice)
             assertEq(nextDemo(twice, { kind: 'click', name: 'run' }), twice)

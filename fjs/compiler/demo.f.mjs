@@ -30,7 +30,10 @@
  * import reaches keeps its box, marked *not imported*, with a button that
  * removes it; the compiler does not read it. A module that does not parse
  * keeps the boxes its imports opened when it last did
- * ([`lastImports`](./demo_files/module.f.mjs)).
+ * ([`lastImports`](./demo_files/module.f.mjs)). The main box is labelled with
+ * its file name, `input.f.js`, which a dependency imports it by. Where the
+ * imports form a cycle, the panes refuse it as the compiler does, and the page
+ * names every file the cycle passes through.
  *
  * **A host failure belongs to its output pane too.** Each output is compiled
  * through the `catch` effect during update, so an interpreter stack overflow
@@ -66,7 +69,7 @@ import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { dirOf, join, lastImports, main, reached, split } from './demo_files/module.f.mjs'
+import { cycleOf, dirOf, join, lastImports, main, reached, split } from './demo_files/module.f.mjs'
 import { examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { textSharing } from '../website/demo/sharing/module.f.mjs'
@@ -169,6 +172,12 @@ const intro = 'Compiles a FunctionalScript program into JSON, DataJS, JavaScript
 
 const picker = examplePicker(examples)
 
+/**
+ * The main module's label: its file name, which a dependency imports it by
+ * (`./input.f.js`) and `fjs compile` reads it from, and what it is.
+ */
+const mainLabel = `${main} (main module)`
+
 /** The prefix of a dependency's field name, and the button that removes one. */
 const filePrefix = 'file:'
 const removePrefix = 'remove:'
@@ -210,19 +219,31 @@ export const _edited = text => event => {
  */
 const boxes = (text, imports) => {
     const files = split(text)
-    if (files[0] === 'error') { return [textField({ name, label: 'Source', highlight }, text)] }
+    if (files[0] === 'error') { return [textField({ name, label: mainLabel, highlight }, text)] }
     /** @type {(file: string) => string} */
     const textOf = file => files[1].find(([n]) => n === file)?.[1] ?? ''
     const reached = lastImports(imports)(files[1]).map(([n]) => n)
     const [, ...dependencies] = reached
     return [
-        textField({ name, label: 'Source', highlight }, textOf(main)),
+        textField({ name, label: mainLabel, highlight }, textOf(main)),
         ...dependencies.map(file => textField({ name: `${filePrefix}${file}`, label: file, rows: 4, highlight }, textOf(file))),
         ...files[1].filter(([n]) => !reached.includes(n)).map(/** @returns {Element} */ ([file, t]) => ['div', { 'data-not-imported': '' },
             textField({ name: `${filePrefix}${file}`, label: `${file} (not imported)`, rows: 4, highlight }, t),
             ['p', ['button', { type: 'button', name: `${removePrefix}${file}` }, `Remove ${file}`]],
         ]),
+        ...cycleView(files[1]),
     ]
+}
+
+/**
+ * The import cycle of `files`, every file it passes through, which the
+ * compiler's `circular dependency` does not name; nothing where there is none.
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const cycleView = files => {
+    const cycle = cycleOf(files)
+    return cycle === null ? [] : [['p', { role: 'status' }, `Import cycle: ${cycle.join(' → ')}`]]
 }
 
 /**

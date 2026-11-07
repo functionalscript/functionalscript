@@ -47,8 +47,12 @@ A box does not appear for a path still being typed (`'./m'`, `'./m.f'`): it
 waits for the module to parse with a complete file name. While a module does
 not parse, the boxes stay as they were rather than flicker. A package import
 (`functionalscript/…`) opens no box; the compiler refuses it, and the panes say
-so. A module that imports `./input.f.js` reaches the main box, not a new one,
-and the compiler's answer to the cycle is what the panes show.
+so. The main box is labelled `input.f.js (main module)`, so a reader knows the
+name a dependency imports it by. A module that imports `./input.f.js` reaches
+the main box, not a new one. The panes show the compiler's answer to a cycle,
+`circular dependency`, and the page names every file the cycle passes through
+(`Import cycle: input.f.js → a.f.js → input.f.js`), which that message does
+not.
 
 **Removing an import keeps its box, marked "not imported".** The box stays
 where it was, greyed and labelled *not imported* in words, so its state does

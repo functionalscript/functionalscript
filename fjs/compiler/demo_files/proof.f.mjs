@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { dirOf, importsOf, isModuleFile, join, lastImports, main, mainOf, marker, reached, split } from './module.f.mjs'
+import { cycleOf, dirOf, importsOf, isModuleFile, join, lastImports, main, mainOf, marker, reached, split } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -133,5 +133,27 @@ export const proof = {
             assertEq(json(after), json([[main, ['m.f.js']], ['m.f.js', []]]))
             assertEq(json(lastImports([])([[main, 'export default +']])), json([[main, []]]))
         },
+    },
+    cycleOf: {
+        none: () => {
+            const files = split(shared)
+            assert(files[0] === 'ok', 'shared')
+            assertEq(cycleOf(files[1]), null)
+            assertEq(cycleOf([[main, 'export default 1']]), null)
+            assertEq(cycleOf([[main, "import m from './m.f.js'\nexport default m"]]), null)
+        },
+        toMain: () => assertEq(json(cycleOf([[main, "import m from './m.f.js'\nexport default m"], ['m.f.js', "import i from './input.f.js'\nexport default i"]])),
+            json([main, 'm.f.js', main])),
+        self: () => assertEq(json(cycleOf([[main, "import a from './a.f.js'\nexport default a"], ['a.f.js', "import a from './a.f.js'\nexport default a"]])),
+            json(['a.f.js', 'a.f.js'])),
+        afterAnAcyclicBranch: () => assertEq(json(cycleOf([
+            [main, "import d from './d.json' with { type: 'json' }\nimport a from './a.f.js'\nexport default [d, a]"],
+            ['d.json', '1'],
+            ['a.f.js', "import b from './b.f.js'\nexport default b"],
+            ['b.f.js', "import a from './a.f.js'\nexport default a"],
+        ])), json(['a.f.js', 'b.f.js', 'a.f.js'])),
+        unparsedImportsNothing: () => assertEq(
+            cycleOf([[main, "import a from './a.f.js'\nexport default a"], ['a.f.js', "import i from './input.f.js'\nexport default i +"]]),
+            null),
     },
 }

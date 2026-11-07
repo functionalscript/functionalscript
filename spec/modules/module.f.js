@@ -44,6 +44,13 @@ const imports = [
         '// @filename: shared.f.js',
         'export default { name: "shared object" };',
     ].join('\n'), 'a-module-imported-twice'],
+    ['A cyclic import', [
+        'import a from "./a.f.js";',
+        'export default a;',
+        '// @filename: a.f.js',
+        'import main from "./input.f.js";',
+        'export default [main];',
+    ].join('\n'), 'a-cyclic-import'],
 ]
 
 export default { exports, imports, all: [...exports, ...imports] }
