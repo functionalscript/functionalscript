@@ -97,7 +97,8 @@ fn is_bool(a: u64) -> bool {
 }
 
 fn is_short_string(a: u64) -> bool {
-  a & 0x7FFC_0000_0000_0000 > 0x7FF0_0000_0000_0000
+  (a & 0x7FFC_0000_0000_0000) == 0x7FF0_0000_0000_0000 &&
+  (a & 0x0003_0000_0000_0000) != 0
 }
 
 fn is_ptr(a: u64) -> bool {
