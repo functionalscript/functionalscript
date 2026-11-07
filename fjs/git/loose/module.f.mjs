@@ -30,7 +30,7 @@
  */
 
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { catchStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultStep, step } from '../../effects/module.f.mjs'
+import { catchStep, compensateStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../effects/module.f.mjs'
 import { mkdir, random256, readWhole, rename, rm, writeExclusive } from '../../effects/node/module.f.mjs'
 import { join, parent, under } from '../../path/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
@@ -118,7 +118,7 @@ export const write = (od, oidBytes) => {
             const made = historyStep(named, () => mkdir(parent(at), { recursive: true }))
             const filled = historyStep(made, (_, tmp) => writeExclusive(tmp, toArray(u8ListToMaxVecChunksMsb(stored(writeEnvelope(type, payload))))))
             return step(filled, ([, , tmp]) => {
-                const moved = catchStep(rename(tmp, at), e => resultStep(rm(tmp), () => pureError(e)))
+                const moved = compensateStep(rename(tmp, at), rm(tmp))
                 return mapStep(moved, () => id)
             })
         })

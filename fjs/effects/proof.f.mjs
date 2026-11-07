@@ -5,7 +5,7 @@
  */
 
 import {
-    attemptStep, catchStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
+    attemptStep, catchStep, compensateStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep, commandsOf,
 } from './module.f.mjs'
@@ -697,6 +697,28 @@ export const proof = {
             const [log, r] = runNoted(finallyStep(pureOk(5), () => note('fail')))
             assertEq(log.join(','), 'fail')
             assertEq(assertOk(r), 5)
+        },
+    },
+    compensateStep: {
+        // Where `e` succeeds, the cleanup does not run.
+        ok: () => {
+            const e = step(note('e'), () => pureOk(5))
+            const [log, r] = runNoted(compensateStep(e, note('cleanup')))
+            assertEq(log.join(','), 'e')
+            assertEq(assertOk(r), 5)
+        },
+        // Where it fails, the cleanup runs after it and `e`'s error comes out.
+        error: () => {
+            const e = step(note('e'), () => pureError('boom'))
+            const [log, r] = runNoted(compensateStep(e, note('cleanup')))
+            assertEq(log.join(','), 'e,cleanup')
+            assertEq(assertError(r), 'boom')
+        },
+        // The cleanup's own failure is dropped: the error is still `e`'s.
+        dropsCleanupFailure: () => {
+            const [log, r] = runNoted(compensateStep(pureError('boom'), note('fail')))
+            assertEq(log.join(','), 'fail')
+            assertEq(assertError(r), 'boom')
         },
     },
     demo: {

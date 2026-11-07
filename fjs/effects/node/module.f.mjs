@@ -45,7 +45,7 @@ import {
     read as commonRead, readLine as commonReadLine, sandbox as commonSandbox, write as commonWrite,
 } from '../common/module.f.mjs'
 import {
-    catchStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 import { normalize, parent } from '../../path/module.f.js'
 import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
@@ -554,9 +554,9 @@ const writeLoop = path => {
  * **It fails closed.** Once `path` exists, any failure — of the stream itself,
  * of a chunk that is not whole bytes, of a `writeBytes` — removes it before
  * the error is returned, so a failed write leaves no partial file behind for
- * a later reader to mistake for the whole. The removal's own outcome is
- * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
- * what the caller needs to hear, and a failed `rm` has no better answer.
+ * a later reader to mistake for the whole. The removal is a
+ * {@link compensateStep}: its own outcome is discarded, and the write's error
+ * is what the caller hears.
  *
  * The removal names `path`, as every `writeBytes` before it does, so a file
  * put there by someone else mid-write is written into and then removed —
@@ -570,9 +570,7 @@ const writeLoop = path => {
 export const writeFromStream = (path, e) => {
     // Only what runs after `createExclusive` is cleaned up after: an `EEXIST`
     // is someone else's file, and removing it would be the failure's doing.
-    const written = catchStep(
-        writeLoop(path)(0, e),
-        err => resultStep(rm(path), () => pureError(err)))
+    const written = compensateStep(writeLoop(path)(0, e), rm(path))
     return ioStep(createExclusive(path), () => written)
 }
 
@@ -619,17 +617,15 @@ export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail
  * by a `Vec`'s. No chunks is an empty file. **It fails closed**, as
  * {@link writeFromStream} does: once the first chunk is written, a failure
  * removes `path` before the error is returned, so no truncated file is left
- * behind for a reader to mistake for the whole. The removal's own outcome is
- * discarded.
+ * behind for a reader to mistake for the whole. The removal is a
+ * {@link compensateStep}, whose own outcome is discarded.
  *
  * @type {(path: string, chunks: readonly Vec[]) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
  */
 export const writeChunks = (path, chunks) => {
     if (chunks.length === 0) { return writeFile(path, emptyVec) }
     const [first, ...rest] = chunks
-    const written = catchStep(
-        writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)),
-        err => resultStep(rm(path), () => pureError(err)))
+    const written = compensateStep(writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)), rm(path))
     return ioStep(writeFile(path, first), () => written)
 }
 

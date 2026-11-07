@@ -645,6 +645,30 @@ export const attemptStep = e => resultMapStep(e, ok)
 export const finallyStep = (e, f) => resultStep(e, r => resultMapStep(f(r), () => r))
 
 /**
+ * Runs `e`, and where it fails runs `cleanup` and then fails with `e`'s
+ * error: the cleanup's own answer, a failure included, is dropped. Where `e`
+ * succeeds the cleanup does not run.
+ *
+ * Dropped for {@link finallyStep}'s reason: the error a caller can act on is
+ * the one that stopped `e`, and reporting that its undoing failed too would
+ * replace it — a write that failed, and a partial file that could not then be
+ * removed, is still a write that failed.
+ *
+ * It is {@link catchStep}'s branch, not a chain: the two effects are never
+ * both in a sequence that succeeds. Named because four sites in three modules
+ * spelled it out by hand — `fjs/effects/node`'s `writeFromStream` and
+ * `writeChunks` removing a partial file, `fjs/git/loose`'s `write` removing
+ * its staged object, and `fjs/git/refstore/write` giving back a lock — each
+ * with this paragraph beside it.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation>(
+ *     e: Effect<O, T, E>,
+ *     cleanup: Effect<Q, unknown, unknown>
+ * ) => Effect<O | Q, T, E>}
+ */
+export const compensateStep = (e, cleanup) => catchStep(e, err => resultStep(cleanup, () => pureError(err)))
+
+/**
  * Empties the error channel by **panicking** on it: `ok` values continue
  * unchanged, an `error` is thrown as `summary(e)`, and what comes back is an
  * `Effect<O, T, never>` — a `never` that is earned rather than asserted, since
