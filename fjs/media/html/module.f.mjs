@@ -136,9 +136,13 @@ export const mapElement = f => {
  *
  * @type {<A>(f: (acc: A, tag: string, attributes: StringMap<string>) => A) => (init: A) => (e: Element) => A}
  */
-export const foldElement = f => init => e => {
-    const [tag, attributes, children] = parseElement(e)
-    return children.reduce((acc, child) => typeof child === 'string' ? acc : foldElement(f)(acc)(child), f(init, tag, attributes))
+export const foldElement = f => {
+    /** @type {(acc: Parameters<typeof f>[0], e: Element) => Parameters<typeof f>[0]} */
+    const walk = (acc, e) => {
+        const [tag, attributes, children] = parseElement(e)
+        return children.reduce((acc, child) => typeof child === 'string' ? acc : walk(acc, child), f(acc, tag, attributes))
+    }
+    return init => e => walk(init, e)
 }
 
 /**
