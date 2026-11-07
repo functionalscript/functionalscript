@@ -34,7 +34,8 @@
  */
 
 import { error, ok } from '../../types/result/module.f.js'
-import { escapes } from '../../path/module.f.js'
+import { assertNotNullish } from '../../asserts/module.f.js'
+import { escapes, normalize } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.mjs'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
@@ -141,25 +142,42 @@ export const lastImports = previous => files => {
  * refuses a cycle in its own words, `circular dependency`; this names every
  * file the cycle passes through, which its message does not.
  *
+ * Each file is parsed once, and a file the walk has left without finding a
+ * cycle under it is not walked again, so a graph whose files share their
+ * imports, a diamond on a diamond, takes time in proportion to its imports,
+ * not to its paths.
+ *
  * @type {(files: Files) => readonly string[] | null}
  */
 export const cycleOf = files => {
     const textOf = textIn(files)
-    /** @type {(name: string) => readonly string[]} */
-    const importsAt = name => {
+    const table = reached(() => [])(files).map(name => {
         const imports = importsOf(name)(textOf(name))
-        return imports[0] === 'ok' ? imports[1] : []
-    }
-    /** @type {(path: readonly string[]) => readonly string[] | null} */
-    const from = path => {
+        return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : []])
+    })
+    // every file the walk visits is one the tree reaches, so it is in the table
+    /** @type {(name: string) => readonly string[]} */
+    const importsAt = name => assertNotNullish(table.find(([n]) => n === name))[1]
+    /**
+     * The cycle under the last file of `path`, or `null`, and the files known
+     * to have none under them, `done` with this one added.
+     *
+     * @type {(path: readonly string[], done: readonly string[]) => readonly [readonly string[] | null, readonly string[]]}
+     */
+    const from = (path, done) => {
         const last = path[path.length - 1]
+        let known = done
         for (const next of importsAt(last)) {
-            const cycle = path.includes(next) ? [...path.slice(path.indexOf(next)), next] : from([...path, next])
-            if (cycle !== null) { return cycle }
+            if (path.includes(next)) { return [[...path.slice(path.indexOf(next)), next], known] }
+            if (!known.includes(next)) {
+                const [cycle, after] = from([...path, next], known)
+                if (cycle !== null) { return [cycle, after] }
+                known = after
+            }
         }
-        return null
+        return [null, [...known, last]]
     }
-    return from([main])
+    return from([main], [])[0]
 }
 
 /**
@@ -238,29 +256,36 @@ export const outsideImports = files => {
 }
 
 /**
- * Each file `files`' import tree reaches both by a rooted specifier and by a
- * relative one, the main module counting as reached relatively: one stored
- * file, which the in-memory resolver gives two identities, the rooted one
- * keeping its leading `/`, so the compiler loads it as two modules and the
- * two are not shared
+ * Each file `files`' import tree reaches under more than one module identity,
+ * in the order the tree first reaches it. The in-memory resolver's identity
+ * of a module is its importer's identity with the specifier resolved against
+ * it, leading `/` and all, and the main module's is `input.f.js`; so a file is
+ * `/lib/d.mjs` where a rooted import, or any import inside a file reached that
+ * way, reads it, and `lib/d.mjs` where a relative one from a relatively reached
+ * file does. One stored file under two identities is two modules to the
+ * compiler, so the two are not shared
  * ([rooted-module-identity](../../effects/node/virtual/todo/rooted-module-identity.md)).
- * In the order the tree first reaches each file.
  *
  * @type {(files: Files) => readonly string[]}
  */
 export const twiceLoaded = files => {
     const textOf = textIn(files)
-    /** @type {readonly (readonly [file: string, rooted: boolean])[]} */
-    const reads = [[main, false], ...reached(() => [])(files).flatMap(name => {
-        if (name.endsWith('.json')) { return [] }
-        const parsed = parse(name)(textOf(name))
-        return parsed[0] === 'error' ? [] : parsed[1].imports.flatMap(({ specifier }) => {
-            const target = targetOf(name)(specifier)
-            return target === null ? [] : [/** @type {const} */ ([target, specifierKind(specifier) === 'rooted'])]
+    /** @type {(id: string) => string} */
+    const fileOf = id => id.startsWith('/') ? id.slice(1) : id
+    /** @type {readonly string[]} */
+    let ids = [main]
+    for (let i = 0; i < ids.length; i += 1) {
+        const id = ids[i]
+        const name = fileOf(id)
+        const parsed = name.endsWith('.json') ? null : parse(name)(textOf(name))
+        /** @type {readonly string[]} */
+        const next = parsed === null || parsed[0] === 'error' ? [] : parsed[1].imports.flatMap(({ specifier }) => {
+            // a specifier that opens no box is the compiler's to refuse
+            const read = targetOf(name)(specifier) === null ? null : resolve(id)(specifier)
+            return read === null ? [] : [normalize(read)]
         })
-    })]
-    return reads
-        .map(([file]) => file)
-        .filter((file, i, all) => all.indexOf(file) === i)
-        .filter(file => reads.some(([f, rooted]) => f === file && rooted) && reads.some(([f, rooted]) => f === file && !rooted))
+        ids = next.reduce((all, n) => all.includes(n) ? all : [...all, n], ids)
+    }
+    const names = ids.map(fileOf)
+    return names.filter((n, i) => names.indexOf(n) === i && names.lastIndexOf(n) !== i)
 }

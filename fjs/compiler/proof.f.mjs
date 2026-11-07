@@ -1681,6 +1681,12 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(textOfResult(written.panes[0]), '[3,4]')
             const edited = nextDemo(written, { kind: 'input', name: 'file:c', value: 'export default 5;' })
             assertEq(textOfResult(edited.panes[0]), '[5,4]')
+            // an empty box goes with its import, a box with text stays, marked
+            const typed = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import e from "./e.f.js";\nexport default e;' })
+            assert(html(typed).includes(box('e.f.js')) && typed.files.length === 0, html(typed))
+            assert(!html(nextDemo(typed, { kind: 'input', name: 'compiler', value: 'export default 1;' })).includes(box('e.f.js')), 'an empty box goes')
+            const kept = nextDemo(nextDemo(typed, { kind: 'input', name: 'file:e.f.js', value: 'export default 2;' }), { kind: 'input', name: 'compiler', value: 'export default 1;' })
+            assert(html(kept).includes('e.f.js (not imported)') && html(kept).includes(removable('e.f.js')), html(kept))
             // a module that does not parse keeps the boxes it opened
             const halfTyped = nextDemo(edited, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nexport default c +' })
             assert(html(halfTyped).includes(box('c')) && !html(halfTyped).includes('c (not imported)'), html(halfTyped))

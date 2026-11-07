@@ -105,6 +105,21 @@ export const proof = {
             ['a.f.js', "import b from './b.f.js'\nexport default b"],
             ['b.f.js', "import a from './a.f.js'\nexport default a"],
         ])), json(['a.f.js', 'b.f.js', 'a.f.js'])),
+        // files sharing their imports are walked once each: twenty layers of a
+        // diamond would be a million paths
+        layeredDiamond: () => {
+            /** @type {(i: number) => string} */
+            const layer = i => i === 20 ? 'export default 0' : `import a from './l${i + 1}a.f.js'\nimport b from './l${i + 1}b.f.js'\nexport default [a, b]`
+            /** @type {import('./types.ts').Files} */
+            const files = [[main, layer(-1)], ...Array.from({ length: 21 }, (_, i) => i).flatMap(i => [
+                /** @type {import('./types.ts').File} */ ([`l${i}a.f.js`, layer(i)]),
+                /** @type {import('./types.ts').File} */ ([`l${i}b.f.js`, layer(i)]),
+            ])]
+            assertEq(cycleOf(files), null)
+            assertEq(json(cycleOf([...files.slice(0, -1), ['l20b.f.js', "import m from './input.f.js'\nexport default m"]])),
+                json([main, 'l0a.f.js', 'l1a.f.js', 'l2a.f.js', 'l3a.f.js', 'l4a.f.js', 'l5a.f.js', 'l6a.f.js', 'l7a.f.js', 'l8a.f.js', 'l9a.f.js',
+                    'l10a.f.js', 'l11a.f.js', 'l12a.f.js', 'l13a.f.js', 'l14a.f.js', 'l15a.f.js', 'l16a.f.js', 'l17a.f.js', 'l18a.f.js', 'l19a.f.js', 'l20b.f.js', main]))
+        },
         unparsedImportsNothing: () => assertEq(
             cycleOf([[main, "import a from './a.f.js'\nexport default a"], ['a.f.js', "import i from './input.f.js'\nexport default i +"]]),
             null),
@@ -158,6 +173,13 @@ export const proof = {
         bothWays: () => assertEq(json(twiceLoaded([
             [main, "import x from './a/x.f.js'\nimport d from './lib/d.mjs'\nimport p from 'pkg'\nexport default [x, d, p]"],
             ['a/x.f.js', "import d from '/lib/d.mjs'\nimport m from '/input.f.js'\nexport default [d, m]"],
-        ])), json([main, 'lib/d.mjs'])),
+        ])), json([main, 'a/x.f.js', 'lib/d.mjs'])),
+        throughARootedImporter: () => assertEq(json(twiceLoaded([
+            [main, "import a from '/a.f.js'\nimport b from './b.f.js'\nexport default [a, b]"],
+            ['a.f.js', "import b from './b.f.js'\nimport u from '../up.f.js'\nimport d from './d.json' with { type: 'json' }\nimport h from './half.f.js'\nexport default b"],
+            ['b.f.js', 'export default {}'],
+            ['d.json', '{}'],
+            ['half.f.js', 'export default +'],
+        ])), json(['b.f.js'])),
     },
 }
