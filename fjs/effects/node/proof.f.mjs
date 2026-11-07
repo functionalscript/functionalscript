@@ -986,6 +986,9 @@ export const proof = {
             assertEq(headerValue({ 'CONTENT-LENGTH': '7' }, 'content-length'), '7')
             assertEq(headerValue({}, 'content-length'), null)
             assertEq(headerValue({ 'content-type': 'text/plain' }, 'content-length'), null)
+            // HTTP folds a name's case in ASCII alone: `'\u212a'`, the Kelvin
+            // sign, is no `k`, though `toLowerCase()` makes it one.
+            assertEq(headerValue({ '\u212aeep-alive': 'timeout=5' }, 'keep-alive'), null)
             // A name that is **there with no value** is a name that names nothing.
             // `StringMap` admits it — every value can be missing — and Node's own
             // `req.headers` produces such entries, so the branch is a fixture

@@ -26,7 +26,7 @@
  */
 
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
-import { isDigits } from '../../text/ascii/module.f.js'
+import { asciiLowercase, isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
@@ -895,13 +895,16 @@ export const releaseHandle = handle => resultMapStep(close(handle), () => ok(nul
  * ever taken against it — {@link responseGate}'s fourth gate refuses such a
  * response before a bound is read.
  *
- * `name` is given already lower-cased; every caller here is a literal.
+ * `name` is given already lower-cased; every caller here is a literal. HTTP
+ * compares a header name ASCII case-insensitively, so the keys are lowered
+ * by {@link asciiLowercase}, never `toLowerCase()`, which would also take
+ * `'\u212a'`, the Kelvin sign, for a `k`.
  *
  * @type {(headers: Headers, name: string) => Nullable<string>}
  */
 export const headerValue = (headers, name) => {
     for (const [k, v] of definedEntries(headers)) {
-        if (k.toLowerCase() === name) { return v }
+        if (asciiLowercase(k) === name) { return v }
     }
     return null
 }
@@ -913,7 +916,7 @@ export const headerValue = (headers, name) => {
  * @type {(headers: Headers, name: string) => number}
  */
 const headerCount = (headers, name) =>
-    definedEntries(headers).filter(([k]) => k.toLowerCase() === name).length
+    definedEntries(headers).filter(([k]) => asciiLowercase(k) === name).length
 
 /**
  * The length `headers` declares, or `null` for a response that declares none this

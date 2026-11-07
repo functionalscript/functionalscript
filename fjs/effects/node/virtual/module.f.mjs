@@ -17,6 +17,7 @@
 
 import { assert, todo } from '../../../asserts/module.f.js'
 import { isProperPrefix, join, parse } from '../../../path/module.f.js'
+import { asciiLowercase } from '../../../text/ascii/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { divUp8 } from '../../../types/bigint/module.f.mjs'
 import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
@@ -1386,8 +1387,10 @@ const listen = (server, port, host) => state => {
     // address, and a host refuses the second bind — checked on Linux with Node
     // 22.22.2 and on Darwin with Node 23.11.0. Unlike the wildcard rules in
     // [address-model](./todo/address-model.md), that equivalence is the same
-    // everywhere, so it is safe to model.
-    const address = `${host.toLowerCase()}:${port}`
+    // everywhere, so it is safe to model. The fold is ASCII's alone, as DNS's
+    // is: `toLowerCase()` would also take `'\u212a'`, the Kelvin sign, for a
+    // `k`, and refuse a bind no host was shown to refuse.
+    const address = `${asciiLowercase(host)}:${port}`
     // Port `0` asks the host for whichever port is free, so two servers that
     // ask both get one — checked on Linux with Node 22.22.2 and on Darwin with
     // Node 23.11.0: they come back bound to different ports.
