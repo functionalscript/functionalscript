@@ -28,20 +28,20 @@ const imports = [
  * compiler demo writes into a box of its own for each, so the program links.
  * A stage page reads the main module alone.
  *
- * @type {{ readonly [id in string]?: Files }}
+ * @type {readonly (readonly [id: string, files: Files])[]}
  */
-const files = {
-    'an-import': [['m.f.js', 'export default 42;']],
-    'a-named-import-and-a-call': [
+const files = [
+    ['an-import', [['m.f.js', 'export default 42;']]],
+    ['a-named-import-and-a-call', [
         ['m.f.js', 'export default x => x * 2;'],
         ['n.f.js', 'export const x = 21;'],
-    ],
-    'a-module-imported-twice': [
+    ]],
+    ['a-module-imported-twice', [
         ['a.f.js', 'import shared from "./shared.f.js";\nexport default { from: "a", shared };'],
         ['b.f.js', 'import shared from "./shared.f.js";\nexport default { from: "b", shared };'],
         ['shared.f.js', 'export default { name: "shared object" };'],
-    ],
-    'a-cyclic-import': [['a.f.js', 'import main from "./input.f.js";\nexport default [main];']],
-}
+    ]],
+    ['a-cyclic-import', [['a.f.js', 'import main from "./input.f.js";\nexport default [main];']]],
+]
 
 export default { exports, imports, files, all: [...exports, ...imports] }

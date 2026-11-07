@@ -82,4 +82,7 @@ export const examples = [
  *
  * @type {(id: string) => Files}
  */
-export const dependenciesOf = id => modules.files[id] ?? []
+export const dependenciesOf = id => {
+    const found = modules.files.find(([i]) => i === id)
+    return found === undefined ? [] : found[1]
+}
