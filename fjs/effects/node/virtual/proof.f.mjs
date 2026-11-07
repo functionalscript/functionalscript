@@ -1714,6 +1714,21 @@ export const proof = {
             assertEq(s.listening.length, 1)
             assertEq(s.listening[0].address, 'localhost:8080')
         },
+        // The case is folded in ASCII alone: `'\u212a'`, the Kelvin sign, is
+        // no `k`, so a name spelled with it is another address and the second
+        // bind succeeds.
+        addressCaseIsAscii: () => {
+            /** @type {RequestListener<NodeOp>} */
+            const listener = () =>
+                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            const bound = historyStep(second, b => listen(b, 8_080, 'k.test'))
+            const e = step(bound, ([, , a]) => listen(a, 8_080, '\u212a.test'))
+            const [s, result] = virtual(emptyState)(e)
+            assertEq(result[0], 'ok')
+            assertStructurallySame(s.listening.map(b => b.address), ['k.test:8080', '\u212a.test:8080'])
+        },
         // `''` is the host a program did not state, and Node binds every
         // interface for it — so both runners refuse it rather than forward it.
         emptyHostRefused: () => {

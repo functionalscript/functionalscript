@@ -17,10 +17,6 @@ format's own reader refuses or keeps apart is taken for another:
   locale's `tolower`, ASCII only.
 - [`fjs/web`](../../../web/module.f.mjs) — the authority's host and the
   scheme, both ASCII case-insensitive in RFC 3986.
-- [`fjs/effects/node`](../../../effects/node/module.f.mjs) — header names,
-  which HTTP compares ASCII case-insensitively;
-  [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs)'s
-  listen address too.
 - [`fjs/media/type`](../../../media/type/module.f.mjs) — a path's extension.
 - [`fjs/media/mermaid`](../../../media/mermaid/module.f.js) — the `<br` tag.
 
@@ -36,7 +32,7 @@ non-ASCII fold would have matched.
 
 - [ ] `fjs/git/config`.
 - [ ] `fjs/web`.
-- [ ] `fjs/effects/node` and its virtual host.
+- [x] `fjs/effects/node` and its virtual host.
 - [ ] `fjs/media/type` and `fjs/media/mermaid`.
 
 ### Related
