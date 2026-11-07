@@ -37,7 +37,6 @@ import { staticIds } from '../../edag/module.f.mjs'
 import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
-import { mainOf } from '../demo_files/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -1820,7 +1819,7 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                const [tag, value] = _sourceOf(mainOf(source))
+                const [tag, value] = _sourceOf(source)
                 assertEq(tag, ['An import', 'A named import and a call', 'A module imported twice', 'A cyclic import', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok', name)
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }
             }

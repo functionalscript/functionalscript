@@ -12,16 +12,17 @@ import type { Runtime } from '../edag/value/types.ts'
 import type { SourceError } from './transpiler/types.ts'
 import type { Marked } from '../text/marked/types.ts'
 import type { Result } from '../types/result/types.ts'
-import type { Imports } from './demo_files/types.ts'
+import type { Files, Imports } from './demo_files/types.ts'
 
 /**
- * The compiler demo's source, every file of the program in one text
+ * The compiler demo's program, its main module and the files it holds besides
  * (`demo_files`), its independently computed output panes, and the imports
  * each reached file had when it last parsed, which keep a half-typed module's
  * boxes.
  */
 export type DemoState = {
-    readonly text: string
+    readonly main: string
+    readonly files: Files
     readonly panes: readonly Result<Marked, string>[]
     readonly imports: Imports
 }

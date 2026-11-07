@@ -27,7 +27,6 @@ import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { isObject } from '../../types/object/module.f.mjs'
-import { mainOf } from '../demo_files/module.f.mjs'
 
 /**
  * The tokens of a text, the parser's input. Exported, with
@@ -1951,7 +1950,7 @@ export const proof = {
     demo: {
         examples: () => {
             for (const [name, source] of examples) {
-                const [tag, value] = _astOf(mainOf(source))
+                const [tag, value] = _astOf(source)
                 assertEq(tag, ['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name) ? 'error' : 'ok')
                 // what the pane marks, the tokenizer agrees with
                 if (tag === 'ok') { assertEq(disagreement(value), null, name) }

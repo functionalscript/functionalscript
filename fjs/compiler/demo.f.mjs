@@ -21,11 +21,11 @@
  * [DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) rules
  * out, and what an output will not spell is half of what it is.
  *
- * **A program is every file its imports reach.** The text holds them all
- * ([`demo_files`](./demo_files/module.f.mjs)): the main module, then each file
- * after a `// @filename:` line. An import of a module file opens a box for it
- * under the main one, empty until the reader writes it, and that file's
- * imports open theirs. Every file is written into the in-memory file system,
+ * **A program is every file its imports reach, each in a box of its own**
+ * ([`demo_files`](./demo_files/module.f.mjs)). An import of a file the
+ * compiler can read, by a relative or rooted path, opens a box for it under
+ * the main one, empty until the reader writes it, and that file's imports
+ * open theirs. Every file is written into the in-memory file system,
  * so the compiler links the program as `fjs compile` would on disk. A file no
  * import reaches keeps its box, marked *not imported*, with a button that
  * removes it; the compiler does not read it. A module that does not parse
@@ -43,8 +43,10 @@
  * **The output is copyable**: it is a document or generated source a reader
  * can save and use elsewhere. Copy keeps the original output text.
  *
- * **A link shares the source**, as the stage demos' do. A restored state has
- * the text and no panes yet: restoring cannot run the compiler outside
+ * **A link shares the program**: the main module as the stage demos share
+ * theirs, and the other files as one JSON field, `files`, so no text a module
+ * can hold is reserved, and a link without `files` is the one module it was
+ * before. A restored state has the files and no panes yet: restoring cannot run the compiler outside
  * `catch`, so the `start` that follows every restore compiles them.
  *
  * @module
@@ -64,19 +66,17 @@ import { toText } from '../text/marked/module.f.mjs'
 import { codeBlock } from '../website/demo/code/module.f.js'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { virtualAt } from '../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { cycleOf, dirOf, join, lastImports, main, reached, split } from './demo_files/module.f.mjs'
-import { examples } from './examples/module.f.js'
+import { cycleOf, decode, dirOf, encode, lastImports, main, reached } from './demo_files/module.f.mjs'
+import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
-import { textSharing } from '../website/demo/sharing/module.f.mjs'
 import { _outputMarked, compileFile } from './module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'
-import { errorMessage, foldStep, history, historyStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
 import { catch_ } from '../effects/common/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
 import runtimeEdag from '../js/runtime/gen.edag.data.js'
@@ -120,44 +120,47 @@ const programOf = files => [
 ]
 
 /**
- * `text`, every file of a program, compiled to the language `outputFileName`
- * names, as marked text: the output `compile` writes the text of, or why it
- * refuses, or why `text` holds no files. A refusal of the main module is
- * shown without the location the command prints; one of another file is the
- * command's line, which names the file. It is the real compile but for its tail, the directory and the
- * write, so a pane cannot show anything the CLI does not write, which
- * {@link _written} lets the proof check.
+ * `files`, a program with its main module first, compiled to the language
+ * `outputFileName` names, as marked text: the output `compile` writes the
+ * text of, or why it refuses. A refusal of the main module or of the output
+ * is shown without the location the command prints; one of another file is
+ * the command's line, which names the file. It is the real compile but for
+ * its tail, the directory and the write, so a pane cannot show anything the
+ * CLI does not write, which {@link _writtenProgram} lets the proof check.
  *
- * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
+ * @type {(files: Files) => (outputFileName: string) => Result<Marked, string>}
  */
-export const compiled = text => outputFileName => {
-    const files = split(text)
-    if (files[0] === 'error') { return files }
-    const program = programOf(files[1])
-    const result = unwrap(virtualAt(dirOf(program))(_outputMarked(runtime)(main, outputFileName))[1])
+export const compiledProgram = files => outputFileName => {
+    const result = unwrap(virtualAt(dirOf(files))(_outputMarked(runtime)(main, outputFileName))[1])
     const [tag, value] = result
     if (tag === 'error') {
         const [message, diagnostic] = value
         // the main module's refusal is the box above the panes, and an
         // output's is the pane's own; another file's names the file, and
         // where in it
-        const [, ...others] = program
+        const [, ...others] = files
         return error(others.some(([n]) => diagnostic.startsWith(`${n}:`) || diagnostic.startsWith(`${n} `)) ? diagnostic : message)
     }
     return result
 }
 
 /**
- * `text` compiled by the whole of `compile` over an in-memory file system:
- * the file it wrote, or what it printed when it refused. The proof holds
- * {@link compiled} to it.
+ * `text`, one module, compiled as {@link compiledProgram} compiles a program
+ * of one file: what a page that compiles one module shows.
  *
- * @type {(text: string) => (outputFileName: string) => Result<string, string>}
+ * @type {(text: string) => (outputFileName: string) => Result<Marked, string>}
  */
-export const _written = text => outputFileName => {
-    const files = split(text)
-    if (files[0] === 'error') { return files }
-    const [state, result] = virtualAt(dirOf(programOf(files[1])))(
+export const compiled = text => compiledProgram([[main, text]])
+
+/**
+ * `files` compiled by the whole of `compile` over an in-memory file system:
+ * the file it wrote, or what it printed when it refused. The proof holds
+ * {@link compiledProgram} to it.
+ *
+ * @type {(files: Files) => (outputFileName: string) => Result<string, string>}
+ */
+export const _writtenProgram = files => outputFileName => {
+    const [state, result] = virtualAt(dirOf(files))(
         compileFile(runtime)(main, outputFileName))
     if (result[0] === 'error') { return error(errorMessage(result[1])) }
     const file = state.root[outputFileName]
@@ -165,10 +168,13 @@ export const _written = text => outputFileName => {
     return ok(utf8ToString(file[0]))
 }
 
-/** The source field's name, and the event an edit of the main module sends. */
+/** The main module's field name, and the event an edit of it sends. */
 const name = 'compiler'
 
-const intro = 'Compiles a FunctionalScript program into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. An import of a module file opens a box for it below. Compare the output with fjs compile.'
+/** The shared link's field that carries the other files. */
+const filesField = 'files'
+
+const intro = 'Compiles a FunctionalScript program into JSON, DataJS, JavaScript, an expression graph and Rust, with each output under its file extension. An import of a file opens a box for it below. Compare the output with fjs compile.'
 
 const picker = examplePicker(examples)
 
@@ -182,56 +188,58 @@ const mainLabel = `${main} (main module)`
 const filePrefix = 'file:'
 const removePrefix = 'remove:'
 
-/**
- * `text` with `event` applied: an example picked, a file edited or removed.
- * An edit of a text whose files `split` refuses edits the whole text, as the
- * one box that shows it.
- *
- * @type {(text: string) => (event: DemoEvent) => string}
- */
-export const _edited = text => event => {
-    const files = split(text)
-    if (event.kind === 'input') {
-        if (event.name === exampleName) { return picker.pick(event.value) }
-        if (files[0] === 'error') { return event.name === name ? event.value : text }
-        const file = event.name === name ? main
-            : event.name.startsWith(filePrefix) ? event.name.slice(filePrefix.length)
-            : null
-        if (file === null) { return text }
-        const held = files[1].some(([n]) => n === file)
-        return join(held
-            ? files[1].map(([n, t]) => n === file ? [n, event.value] : [n, t])
-            : [...files[1], [file, event.value]])
-    }
-    if (event.kind === 'click' && event.name.startsWith(removePrefix) && files[0] === 'ok') {
-        const file = event.name.slice(removePrefix.length)
-        return join(files[1].filter(([n]) => n !== file))
-    }
-    return text
+/** The example `[main, files]` is, by ID, or `null` for a program of the reader's own. @type {(main: string, files: Files) => string | null} */
+const exampleOf = (mainText, files) => {
+    const id = picker.idOf(mainText)
+    return id !== null && encode(dependenciesOf(id)) === encode(files) ? id : null
 }
 
 /**
- * The boxes of `text`'s files: the main module, then each file its imports
- * reach, then each file they do not, marked and removable. A text whose files
- * `split` refuses is one box, holding all of it.
+ * `[main, files]` with `event` applied: an example picked, a file edited or
+ * removed; `null` for an event no control of the page sends.
  *
- * @type {(text: string, imports: DemoState['imports']) => readonly Element[]}
+ * @type {(mainText: string, files: Files) => (event: DemoEvent) => readonly [string, Files] | null}
  */
-const boxes = (text, imports) => {
-    const files = split(text)
-    if (files[0] === 'error') { return [textField({ name, label: mainLabel, highlight }, text)] }
+export const _edited = (mainText, files) => event => {
+    if (event.kind === 'input') {
+        if (event.name === exampleName) {
+            const picked = picker.pick(event.value)
+            return [picked, dependenciesOf(assertNotNullish(picker.idOf(picked)))]
+        }
+        if (event.name === name) { return [event.value, files] }
+        if (!event.name.startsWith(filePrefix)) { return null }
+        const file = event.name.slice(filePrefix.length)
+        return [mainText, files.some(([n]) => n === file)
+            ? files.map(([n, t]) => /** @type {File} */ ([n, n === file ? event.value : t]))
+            : [...files, [file, event.value]]]
+    }
+    if (event.kind === 'click' && event.name.startsWith(removePrefix)) {
+        const file = event.name.slice(removePrefix.length)
+        return [mainText, files.filter(([n]) => n !== file)]
+    }
+    return null
+}
+
+/**
+ * The boxes of a program: the main module, then each file its imports reach,
+ * then each file they do not, marked and removable, then the cycle its
+ * imports form, if they form one.
+ *
+ * @type {(state: DemoState) => readonly Element[]}
+ */
+const boxes = ({ main: mainText, files, imports }) => {
+    const program = [/** @type {File} */ ([main, mainText]), ...files]
     /** @type {(file: string) => string} */
-    const textOf = file => files[1].find(([n]) => n === file)?.[1] ?? ''
-    const reached = lastImports(imports)(files[1]).map(([n]) => n)
-    const [, ...dependencies] = reached
+    const textOf = file => files.find(([n]) => n === file)?.[1] ?? ''
+    const [, ...dependencies] = lastImports(imports)(program).map(([n]) => n)
     return [
-        textField({ name, label: mainLabel, highlight }, textOf(main)),
+        textField({ name, label: mainLabel, highlight }, mainText),
         ...dependencies.map(file => textField({ name: `${filePrefix}${file}`, label: file, rows: 4, highlight }, textOf(file))),
-        ...files[1].filter(([n]) => !reached.includes(n)).map(/** @returns {Element} */ ([file, t]) => ['div', { 'data-not-imported': '' },
+        ...files.filter(([n]) => !dependencies.includes(n)).map(/** @returns {Element} */ ([file, t]) => ['div', { 'data-not-imported': '' },
             textField({ name: `${filePrefix}${file}`, label: `${file} (not imported)`, rows: 4, highlight }, t),
             ['p', ['button', { type: 'button', name: `${removePrefix}${file}` }, `Remove ${file}`]],
         ]),
-        ...cycleView(files[1]),
+        ...cycleView(program),
     ]
 }
 
@@ -246,59 +254,55 @@ const cycleView = files => {
     return cycle === null ? [] : [['p', { role: 'status' }, `Import cycle: ${cycle.join(' → ')}`]]
 }
 
-/**
- * The imports `text`'s files have after an edit, from the ones they had
- * before it.
- *
- * @type {(text: string, imports: DemoState['imports']) => DemoState['imports']}
- */
-const importsAfter = (text, imports) => {
-    const files = split(text)
-    return files[0] === 'ok' ? lastImports(imports)(files[1]) : imports
-}
-
 /** Compile one pane, absorbing both host failures and an unavailable catch operation.
- * @type {(text: string, file: string) => Effect<Catch, Result<Marked, string>, never>}
+ * @type {(files: Files, file: string) => Effect<Catch, Result<Marked, string>, never>}
  */
-const pane = (text, file) => resultMapStep(catch_(() => compiled(text)(file)), result => {
+const pane = (files, file) => resultMapStep(catch_(() => compiledProgram(programOf(files))(file)), result => {
     if (result[0] === 'error') { return ok(error(errorMessage(result[1]))) }
     const [kind, value] = result[1]
     // The catch operation erases its thunk's return type through `do_`.
     return ok(kind === 'ok' ? /** @type {Result<Marked, string>} */ (value) : error(`Could not compile this output: ${String(value)}`))
 })
 
-const sourceSharing = textSharing(name, examples[0][1], examples)
+const init = examples[0][1]
 
 /** @type {Sharing<DemoState>} */
 const sharing = {
-    ...sourceSharing,
-    read: ({ text }) => sourceSharing.read(text),
-    restore: inputs => ({ text: sourceSharing.restore(inputs), panes: [], imports: [] }),
+    fields: { [name]: { default: init }, [filesField]: { default: encode([]) } },
+    examples: examples.map(([, source, id]) => ({ id, inputs: { [name]: source, [filesField]: encode(dependenciesOf(id)) } })),
+    validate: inputs => {
+        const files = decode(String(inputs[filesField]))
+        return files[0] === 'error' ? files[1] : null
+    },
+    read: ({ main: mainText, files }) => ({ [name]: mainText, [filesField]: encode(files) }),
+    restore: inputs => ({ main: String(inputs[name]), files: unwrap(decode(String(inputs[filesField]))), panes: [], imports: [] }),
 }
 
-const init = examples[0][1]
+/** The imports a program's files have after an edit, from the ones they had before it. @type {(mainText: string, files: Files, imports: DemoState['imports']) => DemoState['imports']} */
+const importsAfter = (mainText, files, imports) => lastImports(imports)([[main, mainText], ...files])
 
 /** @type {Demo<DemoState, DemoEvent, Catch>} */
 export const demo = {
     sharing,
     // Only the fixed initial example is compiled on load. Edited source is
     // always evaluated through `catch`, never by `view`.
-    init: { text: init, panes: outputs.map(([, file]) => compiled(init)(file)), imports: importsAfter(init, []) },
+    init: { main: init, files: [], panes: outputs.map(([, file]) => compiled(init)(file)), imports: importsAfter(init, [], []) },
     update: state => event => {
         // `outputs` is never empty, so no panes is a restored state.
         const restored = event.kind === 'start' && state.panes.length === 0
-        const edited = _edited(state.text)(event)
-        if (edited === state.text && !restored) { return pureOk(state) }
-        const text = pureOk(edited)
-        const panes = historyStep(history(text), text => foldStep(pureOk(outputs), /** @type {DemoState['panes']} */ ([]),
-            ([, file]) => panes => mapStep(pane(text, file), result => [...panes, result])))
-        return mapStep(panes, ([panes, text]) => ({ text, panes, imports: importsAfter(text, state.imports) }))
+        const edited = _edited(state.main, state.files)(event)
+        if (edited === null && !restored) { return pureOk(state) }
+        const [mainText, files] = edited ?? [state.main, state.files]
+        const program = [/** @type {File} */ ([main, mainText]), ...files]
+        const panes = foldStep(pureOk(outputs), /** @type {DemoState['panes']} */ ([]),
+            ([, file]) => panes => mapStep(pane(program, file), result => [...panes, result]))
+        return mapStep(panes, panes => ({ main: mainText, files, panes, imports: importsAfter(mainText, files, state.imports) }))
     },
-    view: ({ text, panes, imports }) => ['div',
+    view: state => ['div',
         ['p', intro],
-        picker.view(text),
-        ...boxes(text, imports),
-        ...panes.map(/** @returns {Element} */ ([kind, value], index) => {
+        picker.view(exampleOf(state.main, state.files) === null ? '' : state.main),
+        ...boxes(state),
+        ...state.panes.map(/** @returns {Element} */ ([kind, value], index) => {
             const [label] = outputs[index]
             return ['section', ['h3', label], kind === 'ok' ? codeBlock(toText(value), `Copy ${label} output`, render(value)) : refusal(value)]
         })],

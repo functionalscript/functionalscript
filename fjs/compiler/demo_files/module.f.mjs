@@ -1,26 +1,25 @@
 /**
- * The files of a program typed into one box: the compiler demo's text split
- * into modules, and which of them its imports reach
+ * The files of a program the compiler demo links: the main module and every
+ * file its imports reach, each in a box of its own
  * ([import-linking-demo](../todo/import-linking-demo.md)).
  *
- * **One text holds every file.** The text before the first marker line is the
- * main module, {@link main}; each line `// @filename: <name>` starts another
- * file, the convention the TypeScript playground uses for several files in one
- * editor. A text with no marker is one module, so every single-module example
- * and shared link reads as before. {@link split} reads the files and
- * {@link join} writes them back: `split(join(files))` is `files`, and
- * `join(split(t))` is `t` but where a file holds one empty line and nothing
- * else: that file is empty, and an empty file has no line.
- *
- * **A marker is a line of its own.** An indented marker would be a comment to
- * the parser and a file boundary to a reader, so {@link split} refuses it
- * rather than guess which was meant, as it refuses a name that is not a
- * module file, a name used twice, and a marker naming the main module.
+ * **A file is named by the path the compiler reads it from.** An import opens
+ * a box for exactly what `fjs compile` would read: a relative (`./`, `../`)
+ * or rooted (`/`) specifier, resolved against the importing file, that stays
+ * inside the program's directory ({@link targetOf}). Any file name will do,
+ * `./dep` and `./dep.mjs` as well as `./dep.f.js`, since the compiler reads
+ * whatever the path names. A bare specifier opens nothing: the compiler
+ * refuses it, and the panes say so.
  *
  * **The imports decide which files are in the program.** {@link reached}
  * walks the import tree from the main module, each file once, in the order
  * the tree first reaches it. A file the tree does not reach is held, not
  * read: the compiler reads only what is imported.
+ *
+ * **A shared link carries the files other than the main module as one JSON
+ * text** ({@link encode}, {@link decode}): a list of `[name, text]` pairs.
+ * Nothing in a module's text is reserved, so every module a box can hold is
+ * a module the link can carry.
  *
  * @module
  *
@@ -32,118 +31,42 @@
 import { error, ok } from '../../types/result/module.f.js'
 import { escapes } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.mjs'
+import { parse as parseJson, stringifySorted } from '../../media/json/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 
 /** The main module's file name: what `fjs compile` reads as its input. */
 export const main = 'input.f.js'
 
-/** What starts a marker line; the file's name follows it. */
-export const marker = '// @filename: '
+/**
+ * The file an import of `specifier` in the file `importer` reads, named from
+ * the program's directory: `lib/b.f.js` for `../lib/b.f.js` in `a/x.f.js`, and
+ * for `/lib/b.f.js` anywhere. `null` for a bare specifier, which the compiler
+ * refuses, and for a path it cannot read inside the program's directory.
+ *
+ * @type {(importer: string) => (specifier: string) => string | null}
+ */
+export const targetOf = importer => specifier => {
+    if (specifierKind(specifier) === 'bare') { return null }
+    const path = resolve(importer)(specifier)
+    if (path === null) { return null }
+    const name = path.startsWith('/') ? path.slice(1) : path
+    return name === '' || name.startsWith('/') || escapes(name) ? null : name
+}
 
 /**
- * Whether `name` is a module file a box can hold: a relative path ending in
- * `.f.js`, `.f.mjs` or `.json`, written as the program's directory resolves
- * it, so one file has one name.
+ * Whether `name` is a file a program other than its main module can hold: a
+ * path some import names, written as the program's directory names it, so one
+ * file has one name.
  *
  * @type {(name: string) => boolean}
  */
-export const isModuleFile = name =>
-    (name.endsWith('.f.js') || name.endsWith('.f.mjs') || name.endsWith('.json'))
-    && specifierKind(name) === 'bare'
-    && !escapes(name)
-    && resolve(main)(`./${name}`) === name
+export const isFileName = name => name !== main && targetOf(main)(`./${name}`) === name
 
 /**
- * Why a marker's `name` cannot start a file after `files`, or `null` where it
- * can.
- *
- * @type {(files: Files) => (name: string) => string | null}
- */
-const nameRefusal = files => name =>
-    name === main ? `${main} is the main module, the text before the first marker`
-    : !isModuleFile(name) ? `${name} is not a module file name: a relative path ending in .f.js, .f.mjs or .json`
-    : files.some(([n]) => n === name) ? `${name} is written twice`
-    : null
-
-/**
- * The files `text` holds, or why it holds none.
- *
- * @type {(text: string) => Result<Files, string>}
- */
-export const split = text => {
-    /** @type {Files} */
-    let files = []
-    /** @type {File} */
-    let current = [main, '']
-    let first = true
-    for (const line of text.split('\n')) {
-        if (line.startsWith(marker)) {
-            files = [...files, current]
-            const name = line.slice(marker.length)
-            const refusal = nameRefusal(files)(name)
-            if (refusal !== null) { return error(refusal) }
-            current = [name, '']
-            first = true
-        } else if (line.trimStart().startsWith(marker.trimEnd())) {
-            return error(`a marker must start its line: ${line.trim()}`)
-        } else {
-            current = [current[0], first ? line : `${current[1]}\n${line}`]
-            first = false
-        }
-    }
-    return ok([...files, current])
-}
-
-/**
- * The main module's text in `text`: what a page that compiles one module
- * reads, the whole text where {@link split} refuses it.
- *
- * @type {(text: string) => string}
- */
-export const mainOf = text => {
-    const files = split(text)
-    return files[0] === 'ok' ? files[1][0][1] : text
-}
-
-/**
- * `files` as an in-memory file system's directory, each name's `/` a
- * directory of its own, so a module resolves its imports as it would on
- * disk. Where a name is a file and a directory both, the later file wins.
- *
- * @type {(files: Files) => Dir}
- */
-export const dirOf = files => files.reduce(
-    /** @type {(dir: Dir, file: File) => Dir} */
-    (dir, [name, text]) => {
-        /** @type {(d: Dir, path: readonly string[]) => Dir} */
-        const put = (d, [first, ...rest]) => {
-            const sub = d[first]
-            return { ...d, [first]: rest.length === 0 ? [utf8(text)] : put(typeof sub === 'object' && !(sub instanceof Array) ? sub : {}, rest) }
-        }
-        return put(dir, name.split('/'))
-    },
-    {})
-
-/**
- * `files` as one text, the main module first: the text {@link split} reads
- * them from.
- *
- * @type {(files: Files) => string}
- */
-export const join = files => {
-    /** An empty file has no line, unless it is the whole text. @type {(text: string) => readonly string[]} */
-    const lines = text => text === '' && files.length > 1 ? [] : [text]
-    const [[, first], ...rest] = files
-    return [...lines(first), ...rest.flatMap(([name, text]) => [`${marker}${name}`, ...lines(text)])].join('\n')
-}
-
-/**
- * The module files `text`, the module named `name`, imports by a relative
- * path, resolved against `name`, each once, in the order it imports them; or
- * the parser's message where it does not parse. A JSON file imports nothing.
- * A bare or rooted specifier, or a relative one naming no module file, is
- * left to the compiler, which refuses it.
+ * The files `text`, the module named `name`, imports, named by
+ * {@link targetOf}, each once, in the order it imports them; or the parser's
+ * message where it does not parse. A JSON file imports nothing.
  *
  * @type {(name: string) => (text: string) => Result<readonly string[], string>}
  */
@@ -154,11 +77,14 @@ export const importsOf = name => text => {
     return ok(parsed[1].imports.reduce(
         /** @type {(found: readonly string[], i: { readonly specifier: string }) => readonly string[]} */
         (found, { specifier }) => {
-            const path = specifierKind(specifier) === 'relative' ? resolve(name)(specifier) : null
-            return path === null || !isModuleFile(path) || found.includes(path) ? found : [...found, path]
+            const path = targetOf(name)(specifier)
+            return path === null || found.includes(path) ? found : [...found, path]
         },
         []))
 }
+
+/** @type {(files: Files) => (name: string) => string} */
+const textIn = files => name => files.find(([n]) => n === name)?.[1] ?? ''
 
 /**
  * The files the import tree of `files` reaches from the main module, each
@@ -171,8 +97,7 @@ export const importsOf = name => text => {
  * @type {(previous: (name: string) => readonly string[]) => (files: Files) => readonly string[]}
  */
 export const reached = previous => files => {
-    /** @type {(name: string) => string} */
-    const textOf = name => files.find(([n]) => n === name)?.[1] ?? ''
+    const textOf = textIn(files)
     /** @type {readonly string[]} */
     let order = [main]
     for (let i = 0; i < order.length; i += 1) {
@@ -196,8 +121,7 @@ export const reached = previous => files => {
 export const lastImports = previous => files => {
     /** @type {(name: string) => readonly string[]} */
     const before = name => previous.find(([n]) => n === name)?.[1] ?? []
-    /** @type {(name: string) => string} */
-    const textOf = name => files.find(([n]) => n === name)?.[1] ?? ''
+    const textOf = textIn(files)
     return reached(before)(files).map(name => {
         const imports = importsOf(name)(textOf(name))
         return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : before(name)])
@@ -215,9 +139,10 @@ export const lastImports = previous => files => {
  * @type {(files: Files) => readonly string[] | null}
  */
 export const cycleOf = files => {
+    const textOf = textIn(files)
     /** @type {(name: string) => readonly string[]} */
     const importsAt = name => {
-        const imports = importsOf(name)(files.find(([n]) => n === name)?.[1] ?? '')
+        const imports = importsOf(name)(textOf(name))
         return imports[0] === 'ok' ? imports[1] : []
     }
     /** @type {(path: readonly string[]) => readonly string[] | null} */
@@ -230,4 +155,55 @@ export const cycleOf = files => {
         return null
     }
     return from([main])
+}
+
+/**
+ * `files` as an in-memory file system's directory, each name's `/` a
+ * directory of its own, so a module resolves its imports as it would on
+ * disk. Where a name is a file and a directory both, the later file wins.
+ *
+ * @type {(files: Files) => Dir}
+ */
+export const dirOf = files => files.reduce(
+    /** @type {(dir: Dir, file: File) => Dir} */
+    (dir, [name, text]) => {
+        /** @type {(d: Dir, path: readonly string[]) => Dir} */
+        const put = (d, [first, ...rest]) => {
+            const sub = d[first]
+            return { ...d, [first]: rest.length === 0 ? [utf8(text)] : put(typeof sub === 'object' && !(sub instanceof Array) ? sub : {}, rest) }
+        }
+        return put(dir, name.split('/'))
+    },
+    {})
+
+/**
+ * The files of a program other than its main module, as the text a shared
+ * link carries: a JSON list of `[name, text]` pairs, in order.
+ *
+ * @type {(files: Files) => string}
+ */
+export const encode = files => stringifySorted(files)
+
+/**
+ * The files a shared link's text carries, or why it carries none: the text
+ * {@link encode} writes, each name a file a program can hold, none twice.
+ *
+ * @type {(text: string) => Result<Files, string>}
+ */
+export const decode = text => {
+    const parsed = parseJson(text)
+    if (parsed[0] === 'error') { return error(`files: ${parsed[1]}`) }
+    const value = parsed[1]
+    if (!(value instanceof Array)) { return error('files: not a list') }
+    /** @type {Files} */
+    let files = []
+    for (const file of value) {
+        if (!(file instanceof Array) || file.length !== 2) { return error('files: an entry is not a [name, text] pair') }
+        const [name, fileText] = file
+        if (typeof name !== 'string' || typeof fileText !== 'string') { return error('files: an entry is not a [name, text] pair') }
+        if (!isFileName(name)) { return error(`files: ${name} is not a file name a program can hold`) }
+        if (files.some(([n]) => n === name)) { return error(`files: ${name} is written twice`) }
+        files = [...files, [name, fileText]]
+    }
+    return ok(files)
 }
