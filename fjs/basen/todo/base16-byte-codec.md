@@ -19,6 +19,14 @@ codec. `fjs/git/oid`'s `tryFromHex` and `toHex`, `fjs/git/testlib.f.mjs`'s
   a time for a reason its doc gives, which the codec's byte lists do not
   respect, so it is not moved. Its writers, `hexOfByte` and the padding of
   the whole vector's spelling, are `encodeScalar`.
+- [`fjs/rust/demangle`](../../rust/demangle/module.f.mjs) — `utf8Nibbles`
+  reads a lowercase-hex byte list with `parseInt` over each pair, and
+  `uint` reads a hex run with the `BigInt` string constructor; the first
+  is `decodeLower`, odd count refused, and the second `hexDigitsValue`.
+  `integer62` and `punycodeDecode` there subtract letter offsets for a
+  base-62 and a base-36 digit, which `digitsValue` stops short of on
+  purpose; a digit value over the alphanumeric alphabet in `text/ascii`
+  would own both.
 - [`fjs/website`](../../website/module.f.mjs) — `commitOf` turns the
   environment's string into code units and screens out anything above `0x7f`
   by hand, because `fjs/git/oid`'s reader takes bytes; the codec's `decode`
