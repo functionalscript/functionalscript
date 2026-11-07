@@ -717,6 +717,10 @@ rect[data-graph-trace] { fill: var(--graph-highlight-bg) }
 [data-graph-trace][data-graph-recursion] { stroke-dasharray: none }
 [data-graph-port], [data-graph-group] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-value] { fill: var(--value-bg); stroke: var(--muted); stroke-width: 1 }
+/* A table, such as the B-tree's, is its nodes' outlines alone: its rows
+   line up across the whole drawing, so lines between a node's cells would
+   only cut it into pieces. */
+[data-graph-table] :is([data-graph-port], [data-graph-value]) { stroke: none }
 /* The versions demos draw a node's kind as its fill, so a value filling a
    row of one is left unfilled, or the tint would hide it. */
 [data-graph-in-kind="new"] [data-graph-value-alone],
