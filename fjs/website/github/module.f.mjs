@@ -6,9 +6,10 @@
  *
  * @module
  *
- * @import { CallbackOrigin, CallbackUrl, ConfigDiagnostics, Exchange, ExchangeFailure, Pending, ProviderOutcome, WorkerConfig, WorkerEnv } from './types.ts'
+ * @import { AuthorizeParams, CallbackOrigin, CallbackUrl, Config, ConfigDiagnostics, Exchange, ExchangeFailure, Pending, ProviderOutcome, WorkerConfig, WorkerEnv } from './types.ts'
  * @import { Unknown } from '../../rtti/ts/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { number, open, or, string } from '../../rtti/module.f.mjs'
@@ -209,3 +210,93 @@ export const providerOutcome = (status, body) => {
     if (token.scope !== '') { return error(['unexpected_scope', 400]) }
     return ok({ access_token: token.access_token, token_type: token.token_type })
 }
+
+/**
+ * The query parameters an OAuth callback can carry. Any of the first three
+ * makes the page a callback; all five are scrubbed from the address before
+ * anything else runs, since `code` and `state` are credentials.
+ */
+export const callbackParams = /** @type {const} */ (['code', 'state', 'error', 'error_description', 'error_uri'])
+
+/**
+ * Whether a page whose query names `names` is GitHub's callback: it carries
+ * a `code`, a `state` or an `error`.
+ *
+ * @type {(names: readonly string[]) => boolean}
+ */
+export const isCallback = names => names.some(name => name === 'code' || name === 'state' || name === 'error')
+
+/**
+ * Whether the public configuration serves this page: a client ID, and a
+ * registered redirect, as the host's URL parser normalized it, that is
+ * {@link callbackPath} on `origin`.
+ *
+ * @type {(config: Config, origin: string) => boolean}
+ */
+export const redirectMatches = ({ clientId, redirectUri }, origin) =>
+    clientId !== '' && redirectUri === `${origin}${callbackPath}`
+
+/** GitHub's authorization endpoint, which the page navigates to. */
+export const authorizeEndpoint = /** @type {const} */ ('https://github.com/login/oauth/authorize')
+
+/**
+ * The query of the {@link authorizeEndpoint} navigation: this site's client
+ * and callback, a fresh account choice, the `state` and the S256 PKCE
+ * `challenge`. No scope is asked for.
+ *
+ * @type {(config: Config, state: string, challenge: string) => AuthorizeParams}
+ */
+export const authorizeParams = ({ clientId, redirectUri }, state, challenge) => ({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    prompt: 'select_account',
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+})
+
+/**
+ * The record kept in sessionStorage across the navigation to GitHub and
+ * back, as {@link pendingSchema} reads it.
+ *
+ * @type {(state: string, verifier: string, createdAt: number) => Pending}
+ */
+export const pending = (state, verifier, createdAt) => ({ state, verifier, createdAt })
+
+/**
+ * The authorization code a callback carries, or `null` where it does not
+ * complete the pending login: exactly one non-empty `code`, exactly one
+ * `state`, and a {@link validPending} record for it.
+ *
+ * @type {(codes: readonly string[], states: readonly string[], record: Pending, now: number) => Nullable<string>}
+ */
+export const callbackCode = (codes, states, record, now) =>
+    codes.length === 1 && codes[0] !== '' && states.length === 1 && validPending(record, states[0], now) ? codes[0] : null
+
+/**
+ * Everything the login says on the page. None interpolates provider text or
+ * a credential; {@link withStatus} adds the one number a failure may carry.
+ */
+export const loginMessages = /** @type {const} */ ({
+    notLoggedIn: 'Not logged in to GitHub.',
+    loggedOut: 'Logged out. Refresh to read public GitHub results.',
+    unavailable: 'GitHub login is unavailable on this site.',
+    ready: 'Log in to use your GitHub API rate limit.',
+    opening: 'Opening GitHub login…',
+    openFailed: 'Could not open GitHub login. Allow browser session storage and try again.',
+    unverified: 'GitHub login details could not be verified. Please log in again.',
+    denied: 'GitHub login was cancelled or denied. You can try again.',
+    expired: 'GitHub login expired or could not be verified. Please log in again.',
+    completing: 'Completing GitHub login…',
+    exchangeFailed: 'Could not exchange the GitHub login code. Please try again.',
+    accountFailed: 'Could not verify your GitHub account. Please try again.',
+    loggedInAs: 'Logged in as',
+    lifetime: 'Login lasts until you reload or leave this page.',
+})
+
+/**
+ * A failure message with the HTTP status of the response that caused it.
+ *
+ * @type {(message: string, status: number) => string}
+ */
+export const withStatus = (message, status) => `${message} (HTTP ${status})`

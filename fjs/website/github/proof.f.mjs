@@ -2,7 +2,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { allowedCallbackOrigin, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.mjs'
+import { allowedCallbackOrigin, authorizeEndpoint, authorizeParams, callbackCode, callbackParams, isCallback, loginMessages, pending as pendingOf, redirectMatches, withStatus, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })
@@ -182,5 +182,38 @@ export const proof = /** @type {const} */ ({
         assertEq(validPending(pending, 'unguessable', NaN), false)
         assertEq(validPending(pending, 'unguessable', 999), false)
         assertEq(validPending(pending, 'unguessable', 601_001), false)
+    },    callbackQuery: () => {
+        assertStructurallySame(callbackParams, ['code', 'state', 'error', 'error_description', 'error_uri'])
+        assert(isCallback(['code']))
+        assert(isCallback(['page', 'state']))
+        assert(isCallback(['error']))
+        assertEq(isCallback([]), false)
+        assertEq(isCallback(['error_description', 'page']), false)
+        assertEq(callbackCode(['code'], ['unguessable'], pending, 1_000), 'code')
+        assertEq(callbackCode([], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['a', 'b'], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode([''], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['code'], [], pending, 1_000), null)
+        assertEq(callbackCode(['code'], ['unguessable', 'unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['code'], ['mismatch'], pending, 1_000), null)
+    },
+    authorization: () => {
+        const config = /** @type {const} */ ({ clientId: 'client', redirectUri: `https://example.com${callbackPath}` })
+        assert(redirectMatches(config, 'https://example.com'))
+        assertEq(redirectMatches({ ...config, clientId: '' }, 'https://example.com'), false)
+        assertEq(redirectMatches(config, 'https://other.example'), false)
+        assertEq(authorizeEndpoint, 'https://github.com/login/oauth/authorize')
+        assertStructurallySame(authorizeParams(config, 'state', 'challenge'), {
+            client_id: 'client',
+            redirect_uri: 'https://example.com/prs/',
+            prompt: 'select_account',
+            state: 'state',
+            code_challenge: 'challenge',
+            code_challenge_method: 'S256',
+        })
+        assertStructurallySame(pendingOf('state', 'verifier', 5), { state: 'state', verifier: 'verifier', createdAt: 5 })
+    },
+    messages: () => {
+        assertEq(withStatus(loginMessages.exchangeFailed, 400), 'Could not exchange the GitHub login code. Please try again. (HTTP 400)')
     },
 })

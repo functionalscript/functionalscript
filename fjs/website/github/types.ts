@@ -44,6 +44,16 @@ export type WorkerConfig = {
     readonly clientSecret: string
 }
 
+/** The query of the navigation to GitHub's authorization endpoint. */
+export type AuthorizeParams = {
+    readonly client_id: string
+    readonly redirect_uri: string
+    readonly prompt: 'select_account'
+    readonly state: string
+    readonly code_challenge: string
+    readonly code_challenge_method: 'S256'
+}
+
 /** One pending authorization, held in tab-local sessionStorage. */
 export type Pending = Ts<typeof pendingSchema>
 
