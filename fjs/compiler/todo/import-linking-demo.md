@@ -96,9 +96,10 @@ dependencies are compiled on the side-by-side page.
 
 ### Tasks
 
-- [ ] List a module's relative imports from its parse result.
-- [ ] Split the page's text into files at `// @filename:` lines, and join it
-      back, refusing a repeated name or a marker that is not a line of its
+- [x] List a module's relative imports from its parse result
+      ([`demo_files`](../demo_files/module.f.mjs)'s `importsOf` and `reached`).
+- [x] Split the page's text into files at `// @filename:` lines, and join it
+      back ([`demo_files`](../demo_files/module.f.mjs)'s `split` and `join`), refusing a repeated name or a marker that is not a line of its
       own.
 - [ ] Draw a box per file the import tree reaches, and each file it does not
       as *not imported* with a **Remove** button.
