@@ -128,12 +128,11 @@ which outputs accept which example.
   [serializer proof](../serializer/proof.f.mjs),
   [Rust proof](../rust/proof.f.mjs)). On the side-by-side page every output
   refuses the missing dependency: its in-memory file system holds only the input.
+  Linking imports on the page is
+  [import-linking-demo](./import-linking-demo.md).
 
 ### Open questions
 
-- **Import linking.** The pages accept one module's source. Showing a linked
-  graph or output through `resolve` needs a second file in the box; the
-  in-memory file system already supports it.
 - **Marking sharing across panes.** Highlighting the `const` that sharing
   produced, so the text panes and the EDAG graph show the same fact, is not
   built.
@@ -144,6 +143,9 @@ which outputs accept which example.
   [investigate-edag-source-maps](./investigate-edag-source-maps.md).
 
 ### Related
+
+- [import-linking-demo](./import-linking-demo.md) — linking a program of
+  several files on the side-by-side page.
 
 - [compiler output boundary](../README.md#ast) —
   the refusal wording the panes show.
