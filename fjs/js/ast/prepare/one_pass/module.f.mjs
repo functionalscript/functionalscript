@@ -5,12 +5,13 @@
  *
  * @module
  * @import { Block, Definition, Function as FastFunction, Statement } from '../../types.ts'
- * @import { _Link } from '../private.ts'
+ * @import { Stack } from '../../../../types/stack_walk/types.ts'
  */
 
 import { directInvocationRoot, invocationRootOf } from '../../../../edag/from_fast/loop/root/module.f.mjs'
 import { freeBindings } from '../../control/module.f.mjs'
 import { _freshAtRoot, _immutableJoin } from '../joins/module.f.mjs'
+import { pushAll } from '../../../../types/stack_walk/module.f.js'
 
 /**
  * The accepted join profile has only definitions and zero-result decisions.
@@ -19,16 +20,16 @@ import { _freshAtRoot, _immutableJoin } from '../joins/module.f.mjs'
  * @type {(body: Block) => boolean}
  */
 const terminatingGuards = body => {
-    /** @type {_Link<Block> | null} */
-    let pending = { first: body, tail: null }
+    /** @type {Stack<Block>} */
+    let pending = { top: body, rest: null }
     while (pending !== null) {
-        /** @type {_Link<Block>} */
+        /** @type {NonNullable<Stack<Block>>} */
         const current = pending
-        const { first, tail } = current
-        if (first.exit[0] !== 'return' && first.exit[0] !== 'throw') { return false }
-        const guards = first.statements.flatMap(statement => statement[0] === 'if' ? [statement] : [])
+        const { top, rest } = current
+        if (top.exit[0] !== 'return' && top.exit[0] !== 'throw') { return false }
+        const guards = top.statements.flatMap(statement => statement[0] === 'if' ? [statement] : [])
         if (!guards.every(statement => statement[4].statements.length === 0 && statement[4].exit[0] === 'yield')) { return false }
-        pending = guards.reduceRight((tail, statement) => ({ first: statement[3], tail }), tail)
+        pending = pushAll(guards.map(statement => statement[3]), rest)
     }
     return true
 }

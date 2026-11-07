@@ -19,7 +19,9 @@
  * @module
  * @import { BindingId, Block as NormalBlock, Exit as NormalExit, Function as NormalFunction, LoopTarget, Operator, Statement as NormalStatement, Value as NormalValue } from '../types.ts'
  * @import { Block, Exit, Function as PreparedFunction, Statement, Value } from './types.ts'
- * @import { _Block, _Completion, _Context, _Facts, _Flow, _Flows, _Link, _Node, _Prepared, _Snapshot, _Statement, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
+ * @import { _Block, _Completion, _Context, _Facts, _Flow, _Flows, _Node, _Prepared, _Snapshot, _Statement, _Statements, _Task, _Value, _Values, _Visit } from './private.ts'
+ * @import { Stack } from '../../../types/stack_walk/types.ts'
+ * @import { List } from '../../../types/list/types.ts'
  */
 
 import { isSpread, mapOperator, operatorOperands } from '../module.f.mjs'
@@ -29,12 +31,10 @@ import { _expandObjectSpread, _expandSpread, liftValueReturns } from '../returns
 import { bind, call, done, run } from '../task/module.f.js'
 import { assert, assertNotNullish } from '../../../asserts/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
+import { pushAll } from '../../../types/stack_walk/module.f.js'
 import { _freshSelf, normalizeLazyReturns } from '../memo/module.f.mjs'
 import { _immutableJoin } from './joins/module.f.mjs'
 import { _recoverOnePassJoin } from './one_pass/module.f.mjs'
-
-/** @type {<T>(items: readonly T[], tail: _Link<T> | null) => _Link<T> | null} */
-const prepend = (items, tail) => items.reduceRight((tail, first) => ({ first, tail }), tail)
 
 /** @type {(node: _Node) => _Facts} */
 const facts = node => {
@@ -137,42 +137,42 @@ const completion = (node, children) => {
  * @type {(root: _Node, known?: _Flows) => _Flows}
  */
 const flows = (root, known = new Map()) => {
-    /** @type {_Link<_Visit> | null} */
-    let work = { first: ['enter', root], tail: null }
-    /** @type {_Link<_Flow> | null} */
+    /** @type {Stack<_Visit>} */
+    let work = { top: ['enter', root], rest: null }
+    /** @type {Stack<_Flow>} */
     let results = null
-    /** @type {import('../../../types/list/types.ts').List<readonly [_Node[1], _Flow]>} */
+    /** @type {List<readonly [_Node[1], _Flow]>} */
     let entries = null
     while (work !== null) {
-        const visit = work.first
-        work = work.tail
+        const visit = work.top
+        work = work.rest
         if (visit[0] === 'enter') {
             const previous = known.get(visit[1][1])
-            if (previous !== undefined) { results = { first: previous, tail: results }; continue }
+            if (previous !== undefined) { results = { top: previous, rest: results }; continue }
             const own = facts(visit[1])
-            work = prepend(own.children.map(node => /** @type {_Visit} */ (['enter', node])), { first: ['finish', visit[1], own], tail: work })
+            work = pushAll(own.children.map(node => /** @type {_Visit} */ (['enter', node])), { top: ['finish', visit[1], own], rest: work })
             continue
         }
         const [, node, own] = visit
         let next = own.ids.reduce((next, id) => Math.max(next, id.index + 1), 0)
         let returns = own.returns
         let loops = own.loops
-        /** @type {_Link<_Flow> | null} */
+        /** @type {List<_Flow>} */
         let children = null
         for (let index = 0; index < own.children.length; index += 1) {
             const child = assertNotNullish(results)
-            results = child.tail
-            children = { first: child.first, tail: children }
-            next = Math.max(next, child.first.next)
+            results = child.rest
+            children = { first: child.top, tail: children }
+            next = Math.max(next, child.top.next)
             // The last child is the function body or loop body. Only that
             // region owns the boundary; capture and initial expressions do not.
             if (node[0] !== 'function' || index !== 0) {
-                returns ||= child.first.returns
-                loops = [...new Set([...loops, ...node[0] === 'loop' && index === 0 ? child.first.loops.filter(target => target !== node[1].target) : child.first.loops])]
+                returns ||= child.top.returns
+                loops = [...new Set([...loops, ...node[0] === 'loop' && index === 0 ? child.top.loops.filter(target => target !== node[1].target) : child.top.loops])]
             }
         }
         const flow = /** @type {_Flow} */ ({ next, returns, loops, ...completion(node, toArray(children)) })
-        results = { first: flow, tail: results }
+        results = { top: flow, rest: results }
         entries = { first: [node[1], flow], tail: entries }
     }
     return new Map(toArray(entries))
@@ -183,22 +183,22 @@ const fresh = (next, count) => Array.from({ length: count }, (_, index) => ({ in
 
 /** Whether statements in this region physically write one of its slots. @type {(block: Block, id: BindingId) => boolean} */
 const writes = (block, id) => {
-    /** @type {_Link<Block> | null} */
-    let work = { first: block, tail: null }
+    /** @type {Stack<Block>} */
+    let work = { top: block, rest: null }
     while (work !== null) {
         /** @type {Block} */
-        const current = work.first
-        work = work.tail
+        const current = work.top
+        work = work.rest
         for (const statement of current.statements) {
             switch (statement[0]) {
                 case 'write': { if (statement[1] === id) { return true } break }
-                case 'block': { work = { first: statement[1], tail: work }; break }
-                case 'if': { work = prepend([statement[2], statement[3]], work); break }
-                case 'loop': { work = { first: statement[2], tail: work }; break }
-                case 'while': { work = { first: statement[1].body, tail: work }; break }
+                case 'block': { work = { top: statement[1], rest: work }; break }
+                case 'if': { work = pushAll([statement[2], statement[3]], work); break }
+                case 'loop': { work = { top: statement[2], rest: work }; break }
+                case 'while': { work = { top: statement[1].body, rest: work }; break }
             }
         }
-        if (current.exit[0] === 'loop') { work = { first: current.exit[2], tail: work } }
+        if (current.exit[0] === 'loop') { work = { top: current.exit[2], rest: work } }
     }
     return false
 }
@@ -302,7 +302,7 @@ const packedStatements = statements => {
 
 /** @type {(input: readonly NormalValue[], context: _Context, snapshots?: readonly _Snapshot[]) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
 const values = (input, context, snapshots = []) => {
-    /** @type {(index: number, next: number, previous: import('../../../types/list/types.ts').List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
+    /** @type {(index: number, next: number, previous: List<_Value>) => _Task<_Values & { readonly statements: readonly Statement[] }>} */
     const each = (index, next, previous) => call(() => {
         if (index < input.length) {
             return bind(prepareValue(input[index], { ...context, next }), result => each(index + 1, result.next, { first: result, tail: previous }))
@@ -637,7 +637,7 @@ const statementValue = (statement, context) => bind(statementTask(statement, con
 
 /** @type {(block: NormalBlock, context: _Context) => _Task<_Block>} */
 const prepareBlock = (block, context) => {
-    /** @type {(index: number, current: _Context, previous: import('../../../types/list/types.ts').List<Statement>) => _Task<_Block>} */
+    /** @type {(index: number, current: _Context, previous: List<Statement>) => _Task<_Block>} */
     const each = (index, current, previous) => call(() => {
         if (index === block.statements.length) {
             return bind(exitValue(block.exit, current), result => done({
