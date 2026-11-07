@@ -236,3 +236,31 @@ export const outsideImports = files => {
             .map(({ specifier }) => /** @type {const} */ ([name, specifier]))
     })
 }
+
+/**
+ * Each file `files`' import tree reaches both by a rooted specifier and by a
+ * relative one, the main module counting as reached relatively: one stored
+ * file, which the in-memory resolver gives two identities, the rooted one
+ * keeping its leading `/`, so the compiler loads it as two modules and the
+ * two are not shared
+ * ([rooted-module-identity](../../effects/node/virtual/todo/rooted-module-identity.md)).
+ * In the order the tree first reaches each file.
+ *
+ * @type {(files: Files) => readonly string[]}
+ */
+export const twiceLoaded = files => {
+    const textOf = textIn(files)
+    /** @type {readonly (readonly [file: string, rooted: boolean])[]} */
+    const reads = [[main, false], ...reached(() => [])(files).flatMap(name => {
+        if (name.endsWith('.json')) { return [] }
+        const parsed = parse(name)(textOf(name))
+        return parsed[0] === 'error' ? [] : parsed[1].imports.flatMap(({ specifier }) => {
+            const target = targetOf(name)(specifier)
+            return target === null ? [] : [/** @type {const} */ ([target, specifierKind(specifier) === 'rooted'])]
+        })
+    })]
+    return reads
+        .map(([file]) => file)
+        .filter((file, i, all) => all.indexOf(file) === i)
+        .filter(file => reads.some(([f, rooted]) => f === file && rooted) && reads.some(([f, rooted]) => f === file && !rooted))
+}

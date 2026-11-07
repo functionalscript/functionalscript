@@ -1668,6 +1668,13 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assert(!html(twice).includes('role="note"'), html(twice))
             const rooted = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "/lib/d.mjs";\nexport default d;' })
             assertEq(rooted.panes[0][1], '/lib/d.mjs:1:1 - error: unexpected end')
+            assert(!html(rooted).includes('two modules'), html(rooted))
+            // one file reached both ways is two modules, and the page says so
+            const both = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "./lib/d.mjs";\nimport b from "/lib/d.mjs";\nexport default [a, b];' }),
+                { kind: 'input', name: 'file:lib/d.mjs', value: 'export default {};' })
+            assertEq(both.files.map(([n]) => n).join(), 'lib/d.mjs')
+            assertEq(textOfResult(both.panes[2]), 'export default [{},{}];')
+            assert(html(both).includes('<p role="note">lib/d.mjs is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.</p>'), html(both))
             assertEq(opened.panes[0][1], 'c:1:1 - error: unexpected end')
             const written = nextDemo(nextDemo(opened, { kind: 'input', name: 'file:c', value: 'export default 3;' }), { kind: 'input', name: 'file:lib/d.mjs', value: 'export default 4;' })
             assertEq(written.files.map(([n]) => n).join(), 'a.f.js,shared.f.js,c,lib/d.mjs')

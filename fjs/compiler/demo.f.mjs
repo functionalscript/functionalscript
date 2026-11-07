@@ -73,7 +73,7 @@ import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { cycleOf, decode, dirOf, encode, lastImports, main, outsideImports, reached } from './demo_files/module.f.mjs'
+import { cycleOf, decode, dirOf, encode, lastImports, main, outsideImports, reached, twiceLoaded } from './demo_files/module.f.mjs'
 import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { _outputMarked, compileFile } from './module.f.mjs'
@@ -246,8 +246,19 @@ const boxes = ({ main: mainText, files, imports }) => {
         ]),
         ...cycleView(program),
         ...sandboxView(program),
+        ...twiceLoadedView(program),
     ]
 }
+
+/**
+ * What the page says of each file a program reaches both by a rooted path and
+ * by a relative one: one box, read as two modules, so not shared
+ * ([rooted-module-identity](../effects/node/virtual/todo/rooted-module-identity.md)).
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const twiceLoadedView = files => twiceLoaded(files).map(/** @returns {Element} */ file =>
+    ['p', { role: 'note' }, `${file} is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.`])
 
 /**
  * What the page says of each import whose file differs on the command line:

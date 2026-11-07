@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { cycleOf, decode, dirOf, encode, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf } from './module.f.mjs'
+import { cycleOf, decode, dirOf, encode, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf, twiceLoaded } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -147,5 +147,17 @@ export const proof = {
             ['a/x.f.js', "import r from '/lib/r.mjs'\nimport s from '../s.f.js'\nexport default [r, s]"],
             ['d.json', '{}'],
         ])), json([[main, '../up.f.js'], ['a/x.f.js', '/lib/r.mjs']])),
+    },
+    twiceLoaded: {
+        sharedFixture: () => assertEq(json(twiceLoaded(shared)), json(['shared.json'])),
+        none: () => {
+            assertEq(json(twiceLoaded([[main, "import a from './lib/d.mjs'\nimport b from './lib/d.mjs'\nexport default [a, b]"]])), '[]')
+            assertEq(json(twiceLoaded([[main, "import a from '/lib/d.mjs'\nimport b from '/lib/./d.mjs'\nexport default [a, b]"]])), '[]')
+            assertEq(json(twiceLoaded([[main, 'export default +']])), '[]')
+        },
+        bothWays: () => assertEq(json(twiceLoaded([
+            [main, "import x from './a/x.f.js'\nimport d from './lib/d.mjs'\nimport p from 'pkg'\nexport default [x, d, p]"],
+            ['a/x.f.js', "import d from '/lib/d.mjs'\nimport m from '/input.f.js'\nexport default [d, m]"],
+        ])), json([main, 'lib/d.mjs'])),
     },
 }
