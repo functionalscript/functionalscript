@@ -41,18 +41,24 @@ opens `a.f.js` and `b.f.js`; if both import `./shared.f.js`, one
 shared module is one `const` in `.js` and `.data.js`, one node in the EDAG and
 in Rust, and written twice in `.json`, which has no identity to keep.
 
-**Which imports open a box.** A relative path to a module file
-(`./x.f.js`, `../lib/y.f.mjs`, `./d.json`), once the importing module parses.
-A box does not appear for a path still being typed (`'./m'`, `'./m.f'`): it
-waits for the module to parse with a complete file name. While a module does
-not parse, the boxes stay as they were rather than flicker. A package import
-(`functionalscript/…`) opens no box; the compiler refuses it, and the panes say
-so. The main box is labelled `input.f.js (main module)`, so a reader knows the
-name a dependency imports it by. A module that imports `./input.f.js` reaches
-the main box, not a new one. The panes show the compiler's answer to a cycle,
-`circular dependency`, and the page names every file the cycle passes through
-(`Import cycle: input.f.js → a.f.js → input.f.js`), which that message does
-not.
+**Which imports open a box: every one the compiler reads.** A box opens for
+exactly the file `fjs compile` would read: a relative (`./`, `../`) or rooted
+(`/`) specifier, resolved against the importing file, that stays inside the
+program's directory, once the importing module parses. The file's name is
+whatever the path names (`./x.f.js`, `../lib/y.f.mjs`, `./d.json`, and as
+well `./dep` or `/lib/d.mjs`), since the compiler reads any file the path
+names, not only `.f.js`, `.f.mjs` and `.json` ones. A box is named by its path
+from the program's directory, so `/lib/d.mjs` and `../lib/d.mjs` from `a/`
+are one box, `lib/d.mjs`. While a module does not parse, the boxes stay as
+they were rather than flicker. A bare specifier (`functionalscript/…`) and a
+path above the program's directory open no box; the compiler refuses them,
+and the panes say so. The main box is labelled `input.f.js (main module)`, so
+a reader knows the name a dependency imports it by. A module that imports
+`./input.f.js` reaches the main box, not a new one. The panes show the
+compiler's answer to a cycle, `circular dependency`, and the page names every
+file the cycle passes through (`Import cycle: input.f.js → a.f.js →
+input.f.js`), which that message does not.
+
 
 **Removing an import keeps its box, marked "not imported".** The box stays
 where it was, greyed and labelled *not imported* in words, so its state does
@@ -65,21 +71,22 @@ text. A module that only a removed import reached is marked the same way.
 Picking an example or opening a shared link replaces every box, so a file
 from one program never turns up in another.
 
-**The state is still one text.** Behind the boxes the page holds the files in
-one string: the main module first, then each other file after a line
-`// @filename: <name>`, the convention the TypeScript playground uses for
-several files in one editor. So:
+**Each file is kept on its own.** The page's state is the main module and a
+list of the other files, each a name and a text; nothing joins them into one
+text, so nothing a module can hold is reserved. Each box is an input named
+after its file, and an edit replaces that file's text. So:
 
-- a shared link still carries one text field, and restores every box,
-  imported or not ([`website/demo/sharing`](../../website/demo/sharing/types.ts)
-  takes a fixed set of fields, which a box per file would not fit);
-- an example in [`../examples/module.f.js`](../examples/module.f.js) is still
-  one string, and a multi-file example opens with its boxes written;
-- a program with no marker is one module, as every example and shared link
-  is today.
-
-Each box is an input named after its file; an edit replaces that file's part
-of the text, and the page recomputes which boxes the imports reach.
+- a shared link carries two fields
+  ([`website/demo/sharing`](../../website/demo/sharing/types.ts) takes a fixed
+  set): the main module, as today, and `files`, every other file as one JSON
+  list of `[name, text]` pairs. A link without `files` is the one module it
+  was before. A `files` field that is not such a list, names a file twice or
+  names one a program cannot hold is refused, in words, before the page
+  restores it;
+- an example in [`../examples/module.f.js`](../examples/module.f.js) keeps
+  its `source` as the main module, so every page that offers the shared list
+  reads it unchanged. The files it imports are listed beside the example, by
+  its ID, and the compiler page opens them in their boxes.
 
 **Compiling.** The page writes every file into the in-memory file system
 (`virtualAt`, as now) and compiles `input.f.js`. `_outputMarked` already
@@ -91,26 +98,25 @@ location; a refusal of another file is the compiler's diagnostic, which names
 the file and where in it (`b.f.js:2:29 - error: unexpected end`).
 
 **The stage pages compile the main module only.** They show one stage of one
-module; a multi-file example shows its main module there, and says that its
-dependencies are compiled on the side-by-side page.
+module, and an example's `source` is its main module, so they need no change;
+its other files are linked on the side-by-side page.
 
 ### Open questions
 
-- **Subdirectories.** Whether a box can stand for `./lib/m.f.js` depends on the
-  in-memory file system's directories; refuse such a path until it does.
+- **Subdirectories.** The in-memory file system holds directories, so a box
+  can stand for `lib/m.f.js`; decide whether the page should show the path as
+  a tree.
 - **An empty box's hint.** An empty module is refused, in the compiler's words,
   in the panes; a placeholder such as `export default …` in the box may help.
-- **Subdirectories today.** `demo_files` already admits `lib/m.f.js` and
-  writes it as a directory, so the boxes show such a path; decide whether to
-  keep it.
 
 ### Tasks
 
-- [x] List a module's relative imports from its parse result
+- [x] List the files a module imports from its parse result
       ([`demo_files`](../demo_files/module.f.mjs)'s `importsOf` and `reached`).
-- [x] Split the page's text into files at `// @filename:` lines, and join it
-      back ([`demo_files`](../demo_files/module.f.mjs)'s `split` and `join`), refusing a repeated name or a marker that is not a line of its
-      own.
+- [x] Carry the files other than the main module in a shared link's `files`
+      field ([`demo_files`](../demo_files/module.f.mjs)'s `encode` and
+      `decode`), refusing one that is not a list of `[name, text]` pairs,
+      names a file twice, or names one a program cannot hold.
 - [x] Draw a box per file the import tree reaches, and each file it does not
       as *not imported* with a **Remove** button.
 - [x] Write every file into the page's file system, and show a refusal's file.
