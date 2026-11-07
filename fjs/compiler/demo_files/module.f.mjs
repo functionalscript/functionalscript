@@ -4,12 +4,17 @@
  * ([import-linking-demo](../todo/import-linking-demo.md)).
  *
  * **A file is named by the path the compiler reads it from.** An import opens
- * a box for exactly what `fjs compile` would read: a relative (`./`, `../`)
- * or rooted (`/`) specifier, resolved against the importing file, that stays
- * inside the program's directory ({@link targetOf}). Any file name will do,
+ * a box for the file it names: a relative (`./`, `../`) or rooted (`/`)
+ * specifier, resolved against the importing file ({@link targetOf}). Any file name will do,
  * `./dep` and `./dep.mjs` as well as `./dep.f.js`, since the compiler reads
  * whatever the path names. A bare specifier opens nothing: the compiler
  * refuses it, and the panes say so.
+ *
+ * **The program's directory is the root.** The page compiles over an
+ * in-memory file system whose root holds the main module, so `/` names the
+ * program's directory and nothing is above it. On the command line, `/` is
+ * the root of the disk and `../` may leave the main module's directory, so
+ * {@link outsideImports} names each import that reads another file there.
  *
  * **The imports decide which files are in the program.** {@link reached}
  * walks the import tree from the main module, each file once, in the order
@@ -206,4 +211,28 @@ export const decode = text => {
         files = [...files, [name, fileText]]
     }
     return ok(files)
+}
+
+/**
+ * Each import in a file `files`' import tree reaches whose meaning on the
+ * command line differs from the page's: a rooted specifier, which there names
+ * a path from the root of the disk, and a relative one that climbs above the
+ * program's directory, which there may name a file outside it. Each is the
+ * importing file and the specifier as written, in the order the tree reaches
+ * them.
+ *
+ * @type {(files: Files) => readonly (readonly [file: string, specifier: string])[]}
+ */
+export const outsideImports = files => {
+    const textOf = textIn(files)
+    return reached(() => [])(files).flatMap(name => {
+        if (name.endsWith('.json')) { return [] }
+        const parsed = parse(name)(textOf(name))
+        return parsed[0] === 'error' ? [] : parsed[1].imports
+            .filter(({ specifier }) => {
+                const kind = specifierKind(specifier)
+                return kind === 'rooted' || (kind === 'relative' && resolve(name)(specifier) !== null && targetOf(name)(specifier) === null)
+            })
+            .map(({ specifier }) => /** @type {const} */ ([name, specifier]))
+    })
 }

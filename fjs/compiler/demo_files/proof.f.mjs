@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { cycleOf, decode, dirOf, encode, importsOf, isFileName, lastImports, main, reached, targetOf } from './module.f.mjs'
+import { cycleOf, decode, dirOf, encode, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -136,5 +136,16 @@ export const proof = {
             assertEq(json(decode('[["../x.f.js", "x"]]')), json(['error', 'files: ../x.f.js is not a file name a program can hold']))
             assertEq(json(decode('[["a.f.js", "x"], ["a.f.js", "y"]]')), json(['error', 'files: a.f.js is written twice']))
         },
+    },
+    outsideImports: {
+        none: () => {
+            assertEq(json(outsideImports([[main, "import a from './a.f.js'\nexport default a"], ['a/x.f.js', '']])), '[]')
+            assertEq(json(outsideImports([[main, 'export default +']])), '[]')
+        },
+        rootedAndAbove: () => assertEq(json(outsideImports([
+            [main, "import a from './a/x.f.js'\nimport u from '../up.f.js'\nimport d from './d.json' with { type: 'json' }\nimport p from 'pkg'\nimport b from './a:b.f.js'\nexport default [a, u, d, p, b]"],
+            ['a/x.f.js', "import r from '/lib/r.mjs'\nimport s from '../s.f.js'\nexport default [r, s]"],
+            ['d.json', '{}'],
+        ])), json([[main, '../up.f.js'], ['a/x.f.js', '/lib/r.mjs']])),
     },
 }

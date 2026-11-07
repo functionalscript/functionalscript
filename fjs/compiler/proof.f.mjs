@@ -1663,6 +1663,11 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             // a new import, by any path the compiler reads, opens an empty box, refused by name until written
             const opened = nextDemo(removed, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nimport d from "/lib/d.mjs";\nexport default [c, d];' })
             assert(html(opened).includes(`${box('c')} rows="4"`) && html(opened).includes(box('lib/d.mjs')), html(opened))
+            // a rooted import reads another file on the command line, and the page says so
+            assert(html(opened).includes(`<p role="note">This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: input.f.js imports /lib/d.mjs.</p>`), html(opened))
+            assert(!html(twice).includes('role="note"'), html(twice))
+            const rooted = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "/lib/d.mjs";\nexport default d;' })
+            assertEq(rooted.panes[0][1], '/lib/d.mjs:1:1 - error: unexpected end')
             assertEq(opened.panes[0][1], 'c:1:1 - error: unexpected end')
             const written = nextDemo(nextDemo(opened, { kind: 'input', name: 'file:c', value: 'export default 3;' }), { kind: 'input', name: 'file:lib/d.mjs', value: 'export default 4;' })
             assertEq(written.files.map(([n]) => n).join(), 'a.f.js,shared.f.js,c,lib/d.mjs')

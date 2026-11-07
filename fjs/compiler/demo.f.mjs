@@ -30,7 +30,10 @@
  * import reaches keeps its box, marked *not imported*, with a button that
  * removes it; the compiler does not read it. A module that does not parse
  * keeps the boxes its imports opened when it last did
- * ([`lastImports`](./demo_files/module.f.mjs)). The main box is labelled with
+ * ([`lastImports`](./demo_files/module.f.mjs)). The program's directory is
+ * the in-memory file system's root, so `/` names it and nothing is above it;
+ * the page names each import that reads another file on the command line,
+ * where `/` is the root of the disk and `../` may leave it. The main box is labelled with
  * its file name, `input.f.js`, which a dependency imports it by. Where the
  * imports form a cycle, the panes refuse it as the compiler does, and the page
  * names every file the cycle passes through.
@@ -70,7 +73,7 @@ import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { cycleOf, decode, dirOf, encode, lastImports, main, reached } from './demo_files/module.f.mjs'
+import { cycleOf, decode, dirOf, encode, lastImports, main, outsideImports, reached } from './demo_files/module.f.mjs'
 import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { _outputMarked, compileFile } from './module.f.mjs'
@@ -138,8 +141,10 @@ export const compiledProgram = files => outputFileName => {
         // the main module's refusal is the box above the panes, and an
         // output's is the pane's own; another file's names the file, and
         // where in it
+        // (by its path from the root where a rooted import reached it)
         const [, ...others] = files
-        return error(others.some(([n]) => diagnostic.startsWith(`${n}:`) || diagnostic.startsWith(`${n} `)) ? diagnostic : message)
+        const names = others.flatMap(([n]) => [n, `/${n}`])
+        return error(names.some(n => diagnostic.startsWith(`${n}:`) || diagnostic.startsWith(`${n} `)) ? diagnostic : message)
     }
     return result
 }
@@ -240,7 +245,22 @@ const boxes = ({ main: mainText, files, imports }) => {
             ['p', ['button', { type: 'button', name: `${removePrefix}${file}` }, `Remove ${file}`]],
         ]),
         ...cycleView(program),
+        ...sandboxView(program),
     ]
+}
+
+/**
+ * What the page says of each import whose file differs on the command line:
+ * the page's program directory is its root, while `fjs compile` reads `/`
+ * from the root of the disk and lets `../` leave the main module's directory.
+ * Nothing where every import reads the same file both ways.
+ *
+ * @type {(files: Files) => readonly Element[]}
+ */
+const sandboxView = files => {
+    const outside = outsideImports(files)
+    return outside.length === 0 ? [] : [['p', { role: 'note' },
+        `This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: ${outside.map(([file, specifier]) => `${file} imports ${specifier}`).join('; ')}.`]]
 }
 
 /**
