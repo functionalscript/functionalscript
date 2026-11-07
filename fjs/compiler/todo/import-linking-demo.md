@@ -48,9 +48,13 @@ the path names (`./x.f.js`, `../lib/y.f.mjs`, `./d.json`, and as well `./dep`
 or `/lib/d.mjs`), since the compiler reads any file the path names, not only
 `.f.js`, `.f.mjs` and `.json` ones. While a module does not parse, the boxes
 stay as they were rather than flicker. A bare specifier (`functionalscript/…`)
-opens no box; the compiler refuses it, and the panes say so. A module that
-imports `./input.f.js` reaches the main box, not a new one, and the compiler's
-answer to the cycle is what the panes show.
+opens no box; the compiler refuses it, and the panes say so. The main box is
+labelled `input.f.js (main module)`, so a reader knows the name a dependency
+imports it by. A module that imports `./input.f.js` reaches the main box, not
+a new one. The panes show the compiler's answer to a cycle, `circular
+dependency`, and the page names every file the cycle passes through
+(`Import cycle: input.f.js → a.f.js → input.f.js`), which that message does
+not.
 
 **The page is a sandbox: the program's directory is its root.** The page
 compiles over the in-memory file system it has always used, whose root holds
@@ -102,9 +106,12 @@ after its file, and an edit replaces that file's text. So:
 
 **Compiling.** The page writes every file into the in-memory file system
 (`virtualAt`, as now) and compiles `input.f.js`. `_outputMarked` already
-resolves imports through it, so no output logic changes. A refusal names the
-file it is in: with one file the page could drop the location, with several it
-shows the compiler's diagnostic, which carries it.
+resolves imports through it, so no output logic changes. A box an import
+opened that holds nothing yet is written as an empty file, so the compiler
+refuses it as an empty module, by name, not as a file it cannot find. A
+refusal of the main module, or of an output, reads as before, without the
+location; a refusal of another file is the compiler's diagnostic, which names
+the file and where in it (`b.f.js:2:29 - error: unexpected end`).
 
 **The stage pages compile the main module only.** They show one stage of one
 module, and an example's `source` is its main module, so they need no change;
@@ -120,17 +127,19 @@ its other files are linked on the side-by-side page.
 
 ### Tasks
 
-- [ ] List the files a module imports from its parse result.
-- [ ] Carry the files other than the main module in a shared link's `files`
-      field, refusing one that is not a list of `[name, text]` pairs, names a
-      file twice, or names one a program cannot hold.
-- [ ] Draw a box per file the import tree reaches, and each file it does not
+- [x] List the files a module imports from its parse result
+      ([`demo_files`](../demo_files/module.f.mjs)'s `importsOf` and `reached`).
+- [x] Carry the files other than the main module in a shared link's `files`
+      field ([`demo_files`](../demo_files/module.f.mjs)'s `encode` and
+      `decode`), refusing one that is not a list of `[name, text]` pairs,
+      names a file twice, or names one a program cannot hold.
+- [x] Draw a box per file the import tree reaches, and each file it does not
       as *not imported* with a **Remove** button.
-- [ ] Write every file into the page's file system, and show a refusal's file.
-- [ ] Have the stage pages compile the main module of a multi-file example.
-- [ ] Add an example that imports one module through two others, so the
+- [x] Write every file into the page's file system, and show a refusal's file.
+- [x] Have the stage pages compile the main module of a multi-file example.
+- [x] Add an example that imports one module through two others, so the
       outputs show it shared.
-- [ ] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
+- [x] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
       import examples.
 
 ### Related

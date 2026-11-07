@@ -29,7 +29,7 @@ import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { codePoints } from '../text/ascii/module.f.js'
 import { assert, assertEq, assertOk, assertNotNullish, assertStructurallySame } from '../asserts/module.f.js'
-import { compiled, _written, demo, outputs } from './demo.f.mjs'
+import { compiled, compiledProgram, _writtenProgram, demo, outputs } from './demo.f.mjs'
 import { disagreement } from '../js/marked/module.f.mjs'
 import { textOfResult } from '../text/marked/module.f.mjs'
 import { examples } from './examples/module.f.js'
@@ -38,6 +38,11 @@ import { encodeQuery } from '../website/demo/sharing/module.f.mjs'
 import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.js'
 import normalize from '../../spec/datajs/vectors/normalize/data.f.js'
+import { dirOf, encode } from './demo_files/module.f.mjs'
+import { dependenciesOf } from './examples/module.f.js'
+
+/** An example's program: its main module, then the files it imports. @type {(source: string, id: string) => import('./demo_files/types.ts').Files} */
+const programOf = (source, id) => [['input.f.js', source], ...dependenciesOf(id)]
 
 /** Execute successful catch operations with the real compiler, without host exceptions.
  * @type {(state: typeof demo.init, event: import('../website/demo/types.ts').DemoEvent) => typeof demo.init}
@@ -1536,14 +1541,16 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'The entry helper': 'xoooo',
                 'Named exports': 'ooooo',
                 'A failure at run time': 'xxooo',
-                'An import': 'xxxxx',
-                'A named import and a call': 'xxxxx',
+                'An import': 'ooooo',
+                'A named import and a call': 'ooooo',
+                'A module imported twice': 'ooooo',
+                'A cyclic import': 'xxxxx',
                 'Hex escape': 'xxxxx',
                 'Parse error': 'xxxxx',
             }
             assertEq(Object.keys(expected).length, examples.length)
-            for (const [name, source] of examples) {
-                assertEq(outputs.map(([, file]) => compiled(source)(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
+            for (const [name, source, id] of examples) {
+                assertEq(outputs.map(([, file]) => compiledProgram(programOf(source, id))(file)[0] === 'ok' ? 'o' : 'x').join(''), expected[name])
             }
             assertEq(textOfResult(compiled('export default 1;')('output.json')), '1')
             assertEq(textOfResult(compiled('const fact = n => n < 2 ? 1 : n * fact(n - 1);\nexport default fact(5);')('output.json')), '120')
@@ -1555,13 +1562,14 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // it reads; Rust has no oracle, and its markup is proved by its own module.
         panesAreTheFiles: () => {
             assertEq(outputText(noRuntime)('output.txt'), null)
-            for (const [name, source] of examples) {
+            for (const [name, source, id] of examples) {
+                const program = programOf(source, id)
                 for (const [label, file] of outputs) {
-                    const shown = compiled(source)(file)
+                    const shown = compiledProgram(program)(file)
                     const [shownTag, shownValue] = shown
-                    const [writtenTag, writtenValue] = _written(source)(file)
+                    const [writtenTag, writtenValue] = _writtenProgram(program)(file)
                     const route = assertNotNullish(outputText(noRuntime)(file))
-                    const [, routed] = virtualAt({ 'input.f.js': [utf8(source)] })(route('input.f.js'))
+                    const [, routed] = virtualAt(dirOf(program))(route('input.f.js'))
                     const [routedTag, routedValue] = routed
                     if (routedTag === 'ok') {
                         const [kind, text] = routedValue
@@ -1569,8 +1577,10 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                         assertEq(writtenValue, kind === 'ok' ? text : `${file} - error: ${text}`, `${name} ${label} text route`)
                     }
                     assertEq(shownTag, writtenTag, `${name} ${label}`)
-                    // a refusal is the command's line without its location
-                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue : writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
+                    // a refusal is the command's line, without its location
+                    // where the main module is refused
+                    assert(shownTag === 'ok' ? textOfResult(shown) === writtenValue
+                        : writtenValue === shownValue || writtenValue.endsWith(` - error: ${shownValue}`), `${name} ${label}`)
                     if (shownTag === 'ok' && label !== '.rs') {
                         assertEq(disagreement(shownValue), null, `${name} ${label}`)
                     }
@@ -1604,7 +1614,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             }
             assertEq(index, outputs.length)
             const state = unwrap(effect())
-            assertEq(state.text, 'export default 1;')
+            assertEq(state.main, 'export default 1;')
             assertEq(textOfResult(state.panes[0]), 'Could not compile this output: host failure')
             assertEq(textOfResult(state.panes[1]), 'operation not implemented: catch')
             assertEq(state.panes.slice(2).map(([tag]) => tag).join(), 'ok,ok,ok')
@@ -1615,19 +1625,94 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(textOfResult(recovered.panes[0]), '2')
             assertEq(recovered.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
             const started = nextDemo(demo.init, { kind: 'start' })
-            assertEq(started.text, demo.init.text)
+            assertEq(started.main, demo.init.main)
             const picked = nextDemo(state, { kind: 'input', name: 'example', value: 'Recursion: Ackermann' })
             assertEq(textOfResult(picked.panes[0]), '9')
+        },
+        // A program of several files: each import opens a box, a file no
+        // import reaches keeps a box marked not imported, and the compiler
+        // links every file it is given.
+        files: () => {
+            /** @type {(state: typeof demo.init) => string} */
+            const html = state => htmlToString(demo.view(state))
+            /** @type {(file: string) => string} */
+            const box = file => `<textarea id="file:${file}" name="file:${file}"`
+            /** @type {(file: string) => string} */
+            const removable = file => `<button type="button" name="remove:${file}">Remove ${file}</button>`
+            const twice = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A module imported twice' })
+            const shown = html(twice)
+            assert(shown.includes('<option value="A module imported twice" selected=""'), shown)
+            assert(shown.includes('<label for="compiler">input.f.js (main module) </label>'), shown)
+            for (const file of ['a.f.js', 'b.f.js', 'shared.f.js']) { assert(shown.includes(box(file)), file) }
+            assert(!shown.includes('not imported') && !shown.includes('Import cycle'), shown)
+            assertEq(textOfResult(twice.panes[0]), '[{"from":"a","shared":{"name":"shared object"}},{"from":"b","shared":{"name":"shared object"}}]')
+            assertEq(textOfResult(twice.panes[2]), 'const $0={"name":"shared object"};export default [{"from":"a","shared":$0},{"from":"b","shared":$0}];')
+            // removing an import keeps the box, marked, with its button
+            const onlyA = nextDemo(twice, { kind: 'input', name: 'compiler', value: 'import a from "./a.f.js";\nexport default a;' })
+            const marked = html(onlyA)
+            assert(marked.includes('<option selected="" disabled="">Custom</option>'), marked)
+            assert(marked.includes('<div data-not-imported=""><p><label for="file:b.f.js">b.f.js (not imported) </label>'), marked)
+            assert(marked.includes(removable('b.f.js')), marked)
+            assert(marked.includes(box('shared.f.js')) && !marked.includes(removable('shared.f.js')), marked)
+            assertEq(textOfResult(onlyA.panes[0]), '{"from":"a","shared":{"name":"shared object"}}')
+            // importing it again unmarks it; removing it deletes its text
+            assertEq(html(nextDemo(onlyA, { kind: 'input', name: 'compiler', value: twice.main })).includes('not imported'), false)
+            const removed = nextDemo(onlyA, { kind: 'click', name: 'remove:b.f.js' })
+            assertEq(removed.files.map(([n]) => n).join(), 'a.f.js,shared.f.js')
+            assert(!html(removed).includes(box('b.f.js')), html(removed))
+            // a new import, by any path the compiler reads, opens an empty box, refused by name until written
+            const opened = nextDemo(removed, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nimport d from "/lib/d.mjs";\nexport default [c, d];' })
+            assert(html(opened).includes(`${box('c')} rows="4"`) && html(opened).includes(box('lib/d.mjs')), html(opened))
+            // a rooted import reads another file on the command line, and the page says so
+            assert(html(opened).includes(`<p role="note">This page keeps the program in its own folder, so / is the folder and nothing is above it. On the command line, / is the root of the disk and ../ may leave the main module's folder, so these imports read other files there: input.f.js imports /lib/d.mjs.</p>`), html(opened))
+            assert(!html(twice).includes('role="note"'), html(twice))
+            const rooted = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "/lib/d.mjs";\nexport default d;' })
+            assertEq(rooted.panes[0][1], '/lib/d.mjs:1:1 - error: unexpected end')
+            assert(!html(rooted).includes('two modules'), html(rooted))
+            // one file reached both ways is two modules, and the page says so
+            const both = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "./lib/d.mjs";\nimport b from "/lib/d.mjs";\nexport default [a, b];' }),
+                { kind: 'input', name: 'file:lib/d.mjs', value: 'export default {};' })
+            assertEq(both.files.map(([n]) => n).join(), 'lib/d.mjs')
+            assertEq(textOfResult(both.panes[2]), 'export default [{},{}];')
+            assert(html(both).includes('<p role="note">lib/d.mjs is imported both by a / path and by a relative one: the compiler loads it as two modules, so the two are not shared.</p>'), html(both))
+            assertEq(opened.panes[0][1], 'c:1:1 - error: unexpected end')
+            const written = nextDemo(nextDemo(opened, { kind: 'input', name: 'file:c', value: 'export default 3;' }), { kind: 'input', name: 'file:lib/d.mjs', value: 'export default 4;' })
+            assertEq(written.files.map(([n]) => n).join(), 'a.f.js,shared.f.js,c,lib/d.mjs')
+            assertEq(textOfResult(written.panes[0]), '[3,4]')
+            const edited = nextDemo(written, { kind: 'input', name: 'file:c', value: 'export default 5;' })
+            assertEq(textOfResult(edited.panes[0]), '[5,4]')
+            // a module that does not parse keeps the boxes it opened
+            const halfTyped = nextDemo(edited, { kind: 'input', name: 'compiler', value: 'import c from "./c";\nexport default c +' })
+            assert(html(halfTyped).includes(box('c')) && !html(halfTyped).includes('c (not imported)'), html(halfTyped))
+            // nothing in a module's text is reserved
+            const markerText = 'export default "// @filename: x.f.js";\n// @filename: y.f.js'
+            assertEq(textOfResult(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: markerText }).panes[0]), '"// @filename: x.f.js"')
+            // a cycle is refused by the compiler and named whole by the page
+            const cyclic = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A cyclic import' })
+            assert(html(cyclic).includes('<p role="status">Import cycle: input.f.js → a.f.js → input.f.js</p>'), html(cyclic))
+            assertEq(cyclic.panes.map(([, v]) => v).join(), Array(5).fill('circular dependency').join())
+            // an event no control sends changes nothing
+            assertEq(nextDemo(twice, { kind: 'input', name: 'other', value: 'x' }), twice)
+            assertEq(nextDemo(twice, { kind: 'click', name: 'run' }), twice)
+            assertEq(_writtenProgram([['input.f.js', 'export default {']])('output.json')[1], 'input.f.js:1:17 - error: unexpected end')
         },
         sharing: () => {
             const sharing = assertNotNullish(demo.sharing)
             const hex = assertNotNullish(examples.find(([name]) => name === 'Hex escape'))[1]
-            assertStructurallySame(encodeQuery(sharing, sharing.read({ text: hex, panes: [] })), ['ok', '?example=hex-escape#demo'])
-            const restored = sharing.restore({ compiler: 'export default 2;' })
-            assertStructurallySame(restored, { text: 'export default 2;', panes: [] })
+            assertStructurallySame(encodeQuery(sharing, sharing.read({ main: hex, files: [], panes: [], imports: [] })), ['ok', '?example=hex-escape#demo'])
+            const twice = nextDemo(demo.init, { kind: 'input', name: 'example', value: 'A module imported twice' })
+            assertStructurallySame(encodeQuery(sharing, sharing.read(twice)), ['ok', '?example=a-module-imported-twice#demo'])
+            const own = nextDemo(twice, { kind: 'input', name: 'file:a.f.js', value: 'export default 1;' })
+            assertStructurallySame(sharing.read(own), { compiler: twice.main, files: encode(own.files) })
+            assertEq(assertNotNullish(sharing.validate)({ compiler: '', files: '[["input.f.js", ""]]' }), 'files: input.f.js is not a file name a program can hold')
+            assertEq(assertNotNullish(sharing.validate)({ compiler: '', files: '[]' }), null)
+            const linked = sharing.restore({ compiler: 'import a from "./a.f.js";\nexport default a;', files: '[["a.f.js","export default 7;"]]' })
+            assertEq(textOfResult(nextDemo(linked, { kind: 'start' }).panes[0]), '7')
+            const restored = sharing.restore({ compiler: 'export default 2;', files: '[]' })
+            assertStructurallySame(restored, { main: 'export default 2;', files: [], panes: [], imports: [] })
             assertEq(nextDemo(restored, { kind: 'click', name: 'run' }), restored)
             const started = nextDemo(restored, { kind: 'start' })
-            assertEq(started.text, 'export default 2;')
+            assertEq(started.main, 'export default 2;')
             assertEq(textOfResult(started.panes[0]), '2')
             assertEq(started.panes.map(([tag]) => tag).join(), 'ok,ok,ok,ok,ok')
         },

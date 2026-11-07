@@ -24,7 +24,7 @@ export const proof = /** @type {const} */ ({
         /** @type {string} */
         const edited = 'const recurse = n => 1 + recurse(n + 1);\nexport default recurse(0);'
         const state = assertOk(await run(demo.update(demo.init)({ kind: 'input', name: 'compiler', value: edited })))
-        assertEq(state.text, edited)
+        assertEq(state.main, edited)
         for (const result of state.panes.slice(0, 2)) {
             const text = textOfResult(result)
             assertEq(result[0], 'error')
