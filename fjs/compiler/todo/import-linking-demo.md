@@ -83,7 +83,10 @@ control a keyboard reaches. Its text is kept: the page shows every file it
 holds, and the compiler reads only the files the program imports, so a box
 that is not imported changes no output. Typing the import again marks the box
 imported again, with its text as it was. **Remove** deletes the box and its
-text. A module that only a removed import reached is marked the same way.
+text. A box that is still empty when its import goes away goes with it: it
+holds no text to keep, and keeping it would leave a box behind for every
+partial name a path passes through while it is typed (`./c`, `./c.`, `./c.f`
+each parse as a complete import). A module that only a removed import reached is marked the same way.
 Picking an example or opening a shared link replaces every box, so a file
 from one program never turns up in another.
 
