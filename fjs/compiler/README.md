@@ -408,57 +408,15 @@ item's first set, once the punctuators are a prefix tree built from the
 list. An earlier count through the classical `dispatchMap`, which had no
 first/follow check, found three of the eight.
 
-## Next steps
+## What the compiler reads
 
-- [x] use JS tokenizer
-- [x] identifiers `{a:5}`
-- [x] computed keys `{["a"]:5}`, the only keyed spelling of a `__proto__` key;
-  the short form `{ __proto__ }` below is the other
-  ([spec: the `__proto__` key](../../spec/values/objects/README.md#the-__proto__-key)) —
-  and `{[k]:5}`, a key computed from any value
-  ([spec: property keys](../../spec/values/objects/README.md#property-keys))
-- [x] big int
-- [x] `export default ...`
-- [x] constants
-  ```js
-  const a = [3]
-  export default = { a: a, b: a }
-  ```
-  Serialization
-  ```js
-  const _0=[3];
-  export default {a:_0,b:_0};
-  ```
-- [x] import
-  ```js
-  import a from 'c.f.js'
-  export default { a: a, b: a}
-  ```
-- [x] short form
-  ```js
-  const a = 5;
-  export default { a }
-  ```
-
-Optional, for fun, syntax sugar:
-
-- [x] comments. Ignore them. Not an error.
-- [x] double/single quote strings: double quotes keep JSON's escapes; single
-      quotes also accept `\'`, `\xHH` and `\v`, as specified in
-      [string escapes](../../spec/lexical/string-escapes/README.md).
-
-## Decidable Language
-
-- [ ] using operator and functions
-  ```js
-  const a = 2+2+Math.abs(5)
-  export default { a: a }
-  ```
-- [ ] decidable functions?
-  ```js
-  const f = a => b => a + b
-  export default f(1)(2)
-  ```
+The language the compiler accepts is the one the
+[language specification](../../spec/README.md) describes, and what it does
+not accept yet is tracked in [`spec/todo`](../../spec/todo/README.md), with
+the valid JavaScript it refuses listed in
+[refused constructs](../../spec/todo/refused-constructs.md). A call to a
+global such as `Math.abs` is [global names](../../spec/todo/2365-global-names.md)
+and [built-in objects](../../spec/todo/2360-built-in.md).
 
 ## Source files and repository migration
 
