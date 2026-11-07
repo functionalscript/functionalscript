@@ -112,6 +112,14 @@ const ofChunks = chunks => chunks.reduceRight(
 const holdsNothing = pureOk(null)
 
 /**
+ * A `200` with no body and nothing held: a listener for a proof about the
+ * server rather than what it answers.
+ *
+ * @type {RequestListener<NodeOp>}
+ */
+const emptyOk = () => pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
+
+/**
  * A `500` carrying `text`, which is how a listener reports what it saw of its own
  * request body: the refusal is observable nowhere else, since the runner hands the
  * body to the listener and the listener's only way out is a response.
@@ -1718,11 +1726,8 @@ export const proof = {
         // no `k`, so a name spelled with it is another address and the second
         // bind succeeds.
         addressCaseIsAscii: () => {
-            /** @type {RequestListener<NodeOp>} */
-            const listener = () =>
-                pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
-            const first = history(createServer(listener))
-            const second = historyStep(first, () => createServer(listener))
+            const first = history(createServer(emptyOk))
+            const second = historyStep(first, () => createServer(emptyOk))
             const bound = historyStep(second, b => listen(b, 8_080, 'k.test'))
             const e = step(bound, ([, , a]) => listen(a, 8_080, '\u212a.test'))
             const [s, result] = virtual(emptyState)(e)
