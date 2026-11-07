@@ -38,7 +38,7 @@ import { sharingStatus, earlyInputCapture } from '../demo/sharing/module.f.mjs'
 import { scopeIds, scopeMarker } from '../demo/control_ids/module.f.mjs'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { buildDirectory as wasmDirectory } from '../../nanvm/demos/page/module.f.mjs'
-import { htmlDocument, parseElement, textContent } from '../../media/html/module.f.mjs'
+import { htmlDocument, mapElement, parseElement, textContent } from '../../media/html/module.f.mjs'
 import { ancestors, basename, concat as pathConcat } from '../../path/module.f.js'
 import { demoMarker, faviconLinks, logoPath, stylesheetLink } from '../style/module.f.js'
 import { intersperse } from '../../types/list/module.f.js'
@@ -387,15 +387,12 @@ const testSummary = linkedSummary('emergent-testing', 'Emergent Testing')
  *
  * @type {(view: Element) => Element}
  */
-const inactive = view => {
-    const [tag, attributes, children] = parseElement(view)
+const inactive = mapElement((tag, attributes) => {
     const name = tag.toLowerCase()
     const action = name === 'button' || (name === 'input' && attributes.type?.toLowerCase() === 'button')
     const pointed = attributes['data-demo-click'] !== undefined || attributes['data-demo-drag'] !== undefined
-    return [tag,
-        action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes,
-        ...children.map(child => typeof child === 'string' ? child : inactive(child))]
-}
+    return [tag, action ? { ...attributes, disabled: '' } : pointed ? { ...attributes, 'aria-disabled': 'true' } : attributes]
+})
 
 /**
  * The demo section: what this module *does*, if it says.
