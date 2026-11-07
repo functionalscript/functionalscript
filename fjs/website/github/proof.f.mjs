@@ -198,7 +198,7 @@ export const proof = /** @type {const} */ ({
         assertEq(callbackCode(['code'], ['mismatch'], pending, 1_000), null)
     },
     authorization: () => {
-        const config = { clientId: 'client', redirectUri: `https://example.com${callbackPath}` }
+        const config = /** @type {const} */ ({ clientId: 'client', redirectUri: `https://example.com${callbackPath}` })
         assert(redirectMatches(config, 'https://example.com'))
         assertEq(redirectMatches({ ...config, clientId: '' }, 'https://example.com'), false)
         assertEq(redirectMatches(config, 'https://other.example'), false)
