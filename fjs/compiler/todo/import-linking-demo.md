@@ -56,7 +56,13 @@ answer to the cycle is what the panes show.
 compiles over the in-memory file system it has always used, whose root holds
 the main module. So `/` names the program's directory, a box is named by its
 path from there, and `/lib/d.mjs` and `../lib/d.mjs` from `a/` are one box,
-`lib/d.mjs`. Nothing is above the root, so a path that climbs above it opens
+`lib/d.mjs`, since they read one stored file. They are not one module: the
+in-memory resolver's identity keeps the leading `/`
+([rooted-module-identity](../../effects/node/virtual/todo/rooted-module-identity.md)),
+so the compiler loads a file reached both ways twice, and the two are not
+shared. Until that is fixed, the page says so under the boxes, naming each
+file a program reaches both by a rooted path and by a relative one. Nothing is
+above the root, so a path that climbs above it opens
 no box and the compiler refuses it as a file it cannot find. This is the
 page's contract, not the compiler's: `fjs compile` resolves an import as
 the host does (`resolveFileModule` in
