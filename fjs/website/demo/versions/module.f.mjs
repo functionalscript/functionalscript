@@ -146,7 +146,8 @@ const clickOf = ({ inline, key }) =>
 
 /**
  * The new version as a graph: one node per distinct node, an arrow into
- * its root, and each column in the shape's `order`.
+ * its root, and each column in the shape's `order`. A `table` gives each
+ * child's row as many rows as the child's subtree has values.
  *
  * @type {<V, N>(structure: Structure<V, N>) => (versions: Versions<V>) => Graph}
  */
@@ -166,13 +167,17 @@ export const graphOf = structure => versions => {
     const depthOf = node => all.filter(p => childrenOf(p).includes(node)).reduce((m, p) => max(m, depthOf(p) + 1), 0)
     const top = newRoot === null ? 0 : heightOf(newRoot)
     /** @type {Record<Layout, (node: N) => number>} */
-    const rankOf = { leaves: node => top - heightOf(node), depth: depthOf }
+    const rankOf = { leaves: node => top - heightOf(node), depth: depthOf, table: depthOf }
+    const table = layout === 'table'
+    /** @type {(node: N) => number} */
+    const spanOf = node => rows(node).reduce((sum, row) => sum + (hasEntry(row, 'to') ? spanOf(row.to) : 1), 0)
     return {
         nodes: all.map((node, id) => ({ id, kind: kindOf(node), label: title(node), rank: rankOf[layout](node) })),
         entries: newRoot === null ? [] : [{ to: all.indexOf(newRoot) }],
         edges: all.flatMap((node, from) => rows(node).map(/** @type {(row: Row<N>) => Edge} */ (row => hasEntry(row, 'to')
-            ? { from, to: all.indexOf(row.to), label: '', corner: row.corner }
+            ? { from, to: all.indexOf(row.to), label: '', corner: row.corner, ...(table ? { span: spanOf(row.to) } : {}) }
             : { from, to: { inline: row.inline, parts: row.parts, click: clickOf(row) }, label: row.label }))),
+        ...(table ? { table } : {}),
     }
 }
 

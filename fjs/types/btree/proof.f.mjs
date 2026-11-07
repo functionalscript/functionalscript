@@ -219,15 +219,21 @@ const demoProof = {
             const s = follow('Split a leaf')
             assertEq(censusOf(s), '{"built":4,"shared":4,"replaced":3}')
             const h = html(s)
-            // The new branch of five is its two keys, 60 and 80, and its
-            // three subtrees' edges from its top corner, middle and bottom
-            // corner, with no row named for any of them.
-            const { nodes, edges } = _graphOf(s.versions)
+            // The new branch of five is its two keys, 60 and 80, between
+            // its three subtrees' rows, each as many rows tall as its
+            // subtree has keys, with no row named for any of them.
+            const { nodes, edges, table } = _graphOf(s.versions)
+            assert(table === true, table)
             const keysOf = (/** @type {number} */ id) => edges.flatMap(e => e.from === id && typeof e.to !== 'number' ? [e.to.inline] : [])
             const node5 = assertNotNullish(nodes.find(n => JSON.stringify(keysOf(n.id)) === '["60","80"]'))
-            const out = edges.filter(e => e.from === node5.id && typeof e.to === 'number')
-            assertEq(JSON.stringify(out.map(e => [e.corner ?? null, e.label])), '[["top",""],["middle",""],["bottom",""]]')
+            const out = edges.filter(e => e.from === node5.id)
+            assertEq(JSON.stringify(out.map(e => typeof e.to === 'number' ? [e.span, e.label] : e.to.inline)), '[[1,""],"60",[1,""],"80",[1,""]]')
             assert(!h.includes('data-graph-edge-label="">Middle<'), h)
+            // Drawn as a table, every arrow runs straight across: each
+            // edge's path stays at the height it starts at.
+            const paths = h.split('" data-graph-edge=""').slice(0, -1).map(before => before.slice(before.lastIndexOf('d="M') + 'd="M'.length))
+            assert(paths.length > 1, h)
+            paths.forEach(d => assertEq(new Set(d.split(' L').map(point => point.split(',')[1])).size, 1))
         },
         // The split reaches the root, and the tree grows a level: the new
         // root is a rank further from the leaves than the old one.

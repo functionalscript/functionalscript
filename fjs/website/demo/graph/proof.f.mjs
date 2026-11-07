@@ -712,6 +712,40 @@ export const proof = /** @type {const} */ ({
             assertEq(JSON.stringify(starts), '["M60,53","M60,63","M60,73"]')
             assert(routes(html)[1].endsWith('L100,63'), html)
         },
+        // A table: the root's rows are a child one row tall, a value, and
+        // a child two rows tall, so the root is four rows, 80px, from
+        // y=10, and each child is level with its cell — 10 to 30 and 50
+        // to 90 — so both arrows run straight across, at y=20 and y=70.
+        // A second root stacks under the first, a gap below it, at y=104.
+        // The entry meets the root at its one value, y=40, not at its
+        // middle, y=50, and the drawing is marked a table.
+        table: () => {
+            const html = htmlToString(graphSvg({
+                table: true,
+                entries: [{ to: 0 }],
+                nodes: [
+                    { id: 0, kind: 'a', label: '', rank: 0 },
+                    { id: 1, kind: 'a', label: '', rank: 1 },
+                    { id: 2, kind: 'a', label: '', rank: 1 },
+                    { id: 3, kind: 'a', label: 'x', rank: 0 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: '', span: 1 },
+                    { from: 0, to: { inline: '5' }, label: '' },
+                    { from: 0, to: 2, label: '', span: 2 },
+                    { from: 1, to: { inline: '1' }, label: '' },
+                    { from: 2, to: { inline: '7' }, label: '' },
+                    { from: 2, to: { inline: '9' }, label: '' },
+                ],
+            }))
+            assert(html.includes('<rect x="34" y="10" width="50" height="80" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="34" y="50" width="50" height="40" data-graph-port=""'), html)
+            assert(html.includes('<rect x="124" y="10" width="50" height="20" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="124" y="50" width="50" height="40" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="34" y="104" width="50" height="26" rx="4" data-graph-node=""'), html)
+            assertEq(JSON.stringify(routes(html)), '["M84,20 L124,20","M84,70 L124,70","M10,40 L34,40"]')
+            assert(html.includes('<div data-graph="" data-graph-table="">'), html)
+        },
         // A value in parts is one text of tspans, each marked with its
         // kind; a value without parts is plain text, as before.
         inlineParts: () => {
@@ -1467,6 +1501,25 @@ export const proof = /** @type {const} */ ({
             misspeltParts: () => graphSvg({
                 nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
                 edges: [{ from: 0, to: { inline: '0101', parts: [['01', 'prior'], ['1', 'current']] }, label: '' }],
+            }),
+            // A table is a tree whose children fit their rows: no back edge,
+            tableBackEdge: () => graphSvg({
+                table: true,
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }],
+                edges: [{ from: 0, to: 0, label: '', back: true }],
+            }),
+            // no node two edges reach,
+            tableSharedNode: () => graphSvg({
+                table: true,
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 'm', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: '' }, { from: 0, to: 1, label: '' }],
+            }),
+            // and no child taller or shorter than its row: `m`, a label
+            // alone, is 26px tall, and its row 20px.
+            tableMisfit: () => graphSvg({
+                table: true,
+                nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }, { id: 1, kind: 'a', label: 'm', rank: 1 }],
+                edges: [{ from: 0, to: 1, label: '' }],
             }),
             // An entry, too, must arrive at a node the graph has.
             entryToAMissingNode: () => graphSvg({ nodes: [{ id: 0, kind: 'a', label: 'n', rank: 0 }], edges: [], entries: [{ to: 1 }] }),
