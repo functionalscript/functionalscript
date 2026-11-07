@@ -53,6 +53,9 @@ one:
   ([typescript-go#4613](https://github.com/microsoft/typescript-go/issues/4613)).
   Fixed the way the same function already worked around that regression: bind
   the length, `assert` the two possible values, switch on the binding.
+  The workaround is gone since: the pinned TypeScript 7.0.2 narrows the tuple
+  by `x.length`, so both arms switch on it directly, a `default` last, as the
+  function's other arms do.
 
 The two fixes are the argument for the flag: in both places a fallthrough would
 have silently continued into an unrelated state rather than failing.
