@@ -18,6 +18,19 @@ const exports = [
 const imports = [
     ['An import', 'import m from "./m.f.js";\nexport default m;', 'an-import'],
     ['A named import and a call', 'import m from "./m.f.js";\nimport { x } from "./n.f.js";\nexport default m(x);', 'a-named-import-and-a-call'],
+    ['A module imported twice', [
+        'import a from "./a.f.js";',
+        'import b from "./b.f.js";',
+        'export default [a, b];',
+        '// @filename: a.f.js',
+        'import shared from "./shared.f.js";',
+        'export default { from: "a", shared };',
+        '// @filename: b.f.js',
+        'import shared from "./shared.f.js";',
+        'export default { from: "b", shared };',
+        '// @filename: shared.f.js',
+        'export default { name: "shared object" };',
+    ].join('\n'), 'a-module-imported-twice'],
 ]
 
 export default { exports, imports, all: [...exports, ...imports] }

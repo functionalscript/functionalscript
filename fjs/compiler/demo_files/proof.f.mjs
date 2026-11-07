@@ -1,5 +1,6 @@
-import { assert, assertEq } from '../../asserts/module.f.js'
-import { importsOf, isModuleFile, join, main, marker, reached, split } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { dirOf, importsOf, isModuleFile, join, lastImports, main, mainOf, marker, reached, split } from './module.f.mjs'
+import { utf8 } from '../../text/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
 const json = value => JSON.stringify(value)
@@ -101,6 +102,36 @@ export const proof = {
             /** @type {(name: string) => readonly string[]} */
             const previous = name => name === main ? ['m.f.js'] : []
             assertEq(json(reached(previous)([[main, "import m from './m.f.js'\nexport default m +"]])), json([main, 'm.f.js']))
+        },
+    },
+    mainOf: () => {
+        assertEq(mainOf(shared), "import a from './a.f.js'\nimport b from './lib/b.f.mjs'\nexport default [a, b]")
+        assertEq(mainOf('export default 1'), 'export default 1')
+        const refused = `x\n${marker}m.js`
+        assertEq(mainOf(refused), refused)
+    },
+    dirOf: {
+        nested: () => assertStructurallySame(dirOf([[main, 'm'], ['lib/a.f.js', 'a'], ['lib/b.f.js', 'b'], ['lib/x/c.json', 'c']]),
+            { [main]: [utf8('m')], lib: { 'a.f.js': [utf8('a')], 'b.f.js': [utf8('b')], x: { 'c.json': [utf8('c')] } } }),
+        laterFileWins: () => assertStructurallySame(dirOf([['a.f.js', 'a'], ['a.f.js/b.f.js', 'b']]),
+            { 'a.f.js': { 'b.f.js': [utf8('b')] } }),
+    },
+    lastImports: {
+        parsed: () => {
+            const files = split(shared)
+            assert(files[0] === 'ok', 'shared')
+            assertEq(json(lastImports([])(files[1])), json([
+                [main, ['a.f.js', 'lib/b.f.mjs']],
+                ['a.f.js', ['shared.json']],
+                ['lib/b.f.mjs', ['shared.json']],
+                ['shared.json', []],
+            ]))
+        },
+        halfTyped: () => {
+            const before = lastImports([])([[main, "import m from './m.f.js'\nexport default m"]])
+            const after = lastImports(before)([[main, "import m from './m.f.js'\nexport default m +"]])
+            assertEq(json(after), json([[main, ['m.f.js']], ['m.f.js', []]]))
+            assertEq(json(lastImports([])([[main, 'export default +']])), json([[main, []]]))
         },
     },
 }

@@ -18,9 +18,10 @@ import { _rustOf, demo } from './demo.f.mjs'
 import { examples } from '../examples/module.f.js'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { conditional } from '../../edag/testlib.f.js'
+import { mainOf } from '../demo_files/module.f.mjs'
 
 /** The shared examples the Rust output refuses: the two the front end does, and the imports it has no file set for. */
-const refusedByRust = ['An import', 'A named import and a call', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
+const refusedByRust = ['An import', 'A named import and a call', 'A module imported twice', 'Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error']
 
 export const proof = {
     deferredLoweringIsDisplayed: () => {
@@ -342,7 +343,7 @@ export const proof = {
         examples: () => {
             /** @type {(name: string) => Result<string, string>} */
             const rustOf = name => {
-                const result = _rustOf(assertDefined(examples.find(([n]) => n === name))[1])
+                const result = _rustOf(mainOf(assertDefined(examples.find(([n]) => n === name))[1]))
                 return result[0] === 'ok' ? ['ok', toText(result[1])] : result
             }
             for (const [name] of examples) {

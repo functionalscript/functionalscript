@@ -25,13 +25,15 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { File, Files } from './types.ts'
+ * @import { Dir } from '../../effects/node/virtual/types.ts'
+ * @import { File, Files, Imports } from './types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.js'
 import { escapes } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
+import { utf8 } from '../../text/module.f.mjs'
 
 /** The main module's file name: what `fjs compile` reads as its input. */
 export const main = 'input.f.js'
@@ -94,6 +96,36 @@ export const split = text => {
 }
 
 /**
+ * The main module's text in `text`: what a page that compiles one module
+ * reads, the whole text where {@link split} refuses it.
+ *
+ * @type {(text: string) => string}
+ */
+export const mainOf = text => {
+    const files = split(text)
+    return files[0] === 'ok' ? files[1][0][1] : text
+}
+
+/**
+ * `files` as an in-memory file system's directory, each name's `/` a
+ * directory of its own, so a module resolves its imports as it would on
+ * disk. Where a name is a file and a directory both, the later file wins.
+ *
+ * @type {(files: Files) => Dir}
+ */
+export const dirOf = files => files.reduce(
+    /** @type {(dir: Dir, file: File) => Dir} */
+    (dir, [name, text]) => {
+        /** @type {(d: Dir, path: readonly string[]) => Dir} */
+        const put = (d, [first, ...rest]) => {
+            const sub = d[first]
+            return { ...d, [first]: rest.length === 0 ? [utf8(text)] : put(typeof sub === 'object' && !(sub instanceof Array) ? sub : {}, rest) }
+        }
+        return put(dir, name.split('/'))
+    },
+    {})
+
+/**
  * `files` as one text, the main module first: the text {@link split} reads
  * them from.
  *
@@ -150,4 +182,24 @@ export const reached = previous => files => {
         order = [...order, ...paths.filter(p => !order.includes(p))]
     }
     return order
+}
+
+/**
+ * Each file the import tree of `files` reaches, with the files it imports:
+ * as it imports them now where it parses, as `previous` held them where it
+ * does not, and none where `previous` holds nothing for it. It is the
+ * `previous` of the next edit's {@link reached}, so a page keeps it between
+ * edits.
+ *
+ * @type {(previous: Imports) => (files: Files) => Imports}
+ */
+export const lastImports = previous => files => {
+    /** @type {(name: string) => readonly string[]} */
+    const before = name => previous.find(([n]) => n === name)?.[1] ?? []
+    /** @type {(name: string) => string} */
+    const textOf = name => files.find(([n]) => n === name)?.[1] ?? ''
+    return reached(before)(files).map(name => {
+        const imports = importsOf(name)(textOf(name))
+        return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : before(name)])
+    })
 }

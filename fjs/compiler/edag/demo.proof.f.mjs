@@ -16,6 +16,7 @@ import { htmlToString } from '../../media/html/module.f.mjs'
 import { occurrences } from '../../types/string/module.f.js'
 import { runPure } from '../../effects/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
+import { mainOf } from '../demo_files/module.f.mjs'
 
 /** SVG text tags, including their attributes and text but not the closing tag. @type {(html: string) => readonly string[]} */
 const svgTextTags = html => html.split('<text ').slice(1).map(tag => tag.slice(0, tag.indexOf('</text>')))
@@ -363,7 +364,7 @@ export const proof = {
             // an example exists to show what it can.
             draw: () => {
                 for (const [name, source] of examples) {
-                    assertEq(graphOfText(source)[0] === 'ok', !['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name), name)
+                    assertEq(graphOfText(mainOf(source))[0] === 'ok', !['Hex escape', 'Non-breaking space', 'Non-ASCII identifier', 'Parse error'].includes(name), name)
                     assert(!htmlToString(demo.view(source)).includes('not yet drawn'), name)
                 }
             },

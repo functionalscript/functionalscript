@@ -79,9 +79,12 @@ of the text, and the page recomputes which boxes the imports reach.
 
 **Compiling.** The page writes every file into the in-memory file system
 (`virtualAt`, as now) and compiles `input.f.js`. `_outputMarked` already
-resolves imports through it, so no output logic changes. A refusal names the
-file it is in: with one file the page could drop the location, with several it
-shows the compiler's diagnostic, which carries it.
+resolves imports through it, so no output logic changes. A box an import
+opened that holds nothing yet is written as an empty file, so the compiler
+refuses it as an empty module, by name, not as a file it cannot find. A
+refusal of the main module, or of an output, reads as before, without the
+location; a refusal of another file is the compiler's diagnostic, which names
+the file and where in it (`b.f.js:2:29 - error: unexpected end`).
 
 **The stage pages compile the main module only.** They show one stage of one
 module; a multi-file example shows its main module there, and says that its
@@ -93,6 +96,9 @@ dependencies are compiled on the side-by-side page.
   in-memory file system's directories; refuse such a path until it does.
 - **An empty box's hint.** An empty module is refused, in the compiler's words,
   in the panes; a placeholder such as `export default …` in the box may help.
+- **Subdirectories today.** `demo_files` already admits `lib/m.f.js` and
+  writes it as a directory, so the boxes show such a path; decide whether to
+  keep it.
 
 ### Tasks
 
@@ -101,13 +107,13 @@ dependencies are compiled on the side-by-side page.
 - [x] Split the page's text into files at `// @filename:` lines, and join it
       back ([`demo_files`](../demo_files/module.f.mjs)'s `split` and `join`), refusing a repeated name or a marker that is not a line of its
       own.
-- [ ] Draw a box per file the import tree reaches, and each file it does not
+- [x] Draw a box per file the import tree reaches, and each file it does not
       as *not imported* with a **Remove** button.
-- [ ] Write every file into the page's file system, and show a refusal's file.
-- [ ] Have the stage pages compile the main module of a multi-file example.
-- [ ] Add an example that imports one module through two others, so the
+- [x] Write every file into the page's file system, and show a refusal's file.
+- [x] Have the stage pages compile the main module of a multi-file example.
+- [x] Add an example that imports one module through two others, so the
       outputs show it shared.
-- [ ] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
+- [x] Extend the side-by-side [`../proof.f.mjs`](../proof.f.mjs) table to the
       import examples.
 
 ### Related
