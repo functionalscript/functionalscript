@@ -1,7 +1,7 @@
 ## 87. Borrow `Any` for read-only operations
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
