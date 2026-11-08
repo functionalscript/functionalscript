@@ -162,7 +162,7 @@ impl Any {
 }
 
 impl Drop for Any {
-    fn drop(self) {
+    fn drop(&mut self) {
         if self.is_dyn_ref() {
             self.release();
         }
