@@ -64,14 +64,14 @@ vvvv_vvvv_vvvv_vvvv
 const EXP: u64 = 0x7FF0_0000_0000_0000;
 
 fn is_finite(self: u64) -> bool {
-    self ^ EXP != EXP
+    (self & EXP) != EXP
 }
 
 const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
 const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
 const NAN          : u64 = 0x7FF8_0000_0000_0000;
 
-const TAG = 0x7FF0_0000_0000_00FF;
+const TAG : u64 = 0x7FF0_0000_0000_00FF;
 
 fn is_number(self: u64) -> bool {
     self.is_finite() || self & TAG == EXP
@@ -94,7 +94,7 @@ fn is_short_string(self: u64) -> bool {
 }
 
 fn is_ref(self: u64) -> bool {
-    self & 0x7FF0_0000_0000_0002 == 0x7FF0_0000_0000_0002
+    self & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0002
 }
 
 fn is_short_bigint(self: u64) -> bool {
