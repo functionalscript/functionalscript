@@ -112,40 +112,12 @@ impl Any {
         (self.0 & EXP) != EXP
     }
 
-    // x: Any
-    // if is_number(x) {
-    //     return x * 7.0
-    // }
-    // result:
-    // - true: x is f64
     pub fn is_number(&self) -> bool {
         self.is_finite() || self.0 & TAG8 == NON_FINITE
     }
 
-    // x: Any
-    // if let Some(v) = to_number(x) {
-    //     return v * 7.0
-    // }
-    pub fn to_number(&self) -> Option<f64> {
-        if !self.is_number() { return None }
-        Some(f64::from_bits(self.0))
-    }
-
-    pub fn from_number(x: f64) -> Self {
-        Self(f64::to_bits(x))
-    }
-
     pub fn is_bool(&self) -> bool {
         self.0 & TAG8 == BOOL
-    }
-
-    pub fn as_bool(&self) -> bool {
-        if !self.is_bool() { return None }
-        Self((self.0 >> 63) as bool)
-    }
-
-    pub fn from_bool(v: bool) -> Self {
-        ((v as u64) << 63) || BOOL
     }
 
     pub fn is_short_string(&self) -> bool {
