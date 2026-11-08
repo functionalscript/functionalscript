@@ -16,6 +16,8 @@ Three special values:
 - Neg. Infinity: `0xFFF0_0000_0000_0000`,
 - NaN: `0x7FF8_0000_0000_0000`.
 
+## Special Tags
+
 Format:
 
 ```
@@ -25,89 +27,77 @@ vvvv_vvvv_vvvv_vvvv
 vvvv_vvvv_vvvv_vvvv
 ```
 
-The sign `s` and fraction `v`: 53 bits = 0x35 bits
+- `s111_1111_1111_..._vv00` non-finite numbers, primitives and short string
+- `s111_1111_1111_..._vv10` reference
+- `s111_1111_1111_..._vvv1` bigint
 
-|                         |                        |
-|-------------------------|------------------------|
-|`s111_1111_1111_00vv_...`|primitives and short str|
-|`s111_1111_1111_01vv_...`|pointer                 |
-|`s111_1111_1111_1vvv_...`|short bigint            |
+## Non-Finite Numbers, Primitives, and Short Strings
 
-### Primitives and Short Strings
+`s111_1111_1111...vvvv_vv00`
 
-`s-00vv` + 48 bit
+|               |Cap.|            |states|
+|---------------|----|------------|------|
+|`_...0000_0000`|`44`|non-finite  |`3`   |
+|`_...0001_0000`|`44`|boolean     |`2`   |
+|`0...0010_0000`|`44`|undefined   |`1`   |
+|`0...0011_0000`|`44`|null        |`1`   |
+|`0...0000_1000`|`44`|empty string|`1`   |
+|`0...0001_1000`|`44`|`1x16`      |`2^16`|
+|`0...0010_1000`|`44`|`2x16`      |`2^32`|
+|`0...0100_1000`|`44`|`4x7`       |`2^28`|
+|`0...0101_1000`|`44`|`5x7`       |`2^35`|
+|`0...0110_1000`|`44`|`6x7`       |`2^42`|
+|`0........0100`|`48`|`3x16`      |`2^48`|
+|`0........1100`|`48`|`8x6`       |`2^48`|
+|`1.........100`|`49`|`7x7`       |`2^49`|
 
-|         | s | vv |extra|         |    |
-|---------|---|----|-----|---------|----|
-|primitive|`_`|`00`|     |         |    |
-|         |`_`|`00`|`00` |inf,NaN  |    |
-|         |`0`|`00`|`01` |bool     |    |
-|         |`0`|`00`|`10` |null     |    |
-|         |`0`|`00`|`11` |undefined|    |
-|short str|`_`|`01`|     |         |    |
-|         |`0`|`01`|`00` |`""`     |`0` |
-|         |`0`|`01`|`01` |`1x16`   |`16`|
-|         |`0`|`01`|`10` |`2x16`   |`32`|
-|         |`1`|`01`|`00` |`4x7`    |`28`|
-|         |`1`|`01`|`01` |`5x7`    |`35`|
-|         |`1`|`01`|`10` |`6x7`    |`42`|
-|short str|`_`|`1_`|     |         |    |
-|         |`0`|`10`|     |`3x16`   |`48`|
-|         |`0`|`11`|     |`8x6`    |`48`|
-|         |`1`|`1_`|     |`7x7`    |`49`|
+## Reference
 
-### Ptr
+`s111_1111_1111_tttt_....10`
 
-- `s` - is static;
-- `vv` - data type: `object`, `string`, `bigint`, `function`.
+- `s` is static
+- `tttt` is type
 
-### Short BigInt
-
-- `s` - sign;
-- `vvv` - 3 high bits of `uint51`.
+## Examples
 
 ```rust
-const PRIMITIVE : u64 = 0x7FFF_C000_0000_0000;
+const EXP: u64 = 0x7FF0_0000_0000_0000;
 
-const NON_FINITE: u64 = 0x7FF0_0000_0000_0000;
-const INF       : u64 = 0x7FF0_0000_0000_0000;
-const NEG_INF   : u64 = 0xFFF0_0000_0000_0000;
-const NAN       : u64 = 0x7FF0_0000_0000_0001;
-
-const BOOL      : u64 = 0x7FF0_4000_0000_0000;
-const FALSE     : u64 = 0x7FF0_4000_0000_0000;
-const TRUE      : u64 = 0x7FF0_4000_0000_0001;
-
-const NULLISH   : u64 = 0x7FF0_C000_0000_0000;
-
-const NULL      : u64 = 0x7FF0_8000_0000_0000;
-const UNDEFINED : u64 = 0x7FF0_C000_0000_0000;
-
-fn is_finite(a: u64) -> bool {
-  a & 0x7FF0_0000_0000_0000 != 0x7FF0_0000_0000_0000
+fn is_finite(self: u64) -> bool {
+    (self & EXP) != EXP
 }
 
-fn is_number(a: u64) -> bool {
-  // is_finite(a) || (a & PRIMITIVE == NON_FINITE)
-  a & 0x7FFF_C000_0000_0000 <= 0x7FF0_0000_0000_0000
+const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
+const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
+const NAN          : u64 = 0x7FF8_0000_0000_0000;
+
+const TAG : u64 = 0x7FF0_0000_0000_00FF;
+
+fn is_number(self: u64) -> bool {
+    self.is_finite() || self & TAG == EXP
 }
 
-fn is_bool(a: u64) -> bool {
-  a & PRIMITIVE == 0x7FF0_4000_0000_0000
+const BOOL  : u64 = 0x7FF0_0000_0000_0010;
+const FALSE : u64 = 0x7FF0_0000_0000_0010;
+const TRUE  : u64 = 0xFFF0_0000_0000_0010;
+
+fn is_bool(self: u64) -> bool {
+    self & TAG == BOOL
 }
 
-fn is_short_string(a: u64) -> bool {
-  (a & 0x7FFC_0000_0000_0000) == 0x7FF0_0000_0000_0000 &&
-  (a & 0x0003_0000_0000_0000) != 0
+const UNDEFINED : u64 = 0x7FF0_0000_0000_0020;
+const NULL      : u64 = 0x7FF0_0000_0000_0030;
+
+fn is_short_string(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0000 &&
+    self & 0xC != 0
 }
 
-fn is_ptr(a: u64) -> bool {
-  a & 0x7FFC_0000_0000_0000 == 0x7FF4_0000_0000_0000
+fn is_ref(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0002
 }
 
-const SHORT_BIGINT: u64 = 0x7FF8_0000_0000_0000
-
-fn is_short_bigint(a: u64) -> bool {
-  a & SHORT_BIGINT == SHORT_BIGINT
+fn is_short_bigint(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0001 == 0x7FF0_0000_0000_0001
 }
 ```
