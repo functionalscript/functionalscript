@@ -161,6 +161,15 @@ impl Any {
     }
 }
 
+impl Clone for Any {
+    fn clone(&self) -> Self {
+        if self.is_dyn_ref() {
+            self.add_ref();
+        }
+        Self(self.0)
+    }
+}
+
 impl Drop for Any {
     fn drop(&mut self) {
         if self.is_dyn_ref() {
