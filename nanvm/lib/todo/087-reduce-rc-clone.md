@@ -5,19 +5,21 @@
 
 ### Problem
 
-Many operations consume `Any<A>` even when they only inspect the operand.
-Callers that retain a value must clone it before each use; reading operands
-from borrowed containers also requires explicit clones. This makes ownership
-harder to follow and, for `Naive` container values, can add `Rc` increments
-and decrements.
+The original inspection APIs consumed `Any<A>` even when they only read the
+operand. Callers retaining a value had to clone it before each use, as did
+callers reading operands from borrowed containers. This made ownership harder
+to follow and, for `Naive` container values, could add `Rc` increments and
+decrements.
 
 `Any<A>` wraps an `A: IVm`, not an `Rc<AnyImpl>` as the original sketch here
 assumed. The obstacle extends below the public methods:
 [`IVm::to_unpacked(self)`](../src/vm/internal/mod.rs),
 [`From<Any<A>> for Unpacked<A>`](../src/vm/any/from.rs), and
 [`Unpacked::dispatch(self, ...)`](../src/vm/unpacked.rs) consume their inputs.
-Even `Any::is_nullish(&self)` clones to unpack. Changing signatures alone
-could move the clones inside the implementation without removing them.
+Even `Any::is_nullish(&self)` formerly cloned to unpack. Changing signatures
+alone would move the clones inside the implementation without removing them.
+Inspection now uses `IVm::with_unpacked`; borrowing through coercions and
+arithmetic, and avoiding the serializer's local-read clones, remain open.
 
 ### Proposal
 
@@ -41,17 +43,29 @@ making performance claims.
 
 ### Tasks
 
-- [ ] Audit `Any` operations and their callers for borrowing versus ownership
+- [x] Audit `Any` operations and their callers for borrowing versus ownership
       transfer; choose a small first scope of inspection operations.
-- [ ] Design and implement borrowing through the VM inspection/dispatch path
+- [x] Design and implement borrowing through the VM inspection/dispatch path
       without requiring a reference to an unpacked enum inside every VM.
-- [ ] Convert the selected operations and their consumers together, removing
-      clones rather than relocating them; assess borrowed operator support.
-- [ ] Verify value semantics, errors, and operand reuse with focused tests;
-      run `cargo test`, `cargo clippy -- -D warnings`, and
-      `cargo fmt -- --check` for the Rust changes.
+- [x] Convert inspection operations and their consumers together, removing
+      clones rather than relocating them; support logical negation of `&Any`.
+- [x] Verify value semantics and operand reuse with focused tests that refuse
+      cloning and consuming unpacking during inspection; run `cargo test`,
+      `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
+- [ ] Extend borrowing to coercions and arithmetic where it simplifies their
+      ownership contract; assess borrowed binary operators and verify errors.
+- [ ] Let the Rust serializer print borrowed local reads for inspection,
+      avoiding its current clone of a binding before borrowing the result.
 - [ ] Compare representative workloads if claiming a performance improvement,
       including callers that retain operands and callers that can move them.
+
+The first implementation uses `IVm::with_unpacked` for inspection callbacks.
+`is_nullish`, `is_nan`, truthiness, type checks, equality, and formatting
+borrow through this interface; `defined` checks without cloning before it
+returns ownership. Consuming coercions and arithmetic remain available for
+ownership transfers. The Rust serializer's inspection calls now borrow their
+arguments, while its ordinary local-read emission still clones; that needs a
+structural borrowed-expression mode rather than rewriting emitted text.
 
 ### Related
 

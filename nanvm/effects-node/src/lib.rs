@@ -53,7 +53,7 @@ pub fn run<A: IVm>(
     mut perform: impl FnMut(Any<A>, Any<A>) -> Result<Any<A>, Any<A>>,
 ) -> Result<Any<A>, Any<A>> {
     loop {
-        if effect.clone().typeof_()? == "function".into() {
+        if effect.typeof_()? == "function".into() {
             return effect.call([].to_array().to_any());
         }
         let command = effect.clone().dot("command".into()).end()?;

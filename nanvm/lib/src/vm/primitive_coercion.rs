@@ -328,8 +328,11 @@ mod tests {
     #[test]
     fn function_number_is_nan() {
         assert!(is_nan(function().to_number()));
-        assert_eq!((-function()).map(Any::is_nan), Ok(true));
-        assert_eq!((function() - 1.0.to_any()).map(Any::is_nan), Ok(true));
+        assert_eq!((-function()).as_ref().map(Any::is_nan), Ok(true));
+        assert_eq!(
+            (function() - 1.0.to_any()).as_ref().map(Any::is_nan),
+            Ok(true)
+        );
         assert_eq!(function() ^ 6.0.to_any(), Ok(6.0.to_any()));
     }
 

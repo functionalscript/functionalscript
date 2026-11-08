@@ -8,7 +8,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, Nullish, ToAny, ToArray, ToObje
 pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b6: Any<A> = A::static_function(|_self, _args| {
         let _b327: Any<A> = _args.rest(0).to_any();
-        if Any::<A>::to_boolean((Any::dot(_b327.clone(), f64_any(0x0000000000000000)).end())?) { Ok(Nullish::Undefined.to_any()) } else { Err((Any::dot(_b327.clone(), f64_any(0x3ff0000000000000)).end())?) }
+        if Any::<A>::to_boolean(&(Any::dot(_b327.clone(), f64_any(0x0000000000000000)).end())?) { Ok(Nullish::Undefined.to_any()) } else { Err((Any::dot(_b327.clone(), f64_any(0x3ff0000000000000)).end())?) }
     }, 0, Array::default(), Some("(...$0)=>$0[0]?undefined:(()=>{throw $0[1];})()")).to_any();
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b768: Any<A> = _args.rest(0).to_any();

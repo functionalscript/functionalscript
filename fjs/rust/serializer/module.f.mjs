@@ -98,7 +98,7 @@ export const op1Rust = {
     '-': a => `<Any<A> as core::ops::Neg>::neg(${a})`,
     '!': a => `<Any<A> as core::ops::Not>::not(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
-    typeof: a => `Any::typeof_(${a})`,
+    typeof: a => `Any::typeof_(&${a})`,
     Number: a => `Any::number(${a})`,
     BigInt: a => `Any::bigint(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
@@ -331,7 +331,7 @@ const pure = result => v => result ? `Ok(${v})` : v
 const fallible = result => v => result ? v : `(${v})?`
 
 /** Pin the VM parameter even when a condition is only a primitive literal. @type {(value: string) => string} */
-const truth = value => `Any::<A>::to_boolean(${value})`
+const truth = value => `Any::<A>::to_boolean(&${value})`
 
 /** Map's SameValueZero keys need a separate identity for IEEE negative zero. */
 const negativeZero = {}
@@ -511,7 +511,7 @@ const operation = (s, n, result) => {
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
-        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
         // the naive spelling: the runtime's `in` body called with the key
         // and the value, which a VM may substitute natively (DESIGN.md §13)
         case 'in': {

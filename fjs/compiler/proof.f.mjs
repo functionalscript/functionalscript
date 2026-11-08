@@ -1283,17 +1283,17 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             /** The lines of the module's body. @type {(source: string) => readonly string[]} */
             const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             assertStructurallySame(body('export default 1 && 2;'), [
-                '    Ok([(string_key("default"), if Any::<A>::to_boolean(f64_any(0x3ff0000000000000)) { f64_any(0x4000000000000000) } else { f64_any(0x3ff0000000000000) })].to_object().to_any())',
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&f64_any(0x3ff0000000000000)) { f64_any(0x4000000000000000) } else { f64_any(0x3ff0000000000000) })].to_object().to_any())',
             ])
             assertStructurallySame(body('export default false || 1n / 0n;'), [
-                '    Ok([(string_key("default"), if Any::<A>::to_boolean(false.to_any()) { false.to_any() } else { (bigint_any(1) / bigint_any(0))? })].to_object().to_any())',
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&false.to_any()) { false.to_any() } else { (bigint_any(1) / bigint_any(0))? })].to_object().to_any())',
             ])
             assertStructurallySame(body('export default null ?? 1;'), [
-                '    Ok([(string_key("default"), if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()))? }) { f64_any(0x3ff0000000000000) } else { Nullish::Null.to_any() })].to_object().to_any())',
+                '    Ok([(string_key("default"), if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(Nullish::Null.to_any(), Nullish::Undefined.to_any()))? }) { f64_any(0x3ff0000000000000) } else { Nullish::Null.to_any() })].to_object().to_any())',
             ])
             assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
                 '    let _b0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
-                '    Ok([(string_key("default"), [if Any::<A>::to_boolean(false.to_any()) { _b0.clone() } else { false.to_any() }, if Any::<A>::to_boolean(true.to_any()) { _b0.clone() } else { true.to_any() }].to_array().to_any())].to_object().to_any())',
+                '    Ok([(string_key("default"), [if Any::<A>::to_boolean(&false.to_any()) { _b0.clone() } else { false.to_any() }, if Any::<A>::to_boolean(&true.to_any()) { _b0.clone() } else { true.to_any() }].to_array().to_any())].to_object().to_any())',
             ])
         },
         // Conditional source arms remain selected Rust branches; rest reads
@@ -1305,7 +1305,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
             assertStructurallySame(body('export default true ? 1 : 2;'), [
-                `    Ok([(string_key("default"), if Any::<A>::to_boolean(true.to_any()) { ${one} } else { ${two} })].to_object().to_any())`,
+                `    Ok([(string_key("default"), if Any::<A>::to_boolean(&true.to_any()) { ${one} } else { ${two} })].to_object().to_any())`,
             ])
             // a function's arguments reached only lazily are no `const`
             // to anchor and need none: the parameter is bound already, so
@@ -1313,13 +1313,13 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertStructurallySame(body('export default (...a) => true ? a : a;'), [
                 '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
                 '        let _b92: Any<A> = _args.rest(0).to_any();',
-                '        if Any::<A>::to_boolean(true.to_any()) { Ok(_b92.clone()) } else { Ok(_b92.clone()) }',
+                '        if Any::<A>::to_boolean(&true.to_any()) { Ok(_b92.clone()) } else { Ok(_b92.clone()) }',
                 '    }, 0, Array::default(), Some("(...$0)=>true?$0:$0")).to_any())].to_object().to_any())',
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
                 '    Ok([(string_key("default"), A::static_function(|_self, _args| {',
                 '        let _b174: Any<A> = _args.rest(0).to_any();',
-                '        if Any::<A>::to_boolean(true.to_any()) { Ok([_b174.clone()].to_array().to_any()) } else { Ok([_b174.clone(), _b174.clone()].to_array().to_any()) }',
+                '        if Any::<A>::to_boolean(&true.to_any()) { Ok([_b174.clone()].to_array().to_any()) } else { Ok([_b174.clone(), _b174.clone()].to_array().to_any()) }',
                 '    }, 0, Array::default(), Some("(...$0)=>true?[$0]:[$0,$0]")).to_any())].to_object().to_any())',
             ])
         },
@@ -1334,7 +1334,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         // corpus.
         inlinedCall: () => {
             assert(compileSource('const f = () => [1]; export default (...a) => a[0] ? (() => { const x = f(); return [x, x]; })() : 4;')('output.rs').includes([
-                '        if Any::<A>::to_boolean((Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
+                '        if Any::<A>::to_boolean(&(Any::dot(_b362.clone(), f64_any(0x0000000000000000)).end())?) {',
                 '            let _b5: Any<A> = (Any::call(A::frame(_self)[0].clone(), Array::default().to_any()))?;',
                 '            Ok([_b5.clone(), _b5.clone()].to_array().to_any())',
                 '        } else { Ok(f64_any(0x4010000000000000)) }',
