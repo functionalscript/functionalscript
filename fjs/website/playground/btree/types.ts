@@ -76,8 +76,10 @@ export type Frame = {
  * update that shows a frame changes the count's parity, which restarts
  * the drawing's fades.
  *
- * `history` holds the tree each move started from, oldest first: an undo
- * goes back to the last of them, and counts as a move.
+ * `history` holds the tree each move that changed it started from, oldest
+ * first: an undo goes back to the last of them, and counts as a move. A
+ * move whose key went back where it was adds nothing, so there is nothing
+ * to undo it to.
  *
  * `animate` is the reader's choice to see a move frame by frame; without
  * it a move lands at once, drawn against the tree it started from.

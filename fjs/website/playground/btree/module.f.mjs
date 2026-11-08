@@ -32,7 +32,9 @@
  * where that move started, at once, drawn against the tree it undoes; the
  * count goes up by one, not down, so an undo is a move spent like any other.
  * Moves are undone newest first, back to the start, and a new tree or level
- * starts the history again.
+ * starts the history again. Only a move that changed the tree can be undone:
+ * one whose key went back where it was is skipped, so an undo always changes
+ * the tree, and is never a move spent on nothing.
  *
  * **Par is the fewest moves from the start to a perfect tree**, found by a
  * breadth-first search over the move: every tree one move from the start,
@@ -249,7 +251,7 @@ export const move = key => game => {
     const removed = structure.remove(key)(before)
     const moved = structure.insert(key)(removed)
     const changed = !same({ before, after: moved })
-    const counted = { ...landed, moves: landed.moves + 1, history: [...landed.history, before], last: { key, changed }, error: null }
+    const counted = { ...landed, moves: landed.moves + 1, history: changed ? [...landed.history, before] : landed.history, last: { key, changed }, error: null }
     if (!landed.animate) { return shownNext({ versions: { before, after: moved }, mode: 'still', note: null, base: before })([])(counted) }
     /** @type {readonly [Frame, ...Frame[]]} */
     const [first, ...rest] = [
@@ -262,7 +264,7 @@ export const move = key => game => {
 }
 
 /**
- * The last move taken back: the tree it started from, landed at once and
+ * The last move that changed the tree taken back: the tree it started from, landed at once and
  * drawn `still` against the tree it undoes, its nodes built anew blue. An
  * undo is counted as a move, so the count goes up. A move still showing
  * lands first. With no move to undo, the game as it was.
@@ -450,7 +452,7 @@ export const demo = {
         return pureOk(key === null ? game : move(key)(game))
     },
     view: game => ['div',
-        ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. Undo takes the last move back, and counts as a move too. A new tree is its keys inserted in random order.'],
+        ['p', 'Make the tree perfect: every node full, two keys each. Your one move: click a key, and it is removed and inserted again. Undo takes back the last move that changed the tree, and counts as a move too. A new tree is its keys inserted in random order.'],
         selectField({ name: 'level', label: 'Level' },
             depths.map(d => option(String(d), `Depth ${d}: ${keyCount(d)} keys`, d === game.depth))),
         ['p',

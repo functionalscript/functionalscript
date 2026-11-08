@@ -192,6 +192,22 @@ export const proof = {
             assertEq(undo(start), start)
             assertEq(undo(demo.init), demo.init)
         },
+        // A move that changed nothing is not undone: it adds nothing to
+        // the history, so undo takes back the move before it, and with
+        // none before it, there is nothing to undo.
+        skipsNoChange: () => {
+            const same = played(10)(level2)
+            assertEq(JSON.stringify([same.moves, same.history.length]), '[1,0]')
+            assertEq(undo(same), same)
+            assert(html(same).includes('<button type="button" name="undo" disabled="">Undo</button>'), html(same))
+            // After 40 moved, 30 goes back where it was: undo skips it and
+            // takes 40's move back, to the start.
+            const twice = played(30)(played(40)(level2))
+            assertEq(JSON.stringify([twice.moves, twice.last, twice.history.length]), '[2,{"key":30,"changed":false},1]')
+            const back = undo(twice)
+            assertEq(JSON.stringify([back.moves, back.history.length]), '[3,0]')
+            assertEq(JSON.stringify(assertNotNullish(back.versions).after), JSON.stringify(inOrder))
+        },
         // A move still showing lands, and is the one undone.
         showing: () => {
             const back = undo(move(40)(level2))
