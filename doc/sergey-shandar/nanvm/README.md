@@ -64,13 +64,13 @@ vvvv_vvvv_vvvv_vvvv
 #[repr(transparent)]
 pub struct Any(u64);
 
-const NUMBER_TYPE   : u32 = 0x0;
-const BOOLEAN_TYPE  : u32 = 0x1;
-const UNDEFINE_TYPE : u32 = 0x2;
-const OBJECT_TYPE   : u32 = 0x3;
-const STRING_TYPE   : u32 = 0x4;
-const BIGINT_TYPE   : u32 = 0x5;
-const FUNCTION_TYPE : u32 = 0x6;
+const NUMBER_TYPE    : u32 = 0x0;
+const BOOLEAN_TYPE   : u32 = 0x1;
+const UNDEFINED_TYPE : u32 = 0x2;
+const OBJECT_TYPE    : u32 = 0x3;
+const STRING_TYPE    : u32 = 0x4;
+const BIGINT_TYPE    : u32 = 0x5;
+const FUNCTION_TYPE  : u32 = 0x6;
 
 //
 
@@ -106,7 +106,7 @@ const REF          : u64 = 0x7FF0_0000_0000_0002;
 const REF_TAG      : u64 = 0xFFF0_0000_0000_0003;
 const DYN_REF      : u64 = 0x7FF0_0000_0000_0002;
 
-// TAG 1
+// TAG 1:
 
 const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
 
@@ -156,7 +156,7 @@ impl Any {
         // reference
         if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF; }
         // scalar
-        if self.0 & 0xC != 0 { return STING_TYPE; }
+        if self.0 & 0xC != 0 { return STRING_TYPE; }
         (self.0 >> 4) & 0xF
     }
 }
