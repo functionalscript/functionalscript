@@ -55,8 +55,8 @@ vvvv_vvvv_vvvv_vvvv
 
 `s111_1111_1111_tttt_....10`
 
-- `s` is static
-- `tttt` is type
+- `s` is static,
+- `tttt` is type.
 
 ## Examples
 
