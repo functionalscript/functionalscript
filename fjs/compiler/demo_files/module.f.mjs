@@ -35,7 +35,7 @@
 
 import { error, ok } from '../../types/result/module.f.js'
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { escapes, normalize } from '../../path/module.f.js'
+import { escapes, normalize, root } from '../../path/module.f.js'
 import { resolve, specifierKind } from '../../path/import/module.f.mjs'
 import { parse as parseJson, stringifySorted } from '../../media/json/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
@@ -62,12 +62,17 @@ export const targetOf = importer => specifier => {
 
 /**
  * Whether `name` is a file a program other than its main module can hold: a
- * path some import names, written as the program's directory names it, so one
- * file has one name.
+ * path inside the program's directory, written as {@link targetOf} writes it,
+ * normalized and without a root, so one file has one name.
+ *
+ * It reads `name` as a file's path, not as an import specifier: `targetOf`
+ * has already decoded the specifier, so `./dep%3F.f.js` opens the box
+ * `dep?.f.js`, and that name is held, and shared, as it is. Read as a
+ * specifier again, its `?` would be refused.
  *
  * @type {(name: string) => boolean}
  */
-export const isFileName = name => name !== main && targetOf(main)(`./${name}`) === name
+export const isFileName = name => name !== '' && name !== main && root(name) === '' && !escapes(name) && normalize(name) === name
 
 /**
  * The files `text`, the module named `name`, imports, named by

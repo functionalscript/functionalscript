@@ -1728,6 +1728,15 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(assertNotNullish(sharing.validate)({ compiler: '', files: '[]' }), null)
             const linked = sharing.restore({ compiler: 'import a from "./a.f.js";\nexport default a;', files: '[["a.f.js","export default 7;"]]' })
             assertEq(textOfResult(nextDemo(linked, { kind: 'start' }).panes[0]), '7')
+            // a box an escaped import opened, filled, survives a link
+            const escaped = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import d from "./dep%3F.f.js";\nexport default d;' }),
+                { kind: 'input', name: 'file:dep?.f.js', value: 'export default 1;' })
+            assertEq(textOfResult(escaped.panes[0]), '1')
+            const escapedLink = encodeQuery(sharing, sharing.read(escaped))
+            assertEq(escapedLink[0], 'ok')
+            const reopened = nextDemo(sharing.restore(sharing.read(escaped)), { kind: 'start' })
+            assertEq(JSON.stringify(reopened.files), '[["dep?.f.js","export default 1;"]]')
+            assertEq(textOfResult(reopened.panes[0]), '1')
             const restored = sharing.restore({ compiler: 'export default 2;', files: '[]' })
             assertStructurallySame(restored, { main: 'export default 2;', files: [], panes: [], imports: [] })
             assertEq(nextDemo(restored, { kind: 'click', name: 'run' }), restored)

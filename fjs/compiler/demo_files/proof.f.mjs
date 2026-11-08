@@ -41,10 +41,13 @@ export const proof = {
         },
     },
     isFileName: () => {
-        for (const name of ['m.f.js', 'm.f.mjs', 'd.json', 'lib/m.f.js', 'dep', 'dep.mjs']) { assert(isFileName(name), name) }
-        for (const name of [main, './m.f.js', '/m.f.js', '../m.f.js', 'lib/../m.f.js', 'a:b.f.js', '']) {
+        for (const name of ['m.f.js', 'm.f.mjs', 'd.json', 'lib/m.f.js', 'dep', 'dep.mjs', 'dep?.f.js', 'dep?#%.mjs']) { assert(isFileName(name), name) }
+        for (const name of [main, './m.f.js', '/m.f.js', '../m.f.js', 'lib/../m.f.js', 'C:/x.f.js', 'a\\b.f.js', '//x', 'lib/', '.', '']) {
             assert(!isFileName(name), name)
         }
+        // a name an import's escapes decode to is one a program can hold
+        assertEq(targetOf(main)('./dep%3F%23%25.mjs'), 'dep?#%.mjs')
+        assert(isFileName('dep?#%.mjs'), 'decoded')
     },
     importsOf: {
         resolved: () => assertEq(json(importsOf('lib/b.f.mjs')(
