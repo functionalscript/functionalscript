@@ -61,6 +61,9 @@ vvvv_vvvv_vvvv_vvvv
 ## Examples
 
 ```rust
+#[repr(transparent)]
+struct Any(u64);
+
 const EXP: u64 = 0x7FF0_0000_0000_0000;
 
 fn is_finite(self: u64) -> bool {
