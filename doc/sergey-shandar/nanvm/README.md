@@ -65,14 +65,14 @@ vvvv_vvvv_vvvv_vvvv
 pub struct Any(u64);
 
 pub enum Type {
-    Object    = 0x0,
-    String    = 0x1,
-    BigInt    = 0x2,
-    Function  = 0x3,
+    Number    = 0x0
+    Boolean   = 0x1,
+    Undefined = 0x2,
     //
-    Number    = 0x4,
-    Boolean   = 0x5,
-    Undefined = 0x6,
+    Object    = 0x3,
+    String    = 0x4,
+    BigInt    = 0x5,
+    Function  = 0x6,
 }
 
 const EXP          : u64 = 0x7FF0_0000_0000_0000;
@@ -157,12 +157,7 @@ impl Any {
         // reference
         if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF }
         if self.0 & 0xC != 0 { return Type::String }
-        match self.0 & 0xF0 {
-            0x10 => { return Type::Boolean }
-            0x20 => { return Type::Undefined }
-            0x30 => { return Type::Null }
-        }
-        return Type::Number
+        return (self.0 & 0xF0) >> 4
     }
 }
 
