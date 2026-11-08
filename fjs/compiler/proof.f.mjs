@@ -1695,6 +1695,14 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             const throwing = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import b from "./b.f.js";\nexport default b;' }),
                 { kind: 'input', name: 'file:b.f.js', value: 'export default 1 + undefined.x;' })
             assertEq(throwing.panes[0][1], 'b.f.js - error: module initialization failed')
+            // `../` in a file a rooted import reached reads from the root: its box opens
+            const upward = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "/a.f.js";\nexport default a;' }),
+                { kind: 'input', name: 'file:a.f.js', value: 'import x from "../x.f.js";\nexport default x;' })
+            assert(html(upward).includes(box('x.f.js')), html(upward))
+            assertEq(textOfResult(nextDemo(upward, { kind: 'input', name: 'file:x.f.js', value: 'export default 5;' }).panes[0]), '5')
+            const upwardCycle = nextDemo(upward, { kind: 'input', name: 'file:a.f.js', value: 'import x from "../input.f.js";\nexport default x;' })
+            assert(html(upwardCycle).includes('<p role="status">Import cycle: /a.f.js → /input.f.js → /a.f.js</p>'), html(upwardCycle))
+            assertEq(upwardCycle.panes[0][1], '/a.f.js - error: circular dependency')
             // an empty box goes with its import, a box with text stays, marked
             const typed = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import e from "./e.f.js";\nexport default e;' })
             assert(html(typed).includes(box('e.f.js')) && typed.files.length === 0, html(typed))

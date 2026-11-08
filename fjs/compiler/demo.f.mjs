@@ -73,7 +73,7 @@ import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.js'
 import { refusal, textField } from '../website/demo/module.f.mjs'
 import { highlight, render } from '../website/demo/highlight/module.f.mjs'
-import { cycleOf, decode, dirOf, encode, lastImports, main, outsideImports, reached, twiceLoaded } from './demo_files/module.f.mjs'
+import { cycleOf, decode, dirOf, encode, fileOf, lastImports, main, outsideImports, reached, twiceLoaded } from './demo_files/module.f.mjs'
 import { dependenciesOf, examples } from './examples/module.f.js'
 import { examplePicker, name as exampleName } from '../website/demo/examples/module.f.js'
 import { _outputMarked, compileFile } from './module.f.mjs'
@@ -234,7 +234,10 @@ const boxes = ({ main: mainText, files, imports }) => {
     const program = [/** @type {File} */ ([main, mainText]), ...files]
     /** @type {(file: string) => string} */
     const textOf = file => files.find(([n]) => n === file)?.[1] ?? ''
-    const [, ...dependencies] = lastImports(imports)(program).map(([n]) => n)
+    // one box per file, however many identities the walk reads it under
+    const [, ...dependencies] = lastImports(imports)(program)
+        .map(([id]) => fileOf(id))
+        .filter((n, i, all) => all.indexOf(n) === i)
     return [
         textField({ name, label: mainLabel, highlight }, mainText),
         ...dependencies.map(file => textField({ name: `${filePrefix}${file}`, label: file, rows: 4, highlight }, textOf(file))),

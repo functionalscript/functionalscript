@@ -1,5 +1,5 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { cycleOf, decode, dirOf, encode, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf, twiceLoaded } from './module.f.mjs'
+import { cycleOf, decode, dirOf, encode, fileOf, identityOf, importsOf, isFileName, lastImports, main, outsideImports, reached, targetOf, twiceLoaded } from './module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -52,7 +52,7 @@ export const proof = {
     importsOf: {
         resolved: () => assertEq(json(importsOf('lib/b.f.mjs')(
             "import a from '../a.f.js'\nimport { x } from './c'\nimport y from '../a.f.js'\nimport r from '/r.mjs'\nexport default [a, x, y, r]")),
-            json(['ok', ['a.f.js', 'lib/c', 'r.mjs']])),
+            json(['ok', ['a.f.js', 'lib/c', '/r.mjs']])),
         leftToTheCompiler: () => assertEq(json(importsOf(main)([
             "import p from 'functionalscript/fjs/a.f.mjs'",
             "import u from '../up.f.js'",
@@ -82,8 +82,9 @@ export const proof = {
         parsed: () => assertEq(json(lastImports([])(shared)), json([
             [main, ['a.f.js', 'lib/b.f.mjs']],
             ['a.f.js', ['shared.json']],
-            ['lib/b.f.mjs', ['shared.json']],
+            ['lib/b.f.mjs', ['/shared.json']],
             ['shared.json', []],
+            ['/shared.json', []],
         ])),
         halfTyped: () => {
             const before = lastImports([])([[main, "import m from './m.f.js'\nexport default m"]])
@@ -92,6 +93,22 @@ export const proof = {
             assertEq(json(lastImports([])([[main, 'export default +']])), json([[main, []]]))
         },
     },
+    identityOf: {
+        // a rooted importer resolves its relative imports from the root, where `..` stays
+        rooted: () => {
+            assertEq(identityOf('/a.f.js')('../x.f.js'), '/x.f.js')
+            assertEq(identityOf('a.f.js')('../x.f.js'), null)
+            assertEq(identityOf('/lib/b.f.js')('./c.f.js'), '/lib/c.f.js')
+            assertEq(identityOf(main)('/lib/./d.mjs'), '/lib/d.mjs')
+            assertEq(fileOf('/lib/d.mjs'), 'lib/d.mjs')
+        },
+    },
+    walk: {
+        upwardFromARootedImporter: () => assertEq(json(reached(none)([
+            [main, "import a from '/a.f.js'\nexport default a"],
+            ['a.f.js', "import x from '../x.f.js'\nexport default x"],
+        ])), json([main, 'a.f.js', 'x.f.js'])),
+    },
     cycleOf: {
         none: () => {
             assertEq(cycleOf(shared), null)
@@ -99,7 +116,7 @@ export const proof = {
             assertEq(cycleOf([[main, "import m from './m.f.js'\nexport default m"]]), null)
         },
         toMain: () => assertEq(json(cycleOf([[main, "import m from './m.f.js'\nexport default m"], ['m.f.js', "import i from '/input.f.js'\nexport default i"]])),
-            json([main, 'm.f.js', main])),
+            json(['/input.f.js', '/m.f.js', '/input.f.js'])),
         self: () => assertEq(json(cycleOf([[main, "import a from './a.f.js'\nexport default a"], ['a.f.js', "import a from './a.f.js'\nexport default a"]])),
             json(['a.f.js', 'a.f.js'])),
         afterAnAcyclicBranch: () => assertEq(json(cycleOf([
@@ -123,6 +140,10 @@ export const proof = {
                 json([main, 'l0a.f.js', 'l1a.f.js', 'l2a.f.js', 'l3a.f.js', 'l4a.f.js', 'l5a.f.js', 'l6a.f.js', 'l7a.f.js', 'l8a.f.js', 'l9a.f.js',
                     'l10a.f.js', 'l11a.f.js', 'l12a.f.js', 'l13a.f.js', 'l14a.f.js', 'l15a.f.js', 'l16a.f.js', 'l17a.f.js', 'l18a.f.js', 'l19a.f.js', 'l20b.f.js', main]))
         },
+        throughARootedImporter: () => assertEq(json(cycleOf([
+            [main, "import a from '/a.f.js'\nexport default a"],
+            ['a.f.js', "import x from '../input.f.js'\nexport default x"],
+        ])), json(['/a.f.js', '/input.f.js', '/a.f.js'])),
         unparsedImportsNothing: () => assertEq(
             cycleOf([[main, "import a from './a.f.js'\nexport default a"], ['a.f.js', "import i from './input.f.js'\nexport default i +"]]),
             null),

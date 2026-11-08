@@ -45,19 +45,44 @@ import { utf8 } from '../../text/module.f.mjs'
 export const main = 'input.f.js'
 
 /**
- * The file an import of `specifier` in the file `importer` reads, named from
- * the program's directory: `lib/b.f.js` for `../lib/b.f.js` in `a/x.f.js`, and
- * for `/lib/b.f.js` anywhere. `null` for a bare specifier, which the compiler
- * refuses, and for a path it cannot read inside the program's directory.
+ * The file a module identity names: the identity without its leading `/`,
+ * since the page's root is the program's directory.
+ *
+ * @type {(id: string) => string}
+ */
+export const fileOf = id => id.startsWith('/') ? id.slice(1) : id
+
+/**
+ * The module identity an import of `specifier` in the module `importer`
+ * reads, as the in-memory resolver gives it: the specifier resolved against
+ * the importer's identity and normalized, leading `/` and all. So `../x.f.js`
+ * is `/x.f.js` in `/a.f.js`, since nothing is above the root, while in
+ * `a.f.js` it climbs out of the program's directory. `null` for a bare
+ * specifier, which the compiler refuses, and for a path it cannot read
+ * inside the program's directory.
+ *
+ * @type {(importer: string) => (specifier: string) => string | null}
+ */
+export const identityOf = importer => specifier => {
+    if (specifierKind(specifier) === 'bare') { return null }
+    const path = resolve(importer)(specifier)
+    if (path === null) { return null }
+    const id = normalize(path)
+    const name = fileOf(id)
+    return name === '' || root(name) !== '' || escapes(name) ? null : id
+}
+
+/**
+ * The file an import of `specifier` in the module `importer` reads, named
+ * from the program's directory: `lib/b.f.js` for `../lib/b.f.js` in
+ * `a/x.f.js`, and for `/lib/b.f.js` anywhere; or `null` where
+ * {@link identityOf} reads none.
  *
  * @type {(importer: string) => (specifier: string) => string | null}
  */
 export const targetOf = importer => specifier => {
-    if (specifierKind(specifier) === 'bare') { return null }
-    const path = resolve(importer)(specifier)
-    if (path === null) { return null }
-    const name = path.startsWith('/') ? path.slice(1) : path
-    return name === '' || name.startsWith('/') || escapes(name) ? null : name
+    const id = identityOf(importer)(specifier)
+    return id === null ? null : fileOf(id)
 }
 
 /**
@@ -75,21 +100,22 @@ export const targetOf = importer => specifier => {
 export const isFileName = name => name !== '' && name !== main && root(name) === '' && !escapes(name) && normalize(name) === name
 
 /**
- * The files `text`, the module named `name`, imports, named by
- * {@link targetOf}, each once, in the order it imports them; or the parser's
- * message where it does not parse. A JSON file imports nothing.
+ * The module identities `text`, the module `id`, imports ({@link identityOf}),
+ * each once, in the order it imports them; or the parser's message where it
+ * does not parse. A JSON file imports nothing.
  *
- * @type {(name: string) => (text: string) => Result<readonly string[], string>}
+ * @type {(id: string) => (text: string) => Result<readonly string[], string>}
  */
-export const importsOf = name => text => {
+export const importsOf = id => text => {
+    const name = fileOf(id)
     if (name.endsWith('.json')) { return ok([]) }
     const parsed = parse(name)(text)
     if (parsed[0] === 'error') { return error(parsed[1].message) }
     return ok(parsed[1].imports.reduce(
         /** @type {(found: readonly string[], i: { readonly specifier: string }) => readonly string[]} */
         (found, { specifier }) => {
-            const path = targetOf(name)(specifier)
-            return path === null || found.includes(path) ? found : [...found, path]
+            const read = identityOf(id)(specifier)
+            return read === null || found.includes(read) ? found : [...found, read]
         },
         []))
 }
@@ -97,53 +123,60 @@ export const importsOf = name => text => {
 /** @type {(files: Files) => (name: string) => string} */
 const textIn = files => name => files.find(([n]) => n === name)?.[1] ?? ''
 
+/** @type {(names: readonly string[]) => readonly string[]} */
+const unique = names => names.filter((n, i) => names.indexOf(n) === i)
+
 /**
- * The files the import tree of `files` reaches from the main module, each
- * once, in the order the tree first reaches it, the main module first. A
- * name `files` does not hold is reached as an empty module, a box to write.
- * A module that does not parse adds what `previous` gives for it: the imports
- * it had when it last parsed, so a box does not vanish while its importer is
- * half-typed.
+ * The module identities the import tree of `files` reaches from the main
+ * module, `input.f.js`, each with the identities it imports, each once, in
+ * the order the tree first reaches it: the walk the compiler takes, so every
+ * other answer here agrees with what it reads. A file `files` does not hold
+ * is read as an empty module, a box to write. A module that does not parse
+ * imports what `previous` gives for it, the identities it imported when it
+ * last parsed, so a box does not vanish while its importer is half-typed.
  *
- * @type {(previous: (name: string) => readonly string[]) => (files: Files) => readonly string[]}
+ * @type {(previous: (id: string) => readonly string[]) => (files: Files) => Imports}
  */
-export const reached = previous => files => {
+export const walk = previous => files => {
     const textOf = textIn(files)
+    /** @type {Imports} */
+    let table = []
     /** @type {readonly string[]} */
     let order = [main]
     for (let i = 0; i < order.length; i += 1) {
-        const name = order[i]
-        const imports = importsOf(name)(textOf(name))
-        const paths = imports[0] === 'ok' ? imports[1] : previous(name)
-        order = [...order, ...paths.filter(p => !order.includes(p))]
+        const id = order[i]
+        const imports = importsOf(id)(textOf(fileOf(id)))
+        const read = imports[0] === 'ok' ? imports[1] : previous(id)
+        table = [...table, [id, read]]
+        order = unique([...order, ...read])
     }
-    return order
+    return table
 }
 
 /**
- * Each file the import tree of `files` reaches, with the files it imports:
- * as it imports them now where it parses, as `previous` held them where it
- * does not, and none where `previous` holds nothing for it. It is the
- * `previous` of the next edit's {@link reached}, so a page keeps it between
- * edits.
+ * The files the import tree of `files` reaches, each once, in the order the
+ * tree first reaches it, the main module first: the boxes a page shows, one
+ * per file however many identities the walk reads it under.
+ *
+ * @type {(previous: (id: string) => readonly string[]) => (files: Files) => readonly string[]}
+ */
+export const reached = previous => files => unique(walk(previous)(files).map(([id]) => fileOf(id)))
+
+/**
+ * The {@link walk} of `files`, a module that does not parse importing what
+ * `previous`, the last walk, held for it. A page keeps it between edits, as
+ * the `previous` of the next.
  *
  * @type {(previous: Imports) => (files: Files) => Imports}
  */
-export const lastImports = previous => files => {
-    /** @type {(name: string) => readonly string[]} */
-    const before = name => previous.find(([n]) => n === name)?.[1] ?? []
-    const textOf = textIn(files)
-    return reached(before)(files).map(name => {
-        const imports = importsOf(name)(textOf(name))
-        return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : before(name)])
-    })
-}
+export const lastImports = previous => walk(id => previous.find(([i]) => i === id)?.[1] ?? [])
 
 /**
  * The first import cycle of `files`, walking the tree from the main module
- * depth first: each file of the cycle, the first written again at the end
- * (`input.f.js → m.f.js → input.f.js`), or `null` where the imports form
- * none. A module that does not parse imports nothing here. The compiler
+ * depth first: each module identity of the cycle, the first written again at
+ * the end (`input.f.js → m.f.js → input.f.js`, or `/a.f.js → /input.f.js →
+ * /a.f.js` where a rooted import is on it, as the compiler names it), or
+ * `null` where the imports form none. A module that does not parse imports nothing here. The compiler
  * refuses a cycle in its own words, `circular dependency`; this names every
  * file the cycle passes through, which its message does not.
  *
@@ -155,14 +188,10 @@ export const lastImports = previous => files => {
  * @type {(files: Files) => readonly string[] | null}
  */
 export const cycleOf = files => {
-    const textOf = textIn(files)
-    const table = reached(() => [])(files).map(name => {
-        const imports = importsOf(name)(textOf(name))
-        return /** @type {const} */ ([name, imports[0] === 'ok' ? imports[1] : []])
-    })
-    // every file the walk visits is one the tree reaches, so it is in the table
-    /** @type {(name: string) => readonly string[]} */
-    const importsAt = name => assertNotNullish(table.find(([n]) => n === name))[1]
+    const table = walk(() => [])(files)
+    // every identity the walk visits is one the tree reaches, so it is in the table
+    /** @type {(id: string) => readonly string[]} */
+    const importsAt = id => assertNotNullish(table.find(([i]) => i === id))[1]
     /**
      * The cycle under the last file of `path`, or `null`, and the files known
      * to have none under them, `done` with this one added.
@@ -250,18 +279,21 @@ export const decode = text => {
  */
 export const outsideImports = files => {
     const textOf = textIn(files)
-    return reached(() => [])(files).flatMap(name => {
+    /** @type {readonly (readonly [file: string, specifier: string])[]} */
+    const found = walk(() => [])(files).flatMap(([id]) => {
+        const name = fileOf(id)
         if (name.endsWith('.json')) { return [] }
         const parsed = parse(name)(textOf(name))
         return parsed[0] === 'error' ? [] : parsed[1].imports
             .filter(({ specifier }) => {
                 const kind = specifierKind(specifier)
                 // a specifier the compiler refuses reads no file anywhere
-                if (kind === 'bare' || resolve(name)(specifier) === null) { return false }
-                return kind === 'rooted' || targetOf(name)(specifier) === null
+                if (kind === 'bare' || resolve(id)(specifier) === null) { return false }
+                return kind === 'rooted' || identityOf(id)(specifier) === null
             })
             .map(({ specifier }) => /** @type {const} */ ([name, specifier]))
     })
+    return found.filter(([f, s], i) => found.findIndex(([g, t]) => g === f && t === s) === i)
 }
 
 /**
@@ -278,23 +310,6 @@ export const outsideImports = files => {
  * @type {(files: Files) => readonly string[]}
  */
 export const twiceLoaded = files => {
-    const textOf = textIn(files)
-    /** @type {(id: string) => string} */
-    const fileOf = id => id.startsWith('/') ? id.slice(1) : id
-    /** @type {readonly string[]} */
-    let ids = [main]
-    for (let i = 0; i < ids.length; i += 1) {
-        const id = ids[i]
-        const name = fileOf(id)
-        const parsed = name.endsWith('.json') ? null : parse(name)(textOf(name))
-        /** @type {readonly string[]} */
-        const next = parsed === null || parsed[0] === 'error' ? [] : parsed[1].imports.flatMap(({ specifier }) => {
-            // a specifier that opens no box is the compiler's to refuse
-            const read = targetOf(name)(specifier) === null ? null : resolve(id)(specifier)
-            return read === null ? [] : [normalize(read)]
-        })
-        ids = next.reduce((all, n) => all.includes(n) ? all : [...all, n], ids)
-    }
-    const names = ids.map(fileOf)
+    const names = walk(() => [])(files).map(([id]) => fileOf(id))
     return names.filter((n, i) => names.indexOf(n) === i && names.lastIndexOf(n) !== i)
 }
