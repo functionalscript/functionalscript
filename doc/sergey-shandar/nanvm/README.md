@@ -37,8 +37,8 @@ vvvv_vvvv_vvvv_vvvv
 
 |               |Cap.|            |states|
 |---------------|----|------------|------|
-|`_...0000_0000`|`44`|non-finite  |`3`   |
-|`_...0001_0000`|`44`|boolean     |`2`   |
+|`....0000_0000`|`44`|non-finite  |`3`   |
+|`....0001_0000`|`44`|boolean     |`2`   |
 |`0...0010_0000`|`44`|undefined   |`1`   |
 |`0...0011_0000`|`44`|null        |`1`   |
 |`0...0000_1000`|`44`|empty string|`1`   |
@@ -63,6 +63,17 @@ vvvv_vvvv_vvvv_vvvv
 ```rust
 #[repr(transparent)]
 pub struct Any(u64);
+
+pub enum Type {
+    Object    = 0x0,
+    String    = 0x1,
+    BigInt    = 0x2,
+    Function  = 0x3,
+    //
+    Number    = 0x4,
+    Boolean   = 0x5,
+    Undefined = 0x6,
+}
 
 const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
@@ -92,6 +103,9 @@ const TAG2         : u64 = 0x7FF0_0000_0000_0003;
 
 const SCALAR       : u64 = 0x7FF0_0000_0000_0000;
 const REF          : u64 = 0x7FF0_0000_0000_0002;
+
+const REF_TAG      : u64 = 0xFFF0_0000_0000_0003;
+const DYN_REF      : u64 = 0x7FF0_0000_0000_0002;
 
 // TAG 1
 
@@ -129,8 +143,34 @@ impl Any {
         self.0 & TAG2 == REF
     }
 
+    pub fn is_dyn_ref(&self) -> bool {
+        self.0 & REF_TAG == DYN_REF
+    }
+
     pub fn is_short_bigint(&self) -> bool {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
+    }
+
+    pub fn typeof_(&self) -> Type {
+        if self.is_finite() { return Type::Number }
+        if self.0 & 1 == 1 { return Type::BigInt }
+        // reference
+        if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF }
+        if self.0 & 0xC != 0 { return Type::String }
+        match self.0 & 0xF {
+            0x01 => { return Type::Boolean }
+            0x10 => { return Type::Undefined }
+            0x11 => { return Type::Null }
+        }
+        return Type::Number
+    }
+}
+
+impl Drop for Any {
+    fn drop(self) {
+        if self.is_dyn_ref() {
+            self.release()
+        }
     }
 }
 ```
