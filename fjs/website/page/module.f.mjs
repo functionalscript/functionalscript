@@ -908,6 +908,18 @@ export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName)
 const rootCard = { href: cardImageHref('.'), alt: siteName }
 
 /**
+ * A page's `og:url`: its root-relative `href` under the build's origin, and
+ * nothing where the build has none, since Open Graph takes only an absolute
+ * URL. One tag, shared with rustdoc's pages
+ * ([`../cargo-doc`](../cargo-doc/module.f.mjs)), which get it as they are
+ * copied.
+ *
+ * @type {(origin: string | null) => (href: string) => readonly Element[]}
+ */
+export const urlMeta = origin => href =>
+    origin === null ? [] : [['meta', { property: 'og:url', content: `${origin}${href}` }]]
+
+/**
  * The `<meta>` tags a chat or a social network reads to build the card it
  * shows for a pasted link: the page's title, what it is about and, when the
  * build has an origin, its own URL, then the {@link siteMeta}
@@ -920,7 +932,7 @@ const rootCard = { href: cardImageHref('.'), alt: siteName }
  * **The description twice.** `description` is the one a search engine shows
  * under the title; `og:description` is the card's.
  *
- * **`og:url` is absolute or absent**, as `og:image` is.
+ * **`og:url` is absolute or absent** ({@link urlMeta}), as `og:image` is.
  *
  * **A page's own card is described by its title**, which is what the image
  * shows: the page's README under its heading. A page without one shows the
@@ -932,7 +944,7 @@ export const previewMeta = origin => ({ href, title, description, card }) => [
     ['meta', { name: 'description', content: description }],
     ['meta', { property: 'og:title', content: title }],
     ['meta', { property: 'og:description', content: description }],
-    ...(origin === null ? [] : [/** @type {Element} */ (['meta', { property: 'og:url', content: `${origin}${href}` }])]),
+    ...urlMeta(origin)(href),
     ...cardMeta(origin)(card === undefined ? rootCard : { href: card, alt: title }),
 ]
 

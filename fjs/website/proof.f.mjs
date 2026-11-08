@@ -19,6 +19,8 @@ import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
 import { repository } from './page/module.f.mjs'
+import { pageUrlMarker } from './cargo-doc/module.f.mjs'
+import { productionOrigin } from './origin/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
 /**
@@ -214,6 +216,20 @@ export const proof = {
             assert(!pageAt(root, ['nanvm', 'other']).includes('API documentation'), pageAt(root, ['nanvm', 'other']))
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
+        },
+        // Each page is copied with its own URL where the head's marker is;
+        // the other files, and every page of a local build, byte for byte.
+        pageUrl: () => {
+            const doc = { target: { doc: {
+                'search.js': file(pageUrlMarker),
+                nanvm_lib: { 'index.html': file(`<head>${pageUrlMarker}</head>`) },
+            } } }
+            const published = /** @type {Dir} */ (generate(doc, { WORKERS_CI_BRANCH: 'main' }).root['cargo.doc'])
+            assertEq(textOf(/** @type {Dir} */ (published.nanvm_lib)['index.html'], 'a crate page'),
+                `<head><meta property="og:url" content="${productionOrigin}/cargo.doc/nanvm_lib/index.html"></head>`)
+            assertEq(textOf(published['search.js'], 'search.js'), pageUrlMarker)
+            const local = /** @type {Dir} */ (generate(doc).root['cargo.doc'])
+            assertEq(textOf(/** @type {Dir} */ (local.nanvm_lib)['index.html'], 'a crate page'), `<head>${pageUrlMarker}</head>`)
         },
         // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
         // before `cargo doc`; the generator, which runs after it, does not.

@@ -81,7 +81,8 @@ import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
 import { header, isIssue } from './issue/module.f.js'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.mjs'
+import { origin } from './origin/module.f.js'
 
 /**
  * Every directory under `dir`, itself first, with everything each one holds;
@@ -738,26 +739,27 @@ const writeChangelog = build => tree => {
 
 /**
  * One directory of rustdoc's output, copied to the same place under
- * {@link cargoDocDir}, its files byte for byte. Whole and in chunks, because
- * a rustdoc page outgrows one `Vec`.
+ * {@link cargoDocDir}. Whole and in chunks, because a rustdoc page outgrows
+ * one `Vec`.
  *
- * @type {(dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(base: string | null) => (dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocDir = dir => {
+const copyRustdocDir = base => dir => {
     const to = `${cargoDocDir}${dir.path.slice(rustdocDir.length)}`
     const made = mkdir(to, { recursive: true })
-    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(dir.path)(to)))
+    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(base)(dir.path)(to)))
 }
 
 /**
  * One file of rustdoc's output, read whole from directory `from` and written
- * under the same name in `to`.
+ * under the same name in `to`: byte for byte, but for a page's `og:url`
+ * ({@link withPageUrl}), which only a page, an `.html` file, is given.
  *
- * @type {(from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(base: string | null) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocFile = from => to => name => step(
+const copyRustdocFile = base => from => to => name => step(
     readWhole(`${from}/${name}`),
-    chunks => writeChunks(`${to}/${name}`, chunks))
+    chunks => writeChunks(`${to}/${name}`, name.endsWith('.html') ? withPageUrl(base)(`/${to}/${name}`)(chunks) : chunks))
 
 /**
  * The crates a walk of rustdoc's output documents: each top-level directory
@@ -773,20 +775,21 @@ const cratesOf = tree => tree
 /** rustdoc's output walked, the walk kept for the steps after it. */
 const rustdocWalked = history(walk(rustdocDir))
 
-/** Every directory of rustdoc's output copied under {@link cargoDocDir}. */
-const rustdocCopied = historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir))
-
 /**
- * rustdoc's output copied, answering the crates it documents.
+ * Every directory of rustdoc's output copied under {@link cargoDocDir},
+ * answering the crates it documents.
  *
- * @type {Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
+ * @type {(base: string | null) => Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
  */
-const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
+const copyRustdocTree = base => mapStep(
+    historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir(base))),
+    ([, tree]) => cratesOf(tree))
 
 /**
- * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir} as
- * it is, answering the crates it documents — or `null` when `cargo doc` was
- * not run, which writes nothing and links nothing.
+ * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir}
+ * with each page's URL under `base`, the build's origin, answering the crates
+ * it documents — or `null` when `cargo doc` was not run, which writes nothing
+ * and links nothing.
  *
  * **Copied, not served from `target/`**, which holds build artifacts beside
  * the docs; and not produced here, because running `cargo` from the
@@ -798,10 +801,10 @@ const copyRustdocTree = mapStep(rustdocCopied, ([, tree]) => cratesOf(tree))
  * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
  * Any other failure of either stops the build.
  *
- * @type {Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
+ * @type {(base: string | null) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
  */
-const copyRustdoc = step(exists(rustdocDir), found =>
-    found ? copyRustdocTree : pureOk(null))
+const copyRustdoc = base => step(exists(rustdocDir), found =>
+    found ? copyRustdocTree(base) : pureOk(null))
 
 /**
  * The Rust API reference, when there is one: rustdoc's output and the index
@@ -809,7 +812,7 @@ const copyRustdoc = step(exists(rustdocDir), found =>
  *
  * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
-const writeCargoDoc = build => step(copyRustdoc, crates =>
+const writeCargoDoc = build => step(copyRustdoc(origin(build.branch)), crates =>
     crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
 
 /**
