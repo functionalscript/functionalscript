@@ -44,7 +44,7 @@
  * @import { Dirs } from '../types.ts'
  */
 
-import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
+import { catchStep, compensateStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, orElse, pureError, pureOk, refuse, resultStep, step } from '../../../effects/module.f.mjs'
 import { createExclusive, isNotFound, mkdir, rename, rm, rmdir, writeExclusive } from '../../../effects/node/module.f.mjs'
 import { byteArray } from '../../../ebnf/byte/module.f.mjs'
 import { ancestors, parent, under } from '../../../path/module.f.js'
@@ -75,18 +75,6 @@ const refuseZeroId = refuse(zeroIdCode)
  * @type {(dir: string, text: string) => string}
  */
 const parentOf = (dir, text) => under(dir, parent(text))
-
-/**
- * The compensation {@link unlocked} runs: remove `lock`, drop whatever that
- * answers, and report `err`.
- *
- * The `rm`'s own outcome is dropped because reporting it would replace the
- * reason the write failed with the reason it could not be undone, and the first
- * is the one a caller can act on.
- *
- * @type {(lock: string) => (err: IoChannel) => Effect<Rm, never, IoChannel>}
- */
-const givenBack = lock => err => resultStep(rm(lock), () => pureError(err))
 
 /**
  * `e` with the lock given back where it fails.
@@ -125,15 +113,16 @@ const givenBack = lock => err => resultStep(rm(lock), () => pureError(err))
  * back.
  *
  * The two effects are never both in one sequence — the `rm` runs only where `e`
- * failed — so this is {@link catchStep}'s branch and not a chain to flatten, and
- * the compensation is named beside it rather than spelled inline.
+ * failed — so this is a {@link compensateStep}, `catchStep`'s branch and not a
+ * chain to flatten: the `rm`'s own outcome is dropped, and `e`'s error is the
+ * one reported.
  *
  * @template {Operation} O
  * @param {string} lock
  * @param {Effect<O, void, IoChannel>} e
  * @returns {Effect<O | Rm, void, IoChannel>}
  */
-const unlocked = (lock, e) => catchStep(e, givenBack(lock))
+const unlocked = (lock, e) => compensateStep(e, rm(lock))
 
 /**
  * The code a write is refused with when no path spells the name.

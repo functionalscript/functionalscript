@@ -33,7 +33,8 @@ is its third spelling, longhand.
 - One exported publish helper — `published(staged, path, chunks)`: write
   exclusively, then rename, with the staged file removed on failure — used by
   `tryWrite`, `packedRewritten` and the loose writer. Its error policy is
-  [compensate-step](../../../effects/todo/compensate-step.md).
+  `fjs/effects`' [`compensateStep`](../../../effects/module.f.mjs), which all
+  three already use.
 
 `branchCas` then calls the loose writer; `WriteOperation` in `cas/git`'s
 `types.ts` becomes a union of the snapshot, loose-write and `Now` operations.
