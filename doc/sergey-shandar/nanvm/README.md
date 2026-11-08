@@ -66,13 +66,13 @@ struct Any(u64);
 
 const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
+// TAG 8:
+
+const TAG8         : u64 = 0x7FF0_0000_0000_00FF;
+
 const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
 const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
 const NAN          : u64 = 0x7FF8_0000_0000_0000;
-
-const TAG8         : u64 = 0x7FF0_0000_0000_00FF;
-const TAG2         : u64 = 0x7FF0_0000_0000_0003;
-const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
 
 const BOOL         : u64 = 0x7FF0_0000_0000_0010;
 const FALSE        : u64 = 0x7FF0_0000_0000_0010;
@@ -80,6 +80,16 @@ const TRUE         : u64 = 0xFFF0_0000_0000_0010;
 
 const UNDEFINED    : u64 = 0x7FF0_0000_0000_0020;
 const NULL         : u64 = 0x7FF0_0000_0000_0030;
+
+// TAG 2:
+
+const TAG2         : u64 = 0x7FF0_0000_0000_0003;
+
+const REF          : u64 = 0x7FF0_0000_0000_0002;
+
+// TAG 1
+
+const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
 
 impl Any {
 
@@ -92,7 +102,7 @@ impl Any {
     }
 
     fn is_bool(self: u64) -> bool {
-        self & TAG8 == BOOL
+        self.0 & TAG8 == BOOL
     }
 
     fn is_short_string(self: u64) -> bool {
