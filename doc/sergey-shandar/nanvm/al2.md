@@ -1,0 +1,103 @@
+# Low Level
+
+## Structure
+
+- `1` bit: `s` sign
+- `11` bits: `x` exponent
+- `52` bits: `v` fraction
+
+## NaN and Infinities
+
+When exponent `x` is `0b_111_1111_1111`.
+
+Three special values:
+
+- Infinity: `0x7FF0_0000_0000_0000`,
+- Neg. Infinity: `0xFFF0_0000_0000_0000`,
+- NaN: `0x7FF8_0000_0000_0000`.
+
+## Special Tags
+
+Format:
+
+```
+s111_1111_1111_vvvv
+vvvv_vvvv_vvvv_vvvv
+vvvv_vvvv_vvvv_vvvv
+vvvv_vvvv_vvvv_vvvv
+```
+
+- `s111_1111_1111_..._vv00` non-finite numbers, primitives and short string
+- `s111_1111_1111_..._vv10` reference
+- `s111_1111_1111_..._vvv1` bigint
+
+## Non-Finite Numbers, Primitives, and Short Strings
+
+`s111_1111_1111...vvvv_vv00`
+
+|               |Cap.|            |states|
+|---------------|----|------------|------|
+|`_...0000_0000`|`44`|non-finite  |`3`   |
+|`_...0001_0000`|`44`|boolean     |`2`   |
+|`0...0010_0000`|`44`|undefined   |`1`   |
+|`0...0011_0000`|`44`|null        |`1`   |
+|`0...0000_1000`|`44`|empty string|`1`   |
+|`0...0001_1000`|`44`|`1x16`      |`2^16`|
+|`0...0010_1000`|`44`|`2x16`      |`2^32`|
+|`0...0100_1000`|`44`|`4x7`       |`2^28`|
+|`0...0101_1000`|`44`|`5x7`       |`2^35`|
+|`0...0110_1000`|`44`|`6x7`       |`2^42`|
+|`0........0100`|`48`|`3x16`      |`2^48`|
+|`0........1100`|`48`|`8x6`       |`2^48`|
+|`1.........100`|`49`|`7x7`       |`2^49`|
+
+## Reference
+
+`s111_1111_1111_tttt_....10`
+
+- `s` is static
+- `tttt` is type
+
+## Examples
+
+```rust
+const EXP: u64 = 0x7FF0_0000_0000_0000;
+
+fn is_finite(self: u64) -> bool {
+    self ^ EXP != EXP
+}
+
+const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
+const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
+const NAN          : u64 = 0x7FF8_0000_0000_0000;
+
+const TAG = 0x7FF0_0000_0000_00FF;
+
+fn is_number(self: u64) -> bool {
+    self.is_finite() || self & TAG == EXP
+}
+
+const BOOL  : u64 = 0x7FF0_0000_0000_0010;
+const FALSE : u64 = 0x7FF0_0000_0000_0010;
+const TRUE  : u64 = 0xFFF0_0000_0000_0010;
+
+fn is_bool(self: u64) -> bool {
+    self & TAG == BOOL
+}
+
+const UNDEFINED : u64 = 0x7FF0_0000_0000_0020;
+const NULL      : u64 = 0x7FF0_0000_0000_0030;
+
+fn is_short_string(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0000 &&
+    self & 0xC != 0
+}
+
+fn is_ref(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0002 == 0x7FF0_0000_0000_0002
+}
+
+fn is_short_bigint(self: u64) -> bool {
+    self & 0x7FF0_0000_0000_0001 == 0x7FF0_0000_0000_0001
+}
+```
