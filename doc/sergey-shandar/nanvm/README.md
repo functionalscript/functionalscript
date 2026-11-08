@@ -63,7 +63,7 @@ vvvv_vvvv_vvvv_vvvv
 ```rust
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-struct Any(u64);
+pub struct Any(u64);
 
 const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
@@ -85,6 +85,8 @@ const TRUE         : u64 = 0xFFF0_0000_0000_0010;
 const UNDEFINED    : u64 = 0x7FF0_0000_0000_0020;
 const NULL         : u64 = 0x7FF0_0000_0000_0030;
 
+const EMPTY_STRING : u64 = 0x7FF0_0000_0000_0008;
+
 // TAG 2:
 
 const TAG2         : u64 = 0x7FF0_0000_0000_0003;
@@ -98,36 +100,37 @@ const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
 
 impl Any {
 
-    const INFINITY: Self = Self(INFINITY);
-    const NEG_INFINITY: Self = Self(NEG_INFINITY);
-    const NAN: Self = Self(NAN);
-    const FALSE: Self = Self(FALSE);
-    const TRUE: Self = Self(TRUE);
-    const UNDEFINED: Self = Self(UNDEFINED);
-    const NULL: Self = Self(NULL);
+    pub const INFINITY: Self = Self(INFINITY);
+    pub const NEG_INFINITY: Self = Self(NEG_INFINITY);
+    pub const NAN: Self = Self(NAN);
+    pub const FALSE: Self = Self(FALSE);
+    pub const TRUE: Self = Self(TRUE);
+    pub const UNDEFINED: Self = Self(UNDEFINED);
+    pub const NULL: Self = Self(NULL);
+    pub const EMPTY_STRING: Self = Self(EMPTY_STRING);
 
-    fn is_finite(self) -> bool {
+    pub fn is_finite(self) -> bool {
         (self.0 & EXP) != EXP
     }
 
-    fn is_number(self) -> bool {
+    pub fn is_number(self) -> bool {
         self.is_finite() || self.0 & TAG8 == NON_FINITE
     }
 
-    fn is_bool(self) -> bool {
+    pub fn is_bool(self) -> bool {
         self.0 & TAG8 == BOOL
     }
 
-    fn is_short_string(self) -> bool {
+    pub fn is_short_string(self) -> bool {
         self.0 & TAG2 == SCALAR &&
         self.0 & 0xC != 0
     }
 
-    fn is_ref(self) -> bool {
+    pub fn is_ref(self) -> bool {
         self.0 & TAG2 == REF
     }
 
-    fn is_short_bigint(self) -> bool {
+    pub fn is_short_bigint(self) -> bool {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 }
