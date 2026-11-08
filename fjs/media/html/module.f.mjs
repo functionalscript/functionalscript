@@ -114,6 +114,38 @@ export const parseElement = e => {
 }
 
 /**
+ * `e` with each element in it, `e` included, given the tag and attributes `f`
+ * makes of its own; text and the tree's shape are kept. The one walk for a
+ * rewrite that looks at one element at a time.
+ *
+ * @type {(f: (tag: string, attributes: StringMap<string>) => readonly [string, StringMap<string>]) => (e: Element) => Element}
+ */
+export const mapElement = f => {
+    /** @type {(e: Element) => Element} */
+    const walk = e => {
+        const [tag, attributes, children] = parseElement(e)
+        const [newTag, newAttributes] = f(tag, attributes)
+        return [newTag, newAttributes, ...children.map(child => typeof child === 'string' ? child : walk(child))]
+    }
+    return walk
+}
+
+/**
+ * `f` folded over each element in `e`, `e` first, in document order, from
+ * `init`: what an element contributes is read off its tag and attributes.
+ *
+ * @type {<A>(f: (acc: A, tag: string, attributes: StringMap<string>) => A) => (init: A) => (e: Element) => A}
+ */
+export const foldElement = f => {
+    /** @type {(acc: Parameters<typeof f>[0], e: Element) => Parameters<typeof f>[0]} */
+    const walk = (acc, e) => {
+        const [tag, attributes, children] = parseElement(e)
+        return children.reduce((acc, child) => typeof child === 'string' ? acc : walk(acc, child), f(acc, tag, attributes))
+    }
+    return init => e => walk(init, e)
+}
+
+/**
  * The text a node reads as: a string itself, an element its children's text
  * joined, with no separator, as the DOM's `textContent` joins it.
  * Attributes are not text, so an image says nothing here.
