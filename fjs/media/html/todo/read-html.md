@@ -13,9 +13,10 @@ website copies into `/cargo.doc/`.
 - **`og:title`.** Open Graph requires it on every page, and a rustdoc page's
   title is only in its `<title>`
   ([rustdoc-page-cards](../../../website/todo/rustdoc-page-cards.md)).
-- **A card for each page.** A rustdoc page shows its crate's card, because the
-  copy knows the crate from the page's path. A card of the page's own — the
-  item's name and the first line of its docs — needs the page's content.
+- **A card for each page.** A rustdoc page shows the root page's card. A card
+  of the page's own — the item's name and the first line of its docs — needs
+  the page's content
+  ([rustdoc-item-cards](../../../website/todo/rustdoc-item-cards.md)).
 
 A text search for `<title>` is not a substitute: it cannot tell a tag from the
 same characters in a comment, a script or an attribute, and
