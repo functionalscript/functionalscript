@@ -27,11 +27,11 @@ vvvv_vvvv_vvvv_vvvv
 vvvv_vvvv_vvvv_vvvv
 ```
 
-- `s111_1111_1111_..._vv00` non-finite numbers, primitives and short string
+- `s111_1111_1111_..._vv00` non-finite numbers, primitives and short string (scalars)
 - `s111_1111_1111_..._vv10` reference
-- `s111_1111_1111_..._vvv1` bigint
+- `s111_1111_1111_..._vvv1` short bigint
 
-## Non-Finite Numbers, Primitives, and Short Strings
+## Non-Finite Numbers, Primitives, and Short Strings (scalars)
 
 `s111_1111_1111...vvvv_vv00`
 
@@ -61,6 +61,7 @@ vvvv_vvvv_vvvv_vvvv
 ## Examples
 
 ```rust
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 struct Any(u64);
 
@@ -70,11 +71,14 @@ const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
 const TAG8         : u64 = 0x7FF0_0000_0000_00FF;
 
+const NON_FINITE   : u64 = 0x7FF0_0000_0000_0000;
+
 const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
 const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
 const NAN          : u64 = 0x7FF8_0000_0000_0000;
 
 const BOOL         : u64 = 0x7FF0_0000_0000_0010;
+
 const FALSE        : u64 = 0x7FF0_0000_0000_0010;
 const TRUE         : u64 = 0xFFF0_0000_0000_0010;
 
@@ -85,6 +89,7 @@ const NULL         : u64 = 0x7FF0_0000_0000_0030;
 
 const TAG2         : u64 = 0x7FF0_0000_0000_0003;
 
+const SCALAR       : u64 = 0x7FF0_0000_0000_0000;
 const REF          : u64 = 0x7FF0_0000_0000_0002;
 
 // TAG 1
@@ -93,28 +98,36 @@ const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
 
 impl Any {
 
+    const INFINITY: Self = Self(INFINITY);
+    const NEG_INFINITY: Self = Self(NEG_INFINITY);
+    const NAN: Self = Self(NAN);
+    const FALSE: Self = Self(FALSE);
+    const TRUE: Self = Self(TRUE);
+    const UNDEFINED: Self = Self(UNDEFINED);
+    const NULL: Self = Self(NULL);
+
     fn is_finite(self) -> bool {
         (self.0 & EXP) != EXP
     }
 
-    fn is_number(self: u64) -> bool {
-        self.is_finite() || self.0 & TAG8 == EXP
+    fn is_number(self) -> bool {
+        self.is_finite() || self.0 & TAG8 == NON_FINITE
     }
 
-    fn is_bool(self: u64) -> bool {
+    fn is_bool(self) -> bool {
         self.0 & TAG8 == BOOL
     }
 
-    fn is_short_string(self: u64) -> bool {
-        self.0 & TAG2 == 0x7FF0_0000_0000_0000 &&
+    fn is_short_string(self) -> bool {
+        self.0 & TAG2 == SCALAR &&
         self.0 & 0xC != 0
     }
 
-    fn is_ref(self: u64) -> bool {
-        self.0 & TAG2 == 0x7FF0_0000_0000_0002
+    fn is_ref(self) -> bool {
+        self.0 & TAG2 == REF
     }
 
-    fn is_short_bigint(self: u64) -> bool {
+    fn is_short_bigint(self) -> bool {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 }
