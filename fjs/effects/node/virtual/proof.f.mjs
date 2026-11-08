@@ -112,6 +112,14 @@ const ofChunks = chunks => chunks.reduceRight(
 const holdsNothing = pureOk(null)
 
 /**
+ * A `200` with no body and nothing held: a listener for a proof about the
+ * server rather than what it answers.
+ *
+ * @type {RequestListener<NodeOp>}
+ */
+const emptyOk = () => pureOk({ status: 200, headers: {}, body: endOfBody(), release: holdsNothing })
+
+/**
  * A `500` carrying `text`, which is how a listener reports what it saw of its own
  * request body: the refusal is observable nowhere else, since the runner hands the
  * body to the listener and the listener's only way out is a response.
@@ -1713,6 +1721,18 @@ export const proof = {
             // Recorded lower-cased, whichever case asked for it.
             assertEq(s.listening.length, 1)
             assertEq(s.listening[0].address, 'localhost:8080')
+        },
+        // The case is folded in ASCII alone: `'\u212a'`, the Kelvin sign, is
+        // no `k`, so a name spelled with it is another address and the second
+        // bind succeeds.
+        addressCaseIsAscii: () => {
+            const first = history(createServer(emptyOk))
+            const second = historyStep(first, () => createServer(emptyOk))
+            const bound = historyStep(second, b => listen(b, 8_080, 'k.test'))
+            const e = step(bound, ([, , a]) => listen(a, 8_080, '\u212a.test'))
+            const [s, result] = virtual(emptyState)(e)
+            assertEq(result[0], 'ok')
+            assertStructurallySame(s.listening.map(b => b.address), ['k.test:8080', '\u212a.test:8080'])
         },
         // `''` is the host a program did not state, and Node binds every
         // interface for it — so both runners refuse it rather than forward it.
