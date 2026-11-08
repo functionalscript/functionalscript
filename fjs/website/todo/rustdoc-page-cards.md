@@ -1,7 +1,8 @@
 ## Per-page card tags on rustdoc pages
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Read HTML](../../media/html/todo/read-html.md)
 
 ### Problem
 
