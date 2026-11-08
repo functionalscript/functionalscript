@@ -64,16 +64,15 @@ vvvv_vvvv_vvvv_vvvv
 #[repr(transparent)]
 pub struct Any(u64);
 
-pub enum Type {
-    Number    = 0x0
-    Boolean   = 0x1,
-    Undefined = 0x2,
-    //
-    Object    = 0x3,
-    String    = 0x4,
-    BigInt    = 0x5,
-    Function  = 0x6,
-}
+const NUMBER_TYPE   : u32 = 0x0;
+const BOOLEAN_TYPE  : u32 = 0x1;
+const UNDEFINE_TYPE : u32 = 0x2;
+const OBJECT_TYPE   : u32 = 0x3;
+const STRING_TYPE   : u32 = 0x4;
+const BIGINT_TYPE   : u32 = 0x5;
+const FUNCTION_TYPE : u32 = 0x6;
+
+//
 
 const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
@@ -151,20 +150,21 @@ impl Any {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 
-    pub fn typeof_(&self) -> Type {
-        if self.is_finite() { return Type::Number }
-        if self.0 & 1 == 1 { return Type::BigInt }
+    pub fn typeof_(&self) -> u32 {
+        if self.is_finite() { return NUMBER_TYPE; }
+        if self.0 & 1 == 1 { return BIGINT_TYPE; }
         // reference
-        if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF }
-        if self.0 & 0xC != 0 { return Type::String }
-        return (self.0 & 0xF0) >> 4
+        if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF; }
+        // scalar
+        if self.0 & 0xC != 0 { return STING_TYPE; }
+        (self.0 >> 4) & 0xF
     }
 }
 
 impl Drop for Any {
     fn drop(self) {
         if self.is_dyn_ref() {
-            self.release()
+            self.release();
         }
     }
 }
