@@ -9,6 +9,6 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b264: Any<A> = _args.rest(0).to_any();
         let _b1: Any<A> = (Any::dot(_b264.clone(), f64_any(0x0000000000000000)).end())?;
-        if Any::<A>::to_boolean((Any::lt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("negative")) } else { if Any::<A>::to_boolean((Any::gt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("positive")) } else { Ok(string_any("zero")) } }
+        if Any::<A>::to_boolean(&(Any::lt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("negative")) } else { if Any::<A>::to_boolean(&(Any::gt(_b1.clone(), f64_any(0x0000000000000000)))?) { Ok(string_any("positive")) } else { Ok(string_any("zero")) } }
     }, 0, Array::default(), Some("(...$0)=>{const $1=$0[0];return $1<0?\"negative\":$1>0?\"positive\":\"zero\";}")).to_any())].to_object().to_any())
 }

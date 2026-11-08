@@ -9,7 +9,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b10: Any<A> = A::static_function(|_self, _args| {
         let _b8: Any<A> = A::static_function(|_self, _args| {
             let mut _b3823: Any<A> = _args.argument(0);
-            '_loop8: while Any::<A>::to_boolean({
+            '_loop8: while Any::<A>::to_boolean(&{
                 let _b3824: Any<A> = _b3823.clone();
                 (Any::lt(_b3824.clone(), A::frame(_self)[0].clone()))?
             }) {
@@ -25,7 +25,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b28: Any<A> = A::static_function(|_self, _args| {
         let _b25: Any<A> = A::static_function(|_self, _args| {
             let mut _b3826: Any<A> = _args.argument(0);
-            '_loop25: while Any::<A>::to_boolean({
+            '_loop25: while Any::<A>::to_boolean(&{
                 let _b3827: Any<A> = _b3826.clone();
                 (Any::lt((Any::dot(_b3827.clone(), f64_any(0x0000000000000000)).end())?, A::frame(_self)[0].clone()))?
             }) {
@@ -42,13 +42,13 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     let _b46: Any<A> = A::static_function(|_self, _args| {
         let _b44: Any<A> = A::static_function(|_self, _args| {
             let mut _b3829: Any<A> = _args.argument(0);
-            '_loop44: while Any::<A>::to_boolean({
+            '_loop44: while Any::<A>::to_boolean(&{
                 let _b3830: Any<A> = _b3829.clone();
                 let _b33: Any<A> = (Any::lt(_b3830.clone(), A::frame(_self)[0].clone()))?;
-                if Any::<A>::to_boolean(_b33.clone()) { (Any::ge(_b3830.clone(), f64_any(0x0000000000000000)))? } else { _b33.clone() }
+                if Any::<A>::to_boolean(&_b33.clone()) { (Any::ge(_b3830.clone(), f64_any(0x0000000000000000)))? } else { _b33.clone() }
             }) {
                 let _b3676: Any<A> = _b3829.clone();
-                let _b3831: Any<A> = if Any::<A>::to_boolean((strict_eq((_b3676.clone() % f64_any(0x4000000000000000))?, f64_any(0x0000000000000000)))?) { (_b3676.clone() + f64_any(0x3ff0000000000000))? } else { (_b3676.clone() + f64_any(0x4008000000000000))? };
+                let _b3831: Any<A> = if Any::<A>::to_boolean(&(strict_eq((_b3676.clone() % f64_any(0x4000000000000000))?, f64_any(0x0000000000000000)))?) { (_b3676.clone() + f64_any(0x3ff0000000000000))? } else { (_b3676.clone() + f64_any(0x4008000000000000))? };
                 _b3829 = _b3831.clone();
             }
             let _b3677: Any<A> = _b3829;

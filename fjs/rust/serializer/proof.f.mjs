@@ -57,6 +57,15 @@ export const proof = {
         assertEq(op1Rust['+']?.('v'), 'Any::unary_plus(v)')
         assertEq(op1Rust.throw?.('v'), 'Err(v)')
     },
+    /** Inspection borrows the complete operand, including fallible and conditional expressions. */
+    borrowedInspectionOperands: () => {
+        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0.clone())')
+        assertEq(text(['typeof', ['Number', null]], true), 'Any::typeof_(&(Any::number(Nullish::Null.to_any()))?)')
+        assertEq(text(['typeof', ['if', true, yielding([1]), yielding([2])]], true),
+            'Any::typeof_(&if Any::<A>::to_boolean(&true.to_any()) { f64_any(0x3ff0000000000000) } else { f64_any(0x4000000000000000) })')
+        assertEq(text(['instanceof', ['Number', null], 'Array'], true),
+            'Any::instanceof_(&(Any::number(Nullish::Null.to_any()))?, Constructor::Array)')
+    },
     containers: () => {
         assertEq(text(['array', [0, -0]]), '[f64_any(0x0000000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
         /** @type {readonly Value[]} */
@@ -112,7 +121,7 @@ export const proof = {
         const expected = 'spread_object([property_item((_b0.clone()).to_string()?, _b1.clone()), spread_entries(Object::default().to_any()), property_item((f64_any(0x3ff0000000000000)).to_string()?, _b1.clone())])'
         assertEq(text(object), expected)
         assertEq(text(['if', true, yielding([object]), yielding([['object', []]])]),
-            `if Any::<A>::to_boolean(true.to_any()) { ${expected} } else { Object::default().to_any() }`)
+            `if Any::<A>::to_boolean(&true.to_any()) { ${expected} } else { Object::default().to_any() }`)
         assertEq(text(['object', [[':', 'plain', ['ref', y]]]]),
             '[(string_key("plain"), _b1.clone())].to_object().to_any()')
         const uses = unwrap(scope(yielding([object]), options)).uses
@@ -200,7 +209,7 @@ export const proof = {
         assertEq(absent.includes(' else '), false)
         // Omitting the empty spelling must retain one fallible test evaluation.
         assertEq(absent.split('Any::call(').length - 1, 1)
-        assert(absent.includes('Any::<A>::to_boolean((Any::call(_b0.clone(), Array::default().to_any()))?)'))
+        assert(absent.includes('Any::<A>::to_boolean(&(Any::call(_b0.clone(), Array::default().to_any()))?)'))
         assert(absent.includes('return Ok(f64_any(0x401c000000000000));'))
         const required = unwrap(scope({ statements: [['if', condition, yes, { statements: [], exit: ['throw', 3] }]], exit: ['yield', [0]] }, options)).lines.join('\n')
         assert(required.includes(' else '))

@@ -1,8 +1,6 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{
-        Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
-    },
+    vm::{IVm, Unpacked},
 };
 
 /// Coerces the value to a `bool`. Unlike `NumberCoercion`/`StringCoercion`,
@@ -11,40 +9,15 @@ use crate::{
 /// <https://tc39.es/ecma262/#sec-toboolean>
 ///
 /// This is equivalent to `!!x` in JavaScript.
-pub struct BooleanCoercion;
-
-impl<A: IVm> Dispatch<A> for BooleanCoercion {
-    type Result = bool;
-
-    fn nullish(self, _: Nullish) -> Self::Result {
-        false
-    }
-
-    fn bool(self, v: bool) -> Self::Result {
-        v
-    }
-
-    fn number(self, v: Number) -> Self::Result {
-        !v.is_nan() && v != 0.into()
-    }
-
-    fn string(self, v: String<A>) -> Self::Result {
-        !v.is_empty()
-    }
-
-    fn bigint(self, v: BigInt<A>) -> Self::Result {
-        !v.is_zero()
-    }
-
-    fn object(self, _: Object<A>) -> Self::Result {
-        true
-    }
-
-    fn array(self, _: Array<A>) -> Self::Result {
-        true
-    }
-
-    fn function(self, _: Function<A>) -> Self::Result {
-        true
+impl<A: IVm> Unpacked<A> {
+    pub(crate) fn to_boolean(&self) -> bool {
+        match self {
+            Self::Nullish(_) => false,
+            Self::Boolean(v) => *v,
+            Self::Number(v) => !v.is_nan() && *v != 0.into(),
+            Self::String(v) => !v.is_empty(),
+            Self::BigInt(v) => !v.is_zero(),
+            Self::Object(_) | Self::Array(_) | Self::Function(_) => true,
+        }
     }
 }
