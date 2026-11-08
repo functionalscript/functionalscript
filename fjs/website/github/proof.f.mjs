@@ -182,7 +182,8 @@ export const proof = /** @type {const} */ ({
         assertEq(validPending(pending, 'unguessable', NaN), false)
         assertEq(validPending(pending, 'unguessable', 999), false)
         assertEq(validPending(pending, 'unguessable', 601_001), false)
-    },    callbackQuery: () => {
+    },
+    callbackQuery: () => {
         assertStructurallySame(callbackParams, ['code', 'state', 'error', 'error_description', 'error_uri'])
         assert(isCallback(['code']))
         assert(isCallback(['page', 'state']))
