@@ -240,7 +240,9 @@ export const decode = text => {
  * Each import in a file `files`' import tree reaches whose meaning on the
  * command line differs from the page's: a rooted specifier, which there names
  * a path from the root of the disk, and a relative one that climbs above the
- * program's directory, which there may name a file outside it. Each is the
+ * program's directory, which there may name a file outside it. A specifier
+ * the compiler refuses (`//host/a.f.js`, `/bad%`) reads no file on either, so
+ * it is left to the panes' `invalid module specifier`. Each is the
  * importing file and the specifier as written, in the order the tree reaches
  * them.
  *
@@ -254,7 +256,9 @@ export const outsideImports = files => {
         return parsed[0] === 'error' ? [] : parsed[1].imports
             .filter(({ specifier }) => {
                 const kind = specifierKind(specifier)
-                return kind === 'rooted' || (kind === 'relative' && resolve(name)(specifier) !== null && targetOf(name)(specifier) === null)
+                // a specifier the compiler refuses reads no file anywhere
+                if (kind === 'bare' || resolve(name)(specifier) === null) { return false }
+                return kind === 'rooted' || targetOf(name)(specifier) === null
             })
             .map(({ specifier }) => /** @type {const} */ ([name, specifier]))
     })

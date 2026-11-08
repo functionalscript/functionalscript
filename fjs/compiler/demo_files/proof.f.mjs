@@ -165,6 +165,9 @@ export const proof = {
             ['a/x.f.js', "import r from '/lib/r.mjs'\nimport s from '../s.f.js'\nexport default [r, s]"],
             ['d.json', '{}'],
         ])), json([[main, '../up.f.js'], ['a/x.f.js', '/lib/r.mjs']])),
+        refusedByTheCompiler: () => assertEq(json(outsideImports([
+            [main, "import h from '//host/a.f.js'\nimport c from '/a:b.f.js'\nimport p from '/bad%'\nimport d from '/lib/d.mjs'\nexport default [h, c, p, d]"],
+        ])), json([[main, '/lib/d.mjs']])),
     },
     twiceLoaded: {
         sharedFixture: () => assertEq(json(twiceLoaded(shared)), json(['shared.json'])),
