@@ -157,10 +157,10 @@ impl Any {
         // reference
         if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF }
         if self.0 & 0xC != 0 { return Type::String }
-        match self.0 & 0xF {
-            0x01 => { return Type::Boolean }
-            0x10 => { return Type::Undefined }
-            0x11 => { return Type::Null }
+        match self.0 & 0xF0 {
+            0x10 => { return Type::Boolean }
+            0x20 => { return Type::Undefined }
+            0x30 => { return Type::Null }
         }
         return Type::Number
     }
