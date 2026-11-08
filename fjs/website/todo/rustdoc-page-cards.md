@@ -1,7 +1,7 @@
 ## Per-page card tags on rustdoc pages
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
