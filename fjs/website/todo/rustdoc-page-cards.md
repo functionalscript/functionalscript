@@ -31,7 +31,8 @@ without a title is unverified.
   `<title>` is HTML parsing, which the repository has no parser for; a text
   search over rustdoc's markup is the kind of check
   [AGENTS.md §6](../../../AGENTS.md#6-external-tools) rules out. A parser, or
-  an approved tool, comes first.
+  an approved tool, comes first
+  ([read-html](../../media/html/todo/read-html.md)).
 - **Derive the title from the path.** rustdoc names a page by its item —
   `struct.Foo.html` in `nanvm_lib/vm/` is "Foo in nanvm_lib::vm" — so the
   copy could spell the title without reading the page. That is a second
