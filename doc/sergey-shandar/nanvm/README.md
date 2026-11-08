@@ -64,45 +64,48 @@ vvvv_vvvv_vvvv_vvvv
 #[repr(transparent)]
 struct Any(u64);
 
-impl Any {
-    const EXP: u64 = 0x7FF0_0000_0000_0000;
+const EXP          : u64 = 0x7FF0_0000_0000_0000;
 
-    fn is_finite(self: u64) -> bool {
+const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
+const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
+const NAN          : u64 = 0x7FF8_0000_0000_0000;
+
+const TAG8         : u64 = 0x7FF0_0000_0000_00FF;
+const TAG2         : u64 = 0x7FF0_0000_0000_0003;
+const SHORT_BIGINT : u64 = 0x7FF0_0000_0000_0001;
+
+const BOOL         : u64 = 0x7FF0_0000_0000_0010;
+const FALSE        : u64 = 0x7FF0_0000_0000_0010;
+const TRUE         : u64 = 0xFFF0_0000_0000_0010;
+
+const UNDEFINED    : u64 = 0x7FF0_0000_0000_0020;
+const NULL         : u64 = 0x7FF0_0000_0000_0030;
+
+impl Any {
+
+    fn is_finite(self) -> bool {
         (self.0 & EXP) != EXP
     }
 
-    const INFINITY     : u64 = 0x7FF0_0000_0000_0000;
-    const NEG_INFINITY : u64 = 0xFFF0_0000_0000_0000;
-    const NAN          : u64 = 0x7FF8_0000_0000_0000;
-
-    const TAG : u64 = 0x7FF0_0000_0000_00FF;
-
     fn is_number(self: u64) -> bool {
-        self.is_finite() || self.0 & TAG == EXP
+        self.is_finite() || self.0 & TAG8 == EXP
     }
-
-    const BOOL  : u64 = 0x7FF0_0000_0000_0010;
-    const FALSE : u64 = 0x7FF0_0000_0000_0010;
-    const TRUE  : u64 = 0xFFF0_0000_0000_0010;
 
     fn is_bool(self: u64) -> bool {
-        self & TAG == BOOL
+        self & TAG8 == BOOL
     }
 
-    const UNDEFINED : u64 = 0x7FF0_0000_0000_0020;
-    const NULL      : u64 = 0x7FF0_0000_0000_0030;
-
     fn is_short_string(self: u64) -> bool {
-        self.0 & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0000 &&
+        self.0 & TAG2 == 0x7FF0_0000_0000_0000 &&
         self.0 & 0xC != 0
     }
 
     fn is_ref(self: u64) -> bool {
-        self.0 & 0x7FF0_0000_0000_0003 == 0x7FF0_0000_0000_0002
+        self.0 & TAG2 == 0x7FF0_0000_0000_0002
     }
 
     fn is_short_bigint(self: u64) -> bool {
-        self.0 & 0x7FF0_0000_0000_0001 == 0x7FF0_0000_0000_0001
+        self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 }
 ```
