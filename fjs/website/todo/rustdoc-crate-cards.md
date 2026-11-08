@@ -1,7 +1,7 @@
 ## A rustdoc page shows its crate's card
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
