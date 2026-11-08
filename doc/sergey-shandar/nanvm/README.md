@@ -61,7 +61,6 @@ vvvv_vvvv_vvvv_vvvv
 ## Examples
 
 ```rust
-#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct Any(u64);
 
