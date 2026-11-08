@@ -1681,6 +1681,20 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
             assertEq(textOfResult(written.panes[0]), '[3,4]')
             const edited = nextDemo(written, { kind: 'input', name: 'file:c', value: 'export default 5;' })
             assertEq(textOfResult(edited.panes[0]), '[5,4]')
+            // a file no import reaches changes no output, even one named as a
+            // reached file's directory
+            const inLib = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import a from "./lib/a.f.js";\nexport default a;' }),
+                { kind: 'input', name: 'file:lib/a.f.js', value: 'export default 7;' })
+            assertEq(textOfResult(inLib.panes[0]), '7')
+            assertEq(textOfResult(nextDemo(inLib, { kind: 'input', name: 'file:lib', value: 'x' }).panes[0]), '7')
+            // an output's refusal reads as before, whatever the program's files are named
+            const undefinedOut = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'export default undefined;' })
+            assertEq(undefinedOut.panes[0][1], 'no JSON spelling for undefined')
+            assertEq(nextDemo(undefinedOut, { kind: 'input', name: 'file:output.json', value: 'x' }).panes[0][1], 'no JSON spelling for undefined')
+            // a dependency's initialization failure names the file
+            const throwing = nextDemo(nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import b from "./b.f.js";\nexport default b;' }),
+                { kind: 'input', name: 'file:b.f.js', value: 'export default 1 + undefined.x;' })
+            assertEq(throwing.panes[0][1], 'b.f.js - error: module initialization failed')
             // an empty box goes with its import, a box with text stays, marked
             const typed = nextDemo(demo.init, { kind: 'input', name: 'compiler', value: 'import e from "./e.f.js";\nexport default e;' })
             assert(html(typed).includes(box('e.f.js')) && typed.files.length === 0, html(typed))

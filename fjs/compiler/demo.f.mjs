@@ -111,16 +111,16 @@ export const outputs = [
 ]
 
 /**
- * The files the compiler reads `files` from: each one held, and an empty one
- * for each box an import opened that holds nothing yet, so that the compiler
- * refuses an empty module, by name, rather than a file it cannot find.
+ * The files the compiler reads `files` from: each one the main module's
+ * imports reach, with the text it holds, or empty for a box an import opened
+ * that holds nothing yet, so that the compiler refuses an empty module, by
+ * name, rather than a file it cannot find. A file no import reaches is left
+ * out, so it changes no output: not even one whose name is a directory a
+ * reached file sits in (`lib` beside `lib/a.f.js`).
  *
  * @type {(files: Files) => Files}
  */
-const programOf = files => [
-    ...files,
-    ...reached(() => [])(files).filter(n => !files.some(([held]) => held === n)).map(/** @returns {File} */ n => [n, '']),
-]
+const programOf = files => reached(() => [])(files).map(/** @returns {File} */ n => [n, files.find(([held]) => held === n)?.[1] ?? ''])
 
 /**
  * `files`, a program with its main module first, compiled to the language
@@ -137,14 +137,12 @@ export const compiledProgram = files => outputFileName => {
     const result = unwrap(virtualAt(dirOf(files))(_outputMarked(runtime)(main, outputFileName))[1])
     const [tag, value] = result
     if (tag === 'error') {
-        const [message, diagnostic] = value
-        // the main module's refusal is the box above the panes, and an
-        // output's is the pane's own; another file's names the file, and
-        // where in it
-        // (by its path from the root where a rooted import reached it)
-        const [, ...others] = files
-        const names = others.flatMap(([n]) => [n, `/${n}`])
-        return error(names.some(n => diagnostic.startsWith(`${n}:`) || diagnostic.startsWith(`${n} `)) ? diagnostic : message)
+        const [message, diagnostic, source] = value
+        // an output's refusal is the pane's own, and the main module's is the
+        // box above the panes; another file's names the file, and where in
+        // it, as the compiler's source error says which file it is
+        const path = source === null ? main : source.metadata?.path ?? source.path
+        return error(path === main ? message : diagnostic)
     }
     return result
 }
