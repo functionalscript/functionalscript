@@ -19,12 +19,14 @@ export type _Out = {
 
 /**
  * One row of a node's ports: the edge that leaves from it, and where the
- * row sits, `y` measured from the node's own top edge. A row starts right
+ * row sits, `y` measured from the node's own top edge, and how tall it is:
+ * one row's height, or its edge's `span` of them. A row starts right
  * of the node's label column. `ref` is the target's label, when the row
  * draws it in place of a key: see `portsOf` (`./module.f.mjs`).
  */
 export type _Port = _Out & {
     readonly y: number
+    readonly height: number
     readonly ref: string | null
 }
 
@@ -49,6 +51,7 @@ export type _Positioned = Ranked & {
     readonly y: number
     readonly width: number
     readonly height: number
+    readonly anchor: number
     readonly title: number
     readonly keyWidth: number
     readonly ports: readonly _Port[]
@@ -75,6 +78,12 @@ export type _Slot = {
 export type _Size = {
     readonly width: number
     readonly height: number
+    /**
+     * Where a table's arrow meets the node, measured from its top: midway
+     * between its first value's row and its last's, or the middle of the
+     * node when it has none.
+     */
+    readonly anchor: number
     readonly title: number
     readonly keyWidth: number
     readonly ports: readonly _Port[]
@@ -144,6 +153,8 @@ export type _Placed = {
     readonly bottoms: ReadonlyMap<number, number>
     /** Vertical bend x by original edge index and route segment index. */
     readonly bends: ReadonlyMap<string, number>
+    /** Whether the graph is drawn as a table: its arrows meet each node at its `anchor`. */
+    readonly table: boolean
 }
 
 /** A point of an edge's route. */
