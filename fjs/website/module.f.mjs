@@ -48,7 +48,7 @@
  * @import { _DemoPaths, _Demos, _Graph, _Imports, _Walked } from './private.ts'
  * @import { Header } from './issue/types.ts'
  * @import { OrderedMap } from '../types/ordered_map/types.ts'
- * @import { Build, Dir, PageDemo, Proof } from './page/types.ts'
+ * @import { Build, Card, Dir, PageDemo, Proof } from './page/types.ts'
  * @import { Element } from '../media/html/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  * @import { FetchText, Instantiate } from '../effects/browser/types.ts'
@@ -74,14 +74,14 @@ import { pageRefusal } from '../media/html/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
 import { stylesheet } from './style/module.f.js'
 import { cardContent, cardPage, cardPagePath, cardsPath } from './card/module.f.mjs'
-import { changelogDir, cliDir, fileHref, page, pagePath, prsDir, subtree } from './page/module.f.mjs'
+import { cardImageHref, changelogDir, cliDir, fileHref, page, pagePath, pageTitle, prsDir, rootCard, subtree } from './page/module.f.mjs'
 import { prsPage } from './prs/module.f.mjs'
 import { cliPage } from './cli/module.f.mjs'
 import { hexText, tryFromHexOf } from '../git/oid/module.f.mjs'
 import { fundingPath, parse as parseFunding } from './funding/module.f.mjs'
 import { isAuthored, isThirdParty } from '../dev/module.f.mjs'
 import { header, isIssue } from './issue/module.f.js'
-import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, rustdocDir, withPageUrl } from './cargo-doc/module.f.mjs'
+import { cargoDocDir, cargoDocHref, cargoDocPage, crateHref, crateOf, pageCrate, rustdocDir, rustdocMeta, withPageMeta } from './cargo-doc/module.f.mjs'
 import { origin } from './origin/module.f.js'
 
 /**
@@ -742,24 +742,28 @@ const writeChangelog = build => tree => {
  * {@link cargoDocDir}. Whole and in chunks, because a rustdoc page outgrows
  * one `Vec`.
  *
- * @type {(base: string | null) => (dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(meta: (path: string) => readonly Element[]) => (dir: _Walked) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocDir = base => dir => {
-    const to = `${cargoDocDir}${dir.path.slice(rustdocDir.length)}`
+const copyRustdocDir = meta => dir => {
+    const to = pathConcat(cargoDocDir)(dir.path.slice(rustdocDir.length + 1))
     const made = mkdir(to, { recursive: true })
-    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(base)(dir.path)(to)))
+    return step(made, () => forEachStep(pureOk(dir.files), copyRustdocFile(meta)(dir.path)(to)))
 }
 
 /**
  * One file of rustdoc's output, read whole from directory `from` and written
- * under the same name in `to`: byte for byte, but for a page's `og:url`
- * ({@link withPageUrl}), which only a page, an `.html` file, is given.
+ * under the same name in `to`: byte for byte, but for a page's card tags
+ * ({@link withPageMeta}), which only a page, an `.html` file, is given —
+ * `meta` of its path under {@link cargoDocDir}.
  *
- * @type {(base: string | null) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
+ * @type {(meta: (path: string) => readonly Element[]) => (from: string) => (to: string) => (name: string) => Effect<ReadWhole | Rm | WriteBytes | WriteFile, void, IoChannel>}
  */
-const copyRustdocFile = base => from => to => name => step(
+const copyRustdocFile = meta => from => to => name => step(
     readWhole(`${from}/${name}`),
-    chunks => writeChunks(`${to}/${name}`, name.endsWith('.html') ? withPageUrl(base)(`/${to}/${name}`)(chunks) : chunks))
+    chunks => {
+        const path = `${to}/${name}`
+        return writeChunks(path, name.endsWith('.html') ? withPageMeta(meta(path.slice(cargoDocDir.length + 1)))(chunks) : chunks)
+    })
 
 /**
  * The crates a walk of rustdoc's output documents: each top-level directory
@@ -772,58 +776,63 @@ const cratesOf = tree => tree
     .filter(dir => dir.files.includes('index.html') && parent(dir.path) === rustdocDir)
     .map(dir => basename(dir.path))
 
-/** rustdoc's output walked, the walk kept for the steps after it. */
-const rustdocWalked = history(walk(rustdocDir))
-
 /**
- * Every directory of rustdoc's output copied under {@link cargoDocDir},
- * answering the crates it documents.
+ * rustdoc's output, walked: what the build publishes under
+ * {@link cargoDocDir} and the crates it documents — or `null` when
+ * `cargo doc` was not run, which writes nothing and links nothing.
  *
- * @type {(base: string | null) => Effect<Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[], IoChannel>}
- */
-const copyRustdocTree = base => mapStep(
-    historyStep(rustdocWalked, tree => forEachStep(pureOk(tree), copyRustdocDir(base))),
-    ([, tree]) => cratesOf(tree))
-
-/**
- * rustdoc's output, copied from {@link rustdocDir} to {@link cargoDocDir}
- * with each page's URL under `base`, the build's origin, answering the crates
- * it documents — or `null` when `cargo doc` was not run, which writes nothing
- * and links nothing.
- *
- * **Copied, not served from `target/`**, which holds build artifacts beside
- * the docs; and not produced here, because running `cargo` from the
- * generator is an external tool ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
- * Whoever builds the site runs `cargo doc --no-deps --workspace` first.
+ * **Walked before the pages and copied after them.** The pages link the
+ * crates the walk finds, and the copy gives each page its crate's card,
+ * which only writing the pages decides ({@link writeCargoDoc}).
  *
  * **Absence is asked of `exists`, not of the walk's `readdir`**, whose
  * `ENOENT` the virtual file system the proofs run on does not yet report
  * ([virtual-error-codes](../effects/node/virtual/todo/virtual-error-codes.md)).
  * Any other failure of either stops the build.
  *
- * @type {(base: string | null) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile, readonly string[] | null, IoChannel>}
+ * @type {Effect<Access | Readdir, readonly _Walked[] | null, IoChannel>}
  */
-const copyRustdoc = base => step(exists(rustdocDir), found =>
-    found ? copyRustdocTree(base) : pureOk(null))
+const readRustdoc = step(exists(rustdocDir), found =>
+    found ? walk(rustdocDir) : pureOk(null))
 
 /**
- * The Rust API reference, when there is one: rustdoc's output and the index
- * page over it. Answers the documented crates, none when there is none.
+ * Which card a page of rustdoc's output shows, from its `path` under
+ * {@link cargoDocDir}: its crate's directory's
+ * ({@link pageCrate}), as that directory's page does, where it has one
+ * among `cards`; the root page's otherwise.
  *
- * @type {(build: Build) => Effect<Access | Readdir | Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ * @type {(tree: readonly _Walked[]) => (crates: readonly string[]) => (cards: readonly string[]) => (path: string) => Card}
  */
-const writeCargoDoc = build => step(copyRustdoc(origin(build.branch)), crates =>
-    crates === null ? pureOk([]) : writeCargoDocIndex(build)(crates))
+const rustdocCard = tree => crates => cards => {
+    const withCard = crateDirs(tree)(crates).filter(dir => cards.includes(dir))
+    return path => {
+        const crate = pageCrate(crates)(path)
+        const dir = withCard.find(dir => crateOf(dir) === crate)
+        return dir === undefined ? rootCard : { href: cardImageHref(dir), alt: pageTitle(dir) }
+    }
+}
 
 /**
- * The index page over the documented crates, answering them.
+ * The Rust API reference, when there is one: rustdoc's output, `rustdoc`,
+ * copied from {@link rustdocDir} to {@link cargoDocDir} with each page's
+ * card tags ({@link rustdocMeta}) — its URL and the card `card` gives its
+ * path — and the index page over it.
  *
- * @type {(build: Build) => (crates: readonly string[]) => Effect<Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
+ * **Copied, not served from `target/`**, which holds build artifacts beside
+ * the docs; and not produced here, because running `cargo` from the
+ * generator is an external tool ([`AGENTS.md` §6](../../AGENTS.md#6-external-tools)).
+ * Whoever builds the site runs `cargo doc --no-deps --workspace` first.
+ *
+ * @type {(build: Build) => (card: (path: string) => Card) => (rustdoc: readonly _Walked[]) => Effect<Mkdir | ReadWhole | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
  */
-const writeCargoDocIndex = build => crates => {
-    const written = writeUtf8File(pagePath(cargoDocDir), cargoDocPage(build)(crates))
-    const logged = step(written, () => log(`rust crates: ${crates.length}`))
-    return mapStep(logged, () => crates)
+const writeCargoDoc = build => card => rustdoc => {
+    const base = origin(build.branch)
+    /** @type {(path: string) => readonly Element[]} */
+    const meta = path => rustdocMeta(base)(card(path))(`/${cargoDocDir}/${path}`)
+    const copied = forEachStep(pureOk(rustdoc), copyRustdocDir(meta))
+    const crates = cratesOf(rustdoc)
+    const written = step(copied, () => writeUtf8File(pagePath(cargoDocDir), cargoDocPage(build)(crates)))
+    return step(written, () => log(`rust crates: ${crates.length}`))
 }
 
 /**
@@ -856,9 +865,10 @@ const readReadme = commit => isPage => dir => {
  * **A card page beside each page that has a card** — its README, and the
  * root's always ([`./card`](./card/module.f.mjs)) — and the list of them in
  * `_cards.json`, which the screenshot step ([`./cards.mjs`](./cards.mjs))
- * turns into the images the pages name.
+ * turns into the images the pages name. Answers the directories with a card,
+ * which rustdoc's pages show too ({@link rustdocCard}).
  *
- * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, void, IoChannel>}
+ * @type {(build: Build) => (tree: readonly _Walked[]) => (crates: readonly string[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<ReadFile | Rm | WriteBytes | WriteFile | Write, readonly string[], IoChannel>}
  */
 const writePages = build => tree => crates => proofs => demos => step(readIssues(tree), issues => {
     const dirs = tree
@@ -880,9 +890,9 @@ const writePages = build => tree => crates => proofs => demos => step(readIssues
     })
     return step(
         foldStep(pureOk(dirs), /** @type {readonly string[]} */([]), writeDir),
-        cards => step(
+        cards => mapStep(step(
             writeUtf8File(cardsPath, JSON.stringify(cards)),
-            () => log(`directory pages: ${dirs.length}, cards: ${cards.length}, issues: ${issues.length}`)))
+            () => log(`directory pages: ${dirs.length}, cards: ${cards.length}, issues: ${issues.length}`)), () => cards))
 })
 
 /**
@@ -985,17 +995,21 @@ const program = env => note => exitStep(mapStep(
         const authored = authoredModules(tree)
         // One graph over both: a page loads a demo the way it loads a proof,
         // so what would stop one would stop the other.
-        const documented = history(writeCargoDoc(build))
+        const documented = history(readRustdoc)
         const scanned = historyStep(documented, () => scan(authored))
-        return step(scanned, ([[foundProofs, foundDemos, graph], crates]) =>
+        return step(scanned, ([[foundProofs, foundDemos, graph], rustdoc]) =>
             step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
                 ([proofs, demoProofs]) => {
                     const [demoPaths, refused] = resolveDemos(demoProofs)
                     const reported = step(reportClassification(proofs), () =>
                         forEachStep(pureOk(refused), log))
                     const prerendered = step(reported, () => prerenderDemos(demoPaths))
+                    const crates = rustdoc === null ? [] : cratesOf(rustdoc)
                     const pages = step(prerendered, demos => writePages(build)(tree)(crates)(proofs)(demos))
-                    const changelog = step(pages, () => writeChangelog(build)(tree))
+                    const cargoDoc = step(pages, cards => rustdoc === null
+                        ? pureOk(undefined)
+                        : writeCargoDoc(build)(rustdocCard(tree)(crates)(cards))(rustdoc))
+                    const changelog = step(cargoDoc, () => writeChangelog(build)(tree))
                     const prDirectory = step(changelog, () => mkdir(prsDir, { recursive: true }))
                     const prPage = step(prDirectory, () => writeUtf8File(pagePath(prsDir), prsPage(build)))
                     const cliDirectory = step(prPage, () => mkdir(cliDir, { recursive: true }))

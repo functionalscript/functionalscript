@@ -844,15 +844,11 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
 ]]
 
 /**
- * The card tags that are the same on every page: the site, the kind of
- * page and, when the build has an origin, the root page's card image.
+ * The card tags, showing `card`'s image where the build has an origin: the
+ * site, the kind of page and the card type.
  *
- * **Shared with rustdoc's pages.** `cargo doc` writes the Rust API
- * reference, and the site adds one fixed fragment to every page's `<head>`
- * there, so these are all the card tags those pages can carry. rustdoc
- * writes each page's own `<title>` and description, which a card falls back
- * to, and they show the root page's card, as every page without a README of
- * its own does.
+ * **Shared with rustdoc's pages**, which get them as they are copied
+ * ([`../cargo-doc`](../cargo-doc/module.f.mjs)), showing their crate's card.
  *
  * **Open Graph, and Twitter's card type beside it.** Slack, Telegram,
  * Discord, Facebook and LinkedIn read Open Graph; X reads Open Graph's title
@@ -863,16 +859,9 @@ export const footer = funding => funding.length === 0 ? [] : [['footer', { 'data
  * so a local build, which has no origin, leaves it out rather than write a
  * relative one.
  *
- * @type {(origin: string | null) => readonly Element[]}
- */
-export const siteMeta = origin => cardMeta(origin)(rootCard)
-
-/**
- * The card tags, showing `card`'s image where the build has an origin.
- *
  * @type {(origin: string | null) => (card: Card) => readonly Element[]}
  */
-const cardMeta = origin => card => [
+export const cardMeta = origin => card => [
     ['meta', { property: 'og:site_name', content: siteName }],
     ['meta', { property: 'og:type', content: 'website' }],
     ...(origin === null
@@ -905,7 +894,7 @@ export const cardImageHref = path => `/${urlPath(pathConcat(path)(cardImageName)
  *
  * @type {Card}
  */
-const rootCard = { href: cardImageHref('.'), alt: siteName }
+export const rootCard = { href: cardImageHref('.'), alt: siteName }
 
 /**
  * A page's `og:url`: its root-relative `href` under the build's origin, and
@@ -922,8 +911,7 @@ export const urlMeta = origin => href =>
 /**
  * The `<meta>` tags a chat or a social network reads to build the card it
  * shows for a pasted link: the page's title, what it is about and, when the
- * build has an origin, its own URL, then the {@link siteMeta}
- * every page shares.
+ * build has an origin, its own URL, then the {@link cardMeta}.
  *
  * **In the static page, because a crawler runs no script.** Every tag here
  * is in the HTML the build writes, so the card needs nothing from the

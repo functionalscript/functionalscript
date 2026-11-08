@@ -167,7 +167,7 @@ path, with `/` and `-` read as `_`, names a crate rustdoc documented:
 `nanvm/lib` is `nanvm_lib`.
 
 The generator copies `target/doc` there unchanged, but for each page's
-`og:url` ([A shared link shows a card](#a-shared-link-shows-a-card)), and
+card tags ([A shared link shows a card](#a-shared-link-shows-a-card)), and
 writes one page of its own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
 page. It does not run `cargo` — whoever builds the site runs
 `cargo doc --no-deps --workspace` first, and a build without `target/doc`
@@ -202,7 +202,7 @@ rest of rustdoc's look is its own
 ([rustdoc-site-theme](todo/rustdoc-site-theme.md)).
 
 `--html-in-header` adds the site’s ICO and SVG links after rustdoc’s own
-icons in the pinned rustdoc, and the card tags
+icons in the pinned rustdoc, and the marker for the card tags
 ([A shared link shows a card](#a-shared-link-shows-a-card)). The original links remain; the HTML icon
 selection rule prefers the last equally appropriate icon. Verify the tab
 icon after a hard refresh when changing the rustdoc pin.
@@ -889,18 +889,16 @@ search result shows, is cut at a word and ends with "…"; otherwise each
 platform cuts it mid-sentence at a length of its own. A release names its
 version, and every other page uses the site's own sentence.
 
-**rustdoc's pages carry what does not vary by page, and their URL.**
-`cargo doc` writes the Rust API reference, and the site adds one fixed
-fragment to every page's `<head>` there, `rustdocHead`. It carries
-`siteMeta`, the tags `shell`'s pages share: the site's name, the page kind,
-the card type and, where the build has an origin, the root page's card
-image. It ends with a marker, `<!--og:url-->`, which the generator replaces
-with the page's `og:url` as it copies the page (`withPageUrl` in
-[`cargo-doc/`](./cargo-doc/module.f.mjs)): the copy knows the page's path,
-and the marker is a string the site wrote, so finding it reads nothing of
-rustdoc's markup. A build without an origin leaves the comment, and a
-redirect page, which rustdoc writes without the fragment, has neither.
-Each page's title and description are rustdoc's own `<title>` and
+**rustdoc's pages get their card tags as they are copied.** `cargo doc`
+writes the Rust API reference, and the site adds one fixed fragment to every
+page's `<head>` there, `rustdocHead`, which is the same on every page. So it
+carries the favicon links and a marker, `<!--page-meta-->`, and the
+generator replaces the marker as it copies each page (`withPageMeta` in
+[`cargo-doc/`](./cargo-doc/module.f.mjs)) with the tags `shell`'s pages
+carry: the page's `og:url`, the site's name, the page kind and the card. The
+copy knows the page's path, and the marker is a string the site wrote, so
+finding it reads nothing of rustdoc's markup. A redirect page, which rustdoc
+writes without the fragment, has none. Each page's title and description are rustdoc's own `<title>` and
 `<meta name="description">`, which a card falls back to; `og:title`, which
 Open Graph requires, is missing
 ([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
@@ -919,9 +917,18 @@ card.
 **A page with a README shows it as its card.** The image is the README as
 its page shows it, without the header, the catalogue, the breadcrumb or the
 footer, so a link to a directory says in the card what the directory holds.
-Every other page — the PR queue, the CLI reference, the changelog's, a
-README the reader refused, and rustdoc's — shows the root page's card, whose
-alt text is the site's name; a page's own card is described by its title.
+A page of the Rust API reference shows its crate's card: the crate's
+directory's (`nanvm/lib` for `nanvm_lib/` and `src/nanvm_lib/`), described
+by that directory's title, as its page is. Every other page — the PR queue,
+the CLI reference, the changelog's, a README the reader refused, rustdoc's
+shared pages and those of a crate whose directory has no card — shows the
+root page's card, whose alt text is the site's name; a page's own card is
+described by its title.
+
+- **rustdoc's output is copied after the pages.** Which directories have a
+  card is known only once their READMEs are read, so the generator walks
+  `target/doc` first, for the crates the pages link, and copies it once the
+  pages are written.
 
 - **A screenshot, taken at build time.** Only a browser lays out the site's
   own CSS, so the card cannot drift from the page. The generator writes a

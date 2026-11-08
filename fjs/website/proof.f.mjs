@@ -19,7 +19,7 @@ import { utf8 } from '../text/module.f.mjs'
 import { utf8ToString } from '../text/utf8/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
 import { repository } from './page/module.f.mjs'
-import { pageUrlMarker } from './cargo-doc/module.f.mjs'
+import { pageMetaMarker } from './cargo-doc/module.f.mjs'
 import { productionOrigin } from './origin/module.f.js'
 import { hasEntry } from '../types/object/entry/module.f.js'
 
@@ -217,19 +217,51 @@ export const proof = {
             assert(!pageAt(root, []).includes('API documentation'), pageAt(root, []))
             assert(output.includes('rust crates: 1'), output)
         },
-        // Each page is copied with its own URL where the head's marker is;
-        // the other files, and every page of a local build, byte for byte.
-        pageUrl: () => {
-            const doc = { target: { doc: {
-                'search.js': file(pageUrlMarker),
-                nanvm_lib: { 'index.html': file(`<head>${pageUrlMarker}</head>`) },
-            } } }
-            const published = /** @type {Dir} */ (generate(doc, { WORKERS_CI_BRANCH: 'main' }).root['cargo.doc'])
-            assertEq(textOf(/** @type {Dir} */ (published.nanvm_lib)['index.html'], 'a crate page'),
-                `<head><meta property="og:url" content="${productionOrigin}/cargo.doc/nanvm_lib/index.html"></head>`)
-            assertEq(textOf(published['search.js'], 'search.js'), pageUrlMarker)
-            const local = /** @type {Dir} */ (generate(doc).root['cargo.doc'])
-            assertEq(textOf(/** @type {Dir} */ (local.nanvm_lib)['index.html'], 'a crate page'), `<head>${pageUrlMarker}</head>`)
+        // Each page is copied with its card tags where the head's marker is:
+        // its URL, and its crate's card where the crate's directory has one,
+        // the root page's otherwise. The other files are copied byte for byte.
+        pageCards: () => {
+            const doc = {
+                'README.md': file('# Site'),
+                nanvm: {
+                    lib: { 'Cargo.toml': file('[package]'), 'README.md': file('# NaNVM\n\nThe VM.') },
+                    bare: { 'Cargo.toml': file('[package]') },
+                },
+                target: { doc: {
+                    'search.js': file(pageMetaMarker),
+                    'index.html': file(`<head>${pageMetaMarker}</head>`),
+                    nanvm_lib: { vm: { 'index.html': file(`<head>${pageMetaMarker}</head>`) }, 'index.html': file('crate') },
+                    nanvm_bare: { 'index.html': file(`<head>${pageMetaMarker}</head>`) },
+                    src: { nanvm_lib: { 'lib.rs.html': file(`<head>${pageMetaMarker}</head>`) } },
+                } },
+            }
+            const { root, output } = generate(doc, { WORKERS_CI_BRANCH: 'main' })
+            const published = /** @type {Dir} */ (root['cargo.doc'])
+            /** @type {(path: readonly string[]) => string} */
+            const at = path => textOf(path.slice(0, -1).reduce((dir, name) => /** @type {Dir} */ (dir[name]), published)[path[path.length - 1]], path.join('/'))
+            /** @type {(href: string) => (card: string) => (alt: string) => string} */
+            const head = href => card => alt => `<head><meta property="og:url" content="${productionOrigin}/cargo.doc/${href}">`
+                + '<meta property="og:site_name" content="FunctionalScript"><meta property="og:type" content="website">'
+                + `<meta property="og:image" content="${productionOrigin}${card}"><meta property="og:image:alt" content="${alt}">`
+                + '<meta name="twitter:card" content="summary_large_image"></head>'
+            const lib = head('nanvm_lib/vm/index.html')('/nanvm/lib/_card.png')('nanvm/lib · FunctionalScript')
+            assertEq(at(['nanvm_lib', 'vm', 'index.html']), lib)
+            assertEq(at(['src', 'nanvm_lib', 'lib.rs.html']), head('src/nanvm_lib/lib.rs.html')('/nanvm/lib/_card.png')('nanvm/lib · FunctionalScript'))
+            assertEq(at(['nanvm_bare', 'index.html']), head('nanvm_bare/index.html')('/_card.png')('FunctionalScript'))
+            assertEq(at(['nanvm_lib', 'index.html']), 'crate')
+            assertEq(at(['search.js']), pageMetaMarker)
+            // rustdoc's root page is overwritten by ours, which has its own tags.
+            assert(at(['index.html']).includes('<title>Rust API · FunctionalScript</title>'), at(['index.html']))
+            // The copy follows the pages, whose cards it reads.
+            assert(output.indexOf('directory pages') < output.indexOf('rust crates: 2'), output)
+        },
+        // A local build gets the tags with no URL and no image.
+        localPageCards: () => {
+            const doc = { target: { doc: { a: { 'index.html': file(`<head>${pageMetaMarker}</head>`) } } } }
+            const published = /** @type {Dir} */ (generate(doc).root['cargo.doc'])
+            assertEq(textOf(/** @type {Dir} */ (published.a)['index.html'], 'a crate page'),
+                '<head><meta property="og:site_name" content="FunctionalScript"><meta property="og:type" content="website">'
+                + '<meta name="twitter:card" content="summary"></head>')
         },
         // The bars for rustdoc have one writer, `rustdoc-bars`, which runs
         // before `cargo doc`; the generator, which runs after it, does not.

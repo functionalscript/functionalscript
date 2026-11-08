@@ -2,11 +2,12 @@
  * The Rust API reference: where rustdoc's output is read from, where the site
  * publishes it, and the page that lists the crates it documents.
  *
- * **rustdoc's pages are published as they are, but for their URL.** One
- * `cargo doc --workspace` writes one search index and one `static.files/` for
- * every crate, so the whole of `target/doc` moves under {@link cargoDocDir}
- * together. The one change on the way is a page's `og:url`
- * ({@link withPageUrl}), which only the copy knows. The one page that is ours
+ * **rustdoc's pages are published as they are, but for their card tags.**
+ * One `cargo doc --workspace` writes one search index and one `static.files/`
+ * for every crate, so the whole of `target/doc` moves under
+ * {@link cargoDocDir} together. The one change on the way is a page's card
+ * tags ({@link withPageMeta}) — its URL and its crate's card — which only the
+ * copy knows. The one page that is ours
  * is {@link cargoDocPage}: stable rustdoc writes no root page, and that page
  * is also the way back to the rest of the site.
  *
@@ -19,16 +20,15 @@
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { Build } from '../page/types.ts'
+ * @import { Build, Card } from '../page/types.ts'
  * @import { Funding } from '../funding/types.ts'
  */
 
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.js'
-import { footer, header, pageTitle, shell, siteDescription, siteMeta, urlMeta } from '../page/module.f.mjs'
+import { cardMeta, footer, header, pageTitle, shell, siteDescription, urlMeta } from '../page/module.f.mjs'
 import { byteLength, msb, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { origin } from '../origin/module.f.js'
 import { faviconLinks } from '../style/module.f.js'
 
 /**
@@ -84,29 +84,53 @@ export const cargoDocPage = build => crates => shell(build)({ href: cargoDocHref
  */
 export const rustdocHeaderPath = '_rustdoc-header.html'
 
-/** Where `rustdoc-bars` writes the favicon links and card tags for rustdoc, `--html-in-header`. @type {string} */
+/** Where `rustdoc-bars` writes the favicon links and the card tags' marker for rustdoc, `--html-in-header`. @type {string} */
 export const rustdocHeadPath = '_rustdoc-head.html'
 
 /**
- * Where a rustdoc page's `og:url` goes: the comment that ends
- * {@link rustdocHead}, which {@link withPageUrl} replaces as the page is
+ * Where a rustdoc page's card tags go: the comment that ends
+ * {@link rustdocHead}, which {@link withPageMeta} replaces as the page is
  * copied. A comment, so a page that keeps it shows nothing.
  *
  * @type {string}
  */
-export const pageUrlMarker = '<!--og:url-->'
+export const pageMetaMarker = '<!--page-meta-->'
 
 /**
- * What rustdoc adds to every page's `<head>`: the site's favicon links, the
- * card tags every page shares ({@link siteMeta}), serialized, and the
- * {@link pageUrlMarker} for the one tag that is not shared.
+ * What rustdoc adds to every page's `<head>`: the site's favicon links, and
+ * the {@link pageMetaMarker} where the card tags go, which differ by page
+ * ({@link rustdocMeta}). The same for every build: the origin the tags need
+ * is the generator's to give.
  *
- * @type {(build: Build) => string}
+ * @type {string}
  */
-export const rustdocHead = build => [...faviconLinks, ...siteMeta(origin(build.branch))].map(e => concat(element(e))).join('') + pageUrlMarker
+export const rustdocHead = faviconLinks.map(e => concat(element(e))).join('') + pageMetaMarker
+
+/**
+ * The crate a page of rustdoc's output belongs to, from its `path` under
+ * {@link cargoDocDir}: the directory it is in, a crate's — `nanvm_lib/vm/index.html`
+ * is `nanvm_lib`'s — or the one under `src/`, where rustdoc writes the crate's
+ * source view. `null` for the rest, rustdoc's shared assets and pages.
+ *
+ * @type {(crates: readonly string[]) => (path: string) => string | null}
+ */
+export const pageCrate = crates => path => {
+    const [first, second] = path.split('/')
+    const crate = first === 'src' ? second : first
+    return crates.includes(crate) ? crate : null
+}
+
+/**
+ * A rustdoc page's card tags: its `og:url` for `href`, its root-relative URL,
+ * then `card`'s tags — the same tags, from the same builders, as every other
+ * page's.
+ *
+ * @type {(origin: string | null) => (card: Card) => (href: string) => readonly Element[]}
+ */
+export const rustdocMeta = origin => card => href => [...urlMeta(origin)(href), ...cardMeta(origin)(card)]
 
 /** The marker's bytes, as a page holds them. */
-const markerVec = utf8(pageUrlMarker)
+const markerVec = utf8(pageMetaMarker)
 
 /**
  * Where the marker's bytes first start in `v`, a byte offset, or `null`.
@@ -132,10 +156,9 @@ const markerAt = v => {
 }
 
 /**
- * A rustdoc page, as the chunks it was read in, with its `og:url`: the
- * {@link pageUrlMarker} replaced by the page's {@link urlMeta} for `href`,
- * its root-relative URL. The page is unchanged where the build has no origin,
- * and where it holds no marker — `cargo doc` run without
+ * A rustdoc page, as the chunks it was read in, with `tags`, its
+ * {@link rustdocMeta}, where the {@link pageMetaMarker} was. The page is
+ * unchanged where it holds no marker — `cargo doc` run without
  * {@link rustdocHead}, or a page rustdoc writes without it, such as a
  * redirect.
  *
@@ -145,19 +168,19 @@ const markerAt = v => {
  * 128.
  *
  * **Cut into more chunks, not joined into fewer**: the bytes before the
- * marker, the tag, and the bytes after it. A page is written chunk by chunk,
+ * marker, the tags, and the bytes after it. A page is written chunk by chunk,
  * so the cut never has to fit a joined chunk inside a `Vec`.
  *
- * @type {(origin: string | null) => (href: string) => (chunks: readonly Vec[]) => readonly Vec[]}
+ * @type {(tags: readonly Element[]) => (chunks: readonly Vec[]) => readonly Vec[]}
  */
-export const withPageUrl = origin => href => chunks => {
-    if (origin === null || chunks.length === 0) { return chunks }
+export const withPageMeta = tags => chunks => {
+    if (chunks.length === 0) { return chunks }
     const [first, ...rest] = chunks
     const at = markerAt(first)
     if (at === null) { return chunks }
     const before = BigInt(at) * 8n
-    const tag = utf8(urlMeta(origin)(href).map(e => concat(element(e))).join(''))
-    return [vec(before)(msb.front(before)(first)), tag, msb.removeFront(before + byteLength(markerVec) * 8n)(first), ...rest]
+    const html = utf8(tags.map(e => concat(element(e))).join(''))
+    return [vec(before)(msb.front(before)(first)), html, msb.removeFront(before + byteLength(markerVec) * 8n)(first), ...rest]
 }
 
 /** Where `rustdoc-bars` writes the site's footer for rustdoc, `--html-after-content`. @type {string} */
