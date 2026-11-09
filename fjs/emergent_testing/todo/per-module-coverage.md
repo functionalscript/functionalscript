@@ -5,14 +5,14 @@
 
 ### Problem
 
-`npm run cov` runs every proof at once and then checks coverage. A module
-passes when *any* proof reaches its code, not when its own proof does, which is
+The former `npm run cov` script ran every proof at once and then checked coverage.
+A module passed when *any* proof reached its code, not when its own proof did, which is
 what [`fjs/AGENTS.md`](../../AGENTS.md#12-proof-coverage-is-mandatory)
 requires. At `78c51a1d`, `fjs/types/list/module.f.mjs` passes, but its own
 proof leaves a branch of `lengthList` unreached.
 
-It is also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
-minutes for the whole suite, so only CI runs it. One module under coverage took
+It was also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
+minutes for the whole suite, so it ran only in CI. One module under coverage took
 about half a second.
 
 ### Proposal
@@ -113,8 +113,6 @@ repository root. The `node26` job runs `npm start t` with the built-in reporter
 without coverage, retaining the full authored FJS suite: proof-only integration
 directories, fixture imports and module-level assertions. Its whole-check cache
 records a `suite` result; coverage remains the dedicated job's responsibility.
-
-The `npm run cov` script remains available for local combined-coverage checks.
 
 Node is the initial coverage authority. Deno and Bun coverage support is
 deferred; their existing test runs remain. Future coverage adapters must say

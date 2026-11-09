@@ -173,9 +173,8 @@ settings and the tool's FunctionalScript version from `package.json` in
 form a shared fingerprint: changing a CLI, reporter or framework source at the
 same version preserves cached successes unless it is also an actual dependency
 of that target. Changes to tooling behavior within a version can therefore reuse
-earlier successes; use the uncached `npm run cov` when validating the coverage
-tool itself. A FunctionalScript version change invalidates all isolated coverage
-successes.
+earlier successes. A FunctionalScript version change invalidates all isolated
+coverage successes.
 
 JSON leaves and shared dependencies are included once; dependency cycles do not
 repeat files. At startup, the runner probes Node once and builds one shared
@@ -264,9 +263,10 @@ suite this size that is a log nobody reads. `node/module.mjs` is a reporter
 that keeps what a reader acts on — the failures, the skipped and `todo` tests,
 a test's logs with its name on them, its diagnostics with its location and
 what it printed with its file, the run's summary, the files under a coverage
-threshold — and drops the rest; `npm run cov` passes it as
+threshold — and drops the rest. A native Node invocation selects it with
 `--test-reporter=./fjs/emergent_testing/node/module.mjs`, and a consumer can
-name the package's copy the same way.
+name the package's copy the same way. The isolated coverage runner wraps it with
+`cov/reporter.mjs` to check the expected targets before filtering the output.
 
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.

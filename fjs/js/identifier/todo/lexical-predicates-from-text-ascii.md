@@ -109,7 +109,7 @@ written out again.
       attribute. The module arrived after this list was written and imports
       `text/ascii` already.
 - [ ] Answer the `fjs/ebnf/lib/js` question above, here or in a todo of its own.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

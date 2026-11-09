@@ -118,7 +118,6 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `npm test`                              | Node pin | no             | `tsc` + the repo's runner; needs `tsc`.  |
 | `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
-| `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
 | `npm start cov node`                    | Node pin | no             | Isolated coverage with a local Git success cache. |
 | `npm start -- cov node --sync`         | Node pin | yes            | Publish the run's successful manifests as one batch. |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
@@ -201,21 +200,21 @@ CI's additional `cov` job runs `npm start cov node` from the repository root,
 adding `--sync` for permitted same-repository runs outside Dependabot. Forks
 and Dependabot use local caching. The `node26` job runs `npm start t` without
 coverage, including proofs outside measured module directories. The dedicated
-`cov` job owns the coverage gate; `npm run cov` remains available for local
-combined-coverage checks.
+`cov` job owns the coverage gate.
 
-Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
+Node's `npm start cov node` and Deno's `cov` and `cov-html` reports measure
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
 already includes imported demos without a filename filter; CI uses Node's
 100% line, branch and function thresholds as the coverage gate.
 
-`npm run cov` reports through
-[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs):
-Node's `spec` reporter with the passed tests and the fully covered files
+The isolated coverage runner reports live through
+[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs),
+which checks the expected targets before delegating to
+[`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
+This is Node's `spec` reporter with the passed tests and the fully covered files
 filtered out, so a green run prints its summary — the test counts and the
 `all files` coverage row — and a red one prints each failure and each file
-under a threshold. The isolated coverage runner uses the same quiet native
-reporting live, followed by module results and failure diagnostics.
+under a threshold. The runner then prints module results and failure diagnostics.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

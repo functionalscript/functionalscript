@@ -58,9 +58,8 @@ the FunctionalScript version invalidates every isolated coverage success.
 Tool sources are not a shared fingerprint, so edits to the CLI, reporter or
 framework at the same version preserve successes unless those files are actual
 dependencies of the target. This deliberately permits reuse across same-version
-tool behavior changes; run the uncached `npm run cov` when validating coverage
-tooling itself. The repository root's `package.json` is a required input; all
-present ancestor `package.json` files for loaded files inside the repository are
+tool behavior changes. The repository root's `package.json` is a required input;
+all present ancestor `package.json` files for loaded files inside the repository are
 hashed too. New nested package scopes therefore
 invalidate the affected manifests. A missing root package file leaves the run
 uncached rather than depending on package metadata outside the repository.
