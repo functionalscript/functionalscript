@@ -26,7 +26,7 @@ const commands = [
 ]
 /** @type {StringMap<readonly Entry[]>} */
 const defaults = { '/repo/a': [first, second], '/repo/b': [third] }
-const lookupCall = 'lookup first,second,third'
+const lookupCall = /** @type {const} */ ('lookup first,second,third')
 
 /**
  * Record only effect boundaries. Planning and execution choose the lifecycle;
@@ -51,6 +51,7 @@ const execute = (options = {}) => {
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
         access: path => state => {
+            /** @type {State} */
             const next = { ...state, calls: [...state.calls, path] }
             const failed = path.startsWith('prepare ') && options.prepareErrors?.includes(path.slice('prepare '.length))
                 || path.startsWith('lookup ') && options.lookupError
@@ -58,6 +59,7 @@ const execute = (options = {}) => {
             return [next, failed ? error(ioError({ message: `${path.split(' ')[0]} unavailable` })) : ok(undefined)]
         },
         readdir: path => state => {
+            /** @type {State} */
             const next = { ...state, calls: [...state.calls, path] }
             const call = state.calls.filter(call => call.startsWith('validate ')).length + 1
             return [next, options.validationErrors?.includes(call)
@@ -93,7 +95,7 @@ const execute = (options = {}) => {
 /** @type {(calls: readonly string[]) => readonly string[]} */
 const writes = calls => calls.filter(call => call.startsWith('save ') || call === 'sync')
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     allPreparedBeforeOneLookup: () => {
         const [state, result] = execute({ onlyPlan: true, hits: [true, true, false] })
         const planned = assertOk(result).planned
@@ -105,7 +107,7 @@ export const proof = {
         assertStructurallySame(state.output, [])
     },
     directoryRequiresEveryTarget: () => {
-        for (const hits of [[false, true, true], [true, false, true]]) {
+        for (const hits of /** @type {const} */ ([[false, true, true], [true, false, true]])) {
             const [state, result] = execute({ hits })
             const value = assertOk(result)
             assertStructurallySame(value.planned.map(item => item.cached), [false, true])
@@ -153,7 +155,7 @@ export const proof = {
         assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/a: prepare unavailable\n']])
     },
     unavailableLookupWithholdsAllRecords: () => {
-        for (const options of [{ lookupError: true }, { hits: [] }, { hits: [true] }, { hits: [true, true, true, true] }]) {
+        for (const options of /** @type {const} */ ([{ lookupError: true }, { hits: [] }, { hits: [true] }, { hits: [true, true, true, true] }])) {
             const [state, result] = execute(options)
             const value = assertOk(result)
             assert(value.planned.every(item => item.entries === null && !item.cached))
@@ -182,7 +184,7 @@ export const proof = {
         assert(!rejected.calls.some(call => call.startsWith('lookup ')))
     },
     nullCacheRunsEverything: () => {
-        for (const passed of [false, true]) {
+        for (const passed of /** @type {const} */ ([false, true])) {
             const [state, result] = execute({ disabled: true, passed })
             const value = assertOk(result)
             assert(value.planned.every(item => item.entries === null && !item.cached))
@@ -195,7 +197,7 @@ export const proof = {
         }
     },
     stalePlannedHitsRerunWithoutRecording: () => {
-        for (const options of [{ valid: [false, true] }, { validationErrors: [1] }]) {
+        for (const options of /** @type {const} */ ([{ valid: [false, true] }, { validationErrors: [1] }])) {
             const [state, result] = execute({ ...options, hits: [true, true, true] })
             assertStructurallySame(assertOk(result).results, [
                 { outcome: 'passed', entries: [] }, { outcome: 'cached', entries: [] },
@@ -207,7 +209,7 @@ export const proof = {
         }
     },
     changedDuringExecutionWithholdsOriginalEntries: () => {
-        for (const options of [{ valid: [true, false] }, { validationErrors: [2] }]) {
+        for (const options of /** @type {const} */ ([{ valid: [true, false] }, { validationErrors: [2] }])) {
             const [state, result] = execute({ ...options, commands: [commands[0]] })
             assertStructurallySame(assertOk(result).results, [{ outcome: 'passed', entries: [] }])
             assertStructurallySame(state.calls, [
@@ -247,10 +249,10 @@ export const proof = {
             { outcome: 'passed', entries: [] })
     },
     childErrorsPropagate: () => {
-        for (const disabled of [false, true]) {
+        for (const disabled of /** @type {const} */ ([false, true])) {
             const [state, result] = execute({ runError: true, disabled })
             assertError(result)
             assertStructurallySame(writes(state.calls), [])
         }
     },
-}
+})

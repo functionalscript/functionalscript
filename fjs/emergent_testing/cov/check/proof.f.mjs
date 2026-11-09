@@ -12,12 +12,12 @@ const _full = path => ({
     totalFunctionCount: 1, coveredFunctionCount: 1,
 })
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     targets: () => {
-        for (const path of ['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs', 'C:\\a\\module.f.js']) {
+        for (const path of /** @type {const} */ (['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs', 'C:\\a\\module.f.js'])) {
             assert(isCoverageTarget(path))
         }
-        for (const path of ['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js', 'module.f.mjs.map']) {
+        for (const path of /** @type {const} */ (['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js', 'module.f.mjs.map'])) {
             assert(!isCoverageTarget(path))
         }
     },
@@ -38,15 +38,15 @@ export const proof = {
         ])
     },
     incompleteAndInvalidCounts: () => {
-        for (const file of [
+        for (const file of /** @type {const} */ ([
             { ..._full('/a/module.f.mjs'), coveredLineCount: 1 },
             { ..._full('/a/module.f.mjs'), coveredBranchCount: 0 },
             { ..._full('/a/module.f.mjs'), coveredFunctionCount: 0 },
             { ..._full('/a/module.f.mjs'), totalLineCount: NaN },
             { ..._full('/a/module.f.mjs'), totalLineCount: -1 },
             { ..._full('/a/module.f.mjs'), coveredLineCount: 0.5 },
-        ]) {
+        ])) {
             assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [file]), ['Incomplete coverage: /a/module.f.mjs'])
         }
     },
-}
+})
