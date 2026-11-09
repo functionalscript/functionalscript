@@ -14,9 +14,9 @@ them ([Comparison round](#comparison-round)). Nothing here is decided yet.
 
 - The IR is a **typed expression tree with structured control flow**:
   `block`, `if`, `loop` and `br`, as in WASM and in Rust.
-- It has **six types**: `any`, `f64`, `i32`, `bool`, `void` and `never`,
-  plus `str`, an unpacked string whose layout a runtime module chooses
-  (choice 13).
+- It has **seven types**: `any`, `f64`, `i32`, `bool`, `str`, `void` and
+  `never`. `str` is an unpacked string whose layout a runtime module
+  chooses (choice 13).
   `any` is L0's opaque value. Everything a type check decided is already
   explicit.
 - **A JavaScript primitive written in the IR is that constant**: `1.5` is an
@@ -129,12 +129,14 @@ Each choice gives the pick first, then the alternatives and the reason.
   nothing: FunctionalScript values are immutable, so almost every local is
   assigned once already (choice 6).
 
-### 2. Six types, and the IR does not track a value's kind
+### 2. Seven types, and the IR does not track a value's kind
 
-- **Pick:** `any`, `f64`, `i32`, `bool`, `void` and `never`.
+- **Pick:** `any`, `f64`, `i32`, `bool`, `str`, `void` and `never`.
   - `any` is L0's opaque value, an `i64` in WASM and an `Any` in Rust.
   - `f64` is an unpacked number, and `bool` an unpacked boolean.
   - `i32` is an index, a length, a kind tag, a code index or a builder.
+  - `str` is a string unpacked by the runtime's String module, borrowed
+    from its source `any` (choice 13).
   - `void` is the type of a statement such as `push`.
   - `never` is the type of `br`, `return`, `throw` and `unreachable`. It
     fits wherever any type is expected.
@@ -145,7 +147,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   because L0 has no typed references
   ([L0 design §2](./l0-design.md#2-typed-values-exist-only-in-the-compiler)).
   What the lowering knew about a kind shows up as the operations it chose:
-  `l0.length` instead of `l1.length`.
+  `l0.length` instead of `l1.length`. `str` is no exception: it is a
+  representation, not a kind, and holds only what a String module
+  unpacked.
 
 ### 3. A JavaScript primitive is its own constant
 
@@ -358,7 +362,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
 
-- **Pick:** a seventh type, `str`, is a string unpacked by the runtime's
+- **Pick:** the seventh type, `str`, is a string unpacked by the runtime's
   String module. A `str` table holds its three rows: `unpack` from an
   `any` to a `str`, `length` of a `str` as an `i32`, and `at` of a `str`
   and an `i32` index as an `i32` unit. The IR does not say how big a `str`
