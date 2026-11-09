@@ -57,6 +57,14 @@ export const platformNodeSteps = () => [
     test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
+/** Isolated coverage of each module directory, alongside the existing checks. */
+export const coverageJob = ubuntuArm([
+    nodeVersionStep(),
+    ...environmentSteps(['npm ci']),
+    // Advisory until each module's own proof supplies complete coverage.
+    test({ run: environmentCommand('npm start cov node'), 'continue-on-error': true }),
+])
+
 /**
  * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}
  */

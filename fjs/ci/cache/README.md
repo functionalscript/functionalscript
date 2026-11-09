@@ -7,6 +7,8 @@ type check cannot certify a package check or another engine's suite.
 
 The repository's own CI enables the cache. The general workflow generator
 leaves it disabled, since its input selectors describe this repository.
+The dedicated `cov` job runs unconditionally while
+[per-module coverage caching](./todo/module-coverage-cache.md) is developed.
 
 ## Inputs and keys
 
@@ -36,16 +38,16 @@ and pinned tool versions into a contract. Its entry contains that contract and
 its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
-Compile checks use `fjs`; suites and coverage use `js`; TypeScript and the
-packed-package check use `ts`; Rust checks use `rust`. Coverage still loads
-plain JavaScript proofs, so it must use `js`. Generated-file drift checks and
-the WASM demo rebuild always run because their complete inputs are not yet
-enumerated.
+Compile checks use `fjs`; suites and `node26`'s combined coverage use `js`;
+TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
+The additional isolated `cov` job does not use the whole-check cache.
+Generated-file drift checks and the WASM demo rebuild always run because their
+complete inputs are not yet enumerated.
 
 ## Job lifecycle
 
-Each job fetches only the tip of `build-cache` into the local cache branch and
-`refs/remotes/origin/build-cache`, then initializes the cache before expensive
+Each cached job fetches only the tip of `build-cache` into the local cache branch
+and `refs/remotes/origin/build-cache`, then initializes the cache before expensive
 tool installation. The remote ref preserves the initial publication baseline.
 Initialization uses `GITHUB_JOB` to select the checks and platform directly
 from the same repository configuration used by the CI generator. It takes no

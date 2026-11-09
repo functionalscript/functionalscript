@@ -1,4 +1,4 @@
-import { installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
+import { coverageJob, installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { environmentCommand } from '../environment/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
@@ -25,6 +25,14 @@ export const proof = {
         }
         const checkout = canonicalSteps.findIndex(step => step.uses?.startsWith('actions/checkout@'))
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
+    },
+    coverage: () => {
+        assertEq(coverageJob.steps.at(-1)?.['continue-on-error'], true)
+        assertStructurallySame(coverageJob.steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
+            `test "$(env node --version)" = "v${node}"`,
+            environmentCommand('npm ci'),
+            environmentCommand('npm start cov node'),
+        ])
     },
     steps: () => {
         assertStructurallySame(

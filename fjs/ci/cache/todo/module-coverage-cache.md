@@ -5,10 +5,11 @@
 
 ### Problem
 
-The CI success cache keys coverage over the conservative `js` input group.
-A change to an unrelated module invalidates the whole coverage check. The
-dependency graph and isolated coverage runner now provide the foundations for
-checking and caching each module independently.
+The existing combined coverage check in `node26` uses the conservative `js`
+input group, so a change to an unrelated module invalidates its entire result.
+The additional, uncached `cov` job runs isolated coverage through
+`npm start cov node`. The dependency graph and isolated runner provide the
+foundations for checking and caching each module independently.
 
 This issue tracks the CI integration. The existing
 [per-module coverage issue](../../../emergent_testing/todo/per-module-coverage.md)
@@ -21,15 +22,17 @@ records this plan only; each implementation stage follows in a separate PR.
 
 #### 1. Dedicated coverage job
 
-Move the existing Node coverage check into a dedicated `cov` job, initially
-without cache skipping. Use the existing mise setup and pinned Node version,
-retain the current proof discovery and 100% thresholds, and generate the
-workflow through `fjs/ci`. Keep ordinary runtime tests in their existing jobs.
+Add a dedicated `cov` job that invokes the existing `npm start cov node`
+isolated runner, initially without cache skipping. Use the existing mise setup
+and pinned Node version, retain the runner's measured files and 100%
+thresholds, and generate the workflow through `fjs/ci`. Keep all existing CI
+jobs unchanged, including `node26`'s combined `npm run cov` check and cache.
 
-This stage can use today's `npm run cov` combined-suite check. It separates
-coverage execution from cache behavior without waiting for the remaining
-isolated-proof gaps. Do not silently replace it with an isolated check that
-is known to fail, lower thresholds or remove the existing demo coverage.
+The task owner requested adding isolated coverage without changing the existing
+jobs yet. Keep remaining proof gaps visible and tracked by the per-module
+coverage issue; do not lower thresholds or omit measured files to make the job
+pass. Replacing the combined check and retaining an ordinary full FJS test pass
+are later rollout work.
 
 #### 2. Per-module runs and dependency manifests
 
@@ -41,9 +44,10 @@ do not belong to the module's suite.
 Run each module's suite in a fresh Node coverage process, reusing the existing
 isolated runner rather than creating a second runner. Measure the selected
 implementation file with 100% lines, branches and functions. A missing proof,
-empty suite, failed test or missing coverage result cannot pass. Close the
-remaining isolation rollout tasks before making this the replacement CI gate;
-preserve a full FJS test pass and the existing demo coverage obligation.
+empty suite, failed test or missing coverage result cannot pass. The existing
+runner groups immediate implementation and demo targets by directory. Its CI
+wiring is in stage 1; closing remaining proof gaps and completing the rollout
+remain tracked by the per-module coverage issue.
 
 Construct one manifest per implementation file. Start with the module and all
 selected proofs, then include every file reachable from any of those roots.
@@ -124,7 +128,8 @@ contribute to that report.
 
 ### Tasks
 
-- [ ] Add the dedicated, initially uncached `cov` CI job through the generator.
+- [x] Add the dedicated, initially uncached `cov` CI job through the generator,
+      using `npm start cov node` while retaining all existing CI jobs.
 - [ ] Complete the isolated coverage rollout, then generate deterministic
       manifests for modules and sibling proofs; audit extra coverage inputs.
       Run coverage unconditionally while validating manifests.

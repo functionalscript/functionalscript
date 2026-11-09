@@ -153,9 +153,11 @@ fail the check.
 
 The runner prints each working directory and complete command before
 launching it, continues after failures, and exits nonzero if any module
-failed. It accepts no flags. The repository-wide `npm run cov` gate retains
-its combined suite until the remaining per-module proof gaps and CI rollout
-in [per-module coverage](./todo/per-module-coverage.md) are complete.
+failed. It accepts no flags. CI's additional `cov` job invokes this isolated
+runner from the repository root. The existing `node26` job retains the combined
+`npm run cov` check; its coverage cannot contribute to the isolated results.
+Replacing that combined check and closing the remaining proof gaps are tracked in
+[per-module coverage](./todo/per-module-coverage.md).
 
 ### External runners (Node, Bun, Deno)
 

@@ -119,6 +119,7 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
 | `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
+| `npm start cov node`                    | Node pin | no             | Isolated coverage by module directory. |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
@@ -141,7 +142,7 @@ the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 --allow-env --allow-net --allow-sys`). Deno also holds back very recently
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
-CI exercises these same combinations — see the `node26`,
+CI exercises these same combinations — see the `node26`, `cov`,
 `deno`, and `bun` jobs, and `ubuntu-arm` for SpiderMonkey, in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
@@ -179,8 +180,10 @@ cd ../types/list        # from fjs/basen
 node --test ../../emergent_testing/one.mjs
 ```
 
-The full `npm run cov` remains CI's combined-suite gate during the
-[per-module rollout](./fjs/emergent_testing/todo/per-module-coverage.md).
+CI's additional `cov` job runs `npm start cov node` from the repository root.
+The existing `node26` job retains `npm run cov` and its combined FJS suite,
+including proofs outside measured module directories. Coverage from that
+combined run cannot contribute to the isolated results.
 
 Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`

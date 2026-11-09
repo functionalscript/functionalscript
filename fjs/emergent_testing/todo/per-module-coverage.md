@@ -121,11 +121,16 @@ of lowering thresholds or allowing exceptions.
 
 #### CI and scope
 
-Make `npm run cov` delegate to `fjs cov node`; CI invokes it from the
-repository root. Retain one ordinary full native FJS test run without
-coverage, through `fjs/emergent_testing/fjs-only.mjs`, so proof-only
-integration directories, fixture imports and module-level assertions still
-run. That run does not contribute coverage to the isolated checks.
+CI's additional `cov` job invokes `npm start cov node` directly from the
+repository root. The existing jobs remain unchanged, including `node26`'s
+combined `npm run cov` check and cache. That combined suite retains proof-only
+integration directories, fixture imports and module-level assertions; its
+coverage does not contribute to the isolated checks.
+
+As later rollout work, make `npm run cov` delegate to `fjs cov node` and retain
+one ordinary full native FJS test run without coverage through
+`fjs/emergent_testing/fjs-only.mjs`. Removing the combined check must preserve
+proofs outside measured module directories.
 
 Node is the initial coverage authority. Deno and Bun coverage support is
 deferred; their existing test runs remain. Future coverage adapters must say
@@ -163,8 +168,10 @@ when a required metric is unavailable.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [ ] Fix the exposed gaps in modules' own proofs or implementations.
-- [ ] Wire `npm run cov` and CI to the runner, retaining the full native FJS
-      test pass without coverage; update contributor and runner documentation.
+- [x] Add a CI job invoking `npm start cov node` without changing the existing
+      jobs; update contributor and runner documentation.
+- [ ] Make `npm run cov` delegate to the isolated runner, retaining the full
+      native FJS test pass without coverage when replacing the combined check.
 - [ ] Add `fjs cov deno`, with per-module isolation and explicit
       coverage-metric enforcement.
 - [ ] Add `fjs cov bun`, with per-module isolation and explicit
