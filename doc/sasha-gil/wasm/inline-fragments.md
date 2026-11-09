@@ -42,11 +42,20 @@ module's functions, such as the String module's `unpack`, `length` and
 `at`, are always inlined, and its manifest is the list of them, plus the
 number of stack slots an unpacked value needs. Two things are new there:
 
-- **A null entry** in the manifest means a no-op, so the compiler emits
-  nothing for it.
-- **Stack frame offsets** that a function takes are locals of the caller,
-  fixed at compile time. A fragment's parameters already become the
-  caller's locals, so this costs nothing new.
+- **A null entry** means a no-op, so the compiler emits nothing for it.
+  Only an operation with no result may be null: today that is `unpack`
+  of a module with no slots. `length` and `at` answer an `i32` and are
+  never null.
+- **Stack frame offsets are local indices, bound by the inliner.** A
+  WASM local index is an immediate of `local.get` and `local.set`, not a
+  run-time value, so an offset cannot be a parameter of an ordinary
+  function. A module function is therefore a template, not a callable
+  function. Its first locals stand for the source `any` and for the
+  slots, by a fixed numbering, and the inliner renumbers them at each use
+  to the caller's locals that the code generator chose. `unpack` writes
+  those locals and `length` and `at` read the same ones. This is the
+  renumbering an inliner does for any fragment, whose parameters become
+  the caller's locals.
 
 In the *portable* mode, where nothing is inlined, an offset would have to
 point into linear memory. That case is left open

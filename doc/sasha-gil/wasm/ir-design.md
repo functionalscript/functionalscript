@@ -190,7 +190,7 @@ Each choice gives the pick first, then the alternatives and the reason.
   })
   ```
 
-  There are four tables:
+  There are five tables:
   - `prim` holds the typed operations every target has: `f64_add`, `f64_lt`,
     `i32_add`, `bool_not`, `f64_from_i32`, and so on.
   - `l0` holds the L0 imports, under their ABI names
@@ -203,6 +203,9 @@ Each choice gives the pick first, then the alternatives and the reason.
     call through it is a direct call, never an import. The stock module
     calls its own L1 bodies this way, and the `l1` table only for the
     native rows.
+  - `str` holds the String module's `unpack`, `length` and `at` over an
+    unpacked string (choice 13). Its rows are always inlined from the
+    runtime's String module, never imported.
 
   `table` turns the rows into the constructors the example uses, so
   `l0.to_f64(x)` is the call node, and TypeScript checks its arity and
@@ -390,7 +393,7 @@ Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
 
 Each step is a PR or a short stack, proved before the next starts.
 
-1. **The IR itself.** The schema, the constructors, the four tables, the
+1. **The IR itself.** The schema, the constructors, the five tables, the
    validator and the printer, with proofs over hand-written functions such
    as `subtract` above.
 2. **The lifetime pass**, and the validator for the owned stage, so that
