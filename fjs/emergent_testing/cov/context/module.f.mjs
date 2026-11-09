@@ -91,7 +91,7 @@ export const openCoverageCache = (options, synchronize, commands) => {
     const scoped = historyStep(certified, (_graph, runtime) => scopesAbsent(runtime.absentScopes))
     return step(scoped, ([absent, graph, runtime, _probe, { sync, local }]) => {
         if (!absent) { return refuse('ERR_COVERAGE_CACHE')('coverage runtime package scopes changed during preparation') }
-        const contract = { ...runtime.facts, files: graph.opaqueFiles }
+        const contract = /** @type {const} */ ({ ...runtime.facts, files: graph.opaqueFiles })
         /** @type {CoverageCache} */
         const cache = {
             root: local.root,

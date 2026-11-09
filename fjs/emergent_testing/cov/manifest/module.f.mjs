@@ -84,6 +84,7 @@ const visit = source => graph => {
             const result = dependencyImports(source, text, validate)
             return result[0] === 'error' ? error(problem(`${path}: ${result[1].message}`)) : result
         })()
+        /** @type {Graph} */
         const recorded = { ...graph, imports: { ...graph.imports, [path]: parsed } }
         if (parsed[0] === 'error') { return pureOk(recordNode(recorded, source, parsed)) }
         return resultStep(resolveDependencies(source, parsed[1]), result => {
@@ -165,6 +166,7 @@ const closure = (graph, directory) => {
         if (state.seen.includes(source.id)) { return ok(state) }
         const node = assertNotNullish(graph.nodes[source.id])
         if (node[0] === 'error') { return node }
+        /** @type {_Closure} */
         const entered = {
             seen: [...state.seen, source.id], nodes: [...state.nodes, node[1]],
             required: [...state.required, normalize(source.path)],
