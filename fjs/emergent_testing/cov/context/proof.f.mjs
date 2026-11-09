@@ -26,9 +26,9 @@ const options = {
     env: { GIT_AUTHOR_NAME: 'Coverage Writer', GIT_AUTHOR_EMAIL: 'coverage@example.com' },
 }
 
-const framework = 'export default 1;'
-const runtimePath = '/tool/fjs/emergent_testing/cov/runtime.mjs'
-const runtimeSource = 'export default "runtime";'
+const framework = /** @type {const} */ ('export default 1;')
+const runtimePath = /** @type {const} */ ('/tool/fjs/emergent_testing/cov/runtime.mjs')
+const runtimeSource = /** @type {const} */ ('export default "runtime";')
 const digest = computeSync(sha256)
 const hex = encodeScalar(64)
 /** @type {(text: string) => string} */
@@ -47,7 +47,7 @@ const command = { directory: '/repo/unit', files: ['module.f.js', 'demo.f.mjs'],
 const other = { directory: '/repo/other', files: ['module.f.js'], args: ['--test'] }
 
 /** @satisfies {Dir} */
-const files = {
+const files = /** @type {const} */ ({
     repo: {
         '.git': { config: [utf8('[core]\nrepositoryformatversion = 0\n')], objects: { pack: {} } },
         'package.json': [utf8('{"type":"module"}\n')],
@@ -62,7 +62,7 @@ const files = {
         'framework.mjs': [utf8(framework)],
         emergent_testing: { cov: { 'runtime.mjs': [utf8(runtimeSource)] } },
     } },
-}
+})
 
 /** Real source snapshots with the Git subprocess protocol held in memory.
  * @param {string} [runtimeOutput]
@@ -75,6 +75,7 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
     const result = {
         ...virtualOperationMap,
         execFile: (executable, args, options) => state => {
+            /** @type {State} */
             const next = { ...state, stdout: state.stdout + JSON.stringify([executable, args]) + '\n' }
             if (executable === 'node') {
                 assertStructurallySame(args, [runtimePath])
@@ -96,6 +97,7 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
             }
             if (args.includes('cat-file')) {
                 const frames = (options?.stdin ?? '').split('\n').filter(oid => oid !== '').map(oid => {
+                    /** @type {string} */
                     const prefix = `blob ${oid} `
                     const line = assertNotNullish(state.stdout.split('\n').findLast(line => line.startsWith(prefix)))
                     const body = line.slice(prefix.length)
@@ -148,7 +150,7 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
     return result
 }
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     localPreparationAndStorage: () => {
         const run = partialRun(nodeCommands)(operations())
         const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command, other]))
@@ -168,7 +170,7 @@ export const proof = {
         assertEq(entries.length, 2)
         const [firstEntry, secondEntry] = entries
         assert(firstEntry.key !== secondEntry.key)
-        const [first, second] = [firstEntry.manifest, secondEntry.manifest]
+        const [first, second] = /** @type {const} */ ([firstEntry.manifest, secondEntry.manifest])
         assert(first !== null && typeof first === 'object' && !(first instanceof Array))
         assert(second !== null && typeof second === 'object' && !(second instanceof Array))
         assertEq(first.module, 'unit/demo.f.mjs')
@@ -178,7 +180,7 @@ export const proof = {
             coverage: { engine: 'node', targets: command.files, lines: 100, branches: 100, functions: 100 },
         })
         assertStructurallySame(first.files, second.files)
-        const all = [...entries, ...otherEntries]
+        const all = /** @type {const} */ ([...entries, ...otherEntries])
         const [looked, miss] = run(prepared)(cache.lookup(all))
         assertStructurallySame(assertOk(miss), [false, false, false])
         const [saved, stored] = run(looked)(cache.saveMany(all))
@@ -261,14 +263,14 @@ export const proof = {
         assertStructurallySame(unchanged, entries)
         assertStructurallySame(assertOk(run(reopened)(reused.lookup(unchanged))[1]), [true, true])
         assertEq(assertOk(run(changedTool)(cache.validate(command))[1]), true)
-        for (const runtimeChange of [
+        for (const runtimeChange of /** @type {const} */ ([
             { ...runtime, functionalscript: '0.59.0' },
             { ...runtime, node: 'different-node' },
             { ...runtime, versions: { ...runtime.versions, v8: 'different-v8' } },
             { ...runtime, platform: 'win32' },
             { ...runtime, arch: 'arm64' },
             { ...runtime, env: { ...runtime.env, TZ: 'different-zone' } },
-        ]) {
+        ])) {
             const changed = partialRun(nodeCommands)(operations(JSON.stringify(runtimeChange)))
             const [next, opened] = changed(saved)(openCoverageCache(options, false, [command]))
             const updated = assertOk(opened)
@@ -282,6 +284,7 @@ export const proof = {
         const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
         const cache = assertOk(opened)
         assertEq(assertOk(run(state)(cache.validate(command))[1]), true)
+        /** @type {State} */
         const changedSource = { ...state, root: { ...files, repo: { ...files.repo, unit: {
             ...files.repo.unit, 'module.f.js': [utf8('export default 2;')],
         } } } }
@@ -294,4 +297,4 @@ export const proof = {
         const run = partialRun(nodeCommands)(operations())
         assertOk(run({ ...emptyState, root: files })(openCoverageCache({ ...options, env: { ...options.env, NODE_OPTIONS: '' } }, false, [command]))[1])
     },
-}
+})
