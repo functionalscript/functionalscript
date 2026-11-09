@@ -15,8 +15,8 @@ The next foundation is a module dependency graph.
 
 ### Scope
 
-This epic tracks the foundations. How smart build uses them will be designed
-later.
+This epic tracks the foundations. The first build-cache consumer is planned in
+[per-module coverage caching](../ci/cache/todo/module-coverage-cache.md).
 
 ### Tasks
 
@@ -29,7 +29,8 @@ later.
   - [x] Implement the [dependency graph CLI command](./module-dependency-graph-command.md)
         with `_deps.json` output.
   - [ ] Draw the dependency graph on a website.
-- [ ] Integrate the dependency graph with `build-cache`.
+- [ ] Integrate the dependency graph with `build-cache`, starting with
+      [per-module coverage](../ci/cache/todo/module-coverage-cache.md).
 
 ### Related
 
