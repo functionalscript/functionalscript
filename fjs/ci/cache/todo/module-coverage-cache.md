@@ -124,7 +124,8 @@ contribute to that report.
 
 ### Tasks
 
-- [ ] Add the dedicated, initially uncached `cov` CI job through the generator.
+- [ ] Add the dedicated, initially uncached `cov` CI job through the generator,
+      retaining the combined coverage command and its thresholds.
 - [ ] Complete the isolated coverage rollout, then generate deterministic
       manifests for modules and sibling proofs; audit extra coverage inputs.
       Run coverage unconditionally while validating manifests.
