@@ -33,8 +33,8 @@ program, and it runs on any runtime.
 The dependencies form a chain: Any, then String, then Containers, then
 Functions, with BigInt beside String. A module calls only the modules it
 depends on, through their functions, never through their layouts. The one
-call the other way, from Any to a module when a value is freed, is a hook
-(choice 7).
+call the other way, from Any to a module when a value is freed, is a hook.
+The calls between modules form a runtime-internal interface (choice 7).
 
 ## Design choices
 
@@ -135,19 +135,37 @@ call the other way, from Any to a module when a value is freed, is a hook
   to refuse a program built for another runtime
   ([inline fragments, Open](./inline-fragments.md#open)).
 
-### 7. Freeing a value calls the module that owns its kind
+### 7. Modules meet through a runtime-internal interface
 
-- **Pick:** Any owns the reference count and the kind tag, so `dup` and
-  `drop` stay in Any. When `drop` takes a count to zero, Any calls the
+A program sees only L0 functions. Inside the runtime, the modules need a
+few more calls between them, to make a value, to free one, and to clean
+up after a throw. None of these is an L0 function, and a program never
+imports one.
+
+- **Making a value.** Any owns the `i64` encoding, so a module that makes
+  a value with storage asks Any to wrap it. Any gives the modules
+  `box(kind, payload) -> any`, which sets the kind tag and a count of one
+  around the module's own payload (a pointer or a handle), and
+  `payload(v)`, which answers it back. `make_string`, `make_bigint`,
+  `seal` and `make_function` end with `box`. A value that fits in the
+  `i64`, such as a NaN-boxed short string, is encoded by Any's
+  `box_inline(kind, bits)` instead, and has no payload.
+- **Freeing a value.** Any owns the reference count and the kind tag, so
+  `dup` and `drop` stay in Any. When `drop` takes a count to zero, Any calls the
   `release` hook of the module that owns the value's kind. That module
   frees its own storage, and calls Any's `drop` on each value it held:
   the items of an array, the keys and values of an object, a function's
-  frame and text. `recover`
-  ([§21](./l0-design.md#21-the-host-is-an-l0-client)) frees through the
-  same hooks.
+  frame and text.
+- **Cleaning up after a throw.** `recover`
+  ([§21](./l0-design.md#21-the-host-is-an-l0-client)) frees the values
+  made since the innermost `enter()` through the same `release` hooks. It
+  also has to free open builders, which are `i32` handles of Containers,
+  not values, and own what was pushed into them. So Containers has one
+  more hook, `abandon(builder)`, and `recover` calls it for each builder
+  opened since that `enter()`.
 - **Who wires the hooks:** the runtime, when it is assembled from its
-  modules, fills a table of `release` hooks by kind tag. A hook is not an
-  L0 function, and a program never calls one.
+  modules, fills a table of `release` hooks by kind tag, and links `box`,
+  `payload`, `box_inline` and `abandon` between the modules.
 - **An inlined `drop`.** In template form, `drop` runs inside the
   program, and a fragment may call the runtime only through the
   program's imports ([inline fragments, Rules](./inline-fragments.md#rules)).
@@ -217,9 +235,12 @@ the module declares a type and its rows, and the IR names them
   String's functions, which costs a call per unit in import form. A
   runtime that wants hashed keys has to choose its Containers and String
   modules together.
-- **Release hooks (7).** They are the one place where Any calls back into
-  other modules. If more such places appear, the modules are less
-  independent than the table suggests.
+- **The internal interface (7).** `box`, `payload`, `release` and
+  `abandon` are the calls between modules that this draft found. Each
+  module variant has to implement them, so they are part of what a
+  module's version promises, even though no program sees them. If more
+  such calls appear, the modules are less independent than the table
+  suggests.
 - **`at` and `unit` are one function.** The memo calls it `at`, and L0
   calls it `unit`. One of the two names should go.
 - **Five import names (3).** WASM allows any module name, but a runtime in
