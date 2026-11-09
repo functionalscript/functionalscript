@@ -38,7 +38,7 @@ const suite = /** @type {const} */ ({ run: 'mise exec -- node --test ./fjs/emerg
 const compile = /** @type {const} */ ({ run: 'mise exec -- npm start compile' })
 const deps = /** @type {const} */ ({ run: 'mise exec -- npm start deps', shell: 'bash', 'continue-on-error': true })
 const tsc = /** @type {const} */ ({ run: 'mise exec -- tsc' })
-const coverage = /** @type {const} */ ({ run: 'mise exec -- npm run cov' })
+const fjsSuite = /** @type {const} */ ({ run: 'mise exec -- npm start t' })
 const pack = /** @type {const} */ ({ run: 'mise exec -- npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
 const rustVersion = /** @type {const} */ ({ run: `test "$(mise exec -- rustc --version | cut -d' ' -f1,2)" = "rustc 1.99.1"`, shell: 'bash' })
 const multilib = /** @type {const} */ ({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386', shell: 'bash' })
@@ -62,12 +62,12 @@ export const proof = /** @type {const} */ ({
     },
     /** Commands and shared prerequisites keep their original execution order. */
     checks: () => {
-        const source = job([uses('actions/checkout'), mise, nodeVersion, tscVersion, install, tsc, compile, coverage, pack, consumer])
+        const source = job([uses('actions/checkout'), mise, nodeVersion, tscVersion, install, tsc, compile, fjsSuite, pack, consumer])
         const result = checks('node26', source)
         assertStructurallySame(result, [
             { id: 'tsc', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, tsc] },
             { id: 'compile', rung: 'fjs', steps: [mise, nodeVersion, install, compile] },
-            { id: 'coverage', rung: 'js', steps: [mise, nodeVersion, install, coverage] },
+            { id: 'suite', rung: 'js', steps: [mise, nodeVersion, install, fjsSuite] },
             { id: 'package', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, pack, consumer] },
         ])
         assertOk(parse(checksSchema)(result))
@@ -125,11 +125,11 @@ export const proof = /** @type {const} */ ({
     /** A partial hit cannot skip npm ci when another dependent check misses. */
     sharedInstallAndPackage: () => {
         const source = cached([
-            mise, install, tsc, compile, coverage,
+            mise, install, tsc, compile, fjsSuite,
             { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack,
             installNode({ 'package-manager-cache': 'false' }), consumer,
         ])
-        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'")
+        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-package != 'true'")
         assertEq(stepWith(source, install.run).if, gate)
         for (const run of ['mkdir "$RUNNER_TEMP/consumer"', pack.run, consumer.run]) {
             assertEq(stepWith(source, run).if, "steps.init.outputs.hit-package != 'true'")
@@ -193,7 +193,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'node --test ./fjs/emergent_testing/js-only.mjs').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report suite').length, 1)
     },
-    /** Each alternative engine groups its install, pin verification and coverage. */
+    /** Each alternative engine groups its install, pin verification and tests. */
     engines: () => {
         for (const id of ['deno', 'bun']) {
             const source = cached([mise, uses('actions/checkout'), { run: `${id} install` }, { run: `${id} test` }], id)

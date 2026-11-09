@@ -17,31 +17,32 @@ The six platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
 test because parser stress proofs can exceed its default five seconds. `node26`
-retains FJS-only Node coverage via `npm run cov` and its existing successful-check
-cache. The additional `cov` job runs `npm start cov node`, checking each module
-directory's own proofs in a fresh Node coverage process with 100% line, branch
+runs the full authored FJS suite via `npm start t`, using the built-in reporter
+without coverage and the successful-check cache's `suite` entry. The dedicated
+`cov` job runs `npm start cov node`, checking each module directory's own proofs
+in a fresh Node coverage process with 100% line, branch
 and function thresholds. The command reuses exact successful dependency
 manifests from the local `build-cache` branch. Same-repository runs outside
 Dependabot pass `--sync`, saving successful manifests and publishing one batch
 after all modules finish; forks and Dependabot keep local batch recording only.
-The existing combined suite retains proofs outside measured module directories
-and contributes no coverage to the isolated runs. Each measured file prints `...Ok`, `...Cached`,
-or `...Failed`; native logs are shown only for failures. SpiderMonkey compilation
+The full test suite retains proofs outside measured module directories.
+Each measured file in the isolated run prints `...Ok`, `...Cached`,
+or `...Failed`; native output streams live through the quiet reporter. SpiderMonkey compilation
 and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
-compilation and combined coverage. It checks generic AST formation for every authored
-`.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
+compilation and the full test suite. It checks generic AST formation for every
+authored `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
 coverage is incomplete, this step temporarily uses `continue-on-error: true`: it
 reports parsing failures without failing the job. It runs uncached even when
 other checks hit build-cache. Restore failure gating once all authored files parse
 ([dependency graph follow-up](../todo/module-dependency-graph-command.md)).
-Host-JS proofs currently have Node coverage across all six platforms; Deno
+Host-JS proofs run without suite-wide coverage across all six platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
-Suite and combined coverage cache keys retain the conservative `js` input rung.
-The selected command and `package.json` participate in the key, so old
-combined-suite results cannot certify the new selective runs. Narrowing the
-inputs requires a separate dependency audit. The additional isolated coverage
+Suite cache keys retain the conservative `js` input rung. The selected command
+and `package.json` participate in the key, so old coverage results cannot certify
+the `npm start t` run. Narrowing the inputs requires a separate dependency audit.
+The dedicated isolated coverage
 job uses the command's
 [per-target dependency manifests](../emergent_testing/README.md#testing-and-covering-one-module), not
 these whole-check gates. Unsupported dependency analysis remains uncached.
@@ -57,7 +58,7 @@ these whole-check gates. Unsupported dependency analysis remains uncached.
 - `self`: this repository's consumer and additional steps.
 
 The test workflow runs ten jobs on pull requests and merge-group entries.
-The nine existing jobs retain their checks and successful-check caching.
+The other jobs retain their successful-check caching.
 The `cov` command always starts, then checks its own per-target manifests.
 The new job supplies cache-publication identity and contents-write permission;
 its `--sync` flag is restricted to permitted runs. Existing job permissions

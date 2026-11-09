@@ -227,9 +227,10 @@ never force pushes. Without `--sync`, recording is still batched locally.
 
 CI's additional `cov` job invokes this isolated runner from the repository root,
 with `--sync` only for permitted same-repository runs outside Dependabot. The
-existing `node26` job retains the combined `npm run cov` check; its coverage
-cannot contribute to the isolated results. Replacing that combined check and
-closing remaining proof gaps are tracked in
+`node26` job runs the full authored FJS suite with `npm start t`, using the
+built-in reporter without coverage. This retains proofs outside measured module
+directories while the dedicated job owns coverage. Further rollout work is
+tracked in
 [per-module coverage](./todo/per-module-coverage.md).
 
 ### External runners (Node, Bun, Deno)

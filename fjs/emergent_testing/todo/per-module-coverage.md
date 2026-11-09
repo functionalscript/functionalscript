@@ -108,16 +108,13 @@ of lowering thresholds or allowing exceptions.
 
 #### CI and scope
 
-CI's additional `cov` job invokes `npm start cov node` directly from the
-repository root. The existing jobs remain unchanged, including `node26`'s
-combined `npm run cov` check and cache. That combined suite retains proof-only
-integration directories, fixture imports and module-level assertions; its
-coverage does not contribute to the isolated checks.
+CI's dedicated `cov` job invokes `npm start cov node` directly from the
+repository root. The `node26` job runs `npm start t` with the built-in reporter
+without coverage, retaining the full authored FJS suite: proof-only integration
+directories, fixture imports and module-level assertions. Its whole-check cache
+records a `suite` result; coverage remains the dedicated job's responsibility.
 
-As later rollout work, make `npm run cov` delegate to `fjs cov node` and retain
-one ordinary full native FJS test run without coverage through
-`fjs/emergent_testing/fjs-only.mjs`. Removing the combined check must preserve
-proofs outside measured module directories.
+The `npm run cov` script remains available for local combined-coverage checks.
 
 Node is the initial coverage authority. Deno and Bun coverage support is
 deferred; their existing test runs remain. Future coverage adapters must say
@@ -159,8 +156,8 @@ when a required metric is unavailable.
 - [x] Fix the exposed gaps in modules' own proofs or implementations.
 - [x] Add a CI job invoking `npm start cov node` without changing the existing
       jobs; update contributor and runner documentation.
-- [ ] Make `npm run cov` delegate to the isolated runner, retaining the full
-      native FJS test pass without coverage when replacing the combined check.
+- [x] Replace `node26`'s combined coverage check with `npm start t`, retaining
+      the full authored FJS test pass alongside the dedicated coverage job.
 - [ ] Add `fjs cov deno`, with per-module isolation and explicit
       coverage-metric enforcement.
 - [ ] Add `fjs cov bun`, with per-module isolation and explicit

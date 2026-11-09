@@ -20,11 +20,19 @@ export const proof = {
         assertEq(check.if, undefined)
         assertEq(check['continue-on-error'], true)
         assertEq(check['working-directory'], undefined)
-        for (const command of ['tsc', 'npm start compile', 'npm run cov']) {
+        for (const command of ['tsc', 'npm start compile', 'npm start t']) {
             assertEq(canonicalSteps.find(step => step.run === environmentCommand(command))?.['continue-on-error'], undefined)
         }
         const checkout = canonicalSteps.findIndex(step => step.uses?.startsWith('actions/checkout@'))
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
+    },
+    fullSuite: () => {
+        const job = nodeVersionJobs(undefined)[packageJobId]
+        assert(job !== undefined)
+        const tests = job.steps.filter(step => step.run === environmentCommand('npm start t'))
+        assertEq(tests.length, 1)
+        assertEq(tests[0]?.['continue-on-error'], undefined)
+        assert(!job.steps.some(step => step.run === environmentCommand('npm run cov')))
     },
     coverage: () => {
         assertStructurallySame(coverageJob().steps.flatMap(step => step.run === undefined ? [] : [step.run]), [

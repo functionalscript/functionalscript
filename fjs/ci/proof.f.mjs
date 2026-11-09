@@ -62,7 +62,7 @@ export const proof = {
         assert(has(gha, 'ubuntu-arm', 'cargo fmt -- --check'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm c'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
-        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
+        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm start t', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
         assert(has(gha, 'deno', 'deno test -A ./fjs/emergent_testing/fjs-only.mjs'))
         assert(has(gha, 'bun', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'))
     },
@@ -137,8 +137,10 @@ export const proof = {
             const coverageJobs = definedEntries(gha.jobs).flatMap(([id, job]) =>
                 job.steps.flatMap(step => step.run?.startsWith(smart ? 'mise exec -- npm start -- cov node' : 'mise exec -- npm start cov node') ? [id] : []))
             assertStructurallySame(coverageJobs, ['cov'])
-            assert(has(gha, 'node26', 'npm run cov'))
-            assertEq(has(gha, 'node26', 'ci report coverage'), smart)
+            assert(has(gha, 'node26', 'npm start t'))
+            assert(!has(gha, 'node26', 'npm run cov'))
+            assertEq(has(gha, 'node26', 'ci report suite'), smart)
+            assert(!has(gha, 'node26', 'ci report coverage'))
         }
         assertStructurallySame(generate(false).jobs.cov, generate(true).jobs.cov)
     },

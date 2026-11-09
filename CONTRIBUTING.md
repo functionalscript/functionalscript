@@ -199,10 +199,10 @@ node --test ../../emergent_testing/one.mjs
 
 CI's additional `cov` job runs `npm start cov node` from the repository root,
 adding `--sync` for permitted same-repository runs outside Dependabot. Forks
-and Dependabot use local caching. The existing `node26` job retains
-`npm run cov` and its combined FJS suite,
-including proofs outside measured module directories. Coverage from that
-combined run cannot contribute to the isolated results.
+and Dependabot use local caching. The `node26` job runs `npm start t` without
+coverage, including proofs outside measured module directories. The dedicated
+`cov` job owns the coverage gate; `npm run cov` remains available for local
+combined-coverage checks.
 
 Node's `npm run cov` and Deno's `cov` and `cov-html` reports measure
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Bun's `bun test --coverage`
