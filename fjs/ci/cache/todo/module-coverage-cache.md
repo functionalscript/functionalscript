@@ -5,10 +5,11 @@
 
 ### Problem
 
-The CI success cache keys coverage over the conservative `js` input group.
-A change to an unrelated module invalidates the whole coverage check. The
-dependency graph and isolated coverage runner now provide the foundations for
-checking and caching each module independently.
+Coverage now runs in the dedicated, uncached `cov` CI job. Its former
+whole-check cache used the conservative `js` input group, so a change to an
+unrelated module invalidated the entire coverage result. The dependency graph
+and isolated coverage runner provide the foundations for checking and caching
+each module independently.
 
 This issue tracks the CI integration. The existing
 [per-module coverage issue](../../../emergent_testing/todo/per-module-coverage.md)
@@ -124,7 +125,7 @@ contribute to that report.
 
 ### Tasks
 
-- [ ] Add the dedicated, initially uncached `cov` CI job through the generator,
+- [x] Add the dedicated, initially uncached `cov` CI job through the generator,
       retaining the combined coverage command and its thresholds.
 - [ ] Complete the isolated coverage rollout, then generate deterministic
       manifests for modules and sibling proofs; audit extra coverage inputs.

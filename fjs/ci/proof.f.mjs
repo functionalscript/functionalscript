@@ -3,7 +3,7 @@
  */
 import { ci, main } from './module.f.mjs'
 import { main as ownMain, packageConsumer } from './self/module.f.mjs'
-import { assert, assertEq } from '../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, ioError, nodeCommands } from '../effects/node/module.f.mjs'
 import { emptyState, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
@@ -14,6 +14,7 @@ import { install, test, parseGitHubAction, uses } from './common/module.f.mjs'
 import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.mjs'
 import { empty } from '../types/bit_vec/module.f.mjs'
+import { definedEntries } from '../types/object/module.f.mjs'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {
     const value = dir[name]
@@ -38,7 +39,7 @@ const has = (gha, id, fragment) => gha.jobs[id]?.steps.some(step => (step.env?.F
 export const proof = {
     matrix: () => {
         const gha = generate(true)
-        assertEq(Object.keys(gha.jobs).length, 9)
+        assertEq(Object.keys(gha.jobs).length, 10)
         assertEq(gha.permissions.contents, 'read')
         assertEq(gha.concurrency?.['cancel-in-progress'], true)
         for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
@@ -60,7 +61,7 @@ export const proof = {
         assert(has(gha, 'ubuntu-arm', 'cargo fmt -- --check'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm c'))
         assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
-        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm run cov', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
+        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
         assert(has(gha, 'deno', 'deno test -A ./fjs/emergent_testing/fjs-only.mjs'))
         assert(has(gha, 'bun', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'))
     },
@@ -108,10 +109,36 @@ export const proof = {
     defaultsAndSmart: () => {
         const [state, result] = virtualAt({})(main())
         assertEq(exitCode(result), 0)
-        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 9)
+        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 10)
         assert(has(generate(true, () => [], true), 'node26', 'ci init'))
         const [, queued] = virtualAt({})(ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
         assertEq(exitCode(queued), 0)
+    },
+    uncachedCoverage: () => {
+        for (const smart of [false, true]) {
+            const gha = generate(true, () => [], smart)
+            const cov = gha.jobs.cov
+            assert(cov !== undefined)
+            assertEq(cov['runs-on'], images.ubuntu.arm)
+            assertEq(cov['timeout-minutes'], jobTimeout)
+            assertEq(cov.if, undefined)
+            assertEq(cov.needs, undefined)
+            assertEq(cov.permissions, undefined)
+            assert(cov.steps[0]?.uses?.startsWith('actions/checkout@') === true)
+            assert(cov.steps[1]?.uses?.startsWith('jdx/mise-action@') === true)
+            assertEq(cov.steps[1]?.with?.install_args, '--locked')
+            assertStructurallySame(cov.steps.slice(2).map(step => step.run), [
+                `test "$(mise exec -- node --version)" = "v${node}"`,
+                'mise exec -- npm ci',
+                'mise exec -- npm run cov',
+            ])
+            assert(cov.steps.every(step => step.if === undefined && step['continue-on-error'] === undefined))
+            const coverageJobs = definedEntries(gha.jobs).flatMap(([id, job]) =>
+                job.steps.flatMap(step => step.run === 'mise exec -- npm run cov' ? [id] : []))
+            assertStructurallySame(coverageJobs, ['cov'])
+            assert(!has(gha, 'node26', 'coverage'))
+        }
+        assertStructurallySame(generate(false).jobs.cov, generate(true, () => [], true).jobs.cov)
     },
     // A `Cargo.toml` the host will not describe may well be there: the
     // command fails rather than writing a workflow without the Rust jobs.

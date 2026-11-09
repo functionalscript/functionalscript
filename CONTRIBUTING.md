@@ -141,7 +141,7 @@ the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 --allow-env --allow-net --allow-sys`). Deno also holds back very recently
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
-CI exercises these same combinations — see the `node26`,
+CI exercises these same combinations — see the `node26`, `cov`,
 `deno`, and `bun` jobs, and `ubuntu-arm` for SpiderMonkey, in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.

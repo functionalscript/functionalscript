@@ -6,20 +6,22 @@ mise manifest and lock; callers must provide those files. This replaces the
 previous generated environment API. `Setup.environment` is removed because
 this branch has one environment manager.
 
-The nine test jobs cover Linux, macOS and Windows on x64 and ARM64, plus canonical
-Node, Deno and Bun suites. Native Rust debug/release tests and Clippy, i686
-Linux/Windows checks, Linux ARM formatting and four WASM targets, SpiderMonkey
-compilation/tests, TypeScript, compilation, coverage and packed-package checks
-remain separate steps. Host compiler/SDK prerequisites still apply.
+The ten test jobs cover Linux, macOS and Windows on x64 and ARM64, canonical
+Node, Deno and Bun checks, and dedicated Node coverage. Native Rust debug/release
+tests and Clippy, i686 Linux/Windows checks, Linux ARM formatting and four WASM
+targets, SpiderMonkey compilation/tests, TypeScript, compilation, coverage and
+packed-package checks remain separate steps. Host compiler/SDK prerequisites
+still apply.
 
 The six platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
-test because parser stress proofs can exceed its default five seconds. `node26` runs
+test because parser stress proofs can exceed its default five seconds. `cov` runs
 FJS-only Node coverage via `npm run cov`, retaining the 100% thresholds;
-SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+it runs on every pull request and merge-group entry without consulting
+`build-cache`. SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
-compilation and coverage. It checks generic AST formation for every authored
+compilation. It checks generic AST formation for every authored
 `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
 coverage is incomplete, this step temporarily uses `continue-on-error: true`: it
 reports parsing failures without failing the job. It runs uncached even when
@@ -28,10 +30,11 @@ other checks hit build-cache. Restore failure gating once all authored files par
 Host-JS proofs currently have Node coverage across all six platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
-Suite and coverage cache keys retain the conservative `js` input rung.
+Suite cache keys retain the conservative `js` input rung.
 The selected command and `package.json` participate in the key, so old
 combined-suite results cannot certify the new selective runs. Narrowing the
-inputs requires a separate dependency audit.
+inputs requires a separate dependency audit. Coverage remains uncached during
+the [per-module manifest rollout](./cache/todo/module-coverage-cache.md).
 
 ## Files
 
@@ -43,9 +46,12 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-The repository keeps its original test workflow: nine jobs on pull requests
-and merge-group entries, with the existing successful-check cache. There are
-no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
+The test workflow runs ten jobs on pull requests and merge-group entries.
+The nine existing jobs retain successful-check caching; `cov` always runs.
+There are no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
+
+Add `cov` to GitHub's required status checks when adopting this workflow.
+Moving coverage out of `node26` does not update the repository's branch rules.
 
 The separate generated `gen.website.yml` workflow contains the `website` job.
 It runs on pull requests, including drafts and forks, and pushes to `main`.
@@ -97,7 +103,9 @@ initialization fail, and the generated workflow falls back to running the checks
 `ciWorkflow(setup)(rust)` builds the test workflow and `writeCi(workflow)`
 writes CI and npm publishing files. The repository-owned `self` module also
 writes the independent website workflow. The generic `fjs ci` command keeps
-its pull-request and merge-group triggers.
+its pull-request and merge-group triggers. Both generic and repository
+workflows include the uncached `cov` job, assembled after the check-cache
+transformation.
 
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and

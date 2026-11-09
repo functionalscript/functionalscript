@@ -1,4 +1,4 @@
-import { installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
+import { coverageJob, installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { environmentCommand } from '../environment/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
@@ -20,11 +20,19 @@ export const proof = {
         assertEq(check.if, undefined)
         assertEq(check['continue-on-error'], true)
         assertEq(check['working-directory'], undefined)
-        for (const command of ['tsc', 'npm start compile', 'npm run cov']) {
+        for (const command of ['tsc', 'npm start compile']) {
             assertEq(canonicalSteps.find(step => step.run === environmentCommand(command))?.['continue-on-error'], undefined)
         }
         const checkout = canonicalSteps.findIndex(step => step.uses?.startsWith('actions/checkout@'))
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
+        assert(!canonicalSteps.some(step => step.run === environmentCommand('npm run cov')))
+    },
+    coverage: () => {
+        assertStructurallySame(coverageJob.steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
+            `test "$(env node --version)" = "v${node}"`,
+            environmentCommand('npm ci'),
+            environmentCommand('npm run cov'),
+        ])
     },
     steps: () => {
         assertStructurallySame(
