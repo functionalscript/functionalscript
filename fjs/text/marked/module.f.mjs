@@ -172,7 +172,7 @@ const close = '\u0002'
 /**
  * A text that a producer composes as a string and resolves into runs at its
  * boundary: a run is `U+0001`, one letter for its kind, its text and
- * `U+0002`. It is the idiom `fjs/compiler/serializer/names` uses for symbolic
+ * `U+0002`. It is the idiom `fjs/js/ast/serializer/names` uses for symbolic
  * names, for a producer whose text is built by templates all through; the
  * public text a producer answers is never tagged, only its marked text is
  * resolved from it, and {@link untagged} gives the plain one.

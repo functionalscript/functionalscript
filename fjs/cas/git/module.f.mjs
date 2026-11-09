@@ -24,7 +24,7 @@
  * repository's id width from its `config`, the refs through the ref store
  * and its writer, the objects through the object store and the walk, the
  * trees and commits through their writers, the loose file through
- * [`fjs/zlib/stored`](../../zlib/stored/module.f.mjs). No `git` runs.
+ * [`fjs/git/loose`](../../git/loose/module.f.mjs). No `git` runs.
  *
  * What a read refuses rather than answers, each a repository that is not
  * what this backend writes: a `config` Git does not open, a branch ref
@@ -68,34 +68,32 @@
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
-    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, resultStep, step, walkStep,
+    catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, step, walkStep,
 } from '../../effects/module.f.mjs'
 import { fromList, run as runStream } from '../../effects/list/module.f.mjs'
-import { isNotFound, mkdir, namesNothing, now, readUtf8File, rename, rm, stat, writeExclusive } from '../../effects/node/module.f.mjs'
+import { isNotFound, namesNothing, now, readUtf8File, stat } from '../../effects/node/module.f.mjs'
 import { tryTreeAt } from '../../git/commit/module.f.mjs'
 import { lastValue, tryEntries as configEntries } from '../../git/config/module.f.js'
 import { oidBytes as widthOf } from '../../git/format/module.f.mjs'
 import { write as writePayload } from '../../git/header/module.f.mjs'
 import { write as writeIdent } from '../../git/ident/module.f.mjs'
-import { tryRead as readLoose } from '../../git/loose/module.f.mjs'
-import { write as writeEnvelope } from '../../git/object/module.f.mjs'
+import { write as writeLoose } from '../../git/loose/module.f.mjs'
 import { hexText, of, toHex } from '../../git/oid/module.f.mjs'
 import { isWholeName } from '../../git/refname/module.f.mjs'
 import { tryResolve } from '../../git/refstore/module.f.mjs'
 import { tryWrite } from '../../git/refstore/write/module.f.mjs'
-import { objectPath, objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
+import { objectsDir, objectsDirs, readIn } from '../../git/store/module.f.mjs'
 import { compare, tryRead as readTree, validate, write as writeTree } from '../../git/tree/module.f.mjs'
 import { join, parent, under } from '../../path/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, map, sameItems } from '../../types/list/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toOption } from '../../types/nullable/module.f.js'
 import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { error } from '../../types/result/module.f.js'
-import { stored } from '../../zlib/stored/module.f.mjs'
-import { prefix, random256, toPath, unshard, wholeByteMachine } from '../module.f.mjs'
+import { prefix, toPath, unshard, wholeByteMachine } from '../module.f.mjs'
 
 /**
  * The ref a branch is read at: `refs/heads/<branch>`, the local branch
@@ -237,11 +235,6 @@ const components = key => toPath(key).split('/').map(ascii)
 const casDir = [ascii(prefix)]
 
 /**
- * A blob's bytes as the chunks `Cas<O>.read` streams, at most a `Vec` each.
- */
-const chunksOf = u8ListToVecChunksMsb(Number(maxLengthBytes))
-
-/**
  * An entry's name as text, byte for code point: a cBase32 name is ASCII and
  * reads as itself, and a byte above `0x7F` spells a code point no cBase32
  * digit is, so a name holding one decodes to no key and the listing skips
@@ -312,6 +305,20 @@ const malformed = rel => es => {
 }
 
 /**
+ * The refusal of a tree a walk is about to take, or `null` where it may
+ * take it: the root, where `rel` is `null`, for being {@link illFormed},
+ * since the layout shares it with the rest of the branch, and a tree below
+ * `.cas` for the layout ({@link malformed}). The one spelling of the check
+ * every walk makes before it reads a tree's entries.
+ *
+ * @type {(rel: Nullable<string>, es: readonly TreeEntry[]) => Nullable<string>}
+ */
+const treeRefusal = (rel, es) => {
+    const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
+    return wrong.length === 0 ? null : rel === null ? `the root tree ${wrong[0]}` : wrong[0]
+}
+
+/**
  * The subtree an entry names, as the next item of the listing's walk, or
  * none where the entry is a file.
  *
@@ -368,8 +375,8 @@ const walkTo = entriesOf => {
         if (state.at === null) { return pureOk(lost) }
         const { rel } = state
         return step(entriesOf(state.at), es => {
-            const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
-            if (wrong.length !== 0) { return refuseEntry(rel === null ? `the root tree ${wrong[0]}` : wrong[0]) }
+            const wrong = treeRefusal(rel, es)
+            if (wrong !== null) { return refuseEntry(wrong) }
             const text = nameText(name)
             const found = es.find(e => nameText(e.name) === text)
             if (found === undefined) { return pureOk(lost) }
@@ -403,8 +410,8 @@ const named = name => e => sameItems(e.name)(name)
  * @type {(name: readonly number[], rel: Nullable<string>) => (es: readonly TreeEntry[]) => Effect<never, { readonly es: readonly TreeEntry[], readonly found: Nullable<TreeEntry> }, IoChannel>}
  */
 const onlyNamed = (name, rel) => es => {
-    const wrong = rel === null ? illFormed(es) : malformed(rel)(es)
-    if (wrong.length !== 0) { return refuseEntry(rel === null ? `the root tree ${wrong[0]}` : wrong[0]) }
+    const wrong = treeRefusal(rel, es)
+    if (wrong !== null) { return refuseEntry(wrong) }
     const found = es.find(x => sameItems(x.name)(name))
     return pureOk({ es, found: found === undefined ? null : found })
 }
@@ -444,7 +451,7 @@ const treeOfCommit = (read, oidBytes, ref) => {
  */
 const blobOf = (e, o) => o === null || o.type !== 'blob'
     ? refuseEntry(`${hexText(e.oid)} is no blob`)
-    : fromList(chunksOf(o.payload))
+    : fromList(u8ListToMaxVecChunksMsb(o.payload))
 
 /**
  * The CAS map the tree `tree` holds, read through `read`, a store's reader
@@ -487,9 +494,9 @@ export const casAt = (read, oidBytes) => {
      * @type {(item: { readonly id: Oid, readonly rel: string }) => (keys: List<Vec>) => Effect<O, readonly [List<Vec>, readonly { readonly id: Oid, readonly rel: string }[]], IoChannel>}
      */
     const listStep = ({ id, rel }) => keys => step(entriesOf(id), es => {
-        const wrong = malformed(rel)(es)
-        return wrong.length !== 0
-            ? refuseEntry(wrong[0])
+        const wrong = treeRefusal(rel, es)
+        return wrong !== null
+            ? refuseEntry(wrong)
             : pureOk([concat(keys)(es.flatMap(keyOf(rel))), es.flatMap(subtreeOf(rel))])
     })
     return tree => ({
@@ -603,55 +610,6 @@ export const snapshot = branch => {
     const head = historyStep(o, ({ oidBytes, dirs }, name) => headOf(dirs, oidBytes, ref, name))
     const tree = historyStep(head, (commit, { oidBytes, read }) => commit === null ? pureOk(null) : treeOfCommit(read, oidBytes, ref)(commit))
     return mapStep(tree, ([t, , { oidBytes, read }]) => casAt(read, oidBytes)(t))
-}
-
-/**
- * Writes an object into the repository's own `objects/`, as the loose file
- * Git stores one in — `<type> SP <size> NUL <payload>`, one zlib stream, at
- * `objects/ab/<rest>` of its id — and answers the id. An object already
- * there is read as the loose file it is and left as it is where it is the
- * object: the id names its bytes, so nothing is to be written. A file at
- * the path that is not the object — truncated, no zlib stream, another
- * object's bytes — is replaced, since a `stat` alone would have taken it
- * for the object and a later read would refuse what this write had
- * reported stored. The file itself is read, not the store: the store's
- * reader answers from a pack or a borrowed directory too, and the object
- * being there would leave a corrupt loose file in place for Git to refuse
- * later. Otherwise the stream goes to a temporary name
- * below `objects/`, as Git's own `tmp_obj_*` does, and is renamed into place
- * once whole, so no reader meets a loose file that is not an object; a
- * rename that fails takes the temporary file with it.
- *
- * The payload is held whole: the envelope states the size before the
- * bytes, which is the limit
- * [`todo/streaming-writes.md`](./todo/streaming-writes.md) records.
- *
- * @throws If an item of `payload` is not a byte, as the envelope's writer throws.
- *
- * @type {(dir: string, oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Effect<WriteOperation, Oid, IoChannel>}
- */
-export const writeObject = (dir, oidBytes) => {
-    const idOf = of(oidBytes)
-    const at = objectPath(dir)
-    const od = objectsDir(dir)
-    return (type, payload) => {
-        const id = idOf(type, payload)
-        const path = at(id)
-        // Anything but the object at the path — no file, a stream that is no
-        // zlib stream, no object, bytes hashing to another id — is an object
-        // to write.
-        const there = catchStep(mapStep(readLoose(path), o => o !== null && idOf(o.type, o.payload) === id), () => pureOk(false))
-        return step(there, found => {
-            if (found) { return pureOk(id) }
-            const named = history(mapStep(random256, rnd => join(od, `tmp_obj_${vecToCBase32(rnd)}`)))
-            const made = historyStep(named, () => mkdir(parent(path), { recursive: true }))
-            const filled = historyStep(made, (_, tmp) => writeExclusive(tmp, toArray(chunksOf(stored(writeEnvelope(type, payload))))))
-            return step(filled, ([, , tmp]) => {
-                const moved = catchStep(rename(tmp, path), e => resultStep(rm(tmp), () => pureError(e)))
-                return mapStep(moved, () => id)
-            })
-        })
-    }
 }
 
 /**
@@ -798,7 +756,7 @@ export const branchCas = (sha2, branch, author) => {
     const named = history(refName(ref))
     const o = historyStep(named, () => opened(branch.dir))
     return mapStep(o, ([{ oidBytes, read, dirs }, name]) => {
-        const write = writeObject(branch.dir, oidBytes)
+        const write = writeLoose(objectsDir(branch.dir), oidBytes)
         const idOf = of(oidBytes)
         const at = casAt(read, oidBytes)
         const place = placed(read, write, oidBytes)

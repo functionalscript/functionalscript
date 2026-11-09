@@ -35,6 +35,21 @@ pub trait IVm: Sized + Clone + From<Unpacked<Self>> + 'static {
     type InternalFunction: IFunction<Self>;
     // functions
     fn to_unpacked(self) -> Unpacked<Self>;
+
+    /// Inspect the value without transferring ownership or cloning it.
+    ///
+    /// The view is valid only for the callback. A VM may borrow a stored
+    /// `Unpacked` or decode a temporary view of a packed representation;
+    /// callers cannot retain references to that view after the callback.
+    /// Keep `to_unpacked` for operations that need the owned payload.
+    ///
+    /// ```compile_fail
+    /// use nanvm_lib::{naive::Naive, vm::{IVm, Number, Unpacked}};
+    /// let value = Naive::from(Unpacked::Number(Number::from(1.0)));
+    /// let escaped = value.with_unpacked(|view| view);
+    /// ```
+    fn with_unpacked<R>(&self, f: impl FnOnce(&Unpacked<Self>) -> R) -> R;
+
     /// A function made out of a Rust static function, [`StaticCode`], over
     /// the frame it captures: what every closure of a compiled module is,
     /// and what the runtime's member functions answer, a closure over the

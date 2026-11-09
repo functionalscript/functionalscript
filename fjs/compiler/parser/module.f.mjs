@@ -28,10 +28,10 @@ import { analyzeBindings } from '../../js/ast/module.f.mjs'
 import { planPattern } from '../../js/ast/sugar/pattern/module.f.js'
 import { maxLength } from '../../types/function/length/module.f.js'
 import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
-import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.js'
+import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
-import { intrinsicLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 
@@ -312,41 +312,8 @@ const prohibitedKey = foldError('prohibited property name')
  */
 const prohibitedCall = foldError('prohibited member function')
 
-/**
- * The names an access may not read: every name a built-in prototype gives
- * a value, `fjs/js/prototype`, but `length` — an own property of an array,
- * a string and a function, which the two languages read alike.
- *
- * @type {ReadonlySet<string>}
- */
-const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
-
-/**
- * The names a method call may not call: `prohibitedCalls`, as a set.
- *
- * @type {ReadonlySet<string>}
- */
-const prohibitedCallNames = new Set(prohibitedCalls)
-
-/**
- * Why an access of the name is refused, or `null` when it is allowed: a
- * member function a module may not call where the access is a method
- * call's callee, `method`, and a name of the prototype chain where it is
- * read — the two rules of `fjs/js/prototype`'s two lists.
- *
- * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
- * which refuses the same accesses rather than write one the parser here
- * would not read back: the rule is the language's, and it has one owner,
- * each consumer wrapping the answer in its own error. The `_` says that
- * export is linkage rather than API, as it does for `_tokenKindNames` in
- * [`./grammar`](./grammar/module.f.mjs).
- *
- * @type {(method: boolean) => (name: string) => 'member function' | 'property name' | null}
- */
-export const _prohibitedAccess = method => name =>
-    method
-        ? (prohibitedCallNames.has(name) ? 'member function' : null)
-        : (prohibitedNames.has(name) ? 'property name' : null)
+/** Why a read of the name is refused, or `null`: `in`'s left side is a read. */
+const prohibitedRead = prohibitedAccess(false)
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: ModuleTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -412,14 +379,14 @@ const keyEntered = (stack, scope, [, node, first], frame) => isConversion(node)
 /**
  * A key's name, or its refusal: a name of the prototype chain where the
  * key is read, and a member function a module may not call where it is
- * called, `method`, as {@link _prohibitedAccess} answers.
+ * called, `method`, as `fjs/js/prototype`'s `prohibitedAccess` answers.
  *
  * @type {(key: ModuleTokenWithMetadata, method: boolean) => Result<string | number, ParseError>}
  */
 const checkedKey = (key, method) => {
     const named = keyNamed(key)
     if (typeof named === 'string') {
-        const why = _prohibitedAccess(method)(named)
+        const why = prohibitedAccess(method)(named)
         if (why === 'member function') { return error(prohibitedCall(key)) }
         if (why === 'property name') { return error(prohibitedKey(key)) }
     }
@@ -1240,7 +1207,7 @@ const enter = (stack, scope, node) => {
         case 'in': {
             const [, left, right, at] = node
             if (left[0] !== 'primitive' || typeof left[1] !== 'string') { return [stack, scope, error(inLeft(at))] }
-            if (prohibitedNames.has(left[1])) { return [stack, scope, error(prohibitedKey(at))] }
+            if (prohibitedRead(left[1]) !== null) { return [stack, scope, error(prohibitedKey(at))] }
             return [{ top: { in: left[1] }, rest: stack }, scope, ['enter', right]]
         }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
@@ -1441,7 +1408,7 @@ const intrinsicFunction = ([, list, body]) => {
     if (callee[0] !== '.' || callee.length !== 3 || callee[2] instanceof Array) { return null }
     const key = keyNamed(callee[2])
     const intrinsic = intrinsics.find(([id]) => id === key)
-    if (intrinsic === undefined || list.fixed.length !== intrinsicLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
+    if (intrinsic === undefined || list.fixed.length !== helperLength(intrinsic[0]) || items.length !== list.fixed.length - 1) { return null }
     const tokens = list.fixed.flatMap(p => p[0] === 'name' ? [p[1]] : [])
     if (tokens.length !== list.fixed.length) { return null }
     const names = tokens.map(nameOf)

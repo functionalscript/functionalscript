@@ -7,4 +7,4 @@ edition = "2024"
 nanvm-lib = { path = "../lib" }
 
 [dev-dependencies]
-nanvm-effects-node = { path = "../effects-node" }
+nanvm-effects-node = { path = "../effects-node", features = ["test-support"] }

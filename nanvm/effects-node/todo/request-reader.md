@@ -25,7 +25,7 @@ At `c162c3a` the arity check appears in about two dozen arms and the
 decode-a-path line in about fourteen. The arity check is a separate statement
 an arm can omit, and the argument's index, its name and its decoder are three
 facts an arm states separately where one accessor could carry them. The
-`codec.rs` readers (`arity`, `argument`, `optional_argument`, `decode_*`) are
+`codec.rs` readers (`arity`, `argument`, `decode_*`) and `Array::present` are
 the right primitives; what is missing is the thing that holds them together
 for one request.
 

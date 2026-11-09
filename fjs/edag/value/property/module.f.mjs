@@ -27,7 +27,7 @@
 import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.mjs'
 import { ok, error } from '../../../types/result/module.f.js'
-import { intrinsicLength, isIntrinsic, isStatic, noStatic } from '../../module.f.mjs'
+import { helperLength, isHelper, isStatic, noStatic } from '../../module.f.mjs'
 import { isFunction, tagUndefined } from '../semantics/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 
@@ -119,14 +119,12 @@ export const read = (receiver, key, runtime, invoke) => {
     if (typeof value === 'string') { return indexed(value, key) }
     if (!isArray(value)) { return ok(['undefined']) }
     if (isStatic(value)) { return key === 'length' ? staticLength(value, runtime, invoke) : ok(['undefined']) }
-    // an intrinsic owns the `length` every function does, its helper's
-    if (isIntrinsic(value)) { return ok(key === 'length' ? intrinsicLength(value[0]) : ['undefined']) }
+    // a helper owns the `length` every function does, its own
+    if (isHelper(value)) { return ok(key === 'length' ? helperLength(value[0]) : ['undefined']) }
     switch (value[0]) {
         case '[]': { return indexed(value[1], key) }
         case '{}': { return field(value, key) }
         case '=>': { return ok(key === 'length' ? value[1] : ['undefined']) }
-        // the `entry` helper owns the `length` every function does, `2`
-        case 'entry': case 'hasEntry': { return ok(key === 'length' ? 2 : ['undefined']) }
         default: { return error(['undefined']) }
     }
 }

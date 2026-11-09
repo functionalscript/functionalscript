@@ -11,7 +11,6 @@
 import { collapseRoot } from '../types/module.f.js'
 import { find } from '../find/module.f.js'
 import { fold } from '../../list/module.f.js'
-import { assert } from '../../../asserts/module.f.js'
 
 /** @type {<T>(b: Branch5<T> | Branch7<T>) => Branch1<T> | Branch3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
@@ -80,22 +79,14 @@ const nodeSet = c => g => node => {
             case 2: {
                 // insert
                 const value = g(null)
-                // TODO: remove after TSGO fix the regression.
-                const xL = x.length
-                // See https://github.com/microsoft/typescript-go/issues/4613
-                assert(xL === 1 || xL === 2)
-                switch (xL) {
+                switch (x.length) {
                     case 1: { return [[x[0], value]] }
                     default: { return [[x[0]], value, [x[1]]] }
                 }
             }
             case 3: {
                 // replace
-                // TODO: remove after TSGO fix the regression.
-                const xL = x.length
-                // See https://github.com/microsoft/typescript-go/issues/4613
-                assert(xL === 2 || xL === 5)
-                switch (xL) {
+                switch (x.length) {
                     case 2: { return [[x[0], g(x[1])]] }
                     default: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
                 }

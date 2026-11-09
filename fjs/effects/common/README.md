@@ -21,7 +21,7 @@ handlers the hosts share.
 |`catch_(f)`                       |runs `f`, answering what it threw as a `Result` error               |Node, page, SpiderMonkey   |
 |`import_(path)`                   |imports a module                                                    |Node, SpiderMonkey         |
 |`randomInt()`                     |a random integer                                                    |Node, page                 |
-|`all(...effects)`, `allOk`, `both`|runs effects side by side, answering every result                   |Node, SpiderMonkey         |
+|`all(...effects)`, `allOk`, `both`|runs effects side by side, answering every result                   |Node, SpiderMonkey, mocks  |
 
 `sandbox` and `catch_` are the only way a FunctionalScript program meets code
 that may throw, such as a test body or a benchmark. A demo uses `sandbox` to

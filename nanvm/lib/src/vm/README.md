@@ -38,6 +38,24 @@ struct String<T: IVm>;
 // ...
 ```
 
+### Borrowing values
+
+Inspection borrows an `Any<A>`: `is_nullish`, `is_nan`, `to_boolean`,
+`typeof_`, `instanceof_`, equality, and formatting leave the operand available
+for reuse. Logical negation also accepts `&Any<A>`, so `!&value` needs no
+operand clone. `defined` takes ownership because it returns the selected
+value, but borrows while checking whether it is undefined.
+
+`IVm::with_unpacked` provides the representation to a callback without
+cloning it. `Naive` borrows its stored enum; a packed VM can decode a temporary
+view. References to the view cannot escape the callback. The consuming
+`IVm::to_unpacked` remains for operations that transfer owned payloads.
+
+Coercions and arithmetic still take ownership. The Rust serializer borrows
+arguments to inspection methods, but its ordinary local reads still clone;
+printing borrowed reads directly is a separate step in
+[`087-reduce-rc-clone`](../../todo/087-reduce-rc-clone.md).
+
 `Number` is the VM's number: an `f64` that holds one `NaN`. Its only
 constructor canonicalizes, whatever sign or payload a host operation left on
 a `NaN`, and every operator's result passes back through it, because the

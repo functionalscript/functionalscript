@@ -17,7 +17,7 @@ import {
     registerModule, parseTestSet,
     addResult, defaultReporter, defaultTest, formatDuration, main, register, registerOne, testResult, text, zeroTotals,
 } from './module.f.mjs'
-import { run as mockRun } from '../effects/mock/module.f.mjs'
+import { run as mockRun, runAll } from '../effects/mock/module.f.mjs'
 import { isAuthored, isHostProof, shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
@@ -624,20 +624,9 @@ export const githubReporterOutput = () => {
 export const reporterWriteFailure = () => {
     /** @typedef {All | Catch | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_FailOps, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true, isDirectory: false }])],
         import: _path => s => [s, ok({ proof: { x: () => { } } })],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [undefined, readonly unknown[]]} */([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
         // Benign, like the virtual runner's: this proof is about a reporter
@@ -667,7 +656,8 @@ const registerNoopCtx = { test: (_n, _o, _f) => { throw 'registerNoopCtx is data
 /**
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
  * effect operations. Only the `test` op varies between call sites (whether it
- * invokes the registered callback), so `all`/`await` are shared here.
+ * invokes the registered callback), so `await` is shared here and `all` is
+ * `runAll`'s.
  *
  * `testOp` is the `test` op body for a `registerModule` mock; `runner` is
  * threaded in explicitly (rather than closed over) so it can recurse into
@@ -686,19 +676,8 @@ const makeRegisterRunner = testOp => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
         test: (ctx, name, xf, fn) => testOp(runner, ctx, name, xf, fn),
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         await: p => s => /** @type {const} */ ([s, ok([p])]),
     }))
     return runner
@@ -734,19 +713,8 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
     /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
         test: (ctx, _name, _xf, fn) => s => [runner(s)(fn(ctx))[0], ok(undefined)],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         // The runner has no `await`, which is what the body's channel carries.
         await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
@@ -821,20 +789,9 @@ const runRegister = (testContext, files, load, invoke, select, single = false) =
     /** @type {(readonly [TestContext, string, boolean])[]} */
     let calls = []
     /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
+    const runner = runAll(/** @type {Parameters<typeof runAll<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok(files.map(name => ({ name, parentPath: '.', isFile: true, isDirectory: false })))],
         import: path => s => [s, load(path)],
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
         await: p => s => [s, ok([p])],
         test: (ctx, name, xf, fn) => s => {
             if (invoke) { runner(s)(fn(ctx)) }

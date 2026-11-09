@@ -16,14 +16,14 @@
  */
 
 import { assert, todo } from '../../../asserts/module.f.js'
-import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.js'
-import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
+import { isProperPrefix, join, parse } from '../../../path/module.f.js'
+import { asciiLowercase } from '../../../text/ascii/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
 import { divUp8 } from '../../../types/bigint/module.f.mjs'
 import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import {
-    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, nodeCommands,
+    badPortCode, badPortMessage, carriesNoBody, emptyHost, emptyHostError, fileSizeRefusal, ioError, isPort, lexicalFileModule, nodeCommands,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, windowRefusal,
 } from '../module.f.mjs'
@@ -1387,8 +1387,10 @@ const listen = (server, port, host) => state => {
     // address, and a host refuses the second bind — checked on Linux with Node
     // 22.22.2 and on Darwin with Node 23.11.0. Unlike the wildcard rules in
     // [address-model](./todo/address-model.md), that equivalence is the same
-    // everywhere, so it is safe to model.
-    const address = `${host.toLowerCase()}:${port}`
+    // everywhere, so it is safe to model. The fold is ASCII's alone, as DNS's
+    // is: `toLowerCase()` would also take `'\u212a'`, the Kelvin sign, for a
+    // `k`, and refuse a bind no host was shown to refuse.
+    const address = `${asciiLowercase(host)}:${port}`
     // Port `0` asks the host for whichever port is free, so two servers that
     // ask both get one — checked on Linux with Node 22.22.2 and on Darwin with
     // Node 23.11.0: they come back bound to different ports.
@@ -1426,21 +1428,14 @@ const onMemory = f => state => {
     return [{ ...state, memory }, result]
 }
 
-/** Virtual operations, available for composing a runtime with additional capabilities. @satisfies {PartialMemOperationMap<NodeOp, State>} */
+/**
+ * Virtual operations, available for composing a runtime with additional
+ * capabilities. `all` is not among them: `partialRun` answers it over the
+ * runner a map is composed into, so its effects reach every handler there.
+ *
+ * @satisfies {PartialMemOperationMap<NodeOp, State>}
+ */
 export const virtualOperationMap = {
-    all: (...a) => state => {
-        // Each entry is the effect's whole `Result`: `all`'s own envelope says
-        // only whether the runner could dispatch it, so the inner answers pass
-        // through untouched for `allOk` to collapse.
-        /** @type {readonly Result<unknown, unknown>[]} */
-        let e = []
-        for (const i of a) {
-            const [ns, ei] = virtual(state)(i)
-            state = ns
-            e = [...e, ei]
-        }
-        return [state, ok(e)]
-    },
     memCreate: value => onMemory(memoryOperationMap.memCreate(value)),
     memRead: key => onMemory(memoryOperationMap.memRead(key)),
     memWrite: (key, value) => onMemory(memoryOperationMap.memWrite(key, value)),
@@ -1450,8 +1445,8 @@ export const virtualOperationMap = {
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
     resolveFileModule: (name, parent) => state => {
-        const path = parent === null ? name : resolveImportPath(parent)(name)
-        return [state, path === null ? fail('invalid module specifier') : ok({ id: normalize(path), path })]
+        const [kind, found] = lexicalFileModule(name, parent)
+        return [state, kind === 'error' ? fail(found) : ok(found)]
     },
     readFile,
     readdir: (path, { recursive }) => readdir(path, recursive === true)(path),

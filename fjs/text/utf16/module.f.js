@@ -24,6 +24,7 @@ import { isUintUpTo } from '../../types/number/module.f.js'
 import { compose } from '../../types/function/module.f.js'
 import { concat } from '../../types/string/module.f.js'
 import { fromStateScan } from '../../types/function/operator/module.f.js'
+import { toArray } from '../../types/list/alt/module.f.js'
 
 import {
     decoder,
@@ -320,6 +321,31 @@ export const stringToCodePointList = input =>
  */
 export const isWellFormed = s =>
     none(codePoint => (codePoint & errorMask) !== 0)(stringToCodePointList(s))
+
+/**
+ * The code points of a well-formed string, as an array: what
+ * {@link stringToCodePointList} reads, with a string that is not
+ * {@link isWellFormed} refused rather than read as code points tagged with
+ * `errorMask`, which are negative, so nothing downstream would tell one from
+ * a mistake of its own. The EBNF front end reads its string rules, `set`,
+ * `range` and `literals` with it.
+ *
+ * @example
+ *
+ * ```js
+ * codePoints('a😀')      // [0x61, 0x1f600]
+ * codePoints('a\ud800b') // throws
+ * ```
+ *
+ * @throws If `s` holds a lone surrogate.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+export const codePoints = s => {
+    const list = toArray(stringToCodePointList(s))
+    assert(list.every(c => (c & errorMask) === 0), ['malformed UTF-16', s])
+    return list
+}
 
 /**
  * The greatest code-point boundary of `s` at or below `index`, a count of

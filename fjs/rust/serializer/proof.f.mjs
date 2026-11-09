@@ -3,12 +3,13 @@
  * These fixtures use that public IR directly, including source-free loops.
  * @import { Value, Block, Function as PreparedFunction } from '../../js/ast/prepare/types.ts'
  * @import { BindingId, LoopTarget, Step } from '../../js/ast/types.ts'
- * @import { Options } from './types.ts'
+ * @import { Options, Uses } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
-import { untagged } from '../../text/marked/module.f.mjs'
+import { fromTagged, toText, untagged } from '../../text/marked/module.f.mjs'
+import { unmarkedWords } from '../../edag/rust/unmarked/module.f.js'
 import { bindingTagged, braced, op1Rust, scope, scopeTagged, useLines, useLinesTagged, valueTagged } from './module.f.mjs'
 
 /** @type {Options} */
@@ -55,6 +56,15 @@ export const proof = {
         assertEq(valueTagged(['in', 'x', 1], { ...options, runtime: null }, [], false)[0], 'error')
         assertEq(op1Rust['+']?.('v'), 'Any::unary_plus(v)')
         assertEq(op1Rust.throw?.('v'), 'Err(v)')
+    },
+    /** Inspection borrows the complete operand, including fallible and conditional expressions. */
+    borrowedInspectionOperands: () => {
+        assertEq(text(['typeof', ['ref', x]], true), 'Any::typeof_(&_b0.clone())')
+        assertEq(text(['typeof', ['Number', null]], true), 'Any::typeof_(&(Any::number(Nullish::Null.to_any()))?)')
+        assertEq(text(['typeof', ['if', true, yielding([1]), yielding([2])]], true),
+            'Any::typeof_(&if Any::<A>::to_boolean(&true.to_any()) { f64_any(0x3ff0000000000000) } else { f64_any(0x4000000000000000) })')
+        assertEq(text(['instanceof', ['Number', null], 'Array'], true),
+            'Any::instanceof_(&(Any::number(Nullish::Null.to_any()))?, Constructor::Array)')
     },
     containers: () => {
         assertEq(text(['array', [0, -0]]), '[f64_any(0x0000000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
@@ -111,7 +121,7 @@ export const proof = {
         const expected = 'spread_object([property_item((_b0.clone()).to_string()?, _b1.clone()), spread_entries(Object::default().to_any()), property_item((f64_any(0x3ff0000000000000)).to_string()?, _b1.clone())])'
         assertEq(text(object), expected)
         assertEq(text(['if', true, yielding([object]), yielding([['object', []]])]),
-            `if Any::<A>::to_boolean(true.to_any()) { ${expected} } else { Object::default().to_any() }`)
+            `if Any::<A>::to_boolean(&true.to_any()) { ${expected} } else { Object::default().to_any() }`)
         assertEq(text(['object', [[':', 'plain', ['ref', y]]]]),
             '[(string_key("plain"), _b1.clone())].to_object().to_any()')
         const uses = unwrap(scope(yielding([object]), options)).uses
@@ -199,7 +209,7 @@ export const proof = {
         assertEq(absent.includes(' else '), false)
         // Omitting the empty spelling must retain one fallible test evaluation.
         assertEq(absent.split('Any::call(').length - 1, 1)
-        assert(absent.includes('Any::<A>::to_boolean((Any::call(_b0.clone(), Array::default().to_any()))?)'))
+        assert(absent.includes('Any::<A>::to_boolean(&(Any::call(_b0.clone(), Array::default().to_any()))?)'))
         assert(absent.includes('return Ok(f64_any(0x401c000000000000));'))
         const required = unwrap(scope({ statements: [['if', condition, yes, { statements: [], exit: ['throw', 3] }]], exit: ['yield', [0]] }, options)).lines.join('\n')
         assert(required.includes(' else '))
@@ -362,6 +372,65 @@ export const proof = {
         assert(useLines({ vm: [], unstable: [] }, 'IVm').length > 0)
         const long = Array.from({ length: 30 }, (_, i) => `LongName${i}`)
         assert(useLines({ vm: long, unstable: ['single'] }, 'IVm').length > 3)
+    },
+    useLines: () => {
+        assertStructurallySame(useLines({ vm: [], unstable: [] }, 'IVm'), ['use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: ['ToAny', 'Array'], unstable: ['f64_any'] }, 'IStaticFunction'), [
+            'use nanvm_lib::vm::unstable::f64_any;',
+            'use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny};',
+        ])
+        assertStructurallySame(useLines({ vm: ['Any'], unstable: ['f64_any', 'strict_eq'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{f64_any, strict_eq};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        // past rustfmt's 100 columns the braced names wrap as it wraps them:
+        // on lines of their own, filled to the width
+        // the boundary rustfmt draws: a braced `use` of 99 columns wraps,
+        // one of 98 stays, and a continuation line reaches 99 at most
+        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_key'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    bigint_any, f64_any, static_read, strict_eq, string_any, string_key,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: ['bigint_any', 'f64_any', 'static_read', 'strict_eq', 'string_any', 'string_ke'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{bigint_any, f64_any, static_read, strict_eq, string_any, string_ke};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        const long = 'b'.repeat(87)
+        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', long, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', `    aaaa, ${long},`, '    cc,', '};', 'use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: [], unstable: ['aaaa', `${long}bb`, 'cc'] }, 'IVm'), ['use nanvm_lib::vm::unstable::{', '    aaaa,', `    ${long}bb, cc,`, '};', 'use nanvm_lib::vm::{Any, IVm};'])
+        assertStructurallySame(useLines({ vm: [], unstable: ['f64_any', 'spread_array', 'spread_call', 'spread_item', 'string_any', 'string_key', 'value_item'] }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    f64_any, spread_array, spread_call, spread_item, string_any, string_key, value_item,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+        assertStructurallySame(useLines({ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm'), [
+            'use nanvm_lib::vm::unstable::{',
+            '    helper_number_0, helper_number_1, helper_number_2, helper_number_3, helper_number_4,',
+            '    helper_number_5, helper_number_6, helper_number_7, helper_number_8, helper_number_9,',
+            '    helper_number_10,',
+            '};',
+            'use nanvm_lib::vm::{Any, IVm};',
+        ])
+    },
+    // The `use` of each statement is a keyword, whether the names fit one
+    // line, wrap, or are a single name, and the text is `useLines`'s.
+    useLinesTagged: () => {
+        /** @type {readonly (readonly [Uses, string, number])[]} */
+        const cases = [
+            [{ vm: [], unstable: [] }, 'IVm', 1],
+            [{ vm: [], unstable: ['f64_any'] }, 'IVm', 2],
+            [{ vm: ['ToAny'], unstable: ['f64_any', 'strict_eq'] }, 'IStaticFunction', 2],
+            [{ vm: [], unstable: Array.from({ length: 11 }, (_, i) => `helper_number_${i}`) }, 'IVm', 2],
+        ]
+        for (const [uses, bound, statements] of cases) {
+            const marked = unwrap(fromTagged(useLinesTagged(uses, bound).join('\n')))
+            assertEq(JSON.stringify(marked.filter(([, kind]) => kind === 'keyword').map(([text]) => text)), JSON.stringify(Array(statements).fill('use')))
+            assertEq(toText(marked), useLines(uses, bound).join('\n'))
+            assertEq(JSON.stringify(unmarkedWords(marked)), '[]')
+        }
     },
     deepInputs: () => {
         /** @type {Value} */

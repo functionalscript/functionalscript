@@ -72,7 +72,7 @@ import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { alternatesIn } from '../alternates/module.f.js'
-import { tryRead as readLoose } from '../loose/module.f.mjs'
+import { path as loosePath, tryRead as readLoose } from '../loose/module.f.mjs'
 import { hexText, of, ofWidth } from '../oid/module.f.mjs'
 import { tryRead as readPacked } from '../packstore/module.f.mjs'
 
@@ -89,22 +89,6 @@ import { tryRead as readPacked } from '../packstore/module.f.mjs'
  * @type {(dir: string) => (id: Oid) => string}
  */
 export const objectPath = dir => id => loosePath(objectsDir(dir), id)
-
-/**
- * The same path from the `objects/` directory itself: a directory named by the
- * first two hex digits of the id, a file named by the rest.
- *
- * **The key is the `objects/` directory and not the repository**, because an
- * `objects/info/alternates` names object directories directly — see
- * {@link objectsDirs}. {@link objectPath} is this one below `objects/`, which is
- * what a caller holding a repository has.
- *
- * @type {(od: string, id: Oid) => string}
- */
-const loosePath = (od, id) => {
-    const h = hexText(id)
-    return under(od, join(h.slice(0, 2), h.slice(2)))
-}
 
 /**
  * A repository's own object directory: `objects/` below it.

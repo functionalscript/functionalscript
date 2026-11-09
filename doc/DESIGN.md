@@ -260,8 +260,8 @@ wrong-in-the-unsafe-direction estimate reintroduces the exact crash the check wa
 meant to prevent — while the real operation is always exactly right.
 
 Express the fallible operation as a `try*` function returning `Nullable<T>` (see
-`tryUtf8`, `tryListToVec`, `tryU8ListToVec`, `base64Decode` in `fjs/text`,
-`fjs/types/bit_vec`, `fjs/base64`), add a new `try*` variant if one doesn't exist
+`tryUtf8`, `tryListToVec`, `tryU8ListToVec` in `fjs/text` and
+`fjs/types/bit_vec`, and `decode` in `fjs/basen/base64`), add a new `try*` variant if one doesn't exist
 yet for the operation you need (including effect primitives like `write`), and
 have the caller check the `null` result rather than a precomputed bound.
 

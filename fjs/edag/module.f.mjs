@@ -1,7 +1,7 @@
 /**
  * @module
  *
- * @import { Exp, IntrinsicId, ItemsOver, OptionLambda, OptionPropertyLambda, Plain, StaticId, StepOver } from './types.ts'
+ * @import { Exp, HelperId, IntrinsicId, ItemsOver, OptionLambda, OptionPropertyLambda, Plain, StaticId, StepOver } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -662,13 +662,45 @@ export const intrinsicId = or(...intrinsicIds)
 export const isIntrinsic = node => node instanceof Array && node.length === 1 && intrinsicIds.some(id => id === node[0])
 
 /**
- * The `length` of an intrinsic's helper, {@link intrinsics}: `3` for
- * `slice`, the receiver and the native's two positions, `2` for
- * `charCodeAt`, the receiver and the position.
- *
- * @type {(id: IntrinsicId) => number}
+ * The helpers: the function nodes that are not lambdas — `entry` and
+ * `hasEntry`, the language's two entry helpers (see {@link op0Id}), and the
+ * {@link intrinsics} — each with its `length`. Every question about the
+ * whole set (is this a helper, what is its arity, what is its text) asks
+ * this one table instead of listing the tags again.
  */
-export const intrinsicLength = id => intrinsics.filter(([i]) => i === id)[0][1]
+export const helpers = /** @type {const} */ ([['entry', 2], ['hasEntry', 2], ...intrinsics])
+
+/** The helpers' tags, {@link helpers}: `entry`, `hasEntry` and the intrinsics'. */
+export const helperIds = helpers.map(([id]) => id)
+
+/**
+ * Whether a node — the EDAG's, or the AST's, which shares it — is a
+ * helper, `['entry']` or `['slice']`: one tag of {@link helperIds} and
+ * nothing else, asked as {@link isIntrinsic} is.
+ *
+ * @param {unknown} node
+ * @returns {node is readonly [HelperId]}
+ */
+export const isHelper = node => node instanceof Array && node.length === 1 && helperIds.some(id => id === node[0])
+
+/**
+ * The `length` of a helper, {@link helpers}: `2` for `entry` and
+ * `hasEntry`, the receiver and the key; `3` for `slice`, the receiver and
+ * the native's two positions; `2` for `charCodeAt`, the receiver and the
+ * position.
+ *
+ * @type {(id: HelperId) => number}
+ */
+export const helperLength = id => helpers.filter(([i]) => i === id)[0][1]
+
+/**
+ * Whether a node is a function node: an EDAG lambda, `'=>'`, or a
+ * {@link isHelper | helper}. A static function, `['Object.is']`, is not
+ * one; a site that also admits it asks {@link isStatic} beside this.
+ *
+ * @type {(node: unknown) => boolean}
+ */
+export const isFunctionNode = node => node instanceof Array && (node[0] === '=>' || isHelper(node))
 
 
 /**

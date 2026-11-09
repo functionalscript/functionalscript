@@ -72,7 +72,9 @@ pub(crate) fn indexed_entry<A: IVm, T: SizedIndex<u32>>(
 /// `container.length()`. The bound is checked before `read` runs, so a
 /// receiver's own `Index<u32>`, which panics out of bounds by ordinary Rust
 /// convention (`vm/array/index.rs`, `vm/string/index.rs`), is never
-/// reached with a bad index.
+/// reached with a bad index. It compares with the length itself rather
+/// than through [`SizedIndex::get`], since `read` is given the index, not
+/// the element.
 fn in_bounds<A: IVm, T: SizedIndex<u32>>(
     container: &T,
     index: Option<u32>,

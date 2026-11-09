@@ -2,7 +2,6 @@
  * @import { IoResult } from '../../effects/types.ts'
  * @import { Child, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
- * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
  */
@@ -60,13 +59,6 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             const entries = directories[normalize(path) === '' ? '.' : normalize(path)]
             return [state, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
                 entries.map(([name, isDirectory]) => ({ name, parentPath: path, isDirectory, isFile: !isDirectory })))]
-        },
-        all: (...effects) => state => {
-            const [next, results] = effects.reduce(([state, results], effect) => {
-                const [next, result] = run(state)(effect)
-                return [next, [...results, result]]
-            }, /** @type {readonly [State, readonly Result<unknown, unknown>[]]} */ ([state, []]))
-            return [next, ok(results)]
         },
         spawn: (command, args, options) => state => {
             assertEq(options.stdio, 'inherit')
