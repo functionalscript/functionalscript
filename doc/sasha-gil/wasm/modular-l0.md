@@ -23,9 +23,14 @@ of one variant of each module.
 Every module comes in two forms:
 
 - **Import form:** each function is an import of the runtime, as in L0 today.
-- **Template form:** each function is a template that the compiler inlines,
-  over locals whose number and types the module's manifest gives
-  ([inline fragments](./inline-fragments.md#runtime-modules)).
+- **Template form:** the functions that read a value, such as `unpack`,
+  `length` and `unit`, are templates that the compiler inlines, over
+  locals whose number and types the module's manifest gives
+  ([inline fragments](./inline-fragments.md#runtime-modules)). The
+  functions that make a value, such as `make_string`, `concat` or
+  `seal`, stay imports in both forms, because they allocate inside the
+  runtime (choice 7). Any's `dup` and `drop` are the exception: they are
+  templates, with an imported slow path.
 
 A program built with every module in import form is today's portable
 program, and it runs on any runtime.
@@ -140,7 +145,9 @@ The calls between modules form a runtime-internal interface (choice 7).
 A program sees only L0 functions. Inside the runtime, the modules need a
 few more calls between them, to make a value, to free one, and to clean
 up after a throw. None of these is an L0 function, and a program never
-imports one.
+imports one. That holds in template form too, because the functions that
+call them, the ones that make or free a value, are never inlined into the
+program, except `drop`, whose slow path is the import `free`.
 
 - **Making a value.** Any owns the `i64` encoding, so a module that makes
   a value with storage asks Any to wrap it. Any gives the modules
