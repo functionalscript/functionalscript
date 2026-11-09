@@ -15,9 +15,9 @@ of one variant of each module.
 | Module | L0 functions | Kinds it owns | Depends on |
 | --- | --- | --- | --- |
 | Any | the constants, `kind`, `to_f64`, `from_f64`, `to_bool`, `from_bool`, `dup`, `drop`, `same` | `undefined`, `null`, boolean, number | none |
-| String | `make_string`, `read_units`, `unit`, `from_unit`, `concat`, `substring`, `join`, `length`; in template form also `unpack` | string | Any; Containers, for `join` |
+| String | `make_string`, `read_units`, `unit`, `from_unit`, `concat`, `substring`, `length`; in template form also `unpack` | string | Any |
 | BigInt | `make_bigint`, `sign`, `read_words`, `length` | bigint | Any |
-| Containers | `begin_array`, `begin_object`, `push`, `push_property`, `seal`, `length`, `item`, `key`, `find` | array, object | Any |
+| Containers | `begin_array`, `begin_object`, `push`, `push_property`, `seal`, `length`, `item`, `key`, `find`, `join` | array, object | Any, String |
 | Functions | `make_function`, `call`, `throw`, `frame`, `text`, `length` | function | Any, Containers |
 
 Every module comes in two forms:
@@ -29,6 +29,12 @@ Every module comes in two forms:
 
 A program built with every module in import form is today's portable
 program, and it runs on any runtime.
+
+The dependencies form a chain: Any, then String, then Containers, then
+Functions, with BigInt beside String. A module calls only the modules it
+depends on, through their functions, never through their layouts. The one
+call the other way, from Any to a module when a value is freed, is a hook
+(choice 7).
 
 ## Design choices
 
@@ -44,6 +50,11 @@ program, and it runs on any runtime.
     But that separates `make_string` from `unit`, which have to agree on a
     string's layout.
   - Make Identity a module of its own. It would hold one function.
+- **Containers depend on String.** Object keys are strings, so `find`
+  compares a key with the stored ones through String's `length` and
+  `unit`, and `seal` does the same to keep keys unique. `join` reads an
+  array and makes a string, so it is in Containers too, and String
+  depends on nothing but Any.
 - **Why:** what can vary between runtimes is how a kind is stored. Each
   experiment then swaps one module. For example, the three String variants
   of the modular runtime memo differ only in the String module.
@@ -124,7 +135,32 @@ program, and it runs on any runtime.
   to refuse a program built for another runtime
   ([inline fragments, Open](./inline-fragments.md#open)).
 
-### 7. What stays the same
+### 7. Freeing a value calls the module that owns its kind
+
+- **Pick:** Any owns the reference count and the kind tag, so `dup` and
+  `drop` stay in Any. When `drop` takes a count to zero, Any calls the
+  `release` hook of the module that owns the value's kind. That module
+  frees its own storage, and calls Any's `drop` on each value it held:
+  the items of an array, the keys and values of an object, a function's
+  frame and text. `recover`
+  ([§21](./l0-design.md#21-the-host-is-an-l0-client)) frees through the
+  same hooks.
+- **Who wires the hooks:** the runtime, when it is assembled from its
+  modules, fills a table of `release` hooks by kind tag. A hook is not an
+  L0 function: a program never calls it, and it appears in no manifest's
+  import list.
+- **Alternatives:**
+  - Each module keeps its own counts and has its own `dup` and `drop`.
+    The compiler knows a value's kind at most `drop`s, but not all, so
+    Any would still need a `drop` that dispatches by kind.
+  - Any knows every layout. Then swapping a Containers module means
+    changing Any too.
+- **Why:** the program's view stays one `dup` and one `drop`, and only
+  the runtime's assembly knows which modules are present. A NaN-boxed
+  string or number inside the `i64` has no storage, so its module's hook
+  is empty.
+
+### 8. What stays the same
 
 - **Lifetime.** Every module follows
   [L0 design §10](./l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results).
@@ -171,9 +207,13 @@ the module declares a type and its rows, and the IR names them
   value may have at each `length`, from the `kind` tests before it. If
   that set is hard to find, or a body calls `length` with no test at all,
   a dispatching `length` would come back, in Any or in the stock module.
-- **`join` in String (1).** It reads an array and makes a string, so
-  String depends on Containers. Moving `join` to Containers would make
-  Containers depend on String instead.
+- **Key comparison across modules (1).** `find` compares keys through
+  String's functions, which costs a call per unit in import form. A
+  runtime that wants hashed keys has to choose its Containers and String
+  modules together.
+- **Release hooks (7).** They are the one place where Any calls back into
+  other modules. If more such places appear, the modules are less
+  independent than the table suggests.
 - **`at` and `unit` are one function.** The memo calls it `at`, and L0
   calls it `unit`. One of the two names should go.
 - **Five import names (3).** WASM allows any module name, but a runtime in
