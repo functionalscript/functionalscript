@@ -1264,7 +1264,7 @@ const isConversionWord = name => name === 'Number' || name === 'String' || name 
 const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === name
 
 /**
- * The static member the key `named` names in the namespace `global`, as
+ * The static member the key `named` names in the namespace `namespaceName`, as
  * the AST holds it, `['Number.isInteger']`, or `null` where the language
  * admits none: the functions of `Object`, the predicates of `Number`,
  * and `Number.MAX_SAFE_INTEGER`
@@ -1275,11 +1275,11 @@ const isKeyNamed = (key, name) => !(key instanceof Array) && keyNamed(key) === n
  * Numeric constants lower directly to their host-defined value, without
  * introducing an EDAG operation or copying the constant's digits here.
  *
- * @type {(global: string, named: string | number) => ValueStatic | number | null}
+ * @type {(namespaceName: string, named: string | number) => ValueStatic | number | null}
  */
-const staticMember = (global, named) => {
-    if (global === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
-    const id = staticIds.find(id => id === `${global}.${named}`)
+const staticMember = (namespaceName, named) => {
+    if (namespaceName === 'Number' && named === 'MAX_SAFE_INTEGER') { return Number.MAX_SAFE_INTEGER }
+    const id = staticIds.find(id => id === `${namespaceName}.${named}`)
     if (id === undefined) { return null }
     /** @type {ValueStatic} */
     const member = [id]

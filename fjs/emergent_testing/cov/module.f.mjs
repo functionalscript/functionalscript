@@ -22,9 +22,12 @@ import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
 import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
-import { isCoverageTarget } from './check/module.f.mjs'
+import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.mjs'
 
-export { isCoverageTarget, _coverageFailures } from './check/module.f.mjs'
+/** Target selection shared with the lightweight native reporter. */
+export const isCoverageTarget = coverageTarget
+/** Exact-count admission shared with the lightweight native reporter. */
+export const _coverageFailures = coverageFailures
 
 /** Group discovered source files into deterministic directory jobs. @type {(files: readonly string[]) => readonly _Module[]} */
 export const _modules = files =>

@@ -34,10 +34,10 @@ const ident = 'Coverage Writer <coverage@example.com> 0 +0000\n'
 const reply = (stdout = '', stderr = '') => ok({ stdout, stderr })
 const denied = error(ioError({ code: 'EACCES', message: 'permission denied' }))
 
-/** @type {(config?: string, global?: string) => Dir} */
-const repository = (config = authorConfig, global = '') => ({
+/** @type {(config?: string, globalConfig?: string) => Dir} */
+const repository = (config = authorConfig, globalConfig = '') => ({
     repo: { '.git': { config: [utf8(config)], HEAD: [utf8('ref: refs/heads/main\n')], index: [utf8('source index')] }, 'module.f.js': [utf8('export const value = 1\n')] },
-    home: { '.gitconfig': [utf8(global)] },
+    home: { '.gitconfig': [utf8(globalConfig)] },
 })
 
 /** @type {<T>(effect: Effect<NodeOp, T, IoChannel>, replies: readonly IoResult<ExecResult>[], state?: State) => readonly [State, import('../../../types/result/types.ts').Result<T, IoChannel>]} */
@@ -210,8 +210,8 @@ export const proof = {
         const [written, result] = run(local.saveMany([a]), [reply(), reply(ident), reply()], state)
         assertOk(result)
         assert(calls(written)[1].args.includes('user.name=Local Writer'))
-        const [globalState, global] = cacheAt(options, repository(baseConfig, '[user]\nname = Global Writer\nemail = global@example.com\n'))
-        const [globalWritten, globalResult] = run(global.saveMany([a]), [reply(), reply(ident), reply()], globalState)
+        const [globalState, globalCache] = cacheAt(options, repository(baseConfig, '[user]\nname = Global Writer\nemail = global@example.com\n'))
+        const [globalWritten, globalResult] = run(globalCache.saveMany([a]), [reply(), reply(ident), reply()], globalState)
         assertOk(globalResult)
         assert(calls(globalWritten)[1].args.includes('user.name=Global Writer'))
         const [explicitState, fromEnv] = cacheAt(explicit, repository(`${baseConfig}[include]\npath = other\n`))
