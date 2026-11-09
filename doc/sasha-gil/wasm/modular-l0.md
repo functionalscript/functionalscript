@@ -53,15 +53,20 @@ program, and it runs on any runtime.
 - **Pick:** L0's `length` answers for five kinds
   ([L0 design §18](./l0-design.md#18-what-length-item-and-key-mean-for-each-kind)).
   It becomes four functions: the `length` of String, BigInt, Containers and
-  Functions. The compiler already knows a value's kind wherever it calls
-  `length`: an L1 body calls it after a `kind` test or a cast, and the host
-  calls it after `kind` ([§21](./l0-design.md#21-the-host-is-an-l0-client)).
-  So it picks the module by the known kind.
+  Functions. Where the compiler knows a value's single kind, it calls that
+  module's `length` directly.
+- **A known set of kinds.** Some L1 bodies call `length` where the value
+  is one of a few kinds. `toBoolean` calls it after
+  `k === STRING || k === BIGINT`, and the member read `get` calls it on an
+  array or a string. There the view's `length` lowers to a branch on the
+  `kind` the body already holds, one arm per kind, each calling its own
+  module's `length`. The body's source does not change.
 - **Alternative:** keep one `length` in Any, and let it call the module that
   owns the kind. Any would then depend on every other module.
 - **Why:** the dependencies stay a tree with Any at the root. Each `length`
-  also reads a layout that only its own module knows. L0 grows from 32
-  functions to 35 in import form.
+  also reads a layout that only its own module knows. The branch costs one
+  test on the `kind` already in a local. L0 grows from 32 functions to 35
+  in import form.
 
 ### 3. Each module has an import name and a version
 
@@ -135,7 +140,8 @@ program, and it runs on any runtime.
 - **The FunctionalScript view.** The intrinsics of
   [§17](./l0-design.md#17-a-functionalscript-view-of-l0) keep their names.
   Each one lowers to its module's function. The view's `length` lowers to
-  the module of the kind its cast gave.
+  the module of the value's kind, or to a branch on `kind` when the body
+  knows only a set of kinds (choice 2).
 
 ## Example runtimes
 
@@ -161,9 +167,10 @@ the module declares a type and its rows, and the IR names them
 
 ## Where this draft is least sure
 
-- **The split of `length` (2).** It assumes the kind is known wherever
-  `length` is called. A use with an unknown kind would need L1, or a
-  dispatching `length` again.
+- **The split of `length` (2).** The lowering needs the set of kinds a
+  value may have at each `length`, from the `kind` tests before it. If
+  that set is hard to find, or a body calls `length` with no test at all,
+  a dispatching `length` would come back, in Any or in the stock module.
 - **`join` in String (1).** It reads an array and makes a string, so
   String depends on Containers. Moving `join` to Containers would make
   Containers depend on String instead.
