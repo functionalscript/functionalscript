@@ -250,6 +250,7 @@ export const proof = {
         const entries = assertOk(run(state)(cache.prepare(command))[1])
         const [saved, stored] = run(state)(cache.saveMany(entries))
         assertOk(stored)
+        /** @type {State} */
         const changedTool = { ...saved, root: { ...files, tool: { fjs: {
             'framework.mjs': [utf8('export default 2;')],
             emergent_testing: { cov: { 'runtime.mjs': [utf8('changed tool source')] } },

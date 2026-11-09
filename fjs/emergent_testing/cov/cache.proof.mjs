@@ -82,11 +82,14 @@ const initialize = (root, directories, markers = false) => {
     git(root, ['init', '--quiet', '--initial-branch=main'])
     identify(root)
     write(root, 'package.json', '{"type":"module"}\n')
+    // Timing markers need only a count and timestamp, not directory data in code.
+    const proofSource = markers
+        ? 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED fixture", Date.now()); return undefined; } };\n'
+        : 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); return undefined; } };\n'
     for (const directory of directories) {
         write(root, `${directory}/helper.f.js`, 'export const helper = () => 1;\n')
         write(root, `${directory}/module.f.js`, 'import { helper } from "./helper.f.js"; export const value = () => helper();\n')
-        const marker = markers ? `console.log(${JSON.stringify(`CACHE_CHILD_FINISHED ${directory}`)}, Date.now()); ` : ''
-        write(root, `${directory}/proof.f.mjs`, `import { value } from "./module.f.js"; export const proof = { covers: () => { value(); ${marker}return undefined; } };\n`)
+        write(root, `${directory}/proof.f.mjs`, proofSource)
     }
     git(root, ['add', '.'])
     git(root, ['commit', '--quiet', '-m', 'source fixture'])

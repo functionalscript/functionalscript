@@ -25,10 +25,10 @@ import { stringToU8List } from '../../../text/utf8/module.f.mjs'
 import { u8ListToMaxVecChunksMsb } from '../../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../../types/list/alt/module.f.js'
 
-const branch = 'refs/heads/build-cache'
-const captureBytes = 0x400_0000
-const attempts = 10
-const message = 'coverage: record successful targets\n'
+const branch = /** @type {const} */ ('refs/heads/build-cache')
+const captureBytes = /** @type {const} */ (0x400_0000)
+const attempts = /** @type {const} */ (10)
+const message = /** @type {const} */ ('coverage: record successful targets\n')
 const invalid = refuse('ERR_COV_CACHE')
 
 /** One Git path, preserving whitespace and embedded newlines. @type {(name: string) => Effect<NodeOp, string, IoChannel>} */

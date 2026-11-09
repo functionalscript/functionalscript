@@ -12,8 +12,8 @@ import { history, historyStep, mapStep, pureOk, refuse, step } from '../../../ef
 import { childWait, execFile, spawn } from '../../../effects/node/module.f.mjs'
 import { publishFrom } from '../../../ci/cache/publish/module.f.mjs'
 
-const localRef = 'refs/heads/build-cache'
-const remoteRef = 'refs/remotes/origin/build-cache'
+const localRef = /** @type {const} */ ('refs/heads/build-cache')
+const remoteRef = /** @type {const} */ ('refs/remotes/origin/build-cache')
 
 /** Git's exit status remains distinct from a process that did not complete. @type {(root: string, args: readonly string[]) => Effect<NodeOp, number, IoChannel>} */
 const gitStatus = (root, args) => {
