@@ -27,9 +27,10 @@ Every module comes in two forms:
   templates that the compiler inlines, over locals whose number and types
   the module's manifest gives
   ([inline fragments](./inline-fragments.md#runtime-modules)). A
-  function whose body needs one of the runtime's internal calls (choice
-  7), such as `make_string`, `concat` or `seal`, which allocate, stays an
-  import in both forms. Which functions those are depends on the variant:
+  function whose body allocates or frees through the runtime's internal
+  calls (choice 7), such as `make_string`, `concat` or `seal`, stays an
+  import in both forms. A template may use another module's template,
+  such as Any's `payload`, when that module is in template form too. Which functions those are depends on the variant:
   `from_f64` allocates nothing in a NaN-boxing Any, so it can be a
   template there. `drop` is a template with an imported slow path.
 
@@ -146,9 +147,10 @@ The calls between modules form a runtime-internal interface (choice 7).
 A program sees only L0 functions. Inside the runtime, the modules need a
 few more calls between them, to make a value, to free one, and to clean
 up after a throw. None of these is an L0 function, and a program never
-imports one. That holds in template form too, because a function that
-makes one of these calls is never a template (see the summary), except
-`drop`, whose slow path is the import `free`.
+imports one. That holds in template form too: a template uses only
+other templates, and a function that allocates or frees is never a
+template (see the summary), except `drop`, whose slow path is the import
+`free`.
 
 - **Making a value.** Any owns the `i64` encoding, so a module that makes
   a value with storage asks Any to wrap it. Any gives the modules
@@ -158,6 +160,13 @@ makes one of these calls is never a template (see the summary), except
   `seal` and `make_function` end with `box`. A value that fits in the
   `i64`, such as a NaN-boxed short string, is encoded by Any's
   `box_inline(kind, bits)` instead, and has no payload.
+- **Templates compose.** `payload` and `kind` only read the `i64`, so in
+  template form Any offers them as templates, and another module's
+  template inlines them. The Naive String module's `unpack` is Any's
+  `payload` template, so it needs Naive Any in template form, and its
+  manifest says so (choice 6). `box`, `release` and `abandon` allocate or
+  free, so they are never templates, and nothing that calls them is
+  either.
 - **Freeing a value.** Any owns the reference count and the kind tag, so
   `dup` and `drop` stay in Any. When `drop` takes a count to zero, Any calls the
   `release` hook of the module that owns the value's kind. That module
