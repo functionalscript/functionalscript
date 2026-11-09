@@ -59,13 +59,27 @@ inside the repository are hashed too. New nested package scopes therefore
 invalidate the affected manifests. A missing root package file leaves the run
 uncached rather than depending on package metadata outside the repository.
 
+One runtime probe and one shared dependency graph prepare the selected directories
+at startup. Source bytes, hashes and parsed imports are shared across all targets;
+framework files use the same snapshot. Target manifests select their reachable
+inputs without rebuilding the graph. Native loader fingerprints bind framework
+discovery to the bytes actually loaded; the probe entry is pinned before startup.
+An unsupported directory leaves independent
+directories eligible for caching.
+
 Cache-only admission refuses dynamic `import`, `import.meta`, `require`,
 `eval`/`Function`, and explicit host-global references. These forms continue
 through ordinary coverage without cache reuse; no language semantics change.
 
 A directory's coverage process is skipped only when every measured target has
-an exact local success. A miss runs the isolated check; after successful
-coverage, manifests are rebuilt and compared against the original inputs.
+an exact local success. Before lookup and after successful coverage, the runner
+compares relevant input bytes, sibling inventories, package scopes and resolution
+identities against the snapshot, without reparsing or rehashing. Changed inputs
+run uncached and cannot publish that snapshot's success.
+Framework validation includes original import paths and absent nearer package
+scopes, so retargeted symlinks and newly added package boundaries invalidate reuse.
+The [preparation measurements](../../emergent_testing/cov/measurements.md)
+cover both shared-run gains and the cost for a single cached job.
 Stable successes are collected and saved as one local batch after all modules
 finish. Failed coverage contributes no manifest, while other modules' successes
 are retained. Incomplete dependency analysis, unsupported preload settings and

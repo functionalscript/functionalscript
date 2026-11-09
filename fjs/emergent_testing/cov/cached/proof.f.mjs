@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { mapStep } from '../../../effects/module.f.mjs'
+import { mapStep, pureOk } from '../../../effects/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { access, ioError, nodeCommands, readdir } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/json/module.f.mjs'
@@ -25,8 +25,9 @@ const second = /** @type {const} */ ({ file: 'demo.f.mjs', hash: 'second' })
  *
  * @param {{
  *   readonly before?: readonly Unknown[],
- *   readonly after?: readonly Unknown[],
  *   readonly prepareErrors?: readonly number[],
+ *   readonly valid?: readonly boolean[],
+ *   readonly validationErrors?: readonly number[],
  *   readonly lookupErrors?: readonly number[],
  *   readonly hits?: readonly boolean[],
  *   readonly passed?: boolean,
@@ -43,8 +44,13 @@ const execute = (options = {}) => {
             if (path === 'prepare') {
                 const call = state.calls.filter(call => call === 'prepare').length + 1
                 if (options.prepareErrors?.includes(call)) { return [next, error(ioError({ message: 'preparation unavailable' }))] }
-                const manifests = call === 1 ? options.before ?? [first, second] : options.after ?? options.before ?? [first, second]
+                const manifests = options.before ?? [first, second]
                 return [next, ok(manifests.map(manifest => ({ name: JSON.stringify(manifest), parentPath: '', isDirectory: false, isFile: true })))]
+            }
+            if (path === 'validate') {
+                const call = state.calls.filter(call => call === 'validate').length + 1
+                if (options.validationErrors?.includes(call)) { return [next, error(ioError({ message: 'validation unavailable' }))] }
+                return [next, ok((options.valid?.[call - 1] ?? true) ? [{ name: 'valid', parentPath: '', isDirectory: false, isFile: true }] : [])]
             }
             const call = state.calls.filter(call => call.startsWith('has ')).length + 1
             if (options.lookupErrors?.includes(call)) { return [next, error(ioError({ message: 'lookup unavailable' }))] }
@@ -62,6 +68,10 @@ const execute = (options = {}) => {
         prepare: selected => {
             assertStructurallySame(selected, command)
             return mapStep(readdir('prepare', {}), entries => entries.map(({ name }) => assertOk(parse(name))))
+        },
+        validate: selected => {
+            assertStructurallySame(selected, command)
+            return mapStep(readdir('validate', {}), entries => entries.length !== 0)
         },
         has: manifest => mapStep(readdir(`has ${JSON.stringify(manifest)}`, {}), entries => entries.length !== 0),
         saveMany: manifests => access(`save ${JSON.stringify(manifests)}`),
@@ -88,7 +98,7 @@ export const proof = {
     exactHitsSkipChild: () => {
         const [state, result] = execute({ hits: [true, true] })
         assertStructurallySame(assertOk(result), { outcome: 'cached', manifests: [] })
-        assertStructurallySame(state.calls, ['prepare', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`])
+        assertStructurallySame(state.calls, ['prepare', 'validate', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`])
         assertStructurallySame(state.output, [])
     },
     coldReturnsSuccessesWithoutWriting: () => {
@@ -96,30 +106,49 @@ export const proof = {
             const [state, result] = execute({ hits })
             assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [first, second] })
             assertStructurallySame(state.calls, [
-                'prepare', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`, 'run', 'prepare',
+                'prepare', 'validate', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`, 'run', 'validate',
             ])
             assertEq(state.output.length, 0)
         }
+    },
+    originalManifestsReturned: () => {
+        const manifests = [first, second]
+        /** @type {CoverageCache} */
+        const cache = {
+            prepare: () => pureOk(manifests),
+            validate: () => pureOk(true),
+            has: () => pureOk(false),
+            saveMany: () => pureOk(undefined),
+            sync: () => pureOk(undefined),
+        }
+        const run = partialRun(nodeCommands)({})
+        const [, result] = run(undefined)(runCached(command, () => pureOk(true), cache))
+        assertEq(assertOk(result).manifests, manifests)
     },
     failedChildRecordsNothing: () => {
         const [state, result] = execute({ passed: false })
         assertStructurallySame(assertOk(result), { outcome: 'failed', manifests: [] })
         assertEq(state.calls.filter(call => call === 'prepare').length, 1)
+        assertEq(state.calls.filter(call => call === 'validate').length, 1)
         assertStructurallySame(writes(state.calls), [])
     },
-    changedInputsRecordNothing: () => {
-        const [state, result] = execute({ after: [first, { ...second, hash: 'changed' }] })
+    staleSnapshotCannotSkipChild: () => {
+        const [state, result] = execute({ valid: [false], hits: [true, true] })
         assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
-        assertStructurallySame(writes(state.calls), [])
-        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: coverage inputs changed during the run\n']])
+        assertStructurallySame(state.calls, ['prepare', 'validate', 'run'])
+        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: coverage inputs changed since the cache snapshot\n']])
     },
-    canonicalObjects: () => {
-        const [state, result] = execute({ before: [{ a: 1, b: 2 }], after: [{ b: 2, a: 1 }] })
-        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [{ b: 2, a: 1 }] })
+    changedDuringExecutionRecordsNothing: () => {
+        const [state, result] = execute({ valid: [true, false] })
+        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
+        assertStructurallySame(state.calls, [
+            'prepare', 'validate', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`, 'run', 'validate',
+        ])
         assertStructurallySame(writes(state.calls), [])
+        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: coverage inputs changed since the cache snapshot\n']])
     },
     cacheReadFailuresRunWithoutRecording: () => {
-        for (const options of [{ prepareErrors: [1] }, { lookupErrors: [1] }, { lookupErrors: [2] }]) {
+        for (const options of [{ prepareErrors: [1] }, { validationErrors: [1] }, { lookupErrors: [1] }, { lookupErrors: [2] }]) {
             const [state, result] = execute(options)
             assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
             assert(state.calls.includes('run'))
@@ -128,11 +157,19 @@ export const proof = {
             assert(state.output.some(([stream, text]) => stream === 'stderr' && text.startsWith('UNCACHED /repo/unit:')))
         }
     },
-    postRunPreparationFailure: () => {
-        const [state, result] = execute({ prepareErrors: [2] })
+    failedValidationCannotSkipChild: () => {
+        const [state, result] = execute({ validationErrors: [1], hits: [true, true] })
         assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
+        assertStructurallySame(state.calls, ['prepare', 'validate', 'run'])
+        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: validation unavailable\n']])
+    },
+    postRunValidationFailure: () => {
+        const [state, result] = execute({ validationErrors: [2] })
+        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
+        assertEq(state.calls.filter(call => call === 'prepare').length, 1)
+        assertEq(state.calls.filter(call => call === 'validate').length, 2)
         assertStructurallySame(writes(state.calls), [])
-        assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes('preparation unavailable')))
+        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: validation unavailable\n']])
     },
     runErrorsPropagate: () => {
         for (const disabled of [false, true]) {

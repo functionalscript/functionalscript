@@ -11,7 +11,6 @@
 
 import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { error, errorMessage } from '../../../effects/node/module.f.mjs'
-import { stringifySorted } from '../../../media/json/module.f.mjs'
 
 /** A graph that cannot be completely fingerprinted never participates in reuse.
  * @type {(command: Command, cache: CoverageCache) => Effect<NodeOp, readonly Unknown[] | null, IoChannel>}
@@ -32,16 +31,14 @@ const lookup = (command, cache, manifests) => {
         : pureOk(value))
 }
 
-/** A passing child cannot certify inputs that changed while it ran.
- * @type {(command: Command, cache: CoverageCache, before: readonly Unknown[]) => Effect<NodeOp, readonly Unknown[], IoChannel>}
+/** Recheck the captured bytes and resolutions before trusting or recording a hit.
+ * @type {(command: Command, cache: CoverageCache) => Effect<NodeOp, boolean, IoChannel>}
  */
-const stableManifests = (command, cache, before) => {
-    const after = prepare(command, cache)
-    return step(after, after => after === null ? pureOk([])
-        : stringifySorted(before) !== stringifySorted(after)
-            ? mapStep(error(`UNCACHED ${command.directory}: coverage inputs changed during the run`), () => [])
-            : pureOk(after))
-}
+const validate = (command, cache) => resultStep(cache.validate(command), ([tag, value]) =>
+    tag === 'error'
+        ? mapStep(error(`UNCACHED ${command.directory}: ${errorMessage(value)}`), () => false)
+        : value ? pureOk(true)
+            : mapStep(error(`UNCACHED ${command.directory}: coverage inputs changed since the cache snapshot`), () => false))
 
 /**
  * Run uncached when preparation or lookup is unavailable. Return only unchanged
@@ -51,15 +48,18 @@ const stableManifests = (command, cache, before) => {
  */
 export const runCached = (command, run, cache) => {
     if (cache === null) { return mapStep(run(), passed => ({ outcome: passed ? 'passed' : 'failed', manifests: [] })) }
-    const prepared = history(prepare(command, cache))
-    const found = historyStep(prepared, before => before === null ? pureOk(null) : lookup(command, cache, before))
+    const prepared = prepare(command, cache)
+    const validated = step(prepared, before => before === null ? pureOk(null)
+        : mapStep(validate(command, cache), valid => valid ? before : null))
+    const found = historyStep(history(validated), before => before === null ? pureOk(null) : lookup(command, cache, before))
     /** @type {(hit: boolean | null) => Effect<NodeOp, boolean | 'cached', IoChannel>} */
     const execute = hit => hit === true
         ? pureOk('cached')
         : run()
     const executed = historyStep(found, execute)
     const accepted = historyStep(executed, (outcome, hit, before) =>
-        outcome === true && hit !== null && before !== null ? stableManifests(command, cache, before) : pureOk([]))
+        outcome === true && hit !== null && before !== null
+            ? mapStep(validate(command, cache), valid => valid ? before : []) : pureOk([]))
     return mapStep(accepted, ([manifests, outcome]) => ({
         outcome: outcome === 'cached' ? 'cached' : outcome ? 'passed' : 'failed',
         manifests,

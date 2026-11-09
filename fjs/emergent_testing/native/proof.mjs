@@ -147,13 +147,13 @@ export const proof = /** @type {const} */ ({
             const result = invoke(root, [cli, 'cov', 'node'], selected)
             assert.equal(result.status, 0, result.output)
             assert.equal(result.output.includes('OUTSIDE_SCOPE'), false, result.output)
-            assert.ok(result.output.includes('--test-coverage-lines=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-branches=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-functions=100'), result.output)
-            assert.ok(result.output.includes('one.mjs'), result.output)
-            assert.ok(result.output.includes(`cwd: '${join(selected, 'a module').replaceAll('\\', '/')}'`), result.output)
-            assert.equal(result.output.split('command:').length - 1, 2, result.output)
-            assert.ok(result.output.indexOf('command:') < result.output.indexOf('FIRST_MODULE_PROOF'), result.output)
+            for (const target of ['a module/module.f.js', 'a module/demo.f.mjs', 'b/module.f.mjs']) {
+                assert.ok(result.output.includes(`${target}...Ok`), result.output)
+            }
+            assert.equal(result.output.includes('command:'), false, result.output)
+            const proofOutput = result.output.indexOf('FIRST_MODULE_PROOF')
+            assert.ok(proofOutput >= 0, result.output)
+            assert.ok(proofOutput < result.output.indexOf('a module/module.f.js...Ok'), result.output)
         })
     },
     coverageIsolation: () => {

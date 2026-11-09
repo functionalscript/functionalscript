@@ -105,8 +105,8 @@ export const _saveBatch = (cache, manifests) => {
 export const _showCached = (command, root, outcome) => outcome === 'cached'
     ? forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...Cached`)) : pureOk(undefined)
 
-/** A cache failure costs coverage work, never a skipped check. @type {(options: NodeProgramOptions, synchronize: boolean) => Effect<NodeOp, CoverageCache | null, IoChannel>} */
-const coverageCache = (options, synchronize) => resultStep(openCoverageCache(options, synchronize),
+/** Prepare shared inputs once; a cache failure costs coverage work, never a skipped check. @type {(options: NodeProgramOptions, synchronize: boolean, commands: readonly Command[]) => Effect<NodeOp, CoverageCache | null, IoChannel>} */
+const coverageCache = (options, synchronize, commands) => resultStep(openCoverageCache(options, synchronize, commands),
     /** @returns {Effect<NodeOp, CoverageCache | null, IoChannel>} */
     ([tag, value]) => tag === 'ok' ? pureOk(value)
         : mapStep(error(`UNCACHED: ${errorMessage(value)}`), () => null))
@@ -131,7 +131,7 @@ export const main = options => {
         mapStep(resolveFileModule(directory, null), ({ path }) => [...commands, {
             directory: path, files, args: _nodeArgs(packageRoot, files, id),
         }])))
-    const context = historyStep(history(commands), () => coverageCache(options, args.length === 2))
+    const context = historyStep(history(commands), commands => coverageCache(options, args.length === 2, commands))
     const results = step(context, ([cache, commands]) => {
         const root = cache?.root ?? packageRoot
         const completed = foldStep(pureOk(commands), { failed: 0, cached: 0, total: 0, manifests: /** @type {readonly Unknown[]} */ ([]) }, command => totals => {

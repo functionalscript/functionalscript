@@ -279,5 +279,32 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.deepEqual(sourceState(repo), before)
         assert.equal(git(repo, ['status', '--porcelain']), ' M b/proof.f.mjs')
     }),
+    earlierChildCannotReuseLaterTargetsOldSnapshot: () => withFixture(root => {
+        const repo = join(root, 'source')
+        initialize(repo, ['a', 'b'])
+        const original = coverage(join(repo, 'b'))
+        assert(original.includes('b/module.f.js...Ok'), original)
+        const before = git(repo, ['rev-parse', 'build-cache'])
+        // This host-dependent proof runs uncached. The graph for b has already
+        // been captured when a changes b's input, before b's old cache hit.
+        write(repo, 'a/proof.f.mjs', `
+import { writeFileSync } from 'node:fs';
+import { value } from './module.f.js';
+export const proof = { changesLaterInput: () => {
+    value();
+    writeFileSync(new URL('../b/helper.f.js', import.meta.url), 'export const helper = () => 2;\\n');
+} };
+`)
+        const changed = execute(repo, process.execPath, [cli, 'cov', 'node'])
+        assert.equal(changed.status, 0, changed.output)
+        assert(changed.output.includes('b/module.f.js...Ok'), changed.output)
+        assert(!changed.output.includes('...Cached'), changed.output)
+        assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)
+        assert.equal(git(repo, ['rev-parse', 'build-cache']), before)
+        const fresh = coverage(join(repo, 'b'))
+        assert(fresh.includes('b/module.f.js...Ok'), fresh)
+        assert.equal(entries(repo).length, 2)
+        assert(coverage(join(repo, 'b')).includes('b/module.f.js...Cached'))
+    }),
 
 }

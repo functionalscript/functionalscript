@@ -12,7 +12,10 @@ export type Command = {
 
 export type CoverageCache = {
     readonly root?: string
+    /** Extracts manifests from the graph captured when the cache opened. */
     readonly prepare: (command: Command) => Effect<NodeOp, readonly Unknown[], IoChannel>
+    /** Checks the captured bytes and resolutions without rebuilding the graph. */
+    readonly validate: (command: Command) => Effect<NodeOp, boolean, IoChannel>
     readonly has: (manifest: Unknown) => Effect<NodeOp, boolean, IoChannel>
     readonly saveMany: (manifests: readonly Unknown[]) => Effect<NodeOp, void, IoChannel>
     readonly sync: () => Effect<NodeOp, void, IoChannel>

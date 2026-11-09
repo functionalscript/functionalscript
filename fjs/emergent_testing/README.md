@@ -159,7 +159,12 @@ The manifest names its `module`, directory and sorted target inventory; its
 `files` object maps repository-relative paths to SHA-256/CBase32 hashes. The
 contract records actual Node/platform versions, relevant execution settings and
 hashes of the framework files discovered by Node's loader. JSON leaves and shared
-dependencies are included once; dependency cycles do not repeat files.
+dependencies are included once; dependency cycles do not repeat files. At startup,
+the runner probes Node once and builds one shared dependency graph for all selected
+directories. Graph construction reads, hashes and parses each source once, reusing
+shared imports and framework inputs. Each directory's manifest selects its
+reachable inputs from that snapshot. Loader fingerprints bind the framework inventory to the source
+bytes observed by the probe; changed framework inputs disable reuse.
 
 Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
@@ -179,9 +184,13 @@ the working directory and reproducible command. Cache hits launch no child and
 print only `module.f.js...Cached` for each target. The runner continues after
 failures and exits nonzero if any module failed.
 
-After a successful child, the command rebuilds its manifests and verifies that
-the inputs stayed unchanged. It collects those stable successes and saves them
-in one local batch after all modules finish, even when another module failed.
+Before a cache lookup and after a successful child, the runner verifies the
+snapshot's relevant bytes, authored sibling inventory, package scopes and module
+resolution identities, including the framework's original file import paths.
+These checks reuse the graph without parsing or hashing
+again. A changed input runs uncached and contributes no success for that snapshot.
+The command collects stable successes and saves them in one local batch after
+all modules finish, even when another module failed.
 Failed coverage contributes no manifest. An interrupted run cannot certify its
 unfinished coverage. Incomplete dependency parsing/resolution, unsupported
 preload settings, and cache errors are reported explicitly and leave the run
