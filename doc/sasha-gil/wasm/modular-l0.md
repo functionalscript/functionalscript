@@ -14,7 +14,7 @@ of one variant of each module.
 
 | Module | L0 functions | Kinds it owns | Depends on |
 | --- | --- | --- | --- |
-| Any | the constants, `kind`, `to_f64`, `from_f64`, `to_bool`, `from_bool`, `dup`, `drop`, `same` | `undefined`, `null`, boolean, number | none |
+| Any | the constants, `kind`, `to_f64`, `from_f64`, `to_bool`, `from_bool`, `dup`, `drop`, `same`; in template form also the import `free` (choice 7) | `undefined`, `null`, boolean, number | none |
 | String | `make_string`, `read_units`, `unit`, `from_unit`, `concat`, `substring`, `length`; in template form also `unpack` | string | Any |
 | BigInt | `make_bigint`, `sign`, `read_words`, `length` | bigint | Any |
 | Containers | `begin_array`, `begin_object`, `push`, `push_property`, `seal`, `length`, `item`, `key`, `find`, `join` | array, object | Any, String |
@@ -147,8 +147,14 @@ call the other way, from Any to a module when a value is freed, is a hook
   same hooks.
 - **Who wires the hooks:** the runtime, when it is assembled from its
   modules, fills a table of `release` hooks by kind tag. A hook is not an
-  L0 function: a program never calls it, and it appears in no manifest's
-  import list.
+  L0 function, and a program never calls one.
+- **An inlined `drop`.** In template form, `drop` runs inside the
+  program, and a fragment may call the runtime only through the
+  program's imports ([inline fragments, Rules](./inline-fragments.md#rules)).
+  So Any's manifest lists one import for its slow path, `free(v)`, which
+  the runtime implements by calling the hook for `v`'s kind. The inlined
+  `drop` decrements the count and, when it reaches zero, calls `free`.
+  The program imports `free` and no hook.
 - **Alternatives:**
   - Each module keeps its own counts and has its own `dup` and `drop`.
     The compiler knows a value's kind at most `drop`s, but not all, so
