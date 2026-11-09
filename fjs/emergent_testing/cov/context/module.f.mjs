@@ -7,7 +7,7 @@
  * @import { CoverageCache } from '../cached/types.ts'
  */
 
-import { catchStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pureOk, refuse, step } from '../../../effects/module.f.mjs'
 import { error, errorMessage, execFile, resolveFileModule } from '../../../effects/node/module.f.mjs'
 import { parse } from '../../../media/json/module.f.mjs'
 import { join } from '../../../path/module.f.js'
@@ -31,8 +31,10 @@ export const openCoverageCache = (options, synchronize) => {
     return mapStep(synchronized, ([sync, local]) => {
         /** @type {CoverageCache} */
         const cache = {
+            root: local.root,
             has: local.has,
-            save: local.save,
+            saveMany: manifests => foldStep(pureOk(manifests), undefined, manifest => () =>
+                catchStep(local.save(manifest), problem => error(`CACHE ${local.root}: saving manifest: ${errorMessage(problem)}`))),
             sync,
             prepare: command => {
                 const probed = history(execFile('node', [join(options.packageRoot, 'fjs/emergent_testing/cov/runtime.mjs')]))

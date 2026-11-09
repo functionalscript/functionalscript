@@ -1,7 +1,7 @@
 /**
  * Synchronizes the coverage success branch without checking out source files.
- * Each successful publication refreshes the local branch, so the next module
- * lookup can reuse manifests published by another job in the meantime.
+ * Initial fetches seed a new local cache; publication and importing concurrent
+ * writers' results are deferred until the caller finishes its coverage batch.
  * @module
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { NodeOp, NodeProgramOptions } from '../../../effects/node/types.ts'
@@ -58,7 +58,7 @@ export const openSync = (options, root) => {
         return step(fetched, () => git(root, ['update-ref', localRef, remoteRef]))
     }
     return step(local, ([present, known]) => present
-        ? mapStep(synchronize(), () => synchronize)
+        ? pureOk(synchronize)
         : known ? mapStep(git(root, ['update-ref', localRef, remoteRef]), () => synchronize)
             : pureOk(synchronize))
 }

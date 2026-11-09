@@ -22,10 +22,12 @@ cache. The additional `cov` job runs `npm start cov node`, checking each module
 directory's own proofs in a fresh Node coverage process with 100% line, branch
 and function thresholds. The command reuses exact successful dependency
 manifests from the local `build-cache` branch. Same-repository runs outside
-Dependabot pass `--sync`, recording and publishing each successful manifest
-immediately; forks and Dependabot keep local caching only. The existing combined
-suite retains proofs outside measured module directories and contributes no
-coverage to the isolated runs. SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+Dependabot pass `--sync`, saving successful manifests and publishing one batch
+after all modules finish; forks and Dependabot keep local batch recording only.
+The existing combined suite retains proofs outside measured module directories
+and contributes no coverage to the isolated runs. Each measured file prints `...Ok`, `...Cached`,
+or `...Failed`; native logs are shown only for failures. SpiderMonkey compilation
+and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
 compilation and combined coverage. It checks generic AST formation for every authored
 `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
@@ -118,7 +120,7 @@ writes the independent website workflow. The generic `fjs ci` command keeps
 its pull-request and merge-group triggers. Both generic and repository
 workflows include the `cov` job, assembled after the check-cache
 transformation. Generic workflows use local coverage caching; this repository
-also enables per-manifest synchronization on permitted CI runs.
+also enables end-of-run batch synchronization on permitted CI runs.
 
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and

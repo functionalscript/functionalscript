@@ -34,6 +34,7 @@ try {
 
 for (const url of [
     import.meta.url,
+    new URL('./native/module.mjs', import.meta.url),
     new URL('../one.mjs', import.meta.url),
     new URL('../../module.mjs', import.meta.url),
     new URL('../../module.f.mjs', import.meta.url),

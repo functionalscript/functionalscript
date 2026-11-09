@@ -120,7 +120,7 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
 | `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
 | `npm start cov node`                    | Node pin | no             | Isolated coverage with a local Git success cache. |
-| `npm start -- cov node --sync`         | Node pin | yes            | Synchronize each successful manifest with `origin/build-cache`. |
+| `npm start -- cov node --sync`         | Node pin | yes            | Publish the run's successful manifests as one batch. |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
@@ -170,18 +170,23 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Cache misses print their working directory and complete command; failures
-are reported while the remaining modules continue. Exact successful dependency
-manifests in the local `build-cache` branch produce `CACHED` results instead.
-Manifests include working-tree hashes of all sibling authored files and their
-transitive dependencies, plus the runner/runtime contract. Failed coverage or
-inputs changed during the run never record a success.
+Each target prints its repository-relative path followed by `...Ok`,
+`...Cached`, or `...Failed`. Successful native test logs are suppressed; failed
+runs retain the native log, working directory and complete command. Exact
+successful dependency manifests in the local `build-cache` branch skip the
+native child. Manifests include working-tree hashes of all sibling authored
+files and their transitive dependencies, plus the runner/runtime contract.
+After validating unchanged inputs, the command collects successful manifests
+and saves them in one batch when all modules finish. Another module's failure
+does not discard those successes; failed coverage contributes no manifest.
 
 Use `npm start -- cov node --sync` to fetch and publish `origin/build-cache`.
-The `--` forwards the synchronization flag through npm. Each new success is saved and synchronized immediately; later lookups can then
-reuse successes published by other jobs. Hits also retry pending publication.
-Without `--sync`, no remote access is needed. Unsupported dependency analysis
-or unavailable caching is reported and coverage runs uncached.
+The `--` forwards the synchronization flag through npm. The command fetches the
+remote baseline at startup and publishes one batch at the end, retrying
+concurrent updates and pending local successes. Modules and warm hits do not
+publish individually. Without `--sync`, recording is still batched locally and
+no remote access is needed. Unsupported dependency analysis or unavailable
+caching is reported and coverage runs uncached.
 
 To test only one directory without coverage or discovery below it, use the
 explicit native entry:

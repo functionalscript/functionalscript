@@ -29,8 +29,6 @@ const second = /** @type {const} */ ({ file: 'demo.f.mjs', hash: 'second' })
  *   readonly prepareErrors?: readonly number[],
  *   readonly lookupErrors?: readonly number[],
  *   readonly hits?: readonly boolean[],
- *   readonly saveErrors?: readonly number[],
- *   readonly syncErrors?: readonly number[],
  *   readonly passed?: boolean,
  *   readonly runError?: boolean,
  *   readonly disabled?: boolean,
@@ -55,11 +53,7 @@ const execute = (options = {}) => {
         access: path => state => {
             const next = { ...state, calls: [...state.calls, path] }
             if (path === 'run' && options.runError) { return [next, error(ioError({ message: 'run unavailable' }))] }
-            const save = state.calls.filter(call => call.startsWith('save ')).length + 1
-            if (path.startsWith('save ') && options.saveErrors?.includes(save)) { return [next, error(ioError({ message: 'save unavailable' }))] }
-            const sync = state.calls.filter(call => call === 'sync').length + 1
-            return [next, path === 'sync' && options.syncErrors?.includes(sync)
-                ? error(ioError({ message: 'sync unavailable' })) : ok(undefined)]
+            return [next, ok(undefined)]
         },
         write: (stream, bytes) => state => [{ ...state, output: [...state.output, [stream, utf8ToString(bytes)]] }, ok(undefined)],
     }
@@ -70,7 +64,7 @@ const execute = (options = {}) => {
             return mapStep(readdir('prepare', {}), entries => entries.map(({ name }) => assertOk(parse(name))))
         },
         has: manifest => mapStep(readdir(`has ${JSON.stringify(manifest)}`, {}), entries => entries.length !== 0),
-        save: manifest => access(`save ${JSON.stringify(manifest)}`),
+        saveMany: manifests => access(`save ${JSON.stringify(manifests)}`),
         sync: () => access('sync'),
     }
     /** @type {RunInstance<NodeOp, State>} */
@@ -86,52 +80,48 @@ export const proof = {
     nullCache: () => {
         for (const passed of [false, true]) {
             const [state, result] = execute({ disabled: true, passed })
-            assertEq(assertOk(result), passed ? 'passed' : 'failed')
+            assertStructurallySame(assertOk(result), { outcome: passed ? 'passed' : 'failed', manifests: [] })
             assertStructurallySame(state.calls, ['run'])
             assertEq(state.output.length, 0)
         }
     },
     exactHitsSkipChild: () => {
         const [state, result] = execute({ hits: [true, true] })
-        assertEq(assertOk(result), 'cached')
-        assertStructurallySame(state.calls, ['prepare', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`, 'sync'])
-        assertStructurallySame(state.output, [['stdout', 'CACHED /repo/unit\n']])
-        const [warned, cached] = execute({ hits: [true, true], syncErrors: [1] })
-        assertEq(assertOk(cached), 'cached')
-        assert(warned.output.some(([stream, text]) => stream === 'stderr' && text.includes('sync unavailable')))
+        assertStructurallySame(assertOk(result), { outcome: 'cached', manifests: [] })
+        assertStructurallySame(state.calls, ['prepare', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`])
+        assertStructurallySame(state.output, [])
     },
-    coldRecordsEachTargetBeforeNext: () => {
+    coldReturnsSuccessesWithoutWriting: () => {
         for (const hits of [[false, true], [true, false]]) {
             const [state, result] = execute({ hits })
-            assertEq(assertOk(result), 'passed')
+            assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [first, second] })
             assertStructurallySame(state.calls, [
                 'prepare', `has ${JSON.stringify(first)}`, `has ${JSON.stringify(second)}`, 'run', 'prepare',
-                `save ${JSON.stringify(first)}`, 'sync', `save ${JSON.stringify(second)}`, 'sync',
             ])
             assertEq(state.output.length, 0)
         }
     },
     failedChildRecordsNothing: () => {
         const [state, result] = execute({ passed: false })
-        assertEq(assertOk(result), 'failed')
+        assertStructurallySame(assertOk(result), { outcome: 'failed', manifests: [] })
         assertEq(state.calls.filter(call => call === 'prepare').length, 1)
         assertStructurallySame(writes(state.calls), [])
     },
     changedInputsRecordNothing: () => {
         const [state, result] = execute({ after: [first, { ...second, hash: 'changed' }] })
-        assertEq(assertOk(result), 'passed')
+        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
         assertStructurallySame(writes(state.calls), [])
         assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/unit: coverage inputs changed during the run\n']])
     },
     canonicalObjects: () => {
         const [state, result] = execute({ before: [{ a: 1, b: 2 }], after: [{ b: 2, a: 1 }] })
-        assertEq(assertOk(result), 'passed')
-        assertStructurallySame(writes(state.calls), ['save {"b":2,"a":1}', 'sync'])
+        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [{ b: 2, a: 1 }] })
+        assertStructurallySame(writes(state.calls), [])
     },
     cacheReadFailuresRunWithoutRecording: () => {
         for (const options of [{ prepareErrors: [1] }, { lookupErrors: [1] }, { lookupErrors: [2] }]) {
             const [state, result] = execute(options)
-            assertEq(assertOk(result), 'passed')
+            assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
             assert(state.calls.includes('run'))
             assertEq(state.calls.filter(call => call === 'prepare').length, 1)
             assertStructurallySame(writes(state.calls), [])
@@ -140,19 +130,9 @@ export const proof = {
     },
     postRunPreparationFailure: () => {
         const [state, result] = execute({ prepareErrors: [2] })
-        assertEq(assertOk(result), 'passed')
+        assertStructurallySame(assertOk(result), { outcome: 'passed', manifests: [] })
         assertStructurallySame(writes(state.calls), [])
         assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes('preparation unavailable')))
-    },
-    cacheWriteFailuresRemainVisibleAndContinue: () => {
-        const [state, result] = execute({ saveErrors: [1], syncErrors: [1, 2] })
-        assertEq(assertOk(result), 'passed')
-        assertStructurallySame(writes(state.calls), [
-            `save ${JSON.stringify(first)}`, 'sync', `save ${JSON.stringify(second)}`, 'sync',
-        ])
-        assertEq(state.output.filter(([stream]) => stream === 'stderr').length, 3)
-        assert(state.output.some(([, text]) => text.includes('save unavailable')))
-        assert(state.output.some(([, text]) => text.includes('sync unavailable')))
     },
     runErrorsPropagate: () => {
         for (const disabled of [false, true]) {

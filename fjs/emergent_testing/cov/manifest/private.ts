@@ -1,4 +1,4 @@
-/** State of one dependency traversal. */
+/** State of one dependency traversal. @module */
 
 import type { StringMap } from '../../../types/object/types.ts'
 

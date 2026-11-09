@@ -64,17 +64,24 @@ Cache-only admission refuses dynamic `import`, `import.meta`, `require`,
 through ordinary coverage without cache reuse; no language semantics change.
 
 A directory's coverage process is skipped only when every measured target has
-an exact local success. A miss runs the isolated check; successful coverage
-rebuilds and compares inputs before recording each target. Failed/interrupted
-coverage records nothing. Incomplete dependency analysis, unsupported preload
-settings and cache failures are reported and run uncached.
+an exact local success. A miss runs the isolated check; after successful
+coverage, manifests are rebuilt and compared against the original inputs.
+Stable successes are collected and saved as one local batch after all modules
+finish. Failed coverage contributes no manifest, while other modules' successes
+are retained. Incomplete dependency analysis, unsupported preload settings and
+cache failures are reported and run uncached.
 
 With `npm start -- cov node --sync`, the command fetches the remote baseline
-and publishes each manifest immediately after saving it. Concurrent additions
-are fetched and replayed on top of the latest remote parent using normal push
-retries. After publication the local branch is refreshed, so later module lookups can reuse
-another job's successes. Cache hits also retry pending publication. Without the
-flag, only the local branch is read or updated. The source checkout is untouched.
+at startup and publishes once after module processing and batch recording.
+Modules and cache hits do not synchronize individually. The final publication
+also retries pending local successes. Concurrent additions are fetched and
+replayed on top of the latest remote parent using normal push retries. The
+local branch is then refreshed for subsequent runs. Without the flag, only the
+local branch is read or updated. The source checkout is untouched.
+
+Per-target output is concise: a repository-relative filename followed by
+`...Ok`, `...Cached`, or `...Failed`. Native child output is captured in a
+temporary file and replayed only on failure, with the command and directory.
 
 The repository's additional `cov` job supplies the bot's author/committer
 identity and enables `--sync` only for same-repository runs outside Dependabot.

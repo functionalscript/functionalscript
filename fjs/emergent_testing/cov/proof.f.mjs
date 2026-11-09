@@ -4,10 +4,11 @@
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
+ * @import { CoverageCache } from './cached/types.ts'
  */
 
-import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError } from '../../effects/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { ioError, pureError, pureOk } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
@@ -15,7 +16,7 @@ import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { _commandLine, _coverageFailures, _modules, _nodeArgs, isCoverageTarget, main } from './module.f.mjs'
+import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, _showCached, isCoverageTarget, main } from './module.f.mjs'
 
 /** @type {IoResult<ExitStatus>} */
 const passed = ok(['exited', 0])
@@ -56,8 +57,9 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             : error(['notImplemented', 'execFile'])],
         resolveFileModule: (name, parent) => state => {
             assertEq(parent, null)
-            if (cacheAvailable && name !== normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs'))) {
-                return [state, ok({ id: `file:///repo/${name}`, path: `/repo/${name}` })]
+            if (name !== normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs'))) {
+                const path = cacheAvailable ? name.startsWith('/') ? name : `/repo/${name}` : name
+                return [state, ok({ id: `file://${path}`, path })]
             }
             assertEq(name, normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs')))
             return [state, reporter === null ? error(ioError({ message: 'reporter unavailable' })) : ok({ id: reporter, path: name })]
@@ -74,7 +76,12 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             return [{ ...state, commands: [...state.commands, [command, args, options.cwd]] },
                 spawnFails ? error(ioError({ message: 'spawn unavailable' })) : ok(child)]
         },
-        childWait: () => state => [state, assertNotNullish(outcomes[state.commands.length - 1])],
+        childWait: () => state => {
+            const result = assertNotNullish(outcomes[state.commands.length - 1])
+            const output = result[0] === 'ok' && result[1][0] === 'exited'
+                ? [...state.output, /** @type {const} */ (['stdout', result[1][1] === 0 ? 'Ok\n' : 'Failed\n'])] : state.output
+            return [{ ...state, output }, result]
+        },
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
             writeFails ? error(['notImplemented', 'write']) : ok(undefined),
@@ -133,11 +140,12 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute([passed, passed])
         assertEq(exitCode(result), 0)
         assertStructurallySame(state.commands, [
-            ['node', _nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs'], reporterUrl), 'a'],
-            ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
+            ['node', ['/package root/fjs/emergent_testing/cov/native/module.mjs', ..._nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs'], reporterUrl)], 'a'],
+            ['node', ['/package root/fjs/emergent_testing/cov/native/module.mjs', ..._nodeArgs('/package root', ['module.f.js'], reporterUrl)], 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
-        assert(output.indexOf('cwd:') < output.indexOf('PASS a'))
+        assert(output.includes('a/demo.f.mjs...Ok\na/module.f.mjs...Ok\nz/module.f.js...Ok\n'))
+        assert(!output.includes('cwd:') && !output.includes('command:'))
         assert(output.includes('Coverage: 2 passed, 0 failed, 2 total'))
     },
     subtree: () => {
@@ -145,6 +153,12 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 0)
         assertEq(state.commands.length, 1)
         assertEq(state.commands[0]?.[2], 'a')
+    },
+    rootDirectory: () => {
+        const [state, result] = execute([passed], {}, { '.': [['module.f.js', false]] })
+        assertEq(exitCode(result), 0)
+        assertEq(state.commands[0]?.[2], '.')
+        assert(state.output.map(([, text]) => text).join('').includes('module.f.js...Ok'))
     },
     cacheFallbackAndSyncOption: () => {
         const [state, result] = execute([passed, passed], {}, tree, false, false, reporterUrl, true)
@@ -159,8 +173,8 @@ export const proof = /** @type {const} */ ({
             const [state, result] = execute([outcome, passed])
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 2)
-            assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes('FAIL a:')))
-            assert(state.output.some(([, text]) => text.includes('PASS z')))
+            assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes("cwd: 'a'")))
+            assert(state.output.map(([, text]) => text).join('').includes('z/module.f.js...Ok'))
         }
         const [state, result] = execute([], {}, tree, true)
         assertEq(exitCode(result), 1)
@@ -202,5 +216,39 @@ export const proof = /** @type {const} */ ({
         ]) {
             assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [file]), ['Incomplete coverage: /a/module.f.mjs'])
         }
+    },
+    moduleNamesAndCachedOutput: () => {
+        const command = { directory: '/repo/fjs/example', files: ['module.f.js', 'demo.f.mjs'] }
+        assertStructurallySame(_modulePaths(command, '/repo'), ['fjs/example/module.f.js', 'fjs/example/demo.f.mjs'])
+        assertStructurallySame(_modulePaths({ directory: '/repo', files: ['module.f.js'] }, '/repo'), ['module.f.js'])
+        assertStructurallySame(_modulePaths(command, '/'), ['repo/fjs/example/module.f.js', 'repo/fjs/example/demo.f.mjs'])
+        assertStructurallySame(_modulePaths(command, '/other'), ['/repo/fjs/example/module.f.js', '/repo/fjs/example/demo.f.mjs'])
+        /** @type {PartialMemOperationMap<NodeOp, string>} */
+        const operations = { write: (_, bytes) => state => [state + utf8ToString(bytes), ok(undefined)] }
+        const run = partialRun(nodeCommands)(operations)
+        const [output, result] = run('')(_showCached(command, '/repo', 'cached'))
+        assertOk(result)
+        assertEq(output, 'fjs/example/module.f.js...Cached\nfjs/example/demo.f.mjs...Cached\n')
+        assertEq(run('')(_showCached(command, '/repo', 'passed'))[0], '')
+    },
+    batchPublication: () => {
+        /** @type {PartialMemOperationMap<NodeOp, string>} */
+        const operations = { write: (_, bytes) => state => [state + utf8ToString(bytes), ok(undefined)] }
+        const run = partialRun(nodeCommands)(operations)
+        for (const failSave of [false, true]) {
+            for (const failSync of [false, true]) {
+                /** @type {CoverageCache} */
+                const cache = {
+                    prepare: () => pureOk([]), has: () => pureOk(false),
+                    saveMany: () => failSave ? pureError(ioError({ message: 'save unavailable' })) : pureOk(undefined),
+                    sync: () => failSync ? pureError(ioError({ message: 'sync unavailable' })) : pureOk(undefined),
+                }
+                const [output, result] = run('')(_saveBatch(cache, []))
+                assertOk(result)
+                assertEq(output.includes('saving manifests:'), failSave)
+                assertEq(output.includes('synchronizing manifests:'), failSync)
+            }
+        }
+        assertOk(run('')(_saveBatch(null, []))[1])
     },
 })

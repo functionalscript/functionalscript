@@ -104,10 +104,11 @@ export const proof = {
         assertStructurallySame(first.files, second.files)
         const [, miss] = virtual(prepared)(cache.has(first))
         assertEq(assertOk(miss), false)
-        const [saved, stored] = virtual(prepared)(cache.save(first))
+        const [saved, stored] = virtual(prepared)(cache.saveMany(manifests))
         assertOk(stored)
         const [, hit] = virtual(saved)(cache.has(first))
         assertEq(assertOk(hit), true)
+        assertEq(assertOk(virtual(saved)(cache.has(second))[1]), true)
         assertOk(virtual(saved)(cache.sync())[1])
         assert(!prepared.stdout.includes('ls-remote'))
     },
@@ -128,7 +129,7 @@ export const proof = {
         assert(state.stderr.includes('CACHE /repo: initializing synchronization: remote unavailable'))
         const [prepared, manifests] = unavailable(state)(cache.prepare(command))
         const [first] = assertOk(manifests)
-        const [saved, recorded] = virtual(prepared)(cache.save(first))
+        const [saved, recorded] = virtual(prepared)(cache.saveMany([first]))
         assertOk(recorded)
         assertEq(assertOk(virtual(saved)(cache.has(first))[1]), true)
         assertError(unavailable(saved)(cache.sync())[1])
@@ -137,6 +138,24 @@ export const proof = {
         assertOk(retried)
         assert(synchronized.stdout.includes('fetch'))
         assertEq(assertOk(virtual(synchronized)(cache.has(first))[1]), true)
+    },
+    failedBatchEntryDoesNotDiscardLaterSuccess: () => {
+        const run = partialRun(nodeCommands)({
+            ...operations(),
+            now: () => state => [{ ...state, epochNs: state.epochNs + 1 }, state.epochNs === 0
+                ? error(/** @type {const} */ (['notImplemented', 'now'])) : ok(1)],
+        })
+        const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false))
+        const cache = assertOk(opened)
+        const [prepared, result] = run(state)(cache.prepare(command))
+        const manifests = assertOk(result)
+        const [first, second] = manifests
+        const [saved, stored] = run(prepared)(cache.saveMany(manifests))
+        assertOk(stored)
+        assert(saved.stderr.includes('now'))
+        assertEq(assertOk(virtual(saved)(cache.has(first))[1]), false)
+        assertEq(assertOk(virtual(saved)(cache.has(second))[1]), true)
+        assert(!saved.stdout.includes('push'))
     },
     runtimeFailures: () => {
         for (const [output, fails] of /** @type {const} */ ([['not JSON', false], ['', true]])) {

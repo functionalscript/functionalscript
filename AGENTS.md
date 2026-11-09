@@ -315,9 +315,9 @@ The generator in `fjs/ci` owns the committed workflows; run `./dev.sh npm run ge
 after changing its sources or inputs. All ten jobs use mise, across Linux,
 macOS and Windows on x64 and ARM64. Each native or runtime check remains a
 separate workflow step. The additional `cov` job caches isolated Node coverage
-by dependency manifest and synchronizes successful manifests when permitted;
-`node26` retains its combined coverage check and cache. The packed-package
-consumer uses a clean temporary directory and
+by dependency manifest and synchronizes successful manifests in one batch at
+the end of a run when permitted; `node26` retains its combined coverage check
+and cache. The packed-package consumer uses a clean temporary directory and
 `setup-node` outside the repository environment.
 
 `fjs ci` requires the caller's committed mise manifest and lock. It writes only

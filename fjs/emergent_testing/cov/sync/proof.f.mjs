@@ -78,10 +78,10 @@ export const proof = {
         assertEq(result[0], 'ok')
         assertStructurallySame(calls, [list, fetch, exists, update])
     },
-    existingBranchImportsOtherWriters: () => {
-        const [calls, result] = execute([done, done, done, done, done, done, done, done])
+    existingBranchDefersPublication: () => {
+        const [calls, result] = execute([done, done, done])
         assertEq(result[0], 'ok')
-        assertStructurallySame(calls, [list, fetch, exists, ...inspect, fetch, update])
+        assertStructurallySame(calls, [list, fetch, exists])
     },
     firstSuccessPublishes: () => {
         const [calls, result] = execute([
@@ -98,7 +98,7 @@ export const proof = {
             fetch, update,
         ])
     },
-    eachSuccessRefreshesLocalView: () => {
+    finalPublicationRefreshesLocalView: () => {
         const [calls, result] = execute([
             done, done, absent, done,
             done, done, absent, done, absent,
@@ -116,7 +116,6 @@ export const proof = {
             [done, invalid],
             [done, done, invalid],
             [done, done, absent, invalid],
-            [done, done, done, invalid],
         ]) {
             const [, result] = execute(outcomes)
             assertEq(result[0], 'error')
@@ -132,6 +131,7 @@ export const proof = {
     },
     synchronizationErrors: () => {
         for (const outcomes of [
+            [done, done, done, invalid],
             [done, done, absent, done, invalid],
             [done, done, absent, done, done, done, done, invalid],
             [done, done, absent, done, done, done, done, done, invalid],

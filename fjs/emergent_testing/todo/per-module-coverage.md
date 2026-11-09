@@ -78,31 +78,18 @@ scheduling is separate work if measurements justify it.
 
 #### Reporting
 
-**Print each command before executing it by default.** Show the working
-directory, the executable and every argument, including the entry path,
-coverage filters and thresholds. Quote paths and arguments unambiguously so a
-reader can reproduce the invocation. Execute with a structured argument
-vector, without a shell; the displayed command is a rendering of that
-invocation, not shell code the runner evaluates.
+Default output is one concise progress line per measured target, using its
+repository-relative path followed by `...Ok`, `...Cached`, or `...Failed`.
+Passing children do not print native test counts, coverage tables or commands.
+Capture each native child's stdout and stderr in one temporary file and replay
+that complete log only when the child fails. Failure diagnostics also identify
+the working directory and full, unambiguously quoted command. Execute the child
+with a structured argument vector, without a shell.
 
-`fjs cov node` accepts mutually exclusive `--quiet` and `--verbose` flags.
-With npm, use `--` to forward options, for example
-`npm start -- cov node --verbose`. Reject a request that supplies both flags.
-
-- **Default:** print each command before launch, including successful runs,
-  then each module's result and per-file coverage, and a final summary.
-  Retain failure diagnostics and uncovered locations while suppressing the
-  native runner's routine passing-test output.
-- **`--quiet`:** suppress successful module results and routine command
-  logging. Print failures and the final summary; every failure still names
-  its working directory and complete command, with diagnostics and uncovered
-  locations where available.
-- **`--verbose`:** print each command before launch and retain the full native
-  test and coverage output, including passing tests, as well as module results
-  and the final summary.
-
-These flags change presentation only: discovery, proof execution, coverage
-requirements and exit status are identical in every mode.
+The command currently accepts `--sync` for end-of-run cache publication.
+`--quiet` and `--verbose` remain future reporting work, not implemented flags.
+Any future verbosity controls must preserve proof selection, strict coverage
+requirements and exit status.
 
 #### Coverage contract
 
@@ -148,12 +135,11 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Default and verbose output name the working directory and complete command
-  before each launch, with spaces in paths and arguments represented
-  unambiguously. Quiet output suppresses routine commands but retains the
-  working directory and command for every failure.
-- Quiet and verbose modes change output only; supplying both flags is an
-  error.
+- Every measured target prints its repository-relative path and concise result.
+  Passing native logs are suppressed; failures retain the native output, working
+  directory and complete command, with paths and arguments quoted unambiguously.
+- Future verbosity controls change presentation only; they must not change
+  discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
 - The ordinary FJS suite retains proofs outside measured module directories.
@@ -162,9 +148,10 @@ when a required metric is unavailable.
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
 - [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, command logging and module results.
-- [ ] Add quiet/verbose modes and per-file output for passing targets; the
-      first implementation uses command logging and native quiet summaries.
+      validation, failure diagnostics and module results.
+- [x] Add concise per-file status and retain complete native logs for failures.
+- [ ] Add explicit quiet/verbose controls, retaining the concise default and
+      full failure diagnostics; neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [ ] Fix the exposed gaps in modules' own proofs or implementations.

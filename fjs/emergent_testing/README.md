@@ -170,21 +170,29 @@ dynamic `import`, `import.meta`, `require`, `eval`/`Function`, and explicit
 host-global references. Such sources still run coverage normally, without
 reusing an incomplete static graph.
 
-A directory is `CACHED` only when every measured target has an exact success.
-On a miss, its working directory and complete command are printed before launch.
-The runner continues after failures and exits nonzero if any module failed.
+A directory is cached only when every measured target has an exact success.
+Each target prints one repository-relative progress line: `module.f.js...Ok`,
+`module.f.js...Cached`, or `module.f.js...Failed`. The native child's stdout and
+stderr are captured together in a temporary file. Passing test counts and
+coverage tables are suppressed; a failed child replays its complete log along
+with the working directory and reproducible command. The runner continues after
+failures and exits nonzero if any module failed.
 
-Successful coverage is recorded only after rebuilding the manifests and checking
-that the inputs stayed unchanged. Failed or interrupted coverage saves nothing.
-Incomplete dependency parsing/resolution, unsupported preload settings, and
-cache errors are reported explicitly and leave the run uncached.
+After a successful child, the command rebuilds its manifests and verifies that
+the inputs stayed unchanged. It collects those stable successes and saves them
+in one local batch after all modules finish, even when another module failed.
+Failed coverage contributes no manifest. An interrupted run cannot certify its
+unfinished coverage. Incomplete dependency parsing/resolution, unsupported
+preload settings, and cache errors are reported explicitly and leave the run
+uncached.
 
-`npm start -- cov node --sync` also fetches and publishes `origin/build-cache`.
-Each successful manifest is saved and synchronized before the next manifest;
-concurrent additions are replayed onto the latest remote parent and the local
-branch is refreshed. Later module lookups can reuse other jobs' successes.
-Warm hits retry pending publication. The command preserves the source checkout
-and uses normal pushes, never force pushes. Without `--sync`, caching is local.
+`npm start -- cov node --sync` also fetches `origin/build-cache` at startup and
+publishes one batch after module processing and local recording finish. No
+module or cache hit triggers a publication during the run. The final sync also
+retries unpublished local successes. Concurrent additions are replayed onto the
+latest remote parent using normal push retries, then the local branch is
+refreshed for subsequent runs. The command preserves the source checkout and
+never force pushes. Without `--sync`, recording is still batched locally.
 
 CI's additional `cov` job invokes this isolated runner from the repository root,
 with `--sync` only for permitted same-repository runs outside Dependabot. The

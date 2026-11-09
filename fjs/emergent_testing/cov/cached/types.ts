@@ -11,10 +11,17 @@ export type Command = {
 }
 
 export type CoverageCache = {
+    readonly root?: string
     readonly prepare: (command: Command) => Effect<NodeOp, readonly Unknown[], IoChannel>
     readonly has: (manifest: Unknown) => Effect<NodeOp, boolean, IoChannel>
-    readonly save: (manifest: Unknown) => Effect<NodeOp, void, IoChannel>
+    readonly saveMany: (manifests: readonly Unknown[]) => Effect<NodeOp, void, IoChannel>
     readonly sync: () => Effect<NodeOp, void, IoChannel>
 }
 
 export type Outcome = 'passed' | 'failed' | 'cached'
+
+/** Successful inputs are returned to the caller for one end-of-run batch. */
+export type RunResult = {
+    readonly outcome: Outcome
+    readonly manifests: readonly Unknown[]
+}
