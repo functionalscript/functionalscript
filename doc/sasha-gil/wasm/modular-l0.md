@@ -239,7 +239,15 @@ The IR's tables ([IR choice 4](./ir-design.md#4-every-operation-comes-from-a-tab
 follow the modules. The `l0` table holds the import-form rows of every
 module, each named with its module, so `l0.string.length` and
 `l0.containers.length` are two rows. The `str` table holds String's
-template-form rows. If BigInt gets a template form too, it follows `str`:
+template-form rows.
+
+A program in the IR uses the `str` rows whatever form String is in, so
+the IR stays the same. The emitter spells them by String's form. In
+template form, it inlines the module's templates. In import form, a `str`
+local is the source `any` local itself, `str.unpack` emits nothing,
+`str.length` is a call of `fjs:l0/string`'s `length`, and `str.at` is a
+call of its `unit`. This is IR choice 13's rule for a module with no
+slots, with calls in place of templates. If BigInt gets a template form too, it follows `str`:
 the module declares a type and its rows, and the IR names them
 ([IR, least sure](./ir-design.md#where-this-draft-is-least-sure)).
 
