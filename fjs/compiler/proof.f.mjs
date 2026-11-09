@@ -324,6 +324,7 @@ const roundTripCorpus = [
 
 export const proof = {
     stringifyTree: () => {
+        assertEq(_stringifyTree([null, true, false, 'text', 0, 42n]), '[null,true,false,"text",0,42n]')
         // The proof dump retains undefined leaves and own members while
         // sorting object keys independently of their insertion order.
         assertEq(_stringifyTree(undefined), 'undefined')

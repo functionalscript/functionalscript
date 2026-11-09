@@ -57,10 +57,11 @@ Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
 `readonly Type[]`. The other reading would make `new Array(1)` and `[]` the
 same schema while `[undefined]` stayed different from both.
 
-A tuple schema's **non-index** properties are no positions either:
-`Object.assign([number], { foo: string })` declares one position and nothing
-named `foo`. On the *value* side such a key is an undeclared member like any
-other, so a bare schema rejects it. How the readers walk a tuple schema is in
+Array schemas and DataJS values follow FunctionalScript's container rules:
+arrays carry positions, without named own properties. A foreign value is
+converted before reaching a reader
+([what the readers assume](../../readers/assumptions/README.md)).
+How the readers walk a tuple schema is in
 [`common`'s README](../../../common/README.md#reading-a-tuple-schema).
 
 ## `Ts<>` renders the closed form exactly

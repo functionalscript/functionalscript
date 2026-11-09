@@ -7,11 +7,13 @@
 
 import {
     constContainerRead,
+    admitsAbsence,
     containerRead,
     declaredTest,
     eachEntry,
     isArray,
     isObject,
+    hasUndeclaredMember,
     noAccumulate,
     noDeclared,
     readerOf,
@@ -21,7 +23,7 @@ import {
     undeclaredMembers,
     verror,
 } from './module.f.mjs'
-import { array, number, option, or, record, rest } from '../module.f.mjs'
+import { array, number, option, or, record, rest, unknown } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -71,6 +73,17 @@ const structRead = constContainerRead(listing)(isObject, structSchemaEntries, st
 const restStructRead = restContainerRead(listing)(isObject, structSchemaEntries, structItem, collected)
 
 export const proof = {
+    absenceSchemas: () => {
+        /** @type {import('../types.ts').Type} */
+        const recursive = () => ['or', recursive, option]
+        assert(admitsAbsence(recursive))
+        assert(!admitsAbsence(or(1, number)))
+    },
+    arrayMembers: () => {
+        assert(hasUndeclaredMember(declaredTest([]), [1]))
+        assert(!hasUndeclaredMember(declaredTest(['0']), [1]))
+        assert(!hasUndeclaredMember(declaredTest([]), []))
+    },
     empty: () => {
         const r = eachEntry([], item, [], collect)
         assert(r[0] === 'ok')
@@ -250,6 +263,12 @@ export const proof = {
         const read = readerOf(
             { empty: undefined, cons: noAccumulate },
             { array: tagged('array'), record: tagged('record'), tuple: tagged('tuple'), struct: tagged('struct') })
+        const constant = () => /** @type {const} */ (['const', 3])
+        assertEq(assertOk(read(3)(3)), 3)
+        assertErrorPath([])(read(3)(4))
+        assertEq(assertOk(read(constant)(3)), 3)
+        assertEq(assertOk(read(unknown)(null)), null)
+        assertErrorPath([])(read(option)(undefined))
         assertStructurallySame(assertOk(read(array(number))([1])), ['array', [1]])
         assertStructurallySame(assertOk(read(record(number))({ a: 1 })), ['record', { a: 1 }])
         assertStructurallySame(assertOk(read([number])([1])), ['tuple', [1]])

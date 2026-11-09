@@ -7,7 +7,7 @@
 import {
     attemptStep, catchStep, compensateStep, do_, finallyStep, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
-    runPure, step, toIoError, unwrapStep, commandsOf,
+    runPure, step, toIoError, unwrapStep, commandsOf, errorMessage, ioError, notImplemented,
 } from './module.f.mjs'
 import { run as mockRun } from './mock/module.f.mjs'
 import { error, ok } from '../types/result/module.f.js'
@@ -176,6 +176,13 @@ const checked = v => {
 const show = e => `${e}`
 
 export const proof = {
+    channelErrors: () => {
+        assertEq(errorMessage(ioError({ message: 'disk full', code: 'ENOSPC' })), 'disk full')
+        const missing = notImplemented('readFile')
+        assertEq(missing[0], 'notImplemented')
+        assertEq(missing[1], 'readFile')
+        assertEq(errorMessage(missing), 'operation not implemented: readFile')
+    },
     // The one boundary where a runner's `catch` becomes effect data: whatever
     // was thrown is reduced to a code (when the host attached a string one)
     // and a message.

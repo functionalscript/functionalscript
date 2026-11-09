@@ -227,8 +227,8 @@ const readIndices = value => {
  *
  * `declared` tests membership in a container schema's own keys, so for a
  * struct these are its undeclared own keys, and for a tuple they are the
- * positions past the prefix together with every own key that is no position
- * at all.
+ * positions past the prefix. The readers' DataJS input domain gives arrays
+ * only positional members.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every own index below it is a member the `rest`
@@ -285,6 +285,8 @@ export const undeclaredMembers = (declared, value) => {
  * 0.5s here against a same-shaped value, for a question that is O(1) a key.
  *
  * `undeclaredMembers` stays for the `rest` readers, which need the pairs.
+ * DataJS arrays have only positional members, so their index walk settles
+ * the question without a separate search for named array properties.
  *
  * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
  */
@@ -295,7 +297,6 @@ export const hasUndeclaredMember = (declared, value) => {
         return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
-        || Object.keys(value).some(k => arrayIndex(k) === null && undeclared(k))
 }
 
 /**

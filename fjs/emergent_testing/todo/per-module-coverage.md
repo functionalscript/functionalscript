@@ -156,7 +156,7 @@ when a required metric is unavailable.
       full failure diagnostics; neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
-- [ ] Fix the exposed gaps in modules' own proofs or implementations.
+- [x] Fix the exposed gaps in modules' own proofs or implementations.
 - [x] Add a CI job invoking `npm start cov node` without changing the existing
       jobs; update contributor and runner documentation.
 - [ ] Make `npm run cov` delegate to the isolated runner, retaining the full

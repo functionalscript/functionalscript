@@ -389,17 +389,6 @@ export const proof = {
             assertOk(validate(new Array(1))([undefined]))
             assertError(validate(new Array(1))([1]))
         },
-        // A tuple schema is read by index, so `foo` declares no position — it
-        // is not matched against anything, and on the value side it is an
-        // undeclared member like any other, which the closed form rejects and
-        // `open` admits.
-        nonIndexPropertyIsNotDeclared: () => {
-            const schema = Object.assign([number], { foo: string })
-            assertOk(validate(schema)([1]))
-            assertError(validate(schema)(Object.assign([1], { foo: 'x' })))
-            assertOk(validate(open(schema))(Object.assign([1], { foo: 'x' })))
-            assertError(validate(schema)(['x']))
-        },
     },
     boolean: {
         ok: () => {
