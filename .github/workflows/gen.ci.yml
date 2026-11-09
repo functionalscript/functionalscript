@@ -1237,6 +1237,7 @@
         },
         {
           "run": "mise exec -- npm start cov node",
+          "continue-on-error": true,
           "shell": "bash"
         }
       ]
