@@ -79,9 +79,11 @@ replayed on top of the latest remote parent using normal push retries. The
 local branch is then refreshed for subsequent runs. Without the flag, only the
 local branch is read or updated. The source checkout is untouched.
 
-Per-target output is concise: a repository-relative filename followed by
-`...Ok`, `...Cached`, or `...Failed`. Native child output is captured in a
-temporary file and replayed only on failure, with the command and directory.
+Native children inherit stdout and stderr for live reporter output, retaining
+the existing quiet Node reporter's filtering. After a child finishes, each
+target prints its repository-relative filename followed by `...Ok` or
+`...Failed`. Failures also identify the command and directory. Cache hits launch
+no child and print only `...Cached` for each target.
 
 The repository's additional `cov` job supplies the bot's author/committer
 identity and enables `--sync` only for same-repository runs outside Dependabot.

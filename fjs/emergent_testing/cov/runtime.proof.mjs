@@ -49,7 +49,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             'fjs/emergent_testing/one.mjs', 'fjs/emergent_testing/module.f.mjs',
             'fjs/emergent_testing/cov/reporter.mjs', 'fjs/emergent_testing/cov/module.f.mjs',
             'fjs/emergent_testing/cov/runtime.mjs', 'fjs/cli/module.f.mjs',
-            'fjs/emergent_testing/cov/native/module.mjs',
         ]) {
             assert(root in files, `Missing framework input: ${root}`)
         }
@@ -68,7 +67,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             copyFileSync(runtimePath, script)
             write(root, 'fjs/effects/node/module.mjs', 'export const adapter = true\n')
             write(root, 'fjs/emergent_testing/cov/reporter.mjs', "import '../../dependency.mjs'\n")
-            write(root, 'fjs/emergent_testing/cov/native/module.mjs', 'throw new Error("Coverage wrapper imported")\n')
             write(root, 'fjs/emergent_testing/module.f.mjs', 'export const registerOne = () => undefined\n')
             write(root, 'fjs/cli/module.f.mjs', 'export const dispatch = () => undefined\n')
             // These entries must only be hashed: importing any would execute it.

@@ -170,11 +170,12 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Each target prints its repository-relative path followed by `...Ok`,
-`...Cached`, or `...Failed`. Successful native test logs are suppressed; failed
-runs retain the native log, working directory and complete command. Exact
-successful dependency manifests in the local `build-cache` branch skip the
-native child. Manifests include working-tree hashes of all sibling authored
+Native children inherit stdout and stderr, so their reporter output appears
+live. After a child finishes, each target prints its repository-relative path
+followed by `...Ok` or `...Failed`; failures also identify the working directory
+and complete command. Exact successful dependency manifests in the local
+`build-cache` branch skip the native child and print only `...Cached` for each
+target. Manifests include working-tree hashes of all sibling authored
 files and their transitive dependencies, plus the runner/runtime contract.
 After validating unchanged inputs, the command collects successful manifests
 and saves them in one batch when all modules finish. Another module's failure
@@ -214,7 +215,7 @@ Node's `spec` reporter with the passed tests and the fully covered files
 filtered out, so a green run prints its summary — the test counts and the
 `all files` coverage row — and a red one prints each failure and each file
 under a threshold. The isolated coverage runner uses the same quiet native
-reporting behind its command log and module results.
+reporting live, followed by module results and failure diagnostics.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

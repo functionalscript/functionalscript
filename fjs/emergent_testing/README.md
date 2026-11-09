@@ -171,11 +171,12 @@ host-global references. Such sources still run coverage normally, without
 reusing an incomplete static graph.
 
 A directory is cached only when every measured target has an exact success.
-Each target prints one repository-relative progress line: `module.f.js...Ok`,
-`module.f.js...Cached`, or `module.f.js...Failed`. The native child's stdout and
-stderr are captured together in a temporary file. Passing test counts and
-coverage tables are suppressed; a failed child replays its complete log along
-with the working directory and reproducible command. The runner continues after
+Native children inherit stdout and stderr, so their reporter output appears
+live. The existing quiet Node reporter filters passed tests and fully covered
+files. After a child finishes, each target prints a complete repository-relative
+result line: `module.f.js...Ok` or `module.f.js...Failed`. Failures also identify
+the working directory and reproducible command. Cache hits launch no child and
+print only `module.f.js...Cached` for each target. The runner continues after
 failures and exits nonzero if any module failed.
 
 After a successful child, the command rebuilds its manifests and verifies that

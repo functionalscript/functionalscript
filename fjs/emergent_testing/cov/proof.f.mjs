@@ -76,12 +76,7 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             return [{ ...state, commands: [...state.commands, [command, args, options.cwd]] },
                 spawnFails ? error(ioError({ message: 'spawn unavailable' })) : ok(child)]
         },
-        childWait: () => state => {
-            const result = assertNotNullish(outcomes[state.commands.length - 1])
-            const output = result[0] === 'ok' && result[1][0] === 'exited'
-                ? [...state.output, /** @type {const} */ (['stdout', result[1][1] === 0 ? 'Ok\n' : 'Failed\n'])] : state.output
-            return [{ ...state, output }, result]
-        },
+        childWait: () => state => [state, assertNotNullish(outcomes[state.commands.length - 1])],
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
             writeFails ? error(['notImplemented', 'write']) : ok(undefined),
@@ -140,8 +135,8 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute([passed, passed])
         assertEq(exitCode(result), 0)
         assertStructurallySame(state.commands, [
-            ['node', ['/package root/fjs/emergent_testing/cov/native/module.mjs', ..._nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs'], reporterUrl)], 'a'],
-            ['node', ['/package root/fjs/emergent_testing/cov/native/module.mjs', ..._nodeArgs('/package root', ['module.f.js'], reporterUrl)], 'z'],
+            ['node', _nodeArgs('/package root', ['demo.f.mjs', 'module.f.mjs'], reporterUrl), 'a'],
+            ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
         assert(output.includes('a/demo.f.mjs...Ok\na/module.f.mjs...Ok\nz/module.f.js...Ok\n'))

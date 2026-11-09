@@ -1,7 +1,7 @@
 /**
  * Runs each module directory's own proofs under native Node coverage.
- * Children run sequentially without a shell. Progress is one result per target;
- * native test logs are shown only on failure. Successful manifests are saved
+ * Children run sequentially without a shell and inherit stdout and stderr.
+ * Each target's result follows its child's live output. Successful manifests are saved
  * and synchronized together after the selected directories finish.
  *
  * @module
@@ -15,15 +15,13 @@
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn, write } from '../../effects/node/module.f.mjs'
+import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
 import { runCached } from './cached/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
-import { assert } from '../../asserts/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
 export const isCoverageTarget = path =>
@@ -79,28 +77,21 @@ export const _modulePaths = ({ directory, files }, root) => {
     return files.map(file => under(relative, file))
 }
 
-/** Finish one quiet child while allowing independent directories to continue after failure. @type {(command: Command, native: string, root: string) => Effect<Subprocess | Write, boolean, IoChannel>} */
-const runModule = (command, native, root) => {
+/** Run one child with live output while allowing independent directories to continue after failure. @type {(command: Command, root: string) => Effect<Subprocess | Write, boolean, IoChannel>} */
+const runModule = (command, root) => {
     const { directory, args } = command
-    const [first, ...rest] = _modulePaths(command, root)
-    assert(first !== undefined)
-    const announced = write('stdout', utf8(`${first}...`))
-    const started = step(announced, () =>
-        spawn('node', [native, ...args], { stdio: 'inherit', cwd: directory }))
+    const started = spawn('node', args, { stdio: 'inherit', cwd: directory })
     const ended = step(started, childWait)
     const outcome = resultMapStep(ended, ([tag, value]) => {
-        if (tag === 'error') { return ok({ passed: false, reported: false, detail: errorMessage(value) }) }
+        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
         const [status, code] = value
-        return ok({ passed: status === 'exited' && code === 0, reported: status === 'exited', detail: `${status} ${code}` })
+        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
     })
-    // The native wrapper closes the first progress line before printing any
-    // failed test output. A child that never completed needs a suffix here.
-    const completed = historyStep(history(outcome), ({ reported }) => reported ? pureOk(undefined) : log('Failed'))
-    const targets = historyStep(completed, (_, { passed }) =>
-        forEachStep(pureOk(rest), name => log(`${name}...${passed ? 'Ok' : 'Failed'}`)))
-    const diagnostics = historyStep(targets, (_, __, { passed, detail }) => passed
+    const targets = historyStep(history(outcome), ({ passed }) =>
+        forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...${passed ? 'Ok' : 'Failed'}`)))
+    const diagnostics = historyStep(targets, (_, { passed, detail }) => passed
         ? pureOk(undefined) : error(`${_commandLine(directory, args)}\n${detail}`))
-    return mapStep(diagnostics, ([, , , { passed }]) => passed)
+    return mapStep(diagnostics, ([, , { passed }]) => passed)
 }
 
 /** A failed cache operation cannot hide the coverage result. @type {(cache: CoverageCache | null, manifests: readonly Unknown[]) => Effect<NodeOp, void, IoChannel>} */
@@ -143,9 +134,8 @@ export const main = options => {
     const context = historyStep(history(commands), () => coverageCache(options, args.length === 2))
     const results = step(context, ([cache, commands]) => {
         const root = cache?.root ?? packageRoot
-        const native = normalize(join(packageRoot, 'fjs/emergent_testing/cov/native/module.mjs'))
         const completed = foldStep(pureOk(commands), { failed: 0, cached: 0, total: 0, manifests: /** @type {readonly Unknown[]} */ ([]) }, command => totals => {
-            const checked = runCached(command, () => runModule(command, native, root), cache)
+            const checked = runCached(command, () => runModule(command, root), cache)
             const shown = historyStep(history(checked), ({ outcome }) => _showCached(command, root, outcome))
             return mapStep(shown, ([, { outcome, manifests }]) => {
                 const change = increments[outcome]

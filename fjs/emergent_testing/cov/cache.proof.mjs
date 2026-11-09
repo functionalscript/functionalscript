@@ -96,8 +96,15 @@ const coverage = (cwd, synchronize = false, status = 0, extraEnv = {}) => {
     return result.output
 }
 
-/** Passing children expose per-target status, not their native test transcript. @type {(output: string) => void} */
-const concise = output => {
+/** Executed children retain their native test and coverage output. @type {(output: string) => void} */
+const nativeOutput = output => {
+    assert(output.includes('ℹ tests'), output)
+    assert(output.includes('start of coverage report'), output)
+    assert(!output.includes('command:'), output)
+}
+
+/** Cached targets launch no child and therefore emit no native transcript. @type {(output: string) => void} */
+const cachedOutput = output => {
     assert(!output.includes('ℹ tests'), output)
     assert(!output.includes('start of coverage report'), output)
     assert(!output.includes('command:'), output)
@@ -122,7 +129,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const moduleBefore = readFileSync(modulePath)
         const cold = coverage(join(repo, 'unit'))
         assert(cold.includes('unit/module.f.js...Ok'), cold)
-        concise(cold)
+        nativeOutput(cold)
+        assert(cold.indexOf('start of coverage report') < cold.indexOf('unit/module.f.js...Ok'), cold)
         assert(cold.includes('0 cached'), cold)
         assert.equal(entries(repo).length, 1)
         const first = git(repo, ['rev-parse', 'build-cache'])
@@ -130,7 +138,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const warm = coverage(join(repo, 'unit'))
         assert(warm.includes('unit/module.f.js...Cached'), warm)
         assert(warm.includes('1 cached'), warm)
-        concise(warm)
+        cachedOutput(warm)
         assert(!warm.includes('command:'), warm)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), first)
 
@@ -147,14 +155,14 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             else rmSync(join(repo, scope))
             const restored = coverage(join(repo, 'unit'))
             assert(restored.includes('unit/module.f.js...Cached'), restored)
-            concise(restored)
+            cachedOutput(restored)
             assert(!restored.includes('command:'), restored)
         }
 
         write(repo, 'unit/helper.f.js', 'export const helper = () => 2;\n')
         const changed = coverage(join(repo, 'unit'))
         assert(changed.includes('unit/module.f.js...Ok'), changed)
-        concise(changed)
+        nativeOutput(changed)
         assert(!changed.includes('...Cached'), changed)
         assert.equal(entries(repo).length, 2)
         const successful = git(repo, ['rev-parse', 'build-cache'])
@@ -191,23 +199,23 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
 
         const first = coverage(join(a, 'a'), true)
         assert(first.includes('a/module.f.js...Ok'), first)
-        concise(first)
+        nativeOutput(first)
         const firstTip = git(origin, ['rev-parse', 'build-cache'])
         const shared = coverage(join(b, 'a'), true)
         assert(shared.includes('a/module.f.js...Cached'), shared)
-        concise(shared)
+        cachedOutput(shared)
         assert(!shared.includes('command:'), shared)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
 
         const pending = coverage(join(a, 'b'))
         assert(pending.includes('b/module.f.js...Ok'), pending)
-        concise(pending)
+        nativeOutput(pending)
         const aEntries = entries(a)
         assert.equal(aEntries.length, 2)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
         const advancing = coverage(join(b, 'c'), true)
         assert(advancing.includes('c/module.f.js...Ok'), advancing)
-        concise(advancing)
+        nativeOutput(advancing)
         const bEntries = entries(b)
         assert.equal(bEntries.length, 2)
         const advancedTip = git(origin, ['rev-parse', 'build-cache'])
@@ -215,7 +223,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
 
         const replayed = coverage(join(a, 'b'), true)
         assert(replayed.includes('b/module.f.js...Cached'), replayed)
-        concise(replayed)
+        cachedOutput(replayed)
         assert(!replayed.includes('command:'), replayed)
         const union = [...new Set([...aEntries, ...bEntries])].sort()
         assert.equal(union.length, 3)
@@ -228,7 +236,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         }
         const imported = coverage(join(a, 'c'))
         assert(imported.includes('c/module.f.js...Cached'), imported)
-        concise(imported)
+        cachedOutput(imported)
         assert(!imported.includes('command:'), imported)
         assert.deepEqual(sourceState(a), aBefore)
         assert.deepEqual(sourceState(b), bBefore)
