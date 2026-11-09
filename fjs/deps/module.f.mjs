@@ -5,6 +5,7 @@
  * @import { NodeProgram, ReadWhole, ResolveFileModule, Write } from '../effects/node/types.ts'
  * @import { AstImport } from '../compiler/ast/types.ts'
  * @import { ParseError } from '../compiler/parser/types.ts'
+ * @import { Module as SyntaxModule } from '../compiler/parser/syntax/types.ts'
  * @import { _Source } from '../compiler/source/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import { _Checked } from './private.ts'
@@ -12,7 +13,7 @@
 
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.mjs'
 import { join, normalize, parse as pathParts, root as pathRoot } from '../path/module.f.js'
-import { readSource, _rootSource, _importSources, _attributeError } from '../compiler/source/module.f.mjs'
+import { readSource, _rootSource, _importSources, _attributeError, _fileError } from '../compiler/source/module.f.mjs'
 import { tokenize } from '../compiler/tokenizer/module.f.mjs'
 import { errorLocation, _readImport } from '../compiler/parser/module.f.mjs'
 import { parseSyntax } from '../compiler/parser/syntax/module.f.mjs'
@@ -21,8 +22,13 @@ import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resul
 import { definedEntries } from '../types/object/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.js'
 
-/** Read syntax imports through the same attribute reader and resolver as compilation. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
-const dependencies = source => {
+/** Dependency export accepts every source AST; cache consumers may impose a narrower input contract. */
+const acceptSyntax = () => null
+
+/** Read syntax imports through the same attribute reader and resolver as compilation.
+ * @type {(source: _Source, validate?: (module: SyntaxModule) => string | null) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>}
+ */
+export const dependencies = (source, validate = acceptSyntax) => {
     const { path, json } = source
     const mismatch = _attributeError(source)
     if (mismatch !== null) { return pureError(mismatch) }
@@ -30,8 +36,13 @@ const dependencies = source => {
     const parsed = step(readSource(path), text => pure(parseSyntax(tokenize(stringToList(text))(path))))
     /** @type {readonly AstImport[]} */
     const empty = []
-    const imports = step(parsed, module => foldStep(pureOk(module.imports), empty, statement => records =>
-        mapStep(pure(_readImport(statement)), record => [...records, { ...record, name: null }])))
+    const imports = step(parsed, module => {
+        const refusal = validate(module)
+        return refusal === null
+            ? foldStep(pureOk(module.imports), empty, statement => records =>
+                mapStep(pure(_readImport(statement)), record => [...records, { ...record, name: null }]))
+            : pureError(_fileError(path)(refusal))
+    })
     return step(imports, _importSources(source))
 }
 

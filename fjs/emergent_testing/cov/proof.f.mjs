@@ -45,13 +45,20 @@ const tree = /** @type {const} */ ({
  * @param {boolean} [spawnFails]
  * @param {boolean} [writeFails]
  * @param {string | null} [reporter]
+ * @param {boolean} [cacheAvailable]
  */
-const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false, reporter = reporterUrl) => {
+const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false) => {
     /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
+        execFile: (command, args) => state => [state, cacheAvailable
+            ? ok({ stdout: command === 'node' ? '{}' : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
+            : error(['notImplemented', 'execFile'])],
         resolveFileModule: (name, parent) => state => {
             assertEq(parent, null)
+            if (cacheAvailable && name !== normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs'))) {
+                return [state, ok({ id: `file:///repo/${name}`, path: `/repo/${name}` })]
+            }
             assertEq(name, normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs')))
             return [state, reporter === null ? error(ioError({ message: 'reporter unavailable' })) : ok({ id: reporter, path: name })]
         },
@@ -139,6 +146,14 @@ export const proof = /** @type {const} */ ({
         assertEq(state.commands.length, 1)
         assertEq(state.commands[0]?.[2], 'a')
     },
+    cacheFallbackAndSyncOption: () => {
+        const [state, result] = execute([passed, passed], {}, tree, false, false, reporterUrl, true)
+        assertEq(exitCode(result), 0)
+        assertEq(state.commands.length, 2)
+        const [synced, syncResult] = execute([passed, passed], { args: ['node', '--sync'] })
+        assertEq(exitCode(syncResult), 0)
+        assertEq(synced.commands.length, 2)
+    },
     failuresContinue: () => {
         for (const outcome of [failed, signaled, unavailable]) {
             const [state, result] = execute([outcome, passed])
@@ -152,7 +167,7 @@ export const proof = /** @type {const} */ ({
         assertEq(state.commands.length, 2)
     },
     refused: () => {
-        for (const args of [[], ['bun'], ['node', '--quiet']]) {
+        for (const args of [[], ['bun'], ['node', '--quiet'], ['node', '--sync', 'extra']]) {
             const [state, result] = execute([], { args })
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 0)

@@ -5,14 +5,14 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, nodeCommands } from '../effects/node/module.f.mjs'
-import { ioError } from '../effects/module.f.mjs'
+import { ioError, step } from '../effects/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { vec8 } from '../types/bit_vec/module.f.mjs'
 import { error } from '../types/result/module.f.js'
-import { readSource } from '../compiler/source/module.f.mjs'
-import { main, _relativeGraph } from './module.f.mjs'
+import { _rootSource, readSource } from '../compiler/source/module.f.mjs'
+import { dependencies, main, _relativeGraph } from './module.f.mjs'
 
 /**
  * @param {Dir} root
@@ -45,6 +45,17 @@ const sources = /** @type {const} */ ({
 })
 
 export const proof = /** @type {const} */ ({
+    optionalSyntaxValidation: () => {
+        const files = { 'module.f.mjs': [utf8('export const proof = () => import("./helper.f.mjs");')] }
+        const [state, result] = execute(files)
+        assertEq(exitCode(result), 0, state.stderr)
+        const checked = step(_rootSource('/module.f.mjs'), source => dependencies(source, module => {
+            assertEq(module.imports.length, 0)
+            return 'runtime dependency is not statically tracked'
+        }))
+        const [, refused] = virtualAt(files)(checked)
+        assertEq(assertError(refused).message, 'runtime dependency is not statically tracked')
+    },
     relativeGraphPaths: () => {
         assertEq(JSON.stringify(_relativeGraph('/repo/pkg', {
             '/repo/pkg/module.f.js': ['/repo/pkg/sub/helper.f.js', '/repo/pkg-other/shared.f.js'],

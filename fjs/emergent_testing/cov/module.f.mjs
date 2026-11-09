@@ -6,8 +6,9 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeProgram, Write, Subprocess } from '../../effects/node/types.ts'
+ * @import { NodeOp, NodeProgram, NodeProgramOptions, Write, Subprocess } from '../../effects/node/types.ts'
  * @import { _CoverageFile, _Module } from './types.ts'
+ * @import { CoverageCache, Outcome } from './cached/types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
@@ -17,6 +18,8 @@ import { basename, join, normalize, parent } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
+import { runCached } from './cached/module.f.mjs'
+import { openCoverageCache } from './context/module.f.mjs'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
 export const isCoverageTarget = path =>
@@ -79,9 +82,21 @@ const runModule = ({ directory, args }) => {
     return mapStep(reported, ([, { passed }]) => passed)
 }
 
-/** Run the selected subtree under Node. No output or scheduling flags yet. @type {NodeProgram} */
-export const main = ({ args, env, packageRoot }) => {
-    if (args.length !== 1 || args[0] !== 'node') { return errorExit('Usage: fjs cov node') }
+/** A cache failure costs coverage work, never a skipped check. @type {(options: NodeProgramOptions, synchronize: boolean) => Effect<NodeOp, CoverageCache | null, IoChannel>} */
+const coverageCache = (options, synchronize) => resultStep(openCoverageCache(options, synchronize),
+    /** @returns {Effect<NodeOp, CoverageCache | null, IoChannel>} */
+    ([tag, value]) => tag === 'ok' ? pureOk(value)
+        : mapStep(error(`UNCACHED: ${errorMessage(value)}`), () => null))
+
+/** Successful cached checks still contribute to the total passed count. @type {Record<Outcome, { readonly failed: number, readonly cached: number }>} */
+const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cached: 0 }, cached: { failed: 0, cached: 1 } }
+
+/** Run the selected subtree; --sync publishes each successful manifest. @type {NodeProgram} */
+export const main = options => {
+    const { args, env, packageRoot } = options
+    if (args[0] !== 'node' || args.length > 2 || args.length === 2 && args[1] !== '--sync') {
+        return errorExit('Usage: fjs cov node [--sync]')
+    }
     const discovered = allFiles(sourceRoot(env), isCoverageTarget)
     const grouped = mapStep(discovered, _modules)
     const modules = step(grouped, modules => modules.length === 0
@@ -90,14 +105,18 @@ export const main = ({ args, env, packageRoot }) => {
     const reporter = historyStep(history(modules), () =>
         resolveFileModule(normalize(join(packageRoot, 'fjs/emergent_testing/cov/reporter.mjs')), null))
     const commands = mapStep(reporter, ([{ id }, modules]) => modules.map(({ directory, files }) => ({
-        directory, args: _nodeArgs(packageRoot, files, id),
+        directory, files, args: _nodeArgs(packageRoot, files, id),
     })))
-    const results = foldStep(commands, { failed: 0, total: 0 }, command => ({ failed, total }) => {
-        const checked = runModule(command)
-        return mapStep(checked, passed => ({ failed: failed + (passed ? 0 : 1), total: total + 1 }))
-    })
-    const reported = historyStep(history(results), ({ failed, total }) =>
-        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total`))
+    const context = historyStep(history(commands), () => coverageCache(options, args.length === 2))
+    const results = step(context, ([cache, commands]) => foldStep(pureOk(commands), { failed: 0, cached: 0, total: 0 }, command => totals => {
+        const checked = runCached(command, () => runModule(command), cache)
+        return mapStep(checked, outcome => {
+            const change = increments[outcome]
+            return { failed: totals.failed + change.failed, cached: totals.cached + change.cached, total: totals.total + 1 }
+        })
+    }))
+    const reported = historyStep(history(results), ({ failed, cached, total }) =>
+        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`))
     return resultStep(reported, ([tag, value]) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
         const [, { failed }] = value

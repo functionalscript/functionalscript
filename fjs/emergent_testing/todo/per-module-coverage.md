@@ -179,8 +179,8 @@ when a required metric is unavailable.
 
 ### Related
 
-- [Cache coverage by module dependencies](../../ci/cache/todo/module-coverage-cache.md)
-  — staged CI job, dependency manifests and successful-result reuse; this issue
+- [Cache coverage by module dependencies](../../ci/cache/README.md#isolated-coverage-manifests)
+  — dependency manifests and successful-result reuse; this issue
   retains ownership of proof isolation and the gaps exposed by its rollout
 - [run-subset-of-tests](./run-subset-of-tests.md) — general test selection
 - [coverage-over-fjs-only](./coverage-over-fjs-only.md) — proof discovery and

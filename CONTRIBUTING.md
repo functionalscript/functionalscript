@@ -119,7 +119,8 @@ native invocations, see [the runner documentation](./fjs/emergent_testing/README
 | `npm start test`                        | Node pin | no             | Authored FJS, no type-check step.   |
 | `node --test`                           | Node pin | no             | Combined FJS and host-JS proofs.               |
 | `npm run cov`                           | Node pin | no             | FJS-only Node tests plus coverage.             |
-| `npm start cov node`                    | Node pin | no             | Isolated coverage by module directory. |
+| `npm start cov node`                    | Node pin | no             | Isolated coverage with a local Git success cache. |
+| `npm start -- cov node --sync`         | Node pin | yes            | Synchronize each successful manifest with `origin/build-cache`. |
 | `npm start compile`                     | Node pin | no             | Every authored `.f.js` still compiles.   |
 | `deno task fjs test`                    | Deno     | no             | The repo's runner under Deno.            |
 | `deno task test` / `deno task cov`      | Deno     | no             | Deno's native test runner / coverage.    |
@@ -169,8 +170,18 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Each invocation prints its working directory and complete command; failures
-are reported while the remaining modules continue. There are no flags.
+Cache misses print their working directory and complete command; failures
+are reported while the remaining modules continue. Exact successful dependency
+manifests in the local `build-cache` branch produce `CACHED` results instead.
+Manifests include working-tree hashes of all sibling authored files and their
+transitive dependencies, plus the runner/runtime contract. Failed coverage or
+inputs changed during the run never record a success.
+
+Use `npm start -- cov node --sync` to fetch and publish `origin/build-cache`.
+The `--` forwards the synchronization flag through npm. Each new success is saved and synchronized immediately; later lookups can then
+reuse successes published by other jobs. Hits also retry pending publication.
+Without `--sync`, no remote access is needed. Unsupported dependency analysis
+or unavailable caching is reported and coverage runs uncached.
 
 To test only one directory without coverage or discovery below it, use the
 explicit native entry:
@@ -180,8 +191,10 @@ cd ../types/list        # from fjs/basen
 node --test ../../emergent_testing/one.mjs
 ```
 
-CI's additional `cov` job runs `npm start cov node` from the repository root.
-The existing `node26` job retains `npm run cov` and its combined FJS suite,
+CI's additional `cov` job runs `npm start cov node` from the repository root,
+adding `--sync` for permitted same-repository runs outside Dependabot. Forks
+and Dependabot use local caching. The existing `node26` job retains
+`npm run cov` and its combined FJS suite,
 including proofs outside measured module directories. Coverage from that
 combined run cannot contribute to the isolated results.
 

@@ -1,0 +1,20 @@
+/** Cache operations around an isolated native coverage process. @module */
+
+import type { Effect, IoChannel } from '../../../effects/types.ts'
+import type { NodeOp } from '../../../effects/node/types.ts'
+import type { Unknown } from '../../../media/json/types.ts'
+
+export type Command = {
+    readonly directory: string
+    readonly files: readonly string[]
+    readonly args: readonly string[]
+}
+
+export type CoverageCache = {
+    readonly prepare: (command: Command) => Effect<NodeOp, readonly Unknown[], IoChannel>
+    readonly has: (manifest: Unknown) => Effect<NodeOp, boolean, IoChannel>
+    readonly save: (manifest: Unknown) => Effect<NodeOp, void, IoChannel>
+    readonly sync: () => Effect<NodeOp, void, IoChannel>
+}
+
+export type Outcome = 'passed' | 'failed' | 'cached'

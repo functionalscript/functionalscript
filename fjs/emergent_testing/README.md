@@ -151,12 +151,46 @@ directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
 
-The runner prints each working directory and complete command before
-launching it, continues after failures, and exits nonzero if any module
-failed. It accepts no flags. CI's additional `cov` job invokes this isolated
-runner from the repository root. The existing `node26` job retains the combined
-`npm run cov` check; its coverage cannot contribute to the isolated results.
-Replacing that combined check and closing the remaining proof gaps are tracked in
+The runner checks canonical dependency manifests in the local `build-cache`
+Git branch before launching a child. Each measured target has its own manifest,
+including all immediate authored siblings, their transitive static imports,
+working-tree content hashes, coverage settings and loaded tooling/runtime inputs.
+The manifest names its `module`, directory and sorted target inventory; its
+`files` object maps repository-relative paths to SHA-256/CBase32 hashes. The
+contract records actual Node/platform versions, relevant execution settings and
+hashes of the framework files discovered by Node's loader. JSON leaves and shared
+dependencies are included once; dependency cycles do not repeat files.
+
+Caching requires and hashes the repository root's `package.json`. It also hashes
+every present ancestor `package.json` of loaded files inside that repository,
+so adding a nested package scope invalidates affected manifests. Without the
+root package metadata, coverage runs uncached instead of relying on an
+unrepresented package scope outside the repository. Cache admission also refuses
+dynamic `import`, `import.meta`, `require`, `eval`/`Function`, and explicit
+host-global references. Such sources still run coverage normally, without
+reusing an incomplete static graph.
+
+A directory is `CACHED` only when every measured target has an exact success.
+On a miss, its working directory and complete command are printed before launch.
+The runner continues after failures and exits nonzero if any module failed.
+
+Successful coverage is recorded only after rebuilding the manifests and checking
+that the inputs stayed unchanged. Failed or interrupted coverage saves nothing.
+Incomplete dependency parsing/resolution, unsupported preload settings, and
+cache errors are reported explicitly and leave the run uncached.
+
+`npm start -- cov node --sync` also fetches and publishes `origin/build-cache`.
+Each successful manifest is saved and synchronized before the next manifest;
+concurrent additions are replayed onto the latest remote parent and the local
+branch is refreshed. Later module lookups can reuse other jobs' successes.
+Warm hits retry pending publication. The command preserves the source checkout
+and uses normal pushes, never force pushes. Without `--sync`, caching is local.
+
+CI's additional `cov` job invokes this isolated runner from the repository root,
+with `--sync` only for permitted same-repository runs outside Dependabot. The
+existing `node26` job retains the combined `npm run cov` check; its coverage
+cannot contribute to the isolated results. Replacing that combined check and
+closing remaining proof gaps are tracked in
 [per-module coverage](./todo/per-module-coverage.md).
 
 ### External runners (Node, Bun, Deno)

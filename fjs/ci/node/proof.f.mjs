@@ -1,4 +1,4 @@
-import { coverageJob, installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
+import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { environmentCommand } from '../environment/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
@@ -27,11 +27,21 @@ export const proof = {
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
     },
     coverage: () => {
-        assertStructurallySame(coverageJob.steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
+        assertStructurallySame(coverageJob().steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
             `test "$(env node --version)" = "v${node}"`,
             environmentCommand('npm ci'),
             environmentCommand('npm start cov node'),
         ])
+        const synced = coverageJob(true)
+        assertStructurallySame(synced.permissions, { contents: 'write' })
+        assertEq(synced.steps.at(-1)?.run, environmentCommand(`npm start -- cov node ${coverageSyncFlag}`))
+        assertStructurallySame(synced.steps.at(-1)?.env, {
+            GIT_AUTHOR_NAME: 'github-actions[bot]',
+            GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+            GIT_COMMITTER_NAME: 'github-actions[bot]',
+            GIT_COMMITTER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+        })
+        assertEq(coverageJob(false).permissions, undefined)
     },
     steps: () => {
         assertStructurallySame(

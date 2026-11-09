@@ -8,11 +8,11 @@
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ioError } from '../../../effects/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
-import { exitCode, nodeCommands } from '../../../effects/node/module.f.mjs'
+import { exitCode, exitStep, nodeCommands } from '../../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../../effects/node/virtual/module.f.mjs'
 import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { main } from './module.f.mjs'
+import { main, publishFrom } from './module.f.mjs'
 
 /** @type {Child} */
 const child = asNominal('git')
@@ -35,9 +35,9 @@ const comparison = [
 
 /**
  * Script child outcomes while retaining an immutable transcript of Git argv.
- * @type {(outcomes: readonly IoResult<ExitStatus>[], environment?: Env, failSpawn?: boolean) => readonly [readonly (readonly string[])[], Result<0, number>]}
+ * @type {(outcomes: readonly IoResult<ExitStatus>[], environment?: Env, failSpawn?: boolean, root?: string) => readonly [readonly (readonly string[])[], Result<0, number>]}
  */
-const execute = (outcomes, environment = env, failSpawn = false) => {
+const execute = (outcomes, environment = env, failSpawn = false, root = undefined) => {
     /** @type {PartialMemOperationMap<NodeOp, readonly (readonly string[])[]>} */
     const operations = {
         spawn: (command, args, options) => calls => {
@@ -57,7 +57,7 @@ const execute = (outcomes, environment = env, failSpawn = false) => {
     }
     /** @type {NodeProgramOptions} */
     const options = { ...defaultNodeProgramOptions, env: environment }
-    return partialRun(nodeCommands)(operations)([])(main(options))
+    return partialRun(nodeCommands)(operations)([])(root === undefined ? main(options) : exitStep(publishFrom(root, options)))
 }
 
 const directory = /** @type {const} */ ('tmp/fjs-ci-node/publish')
@@ -84,6 +84,26 @@ const reconcile = [
 const prepared = [...different, done, done, done, done, done]
 
 export const proof = /** @type {const} */ ({
+    explicitCheckout: () => {
+        const [calls, result] = execute([...different, done, done, done], env, false, '/checkout')
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls, [...comparison, create, push, remove].map(args => ['-C', '/checkout', ...args]))
+    },
+    explicitCheckoutRace: () => {
+        const [calls, result] = execute([
+            ...different, done, rejected,
+            done, done, rejected, done, done, done, done, done, done,
+        ], env, false, '/checkout')
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls, [
+            ...comparison, create, push, ...reconcile, ...squash(), push, remove,
+        ].map(args => ['-C', '/checkout', ...args]))
+    },
+    explicitCheckoutTemporaryDirectory: () => {
+        const [calls, result] = execute([...different, done, done, done], {}, false, '/checkout')
+        assertEq(exitCode(result), 0)
+        assertStructurallySame(calls[3], ['-C', '/checkout', 'worktree', 'add', '/checkout/fjs-ci-/publish', 'build-cache'])
+    },
     uncontended: () => {
         const [calls, result] = execute([...prepared, done, done])
         assertEq(exitCode(result), 0)

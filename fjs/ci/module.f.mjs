@@ -209,10 +209,10 @@ export const ciWorkflow = setup => rust => {
         permissions: {
             contents: 'read',
         },
-        // Coverage runs on every revision until its per-module success cache lands.
+        // Coverage owns its per-module cache, outside whole-check gates.
         jobs: {
             ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs),
-            ...miseJobs({ cov: coverageJob }, false),
+            ...miseJobs({ cov: coverageJob(setup.smart === true) }, false),
             ...setup.extraJobs,
         },
     }
