@@ -38,10 +38,11 @@ and pinned tool versions into a contract. Its entry contains that contract and
 its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
-Compile checks use `fjs`; suites use `js`; TypeScript and the packed-package
-check use `ts`; Rust checks use `rust`. Coverage no longer uses the whole-check
-cache. Generated-file drift checks and the WASM demo rebuild always run because
-their complete inputs are not yet enumerated.
+Compile checks use `fjs`; suites and `node26`'s combined coverage use `js`;
+TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
+The additional isolated `cov` job does not use the whole-check cache.
+Generated-file drift checks and the WASM demo rebuild always run because their
+complete inputs are not yet enumerated.
 
 ## Job lifecycle
 

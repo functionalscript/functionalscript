@@ -57,10 +57,10 @@ export const platformNodeSteps = () => [
     test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
-/** The combined FJS coverage gate, independent of the package/type checks. */
+/** Isolated coverage of each module directory, alongside the existing checks. */
 export const coverageJob = ubuntuArm([
     nodeVersionStep(),
-    ...environmentSteps(['npm ci', 'npm run cov']),
+    ...environmentSteps(['npm ci', 'npm start cov node']),
 ])
 
 /**
@@ -72,7 +72,7 @@ const nodeSteps = consumer => [
     ...environmentSteps(['npm ci', 'tsc']),
     // Temporary until every authored file forms a generic AST (module-dependency-graph-command.md).
     test({ run: environmentCommand('npm start deps'), 'continue-on-error': true }),
-    ...environmentSteps(['npm start compile']),
+    ...environmentSteps(['npm start compile', 'npm run cov']),
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),

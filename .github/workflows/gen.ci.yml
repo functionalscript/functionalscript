@@ -1054,7 +1054,7 @@
         {
           "run": "mise exec -- npm ci",
           "shell": "bash",
-          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-package != 'true'"
+          "if": "steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'"
         },
         {
           "run": "mise exec -- tsc",
@@ -1085,6 +1085,21 @@
           "run": "mise exec -- npm start ci report compile",
           "shell": "bash",
           "if": "steps.init.outputs.hit-compile != 'true'",
+          "env": {
+            "GIT_AUTHOR_NAME": "github-actions[bot]",
+            "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
+          },
+          "continue-on-error": true
+        },
+        {
+          "run": "mise exec -- npm run cov",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-coverage != 'true'"
+        },
+        {
+          "run": "mise exec -- npm start ci report coverage",
+          "shell": "bash",
+          "if": "steps.init.outputs.hit-coverage != 'true'",
           "env": {
             "GIT_AUTHOR_NAME": "github-actions[bot]",
             "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com"
@@ -1221,7 +1236,7 @@
           "shell": "bash"
         },
         {
-          "run": "mise exec -- npm run cov",
+          "run": "mise exec -- npm start cov node",
           "shell": "bash"
         }
       ]

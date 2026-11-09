@@ -16,12 +16,16 @@ still apply.
 The six platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
-test because parser stress proofs can exceed its default five seconds. `cov` runs
-FJS-only Node coverage via `npm run cov`, retaining the 100% thresholds;
-it runs on every pull request and merge-group entry without consulting
-`build-cache`. SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+test because parser stress proofs can exceed its default five seconds. `node26`
+retains FJS-only Node coverage via `npm run cov` and its existing successful-check
+cache. The additional `cov` job runs `npm start cov node`, checking each module
+directory's own proofs in a fresh Node coverage process with 100% line, branch
+and function thresholds. It runs on every pull request and merge-group entry
+without consulting `build-cache`. The existing combined suite retains proofs
+outside measured module directories and contributes no coverage to the isolated
+runs. SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
-compilation. It checks generic AST formation for every authored
+compilation and combined coverage. It checks generic AST formation for every authored
 `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
 coverage is incomplete, this step temporarily uses `continue-on-error: true`: it
 reports parsing failures without failing the job. It runs uncached even when
@@ -30,11 +34,12 @@ other checks hit build-cache. Restore failure gating once all authored files par
 Host-JS proofs currently have Node coverage across all six platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
-Suite cache keys retain the conservative `js` input rung.
+Suite and combined coverage cache keys retain the conservative `js` input rung.
 The selected command and `package.json` participate in the key, so old
 combined-suite results cannot certify the new selective runs. Narrowing the
-inputs requires a separate dependency audit. Coverage remains uncached during
-the [per-module manifest rollout](./cache/todo/module-coverage-cache.md).
+inputs requires a separate dependency audit. The additional isolated coverage
+job remains uncached during the
+[per-module manifest rollout](./cache/todo/module-coverage-cache.md).
 
 ## Files
 
@@ -47,11 +52,12 @@ the [per-module manifest rollout](./cache/todo/module-coverage-cache.md).
 - `self`: this repository's consumer and additional steps.
 
 The test workflow runs ten jobs on pull requests and merge-group entries.
-The nine existing jobs retain successful-check caching; `cov` always runs.
+The nine existing jobs retain their checks and successful-check caching;
+`cov` always runs.
 There are no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
 
-Add `cov` to GitHub's required status checks when adopting this workflow.
-Moving coverage out of `node26` does not update the repository's branch rules.
+Add `cov` to GitHub's required status checks when it is ready to gate merging.
+The workflow does not update the repository's branch rules.
 
 The separate generated `gen.website.yml` workflow contains the `website` job.
 It runs on pull requests, including drafts and forks, and pushes to `main`.
