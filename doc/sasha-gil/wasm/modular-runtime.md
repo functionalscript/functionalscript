@@ -12,6 +12,12 @@ When possible we want to make decisions of how to implement this or that feature
 
 In accordance with that strategy we plan for contract flexibility between FJS's code generation component and pluggable runtime modules. Thus each module specifies supported target platforms plus (maybe) compatibilities with other runtime modules. How exactly we should organize these specifications, we will figure out after considering use cases listed below.
 
+## Stack frame offsets are a compile-time notion
+
+Runtime module functions below take "stack frame offsets" as parameters. These offsets exist only while the code generator works: the functions of a runtime module are inlined into the generated code as fragments, and an offset is simply the index of a local (or of a group of locals) that the code generator assigns. Nothing at run time takes the address of a stack slot, so no shadow stack in linear memory is needed. WASM has no addressable stack: its operand stack and locals have no addresses, and a called function cannot read or write its caller's locals.
+
+If a runtime module function is ever called rather than inlined, an offset has to become an address in linear memory, that is, a shadow stack, as in Rust or C compiled to WASM. Another option is to pass the unpacked value itself, as function results and arguments. These options are out of scope for this memo.
+
 ## Two VMs: 'any'
 
 The first FunctionalScript VM is a "Naive" Rust implementation where 'any' is a fat discriminated data structure. We have based the first WASM runtime on that implementation with plans to implement better alternatives.
