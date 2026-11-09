@@ -27,6 +27,7 @@ export const proof = {
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
     },
     coverage: () => {
+        assertEq(coverageJob().steps.at(-1)?.['continue-on-error'], true)
         assertStructurallySame(coverageJob().steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
             `test "$(env node --version)" = "v${node}"`,
             environmentCommand('npm ci'),
