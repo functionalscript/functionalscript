@@ -10,10 +10,18 @@ import type { List } from '../../../types/list/types.ts'
 import type { Vec } from '../../../types/bit_vec/types.ts'
 
 export type Manifest = {
-    readonly version: 1
+    readonly version: 2
     readonly directory: string
     readonly targets: readonly string[]
     readonly files: StringMap<string>
+    /** Immediate authored siblings mapped to closure-local module indices. */
+    readonly roots: StringMap<number>
+    /** Module identity sharing and ordered imports, independent of checkout URLs. */
+    readonly modules: readonly {
+        readonly path: string
+        readonly json: boolean
+        readonly imports: readonly number[]
+    }[]
     readonly contract: Unknown
 }
 

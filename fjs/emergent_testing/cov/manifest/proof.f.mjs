@@ -1,6 +1,6 @@
 /** @import { Dir } from '../../../effects/node/virtual/types.ts' */
 
-import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
@@ -278,14 +278,140 @@ export const proof = /** @type {const} */ ({
         assertEq(value.files['unit/module.f.js'], hash(contents))
         assertEq(value.files['unit/alias.proof.f.mjs'], hash(contents))
         assertEq(assertOk(aliases({ ...emptyState, root: files })(validateGraph(graph, '/repo/unit'))[1]), true)
+        const sharedIdentities = partialRun(nodeCommands)({
+            ...virtualOperationMap,
+            resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
+                name.endsWith('/alias.proof.f.mjs') ? '/repo/unit/module.f.js' : name, parent),
+        })
+        const [, sharedBuilt] = sharedIdentities({ ...emptyState, root: files })(buildGraph('/repo', ['/repo/unit']))
+        const sharedGraph = assertOk(sharedBuilt)
+        const sharedValue = assertOk(virtualAt({})(graphManifest(sharedGraph, '/repo/unit', ['module.f.js'], contract))[1])
+        assertEq(assertOk(sharedIdentities({ ...emptyState, root: files })(validateGraph(sharedGraph, '/repo/unit'))[1]), true)
+        assertStructurallySame(value.files, sharedValue.files)
+        assertStructurallySame(value.roots, { 'unit/alias.proof.f.mjs': 0, 'unit/module.f.js': 1 })
+        assertStructurallySame(sharedValue.roots, { 'unit/alias.proof.f.mjs': 0, 'unit/module.f.js': 0 })
+        assertStructurallySame(value.modules, [
+            { path: 'unit/module.f.js', json: false, imports: [] },
+            { path: 'unit/module.f.js', json: false, imports: [] },
+        ])
+        assertStructurallySame(sharedValue.modules, [{ path: 'unit/module.f.js', json: false, imports: [] }])
+    },
+    siblingAliasRetargetingChangesManifest: () => {
+        const contents = /** @type {const} */ ('export default 0;')
+        const files = /** @type {const} */ ({ repo: { 'package.json': [utf8(packageJson)], unit: {
+            'a.f.mjs': [utf8(contents)], 'b.f.mjs': [utf8(contents)], 'module.f.js': [utf8(contents)],
+        } } })
+        /** @type {(target: string) => import('./types.ts').Manifest} */
+        const resolved = target => {
+            const run = partialRun(nodeCommands)({
+                ...virtualOperationMap,
+                resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
+                    name.endsWith('/module.f.js') ? `/repo/unit/${target}.f.mjs` : name, parent),
+            })
+            const [, built] = run({ ...emptyState, root: files })(buildGraph('/repo', ['/repo/unit']))
+            const graph = assertOk(built)
+            assertEq(assertOk(run({ ...emptyState, root: files })(validateGraph(graph, '/repo/unit'))[1]), true)
+            return assertOk(run({ ...emptyState, root: files })(graphManifest(graph, '/repo/unit', ['module.f.js'], contract))[1])
+        }
+        const first = resolved('a')
+        const second = resolved('b')
+        // Both destinations are already siblings and have equal bytes. Only
+        // which module the loader reuses for the alias has changed.
+        assertStructurallySame(first.files, second.files)
+        assert(JSON.stringify(first) !== JSON.stringify(second))
+        assertStructurallySame(first.modules, second.modules)
+        assertStructurallySame(first.roots, { 'unit/a.f.mjs': 0, 'unit/b.f.mjs': 1, 'unit/module.f.js': 0 })
+        assertStructurallySame(second.roots, { 'unit/a.f.mjs': 0, 'unit/b.f.mjs': 1, 'unit/module.f.js': 1 })
+    },
+    transitiveAliasRetargetingChangesEdges: () => {
+        const contents = /** @type {const} */ ('export default 0;')
+        const source = /** @type {const} */ ('import value from "./alias.f.mjs"; export default value;')
+        const files = /** @type {const} */ ({ repo: { 'package.json': [utf8(packageJson)], unit: {
+            'a.f.mjs': [utf8(contents)], 'b.f.mjs': [utf8(contents)], 'module.f.js': [utf8(source)],
+        } } })
+        /** @type {(target: string) => import('./types.ts').Manifest} */
+        const resolved = target => {
+            const run = partialRun(nodeCommands)({
+                ...virtualOperationMap,
+                resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
+                    name === './alias.f.mjs' ? `/repo/unit/${target}.f.mjs` : name, parent),
+            })
+            const [, built] = run({ ...emptyState, root: files })(buildGraph('/repo', ['/repo/unit']))
+            const graph = assertOk(built)
+            assertEq(assertOk(run({ ...emptyState, root: files })(validateGraph(graph, '/repo/unit'))[1]), true)
+            return assertOk(virtualAt({})(graphManifest(graph, '/repo/unit', ['module.f.js'], contract))[1])
+        }
+        const first = resolved('a')
+        const second = resolved('b')
+        assertStructurallySame(first.files, second.files)
+        assertStructurallySame({ ...first, modules: second.modules }, second)
+        assertStructurallySame(first.modules, [
+            { path: 'unit/a.f.mjs', json: false, imports: [] },
+            { path: 'unit/b.f.mjs', json: false, imports: [] },
+            { path: 'unit/module.f.js', json: false, imports: [0] },
+        ])
+        assertStructurallySame(second.modules, [
+            { path: 'unit/a.f.mjs', json: false, imports: [] },
+            { path: 'unit/b.f.mjs', json: false, imports: [] },
+            { path: 'unit/module.f.js', json: false, imports: [1] },
+        ])
+    },
+    moduleIdentitiesArePortableAcrossCheckouts: () => {
+        const source = /** @type {const} */ ('import value from "../lib/helper.f.mjs"; import data from "../data.json" with { type: "json" }; export default value;')
+        const tree = /** @type {const} */ ({
+            'package.json': [utf8(packageJson)],
+            unit: {
+                'module.f.js': [utf8(source)],
+                'proof.f.mjs': [utf8('import value from "./module.f.js"; export const proof = () => value;')],
+            },
+            lib: { 'helper.f.mjs': [utf8('export default 0;')] },
+            'data.json': [utf8(json)],
+        })
+        /** @type {(checkout: string, namespace: string) => import('./types.ts').Manifest} */
+        const resolved = (checkout, namespace) => {
+            const identities = /** @type {const} */ ({
+                [`${checkout}/unit/module.f.js`]: `${namespace} entry`,
+                [`${checkout}/unit/proof.f.mjs`]: `${namespace} proof`,
+                [`${checkout}/lib/helper.f.mjs`]: `${namespace} helper`,
+                [`${checkout}/data.json`]: `${namespace} data`,
+            })
+            const files = /** @type {const} */ ({ [checkout.slice(1)]: tree })
+            const run = partialRun(nodeCommands)({
+                ...virtualOperationMap,
+                resolveFileModule: (name, parent) => state => {
+                    const actualParent = parent === null ? null
+                        : assertNotNullish(Object.entries(identities).find(([, identity]) => identity === parent))[0]
+                    const [next, result] = virtualOperationMap.resolveFileModule(name, actualParent)(state)
+                    return [next, result[0] === 'error' ? result : ok({
+                        ...result[1], id: assertNotNullish(identities[result[1].path]),
+                    })]
+                },
+            })
+            const [, built] = run({ ...emptyState, root: files })(buildGraph(checkout, [`${checkout}/unit`]))
+            const graph = assertOk(built)
+            assertEq(assertOk(run({ ...emptyState, root: files })(validateGraph(graph, `${checkout}/unit`))[1]), true)
+            return assertOk(virtualAt({})(graphManifest(graph, `${checkout}/unit`, ['module.f.js'], contract))[1])
+        }
+        const first = resolved('/first-checkout', 'original')
+        assert(Object.keys(first.roots).length > 0)
+        assert(first.modules.length > 0)
+        assertStructurallySame(first, resolved('/relocated-checkout', 'unrelated-loader'))
     },
     transitive: () => {
         const value = assertOk(execute(root))
         assertStructurallySame(value, {
-            version: 1,
+            version: 2,
             directory: 'unit',
             targets: ['module.f.js'],
             contract,
+            roots: { 'unit/helper.f.mjs': 0, 'unit/module.f.js': 1, 'unit/proof.f.mjs': 3 },
+            modules: [
+                { path: 'unit/helper.f.mjs', json: false, imports: [] },
+                { path: 'unit/module.f.js', json: false, imports: [2] },
+                { path: 'shared.f.mjs', json: false, imports: [1] },
+                { path: 'unit/proof.f.mjs', json: false, imports: [1, 4] },
+                { path: 'data.json', json: true, imports: [] },
+            ],
             files: {
                 'data.json': hash(json),
                 'package.json': hash(packageJson),
