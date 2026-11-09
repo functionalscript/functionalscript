@@ -55,6 +55,8 @@ place of a call to it: [inline-fragments.md](./inline-fragments.md).
 A runtime can be assembled from pluggable runtime modules, each with a
 manifest, so that, for example, a string representation can be chosen
 apart from the rest: [modular-runtime.md](./modular-runtime.md).
+L0 itself may be split the same way, into five modules cut by kind, each
+imported or inlined: [modular-l0.md](./modular-l0.md).
 
 The same three layers already exist in NaNVM's Rust source. The notes for
 each layer say where.
@@ -138,3 +140,8 @@ until the owner decides them.
    it take offsets into a shadow stack, or the unpacked value itself as
    results and arguments? See
    [modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion).
+   Proposed: neither. A called module function is in import form, which
+   has no slots, so it takes the `any` itself
+   ([modular-l0.md §5](./modular-l0.md#5-import-form-is-the-portable-mode)).
+9. Should L0 be split into modules by kind, with an import name and a
+   version each? See [modular-l0.md](./modular-l0.md).
