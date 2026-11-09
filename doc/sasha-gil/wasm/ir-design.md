@@ -14,7 +14,9 @@ them ([Comparison round](#comparison-round)). Nothing here is decided yet.
 
 - The IR is a **typed expression tree with structured control flow**:
   `block`, `if`, `loop` and `br`, as in WASM and in Rust.
-- It has **six types**: `any`, `f64`, `i32`, `bool`, `void` and `never`.
+- It has **six types**: `any`, `f64`, `i32`, `bool`, `void` and `never`,
+  plus `str`, an unpacked string whose layout a runtime module chooses
+  (choice 13).
   `any` is L0's opaque value. Everything a type check decided is already
   explicit.
 - **A JavaScript primitive written in the IR is that constant**: `1.5` is an
@@ -349,6 +351,30 @@ Each choice gives the pick first, then the alternatives and the reason.
   comparisons. The printer gives the proofs and reviews a readable IR,
   before any WASM exists.
 
+### 13. An unpacked string is an IR type, laid out by the runtime module
+
+Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
+
+- **Pick:** a seventh type, `str`, is a string unpacked by the runtime's
+  String module. A `str` table holds its three rows: `unpack` from an
+  `any` to a `str`, `length` of a `str` as an `i32`, and `at` of a `str`
+  and an `i32` index as an `i32` unit. The IR does not say how big a `str`
+  is or what it holds.
+- **The emitter lays it out.** It reads the String module's manifest,
+  gives each `str` local as many WASM locals as the manifest asks for, and
+  inlines the three functions over them. For a module with no slots, a
+  `str` local is the source `any` local itself, and a null `unpack` emits
+  nothing.
+- **Lifetime:** a `str` borrows its source `any`. The lifetime pass
+  (choice 9) keeps the source alive until the last use of the `str`, so
+  `unpack` costs no reference count, and a `str` is never dropped.
+- **Alternatives:** a type per runtime module, such as `naive_str`; the
+  slots as plain `i32` and `i64` locals that the lowering writes.
+- **Why:** the program stays the same for every String module, so the IR
+  stays target-independent (choice 11), and swapping a module is an
+  emitter change. A program may still be built for one runtime, as the
+  [specialized mode](./inline-fragments.md#rules) is.
+
 ## What lives where
 
 | Concern | Today, in the Rust path | With the IR |
@@ -392,6 +418,9 @@ Each step is a PR or a short stack, proved before the next starts.
   `br` that leaves several blocks.
 - **Names or numbers for locals (6).** Names read well. Each pass must keep
   them unique, though, and a pass that duplicates code must rename.
+- **Unpacked strings (13).** BigInt unpacking is likely to follow the same
+  shape. If it does, `str` becomes one case of a general rule: a runtime
+  module declares a type, and the IR names it.
 - **Where the code lives.** A proposal is `fjs/codegen/ir`, with
   `fjs/codegen/wasm` and `fjs/codegen/rust` as emitters. The IR is not
   WASM's alone, so `fjs/wasm` seems wrong for it.

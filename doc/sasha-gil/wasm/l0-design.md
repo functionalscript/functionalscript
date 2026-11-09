@@ -68,6 +68,11 @@ Each choice gives the pick first, then the alternatives and the reason.
   handle.
 - **Why:** typed handles double the API. Immutability already lets the
   compiler skip `kind` once it knows a value's kind.
+- **Later (2026-11-09):** a string may also be unpacked, into stack slots
+  whose layout a runtime's String module chooses. The unpacked string is
+  still no WASM type of the ABI: it lives in the program's locals and
+  borrows its source `i64`
+  ([modular-runtime.md](./modular-runtime.md)).
 
 ### 3. Constants: imported immutable globals
 
@@ -236,6 +241,11 @@ are written in FunctionalScript.
   these it can read and build no string. With them, `slice`, `charCodeAt`,
   `String.fromCharCode` and string `+` all get FunctionalScript bodies.
   Every runtime has these four natively anyway.
+- **Relation to the String module:** `length` and `unit` on a string are
+  what the memory-saving String module of
+  [modular-runtime.md](./modular-runtime.md) does, decoding the `any` on
+  each call. A String module with slots replaces them with `unpack`, then
+  `length` and `at` over the unpacked value.
 
 ### 17. A FunctionalScript view of L0
 

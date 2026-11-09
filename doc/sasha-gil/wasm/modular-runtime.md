@@ -53,3 +53,10 @@ The Naive VM string module claims one stack frame slot of a size of a heap point
 The CPU-saving NaN VM string module claims one byte stack frame for the short string length value (in 0..8 range with 0 being a special value corresponding to the long string case), followed by 8 16-bit character value slots for an unpacked short string (since according to doc/sergey-shandar/nanvm/README.md a NaN VM value can carry 8 6-bit character codes of a short string). When that length value is 0, the next stack frame slot keeps a long string pointer that is handled in same way as in Naive VM string module. In case of a short string, 'unpack' places the decoded short string length (in 1..8 range) and then extracts short string character codes in correspondent stack frame slots. 'Length' and 'at' check the short string length value, doing the long string data access in case when that value is zero. In the case of non-zero short string length value, 'length' returns that value, and 'at' access the stack frame slot corresponding to the given index in one of 8 16-bit stack frame slots following the length value stack frame slot.
 
 The memory-saving NaN VM string module specifies zero stack frame slots requirement for the unpacked string value, thus claiming, by a convention, that it needs the originating 'any' value stack frame access for 'length' and 'at' (which perform decoding of NaN 'any' value each time). Since there is no actual unpacking, 'unpack' function reference is null in the manifest.
+
+## Related designs
+
+- [L0 design §2](./l0-design.md#2-typed-values-exist-only-in-the-compiler) and [§16](./l0-design.md#16-four-string-functions-that-need-no-memory): what an unpacked string adds to L0's typed values and string functions.
+- [Inline fragments](./inline-fragments.md#runtime-modules): runtime module functions are fragments, and the manifest lists them.
+- [Code IR, choice 13](./ir-design.md#13-an-unpacked-string-is-an-ir-type-laid-out-by-the-runtime-module): how the IR names an unpacked string, and how an emitter lays it out from the manifest.
+- [README](./README.md#decisions): the decisions taken from this memo.

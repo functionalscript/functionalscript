@@ -35,6 +35,23 @@ parameters become locals of the caller.
 - **Equivalence.** A fragment behaves exactly as the function it replaces.
   The conformance run covers both modes.
 
+## Runtime modules
+
+The [modular runtime](./modular-runtime.md) builds on fragments. A runtime
+module's functions, such as the String module's `unpack`, `length` and
+`at`, are always inlined, and its manifest is the list of them, plus the
+number of stack slots an unpacked value needs. Two things are new there:
+
+- **A null entry** in the manifest means a no-op, so the compiler emits
+  nothing for it.
+- **Stack frame offsets** that a function takes are locals of the caller,
+  fixed at compile time. A fragment's parameters already become the
+  caller's locals, so this costs nothing new.
+
+In the *portable* mode, where nothing is inlined, an offset would have to
+point into linear memory. That case is left open
+([README, open question 8](./README.md#open-questions)).
+
 ## Our own linker first
 
 The inliner is ours, built on `fjs/media/wasm`, so that no external
