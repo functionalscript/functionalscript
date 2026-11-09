@@ -17,11 +17,11 @@ const digest = computeSync(sha256)
 const hash = text => vecToCBase32(digest(u8ListToMaxVecChunksMsb(stringToU8List(text))))
 const contract = /** @type {const} */ ({ node: 'test-runtime', args: ['--test'] })
 
-const implementation = 'import value from "../shared.f.mjs"; export default value;'
-const proofSource = 'import value from "./module.f.js"; import data from "../data.json" with { type: "json" }; export const proof = () => value;'
-const shared = 'import main from "./unit/module.f.js"; export default main;'
-const json = '{"value":1}'
-const packageJson = '{"type":"module"}'
+const implementation = /** @type {const} */ ('import value from "../shared.f.mjs"; export default value;')
+const proofSource = /** @type {const} */ ('import value from "./module.f.js"; import data from "../data.json" with { type: "json" }; export const proof = () => value;')
+const shared = /** @type {const} */ ('import main from "./unit/module.f.js"; export default main;')
+const json = /** @type {const} */ ('{"value":1}')
+const packageJson = /** @type {const} */ ('{"type":"module"}')
 
 /** @type {Dir} */
 const root = {
@@ -69,23 +69,23 @@ const traced = partialRun(nodeCommands)({
 /** @type {(trace: string, entry: string) => number} */
 const count = (trace, entry) => trace.split('\n').filter(line => line === entry).length
 
-const sharedEntry = 'import value from "../shared/module.f.js"; export default value;'
-const sharedModule = 'import value from "./leaf.f.mjs"; export default value;'
-const leaf = 'export default 1;'
-const sharedTree = {
+const sharedEntry = /** @type {const} */ ('import value from "../shared/module.f.js"; export default value;')
+const sharedModule = /** @type {const} */ ('import value from "./leaf.f.mjs"; export default value;')
+const leaf = /** @type {const} */ ('export default 1;')
+const sharedTree = /** @type {const} */ ({
     'package.json': [utf8(packageJson)],
     a: { 'module.f.js': [utf8(sharedEntry)] },
     b: { 'module.f.js': [utf8(sharedEntry)] },
     shared: { 'module.f.js': [utf8(sharedModule)], 'leaf.f.mjs': [utf8(leaf)] },
-}
+})
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     sharedGraphReadsAndDerivesOnce: () => {
         const [state, result] = traced({ ...emptyState, root: { repo: sharedTree } })(
             buildGraph('/repo', ['/repo/a', '/repo/b'], { framework: '/repo/shared/module.f.js' }))
         const graph = assertOk(result)
-        for (const path of ['/repo/package.json', '/repo/a/module.f.js', '/repo/b/module.f.js',
-            '/repo/shared/module.f.js', '/repo/shared/leaf.f.mjs']) {
+        for (const path of /** @type {const} */ (['/repo/package.json', '/repo/a/module.f.js', '/repo/b/module.f.js',
+            '/repo/shared/module.f.js', '/repo/shared/leaf.f.mjs'])) {
             assertEq(count(state.stdout, `read ${path}`), 1)
         }
         // A shared module's parsed import is resolved once even though both
@@ -113,7 +113,7 @@ export const proof = {
         const graph = assertOk(result)
         const [validated, valid] = traced({ ...state, stdout: '' })(validateGraph(graph, '/repo/a'))
         assertEq(assertOk(valid), true)
-        for (const path of ['/repo/package.json', '/repo/a/module.f.js', '/repo/shared/module.f.js', '/repo/shared/leaf.f.mjs']) {
+        for (const path of /** @type {const} */ (['/repo/package.json', '/repo/a/module.f.js', '/repo/shared/module.f.js', '/repo/shared/leaf.f.mjs'])) {
             assertEq(count(validated.stdout, `read ${path}`), 1)
         }
         assertEq(count(validated.stdout, 'read /repo/b/module.f.js'), 0)
@@ -121,7 +121,7 @@ export const proof = {
         // Validation compares the saved bytes and stored resolver edges. A
         // changed, syntactically invalid source is a stale snapshot, not a
         // new parse failure, and never becomes a new graph in this run.
-        for (const changed of [
+        for (const changed of /** @type {const} */ ([
             { ...sharedTree, a: { 'module.f.js': [utf8('not valid syntax')] } },
             { ...sharedTree, shared: { ...sharedTree.shared, 'leaf.f.mjs': [utf8('export default 2;')] } },
             { ...sharedTree, a: { ...sharedTree.a, 'split.proof.f.js': [utf8('export const proof = () => 1;')] } },
@@ -129,11 +129,12 @@ export const proof = {
             { ...sharedTree, shared: { ...sharedTree.shared, 'package.json': [utf8(packageJson)] } },
             { ...sharedTree, 'package.json': [utf8('{"type":"commonjs"}')] },
             { ...sharedTree, a: {} },
-        ]) {
+        ])) {
             assertEq(assertOk(virtualAt({ repo: changed })(validateGraph(graph, '/repo/a'))[1]), false)
         }
         // A sibling in another selected directory and ignored files do not
         // change what this directory's shallow proof runner loads.
+        /** @type {Dir} */
         const unrelated = {
             ...sharedTree,
             a: { ...sharedTree.a, '.hidden.f.js': [utf8('invalid hidden source')], 'ordinary.mjs': [utf8('unrelated')] },
@@ -147,19 +148,19 @@ export const proof = {
             .files['shared/leaf.f.mjs'], hash(leaf))
     },
     sharedGraphValidationIgnoresReadChunkBoundaries: () => {
-        const source = 'export default "😀";'
-        const whole = { repo: {
+        const source = /** @type {const} */ ('export default "😀";')
+        const whole = /** @type {const} */ ({ repo: {
             'package.json': [utf8(packageJson)], unit: { 'module.f.js': [utf8(source)] },
-        }, 'framework.mjs': [utf8('framework bytes')] }
-        const chunks = { ...whole,
+        }, 'framework.mjs': [utf8('framework bytes')] })
+        const chunks = /** @type {const} */ ({ ...whole,
             repo: { ...whole.repo, unit: { 'module.f.js': [
                 utf8('export default "'), vec8(0xf0n), vec8(0x9fn), vec8(0x98n), vec8(0x80n), utf8('";'),
             ] } },
             'framework.mjs': [utf8('frame'), utf8('work bytes')],
-        }
+        })
         // Filesystem reads may split a Unicode scalar between chunks. Those
         // boundaries are transport details, independent of the source bytes.
-        for (const [before, after] of [[whole, chunks], [chunks, whole]]) {
+        for (const [before, after] of /** @type {const} */ ([[whole, chunks], [chunks, whole]])) {
             const [, result] = virtualAt(before)(buildGraph('/repo', ['/repo/unit'], { runtime: '/framework.mjs' }))
             const graph = assertOk(result)
             assertEq(graph.opaqueFiles.runtime, hash('framework bytes'))
@@ -168,12 +169,14 @@ export const proof = {
                 .files['unit/module.f.js'], hash(source))
         }
         const [, result] = virtualAt(whole)(buildGraph('/repo', ['/repo/unit']))
+        /** @type {Dir} */
         const changed = { ...chunks, repo: { ...chunks.repo, unit: { 'module.f.js': [
             utf8('export default "'), vec8(0xf0n), vec8(0x9fn), vec8(0x98n), vec8(0x81n), utf8('";'),
         ] } } }
         assertEq(assertOk(virtualAt(changed)(validateGraph(assertOk(result), '/repo/unit'))[1]), false)
     },
     sharedGraphErrorsStayWithTheirDirectories: () => {
+        /** @type {Dir} */
         const files = { repo: {
             ...sharedTree,
             bad: {
@@ -185,7 +188,7 @@ export const proof = {
         const [, result] = virtualAt(files)(buildGraph('/repo', ['/repo/a', '/repo/bad', '/repo/affected', '/repo/missing']))
         const graph = assertOk(result)
         assertOk(virtualAt(files)(graphManifest(graph, '/repo/a', ['module.f.js'], contract))[1])
-        for (const directory of ['/repo/bad', '/repo/affected', '/repo/missing']) {
+        for (const directory of /** @type {const} */ (['/repo/bad', '/repo/affected', '/repo/missing'])) {
             assertError(virtualAt(files)(graphManifest(graph, directory, ['module.f.js'], contract))[1])
             assertEq(assertOk(virtualAt(files)(validateGraph(graph, directory))[1]), false)
         }
@@ -203,6 +206,7 @@ export const proof = {
         assertError(virtualAt({})(graphManifest(partial, '/repo/bad', ['module.f.js'], contract))[1])
     },
     sharedGraphDetectsResolverAndScopeChanges: () => {
+        /** @type {Dir} */
         const files = { repo: { ...sharedTree, a: { ...sharedTree.a, 'package.json': [utf8(packageJson)] } } }
         const [, built] = virtualAt(files)(buildGraph('/repo', ['/repo/a']))
         const graph = assertOk(built)
@@ -227,10 +231,10 @@ export const proof = {
         assertEq(assertOk(unresolved({ ...emptyState, root: files })(validateGraph(graph, '/repo/a'))[1]), false)
     },
     sharedGraphRetainsAliasesAndOpaqueInputs: () => {
-        const contents = 'export default 0;'
-        const files = { repo: { 'package.json': [utf8(packageJson)], unit: {
+        const contents = /** @type {const} */ ('export default 0;')
+        const files = /** @type {const} */ ({ repo: { 'package.json': [utf8(packageJson)], unit: {
             'module.f.js': [utf8(contents)], 'alias.proof.f.mjs': [utf8(contents)],
-        } }, 'framework.mjs': [utf8('framework bytes')] }
+        } }, 'framework.mjs': [utf8('framework bytes')] })
         const aliases = partialRun(nodeCommands)({
             ...virtualOperationMap,
             resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
@@ -244,16 +248,19 @@ export const proof = {
         assertEq(value.files['unit/module.f.js'], hash(contents))
         assertEq(assertOk(aliases({ ...emptyState, root: files })(validateGraph(graph, '/repo/unit'))[1]), true)
         assertEq(assertOk(virtualAt(files)(validateGraph(graph, '/repo/unit'))[1]), false)
+        /** @type {Dir} */
         const changedAlias = { ...files, repo: { ...files.repo, unit: {
             ...files.repo.unit, 'alias.proof.f.mjs': [utf8('changed alias bytes')],
         } } }
         assertEq(assertOk(aliases({ ...emptyState, root: changedAlias })(validateGraph(graph, '/repo/unit'))[1]), false)
+        /** @type {Dir} */
         const changedFramework = { ...files, 'framework.mjs': [utf8('changed framework bytes')] }
         assertEq(assertOk(aliases({ ...emptyState, root: changedFramework })(validateGraph(graph, '/repo/unit'))[1]), false)
         assertError(virtualAt(files)(buildGraph('/repo', ['/repo/unit'], { missing: '/missing-framework.mjs' }))[1])
     },
     sharedGraphReusesPhysicalSourceAcrossIdentities: () => {
-        const contents = 'export default 0;'
+        const contents = /** @type {const} */ ('export default 0;')
+        /** @type {Dir} */
         const files = { repo: { 'package.json': [utf8(packageJson)], unit: {
             'module.f.js': [utf8(contents)], 'alias.proof.f.mjs': [utf8(contents)],
         } } }
@@ -291,8 +298,10 @@ export const proof = {
         assertStructurallySame(Object.keys(value.files), ['data.json', 'package.json', 'shared.f.mjs', 'unit/helper.f.mjs', 'unit/module.f.js', 'unit/proof.f.mjs'])
     },
     deterministic: () => {
-        const source = 'export default 1;'
+        const source = /** @type {const} */ ('export default 1;')
+        /** @type {Dir} */
         const first = { repo: { unit: { 'proof.f.js': [utf8(source)], 'module.f.js': [utf8(source)], 'demo.f.mjs': [utf8(source)] } } }
+        /** @type {Dir} */
         const second = { repo: { unit: { 'demo.f.mjs': [utf8(source)], 'module.f.js': [utf8(source)], 'proof.f.js': [utf8(source)] } } }
         assertStructurallySame(assertOk(execute(first, '/repo/./unit', ['module.f.js', 'demo.f.mjs'])),
             assertOk(execute(second, '/repo/unit', ['demo.f.mjs', 'module.f.js'])))
@@ -309,7 +318,7 @@ export const proof = {
         assert(added.files['unit/split.proof.f.js'] !== undefined)
     },
     canonicalSiblingAliasesRetainInventory: () => {
-        const contents = 'export default 0;'
+        const contents = /** @type {const} */ ('export default 0;')
         const run = partialRun(nodeCommands)({
             ...virtualOperationMap,
             resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
@@ -334,8 +343,8 @@ export const proof = {
         assertStructurallySame(assertOk(execute({ repo: { unit: {} } })).files, { 'package.json': hash(packageJson) })
     },
     packageScopes: () => {
-        const source = 'export default 0;'
-        const bare = { repo: { unit: { 'module.f.js': [utf8(source)] } } }
+        const source = /** @type {const} */ ('export default 0;')
+        const bare = /** @type {const} */ ({ repo: { unit: { 'module.f.js': [utf8(source)] } } })
         const initial = assertOk(execute(bare))
         const rootChanged = assertOk(execute({ repo: { ...bare.repo, 'package.json': [utf8('{"type":"commonjs"}')] } }))
         assert(initial.files['package.json'] !== rootChanged.files['package.json'])
@@ -364,7 +373,7 @@ export const proof = {
         assertError(result)
     },
     dynamicInputsAreUncacheable: () => {
-        for (const expression of ['import("./helper.f.mjs")', 'import.meta.url', 'require("./helper.f.mjs")', 'process.env.VALUE', 'globalThis.value']) {
+        for (const expression of /** @type {const} */ (['import("./helper.f.mjs")', 'import.meta.url', 'require("./helper.f.mjs")', 'process.env.VALUE', 'globalThis.value'])) {
             assertError(execute({ repo: { unit: {
                 'module.f.mjs': [utf8(`export const proof = () => ${expression};`)],
                 'helper.f.mjs': [utf8('export default 1;')],
@@ -380,12 +389,12 @@ export const proof = {
         assert(imported[0] === 'ioError' && imported[1].message.includes('outside the repository'))
     },
     refused: () => {
-        for (const source of [
+        for (const source of /** @type {const} */ ([
             'not valid syntax',
             'import value from "./missing.f.js"; export default value;',
             'import value from "package"; export default value;',
             'import a from "../data.json" with {type:"json"}; import b from "../data.json"; export default b;',
-        ]) {
+        ])) {
             assertError(execute({ repo: { unit: { 'module.f.js': [utf8(source)] }, 'data.json': [utf8('{}')] } }))
         }
         assertError(execute({}))
@@ -403,4 +412,4 @@ export const proof = {
         const [, resolution] = unresolved({ ...emptyState, root })(manifest('/repo', '/repo/unit', ['module.f.js'], contract))
         assertError(resolution)
     },
-}
+})

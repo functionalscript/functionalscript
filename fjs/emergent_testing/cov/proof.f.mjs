@@ -33,12 +33,12 @@ const unavailable = error(ioError({ message: 'child unavailable' }))
 
 const reporterUrl = /** @type {const} */ ('file:///package%20root/fjs/emergent_testing/cov/reporter.mjs')
 const runtimeSource = utf8('export default true;')
-const runtimeFile = 'fjs/emergent_testing/cov/runtime.mjs'
-const runtime = {
+const runtimeFile = /** @type {const} */ ('fjs/emergent_testing/cov/runtime.mjs')
+const runtime = /** @type {const} */ ({
     files: [runtimeFile],
     fingerprints: { [runtimeFile]: encodeScalar(64)(uint(computeSync(sha256)([runtimeSource]))) },
     resolutions: [], absentScopes: [],
-}
+})
 
 /** A filesystem with ignored dependencies and differently named measured files. */
 const tree = /** @type {const} */ ({
@@ -111,10 +111,10 @@ const full = path => ({
 
 export const proof = /** @type {const} */ ({
     targets: () => {
-        for (const path of ['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs']) {
+        for (const path of /** @type {const} */ (['module.f.mjs', './a/module.f.js', '/b/demo.f.mjs'])) {
             assert(isCoverageTarget(path))
         }
-        for (const path of ['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js']) {
+        for (const path of /** @type {const} */ (['proof.f.mjs', 'module.mjs', 'example.f.mjs', 'demo.f.js'])) {
             assert(!isCoverageTarget(path))
         }
     },
@@ -177,7 +177,7 @@ export const proof = /** @type {const} */ ({
         assertEq(synced.commands.length, 2)
     },
     failuresContinue: () => {
-        for (const outcome of [failed, signaled, unavailable]) {
+        for (const outcome of /** @type {const} */ ([failed, signaled, unavailable])) {
             const [state, result] = execute([outcome, passed])
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 2)
@@ -189,12 +189,12 @@ export const proof = /** @type {const} */ ({
         assertEq(state.commands.length, 2)
     },
     refused: () => {
-        for (const args of [[], ['bun'], ['node', '--quiet'], ['node', '--sync', 'extra']]) {
+        for (const args of /** @type {const} */ ([[], ['bun'], ['node', '--quiet'], ['node', '--sync', 'extra']])) {
             const [state, result] = execute([], { args })
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 0)
         }
-        for (const directories of [{ '.': [] }, {}]) {
+        for (const directories of /** @type {const} */ ([{ '.': [] }, {}])) {
             const [state, result] = execute([], {}, directories)
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 0)
@@ -214,19 +214,19 @@ export const proof = /** @type {const} */ ({
         }]), [])
         assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], []), ['Missing coverage: /a/module.f.mjs'])
         assertStructurallySame(_coverageFailures([], [full('/extra/module.f.mjs')]), ['Unexpected coverage: /extra/module.f.mjs'])
-        for (const file of [
+        for (const file of /** @type {const} */ ([
             { ...full('/a/module.f.mjs'), coveredLineCount: 1 },
             { ...full('/a/module.f.mjs'), coveredBranchCount: 0 },
             { ...full('/a/module.f.mjs'), coveredFunctionCount: 0 },
             { ...full('/a/module.f.mjs'), totalLineCount: NaN },
             { ...full('/a/module.f.mjs'), totalLineCount: -1 },
             { ...full('/a/module.f.mjs'), coveredLineCount: 0.5 },
-        ]) {
+        ])) {
             assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [file]), ['Incomplete coverage: /a/module.f.mjs'])
         }
     },
     moduleNamesAndCachedOutput: () => {
-        const command = { directory: '/repo/fjs/example', files: ['module.f.js', 'demo.f.mjs'] }
+        const command = /** @type {const} */ ({ directory: '/repo/fjs/example', files: ['module.f.js', 'demo.f.mjs'] })
         assertStructurallySame(_modulePaths(command, '/repo'), ['fjs/example/module.f.js', 'fjs/example/demo.f.mjs'])
         assertStructurallySame(_modulePaths({ directory: '/repo', files: ['module.f.js'] }, '/repo'), ['module.f.js'])
         assertStructurallySame(_modulePaths(command, '/'), ['repo/fjs/example/module.f.js', 'repo/fjs/example/demo.f.mjs'])
@@ -243,8 +243,8 @@ export const proof = /** @type {const} */ ({
         /** @type {PartialMemOperationMap<NodeOp, string>} */
         const operations = { write: (_, bytes) => state => [state + utf8ToString(bytes), ok(undefined)] }
         const run = partialRun(nodeCommands)(operations)
-        for (const failSave of [false, true]) {
-            for (const failSync of [false, true]) {
+        for (const failSave of /** @type {const} */ ([false, true])) {
+            for (const failSync of /** @type {const} */ ([false, true])) {
                 /** @type {CoverageCache} */
                 const cache = {
                     prepare: () => pureOk([]), validate: () => pureOk(true), lookup: () => pureOk([]),
