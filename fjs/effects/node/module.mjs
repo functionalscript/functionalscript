@@ -945,9 +945,21 @@ export const runNodeEffect = asyncRunAll({
         )
         child.stdin?.end(stdin)
     }),
-    execFile: (command, args) => new Promise(resolve => {
-        execFile(command, args, (e, stdout, stderr) =>
-            resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr })))
+    execFile: (command, args, options) => new Promise(resolve => {
+        /** @type {NodeJS.ErrnoException | null} */
+        let inputError = null
+        const child = execFile(command, args,
+            options?.maxBuffer === undefined ? {} : { maxBuffer: options.maxBuffer },
+            (e, stdout, stderr) => {
+                const failure = e ?? inputError
+                resolve(failure !== null ? error(toIoError(failure)) : ok({ stdout, stderr }))
+            })
+        if (options?.stdin !== undefined) {
+            // A child may finish before consuming all input; its exit still
+            // decides the operation. Other stream errors keep host diagnostics.
+            child.stdin?.on('error', (/** @type {NodeJS.ErrnoException} */ e) => { if (e.code !== 'EPIPE') { inputError = e } })
+            child.stdin?.end(options.stdin, 'utf8')
+        }
     }),
     // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
     // terminal, waited for. The handle is the branded `ChildProcess` itself, as

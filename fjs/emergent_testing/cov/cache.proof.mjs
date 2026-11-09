@@ -5,11 +5,15 @@
 
 import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import { toPath } from '../../cas/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 
 const cli = fileURLToPath(new URL('../../module.mjs', import.meta.url))
 
@@ -24,8 +28,8 @@ const env = {
     GIT_CONFIG_NOSYSTEM: '1',
 }
 
-/** @type {(cwd: string, executable: string, args: readonly string[], extraEnv?: Readonly<Record<string, string>>) => { readonly status: number | null, readonly stdout: string, readonly stderr: string, readonly output: string }} */
-const execute = (cwd, executable, args, extraEnv = {}) => {
+/** @type {(cwd: string, executable: string, args: readonly string[], extraEnv?: Readonly<Record<string, string>>, input?: string) => { readonly status: number | null, readonly stdout: string, readonly stderr: string, readonly output: string }} */
+const execute = (cwd, executable, args, extraEnv = {}, input) => {
     const result = spawnSync(executable, args, {
         cwd,
         env: {
@@ -34,7 +38,7 @@ const execute = (cwd, executable, args, extraEnv = {}) => {
             RUNNER_TEMP: join(cwd, '.coverage-tmp'),
             ...extraEnv,
         },
-        encoding: 'utf8', timeout: 30_000, maxBuffer: 4 * 1_024 * 1_024,
+        encoding: 'utf8', input, timeout: 30_000, maxBuffer: 4 * 1_024 * 1_024,
     })
     assert.ifError(result.error)
     assert.equal(result.signal, null, result.stdout + result.stderr)
@@ -72,8 +76,8 @@ const identify = root => {
     git(root, ['config', 'commit.gpgsign', 'false'])
 }
 
-/** @type {(root: string, directories: readonly string[]) => void} */
-const initialize = (root, directories) => {
+/** @type {(root: string, directories: readonly string[], markers?: boolean) => void} */
+const initialize = (root, directories, markers = false) => {
     mkdirSync(root, { recursive: true })
     git(root, ['init', '--quiet', '--initial-branch=main'])
     identify(root)
@@ -81,7 +85,8 @@ const initialize = (root, directories) => {
     for (const directory of directories) {
         write(root, `${directory}/helper.f.js`, 'export const helper = () => 1;\n')
         write(root, `${directory}/module.f.js`, 'import { helper } from "./helper.f.js"; export const value = () => helper();\n')
-        write(root, `${directory}/proof.f.mjs`, 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); return undefined; } };\n')
+        const marker = markers ? `console.log(${JSON.stringify(`CACHE_CHILD_FINISHED ${directory}`)}, Date.now()); ` : ''
+        write(root, `${directory}/proof.f.mjs`, `import { value } from "./module.f.js"; export const proof = { covers: () => { value(); ${marker}return undefined; } };\n`)
     }
     git(root, ['add', '.'])
     git(root, ['commit', '--quiet', '-m', 'source fixture'])
@@ -119,6 +124,33 @@ const sourceState = root => ({
 
 /** @type {(root: string) => readonly string[]} */
 const entries = root => git(root, ['ls-tree', '-r', '--name-only', 'build-cache']).split('\n')
+
+/** @type {(path: string) => readonly { readonly argv: readonly string[], readonly time: string }[]} */
+const _commands = path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+    .filter(event => event.event === 'start' && Array.isArray(event.argv))
+
+/** @type {(output: string) => readonly number[]} */
+const _finished = output => output.split('\n').filter(line => line.includes('CACHE_CHILD_FINISHED '))
+    .map(line => Number(line.slice(line.indexOf('CACHE_CHILD_FINISHED ') + 'CACHE_CHILD_FINISHED '.length).split(' ')[1]))
+
+/** Seed canonical SHA-256 CAS entries through one native import, then pack Git's
+ * objects. Payload construction reuses the production shard/encoding helpers.
+ * @type {(root: string, count: number) => void}
+ */
+const _seedPacked = (root, count) => {
+    const message = 'seed packed coverage cache\n'
+    const ident = 'Coverage Fixture <coverage@example.com> 1700000000 +0000'
+    const items = Array.from({ length: count }, (_, fixture) => {
+        const payload = JSON.stringify({ fixture })
+        const key = u8ListToVecMsb([...createHash('sha256').update(payload).digest()])
+        return `M 100644 inline ${toPath(key)}\ndata ${Buffer.byteLength(payload)}\n${payload}\n`
+    }).join('')
+    const input = `commit refs/heads/build-cache\nauthor ${ident}\ncommitter ${ident}\ndata ${Buffer.byteLength(message)}\n${message}\n${items}\ndone\n`
+    const imported = execute(root, 'git', ['fast-import', '--quiet', '--date-format=raw', '--done'], {}, input)
+    assert.equal(imported.status, 0, imported.output)
+    git(root, ['repack', '-ad'])
+    assert(readdirSync(join(root, '.git/objects/pack')).some(name => name.endsWith('.pack')))
+}
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
     localSuccessAndInvalidation: () => withFixture(root => {
@@ -249,9 +281,9 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const trace = join(root, 'git-trace.jsonl')
         mkdirSync(origin)
         git(origin, ['init', '--bare', '--quiet', '--initial-branch=main'])
-        initialize(repo, ['a', 'b', 'c'])
+        initialize(repo, ['a', 'b', 'c'], true)
         git(repo, ['remote', 'add', 'origin', origin])
-        write(repo, 'b/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); throw "batch fixture failure"; } };\n')
+        write(repo, 'b/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED b", Date.now()); throw "batch fixture failure"; } };\n')
         const before = sourceState(repo)
 
         const output = coverage(repo, true, 1, { GIT_TRACE2_EVENT: trace })
@@ -268,9 +300,21 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         // Native Git trace events distinguish one end-of-command publication
         // from a push after each successful module. All targets are processed
         // even when an earlier coverage child fails.
-        const events = readFileSync(trace, 'utf8').trim().split('\n').map(line => JSON.parse(line))
-        const pushes = events.filter(event => event.event === 'start' && Array.isArray(event.argv) && event.argv.includes('push'))
+        const events = _commands(trace)
+        const imports = events.filter(event => event.argv.includes('fast-import'))
+        assert.equal(imports.length, 1, JSON.stringify(imports))
+        const pushes = events.filter(event => event.argv.includes('push'))
         assert.equal(pushes.length, 1, JSON.stringify(pushes))
+        const children = _finished(output)
+        assert.equal(children.length, 3, output)
+        assert(children.every(time => Number.isFinite(time)), output)
+        const inventories = events.filter(event => event.argv.includes('for-each-ref')
+            && event.argv.includes('--format=%(refname)%00%(objectname)'))
+        assert.equal(inventories.length, 2, JSON.stringify(inventories))
+        assert(Date.parse(inventories[0].time) <= Math.min(...children), JSON.stringify(inventories))
+        assert(Date.parse(inventories[1].time) >= Math.max(...children), JSON.stringify(inventories))
+        assert(Date.parse(imports[0].time) >= Math.max(...children), JSON.stringify(imports))
+        assert(Date.parse(pushes[0].time) >= Date.parse(imports[0].time), JSON.stringify(pushes))
         const saved = entries(repo)
         assert.equal(saved.length, 2)
         assert.deepEqual(entries(origin), saved)
@@ -278,6 +322,58 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.deepEqual(modules, ['a/module.f.js', 'c/module.f.js'])
         assert.deepEqual(sourceState(repo), before)
         assert.equal(git(repo, ['status', '--porcelain']), ' M b/proof.f.mjs')
+    }),
+    packedInventoryExceedsDefaultCaptureAndRemainsBatched: () => withFixture(root => {
+        const repo = join(root, 'source')
+        initialize(repo, ['unit'], true)
+        const before = sourceState(repo)
+        const seeded = 16_000
+        _seedPacked(repo, seeded)
+        const listing = execute(repo, 'git', ['ls-tree', '-r', '-z', '--full-tree', 'build-cache', '--', '.cas'])
+        assert.equal(listing.status, 0, listing.output)
+        assert(Buffer.byteLength(listing.stdout) > 1_024 * 1_024)
+        assert.equal(listing.stdout.split('\u0000').filter(record => record !== '').length, seeded)
+
+        const initial = git(repo, ['rev-parse', 'build-cache'])
+        for (const phase of ['cold', 'warm', 'changed']) {
+            if (phase === 'changed') write(repo, 'unit/helper.f.js', 'export const helper = () => 2;\n')
+            const trace = join(root, `${phase}-trace.jsonl`)
+            const output = coverage(join(repo, 'unit'), false, 0, { GIT_TRACE2_EVENT: trace })
+            const events = _commands(trace)
+            const inventories = events.filter(event => event.argv.includes('for-each-ref')
+                && event.argv.includes('--format=%(refname)%00%(objectname)'))
+            const listings = events.filter(event => event.argv.includes('ls-tree') && event.argv.includes('--full-tree'))
+            const imports = events.filter(event => event.argv.includes('fast-import'))
+            assert.equal(inventories.length, phase === 'warm' ? 1 : 2, JSON.stringify(inventories))
+            assert.equal(listings.length, inventories.length, JSON.stringify(listings))
+            assert.equal(imports.length, phase === 'warm' ? 0 : 1, JSON.stringify(imports))
+            assert.equal(events.filter(event => event.argv.includes('cat-file')).length, phase === 'warm' ? 1 : 0, JSON.stringify(events))
+            assert.equal(events.filter(event => event.argv.includes('push')).length, 0, JSON.stringify(events))
+            for (const name of ['hash-object', 'update-index', 'write-tree', 'commit-tree']) {
+                assert.equal(events.filter(event => event.argv.includes(name)).length, 0, JSON.stringify(events))
+            }
+            if (phase === 'warm') {
+                assert(output.includes('unit/module.f.js...Cached'), output)
+                cachedOutput(output)
+                assert.equal(_finished(output).length, 0, output)
+            } else {
+                assert(output.includes('unit/module.f.js...Ok'), output)
+                nativeOutput(output)
+                const children = _finished(output)
+                assert.equal(children.length, 1, output)
+                assert(Number.isFinite(children[0]), output)
+                assert(Date.parse(inventories[0].time) <= children[0], JSON.stringify(inventories))
+                assert(Date.parse(inventories[1].time) >= children[0], JSON.stringify(inventories))
+                assert(Date.parse(imports[0].time) >= Date.parse(inventories[1].time), JSON.stringify(imports))
+            }
+            const expected = seeded + (phase === 'changed' ? 2 : 1)
+            assert.equal(entries(repo).length, expected)
+            const tip = git(repo, ['rev-parse', 'build-cache'])
+            assert.notEqual(tip, initial)
+            assert.equal(Number(git(repo, ['rev-list', '--count', 'build-cache'])), phase === 'changed' ? 3 : 2)
+            assert.deepEqual(sourceState(repo), before)
+        }
+        assert.equal(git(repo, ['status', '--porcelain']), ' M unit/helper.f.js')
     }),
     earlierChildCannotReuseLaterTargetsOldSnapshot: () => withFixture(root => {
         const repo = join(root, 'source')

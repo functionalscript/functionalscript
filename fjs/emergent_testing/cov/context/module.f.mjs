@@ -4,7 +4,8 @@
  * @module
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { NodeOp, NodeProgramOptions } from '../../../effects/node/types.ts'
- * @import { Command, CoverageCache } from '../cached/types.ts'
+ * @import { Command, CoverageCache } from '../plan/types.ts'
+ * @import { Entry } from '../cache/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.js'
@@ -94,14 +95,17 @@ export const openCoverageCache = (options, synchronize, commands) => {
         /** @type {CoverageCache} */
         const cache = {
             root: local.root,
-            has: local.has,
-            saveMany: manifests => foldStep(pureOk(manifests), undefined, manifest => () =>
-                catchStep(local.save(manifest), problem => error(`CACHE ${local.root}: saving manifest: ${errorMessage(problem)}`))),
+            lookup: local.lookup,
+            saveMany: local.saveMany,
             sync,
-            prepare: command => mapStep(graphManifest(graph, command.directory, command.files, {
-                runtime: contract,
-                coverage: { engine: 'node', targets: command.files, lines: 100, branches: 100, functions: 100 },
-            }), base => base.targets.map(file => ({ ...base, module: join(base.directory, file) }))),
+            prepare: command => {
+                const manifests = mapStep(graphManifest(graph, command.directory, command.files, {
+                    runtime: contract,
+                    coverage: { engine: 'node', targets: command.files, lines: 100, branches: 100, functions: 100 },
+                }), base => base.targets.map(file => ({ ...base, module: join(base.directory, file) })))
+                return foldStep(manifests, /** @type {readonly Entry[]} */ ([]), manifest => entries =>
+                    mapStep(local.prepare(manifest), entry => [...entries, entry]))
+            },
             validate: command => {
                 const aliases = foldStep(pureOk(runtime.resolutions), true, resolution => valid => catchStep(
                     mapStep(resolveFileModule(resolution.name, null), found => valid && found.id === resolution.id && found.path === resolution.path),

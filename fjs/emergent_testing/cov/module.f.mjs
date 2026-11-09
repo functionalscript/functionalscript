@@ -1,16 +1,16 @@
 /**
  * Runs each module directory's own proofs under native Node coverage.
  * Children run sequentially without a shell and inherit stdout and stderr.
- * Each target's result follows its child's live output. Successful manifests are saved
- * and synchronized together after the selected directories finish.
+ * The complete plan is prepared before any child runs. Stable successful entries
+ * are committed and synchronized after executing the plan.
  *
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { NodeOp, NodeProgram, NodeProgramOptions, Write, Subprocess } from '../../effects/node/types.ts'
- * @import { _CoverageFile, _Module } from './types.ts'
- * @import { CoverageCache, Command, Outcome } from './cached/types.ts'
- * @import { Unknown } from '../../media/json/types.ts'
+ * @import { _Module } from './types.ts'
+ * @import { CoverageCache, Command, Outcome, Planned } from './plan/types.ts'
+ * @import { Entry } from './cache/types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
@@ -20,12 +20,11 @@ import { basename, join, normalize, parent, under } from '../../path/module.f.js
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
-import { runCached } from './cached/module.f.mjs'
+import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
+import { isCoverageTarget } from './check/module.f.mjs'
 
-/** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
-export const isCoverageTarget = path =>
-    ['module.f.mjs', 'module.f.js', 'demo.f.mjs'].includes(basename(path))
+export { isCoverageTarget, _coverageFailures } from './check/module.f.mjs'
 
 /** Group discovered source files into deterministic directory jobs. @type {(files: readonly string[]) => readonly _Module[]} */
 export const _modules = files =>
@@ -49,24 +48,6 @@ export const _nodeArgs = (packageRoot, files, reporter) => [
 /** The cwd and complete invocation, shown on failure as shell words; execution still uses argv. @type {(directory: string, args: readonly string[]) => string} */
 export const _commandLine = (directory, args) =>
     `cwd: ${shellQuote(directory)}\ncommand: ${['node', ...args].map(shellQuote).join(' ')}`
-
-/** A missing, invalid or rounded-away uncovered count cannot pass. @type {(covered: number, total: number) => boolean} */
-const complete = (covered, total) =>
-    Number.isInteger(total) && total >= 0 && Number.isInteger(covered) && covered === total
-
-/** Validate the exact target set using raw native counts, before reporter filtering. @type {(expected: readonly string[], files: readonly _CoverageFile[]) => readonly string[]} */
-export const _coverageFailures = (expected, files) => [
-    ...expected.flatMap(path => {
-        const file = files.find(file => normalize(file.path) === normalize(path))
-        if (file === undefined) { return [`Missing coverage: ${path}`] }
-        return complete(file.coveredLineCount, file.totalLineCount)
-            && complete(file.coveredBranchCount, file.totalBranchCount)
-            && complete(file.coveredFunctionCount, file.totalFunctionCount)
-            ? [] : [`Incomplete coverage: ${path}`]
-    }),
-    ...files.filter(file => !expected.some(path => normalize(path) === normalize(file.path)))
-        .map(file => `Unexpected coverage: ${file.path}`),
-]
 
 /** Display target paths relative to the tested repository when known. @type {(command: _Module, root: string) => readonly string[]} */
 export const _modulePaths = ({ directory, files }, root) => {
@@ -94,10 +75,10 @@ const runModule = (command, root) => {
     return mapStep(diagnostics, ([, , { passed }]) => passed)
 }
 
-/** A failed cache operation cannot hide the coverage result. @type {(cache: CoverageCache | null, manifests: readonly Unknown[]) => Effect<NodeOp, void, IoChannel>} */
-export const _saveBatch = (cache, manifests) => {
+/** Commit and publish once after execution; cache errors cannot hide coverage results. @type {(cache: CoverageCache | null, entries: readonly Entry[]) => Effect<NodeOp, void, IoChannel>} */
+export const _saveBatch = (cache, entries) => {
     if (cache === null) { return pureOk(undefined) }
-    const saved = catchStep(cache.saveMany(manifests), problem => error(`CACHE: saving manifests: ${errorMessage(problem)}`))
+    const saved = catchStep(cache.saveMany(entries), problem => error(`CACHE: saving manifests: ${errorMessage(problem)}`))
     return step(saved, () => catchStep(cache.sync(), problem => error(`CACHE: synchronizing manifests: ${errorMessage(problem)}`)))
 }
 
@@ -113,6 +94,23 @@ const coverageCache = (options, synchronize, commands) => resultStep(openCoverag
 
 /** Successful cached checks still contribute to the total passed count. @type {Record<Outcome, { readonly failed: number, readonly cached: number }>} */
 const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cached: 0 }, cached: { failed: 0, cached: 1 } }
+
+/** Execute only the prepared misses and retain stable successes for one commit.
+ * @type {(plan: readonly Planned[], root: string, cache: CoverageCache | null) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly entries: readonly Entry[] }, IoChannel>}
+ */
+const runPlan = (plan, root, cache) => foldStep(pureOk(plan), {
+    failed: 0, cached: 0, total: 0, entries: /** @type {readonly Entry[]} */ ([]),
+}, item => totals => {
+    const checked = runPlanned(item, () => runModule(item.command, root), cache)
+    const shown = historyStep(history(checked), ({ outcome }) => _showCached(item.command, root, outcome))
+    return mapStep(shown, ([, { outcome, entries }]) => {
+        const change = increments[outcome]
+        return {
+            failed: totals.failed + change.failed, cached: totals.cached + change.cached,
+            total: totals.total + 1, entries: [...totals.entries, ...entries],
+        }
+    })
+})
 
 /** Run the selected subtree; --sync publishes its successful manifests at end. @type {NodeProgram} */
 export const main = options => {
@@ -132,19 +130,10 @@ export const main = options => {
             directory: path, files, args: _nodeArgs(packageRoot, files, id),
         }])))
     const context = historyStep(history(commands), commands => coverageCache(options, args.length === 2, commands))
-    const results = step(context, ([cache, commands]) => {
-        const root = cache?.root ?? packageRoot
-        const completed = foldStep(pureOk(commands), { failed: 0, cached: 0, total: 0, manifests: /** @type {readonly Unknown[]} */ ([]) }, command => totals => {
-            const checked = runCached(command, () => runModule(command, root), cache)
-            const shown = historyStep(history(checked), ({ outcome }) => _showCached(command, root, outcome))
-            return mapStep(shown, ([, { outcome, manifests }]) => {
-                const change = increments[outcome]
-                return { failed: totals.failed + change.failed, cached: totals.cached + change.cached, total: totals.total + 1, manifests: [...totals.manifests, ...manifests] }
-            })
-        })
-        const saved = historyStep(history(completed), ({ manifests }) => _saveBatch(cache, manifests))
-        return mapStep(saved, ([, totals]) => totals)
-    })
+    const planned = historyStep(context, (cache, commands) => createPlan(commands, cache))
+    const executed = historyStep(planned, (plan, cache) => runPlan(plan, cache?.root ?? packageRoot, cache))
+    const committed = historyStep(executed, (results, _plan, cache) => _saveBatch(cache, results.entries))
+    const results = mapStep(committed, ([, totals]) => totals)
     const reported = historyStep(history(results), ({ failed, cached, total }) =>
         log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`))
     return resultStep(reported, ([tag, value]) => {

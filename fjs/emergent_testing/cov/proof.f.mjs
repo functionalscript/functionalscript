@@ -4,7 +4,7 @@
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
- * @import { CoverageCache } from './cached/types.ts'
+ * @import { CoverageCache } from './plan/types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
@@ -247,7 +247,7 @@ export const proof = /** @type {const} */ ({
             for (const failSync of [false, true]) {
                 /** @type {CoverageCache} */
                 const cache = {
-                    prepare: () => pureOk([]), validate: () => pureOk(true), has: () => pureOk(false),
+                    prepare: () => pureOk([]), validate: () => pureOk(true), lookup: () => pureOk([]),
                     saveMany: () => failSave ? pureError(ioError({ message: 'save unavailable' })) : pureOk(undefined),
                     sync: () => failSync ? pureError(ioError({ message: 'sync unavailable' })) : pureOk(undefined),
                 }

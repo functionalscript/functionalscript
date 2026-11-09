@@ -2,7 +2,7 @@
  * @import { NodeOp, NodeProgramOptions, Child } from '../../../effects/node/types.ts'
  * @import { Dir, State } from '../../../effects/node/virtual/types.ts'
  * @import { PartialMemOperationMap } from '../../../effects/mock/types.ts'
- * @import { Command } from '../cached/types.ts'
+ * @import { Command } from '../plan/types.ts'
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
@@ -12,7 +12,7 @@ import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
 import { ioError, runPure } from '../../../effects/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
 import { nodeCommands } from '../../../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual, virtualOperationMap } from '../../../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtualOperationMap } from '../../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
 import { stringToU8List } from '../../../text/utf8/module.f.mjs'
 import { u8ListToMaxVecChunksMsb, uint } from '../../../types/bit_vec/module.f.mjs'
@@ -37,6 +37,8 @@ const runtimeHash = vecToCBase32(digest(u8ListToMaxVecChunksMsb(stringToU8List(r
 const hex = encodeScalar(64)
 /** @type {(text: string) => string} */
 const fingerprint = text => hex(uint(digest(u8ListToMaxVecChunksMsb(stringToU8List(text)))))
+/** @type {(path: string) => string} */
+const objectId = path => fingerprint(path).slice(0, 40)
 const facts = /** @type {const} */ ({
     node: '26.13.0', versions: { node: '26.13.0', v8: 'actual-v8' }, platform: 'linux', arch: 'x64',
     env: { NODE_OPTIONS: null, NODE_PATH: null, LANG: 'C', LC_ALL: null, TZ: null },
@@ -75,16 +77,17 @@ const files = {
     } },
 }
 
-/** Real filesystem/CAS operations with only subprocesses and absolute cwd mocked.
+/** Real source snapshots with the Git subprocess protocol held in memory.
  * @param {string} [runtimeOutput]
  * @param {boolean} [runtimeFails]
  * @param {boolean} [syncFails]
+ * @param {boolean} [saveFails]
  */
-const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = false, syncFails = false) => {
+const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = false, syncFails = false, saveFails = false) => {
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const result = {
         ...virtualOperationMap,
-        execFile: (executable, args) => state => {
+        execFile: (executable, args, options) => state => {
             const next = { ...state, stdout: state.stdout + JSON.stringify([executable, args]) + '\n' }
             if (executable === 'node') {
                 assertStructurallySame(args, [runtimePath])
@@ -95,6 +98,39 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
             assertEq(executable, 'git')
             if (args[0] === 'rev-parse') {
                 return [next, ok({ stdout: args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })]
+            }
+            const stored = state.stdout.split('\n').filter(line => line.startsWith('stored ')).map(line => line.slice(7))
+            if (args.includes('for-each-ref')) {
+                return [next, ok({ stdout: stored.length === 0 ? '' : `refs/heads/build-cache\u0000${'a'.repeat(40)}\n`, stderr: '' })]
+            }
+            if (args.includes('ls-tree')) {
+                return [next, ok({ stdout: stored.filter((path, index) => stored.indexOf(path) === index).toSorted()
+                    .map(path => `100644 blob ${objectId(path)}\t${path}\u0000`).join(''), stderr: '' })]
+            }
+            if (args.includes('cat-file')) {
+                const frames = (options?.stdin ?? '').split('\n').filter(oid => oid !== '').map(oid => {
+                    const prefix = `blob ${oid} `
+                    const line = assertNotNullish(state.stdout.split('\n').findLast(line => line.startsWith(prefix)))
+                    const body = line.slice(prefix.length)
+                    const separator = body.indexOf(' ')
+                    return `${oid} blob ${body.slice(0, separator)}\n${body.slice(separator + 1)}\n`
+                }).join('')
+                return [next, ok({ stdout: frames, stderr: '' })]
+            }
+            if (args.includes('GIT_COMMITTER_IDENT')) {
+                return [next, ok({ stdout: 'Coverage Writer <coverage@example.com> 0 +0000\n', stderr: '' })]
+            }
+            if (args.includes('fast-import')) {
+                if (saveFails) { return [next, error(ioError({ message: 'batch write unavailable' }))] }
+                const lines = (options?.stdin ?? '').split('\n')
+                const imported = lines.flatMap((line, index) => {
+                    if (!line.startsWith('M ')) { return [] }
+                    const path = assertNotNullish(line.split(' ').at(-1))
+                    const size = assertNotNullish(lines[index + 1]).slice(5)
+                    const payload = assertNotNullish(lines[index + 2])
+                    return [`stored ${path}\nblob ${objectId(path)} ${size} ${payload}\n`]
+                }).join('')
+                return [{ ...next, stdout: next.stdout + imported }, ok({ stdout: '', stderr: '' })]
             }
             assertStructurallySame(args, ['-C', '/repo', 'ls-remote', 'origin', 'refs/heads/build-cache'])
             return [next, syncFails
@@ -144,12 +180,15 @@ export const proof = {
         assertEq(lines.filter(line => line === `read ${runtimePath}`).length, 2)
         assertEq(lines.filter(line => line === 'directory /repo/unit').length, 1)
         const [prepared, result] = run(state)(cache.prepare(command))
-        const manifests = assertOk(result)
+        const entries = assertOk(result)
         assertStructurallySame(prepared, state)
-        assertStructurallySame(assertOk(assertNotNullish(runPure(cache.prepare(command))[0])), manifests)
-        assertEq(assertOk(assertNotNullish(runPure(cache.prepare(other))[0])).length, 1)
-        assertEq(manifests.length, 2)
-        const [first, second] = manifests
+        assertStructurallySame(assertOk(assertNotNullish(runPure(cache.prepare(command))[0])), entries)
+        const otherEntries = assertOk(assertNotNullish(runPure(cache.prepare(other))[0]))
+        assertEq(otherEntries.length, 1)
+        assertEq(entries.length, 2)
+        const [firstEntry, secondEntry] = entries
+        assert(firstEntry.key !== secondEntry.key)
+        const [first, second] = [firstEntry.manifest, secondEntry.manifest]
         assert(first !== null && typeof first === 'object' && !(first instanceof Array))
         assert(second !== null && typeof second === 'object' && !(second instanceof Array))
         assertEq(first.module, 'unit/demo.f.mjs')
@@ -159,14 +198,21 @@ export const proof = {
             coverage: { engine: 'node', targets: command.files, lines: 100, branches: 100, functions: 100 },
         })
         assertStructurallySame(first.files, second.files)
-        const [, miss] = virtual(prepared)(cache.has(first))
-        assertEq(assertOk(miss), false)
-        const [saved, stored] = virtual(prepared)(cache.saveMany(manifests))
+        const all = [...entries, ...otherEntries]
+        const [looked, miss] = run(prepared)(cache.lookup(all))
+        assertStructurallySame(assertOk(miss), [false, false, false])
+        const [saved, stored] = run(looked)(cache.saveMany(all))
         assertOk(stored)
-        const [, hit] = virtual(saved)(cache.has(first))
-        assertEq(assertOk(hit), true)
-        assertEq(assertOk(virtual(saved)(cache.has(second))[1]), true)
-        assertOk(virtual(saved)(cache.sync())[1])
+        const [checked, hit] = run(saved)(cache.lookup(all))
+        assertStructurallySame(assertOk(hit), [true, true, true])
+        /** @type {readonly string[]} */
+        const commands = checked.stdout.split('\n')
+        /** @type {readonly string[]} */
+        const previous = saved.stdout.split('\n')
+        assertEq(commands.filter(line => line.includes('"ls-tree"')).length - previous.filter(line => line.includes('"ls-tree"')).length, 1)
+        assertEq(commands.filter(line => line.includes('"cat-file"')).length - previous.filter(line => line.includes('"cat-file"')).length, 1)
+        assertEq(commands.filter(line => line.includes('"fast-import"')).length, 1)
+        assertOk(run(checked)(cache.sync())[1])
         assert(!prepared.stdout.includes('ls-remote'))
     },
     synchronizedContext: () => {
@@ -184,34 +230,27 @@ export const proof = {
         const [state, result] = unavailable({ ...emptyState, root: files })(openCoverageCache(options, true, [command]))
         const cache = assertOk(result)
         assert(state.stderr.includes('CACHE /repo: initializing synchronization: remote unavailable'))
-        const [prepared, manifests] = unavailable(state)(cache.prepare(command))
-        const [first] = assertOk(manifests)
-        const [saved, recorded] = virtual(prepared)(cache.saveMany([first]))
+        const [prepared, entries] = unavailable(state)(cache.prepare(command))
+        const [first] = assertOk(entries)
+        const [saved, recorded] = unavailable(prepared)(cache.saveMany([first]))
         assertOk(recorded)
-        assertEq(assertOk(virtual(saved)(cache.has(first))[1]), true)
+        assertStructurallySame(assertOk(unavailable(saved)(cache.lookup([first]))[1]), [true])
         assertError(unavailable(saved)(cache.sync())[1])
         const recovered = partialRun(nodeCommands)(operations())
         const [synchronized, retried] = recovered(saved)(cache.sync())
         assertOk(retried)
         assert(synchronized.stdout.includes('fetch'))
-        assertEq(assertOk(virtual(synchronized)(cache.has(first))[1]), true)
+        assertStructurallySame(assertOk(recovered(synchronized)(cache.lookup([first]))[1]), [true])
     },
-    failedBatchEntryDoesNotDiscardLaterSuccess: () => {
-        const run = partialRun(nodeCommands)({
-            ...operations(),
-            now: () => state => [{ ...state, epochNs: state.epochNs + 1 }, state.epochNs === 0
-                ? error(/** @type {const} */ (['notImplemented', 'now'])) : ok(1)],
-        })
+    failedBatchDoesNotPublishEntries: () => {
+        const run = partialRun(nodeCommands)(operations(undefined, false, false, true))
         const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
         const cache = assertOk(opened)
         const [prepared, result] = run(state)(cache.prepare(command))
-        const manifests = assertOk(result)
-        const [first, second] = manifests
-        const [saved, stored] = run(prepared)(cache.saveMany(manifests))
-        assertOk(stored)
-        assert(saved.stderr.includes('now'))
-        assertEq(assertOk(virtual(saved)(cache.has(first))[1]), false)
-        assertEq(assertOk(virtual(saved)(cache.has(second))[1]), true)
+        const entries = assertOk(result)
+        const [saved, stored] = run(prepared)(cache.saveMany(entries))
+        assertError(stored)
+        assertStructurallySame(assertOk(run(saved)(cache.lookup(entries))[1]), [false, false])
         assert(!saved.stdout.includes('push'))
     },
     runtimeFailures: () => {

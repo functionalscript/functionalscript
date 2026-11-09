@@ -59,31 +59,35 @@ inside the repository are hashed too. New nested package scopes therefore
 invalidate the affected manifests. A missing root package file leaves the run
 uncached rather than depending on package metadata outside the repository.
 
-One runtime probe and one shared dependency graph prepare the selected directories
-at startup. Source bytes, hashes and parsed imports are shared across all targets;
-framework files use the same snapshot. Target manifests select their reachable
-inputs without rebuilding the graph. Native loader fingerprints bind framework
-discovery to the bytes actually loaded; the probe entry is pinned before startup.
-An unsupported directory leaves independent
-directories eligible for caching.
+Planning uses one runtime probe and one shared dependency graph. Source bytes,
+hashes and parsed imports are shared across all targets; framework files use
+the same snapshot. Target manifests select their reachable inputs without
+rebuilding the graph. Their keys are hashed once, then checked together against
+one native Git inventory of `build-cache`; matching blobs are verified in one
+batch against the exact prepared manifest contents. Native loader fingerprints
+bind framework discovery to the bytes actually loaded; the probe entry is pinned
+before startup. An unsupported directory leaves independent directories
+eligible for caching.
 
 Cache-only admission refuses dynamic `import`, `import.meta`, `require`,
 `eval`/`Function`, and explicit host-global references. These forms continue
 through ordinary coverage without cache reuse; no language semantics change.
 
 A directory's coverage process is skipped only when every measured target has
-an exact local success. Before lookup and after successful coverage, the runner
+an exact local success. Before using its plan and after successful coverage, the runner
 compares relevant input bytes, sibling inventories, package scopes and resolution
 identities against the snapshot, without reparsing or rehashing. Changed inputs
-run uncached and cannot publish that snapshot's success.
+run coverage, including a planned cache hit that became stale, and cannot publish
+that snapshot's success. During execution there are no cache lookups, key hashes
+or cache writes; the runner remembers stable successes for the recording phase.
 Framework validation includes original import paths and absent nearer package
 scopes, so retargeted symlinks and newly added package boundaries invalidate reuse.
-The [preparation measurements](../../emergent_testing/cov/measurements.md)
-cover both shared-run gains and the cost for a single cached job.
-Stable successes are collected and saved as one local batch after all modules
-finish. Failed coverage contributes no manifest, while other modules' successes
-are retained. Incomplete dependency analysis, unsupported preload settings and
-cache failures are reported and run uncached.
+After all modules finish, new successful entries are stored in one native Git
+`fast-import` commit. An empty batch writes no commit. Failed coverage contributes
+no manifest, while other modules' successes are retained. Incomplete dependency
+analysis, unsupported preload settings and cache failures are reported and run
+uncached. [Measurement records](../../emergent_testing/cov/measurements.md)
+distinguish full planning, reporter startup and earlier preparation-only timings.
 
 With `npm start -- cov node --sync`, the command fetches the remote baseline
 at startup and publishes once after module processing and batch recording.
@@ -94,7 +98,8 @@ local branch is then refreshed for subsequent runs. Without the flag, only the
 local branch is read or updated. The source checkout is untouched.
 
 Native children inherit stdout and stderr for live reporter output, retaining
-the existing quiet Node reporter's filtering. After a child finishes, each
+the existing quiet Node reporter's filtering. Its small admission-check module
+does not import the cache or dependency planner. After a child finishes, each
 target prints its repository-relative filename followed by `...Ok` or
 `...Failed`. Failures also identify the command and directory. Cache hits launch
 no child and print only `...Cached` for each target.

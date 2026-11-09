@@ -151,8 +151,18 @@ directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
 
-The runner checks canonical dependency manifests in the local `build-cache`
-Git branch before launching a child. Each measured target has its own manifest,
+The runner separates planning, execution and recording:
+
+1. Build the shared dependency graph and all target manifests, hash their cache
+   keys once, and check them against one native Git inventory of `build-cache`.
+   Matching entries' blob contents are verified together against the exact
+   prepared manifests before they count as hits.
+2. Run the planned misses sequentially and remember stable successful entries.
+   A directory whose targets all hit needs no coverage child.
+3. Record the new successful entries in one local Git `fast-import` commit,
+   then synchronize when requested. An empty batch creates no commit.
+
+Each measured target has its own canonical dependency manifest,
 including all immediate authored siblings, their transitive static imports,
 working-tree content hashes, coverage settings and loaded tooling/runtime inputs.
 The manifest names its `module`, directory and sorted target inventory; its
@@ -184,13 +194,16 @@ the working directory and reproducible command. Cache hits launch no child and
 print only `module.f.js...Cached` for each target. The runner continues after
 failures and exits nonzero if any module failed.
 
-Before a cache lookup and after a successful child, the runner verifies the
+Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module
 resolution identities, including the framework's original file import paths.
 These checks reuse the graph without parsing or hashing
-again. A changed input runs uncached and contributes no success for that snapshot.
-The command collects stable successes and saves them in one local batch after
-all modules finish, even when another module failed.
+again. A stale planned hit runs coverage instead; changed inputs contribute no
+success for that snapshot. Execution performs no cache lookup, key rehashing or
+cache write. The native reporter imports only the small coverage-admission
+checks, keeping dependency planning and cache machinery out of each child's
+startup. Stable successes are recorded after all modules finish, even when
+another module failed.
 Failed coverage contributes no manifest. An interrupted run cannot certify its
 unfinished coverage. Incomplete dependency parsing/resolution, unsupported
 preload settings, and cache errors are reported explicitly and leave the run

@@ -88,7 +88,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             'package.json', 'fjs/module.mjs', 'fjs/module.f.mjs',
             'fjs/effects/node/module.mjs', 'fjs/effects/module.mjs',
             'fjs/emergent_testing/one.mjs', 'fjs/emergent_testing/module.f.mjs',
-            'fjs/emergent_testing/cov/reporter.mjs', 'fjs/emergent_testing/cov/module.f.mjs',
+            'fjs/emergent_testing/cov/reporter.mjs', 'fjs/emergent_testing/cov/check/module.f.mjs',
             'fjs/emergent_testing/cov/runtime.mjs', 'fjs/cli/module.f.mjs',
         ]) {
             assert(files.includes(root), `Missing framework input: ${root}`)
