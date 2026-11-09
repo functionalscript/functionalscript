@@ -164,17 +164,25 @@ The runner separates planning, execution and recording:
 
 Each measured target has its own canonical dependency manifest,
 including all immediate authored siblings, their transitive static imports,
-working-tree content hashes, coverage settings and loaded tooling/runtime inputs.
+working-tree content hashes, coverage settings and runtime facts.
 The manifest names its `module`, directory and sorted target inventory; its
 `files` object maps repository-relative paths to SHA-256/CBase32 hashes. The
-contract records actual Node/platform versions, relevant execution settings and
-hashes of the framework files discovered by Node's loader. JSON leaves and shared
-dependencies are included once; dependency cycles do not repeat files. At startup,
-the runner probes Node once and builds one shared dependency graph for all selected
+contract records actual Node versions, platform, architecture, relevant execution
+settings and the tool's FunctionalScript version from `package.json` in
+`contract.runtime.functionalscript`. Tool source files do not
+form a shared fingerprint: changing a CLI, reporter or framework source at the
+same version preserves cached successes unless it is also an actual dependency
+of that target. Changes to tooling behavior within a version can therefore reuse
+earlier successes; use the uncached `npm run cov` when validating the coverage
+tool itself. A FunctionalScript version change invalidates all isolated coverage
+successes.
+
+JSON leaves and shared dependencies are included once; dependency cycles do not
+repeat files. At startup, the runner probes Node once and builds one shared
+dependency graph for all selected
 directories. Graph construction reads, hashes and parses each source once, reusing
-shared imports and framework inputs. Each directory's manifest selects its
-reachable inputs from that snapshot. Loader fingerprints bind the framework inventory to the source
-bytes observed by the probe; changed framework inputs disable reuse.
+shared imports. Each directory's manifest selects its reachable inputs from that
+snapshot.
 
 Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
@@ -196,7 +204,7 @@ failures and exits nonzero if any module failed.
 
 Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module
-resolution identities, including the framework's original file import paths.
+resolution identities.
 These checks reuse the graph without parsing or hashing
 again. A stale planned hit runs coverage instead; changed inputs contribute no
 success for that snapshot. Execution performs no cache lookup, key rehashing or

@@ -51,23 +51,27 @@ complete inputs are not yet enumerated.
 contract. Each measured target's manifest contains repository-relative paths
 and working-tree SHA-256/CBase32 hashes of every immediate authored sibling and
 its transitive static dependencies. It also includes coverage settings and the
-actual runtime plus loaded tooling-file closure. Canonical JSON makes the key
-deterministic. Local edits, proof inventory changes and tool/runtime changes
-invalidate the affected success. The repository root's `package.json` is a
-required input; all present ancestor `package.json` files for loaded files
-inside the repository are hashed too. New nested package scopes therefore
+actual runtime facts, with FunctionalScript's `package.json` version identifying
+the tool. Canonical JSON makes the key deterministic. Local edits, proof
+inventory changes and runtime changes invalidate the affected success; changing
+the FunctionalScript version invalidates every isolated coverage success.
+Tool sources are not a shared fingerprint, so edits to the CLI, reporter or
+framework at the same version preserve successes unless those files are actual
+dependencies of the target. This deliberately permits reuse across same-version
+tool behavior changes; run the uncached `npm run cov` when validating coverage
+tooling itself. The repository root's `package.json` is a required input; all
+present ancestor `package.json` files for loaded files inside the repository are
+hashed too. New nested package scopes therefore
 invalidate the affected manifests. A missing root package file leaves the run
 uncached rather than depending on package metadata outside the repository.
 
 Planning uses one runtime probe and one shared dependency graph. Source bytes,
-hashes and parsed imports are shared across all targets; framework files use
-the same snapshot. Target manifests select their reachable inputs without
-rebuilding the graph. Their keys are hashed once, then checked together against
-one native Git inventory of `build-cache`; matching blobs are verified in one
-batch against the exact prepared manifest contents. Native loader fingerprints
-bind framework discovery to the bytes actually loaded; the probe entry is pinned
-before startup. An unsupported directory leaves independent directories
-eligible for caching.
+hashes and parsed imports are shared across all targets. Target manifests select
+their reachable inputs without rebuilding the graph. Their keys are hashed once,
+then checked together against one native Git inventory of `build-cache`;
+matching blobs are verified in one
+batch against the exact prepared manifest contents. An unsupported directory
+leaves independent directories eligible for caching.
 
 Cache-only admission refuses dynamic `import`, `import.meta`, `require`,
 `eval`/`Function`, and explicit host-global references. These forms continue
@@ -80,7 +84,7 @@ identities against the snapshot, without reparsing or rehashing. Changed inputs
 run coverage, including a planned cache hit that became stale, and cannot publish
 that snapshot's success. During execution there are no cache lookups, key hashes
 or cache writes; the runner remembers stable successes for the recording phase.
-Framework validation includes original import paths and absent nearer package
+Dependency validation includes original import paths and absent nearer package
 scopes, so retargeted symlinks and newly added package boundaries invalidate reuse.
 After all modules finish, new successful entries are stored in one native Git
 `fast-import` commit. An empty batch writes no commit. Failed coverage contributes
