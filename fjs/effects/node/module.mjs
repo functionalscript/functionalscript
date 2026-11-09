@@ -955,9 +955,10 @@ export const runNodeEffect = asyncRunAll({
                 resolve(failure !== null ? error(toIoError(failure)) : ok({ stdout, stderr }))
             })
         if (options?.stdin !== undefined) {
-            // A child may finish before consuming all input; its exit still
-            // decides the operation. Other stream errors keep host diagnostics.
-            child.stdin?.on('error', (/** @type {NodeJS.ErrnoException} */ e) => { if (e.code !== 'EPIPE') { inputError = e } })
+            // A child may finish before consuming all input: Node reports the
+            // closed pipe as EPIPE or, on Windows, EOF. Its exit still decides
+            // the operation; other stream errors keep host diagnostics.
+            child.stdin?.on('error', (/** @type {NodeJS.ErrnoException} */ e) => { if (e.code !== 'EPIPE' && e.code !== 'EOF') { inputError = e } })
             child.stdin?.end(options.stdin, 'utf8')
         }
     }),
