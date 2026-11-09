@@ -26,9 +26,10 @@ const explicit = { ...options, env: { GIT_AUTHOR_NAME: 'Coverage Writer', GIT_AU
 const manifest = { module: 'src/module.f.js', files: { 'src/module.f.js': 'hash', 'src/proof.f.mjs': 'proof' } }
 const tip = 'a'.repeat(40)
 const other = 'b'.repeat(40)
-const baseConfig = '[core]\nrepositoryformatversion = 0\n'
+const baseConfig = /** @type {const} */ ('[core]\nrepositoryformatversion = 0\n')
+/** @type {string} */
 const authorConfig = `${baseConfig}[user]\nname = Local Writer\nemail = local@example.com\n`
-const ident = 'Coverage Writer <coverage@example.com> 0 +0000\n'
+const ident = /** @type {const} */ ('Coverage Writer <coverage@example.com> 0 +0000\n')
 
 /** @type {(stdout?: string, stderr?: string) => IoResult<ExecResult>} */
 const reply = (stdout = '', stderr = '') => ok({ stdout, stderr })
@@ -74,7 +75,7 @@ const read = (state, path) => assertOk(virtual(state)(readUtf8File(path))[1])
 /** @type {(state: State) => readonly {readonly args: readonly string[], readonly options?: ExecFileOptions}[]} */
 const calls = state => JSON.parse(state.stdout)
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     preparationIsCanonicalAndUnicodeBytesAreCounted: () => {
         const [, cache] = cacheAt()
         const a = entryOf(cache, { z: '雪\n😀', a: 1 })
@@ -128,7 +129,7 @@ export const proof = {
         const [, cache] = cacheAt()
         const a = entryOf(cache, { message: '雪\n😀' })
         assertStructurallySame(assertOk(run(cache.lookup([a]), [ref(), reply(row(a)), reply(blob(a))])[1]), [true])
-        for (const response of [
+        for (const response of /** @type {const} */ ([
             reply(`${tip} missing\n`),
             reply(blob(a).replace(' blob ', ' tree ')),
             reply(blob(a).replace(tip, other)),
@@ -138,12 +139,12 @@ export const proof = {
             reply(`${blob(a)}extra`),
             reply(blob(a), 'warning: corrupt object'),
             denied,
-        ]) { assertError(run(cache.lookup([a]), [ref(), reply(row(a)), response])[1]) }
+        ])) { assertError(run(cache.lookup([a]), [ref(), reply(row(a)), response])[1]) }
     },
     malformedRefs: () => {
         const [, cache] = cacheAt()
         const a = entryOf(cache)
-        for (const response of [
+        for (const response of /** @type {const} */ ([
             reply('', 'warning: broken ref'),
             reply(`refs/heads/build-cache\u0000${tip}`),
             reply(`refs/heads/build-cache\u0000${tip}\nrefs/heads/build-cache\u0000${other}\n`),
@@ -151,14 +152,14 @@ export const proof = {
             reply(`refs/heads/build-cache\u0000${'g'.repeat(40)}\n`),
             reply(`refs/heads/build-cache\u0000${tip}\u0000extra\n`),
             denied,
-        ]) { assertError(run(cache.lookup([a]), [response])[1]) }
+        ])) { assertError(run(cache.lookup([a]), [response])[1]) }
     },
     malformedTrees: () => {
         const [, cache] = cacheAt()
         const a = entryOf(cache)
-        for (const response of [
+        for (const response of /** @type {const} */ ([
             reply('', 'warning'), reply(row(a).slice(0, -1)), denied,
-            ...[
+            .../** @type {const} */ ([
                 `100644 blob ${tip} ${a.path}\u0000`,
                 `100644 blob ${tip} extra\t${a.path}\u0000`,
                 `100755 blob ${tip}\t${a.path}\u0000`,
@@ -170,8 +171,8 @@ export const proof = {
                 `100644 blob ${tip}\t.cas/${a.key}\u0000`,
                 `${row(a)}\u0000`,
                 `100644 blob ${tip}\t${a.path}\textra\u0000`,
-            ].map(text => reply(text)),
-        ]) { assertError(run(cache.lookup([a]), [ref(), response])[1]) }
+            ]).map(text => reply(text)),
+        ])) { assertError(run(cache.lookup([a]), [ref(), response])[1]) }
     },
     oneCommitOfAllNewSuccesses: () => {
         const [state, cache] = cacheAt(explicit)
@@ -218,16 +219,16 @@ export const proof = {
         assertOk(run(fromEnv.saveMany([a]), [reply(), reply(ident), reply()], explicitState)[1])
         const [missingState, missing] = cacheAt(options, repository(baseConfig))
         assertError(run(missing.saveMany([a]), [reply()], missingState)[1])
-        for (const env of [
+        for (const env of /** @type {const} */ ([
             { GIT_AUTHOR_NAME: 'Writer' }, { GIT_AUTHOR_EMAIL: 'writer@example.com' },
             { GIT_AUTHOR_NAME: '', GIT_AUTHOR_EMAIL: 'writer@example.com' },
             { GIT_AUTHOR_NAME: 'bad\nname', GIT_AUTHOR_EMAIL: 'writer@example.com' },
-        ]) {
+        ])) {
             const [s, c] = cacheAt({ ...options, env })
             const failure = assertError(run(c.saveMany([a]), [reply()], s)[1])
             assert(failure[0] === 'ioError' && failure[1].code === 'ERR_COV_AUTHOR')
         }
-        for (const response of [reply(), reply('\n'), reply('unterminated'), reply('bad\nidentity\n'), denied]) {
+        for (const response of /** @type {const} */ ([reply(), reply('\n'), reply('unterminated'), reply('bad\nidentity\n'), denied])) {
             assertError(run(fromEnv.saveMany([a]), [reply(), response], explicitState)[1])
         }
     },
@@ -260,8 +261,8 @@ export const proof = {
     discovery: () => {
         const [, result] = run(open(options), [reply('/repo with \n a trailing space \n'), reply('/repo/.git\n')])
         assertEq(assertOk(result).root, '/repo with \n a trailing space ')
-        for (const output of ['', '\n', '/repo']) { assertError(run(open(options), [reply(output)])[1]) }
+        for (const output of /** @type {const} */ (['', '\n', '/repo'])) { assertError(run(open(options), [reply(output)])[1]) }
         assertError(run(open(options), [reply('/repo\n'), reply()])[1])
         assertError(run(open(options), [denied])[1])
     },
-}
+})

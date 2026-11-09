@@ -13,9 +13,9 @@ import { asNominal } from '../../../types/nominal/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { openSync } from './module.f.mjs'
 
-const root = '/checkout'
-const local = 'refs/heads/build-cache'
-const remote = 'refs/remotes/origin/build-cache'
+const root = /** @type {const} */ ('/checkout')
+const local = /** @type {const} */ ('refs/heads/build-cache')
+const remote = /** @type {const} */ ('refs/remotes/origin/build-cache')
 /** @type {Child} */
 const child = asNominal('git')
 /** @type {IoResult<ExitStatus>} */
@@ -56,18 +56,24 @@ const execute = (outcomes, listed = 'abc\trefs/heads/build-cache\n', synchronize
     return partialRun(nodeCommands)(operations)([])(program)
 }
 
+/** @type {readonly string[]} */
 const list = ['-C', root, 'ls-remote', 'origin', local]
+/** @type {readonly string[]} */
 const fetch = ['-C', root, 'fetch', 'origin', `${local}:${remote}`]
+/** @type {readonly string[]} */
 const update = ['-C', root, 'update-ref', local, remote]
+/** @type {readonly string[]} */
 const exists = ['-C', root, 'show-ref', '--verify', '--quiet', local]
+/** @type {readonly string[]} */
 const drop = ['-C', root, 'update-ref', '-d', remote]
+/** @type {readonly (readonly string[])[]} */
 const inspect = [
     exists,
     ['-C', root, 'show-ref', '--verify', '--quiet', remote],
     ['-C', root, 'diff', '--quiet', remote, local, '--'],
 ]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     empty: () => {
         const [calls, result] = execute([done, done, absent], '')
         assertEq(result[0], 'ok')
@@ -111,12 +117,12 @@ export const proof = {
         assert(calls.some(args => args.includes('--squash')))
     },
     initializationErrors: () => {
-        for (const outcomes of [
+        for (const outcomes of /** @type {const} */ ([
             [invalid],
             [done, invalid],
             [done, done, invalid],
             [done, done, absent, invalid],
-        ]) {
+        ])) {
             const [, result] = execute(outcomes)
             assertEq(result[0], 'error')
         }
@@ -124,20 +130,20 @@ export const proof = {
         assertEq(dropped[0], 'error')
         const [, spawned] = execute([done], '', false, true)
         assertEq(spawned[0], 'error')
-        for (const outcome of [ok(['signaled', 'SIGTERM']), error(ioError({ message: 'wait failed' }))]) {
+        for (const outcome of /** @type {const} */ ([ok(['signaled', 'SIGTERM']), error(ioError({ message: 'wait failed' }))])) {
             const [, result] = execute([done, outcome])
             assertEq(result[0], 'error')
         }
     },
     synchronizationErrors: () => {
-        for (const outcomes of [
+        for (const outcomes of /** @type {const} */ ([
             [done, done, done, invalid],
             [done, done, absent, done, invalid],
             [done, done, absent, done, done, done, done, invalid],
             [done, done, absent, done, done, done, done, done, invalid],
-        ]) {
+        ])) {
             const [, result] = execute(outcomes, undefined, true)
             assertEq(result[0], 'error')
         }
     },
-}
+})
