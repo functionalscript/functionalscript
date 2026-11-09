@@ -626,6 +626,10 @@ li:has(> [data-kind]) { list-style: none }
 [data-priority="P2"] { background-color: var(--value-bg); color: var(--value) }
 [data-priority="P3"] { border-color: var(--border) }
 [data-priority="P5"] { opacity: .6 }
+/* A file of the compiler demo that no import reaches: still editable and
+   removable, fainter, because the compiler does not read it. Its label says
+   so in words, so the fade is not the only sign. */
+[data-not-imported] { opacity: .6 }
 /* A directory with a demo anywhere under it carries a play mark after its
    name, so the marks are a trail from any page down to every demo below it.
    After the name rather than before: the icon in front is what the entry is,
