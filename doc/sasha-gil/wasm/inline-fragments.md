@@ -43,9 +43,12 @@ module's functions, such as the String module's `unpack`, `length` and
 number of stack slots an unpacked value needs. Two things are new there:
 
 - **A null entry** means a no-op, so the compiler emits nothing for it.
-  Only an operation with no result may be null: today that is `unpack`
-  of a module with no slots. `length` and `at` answer an `i32` and are
-  never null.
+  The IR operation and its WASM template differ here. In the IR, `unpack`
+  answers a `str`. Its template answers nothing, because it writes the
+  slot locals instead. So a template with no slots to write has no work
+  to do, and may be null: that is `unpack` of a module with no slots, whose
+  `str` the emitter makes the source `any` local itself. `length` and
+  `at` leave an `i32` on the stack and are never null.
 - **Stack frame offsets are local indices, bound by the inliner.** A
   WASM local index is an immediate of `local.get` and `local.set`, not a
   run-time value, so an offset cannot be a parameter of an ordinary
