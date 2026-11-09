@@ -146,11 +146,12 @@ The calls between modules form a runtime-internal interface (choice 7).
 
 A program sees only L0 functions. Inside the runtime, the modules need a
 few more calls between them, to make a value, to free one, and to clean
-up after a throw. None of these is an L0 function, and a program never
-imports one. That holds in template form too: a template uses only
-other templates, and a function that allocates or frees is never a
-template (see the summary), except `drop`, whose slow path is the import
-`free`.
+up after a throw. None of these is an L0 function, and a program
+imports none of them, with one exception: `free`. When Any is in
+template form, the inlined `drop` calls `free` on its slow path, so the
+program imports `free` from `fjs:l0/any`, and Any's manifest lists it.
+Otherwise a template uses only other templates, and a function that
+allocates or frees is never a template (see the summary).
 
 - **Making a value.** Any owns the `i64` encoding, so a module that makes
   a value with storage asks Any to wrap it. Any gives the modules
