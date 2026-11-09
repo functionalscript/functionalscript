@@ -133,6 +133,8 @@ contribute to that report.
 - [ ] Complete the isolated coverage rollout, then generate deterministic
       manifests for modules and sibling proofs; audit extra coverage inputs.
       Run coverage unconditionally while validating manifests.
+- [ ] Integrate dependency-manifest lookup and success-only recording into
+      `npm start cov node`, using the `build-cache` Git branch.
 - [ ] Add per-module cache lookup, successful-result recording and publication;
       verify cold/warm runs and invalidation, and update CI/cache documentation.
 
