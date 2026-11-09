@@ -57,7 +57,7 @@ export const platformNodeSteps = () => [
     test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
-/** Only the repository's permitted CI runs publish module successes. */
+/** Only the repository's permitted CI runs publish module successes. @type {string} */
 export const coverageSyncFlag = "${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '--sync' || '' }}"
 
 /** Isolated coverage, optionally synchronizing successful manifests. @type {(synchronize?: boolean) => Job} */

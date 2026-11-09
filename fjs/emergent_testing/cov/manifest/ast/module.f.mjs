@@ -9,6 +9,7 @@
 
 import { definedValues } from '../../../../types/object/module.f.mjs'
 
+/** @type {readonly string[]} */
 const untracked = ['import', 'require', 'eval', 'Function', 'process', 'globalThis', 'global', 'Buffer', 'Deno', 'Bun']
 
 /** Defined children of the syntax tree's object nodes. @type {typeof definedValues<Unknown>} */
