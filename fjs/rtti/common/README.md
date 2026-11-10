@@ -32,11 +32,10 @@ until it disagreed with the data form's `for…of` on exactly those schemas.
 `tupleSchemaEntries` is now the one place that says how a tuple schema is
 read, and `structSchemaEntries` is its struct counterpart.
 
-The same rule settles a tuple schema's non-index enumerable own properties.
-The entry reading used to declare `foo` in `Object.assign([number], { foo: string })`
-and then match it against `value[NaN]`, the property literally named `NaN`,
-which no ordinary value carries. The data form ignored it all along; now so do
-the schema-form readers.
+Array schemas and DataJS values follow FunctionalScript's container rules:
+arrays carry positions, without named own properties. Foreign values are
+converted before reaching a reader
+([what the readers assume](../guide/readers/assumptions/README.md)).
 
 The mechanism is the iterator, the same one `containerUnion` walks, so the
 readers and the data form agree by construction rather than by two rules that
@@ -48,9 +47,9 @@ lists are identical.
 ## The members a value carries
 
 `undeclaredMembers` and `hasUndeclaredMember` find the members a container
-schema does not declare. For a struct they are its own keys. For an array they
-are its own indices below `length` (`readIndices`) and every own key that is no
-index, so the walk is bounded by what the value carries rather than by
+schema does not declare. For a struct they are its own keys. For a DataJS array
+they are its own indices below `length` (`readIndices`), so the walk is bounded
+by what the value carries rather than by
 `length`: a sparse array as long as the index space allows answers at once.
 
 Neither walk looks at the prototype chain. An earlier version walked the whole

@@ -11,8 +11,13 @@
 import { byteLength, empty, isVec, length, maxLengthBytes, msb, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
+import { asNominal } from "../../types/nominal/module.f.js"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
+import {
+    handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
+    requestBodyOffsetMessage, writeBytes, writeExclusive,
+} from "./module.f.mjs"
 import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
@@ -90,6 +95,54 @@ const lengths = (source, bound) => {
 const vec32 = vec(32n)
 
 export const proof = {
+    directoryFailure: () => {
+        assert(isDirectory(ioError({ code: 'EISDIR', message: 'directory' })))
+        assert(!isDirectory(ioError({ code: 'ENOENT', message: 'missing' })))
+        assert(!isDirectory(['notImplemented', 'readFile']))
+    },
+    refusedWritesLeaveFilesUntouched: () => {
+        const initial = /** @type {const} */ ({ file: [utf8('unchanged')] })
+        const [exclusive, refused] = virtualAt(initial)(writeExclusive('new', [vec(1n)(1n)]))
+        assert(refused[0] === 'error')
+        assertIoMessage(refused[1], 'invalid buffer size')
+        assertStructurallySame(exclusive.root, initial)
+        for (const [offset, message] of /** @type {const} */ ([
+            [-1, 'Offset -1 is negative'],
+            [maxOffset, `Write of 2 bytes at offset ${maxOffset} exceeds maximum allowed offset of ${maxOffset}`],
+        ])) {
+            const [state, result] = virtualAt(initial)(writeBytes('file', offset, utf8('ab')))
+            assert(result[0] === 'error')
+            assertIoMessage(result[1], message)
+            assertStructurallySame(state.root, initial)
+        }
+    },
+    openFileSourceAndRelease: () => {
+        const [opened, result] = virtualAt({ file: [utf8('abc')] })(open('file'))
+        const handle = assertOk(result)
+        const [read, bytes] = virtual(opened)(handleSource(handle)(1, 1))
+        assertEq(utf8ToString(assertOk(bytes)), 'b')
+        const [closed, released] = virtual(read)(releaseHandle(handle))
+        assertEq(assertOk(released), null)
+        assertEq(closed.handles.length, 0)
+        // A failed close also completes cleanup without replacing its result.
+        assertEq(assertOk(virtual(closed)(releaseHandle(handle))[1]), null)
+    },
+    requestStream: () => {
+        const body = requestBody(asNominal(0))
+        const [firstState, first] = virtual({ ...emptyState, bodies: [{ rest: [utf8('ab'), utf8('c')], offset: 0 }] })(body)
+        const one = assertOk(first)
+        assert(one !== undefined)
+        assertEq(utf8ToString(one.first), 'ab')
+        const [secondState, second] = virtual(firstState)(one.tail)
+        const two = assertOk(second)
+        assert(two !== undefined)
+        assertEq(utf8ToString(two.first), 'c')
+        const [endState, end] = virtual(secondState)(two.tail)
+        assertEq(assertOk(end), undefined)
+        assertEq(endState.bodies[0].offset, 3)
+        assertEq(requestBodyOffsetMessage(0, 3), 'request body is at 3, not 0')
+        assertEq(notAFileMessage('dir/device'), 'dir/device is not a regular file')
+    },
     isPort: {
         // Both ends are ports: `0` asks for an ephemeral one.
         inRange: () => {

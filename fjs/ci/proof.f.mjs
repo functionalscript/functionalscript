@@ -133,9 +133,7 @@ export const proof = {
                 'mise exec -- npm ci',
                 smart ? `mise exec -- npm start -- cov node ${coverageSyncFlag}` : 'mise exec -- npm start cov node',
             ])
-            assert(cov.steps.every(step => step.if === undefined))
-            assert(cov.steps.slice(0, -1).every(step => step['continue-on-error'] === undefined))
-            assertEq(cov.steps.at(-1)?.['continue-on-error'], true)
+            assert(cov.steps.every(step => step.if === undefined && step['continue-on-error'] === undefined))
             const coverageJobs = definedEntries(gha.jobs).flatMap(([id, job]) =>
                 job.steps.flatMap(step => step.run?.startsWith(smart ? 'mise exec -- npm start -- cov node' : 'mise exec -- npm start cov node') ? [id] : []))
             assertStructurallySame(coverageJobs, ['cov'])
