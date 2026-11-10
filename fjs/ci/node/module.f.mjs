@@ -17,7 +17,7 @@ import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
  * The job that packs the tarball and checks it as a consumer would. Named
  * here so a proof reading the workflow need not repeat the id.
  */
-export const packageJobId = 'node'
+export const packageJobId = /** @type {const} */ ('node')
 
 /**
  * Installs the pinned Node through `setup-node`. Every job that installs Node
