@@ -63,6 +63,9 @@ number of stack slots an unpacked value needs. Two things are new there:
 In the *portable* mode, where nothing is inlined, an offset would have to
 point into linear memory. That case is left open
 ([README, open question 8](./README.md#open-questions)).
+[A modular L0](./modular-l0.md#5-import-form-is-the-portable-mode)
+proposes that the portable mode uses each module's import form, which
+has no slots and so takes no offsets.
 
 ## Our own linker first
 

@@ -1,0 +1,273 @@
+# A modular L0
+
+**Proposed** on 2026-11-09, from the owner's idea while writing the
+[modular runtime](./modular-runtime.md) memo. Nothing here is decided yet.
+
+The [L0 design](./l0-design.md) is one list of 32 functions and 4
+constants, imported from one module, `fjs:l0`. The modular runtime adds a
+String module whose functions are inlined over slots that the module
+chooses. This note takes the next step: L0 itself becomes a set of runtime
+modules, and the String module is one of them. A runtime is then a choice
+of one variant of each module.
+
+## Summary
+
+| Module | L0 functions | Kinds it owns | Depends on |
+| --- | --- | --- | --- |
+| Any | the constants, `kind`, `to_f64`, `from_f64`, `to_bool`, `from_bool`, `dup`, `drop`, `same`; in template form also the import `free` (choice 7) | `undefined`, `null`, boolean, number | none |
+| String | `make_string`, `read_units`, `unit`, `from_unit`, `concat`, `substring`, `length`; in template form also `unpack` | string | Any |
+| BigInt | `make_bigint`, `sign`, `read_words`, `length` | bigint | Any |
+| Containers | `begin_array`, `begin_object`, `push`, `push_property`, `seal`, `length`, `item`, `key`, `find`, `join` | array, object | Any, String |
+| Functions | `make_function`, `call`, `throw`, `frame`, `text`, `length` | function | Any, Containers |
+
+Every module comes in two forms:
+
+- **Import form:** each function is an import of the runtime, as in L0 today.
+- **Template form:** functions such as `unpack`, `length` and `unit` are
+  templates that the compiler inlines, over locals whose number and types
+  the module's manifest gives
+  ([inline fragments](./inline-fragments.md#runtime-modules)). A
+  function whose body allocates or frees through the runtime's internal
+  calls (choice 7), such as `make_string`, `concat` or `seal`, stays an
+  import in both forms. A template may use another module's template,
+  such as Any's `payload`, when that module is in template form too. Which functions those are depends on the variant:
+  `from_f64` allocates nothing in a NaN-boxing Any, so it can be a
+  template there. `drop` is a template with an imported slow path.
+
+A program built with every module in import form is today's portable
+program, and it runs on any runtime.
+
+The dependencies form a chain: Any, then String, then Containers, then
+Functions, with BigInt beside String. A module calls only the modules it
+depends on, through their functions, never through their layouts. The one
+call the other way, from Any to a module when a value is freed, is a hook.
+The calls between modules form a runtime-internal interface (choice 7).
+
+## Design choices
+
+### 1. Five modules, cut by kind
+
+- **Pick:** a module owns the kinds in the table above, and every function
+  that needs to know how those kinds are stored. Any owns the encoding of
+  the `i64` itself: the kind tag, the scalars that live inside the `i64`, and
+  reference counts. `same` is in Any too, because reference identity is a
+  question about the encoding, not about a container's contents.
+- **Alternatives:**
+  - Cut by L0 design group: scalars, bytes, strings, containers, lifetime.
+    But that separates `make_string` from `unit`, which have to agree on a
+    string's layout.
+  - Make Identity a module of its own. It would hold one function.
+- **Containers depend on String.** Object keys are strings, so `find`
+  compares a key with the stored ones through String's `length` and
+  `unit`, and `seal` does the same to keep keys unique. `join` reads an
+  array and makes a string, so it is in Containers too, and String
+  depends on nothing but Any.
+- **Why:** what can vary between runtimes is how a kind is stored. Each
+  experiment then swaps one module. For example, the three String variants
+  of the modular runtime memo differ only in the String module.
+
+### 2. `length` splits into one function per module
+
+- **Pick:** L0's `length` answers for five kinds
+  ([L0 design §18](./l0-design.md#18-what-length-item-and-key-mean-for-each-kind)).
+  It becomes four functions: the `length` of String, BigInt, Containers and
+  Functions. Where the compiler knows a value's single kind, it calls that
+  module's `length` directly.
+- **A known set of kinds.** Some L1 bodies call `length` where the value
+  is one of a few kinds. `toBoolean` calls it after
+  `k === STRING || k === BIGINT`, and the member read `get` calls it on an
+  array or a string. There the view's `length` lowers to a branch on the
+  `kind` the body already holds, one arm per kind, each calling its own
+  module's `length`. The body's source does not change.
+- **Alternative:** keep one `length` in Any, and let it call the module that
+  owns the kind. Any would then depend on every other module.
+- **Why:** the dependencies stay a tree with Any at the root. Each `length`
+  also reads a layout that only its own module knows. The branch costs one
+  test on the `kind` already in a local. L0 grows from 32 functions to 35
+  in import form.
+
+### 3. Each module has an import name and a version
+
+- **Pick:** the import module names become `fjs:l0/any`, `fjs:l0/string`,
+  `fjs:l0/bigint`, `fjs:l0/containers` and `fjs:l0/functions`. The
+  `fjs.abi` custom section
+  ([L0 design §15](./l0-design.md#15-naming-and-versioning)) lists one
+  version for each module, such as `l0/string/1`, instead of one `l0/1`.
+- **Alternative:** keep the single name `fjs:l0`, and version only the
+  whole list.
+- **Why:** a module can then change, for example when `unpack` is added to
+  String, without a new version of the others. Function names also become
+  local to their module, so the four `length` functions keep one name.
+
+### 4. The kind tags are shared by all modules
+
+- **Pick:** the tags of the L0 summary (0 `undefined` up to 8 function)
+  stay one ABI-wide table, versioned with Any. Any's `kind` answers them,
+  whichever module stores the value.
+- **Why:** a tag names a kind, not a layout. Programs test kinds without
+  knowing which String or BigInt module the runtime has.
+
+### 5. Import form is the portable mode
+
+- **Pick:** a module in import form needs no slots. Its unpacked value is
+  the `any` itself, and its reads are calls of the runtime. For String, that
+  means `unpack` is null, and the memo's `length` and `at` are L0's
+  `length` and `unit`, called through imports. That is the
+  [memory-saving module](./modular-runtime.md#naive-nan-cpu-saving-and-nan-memory-saving-string-runtime-modules)'s
+  shape, with calls in place of inlined decoding.
+- **Why:** this answers
+  [README open question 8](./README.md#open-questions). A function that is
+  called, not inlined, never takes an offset, because only the template
+  form has slots, and templates are always inlined. No shadow stack is
+  needed in either form.
+- **Mixing forms:** a program may use the template form of String and the
+  import form of every other module. A module in import form may be
+  inlined later as a fragment, as L0 functions can be today, without
+  changing the program.
+
+### 6. A manifest per module
+
+- **Pick:** each variant of a module has a manifest, in the runtime's
+  `fjs.inline` custom section
+  ([inline fragments](./inline-fragments.md#form)). It holds:
+  - the module's name and version;
+  - the modules and versions it requires, such as "Any, NaN encoding";
+  - in template form, the slot types: a list of `i32`, `i64` or `f64`
+    locals, because WASM declares each local with a type;
+  - for each function, an import name and signature, or a template, with
+    one template per target (WASM, and later Rust);
+  - in template form, the runtime build whose memory layout the templates
+    read.
+- **Why:** an emitter needs all of these, and a loader needs the last one
+  to refuse a program built for another runtime
+  ([inline fragments, Open](./inline-fragments.md#open)).
+
+### 7. Modules meet through a runtime-internal interface
+
+A program sees only L0 functions. Inside the runtime, the modules need a
+few more calls between them, to make a value, to free one, and to clean
+up after a throw. None of these is an L0 function, and a program
+imports none of them, with one exception: `free`. When Any is in
+template form, the inlined `drop` calls `free` on its slow path, so the
+program imports `free` from `fjs:l0/any`, and Any's manifest lists it.
+Otherwise a template uses only other templates, and a function that
+allocates or frees is never a template (see the summary).
+
+- **Making a value.** Any owns the `i64` encoding, so a module that makes
+  a value with storage asks Any to wrap it. Any gives the modules
+  `box(kind, payload) -> any`, which sets the kind tag and a count of one
+  around the module's own payload (a pointer or a handle), and
+  `payload(v)`, which answers it back. `make_string`, `make_bigint`,
+  `seal` and `make_function` end with `box`. A value that fits in the
+  `i64`, such as a NaN-boxed short string, is encoded by Any's
+  `box_inline(kind, bits)` instead, and has no payload.
+- **Templates compose.** `payload` and `kind` only read the `i64`, so in
+  template form Any offers them as templates, and another module's
+  template inlines them. The Naive String module's `unpack` is Any's
+  `payload` template, so it needs Naive Any in template form, and its
+  manifest says so (choice 6). `box`, `release` and `abandon` allocate or
+  free, so they are never templates, and nothing that calls them is
+  either.
+- **Freeing a value.** Any owns the reference count and the kind tag, so
+  `dup` and `drop` stay in Any. When `drop` takes a count to zero, Any calls the
+  `release` hook of the module that owns the value's kind. That module
+  frees its own storage, and calls Any's `drop` on each value it held:
+  the items of an array, the keys and values of an object, a function's
+  frame and text.
+- **Cleaning up after a throw.** `recover`
+  ([§21](./l0-design.md#21-the-host-is-an-l0-client)) frees the values
+  made since the innermost `enter()` through the same `release` hooks. It
+  also has to free open builders, which are `i32` handles of Containers,
+  not values, and own what was pushed into them. So Containers has one
+  more hook, `abandon(builder)`, and `recover` calls it for each builder
+  opened since that `enter()`.
+- **Who wires the hooks:** the runtime, when it is assembled from its
+  modules, fills a table of `release` hooks by kind tag, and links `box`,
+  `payload`, `box_inline` and `abandon` between the modules.
+- **An inlined `drop`.** In template form, `drop` runs inside the
+  program, and a fragment may call the runtime only through the
+  program's imports ([inline fragments, Rules](./inline-fragments.md#rules)).
+  So Any's manifest lists one import for its slow path, `free(v)`, which
+  the runtime implements by calling the hook for `v`'s kind. The inlined
+  `drop` decrements the count and, when it reaches zero, calls `free`.
+  The program imports `free` and no hook.
+- **Alternatives:**
+  - Each module keeps its own counts and has its own `dup` and `drop`.
+    The compiler knows a value's kind at most `drop`s, but not all, so
+    Any would still need a `drop` that dispatches by kind.
+  - Any knows every layout. Then swapping a Containers module means
+    changing Any too.
+- **Why:** the program's view stays one `dup` and one `drop`, and only
+  the runtime's assembly knows which modules are present. A NaN-boxed
+  string or number inside the `i64` has no storage, so its module's hook
+  is empty.
+
+### 8. What stays the same
+
+- **Lifetime.** Every module follows
+  [L0 design §10](./l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results).
+  An unpacked value in template form borrows its source `any`, as the
+  String module's does, so `unpack` never costs a reference count.
+- **Memory.** Strings and bigints still cross through the program's
+  scratch space ([§5](./l0-design.md#5-memory-and-table-made-by-the-loader-imported-by-both-modules)).
+  A template may read the runtime's own memory, which it imports.
+- **Host-only exports.** `enter`, `leave`, `has_thrown`, `thrown` and
+  `recover` ([§21](./l0-design.md#21-the-host-is-an-l0-client)) belong to
+  the runtime as a whole, not to a module, because `recover` frees values
+  of every kind.
+- **The FunctionalScript view.** The intrinsics of
+  [§17](./l0-design.md#17-a-functionalscript-view-of-l0) keep their names.
+  Each one lowers to its module's function. The view's `length` lowers to
+  the module of the value's kind, or to a branch on `kind` when the body
+  knows only a set of kinds (choice 2).
+
+## Example runtimes
+
+| Runtime | Any | String | BigInt | Containers | Functions |
+| --- | --- | --- | --- | --- | --- |
+| Any runtime, portable program | import | import | import | import | import |
+| NaNVM today, specialized | Naive, template | Naive, template (one pointer slot) | import | import | import |
+| NaN, memory-saving | NaN, template | NaN, no slots, decodes on each read | import | import | import |
+| NaN, CPU-saving | NaN, template | NaN, length and units in slots | import | import | import |
+
+The last three rows are the String variants of the modular runtime memo.
+Only Any and String change between them.
+
+## The code IR
+
+The IR's tables ([IR choice 4](./ir-design.md#4-every-operation-comes-from-a-table))
+follow the modules. The `l0` table holds the import-form rows of every
+module, each named with its module, so `l0.string.length` and
+`l0.containers.length` are two rows. The `str` table holds String's
+template-form rows.
+
+A program in the IR uses the `str` rows whatever form String is in, so
+the IR stays the same. The emitter spells them by String's form. In
+template form, it inlines the module's templates. In import form, a `str`
+local is the source `any` local itself, `str.unpack` emits nothing,
+`str.length` is a call of `fjs:l0/string`'s `length`, and `str.at` is a
+call of its `unit`. This is IR choice 13's rule for a module with no
+slots, with calls in place of templates. If BigInt gets a template form too, it follows `str`:
+the module declares a type and its rows, and the IR names them
+([IR, least sure](./ir-design.md#where-this-draft-is-least-sure)).
+
+## Where this draft is least sure
+
+- **The split of `length` (2).** The lowering needs the set of kinds a
+  value may have at each `length`, from the `kind` tests before it. If
+  that set is hard to find, or a body calls `length` with no test at all,
+  a dispatching `length` would come back, in Any or in the stock module.
+- **Key comparison across modules (1).** `find` compares keys through
+  String's functions, which costs a call per unit in import form. A
+  runtime that wants hashed keys has to choose its Containers and String
+  modules together.
+- **The internal interface (7).** `box`, `payload`, `release` and
+  `abandon` are the calls between modules that this draft found. Each
+  module variant has to implement them, so they are part of what a
+  module's version promises, even though no program sees them. If more
+  such calls appear, the modules are less independent than the table
+  suggests.
+- **`at` and `unit` are one function.** The memo calls it `at`, and L0
+  calls it `unit`. One of the two names should go.
+- **Five import names (3).** WASM allows any module name, but a runtime in
+  JavaScript then exports five import objects instead of one.

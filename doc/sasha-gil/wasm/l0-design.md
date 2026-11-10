@@ -7,6 +7,8 @@ our own linker. Of its own choices, the builders of
 [§22](#22-building-in-one-pass) and the throw that traps of
 [§13](#13-errors-a-throw-traps), with what it changes in §12, §20 and §21,
 are decided there too. The rest is not decided yet.
+[modular-l0.md](./modular-l0.md) proposes splitting this one list into
+runtime modules, cut by kind.
 
 ## Summary
 

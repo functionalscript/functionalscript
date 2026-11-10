@@ -427,7 +427,9 @@ Each step is a PR or a short stack, proved before the next starts.
   them unique, though, and a pass that duplicates code must rename.
 - **Unpacked strings (13).** BigInt unpacking is likely to follow the same
   shape. If it does, `str` becomes one case of a general rule: a runtime
-  module declares a type, and the IR names it.
+  module declares a type, and the IR names it. With
+  [a modular L0](./modular-l0.md#the-code-ir), the `l0` table's rows
+  would also be grouped by module.
 - **Where the code lives.** A proposal is `fjs/codegen/ir`, with
   `fjs/codegen/wasm` and `fjs/codegen/rust` as emitters. The IR is not
   WASM's alone, so `fjs/wasm` seems wrong for it.
