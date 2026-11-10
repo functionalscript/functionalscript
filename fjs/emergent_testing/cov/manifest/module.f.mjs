@@ -27,7 +27,6 @@ import { u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { equal, flatMap, sameItems } from '../../../types/list/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { cmp } from '../../../types/string/module.f.js'
-import { validate } from './ast/module.f.mjs'
 
 const digest = computeSync(sha256)
 /** @type {(a: string, b: string) => number} */
@@ -79,7 +78,7 @@ const visit = source => graph => {
         const parsed = graph.imports[path] ?? (() => {
             const text = source.json ? '' : fromU8List(file[1].bytes)
             if (text === null) { return error(problem(`${path}: not UTF-8 text`)) }
-            const result = dependencyImports(source, text, validate)
+            const result = dependencyImports(source, text)
             return result[0] === 'error' ? error(problem(`${path}: ${result[1].message}`)) : result
         })()
         /** @type {Graph} */

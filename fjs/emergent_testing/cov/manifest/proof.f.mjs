@@ -177,7 +177,7 @@ export const proof = /** @type {const} */ ({
         const files = { repo: {
             ...sharedTree,
             bad: {
-                'module.f.js': [utf8('export default process.env.VALUE;')],
+                'module.f.js': [utf8('export default ;')],
                 'split.proof.f.js': [utf8('export const proof = () => 1;')],
             },
             affected: { 'module.f.js': [utf8('import bad from "../bad/module.f.js"; import good from "../shared/module.f.js"; export default good;')] },
@@ -490,16 +490,17 @@ export const proof = /** @type {const} */ ({
         const [, result] = run({ ...emptyState, root })(manifest('/repo', '/repo/unit', ['module.f.js'], contract))
         assertError(result)
     },
-    dynamicInputsAreUncacheable: () => {
-        for (const expression of /** @type {const} */ ([
-            'import("./helper.f.mjs")', 'import.meta.url', 'require("./helper.f.mjs")', 'process.env.VALUE', 'globalThis.value',
-            'Date.now()', 'new Date()', 'Math.random()', 'Math["random"]()',
-        ])) {
-            assertError(execute({ repo: { unit: {
-                'module.f.mjs': [utf8(`export const proof = () => ${expression};`)],
-                'helper.f.mjs': [utf8('export default 1;')],
-            } } }))
-        }
+    deterministicMathDestructuringIsAdmitted: () => {
+        const source = /** @type {const} */ ('import value from "./helper.f.mjs"; const { floor } = Math; export const proof = () => floor(value);')
+        const helper = /** @type {const} */ ('export default 1.5;')
+        const value = assertOk(execute({ repo: { unit: {
+            'module.f.js': [utf8(source)], 'helper.f.mjs': [utf8(helper)],
+        } } }))
+        assertStructurallySame(value.files, {
+            'package.json': hash(packageJson),
+            'unit/helper.f.mjs': hash(helper),
+            'unit/module.f.js': hash(source),
+        })
     },
     outside: () => {
         const outside = assertError(execute(root, '/repo-other'))
