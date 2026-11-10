@@ -6,8 +6,8 @@ mise manifest and lock; callers must provide those files. This replaces the
 previous generated environment API. `Setup.environment` is removed because
 this branch has one environment manager.
 
-The nine test jobs cover Linux, macOS and Windows on x64 and ARM64, plus canonical
-Node, Deno and Bun suites. Native Rust debug/release tests and Clippy, i686
+The ten test jobs cover Linux, macOS and Windows on x64 and ARM64, plus canonical
+Node, Deno, Bun and SpiderMonkey suites. Native Rust debug/release tests and Clippy, i686
 Linux/Windows checks, Linux ARM formatting and four WASM targets, SpiderMonkey
 compilation/tests, TypeScript, compilation, coverage and packed-package checks
 remain separate steps. Host compiler/SDK prerequisites still apply.
@@ -17,7 +17,7 @@ The six platform jobs run Node's JS-only entry
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
 test because parser stress proofs can exceed its default five seconds. `node26` runs
 FJS-only Node coverage via `npm run cov`, retaining the 100% thresholds;
-SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+SpiderMonkey compilation and FJS tests run in the dedicated `spidermonkey` job on ARM Linux.
 The canonical Node job runs `npm start deps` after type checking and before
 compilation and coverage. It checks generic AST formation for every authored
 `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
@@ -43,7 +43,7 @@ inputs requires a separate dependency audit.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-The repository keeps its original test workflow: nine jobs on pull requests
+The repository keeps its original test workflow: ten jobs on pull requests
 and merge-group entries, with the existing successful-check cache. There are
 no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
 

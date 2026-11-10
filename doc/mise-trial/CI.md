@@ -1,6 +1,6 @@
 # mise CI
 
-All nine jobs use mise across the six native OS/architecture combinations.
+All ten jobs use mise across the six native OS/architecture combinations.
 The default `fjs ci` generator now requires the caller's committed mise manifest
 and lock. `Setup.environment` and generated shell outputs have been removed.
 

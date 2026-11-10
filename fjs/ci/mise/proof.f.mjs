@@ -45,7 +45,7 @@ export const proof = {
     },
     migration: () => {
         /** @type {Jobs} */
-        const jobs = { 'ubuntu-intel': source, 'ubuntu-arm': source, 'windows-arm': source, node26: source }
+        const jobs = { 'ubuntu-intel': source, 'ubuntu-arm': source, 'windows-arm': source, node26: source, spidermonkey: source }
         const migrated = miseJobs(jobs, true)
         for (const [id, job] of definedEntries(migrated)) {
             const steps = job.steps
@@ -64,7 +64,7 @@ export const proof = {
             assertEq(steps.filter(s => s.uses?.startsWith('actions/setup-node@')).length, 1)
             assertEq(steps.some(s => s.run?.includes('gcc-multilib')), id === 'ubuntu-intel')
             assertEq(steps.some(s => s.run?.includes('rustc --version')), id.includes('-'))
-            assertEq(steps.some(s => s.run === 'mise -E spidermonkey install --locked http:spidermonkey'), id === 'ubuntu-arm')
+            assertEq(steps.some(s => s.run === 'mise -E spidermonkey install --locked http:spidermonkey'), id === 'spidermonkey')
         }
         const noRust = miseJobs({ 'ubuntu-intel': source }, false)
         assert(!noRust['ubuntu-intel']?.steps.some(s => s.run?.includes('gcc-multilib')))

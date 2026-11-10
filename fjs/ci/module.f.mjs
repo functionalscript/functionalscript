@@ -37,7 +37,7 @@ import {
 import { environmentCommand, environmentSteps } from './environment/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
-import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './spidermonkey/module.f.mjs'
+import { spiderMonkeySteps } from './spidermonkey/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { miseJobs } from './mise/module.f.mjs'
 import { smartJobs } from './smart/module.f.mjs'
@@ -64,12 +64,10 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
 const shellPlatformSteps = (rust, o, a) => [
     nodeVersionStep(),
     ...(rust ? shellRustVersionSteps(o, a) : []),
-    ...shellSpiderMonkeyVersionSteps(o, a),
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
         'node --test ./fjs/emergent_testing/js-only.mjs',
-        ...shellSpiderMonkeyCommands(o, a),
     ]),
 ]
 
@@ -168,6 +166,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
 const canonicalJobs = packageConsumer => ({
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
+    spidermonkey: ubuntuArm(spiderMonkeySteps),
     ...nodeVersionJobs(packageConsumer),
 })
 
