@@ -1108,6 +1108,7 @@ export const runNodeEffect = asyncRunAll({
     })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
+    availableParallelism: () => io(async () => os.availableParallelism()),
     // `sandbox` and `catch` are every host's, and `randomInt` is the browser
     // page's too, so node spreads them rather than writing a second copy:
     // `../common/module.mjs`.

@@ -72,19 +72,25 @@ run; imports do not expand the selected subtree. Coverage data from other
 directories, previous runs or the ordinary full test suite must never
 contribute to this result.
 
-Execute directories sequentially in the initial implementation. Continue
-after a module fails, then exit nonzero if any module failed. Parallel
-scheduling is separate work if measurements justify it.
+Prepare every directory's manifest and complete one cache lookup before any
+coverage child starts. Execute the planned jobs in batches bounded by Node's
+`os.availableParallelism()`: children in a batch run concurrently, then the next
+batch starts after every job in the current batch settles. Scheduling capacity
+is not part of the cache key. Continue after a module fails, retaining stable
+successes for one final save/sync after all batches, then exit nonzero if any
+module failed.
 
 #### Reporting
 
-Use the emergent-testing reporter's open progress line: name the directory's
-measured files by repository-relative path before starting its child, joining
-files that share a proof run with `, `, then complete the line with status and
-timing. Capture child stdout and stderr, keeping successful output hidden. After
-a failed child's result, print the working directory, complete invocation and
-exit status or signal, then replay stdout followed by stderr. Grouping the two
-streams does not preserve their original ordering relative to each other.
+Print a complete `path: running` line for each measured file by
+repository-relative path before starting its child. Files in one directory
+share a child and duration, but each gets its own complete result line using
+emergent testing's shared status and timing formatter. Capture child stdout and stderr, keeping
+successful output hidden. Write a failed result and its working directory,
+complete invocation, exit status or signal, and stdout/stderr together so
+concurrent children cannot splice their output into the block. Replay stdout
+followed by stderr. Grouping the two streams does not preserve their original
+ordering relative to each other.
 Report launch/capture errors directly. Cache hits launch no child and print no
 per-file result. Continue after failures and finish with coverage totals,
 including the cached module count.
@@ -140,8 +146,9 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Progress names the measured files before launch and completes the same line
-  with status and timing. Successful child output is suppressed; failures name
+- Progress names the measured files in a complete start line before launch,
+  then prints a separate complete result line with status and timing. Successful
+  child output is suppressed; failures name
   their working directory and full reproducible command, with paths and
   arguments quoted unambiguously, then print captured stdout and stderr.
   Cache hits print no per-file result and contribute to the final cached count.
@@ -149,6 +156,9 @@ when a required metric is unavailable.
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
+- Concurrent coverage children never exceed the host's available parallelism.
+  All manifests and the one cache lookup precede execution; successful entries
+  are saved once, with synchronization when requested, after all batches finish.
 - Failed source admission cannot become a successful command through passing
   native proofs, while ordinary cache misses remain successful.
 - The ordinary FJS suite retains proofs outside measured module directories.
@@ -156,10 +166,12 @@ when a required metric is unavailable.
 ### Tasks
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
-- [x] Add `fjs cov node` with isolated sequential runs, strict coverage
+- [x] Add `fjs cov node` with isolated runs, strict coverage
       validation, failure diagnostics and shared emergent-testing progress.
-- [x] Name measured files before each child and complete the progress line with
-      status and timing while hiding child output.
+- [x] Name measured files in complete start/result lines while hiding successful
+      child output and grouping failure diagnostics.
+- [x] Run coverage children concurrently in batches bounded by available
+      parallelism, preserving one planning barrier and one final cache batch.
 - [ ] Consider explicit quiet/verbose controls and additional failure diagnostics;
       neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and

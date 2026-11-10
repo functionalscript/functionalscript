@@ -15,7 +15,7 @@ import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.m
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, isCoverageTarget, main } from './module.f.mjs'
+import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _runPlan, _saveBatch, isCoverageTarget, main } from './module.f.mjs'
 
 /** @type {IoResult<ExitStatus>} */
 const passed = ok(['exited', 0])
@@ -47,11 +47,13 @@ const tree = /** @type {const} */ ({
  * @param {boolean} [writeFails]
  * @param {string | null} [reporter]
  * @param {boolean} [cacheAvailable]
+ * @param {IoResult<number>} [capacity]
  */
-const execute = (outcomes, options = {}, directories = tree, captureFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false) => {
+const execute = (outcomes, options = {}, directories = tree, captureFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false, capacity = ok(2)) => {
     /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
+        availableParallelism: () => state => [state, capacity],
         execFile: (command, args) => state => [state, cacheAvailable
             ? ok({ stdout: command === 'node' ? JSON.stringify(runtime) : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
             : error(['notImplemented', 'execFile'])],
@@ -73,7 +75,7 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
         capture: (command, args, options) => state => {
             // The progress name must reach the reader before the child starts.
             const name = assertNotNullish(state.output.at(-1)?.[1])
-            assert(name.endsWith(': '))
+            assert(name.endsWith(': running\n'))
             assert(name.includes('module.f.'))
             const outcome = captureFails ? error(ioError({ message: 'capture unavailable' }))
                 : assertNotNullish(outcomes[state.commands.length])
@@ -138,7 +140,7 @@ export const proof = /** @type {const} */ ({
         assert(state.commands.every(([, args]) => args.includes(`--test-reporter=${reporter}`)))
         assertEq(state.commands[0]?.[1].at(-1), 'D:/a/package root/#%/fjs/emergent_testing/one.mjs')
     },
-    sequential: () => {
+    plannedOrderUnderSynchronousMock: () => {
         const [state, result] = execute([passed, passed])
         assertEq(exitCode(result), 0)
         assertStructurallySame(state.commands, [
@@ -146,7 +148,9 @@ export const proof = /** @type {const} */ ({
             ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
-        assert(output.includes('a/demo.f.mjs, a/module.f.mjs: ok,'))
+        assert(output.includes('a/demo.f.mjs: running\na/module.f.mjs: running\n'))
+        assert(output.includes('a/demo.f.mjs: ok,'))
+        assert(output.includes('a/module.f.mjs: ok,'))
         assert(output.includes('z/module.f.js: ok,'))
         assert(!output.includes('cwd:') && !output.includes('command:'))
         assert(!output.includes('CHILD_STDOUT') && !output.includes('CHILD_STDERR'))
@@ -195,8 +199,20 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 1)
         assertEq(state.commands.length, 2)
     },
+    systemInfoUnavailable: () => {
+        const [state, result] = execute([], {}, tree, false, false, reporterUrl, false,
+            error(ioError({ message: 'system info unavailable' })))
+        assertEq(exitCode(result), 1)
+        assertEq(state.commands.length, 0)
+        assert(state.output.some(([, text]) => text.includes('system info unavailable')))
+    },
+    emptyExecutionPlan: () => {
+        const run = partialRun(nodeCommands)({})
+        const [, result] = run(undefined)(_runPlan(defaultNodeProgramOptions, [], '/repo', null, 2))
+        assertStructurallySame(assertOk(result), { failed: 0, cached: 0, total: 0, entries: [] })
+    },
     refused: () => {
-        for (const args of /** @type {const} */ ([[], ['bun'], ['node', '--quiet'], ['node', '--sync', 'extra']])) {
+        for (const args of /** @type {const} */ ([[], ['bun'], ['node', '--quiet'], ['node', '--jobs=2'], ['node', '--sync', 'extra']])) {
             const [state, result] = execute([], { args })
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 0)

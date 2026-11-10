@@ -4,10 +4,11 @@
  */
 
 import { strict as assert } from 'node:assert'
-import { spawnSync } from 'node:child_process'
+import { execFile, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { availableParallelism, tmpdir } from 'node:os'
+import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -52,11 +53,11 @@ const git = (cwd, args) => {
     return result.stdout.trimEnd()
 }
 
-/** @type {(run: (root: string) => void) => void} */
-const withFixture = run => {
+/** @type {(run: (root: string) => void | Promise<void>) => Promise<void>} */
+const withFixture = async run => {
     const root = mkdtempSync(join(tmpdir(), 'fjs-cov-cache-'))
     try {
-        run(root)
+        await run(root)
     } finally {
         rmSync(root, { recursive: true, force: true })
     }
@@ -160,6 +161,68 @@ const _seedPacked = (root, count) => {
 }
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
+    realChildrenOverlapAndWarmHitsStayQuiet: () => withFixture(async root => {
+        if (availableParallelism() < 2) return
+        const repo = join(root, 'source')
+        initialize(repo, ['a', 'b'])
+        /** @type {readonly import('node:net').Socket[]} */
+        let waiting = []
+        /** @type {readonly string[]} */
+        let connected = []
+        const server = createServer(socket => {
+            waiting = [...waiting, socket]
+            socket.once('data', data => {
+                connected = [...connected, data.toString()]
+                // Neither proof may finish until its sibling is actually running.
+                if (connected.length === 2) {
+                    for (const child of waiting) child.end('continue')
+                } else if (connected.length > 2) {
+                    socket.end('unexpected warm child')
+                }
+            })
+        })
+        await new Promise((resolve, reject) => {
+            server.once('error', reject)
+            server.listen(0, '127.0.0.1', () => resolve(undefined))
+        })
+        try {
+            const address = server.address()
+            assert(address !== null && typeof address !== 'string')
+            for (const directory of ['a', 'b']) {
+                write(repo, `${directory}/proof.f.mjs`, `import { value } from "./module.f.js";
+export const proof = { overlaps: () => new Promise((resolve, reject) => {
+    value();
+    const net = process.getBuiltinModule('node:net');
+    const socket = net.connect(${address.port}, '127.0.0.1', () => socket.write('${directory}'));
+    socket.once('error', reject);
+    socket.once('data', () => { socket.end(); resolve(undefined); });
+}) };
+`)
+            }
+            const before = sourceState(repo)
+            /** @type {() => Promise<string>} */
+            const runCoverage = () => new Promise((resolve, reject) => {
+                execFile(process.execPath, [cli, 'cov', 'node'], {
+                    cwd: repo,
+                    env: { ...env, GIT_CONFIG_GLOBAL: join(repo, '.coverage-global-config'), RUNNER_TEMP: join(repo, '.coverage-tmp') },
+                    encoding: 'utf8', timeout: 30_000,
+                }, (problem, stdout, stderr) => problem === null ? resolve(stdout + stderr) : reject(problem))
+            })
+            const cold = await runCoverage()
+            assert.deepEqual(connected.toSorted(), ['a', 'b'])
+            assert(cold.includes('a/module.f.js: running\n'), cold)
+            assert(cold.includes('b/module.f.js: running\n'), cold)
+            assert(cold.includes('Coverage: 2 passed, 0 failed, 2 total (0 cached)'), cold)
+            assert.equal(entries(repo).length, 2)
+            const warm = await runCoverage()
+            assert.equal(warm, 'Coverage: 2 passed, 0 failed, 2 total (2 cached)\n')
+            assert.equal(connected.length, 2, 'Warm cache hits must not launch coverage children')
+            assert.deepEqual(sourceState(repo), before)
+        } finally {
+            for (const socket of waiting) socket.destroy()
+            await new Promise((resolve, reject) => server.close(problem => problem === undefined ? resolve(undefined) : reject(problem)))
+        }
+    }),
     failedAdmissionCannotPassThroughNativeCoverage: () => withFixture(root => {
         const repo = join(root, 'source')
         initialize(repo, ['bad', 'good'])
@@ -342,8 +405,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert(output.includes('ℹ tests'), output)
         assert(output.includes('command:'), output)
         assert(output.includes('Coverage: 2 passed, 1 failed, 3 total (0 cached)'), output)
-        assert(output.indexOf('a/module.f.js: ok,') < output.indexOf('b/module.f.js: error,'), output)
-        assert(output.indexOf('b/module.f.js: error,') < output.indexOf('c/module.f.js: ok,'), output)
 
         // Native Git trace events distinguish one end-of-command publication
         // from a push after each successful module. All targets are processed
@@ -417,13 +478,15 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
     }),
     earlierChildCannotReuseLaterTargetsOldSnapshot: () => withFixture(root => {
         const repo = join(root, 'source')
-        initialize(repo, ['a', 'b'])
-        const original = coverage(join(repo, 'b'))
+        const capacity = availableParallelism()
+        const fillers = Array.from({ length: capacity - 1 }, (_, index) => `aa${String(index).padStart(5, '0')}`)
+        initialize(repo, ['a', ...fillers, 'b'])
+        const original = coverage(repo)
         assert(original.includes('b/module.f.js: ok,'), original)
         const before = git(repo, ['rev-parse', 'build-cache'])
-        // This host-dependent proof fails admission but still runs. The graph
-        // for b has already been captured when a changes b's input, before
-        // b's old cache hit.
+        // Put b in the next CPU-bounded batch. Even when a overlaps cached
+        // fillers, its mutation completes before b revalidates the old snapshot.
+        // This host-dependent proof fails admission but still runs.
         write(repo, 'a/proof.f.mjs', `
 import { writeFileSync } from 'node:fs';
 import { value } from './module.f.js';
@@ -436,12 +499,12 @@ export const proof = { changesLaterInput: () => {
         assert.equal(changed.status, 1, changed.output)
         assert(changed.output.includes('CACHE ADMISSION '), changed.output)
         assert(changed.output.includes('b/module.f.js: ok,'), changed.output)
-        assert(changed.output.includes('(0 cached)'), changed.output)
+        assert(changed.output.includes(`(${fillers.length} cached)`), changed.output)
         assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), before)
         const fresh = coverage(join(repo, 'b'))
         assert(fresh.includes('b/module.f.js: ok,'), fresh)
-        assert.equal(entries(repo).length, 2)
+        assert.equal(entries(repo).length, capacity + 2)
         cachedOutput(coverage(join(repo, 'b')))
     }),
 
