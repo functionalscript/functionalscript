@@ -222,7 +222,16 @@ export const proof = /** @type {const} */ ({
         assert(output.includes('z/module.f.js: error, 11.0000 ms\n'))
         // Two measured files share the first process; its seven milliseconds
         // count once. The failed second process still contributes eleven.
-        assert(output.endsWith('Time: 36.0000 ms elapsed, 18.0000 ms tests\n'))
+        assert(output.endsWith('Time: 36.0000 ms elapsed, 18.0000 ms tests\nConcurrency: up to 2 child processes\n'))
+    },
+    concurrencyRespectsSystemAndJobCount: () => {
+        for (const [capacity, expected] of /** @type {const} */ ([[1, '1 child process'], [8, '2 child processes']])) {
+            const [state, result] = execute([passed, passed], {}, tree,
+                false, false, reporterUrl, false, ok(capacity))
+            assertEq(exitCode(result), 0)
+            const output = state.output.map(([, text]) => text).join('')
+            assert(output.endsWith(`Concurrency: up to ${expected}\n`))
+        }
     },
     systemInfoUnavailable: () => {
         const [state, result] = execute([], {}, tree, false, false, reporterUrl, false,

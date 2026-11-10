@@ -155,14 +155,16 @@ export const main = options => {
     const capacity = historyStep(planned, () => availableParallelism())
     const executed = historyStep(capacity, (concurrency, plan, cache) => _runPlan(options, plan, cache?.root ?? packageRoot, cache, concurrency))
     const committed = historyStep(executed, (results, _capacity, _plan, cache) => _saveBatch(cache, results.entries))
-    const collected = mapStep(committed, ([, totals]) => totals)
+    const collected = mapStep(committed, ([, totals, concurrency]) => ({
+        ...totals, concurrency: Math.min(concurrency, totals.total),
+    }))
     // Effects are lazy: the outer start precedes discovery, and the end follows
     // final publication. Child durations exclude that command-level overhead.
     const timed = historyStep(started, () => collected)
     const stopped = historyStep(timed, () => now())
     const results = mapStep(stopped, ([end, totals, start]) => ({ ...totals, elapsed: end - start }))
-    const reported = historyStep(history(results), ({ failed, cached, total, duration, elapsed }) =>
-        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)\nTime: ${durationText(elapsed)} elapsed, ${durationText(duration)} tests`))
+    const reported = historyStep(history(results), ({ failed, cached, total, duration, elapsed, concurrency }) =>
+        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)\nTime: ${durationText(elapsed)} elapsed, ${durationText(duration)} tests\nConcurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}`))
     return resultStep(reported, ([tag, value]) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
         const [, { failed }] = value

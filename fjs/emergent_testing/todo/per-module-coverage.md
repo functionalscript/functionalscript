@@ -97,6 +97,9 @@ including the cached module count. Report elapsed command time from before
 discovery through final cache publication and the sum of executed child
 durations. Sum each child once, including failures; cache hits contribute zero.
 Use the shared duration formatter for both totals.
+Report the concurrent child-process limit as the smaller of available CPU
+capacity and the number of planned directory jobs, using "up to" because cache
+hits can launch fewer children.
 Execute with a structured argument vector, without a shell.
 
 The command currently accepts `--sync` for end-of-run cache publication.

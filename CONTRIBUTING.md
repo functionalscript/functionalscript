@@ -191,6 +191,9 @@ time and the sum of child test-run times, for example
 final cache saving and synchronization. The sum counts each child once, even
 when its directory has multiple measured files, includes failed runs, and gives
 cache hits zero test time. Parallel runs can have a sum larger than elapsed time.
+`Concurrency: up to 4 child processes` reports the smaller of available CPU
+capacity and the number of directory jobs. Cache hits can reduce the actual
+number of children that run.
 Manifests include
 working-tree hashes of all sibling authored files and their transitive
 dependencies, plus the runner/runtime contract.

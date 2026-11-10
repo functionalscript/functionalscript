@@ -220,6 +220,10 @@ discovery through final cache saving and synchronization. Test time sums measure
 child durations once per directory, including failed runs; cache hits contribute
 zero. A directory with multiple measured files still contributes only once.
 Parallel child durations can sum to more than the elapsed command time.
+The summary also reports the concurrency limit, for example
+`Concurrency: up to 4 child processes`. It is the smaller of available CPU
+capacity and the number of directory jobs; cache hits can reduce the actual
+number of children that run.
 Child failures do not stop other jobs or later batches; the runner
 exits nonzero if any module failed.
 

@@ -119,6 +119,8 @@ const cachedOutput = (output, total = 1) => {
     assert(output.includes(`Coverage: ${total} passed, 0 failed, ${total} total (${total} cached)\n`), output)
     const timing = output.split('\n').find(line => line.startsWith('Time: '))
     assert(timing?.endsWith(' elapsed, 0.0000 ms tests'), output)
+    const concurrency = Math.min(availableParallelism(), total)
+    assert(output.includes(`Concurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}\n`), output)
     assert(!output.includes('module.f.js'), output)
     assert(!output.includes('ℹ tests'), output)
     assert(!output.includes('start of coverage report'), output)
@@ -218,7 +220,7 @@ export const proof = { overlaps: () => new Promise((resolve, reject) => {
             assert.equal(entries(repo).length, 2)
             const warm = await runCoverage()
             cachedOutput(warm, 2)
-            assert.equal(warm.split('\n').length, 3)
+            assert.equal(warm.split('\n').length, 4)
             assert.equal(connected.length, 2, 'Warm cache hits must not launch coverage children')
             assert.deepEqual(sourceState(repo), before)
         } finally {
@@ -267,7 +269,7 @@ export const proof = { overlaps: () => new Promise((resolve, reject) => {
 
         const warm = coverage(join(repo, 'unit'))
         cachedOutput(warm)
-        assert.equal(warm.split('\n').length, 3)
+        assert.equal(warm.split('\n').length, 4)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), saved)
         assert.equal(entries(repo).length, 1)
         assert.deepEqual(sourceState(repo), before)
