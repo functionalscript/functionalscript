@@ -101,7 +101,7 @@ export const proof = {
         assert(!isDirectory(['notImplemented', 'readFile']))
     },
     refusedWritesLeaveFilesUntouched: () => {
-        const initial = { file: [utf8('unchanged')] }
+        const initial = /** @type {const} */ ({ file: [utf8('unchanged')] })
         const [exclusive, refused] = virtualAt(initial)(writeExclusive('new', [vec(1n)(1n)]))
         assert(refused[0] === 'error')
         assertIoMessage(refused[1], 'invalid buffer size')

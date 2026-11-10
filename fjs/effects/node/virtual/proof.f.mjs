@@ -245,7 +245,7 @@ export const proof = {
         const [same, time] = virtual({ ...drawn, epochNs: 123_456 })(now())
         assertEq(assertOk(time), 123_456)
         assertEq(same.epochNs, 123_456)
-        const result = { result: ok(42), duration: 7 }
+        const result = /** @type {const} */ ({ result: ok(42), duration: 7 })
         assertStructurallySame(assertOk(virtual(emptyState)(sandbox(() => result))[1]), result)
         assertEq(assertOk(assertOk(virtual(emptyState)(catch_(() => 42))[1])), 42)
     },
@@ -266,7 +266,7 @@ export const proof = {
     },
     successfulLookupOperations: () => {
         const content = utf8('contents')
-        const root = { file: [content], 'module.f.mjs': () => ({ answer: 42 }) }
+        const root = /** @type {const} */ ({ file: [content], 'module.f.mjs': () => ({ answer: 42 }) })
         assertStructurallySame(assertOk(virtualAt(root)(readWhole('file'))[1]), [content])
         assertStructurallySame(assertOk(virtualAt(root)(import_('module.f.mjs'))[1]), { answer: 42 })
         assertEq(assertOk(virtualAt(root)(access('.'))[1]), undefined)
@@ -277,7 +277,7 @@ export const proof = {
         assertEq(assertOk(virtual({ ...emptyState, internet: { 'https://example.com': content } })(fetch('https://example.com'))[1]), content)
     },
     renameDirectoryOntoFilePreservesBoth: () => {
-        const root = { source: { child: [utf8('source')] }, target: [utf8('target')] }
+        const root = /** @type {const} */ ({ source: { child: [utf8('source')] }, target: [utf8('target')] })
         const [state, result] = virtualAt(root)(rename('source', 'target'))
         assert(result[0] === 'error')
         assertIoMessage(result[1], "cannot overwrite file 'target' with a directory")

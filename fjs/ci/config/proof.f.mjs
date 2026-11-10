@@ -1,7 +1,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { actions, bun, deno, images, jobTimeout, node, rust, spidermonkey, typescript, wasmer, wasmtime } from './module.f.js'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     runnerImages: () => {
         const runners = Object.entries(images).flatMap(([system, architectures]) => {
             assertStructurallySame(Object.keys(architectures), ['intel', 'arm'])
@@ -12,7 +12,7 @@ export const proof = {
         assertEq(new Set(runners).size, runners.length)
     },
     versionPins: () => {
-        for (const version of [bun, deno, node, rust, spidermonkey.version, typescript.version, wasmer, wasmtime]) {
+        for (const version of /** @type {const} */ ([bun, deno, node, rust, spidermonkey.version, typescript.version, wasmer, wasmtime])) {
             const parts = version.split('.')
             assertEq(parts.length, 3)
             assert(parts.every(part => part.length !== 0 && Number.isSafeInteger(Number(part)) && Number(part) >= 0))
@@ -24,4 +24,4 @@ export const proof = {
         }
         assert(Number.isSafeInteger(jobTimeout) && jobTimeout > 0)
     },
-}
+})
