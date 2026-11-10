@@ -45,7 +45,7 @@ export const proof = {
     },
     migration: () => {
         /** @type {Jobs} */
-        const jobs = { 'ubuntu-intel': source, 'ubuntu-arm': source, 'windows-arm': source, node26: source, spidermonkey: source }
+        const jobs = { 'ubuntu-intel': source, 'ubuntu-arm': source, 'windows-arm': source, node: source, spidermonkey: source }
         const migrated = miseJobs(jobs, true)
         for (const [id, job] of definedEntries(migrated)) {
             const steps = job.steps

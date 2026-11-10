@@ -39,7 +39,7 @@ and pinned tool versions into a contract. Its entry contains that contract and
 its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
-Compile checks use `fjs`; suites, including `node26`'s `npm start t`, use `js`;
+Compile checks use `fjs`; suites, including `node`'s `npm start t`, use `js`;
 TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
 The additional isolated `cov` job does not use the whole-check cache.
 Generated-file drift checks and the WASM demo rebuild always run because their
@@ -110,7 +110,7 @@ no child and print only `...Cached` for each target.
 The repository's additional `cov` job supplies the bot's author/committer
 identity and enables `--sync` only for same-repository runs outside Dependabot.
 Forks, Dependabot and generic generated workflows use local caching without
-publication. The other jobs retain their whole-check lifecycle; `node26` records
+publication. The other jobs retain their whole-check lifecycle; `node` records
 its `npm start t` result as `suite`. Its command participates in the key, so an
 earlier combined-coverage success cannot skip the new test command.
 

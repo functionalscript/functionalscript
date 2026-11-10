@@ -1,6 +1,7 @@
 /** SpiderMonkey checks in the selected environment. @module
  * @import { MetaStep } from '../common/types.ts'
  */
+
 import { spidermonkey } from '../config/module.f.js'
 import { environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
 

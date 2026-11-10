@@ -16,7 +16,7 @@ still apply.
 The six platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
-test because parser stress proofs can exceed its default five seconds. `node26`
+test because parser stress proofs can exceed its default five seconds. `node`
 runs the full authored FJS suite via `npm start t`, using the built-in reporter
 without coverage and the successful-check cache's `suite` entry. The dedicated
 `cov` job runs `npm start cov node`, checking each module directory's own proofs

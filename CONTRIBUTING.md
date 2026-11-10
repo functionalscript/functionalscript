@@ -142,7 +142,7 @@ the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
 --allow-env --allow-net --allow-sys`). Deno also holds back very recently
 published versions; add `--minimum-dependency-age=0` to force the newest.
 
-CI exercises these same combinations — see the `node26`, `cov`,
+CI exercises these same combinations — see the `node`, `cov`,
 `deno`, `bun`, and `spidermonkey` jobs in
 [.github/workflows/gen.ci.yml](./.github/workflows/gen.ci.yml) for the exact commands
 and pinned runtime versions.
@@ -198,7 +198,7 @@ node --test ../../emergent_testing/one.mjs
 
 CI's additional `cov` job runs `npm start cov node` from the repository root,
 adding `--sync` for permitted same-repository runs outside Dependabot. Forks
-and Dependabot use local caching. The `node26` job runs `npm start t` without
+and Dependabot use local caching. The `node` job runs `npm start t` without
 coverage, including proofs outside measured module directories. The dedicated
 `cov` job owns the coverage gate.
 

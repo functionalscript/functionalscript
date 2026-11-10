@@ -63,5 +63,5 @@ since that number decides whether the first option is tolerable.
 - [`../package.json`](../package.json) — `prepack` runs the emit, then re-checks
   with declarations present.
 - [`../.gitignore`](../.gitignore) — why CI never sees a stale declaration.
-- [`../fjs/ci/node/module.f.mjs`](../fjs/ci/node/module.f.mjs) — `node26` runs
+- [`../fjs/ci/node/module.f.mjs`](../fjs/ci/node/module.f.mjs) — `node` runs
   `tsc` on a fresh clone, which is why it disagreed.

@@ -109,7 +109,7 @@ of lowering thresholds or allowing exceptions.
 #### CI and scope
 
 CI's dedicated `cov` job invokes `npm start cov node` directly from the
-repository root. The `node26` job runs `npm start t` with the built-in reporter
+repository root. The `node` job runs `npm start t` with the built-in reporter
 without coverage, retaining the full authored FJS suite: proof-only integration
 directories, fixture imports and module-level assertions. Its whole-check cache
 records a `suite` result; coverage remains the dedicated job's responsibility.

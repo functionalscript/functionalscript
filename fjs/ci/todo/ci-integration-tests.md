@@ -20,7 +20,7 @@ Open questions:
 - Where do scenario modules live? (`todo/demo/` style, or a dedicated `fjs/ci/scenarios/` directory?)
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
 - Should the artifact be a `.tgz` from `npm pack`, or a published pre-release to a local registry?
-- Should the integration stage wait on the build stage at all? A job behind `needs` is created only when the job it waits for finishes, so behind a full runner queue it waits a second time — what moved the packed-package check into `node26` (see [built-package-checks](./built-package-checks.md)). Each integration job could pack its own tarball instead.
+- Should the integration stage wait on the build stage at all? A job behind `needs` is created only when the job it waits for finishes, so behind a full runner queue it waits a second time — what moved the packed-package check into `node` (see [built-package-checks](./built-package-checks.md)). Each integration job could pack its own tarball instead.
 
 ### Tasks
 
@@ -49,7 +49,7 @@ Open questions:
       and its first consumer in
       [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
       That consumer is gone — the packed-package check is the last steps of
-      `node26`, for the queue cost in the open questions above — so no job
+      `node`, for the queue cost in the open questions above — so no job
       orders itself, and `jobNeeds` in `fjs/ci/proof.f.mjs` pins that count
       at 0.
 - [ ] Implement scenario job generation: obtain the tarball (per the task
