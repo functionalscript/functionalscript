@@ -20,14 +20,14 @@ export const proof = /** @type {const} */ ({
         ])
     },
     markupMarkersHaveStyles: () => {
-        const markers = [
+        const markers = /** @type {const} */ ([
             demoMarker, captionMarker, codeMarker, drawingMarker, editorMarker, mirrorMarker,
             resultMarker, verdictMarker, listingMarker, refusedMarker, undecidedMarker, admittedMarker,
             registerRowMarker, powResultMarker, signCardMarker, signExplanationMarker, signFlowMarker,
             signPacketMarker, signRoleMarker, signSchemeMarker, signStageMarker, signStageHeaderMarker,
             signTrustMarker, signTrustKeyMarker, signTrustPathMarker, signVerifierMarker,
             railroadBoxMarker, railroadLabelMarker,
-        ]
+        ])
         assert(markers.length > 0)
         assertEq(new Set(markers).size, markers.length)
         for (const marker of markers) {
