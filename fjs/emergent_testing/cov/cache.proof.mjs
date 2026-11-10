@@ -113,8 +113,10 @@ const executedOutput = output => {
     assert(!output.includes('command:'), output)
 }
 
-/** Cached targets launch no child and therefore emit no native transcript. @type {(output: string) => void} */
+/** Cached targets emit no per-file output; synchronization may report Git diagnostics. @type {(output: string) => void} */
 const cachedOutput = output => {
+    assert(output.includes('Coverage: 1 passed, 0 failed, 1 total (1 cached)\n'), output)
+    assert(!output.includes('module.f.js'), output)
     assert(!output.includes('ℹ tests'), output)
     assert(!output.includes('start of coverage report'), output)
     assert(!output.includes('command:'), output)
@@ -179,7 +181,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             assert(result.output.includes('CACHE ADMISSION '), result.output)
             assert(result.output.includes('bad/proof.f.mjs: unexpected token'), result.output)
             assert(result.output.includes('bad/module.f.js: ok,'), result.output)
-            assert(result.output.includes(cached === 0 ? 'good/module.f.js: ok,' : 'good/module.f.js...Cached'), result.output)
+            assert.equal(result.output.includes('good/module.f.js'), cached === 0, result.output)
+            assert(!result.output.includes('...Cached'), result.output)
             assert(result.output.includes(`Coverage: 1 passed, 1 failed, 2 total (${cached} cached)`), result.output)
             assert.equal(entries(repo).length, 1)
         }
@@ -197,8 +200,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const saved = git(repo, ['rev-parse', 'build-cache'])
 
         const warm = coverage(join(repo, 'unit'))
-        assert(warm.includes('unit/module.f.js...Cached'), warm)
         cachedOutput(warm)
+        assert.equal(warm, 'Coverage: 1 passed, 0 failed, 1 total (1 cached)\n')
         assert.equal(git(repo, ['rev-parse', 'build-cache']), saved)
         assert.equal(entries(repo).length, 1)
         assert.deepEqual(sourceState(repo), before)
@@ -218,7 +221,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const first = git(repo, ['rev-parse', 'build-cache'])
 
         const warm = coverage(join(repo, 'unit'))
-        assert(warm.includes('unit/module.f.js...Cached'), warm)
         assert(warm.includes('1 cached'), warm)
         cachedOutput(warm)
         assert(!warm.includes('command:'), warm)
@@ -231,12 +233,11 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             const incompatible = coverage(join(repo, 'unit'), false, 1)
             assert(incompatible.includes('unit/module.f.js: error,'), incompatible)
             assert(incompatible.includes('command:'), incompatible)
-            assert(!incompatible.includes('...Cached'), incompatible)
+            assert(incompatible.includes('(0 cached)'), incompatible)
             assert.equal(git(repo, ['rev-parse', 'build-cache']), first)
             if (scope === 'package.json') write(repo, scope, '{"type":"module"}\n')
             else rmSync(join(repo, scope))
             const restored = coverage(join(repo, 'unit'))
-            assert(restored.includes('unit/module.f.js...Cached'), restored)
             cachedOutput(restored)
             assert(!restored.includes('command:'), restored)
         }
@@ -245,7 +246,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const changed = coverage(join(repo, 'unit'))
         assert(changed.includes('unit/module.f.js: ok,'), changed)
         executedOutput(changed)
-        assert(!changed.includes('...Cached'), changed)
+        assert(changed.includes('(0 cached)'), changed)
         assert.equal(entries(repo).length, 2)
         const successful = git(repo, ['rev-parse', 'build-cache'])
         assert.notEqual(successful, first)
@@ -284,7 +285,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         executedOutput(first)
         const firstTip = git(origin, ['rev-parse', 'build-cache'])
         const shared = coverage(join(b, 'a'), true)
-        assert(shared.includes('a/module.f.js...Cached'), shared)
         cachedOutput(shared)
         assert(!shared.includes('command:'), shared)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
@@ -304,7 +304,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.notEqual(advancedTip, firstTip)
 
         const replayed = coverage(join(a, 'b'), true)
-        assert(replayed.includes('b/module.f.js...Cached'), replayed)
         cachedOutput(replayed)
         assert(!replayed.includes('command:'), replayed)
         const union = [...new Set([...aEntries, ...bEntries])].sort()
@@ -317,7 +316,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             assert(line.split(' ').length <= 2, line)
         }
         const imported = coverage(join(a, 'c'))
-        assert(imported.includes('c/module.f.js...Cached'), imported)
         cachedOutput(imported)
         assert(!imported.includes('command:'), imported)
         assert.deepEqual(sourceState(a), aBefore)
@@ -400,7 +398,6 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
                 assert.equal(events.filter(event => event.argv.includes(name)).length, 0, JSON.stringify(events))
             }
             if (phase === 'warm') {
-                assert(output.includes('unit/module.f.js...Cached'), output)
                 cachedOutput(output)
                 assert.equal(_results(output), 0, output)
             } else {
@@ -439,13 +436,13 @@ export const proof = { changesLaterInput: () => {
         assert.equal(changed.status, 1, changed.output)
         assert(changed.output.includes('CACHE ADMISSION '), changed.output)
         assert(changed.output.includes('b/module.f.js: ok,'), changed.output)
-        assert(!changed.output.includes('...Cached'), changed.output)
+        assert(changed.output.includes('(0 cached)'), changed.output)
         assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), before)
         const fresh = coverage(join(repo, 'b'))
         assert(fresh.includes('b/module.f.js: ok,'), fresh)
         assert.equal(entries(repo).length, 2)
-        assert(coverage(join(repo, 'b')).includes('b/module.f.js...Cached'))
+        cachedOutput(coverage(join(repo, 'b')))
     }),
 
 }

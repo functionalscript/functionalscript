@@ -15,7 +15,7 @@ import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.m
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
-import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, _showCached, isCoverageTarget, main } from './module.f.mjs'
+import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, isCoverageTarget, main } from './module.f.mjs'
 
 /** @type {IoResult<ExitStatus>} */
 const passed = ok(['exited', 0])
@@ -232,19 +232,12 @@ export const proof = /** @type {const} */ ({
             assertStructurallySame(_coverageFailures(['/a/module.f.mjs'], [file]), ['Incomplete coverage: /a/module.f.mjs'])
         }
     },
-    moduleNamesAndCachedOutput: () => {
+    moduleNames: () => {
         const command = /** @type {const} */ ({ directory: '/repo/fjs/example', files: ['module.f.js', 'demo.f.mjs'] })
         assertStructurallySame(_modulePaths(command, '/repo'), ['fjs/example/module.f.js', 'fjs/example/demo.f.mjs'])
         assertStructurallySame(_modulePaths({ directory: '/repo', files: ['module.f.js'] }, '/repo'), ['module.f.js'])
         assertStructurallySame(_modulePaths(command, '/'), ['repo/fjs/example/module.f.js', 'repo/fjs/example/demo.f.mjs'])
         assertStructurallySame(_modulePaths(command, '/other'), ['/repo/fjs/example/module.f.js', '/repo/fjs/example/demo.f.mjs'])
-        /** @type {PartialMemOperationMap<NodeOp, string>} */
-        const operations = { write: (_, bytes) => state => [state + utf8ToString(bytes), ok(undefined)] }
-        const run = partialRun(nodeCommands)(operations)
-        const [output, result] = run('')(_showCached(command, '/repo', 'cached'))
-        assertOk(result)
-        assertEq(output, 'fjs/example/module.f.js...Cached\nfjs/example/demo.f.mjs...Cached\n')
-        assertEq(run('')(_showCached(command, '/repo', 'passed'))[0], '')
     },
     batchPublication: () => {
         /** @type {PartialMemOperationMap<NodeOp, string>} */
