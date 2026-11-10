@@ -4,7 +4,7 @@
  *
  * @module
  *
- * @import { Jobs, MetaStep, Step } from '../common/types.ts'
+ * @import { Job, Jobs, MetaStep, Step } from '../common/types.ts'
  * @import { PackageConsumer } from '../types.ts'
  */
 
@@ -57,13 +57,28 @@ export const platformNodeSteps = () => [
     test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
-/** Isolated coverage of each module directory, alongside the existing checks. */
-export const coverageJob = ubuntuArm([
-    nodeVersionStep(),
-    ...environmentSteps(['npm ci']),
-    // Advisory until each module's own proof supplies complete coverage.
-    test({ run: environmentCommand('npm start cov node'), 'continue-on-error': true }),
-])
+/** Only the repository's permitted CI runs publish module successes. @type {string} */
+export const coverageSyncFlag = "${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '--sync' || '' }}"
+
+/** Isolated coverage, optionally synchronizing successful manifests. @type {(synchronize?: boolean) => Job} */
+export const coverageJob = (synchronize = false) => ({
+    ...ubuntuArm([
+        nodeVersionStep(),
+        ...environmentSteps(['npm ci']),
+        // Advisory until each module's own proof supplies complete coverage.
+        test({
+            run: environmentCommand(synchronize ? `npm start -- cov node ${coverageSyncFlag}` : 'npm start cov node'),
+            'continue-on-error': true,
+            ...(synchronize ? { env: {
+                GIT_AUTHOR_NAME: 'github-actions[bot]',
+                GIT_AUTHOR_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+                GIT_COMMITTER_NAME: 'github-actions[bot]',
+                GIT_COMMITTER_EMAIL: '41898282+github-actions[bot]@users.noreply.github.com',
+            } } : {}),
+        }),
+    ]),
+    ...(synchronize ? { permissions: { contents: 'write' } } : {}),
+})
 
 /**
  * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}

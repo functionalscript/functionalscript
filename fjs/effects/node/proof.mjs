@@ -1870,6 +1870,37 @@ export const proof = {
     // has. `node` is named rather than `process.execPath`: under Deno and Bun that
     // path is their own binary, and only Node takes `-e`.
     execFile: {
+        utf8InputAndLiteralArguments: async () => {
+            const args = ['space and quote\'', '$(echo wrong)', '& %PATH%']
+            const stdin = 'héllo\nsecond line \u{1f600}\n$(still literal)'
+            await hostCheck(execFile('node', ['-e',
+                'process.stdin.setEncoding("utf8"); let input = ""; process.stdin.on("data", chunk => input += chunk); process.stdin.on("end", () => { process.stdout.write(JSON.stringify({ args: process.argv.slice(1), stdin: input })); process.stderr.write("stderr"); });',
+                ...args], { stdin }), result => {
+                const { stdout, stderr } = unwrap(result)
+                assertStructurallySame(JSON.parse(stdout), { args, stdin })
+                assertEq(stderr, 'stderr')
+            })
+        },
+        explicitCaptureBound: async () => {
+            const size = 0x10_0000 + 1
+            await hostCheck(execFile('node', ['-e',
+                'const size = Number(process.argv[1]); process.stdout.write("x".repeat(size)); process.stderr.write("y".repeat(size));',
+                String(size)], { maxBuffer: size * 2 }), result => {
+                const { stdout, stderr } = unwrap(result)
+                assertEq(stdout, 'x'.repeat(size))
+                assertEq(stderr, 'y'.repeat(size))
+            })
+        },
+        closedInputKeepsProcessOutcome: async () => {
+            const stdin = 'unread input'.repeat(0x10_0000)
+            await hostCheck(execFile('node', ['-e', 'process.stdout.write("done");'], { stdin }), result => {
+                assertStructurallySame(unwrap(result), { stdout: 'done', stderr: '' })
+            })
+            await hostCheck(execFile('node', ['-e', 'process.stderr.write("refused input"); process.exitCode = 3;'], { stdin }), result => {
+                assert(result[0] === 'error')
+                assert(errorMessage(result[1]).includes('refused input'))
+            })
+        },
         literalArguments: async () => {
             /** @type {readonly string[]} */
             const args = ["space and 'quote'", '$(echo wrong)', '& %PATH% ^ \"quoted\"']

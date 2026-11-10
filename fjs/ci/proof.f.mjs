@@ -15,6 +15,7 @@ import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.mjs'
 import { empty } from '../types/bit_vec/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
+import { coverageSyncFlag } from './node/module.f.mjs'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {
     const value = dir[name]
@@ -123,25 +124,25 @@ export const proof = {
             assertEq(cov['timeout-minutes'], jobTimeout)
             assertEq(cov.if, undefined)
             assertEq(cov.needs, undefined)
-            assertEq(cov.permissions, undefined)
+            assertStructurallySame(cov.permissions, smart ? { contents: 'write' } : undefined)
             assert(cov.steps[0]?.uses?.startsWith('actions/checkout@') === true)
             assert(cov.steps[1]?.uses?.startsWith('jdx/mise-action@') === true)
             assertEq(cov.steps[1]?.with?.install_args, '--locked')
             assertStructurallySame(cov.steps.slice(2).map(step => step.run), [
                 `test "$(mise exec -- node --version)" = "v${node}"`,
                 'mise exec -- npm ci',
-                'mise exec -- npm start cov node',
+                smart ? `mise exec -- npm start -- cov node ${coverageSyncFlag}` : 'mise exec -- npm start cov node',
             ])
             assert(cov.steps.every(step => step.if === undefined))
             assert(cov.steps.slice(0, -1).every(step => step['continue-on-error'] === undefined))
             assertEq(cov.steps.at(-1)?.['continue-on-error'], true)
             const coverageJobs = definedEntries(gha.jobs).flatMap(([id, job]) =>
-                job.steps.flatMap(step => step.run === 'mise exec -- npm start cov node' ? [id] : []))
+                job.steps.flatMap(step => step.run?.startsWith(smart ? 'mise exec -- npm start -- cov node' : 'mise exec -- npm start cov node') ? [id] : []))
             assertStructurallySame(coverageJobs, ['cov'])
             assert(has(gha, 'node26', 'npm run cov'))
             assertEq(has(gha, 'node26', 'ci report coverage'), smart)
         }
-        assertStructurallySame(generate(false).jobs.cov, generate(true, () => [], true).jobs.cov)
+        assertStructurallySame(generate(false).jobs.cov, generate(true).jobs.cov)
     },
     // A `Cargo.toml` the host will not describe may well be there: the
     // command fails rather than writing a workflow without the Rust jobs.

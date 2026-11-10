@@ -947,10 +947,10 @@ export const proof = {
     // falling back to `~/.gitconfig`; `null` where either is set in neither,
     // and a `config` Git does not read refused.
     configuredAuthor: () => {
-        /** @type {(local: string | null, global: string | null) => Result<Author | null, IoChannel>} */
-        const found = (local, global) => virtualAt({
+        /** @type {(local: string | null, globalConfig: string | null) => Result<Author | null, IoChannel>} */
+        const found = (local, globalConfig) => virtualAt({
             repo: local === null ? {} : { config: text(local) },
-            home: global === null ? {} : { '.gitconfig': text(global) },
+            home: globalConfig === null ? {} : { '.gitconfig': text(globalConfig) },
         })(configuredAuthor('repo', 'home'))[1]
         assertStructurallySame(assertOk(found('[user]\n\tname = A\n\temail = a@b\n', null)), { name: 'A', email: 'a@b' })
         assertStructurallySame(assertOk(found('[user]\n\tname = A\n', '[user]\n\tname = G\n\temail = g@b\n')), { name: 'A', email: 'g@b' })

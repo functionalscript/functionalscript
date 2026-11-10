@@ -151,12 +151,89 @@ directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
 
-The runner prints each working directory and complete command before
-launching it, continues after failures, and exits nonzero if any module
-failed. It accepts no flags. CI's additional `cov` job invokes this isolated
-runner from the repository root. The existing `node26` job retains the combined
-`npm run cov` check; its coverage cannot contribute to the isolated results.
-Replacing that combined check and closing the remaining proof gaps are tracked in
+The runner separates planning, execution and recording:
+
+1. Build the shared dependency graph and all target manifests, hash their cache
+   keys once, and check them against one native Git inventory of `build-cache`.
+   Matching entries' blob contents are verified together against the exact
+   prepared manifests before they count as hits.
+2. Run the planned misses sequentially and remember stable successful entries.
+   A directory whose targets all hit needs no coverage child.
+3. Record the new successful entries in one local Git `fast-import` commit,
+   then synchronize when requested. An empty batch creates no commit.
+
+Each measured target has its own canonical dependency manifest,
+including all immediate authored siblings, their transitive static imports,
+working-tree content hashes, coverage settings and loaded tooling/runtime inputs.
+The manifest names its `module`, directory and sorted target inventory; its
+`files` object maps repository-relative paths to SHA-256/CBase32 hashes. The
+contract records actual Node/platform versions, relevant execution settings and
+hashes of the framework files discovered by Node's loader. JSON leaves and shared
+dependencies are included once; dependency cycles do not repeat files. At startup,
+the runner probes Node once and builds one shared dependency graph for all selected
+directories. Graph construction reads, hashes and parses each source once, reusing
+shared imports and framework inputs. Each directory's manifest selects its
+reachable inputs from that snapshot. Loader fingerprints bind the framework inventory to the source
+bytes observed by the probe; changed framework inputs disable reuse.
+
+The manifest also records resolved module relationships: `roots` maps immediate
+authored siblings to closure-local module indices, and `modules` lists their
+repository-relative paths and ordered imported module indices. This preserves
+module identity sharing without storing checkout-specific URLs. Retargeting a
+symlink therefore invalidates the cached success even when all file bytes stay
+the same.
+
+Caching requires and hashes the repository root's `package.json`. It also hashes
+every present ancestor `package.json` of loaded files inside that repository,
+so adding a nested package scope invalidates affected manifests. Without the
+root package metadata, coverage runs uncached instead of relying on an
+unrepresented package scope outside the repository. Cache admission also refuses
+dynamic `import`, `import.meta`, `require`, `eval`/`Function`, and explicit
+host-global references. Such sources still run coverage normally, without
+reusing an incomplete static graph.
+
+Clock reads through `Date` and randomness through `Math.random` also run
+uncached. Static access to known deterministic Math functions and constants is
+cacheable; aliasing the Math namespace or using a dynamic property key is
+conservatively refused.
+
+A directory is cached only when every measured target has an exact success.
+Native children inherit stdout and stderr, so their reporter output appears
+live. The existing quiet Node reporter filters passed tests and fully covered
+files. After a child finishes, each target prints a complete repository-relative
+result line: `module.f.js...Ok` or `module.f.js...Failed`. Failures also identify
+the working directory and reproducible command. Cache hits launch no child and
+print only `module.f.js...Cached` for each target. The runner continues after
+failures and exits nonzero if any module failed.
+
+Before using a planned result and after a successful child, the runner verifies the
+snapshot's relevant bytes, authored sibling inventory, package scopes and module
+resolution identities, including the framework's original file import paths.
+These checks reuse the graph without parsing or hashing
+again. A stale planned hit runs coverage instead; changed inputs contribute no
+success for that snapshot. Execution performs no cache lookup, key rehashing or
+cache write. The native reporter imports only the small coverage-admission
+checks, keeping dependency planning and cache machinery out of each child's
+startup. Stable successes are recorded after all modules finish, even when
+another module failed.
+Failed coverage contributes no manifest. An interrupted run cannot certify its
+unfinished coverage. Incomplete dependency parsing/resolution, unsupported
+preload settings, and cache errors are reported explicitly and leave the run
+uncached.
+
+`npm start -- cov node --sync` also fetches `origin/build-cache` at startup and
+publishes one batch after module processing and local recording finish. No
+module or cache hit triggers a publication during the run. The final sync also
+retries unpublished local successes. Concurrent additions are replayed onto the
+latest remote parent using normal push retries, then the local branch is
+refreshed for subsequent runs. The command preserves the source checkout and
+never force pushes. Without `--sync`, recording is still batched locally.
+
+CI's additional `cov` job invokes this isolated runner from the repository root,
+with `--sync` only for permitted same-repository runs outside Dependabot. The
+existing `node26` job retains the combined `npm run cov` check; its coverage
+cannot contribute to the isolated results. Replacing that combined check and
+closing remaining proof gaps are tracked in
 [per-module coverage](./todo/per-module-coverage.md).
 
 ### External runners (Node, Bun, Deno)

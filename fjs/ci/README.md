@@ -20,10 +20,14 @@ test because parser stress proofs can exceed its default five seconds. `node26`
 retains FJS-only Node coverage via `npm run cov` and its existing successful-check
 cache. The additional `cov` job runs `npm start cov node`, checking each module
 directory's own proofs in a fresh Node coverage process with 100% line, branch
-and function thresholds. It runs on every pull request and merge-group entry
-without consulting `build-cache`. The existing combined suite retains proofs
-outside measured module directories and contributes no coverage to the isolated
-runs. SpiderMonkey compilation and FJS tests remain on `ubuntu-arm`.
+and function thresholds. The command reuses exact successful dependency
+manifests from the local `build-cache` branch. Same-repository runs outside
+Dependabot pass `--sync`, saving successful manifests and publishing one batch
+after all modules finish; forks and Dependabot keep local batch recording only.
+The existing combined suite retains proofs outside measured module directories
+and contributes no coverage to the isolated runs. Each measured file prints `...Ok`, `...Cached`,
+or `...Failed`; native logs are shown only for failures. SpiderMonkey compilation
+and FJS tests remain on `ubuntu-arm`.
 The canonical Node job runs `npm start deps` after type checking and before
 compilation and combined coverage. It checks generic AST formation for every authored
 `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
@@ -38,8 +42,9 @@ Suite and combined coverage cache keys retain the conservative `js` input rung.
 The selected command and `package.json` participate in the key, so old
 combined-suite results cannot certify the new selective runs. Narrowing the
 inputs requires a separate dependency audit. The additional isolated coverage
-job remains uncached during the
-[per-module manifest rollout](./cache/todo/module-coverage-cache.md).
+job uses the command's
+[per-target dependency manifests](../emergent_testing/README.md#testing-and-covering-one-module), not
+these whole-check gates. Unsupported dependency analysis remains uncached.
 
 ## Files
 
@@ -52,8 +57,11 @@ job remains uncached during the
 - `self`: this repository's consumer and additional steps.
 
 The test workflow runs ten jobs on pull requests and merge-group entries.
-The nine existing jobs retain their checks and successful-check caching;
-`cov` always runs.
+The nine existing jobs retain their checks and successful-check caching.
+The `cov` command always starts, then checks its own per-target manifests.
+The new job supplies cache-publication identity and contents-write permission;
+its `--sync` flag is restricted to permitted runs. Existing job permissions
+remain unchanged.
 There are no website jobs, push triggers, or deployment gates in `gen.ci.yml`.
 
 Add `cov` to GitHub's required status checks when it is ready to gate merging.
@@ -110,8 +118,9 @@ initialization fail, and the generated workflow falls back to running the checks
 writes CI and npm publishing files. The repository-owned `self` module also
 writes the independent website workflow. The generic `fjs ci` command keeps
 its pull-request and merge-group triggers. Both generic and repository
-workflows include the uncached `cov` job, assembled after the check-cache
-transformation.
+workflows include the `cov` job, assembled after the check-cache
+transformation. Generic workflows use local coverage caching; this repository
+also enables end-of-run batch synchronization on permitted CI runs.
 
 Optional `extraJobs` adds fully assembled project jobs after the platform setup
 and check-cache transformations. Callers provide their environment setup and
