@@ -169,15 +169,21 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Before each child starts, the runner opens a progress line naming its measured
-files by repository-relative path, joined with `, ` when they share a proof run.
-The shared emergent-testing reporter completes the line with status and timing,
-for example `module.f.js: ok, 360.0000 ms`. Successful child output stays hidden.
-After a failed child's result, the runner prints its working directory, complete
-command and exit status or signal, then the captured stdout and stderr. The two
-streams are grouped, so their original ordering relative to each other is not
-preserved. Launch/capture errors are reported directly. Exact successful
-dependency manifests in the local
+The runner prepares every manifest and completes one cache lookup before
+executing jobs in batches bounded by Node's `os.availableParallelism()`. Children
+in a batch run concurrently; the next batch starts after the current one
+settles. Scheduling capacity is not part of the cache key.
+
+Before each child starts, the runner prints a complete `module.f.js: running`
+line for each measured file by repository-relative path. Files in one directory
+share a child and duration, but each gets its own complete result line when the
+child finishes, using emergent testing's shared result formatter, for example
+`module.f.js: ok, 360.0000 ms`. Successful child output stays hidden. A failed
+result and its working directory, complete command, exit status or signal, and
+captured stdout/stderr are written together, so concurrent children cannot splice
+their diagnostics into that block. The two streams are grouped, so their original
+ordering relative to each other is not preserved. Launch/capture errors are
+reported directly. Exact successful dependency manifests in the local
 `build-cache` branch skip the native child without printing per-file results.
 The final summary includes the cached module count. Manifests include
 working-tree hashes of all sibling authored files and their transitive
@@ -220,7 +226,7 @@ The isolated coverage child uses
 [`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs)
 to check the expected targets before delegating to
 [`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
-The parent runner displays progress through the shared emergent-testing reporter.
+The parent runner displays progress using emergent testing's shared result formatter.
 Successful native reports are hidden; failed reports are replayed after the
 module's result and command, including test failures and uncovered locations.
 

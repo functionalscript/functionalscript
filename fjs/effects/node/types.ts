@@ -926,6 +926,9 @@ export type Forever = ['forever', () => OpResult<never>]
 
 export type Now = readonly['now', () => OpResult<number>]
 
+/** The host's estimate of how many tasks this process can run in parallel. */
+export type AvailableParallelism = readonly['availableParallelism', () => IoResult<number>]
+
 // sandbox
 
 /**
@@ -976,6 +979,7 @@ export type Test =
 export type NodeOp =
     | Access
     | All
+    | AvailableParallelism
     | Await
     | Catch
     | Fetch

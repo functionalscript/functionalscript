@@ -15,7 +15,7 @@ import { asNominal } from "../../types/nominal/module.f.js"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
 import {
-    capture, handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
+    availableParallelism, capture, handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
     requestBodyOffsetMessage, writeBytes, writeExclusive,
 } from "./module.f.mjs"
 import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
@@ -95,6 +95,10 @@ const lengths = (source, bound) => {
 const vec32 = vec(32n)
 
 export const proof = {
+    availableParallelismIsUnavailableInVirtualRunner: () => {
+        const [, result] = virtual(emptyState)(availableParallelism())
+        assertStructurallySame(result, error(['notImplemented', 'availableParallelism']))
+    },
     captureIsUnavailableInVirtualRunner: () => {
         const [, result] = virtual(emptyState)(capture('node', ['--version']))
         assertStructurallySame(result, error(['notImplemented', 'capture']))

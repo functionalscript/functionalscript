@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Capture, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileModule, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, AvailableParallelism, Await, Capture, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileModule, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -295,7 +295,7 @@ export const isDirectory = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, capture: null, catch: null, childWait: null, close: null,
+    access: null, all: null, availableParallelism: null, await: null, capture: null, catch: null, childWait: null, close: null,
     createExclusive: null,
     createServer: null, exec: null, execFile: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
@@ -1301,6 +1301,9 @@ export const forever = do_('forever')
 
 /** @type {Func<Now>} */
 export const now = do_('now')
+
+/** The host's available task parallelism. @type {Func<AvailableParallelism>} */
+export const availableParallelism = do_('availableParallelism')
 
 // sandbox and catch are declared in `../common`, which is where an operation
 // with a second implementer belongs; they are re-exported below so a node-side

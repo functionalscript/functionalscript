@@ -149,9 +149,10 @@ export const proof = /** @type {const} */ ({
             assert.equal(result.output.includes('OUTSIDE_SCOPE'), false, result.output)
             assert.equal(result.output.includes('FIRST_MODULE_PROOF'), false, result.output)
             assert.equal(result.output.includes('command:'), false, result.output)
-            assert.ok(result.output.includes('a module/demo.f.mjs, '), result.output)
-            assert.ok(result.output.includes('a module/module.f.js: ok,'), result.output)
-            assert.ok(result.output.includes('/b/module.f.mjs: ok,'), result.output)
+            for (const target of ['a module/demo.f.mjs', 'a module/module.f.js', '/b/module.f.mjs']) {
+                assert.ok(result.output.includes(`${target}: running\n`), result.output)
+                assert.ok(result.output.includes(`${target}: ok,`), result.output)
+            }
             assert.ok(result.output.includes('Coverage: 2 passed, 0 failed, 2 total'), result.output)
         })
     },
@@ -209,7 +210,7 @@ export const proof = /** @type {const} */ ({
             assert.ok(result.output.includes('exited 1'), result.output)
         })
     },
-    coverageFailureLogsPrecedeLaterModules: () => {
+    coverageFailureLogsStayTogether: () => {
         if (runtime !== 'node') return
         withFixture(root => {
             writeFixture(root, {
@@ -225,7 +226,10 @@ export const proof = /** @type {const} */ ({
             const stderr = result.output.indexOf('FAILED_STDERR')
             const later = result.output.indexOf('/b/module.f.mjs: ok,')
             assert.ok(failed >= 0 && stdout > failed && stderr > failed, result.output)
-            assert.ok(later > stdout && later > stderr, result.output)
+            assert.ok(later >= 0, result.output)
+            const details = result.output.lastIndexOf('FAILED_DETAILS')
+            const failedBlock = result.output.slice(failed, Math.max(stdout, stderr, details))
+            assert.equal(failedBlock.includes('/b/module.f.mjs:'), false, result.output)
             assert.ok(result.output.includes('FAILED_DETAILS'), result.output)
             assert.equal(result.output.includes('SUCCESS_STDOUT'), false, result.output)
             assert.equal(result.output.includes('SUCCESS_STDERR'), false, result.output)

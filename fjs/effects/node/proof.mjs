@@ -25,6 +25,7 @@
 
 import http from 'node:http'
 import net from 'node:net'
+import { availableParallelism as hostAvailableParallelism } from 'node:os'
 import { once } from 'node:events'
 import { constants as fsConstants } from 'node:fs'
 import process from 'node:process'
@@ -46,7 +47,7 @@ import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import {
-    awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
+    availableParallelism, awaitIfPromise, both, capture, catch_, execFile, childWait, close, doubledLengthMessage, errorMessage,
     framingHeaderMessage, fstat, import_,
     inflate, inflateTrailingCode, open, pread, randomInt, readWhole, rename, requestBodyOffsetMessage,
     resolveFileModule, maxOffset, readBytes, rmdir, spawn, unframedBodyMessage, writeBytes, writeExclusive,
@@ -521,6 +522,13 @@ const startedChild = async args => {
 }
 
 export const proof = {
+    availableParallelism: async () => {
+        await hostCheck(availableParallelism(), result => {
+            const count = unwrap(result)
+            assert(Number.isInteger(count) && count > 0)
+            assertEq(count, hostAvailableParallelism())
+        })
+    },
     inlineRegistrationNames: {
         ordinary: async () => {
             let called = false

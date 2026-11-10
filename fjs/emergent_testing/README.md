@@ -157,8 +157,11 @@ The runner separates planning, execution and recording:
    keys once, and check them against one native Git inventory of `build-cache`.
    Matching entries' blob contents are verified together against the exact
    prepared manifests before they count as hits.
-2. Run the planned misses sequentially and remember stable successful entries.
-   A directory whose targets all hit needs no coverage child.
+2. Run planned jobs in batches bounded by Node's `os.availableParallelism()` and
+   remember stable successful entries. Children in each batch run concurrently;
+   the next batch starts after every job in the current batch settles. A
+   directory whose targets all hit needs no coverage child. Scheduling capacity
+   is not part of the cache key.
 3. Record the new successful entries in one local Git `fast-import` commit,
    then synchronize when requested. An empty batch creates no commit.
 
@@ -199,18 +202,20 @@ impose an additional cache-admission restriction. Dependency analysis uses the
 compiler's syntax parser and follows static imports without executing source.
 
 A directory is cached only when every measured target has an exact success.
-Before each child starts, the runner opens a progress line naming the directory's
-measured files by repository-relative path. Files that share a proof run are
-joined with `, `. The runner completes the line with the same status and timing
-as emergent testing: `module.f.js: ok, 360.0000 ms` or
-`module.f.js: error, 360.0000 ms`. Successful child output stays hidden. After a
-failed child's result, the runner prints the working directory, reproducible
-command and exit status or signal, then replays captured stdout and stderr.
+Before each child starts, the runner prints a complete `module.f.js: running`
+line for each measured file by repository-relative path. Files in one directory
+share a child and duration, but each gets its own complete result line when the
+child finishes, using the shared emergent-testing result formatter:
+`module.f.js: ok, 360.0000 ms` or `module.f.js: error, 360.0000 ms`. Successful
+child output stays hidden. A failed result and its working directory,
+reproducible command, exit status or signal, and captured stdout/stderr are
+written together, so other concurrent children cannot splice their output into
+that block.
 Each stream keeps its contents; their original ordering relative to each other
 is not preserved. Launch/capture errors are reported directly. Cache hits launch
 no child and print no per-file result. The final summary includes the cached
-module count. The runner continues after failures and exits nonzero if any
-module failed.
+module count. Child failures do not stop other jobs or later batches; the runner
+exits nonzero if any module failed.
 
 Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module
