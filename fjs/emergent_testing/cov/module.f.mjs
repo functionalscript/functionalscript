@@ -3,6 +3,7 @@
  * Children run quietly in CPU-bounded parallel batches without a shell.
  * Progress shares emergent-testing's result formatter and prints complete
  * start and finish records for each measured file.
+ * Test timing spans the first child's start through the last child's finish.
  * The complete plan is prepared before any child runs. Stable successful entries
  * are committed and synchronized after executing the plan.
  *
@@ -11,7 +12,7 @@
  * @import { Effect, IoChannel } from '../../effects/types.ts'
  * @import { NodeOp, NodeProgram, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { _Module } from './types.ts'
- * @import { CoverageCache, Command, Outcome, Planned, RunResult } from './plan/types.ts'
+ * @import { ChildResult, CoverageCache, Command, Outcome, Planned, RunResult } from './plan/types.ts'
  * @import { Entry } from './cache/types.ts'
  */
 
@@ -22,7 +23,7 @@ import { basename, join, normalize, parent, under } from '../../path/module.f.js
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
-import { fmtResult } from '../module.f.mjs'
+import { fmtResult, formatDuration } from '../module.f.mjs'
 import { csiWrite } from '../../text/sgr/module.f.mjs'
 import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
@@ -66,7 +67,7 @@ export const _modulePaths = ({ directory, files }, root) => {
 }
 
 /** Run one quiet child with shared test progress; independent directories continue after failure.
- * @type {(options: NodeProgramOptions, command: Command, root: string) => Effect<NodeOp, boolean, IoChannel>}
+ * @type {(options: NodeProgramOptions, command: Command, root: string) => Effect<NodeOp, ChildResult, IoChannel>}
  */
 const runModule = (options, command, root) => {
     const { directory, args } = command
@@ -82,7 +83,7 @@ const runModule = (options, command, root) => {
     })
     const outcome = historyStep(history(timed), () => checked)
     const stopped = historyStep(outcome, () => now())
-    const measured = mapStep(stopped, ([end, result, start]) => ({ ...result, duration: end - start }))
+    const measured = mapStep(stopped, ([end, result, start]) => ({ ...result, start, duration: end - start }))
     // One write keeps a completed job's result and failure logs together.
     const reported = historyStep(history(measured), ({ passed, duration, detail, stdout, stderr }) => {
         const lines = paths.map(name => fmtResult({ module: directory, path: '', name, duration,
@@ -90,7 +91,7 @@ const runModule = (options, command, root) => {
         const diagnostics = passed ? [] : [_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '')
         return out([...lines, ...diagnostics].join('\n') + '\n')
     })
-    return mapStep(reported, ([, { passed }]) => passed)
+    return mapStep(reported, ([, { passed, start, duration }]) => ({ passed, start, duration }))
 }
 
 /** Commit and publish once after execution; cache errors cannot hide coverage results. @type {(cache: CoverageCache | null, entries: readonly Entry[]) => Effect<NodeOp, void, IoChannel>} */
@@ -109,8 +110,11 @@ const coverageCache = (options, synchronize, commands) => resultStep(openCoverag
 /** Successful cached checks still contribute to the total passed count. @type {Record<Outcome, { readonly failed: number, readonly cached: number }>} */
 const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cached: 0 }, cached: { failed: 0, cached: 1 } }
 
+/** Match the shared terminal reporter's duration precision and units. */
+const durationText = formatDuration(4)
+
 /** Execute CPU-bounded batches and retain stable successes for one commit.
- * @type {(options: NodeProgramOptions, plan: readonly Planned[], root: string, cache: CoverageCache | null, concurrency: number) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly entries: readonly Entry[] }, IoChannel>}
+ * @type {(options: NodeProgramOptions, plan: readonly Planned[], root: string, cache: CoverageCache | null, concurrency: number) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly duration: number, readonly realTime: number, readonly entries: readonly Entry[] }, IoChannel>}
  */
 export const _runPlan = (options, plan, root, cache, concurrency) => {
     const batches = Array.from({ length: Math.ceil(plan.length / concurrency) }, (_, index) =>
@@ -120,13 +124,19 @@ export const _runPlan = (options, plan, root, cache, concurrency) => {
         const concurrent = allOk(...work)
         return mapStep(concurrent, results => [...previous, ...results])
     })
-    return mapStep(completed, results => results.reduce((totals, { outcome, entries }) => {
-        const change = increments[outcome]
-        return {
-            failed: totals.failed + change.failed, cached: totals.cached + change.cached,
-            total: totals.total + 1, entries: [...totals.entries, ...entries],
-        }
-    }, { failed: 0, cached: 0, total: 0, entries: /** @type {readonly Entry[]} */ ([]) }))
+    return mapStep(completed, results => {
+        const totals = results.reduce((totals, { outcome, duration, entries }) => {
+            const change = increments[outcome]
+            return {
+                failed: totals.failed + change.failed, cached: totals.cached + change.cached,
+                total: totals.total + 1, duration: totals.duration + duration, entries: [...totals.entries, ...entries],
+            }
+        }, { failed: 0, cached: 0, total: 0, duration: 0, entries: /** @type {readonly Entry[]} */ ([]) })
+        const runs = results.flatMap(({ start, duration }) => start === null ? [] : [{ start, end: start + duration }])
+        const realTime = runs.length === 0 ? 0
+            : Math.max(...runs.map(run => run.end)) - Math.min(...runs.map(run => run.start))
+        return { ...totals, realTime }
+    })
 }
 
 /** Run the selected subtree; --sync publishes its successful manifests at end. @type {NodeProgram} */
@@ -151,9 +161,16 @@ export const main = options => {
     const capacity = historyStep(planned, () => availableParallelism())
     const executed = historyStep(capacity, (concurrency, plan, cache) => _runPlan(options, plan, cache?.root ?? packageRoot, cache, concurrency))
     const committed = historyStep(executed, (results, _capacity, _plan, cache) => _saveBatch(cache, results.entries))
-    const results = mapStep(committed, ([, totals]) => totals)
-    const reported = historyStep(history(results), ({ failed, cached, total }) =>
-        log(`Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`))
+    const results = mapStep(committed, ([, totals, concurrency]) => ({
+        ...totals, concurrency: Math.min(concurrency, totals.total),
+    }))
+    const reported = historyStep(history(results), ({ failed, cached, total, duration, realTime, concurrency }) =>
+        log([
+            `Coverage: ${total - failed} passed, ${failed} failed, ${total} total (${cached} cached)`,
+            `Test real time: ${durationText(realTime)}`,
+            `Processor time: ${durationText(duration)}`,
+            `Concurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}`,
+        ].join('\n')))
     return resultStep(reported, ([tag, value]) => {
         if (tag === 'error') { return errorExit(errorMessage(value)) }
         const [, { failed }] = value

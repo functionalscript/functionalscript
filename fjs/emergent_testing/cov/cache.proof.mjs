@@ -114,9 +114,13 @@ const executedOutput = output => {
     assert(!output.includes('command:'), output)
 }
 
-/** Cached targets emit no per-file output; synchronization may report Git diagnostics. @type {(output: string) => void} */
-const cachedOutput = output => {
-    assert(output.includes('Coverage: 1 passed, 0 failed, 1 total (1 cached)\n'), output)
+/** Cached targets emit no per-file output; synchronization may report Git diagnostics. @type {(output: string, total?: number) => void} */
+const cachedOutput = (output, total = 1) => {
+    assert(output.includes(`Coverage: ${total} passed, 0 failed, ${total} total (${total} cached)\n`), output)
+    assert(output.includes('Test real time: 0.0000 ms\n'), output)
+    assert(output.includes('Processor time: 0.0000 ms\n'), output)
+    const concurrency = Math.min(availableParallelism(), total)
+    assert(output.includes(`Concurrency: up to ${concurrency} child process${concurrency === 1 ? '' : 'es'}\n`), output)
     assert(!output.includes('module.f.js'), output)
     assert(!output.includes('ℹ tests'), output)
     assert(!output.includes('start of coverage report'), output)
@@ -215,7 +219,8 @@ export const proof = { overlaps: () => new Promise((resolve, reject) => {
             assert(cold.includes('Coverage: 2 passed, 0 failed, 2 total (0 cached)'), cold)
             assert.equal(entries(repo).length, 2)
             const warm = await runCoverage()
-            assert.equal(warm, 'Coverage: 2 passed, 0 failed, 2 total (2 cached)\n')
+            cachedOutput(warm, 2)
+            assert.equal(warm.split('\n').length, 5)
             assert.equal(connected.length, 2, 'Warm cache hits must not launch coverage children')
             assert.deepEqual(sourceState(repo), before)
         } finally {
@@ -264,7 +269,7 @@ export const proof = { overlaps: () => new Promise((resolve, reject) => {
 
         const warm = coverage(join(repo, 'unit'))
         cachedOutput(warm)
-        assert.equal(warm, 'Coverage: 1 passed, 0 failed, 1 total (1 cached)\n')
+        assert.equal(warm.split('\n').length, 5)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), saved)
         assert.equal(entries(repo).length, 1)
         assert.deepEqual(sourceState(repo), before)

@@ -24,6 +24,13 @@ export type CoverageCache = {
 
 export type Outcome = 'passed' | 'failed' | 'cached'
 
+/** One executed child's result and elapsed wall time in milliseconds. */
+export type ChildResult = {
+    readonly passed: boolean
+    readonly duration: number
+    readonly start: number
+}
+
 /** A directory's admission and hits, captured before any coverage child runs. */
 export type Planned = {
     readonly command: Command
@@ -37,4 +44,8 @@ export type Planned = {
 export type RunResult = {
     readonly outcome: Outcome
     readonly entries: readonly Entry[]
+    /** Executed child time in milliseconds; cache hits contribute zero. */
+    readonly duration: number
+    /** Child start on the shared clock; cache hits have no execution window. */
+    readonly start: number | null
 }

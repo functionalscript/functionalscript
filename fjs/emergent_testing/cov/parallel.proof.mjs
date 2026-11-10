@@ -40,12 +40,13 @@ export const proof = /** @type {const} */ ({
         let saved = []
         let active = 0
         let maximum = 0
+        let clock = 100
         /** @type {(count: number) => Promise<void>} */
         const startedCount = count => started.length >= count ? Promise.resolve()
             : new Promise(resolve => { reached = new Map([...reached, [count, resolve]]) })
         /** @type {PartialAsyncOperationMap<NodeOp>} */
         const operations = {
-            now: async () => ok(0),
+            now: async () => ok(clock),
             capture: (_command, _args, options) => new Promise(resolve => {
                 const directory = options?.cwd
                 assert(directory)
@@ -71,6 +72,7 @@ export const proof = /** @type {const} */ ({
                 assert.equal(started.length, 5)
                 assert(writes.some(chunk => chunk.includes('e/module.f.js: ok,')), 'Publication started before the final result')
                 publication = [...publication, phase]
+                clock += phase === 'save' ? 7 : 11
                 return ok(undefined)
             },
         }
@@ -110,34 +112,46 @@ export const proof = /** @type {const} */ ({
         await within('first coverage batch starts concurrently', 10_000, startedCount(2))
         assert.deepEqual(started, ['a', 'b'])
         assert.equal(active, 2)
+        clock = 110
         finish('a')
         await drain()
         assert.deepEqual(started, ['a', 'b'], 'The next batch started while a sibling was still active')
         assert.deepEqual(publication, [])
 
+        clock = 120
         finish('b', 1)
         await within('second batch continues after failure', 10_000, startedCount(4))
         assert.deepEqual(started, ['a', 'b', 'c', 'd'])
         assert.equal(active, 2)
+        clock = 125
         finish('d')
         await drain()
         assert.deepEqual(started, ['a', 'b', 'c', 'd'])
         assert.deepEqual(publication, [])
 
+        clock = 135
         finish('c')
         await within('last partial batch starts', 10_000, startedCount(5))
         assert.equal(active, 1)
         assert.deepEqual(publication, [])
+        clock = 145
         finish('e')
         const result = unwrap(await within('coverage publishes after all captures finish', 10_000, running))
         assert.equal(maximum, 2)
         assert.equal(result.total, 5)
         assert.equal(result.failed, 1)
         assert.equal(result.cached, 0)
+        // Overlapping children consume 10 + 20 + 15 + 5 + 10 ms while
+        // capture wall time is 45 ms; publication adds another 18 ms.
+        assert.equal(result.duration, 60)
+        assert.equal(result.realTime, 45)
+        assert(result.duration > result.realTime)
+        assert.equal(clock, 163)
         assert.deepEqual(saved.map(value => value.key), ['a', 'c', 'd', 'e'])
         assert.deepEqual(publication, ['save', 'sync'])
         const failure = writes.find(chunk => chunk.includes('b/module.f.js: error,'))
         assert(failure)
+        assert(failure.includes('b/module.f.js: error, 20.0000 ms\n'))
         assert(failure.includes('stdout b') && failure.includes('stderr b'), 'Failure logs must share their completed result write')
         assert(!writes.some(chunk => chunk.includes('stdout a') || chunk.includes('stderr a')))
     },

@@ -6,7 +6,7 @@
  * @module
  * @import { Effect, IoChannel } from '../../../effects/types.ts'
  * @import { NodeOp } from '../../../effects/node/types.ts'
- * @import { Command, CoverageCache, Planned, RunResult } from './types.ts'
+ * @import { ChildResult, Command, CoverageCache, Planned, RunResult } from './types.ts'
  */
 
 import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
@@ -69,25 +69,27 @@ const validate = (command, cache) => resultStep(cache.validate(command), ([tag, 
             : mapStep(error(`UNCACHED ${command.directory}: coverage inputs changed since the cache snapshot`), () => false))
 
 /** No certificate is returned for ordinary uncached execution.
- * @type {(run: () => Effect<NodeOp, boolean, IoChannel>) => Effect<NodeOp, RunResult, IoChannel>}
+ * @type {(run: () => Effect<NodeOp, ChildResult, IoChannel>) => Effect<NodeOp, RunResult, IoChannel>}
  */
-const uncached = run => mapStep(run(), passed => ({ outcome: passed ? 'passed' : 'failed', entries: [] }))
+const uncached = run => mapStep(run(), ({ passed, duration, start }) => ({ outcome: passed ? 'passed' : 'failed', entries: [], duration, start }))
 
 /** Execute one planned directory without performing cache discovery or writes.
- * @type {(item: Planned, run: () => Effect<NodeOp, boolean, IoChannel>, cache: CoverageCache | null) => Effect<NodeOp, RunResult, IoChannel>}
+ * @type {(item: Planned, run: () => Effect<NodeOp, ChildResult, IoChannel>, cache: CoverageCache | null) => Effect<NodeOp, RunResult, IoChannel>}
  */
 export const runPlanned = (item, run, cache) => {
     const { command, entries, cached, admissionFailed } = item
-    if (admissionFailed) { return mapStep(run(), () => ({ outcome: 'failed', entries: [] })) }
+    if (admissionFailed) { return mapStep(run(), ({ duration, start }) => ({ outcome: 'failed', entries: [], duration, start })) }
     if (cache === null || entries === null || entries.length === 0) { return uncached(run) }
     const validated = history(validate(command, cache))
     const executed = historyStep(validated,
-        /** @returns {Effect<NodeOp, boolean | 'cached', IoChannel>} */
+        /** @returns {Effect<NodeOp, ChildResult | 'cached', IoChannel>} */
         valid => valid && cached ? pureOk('cached') : run())
-    const accepted = historyStep(executed, (outcome, valid) => outcome === true && valid
+    const accepted = historyStep(executed, (outcome, valid) => outcome !== 'cached' && outcome.passed && valid
         ? mapStep(validate(command, cache), stable => stable ? entries : []) : pureOk([]))
     return mapStep(accepted, ([successful, outcome]) => ({
-        outcome: outcome === 'cached' ? 'cached' : outcome ? 'passed' : 'failed',
+        outcome: outcome === 'cached' ? 'cached' : outcome.passed ? 'passed' : 'failed',
         entries: successful,
+        duration: outcome === 'cached' ? 0 : outcome.duration,
+        start: outcome === 'cached' ? null : outcome.start,
     }))
 }

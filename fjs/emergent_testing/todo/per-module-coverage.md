@@ -93,7 +93,16 @@ followed by stderr. Grouping the two streams does not preserve their original
 ordering relative to each other.
 Report launch/capture errors directly. Cache hits launch no child and print no
 per-file result. Continue after failures and finish with coverage totals,
-including the cached module count.
+including the cached module count. Report `Test real time` from the first child's
+start through the last child's finish, and `Processor time` as the sum of child
+wall-clock durations. Sum each child once, including failures; cache hits
+contribute zero, and both timings are zero when no child runs. Planning, cache
+lookup/publication and validation before or after all children are excluded from
+test real time; gaps between child runs remain part of that span.
+Use the shared duration formatter for both totals.
+Report the concurrent child-process limit as the smaller of available CPU
+capacity and the number of planned directory jobs, using "up to" because cache
+hits can launch fewer children.
 Execute with a structured argument vector, without a shell.
 
 The command currently accepts `--sync` for end-of-run cache publication.
@@ -152,6 +161,11 @@ when a required metric is unavailable.
   their working directory and full reproducible command, with paths and
   arguments quoted unambiguously, then print captured stdout and stderr.
   Cache hits print no per-file result and contribute to the final cached count.
+- The timing summary spans the first child's start through the last child's
+  finish, excluding planning and final cache work. Processor time sums each
+  executed child's wall time once, including failures, and excludes cache hits.
+  Overlapping children can sum to more than test real time; fully cached runs
+  have zero for both timings.
 - Future verbosity controls change presentation only; they must not change
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
