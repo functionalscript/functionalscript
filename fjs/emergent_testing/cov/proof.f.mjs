@@ -4,13 +4,13 @@
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
- * @import { CoverageCache } from './plan/types.ts'
+ * @import { CoverageCache, Planned } from './plan/types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { ioError, pureError, pureOk } from '../../effects/module.f.mjs'
+import { ioError, mapStep, pureError, pureOk } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
-import { exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
+import { access, exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
@@ -211,18 +211,57 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 1)
         assertEq(state.commands.length, 2)
     },
-    timingIncludesDiscoveryAndFinalSynchronization: () => {
+    timingExcludesDiscoveryAndFinalSynchronization: () => {
         const [state, result] = execute([passed, failed], { args: ['node', '--sync'] }, tree,
             false, false, reporterUrl, true, ok(2), { setup: 5, children: [7, 11], synchronization: 13 })
         assertEq(exitCode(result), 1)
         assert(state.synchronized)
-        assertStructurallySame(state.snapshots, [0, 5, 12, 12, 23, 36])
+        assertStructurallySame(state.snapshots, [5, 12, 12, 23])
+        assertEq(state.clock, 36)
         const output = state.output.map(([, text]) => text).join('')
         assert(output.includes('a/demo.f.mjs: ok, 7.0000 ms\na/module.f.mjs: ok, 7.0000 ms\n'))
         assert(output.includes('z/module.f.js: error, 11.0000 ms\n'))
         // Two measured files share the first process; its seven milliseconds
         // count once. The failed second process still contributes eleven.
-        assert(output.endsWith('Time: 36.0000 ms elapsed, 18.0000 ms tests\nConcurrency: up to 2 child processes\n'))
+        assert(output.endsWith('Test real time: 18.0000 ms\nProcessor time: 18.0000 ms\nConcurrency: up to 2 child processes\n'))
+    },
+    cachedValidationDoesNotExtendChildTime: () => {
+        /** @typedef {{ readonly clock: number, readonly snapshots: readonly number[], readonly commands: number }} State */
+        /** @type {PartialMemOperationMap<NodeOp, State>} */
+        const operations = {
+            access: directory => state => [{ ...state, clock: state.clock + (directory === 'before' ? 30
+                : directory === 'after' ? 60 : state.commands === 0 ? 40 : 50) }, ok(undefined)],
+            now: () => state => [{ ...state, snapshots: [...state.snapshots, state.clock] }, ok(state.clock)],
+            capture: () => state => [{ ...state, clock: state.clock + 10, commands: state.commands + 1 },
+                ok({ status: ['exited', 0], stdout: '', stderr: '' })],
+            write: () => state => [state, ok(undefined)],
+        }
+        /** @type {CoverageCache} */
+        const cache = {
+            prepare: () => pureOk([]), lookup: () => pureOk([]),
+            validate: command => mapStep(access(command.directory), () => true),
+            saveMany: () => pureOk(undefined), sync: () => pureOk(undefined),
+        }
+        const run = partialRun(nodeCommands)(operations)
+        for (const allCached of /** @type {const} */ ([false, true])) {
+            /** @type {readonly Planned[]} */
+            const plan = ['before', 'child', 'after'].map(name => ({
+                command: { directory: name, files: ['module.f.js'], args: ['--test'] },
+                entries: [{ manifest: { module: name }, key: name, path: name, payload: name, byteLength: name.length }],
+                cached: allCached || name !== 'child', admissionFailed: false,
+            }))
+            const [state, result] = run({ clock: 0, snapshots: [], commands: 0 })(
+                _runPlan(defaultNodeProgramOptions, plan, '/repo', cache, 1))
+            const totals = assertOk(result)
+            assertEq(totals.failed, 0)
+            assertEq(totals.total, 3)
+            assertEq(totals.cached, allCached ? 3 : 2)
+            assertEq(totals.duration, allCached ? 0 : 10)
+            assertEq(totals.realTime, allCached ? 0 : 10)
+            assertEq(state.clock, allCached ? 130 : 190)
+            assertEq(state.commands, allCached ? 0 : 1)
+            assertStructurallySame(state.snapshots, allCached ? [] : [70, 80])
+        }
     },
     concurrencyRespectsSystemAndJobCount: () => {
         for (const [capacity, expected] of /** @type {const} */ ([[1, '1 child process'], [8, '2 child processes']])) {
@@ -243,7 +282,7 @@ export const proof = /** @type {const} */ ({
     emptyExecutionPlan: () => {
         const run = partialRun(nodeCommands)({})
         const [, result] = run(undefined)(_runPlan(defaultNodeProgramOptions, [], '/repo', null, 2))
-        assertStructurallySame(assertOk(result), { failed: 0, cached: 0, total: 0, duration: 0, entries: [] })
+        assertStructurallySame(assertOk(result), { failed: 0, cached: 0, total: 0, duration: 0, realTime: 0, entries: [] })
     },
     refused: () => {
         for (const args of /** @type {const} */ ([[], ['bun'], ['node', '--quiet'], ['node', '--jobs=2'], ['node', '--sync', 'extra']])) {

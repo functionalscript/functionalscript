@@ -144,7 +144,8 @@ export const proof = /** @type {const} */ ({
         // Overlapping children consume 10 + 20 + 15 + 5 + 10 ms while
         // capture wall time is 45 ms; publication adds another 18 ms.
         assert.equal(result.duration, 60)
-        assert(result.duration > 145 - 100)
+        assert.equal(result.realTime, 45)
+        assert(result.duration > result.realTime)
         assert.equal(clock, 163)
         assert.deepEqual(saved.map(value => value.key), ['a', 'c', 'd', 'e'])
         assert.deepEqual(publication, ['save', 'sync'])

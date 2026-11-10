@@ -28,6 +28,7 @@ export type Outcome = 'passed' | 'failed' | 'cached'
 export type ChildResult = {
     readonly passed: boolean
     readonly duration: number
+    readonly start: number
 }
 
 /** A directory's admission and hits, captured before any coverage child runs. */
@@ -45,4 +46,6 @@ export type RunResult = {
     readonly entries: readonly Entry[]
     /** Executed child time in milliseconds; cache hits contribute zero. */
     readonly duration: number
+    /** Child start on the shared clock; cache hits have no execution window. */
+    readonly start: number | null
 }

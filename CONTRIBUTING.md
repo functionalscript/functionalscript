@@ -185,12 +185,14 @@ their diagnostics into that block. The two streams are grouped, so their origina
 ordering relative to each other is not preserved. Launch/capture errors are
 reported directly. Exact successful dependency manifests in the local
 `build-cache` branch skip the native child without printing per-file results.
-The final summary includes the cached module count, followed by elapsed command
-time and the sum of child test-run times, for example
-`Time: 1.2000 s elapsed, 2.1000 s tests`. Elapsed time covers discovery through
-final cache saving and synchronization. The sum counts each child once, even
-when its directory has multiple measured files, includes failed runs, and gives
-cache hits zero test time. Parallel runs can have a sum larger than elapsed time.
+The final summary includes the cached module count and two test timings.
+`Test real time: 1.2000 s` measures the span from the first child's start to the
+last child's finish, including gaps between jobs and batches. Dependency
+planning, cache lookup and final cache saving/synchronization fall outside this
+span. `Processor time: 2.1000 s` sums child wall-clock durations once per child,
+even when its directory has multiple measured files, including failed runs.
+Cache hits contribute zero; both timings are zero when no child runs. Parallel
+child durations can sum to more than test real time.
 `Concurrency: up to 4 child processes` reports the smaller of available CPU
 capacity and the number of directory jobs. Cache hits can reduce the actual
 number of children that run.

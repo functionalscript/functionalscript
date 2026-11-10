@@ -214,12 +214,15 @@ that block.
 Each stream keeps its contents; their original ordering relative to each other
 is not preserved. Launch/capture errors are reported directly. Cache hits launch
 no child and print no per-file result. The final summary includes the cached
-module count and a timing line, for example
-`Time: 1.2000 s elapsed, 2.1000 s tests`. Elapsed command time runs from before
-discovery through final cache saving and synchronization. Test time sums measured
-child durations once per directory, including failed runs; cache hits contribute
-zero. A directory with multiple measured files still contributes only once.
-Parallel child durations can sum to more than the elapsed command time.
+module count and two test timings. `Test real time: 1.2000 s` spans the first
+child's start through the last child's finish, including gaps between jobs and
+batches. It excludes dependency planning, cache lookup and final cache
+saving/synchronization, as well as validation before the first or after the last
+child. `Processor time: 2.1000 s` is the sum of child wall-clock durations once
+per directory, including failed runs. A directory with multiple measured files
+still contributes only once. Cache hits contribute zero; both timings are zero
+when no child runs. Overlapping child durations can sum to more than test real
+time.
 The summary also reports the concurrency limit, for example
 `Concurrency: up to 4 child processes`. It is the smaller of available CPU
 capacity and the number of directory jobs; cache hits can reduce the actual

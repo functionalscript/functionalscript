@@ -71,14 +71,14 @@ const validate = (command, cache) => resultStep(cache.validate(command), ([tag, 
 /** No certificate is returned for ordinary uncached execution.
  * @type {(run: () => Effect<NodeOp, ChildResult, IoChannel>) => Effect<NodeOp, RunResult, IoChannel>}
  */
-const uncached = run => mapStep(run(), ({ passed, duration }) => ({ outcome: passed ? 'passed' : 'failed', entries: [], duration }))
+const uncached = run => mapStep(run(), ({ passed, duration, start }) => ({ outcome: passed ? 'passed' : 'failed', entries: [], duration, start }))
 
 /** Execute one planned directory without performing cache discovery or writes.
  * @type {(item: Planned, run: () => Effect<NodeOp, ChildResult, IoChannel>, cache: CoverageCache | null) => Effect<NodeOp, RunResult, IoChannel>}
  */
 export const runPlanned = (item, run, cache) => {
     const { command, entries, cached, admissionFailed } = item
-    if (admissionFailed) { return mapStep(run(), ({ duration }) => ({ outcome: 'failed', entries: [], duration })) }
+    if (admissionFailed) { return mapStep(run(), ({ duration, start }) => ({ outcome: 'failed', entries: [], duration, start })) }
     if (cache === null || entries === null || entries.length === 0) { return uncached(run) }
     const validated = history(validate(command, cache))
     const executed = historyStep(validated,
@@ -90,5 +90,6 @@ export const runPlanned = (item, run, cache) => {
         outcome: outcome === 'cached' ? 'cached' : outcome.passed ? 'passed' : 'failed',
         entries: successful,
         duration: outcome === 'cached' ? 0 : outcome.duration,
+        start: outcome === 'cached' ? null : outcome.start,
     }))
 }
