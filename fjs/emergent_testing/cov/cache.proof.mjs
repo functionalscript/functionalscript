@@ -104,7 +104,7 @@ const coverage = (cwd, synchronize = false, status = 0, extraEnv = {}) => {
     return result.output
 }
 
-/** Executed children report progress without a native transcript. @type {(output: string) => void} */
+/** Successful children report progress without a native transcript. @type {(output: string) => void} */
 const executedOutput = output => {
     assert(output.includes(': ok,'), output)
     assert(!output.includes('ℹ tests'), output)
@@ -253,8 +253,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         write(repo, 'unit/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); throw "fixture failure"; } };\n')
         const failed = coverage(join(repo, 'unit'), false, 1)
         assert(failed.includes('unit/module.f.js: error,'), failed)
-        assert(!failed.includes('fixture failure'), failed)
-        assert(!failed.includes('ℹ tests'), failed)
+        assert(failed.includes('fixture failure'), failed)
+        assert(failed.includes('ℹ tests'), failed)
         assert(failed.includes('command:'), failed)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), successful)
         assert.equal(entries(repo).length, 2)
@@ -340,8 +340,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert(output.includes('a/module.f.js: ok,'), output)
         assert(output.includes('b/module.f.js: error,'), output)
         assert(output.includes('c/module.f.js: ok,'), output)
-        assert(!output.includes('batch fixture failure'), output)
-        assert(!output.includes('ℹ tests'), output)
+        assert(output.includes('batch fixture failure'), output)
+        assert(output.includes('ℹ tests'), output)
         assert(output.includes('command:'), output)
         assert(output.includes('Coverage: 2 passed, 1 failed, 3 total (0 cached)'), output)
         assert(output.indexOf('a/module.f.js: ok,') < output.indexOf('b/module.f.js: error,'), output)
@@ -356,7 +356,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const pushes = events.filter(event => event.argv.includes('push'))
         assert.equal(pushes.length, 1, JSON.stringify(pushes))
         assert.equal(_results(output), 3, output)
-        assert(!output.includes('CACHE_CHILD_FINISHED '), output)
+        assert(output.includes('CACHE_CHILD_FINISHED b'), output)
+        assert(!output.includes('CACHE_CHILD_FINISHED fixture'), output)
         const inventories = events.filter(event => event.argv.includes('for-each-ref')
             && event.argv.includes('--format=%(refname)%00%(objectname)'))
         assert.equal(inventories.length, 2, JSON.stringify(inventories))

@@ -172,9 +172,12 @@ descendant modules cannot supply coverage to another directory's result.
 Before each child starts, the runner opens a progress line naming its measured
 files by repository-relative path, joined with `, ` when they share a proof run.
 The shared emergent-testing reporter completes the line with status and timing,
-for example `module.f.js: ok, 360.0000 ms`. Child stdout and stderr are hidden.
-Failures also identify the working directory, complete command and exit status,
-signal or launch/wait error. Exact successful dependency manifests in the local
+for example `module.f.js: ok, 360.0000 ms`. Successful child output stays hidden.
+After a failed child's result, the runner prints its working directory, complete
+command and exit status or signal, then the captured stdout and stderr. The two
+streams are grouped, so their original ordering relative to each other is not
+preserved. Launch/capture errors are reported directly. Exact successful
+dependency manifests in the local
 `build-cache` branch skip the native child and print only `...Cached` for each
 target. Manifests include working-tree hashes of all sibling authored
 files and their transitive dependencies, plus the runner/runtime contract.
@@ -216,9 +219,9 @@ The isolated coverage child uses
 [`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs)
 to check the expected targets before delegating to
 [`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
-Its report is hidden by the parent runner, which displays progress through the
-shared emergent-testing reporter instead. To inspect native test failures and
-uncovered locations, rerun the command printed for a failed module directly.
+The parent runner displays progress through the shared emergent-testing reporter.
+Successful native reports are hidden; failed reports are replayed after the
+module's result and command, including test failures and uncovered locations.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

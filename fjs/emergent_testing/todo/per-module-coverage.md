@@ -81,9 +81,12 @@ scheduling is separate work if measurements justify it.
 Use the emergent-testing reporter's open progress line: name the directory's
 measured files by repository-relative path before starting its child, joining
 files that share a proof run with `, `, then complete the line with status and
-timing. Hide child stdout and stderr. On failure, print the working directory,
-complete invocation and exit status, signal or launch/wait error so the run can
-be reproduced directly. Cache hits launch no child and print only `...Cached`
+timing. Capture child stdout and stderr, keeping successful output hidden. After
+a failed child's result, print the working directory, complete invocation and
+exit status or signal, then replay stdout followed by stderr. Grouping the two
+streams does not preserve their original ordering relative to each other.
+Report launch/capture errors directly. Cache hits launch no child and print only
+`...Cached`
 for each target. Continue after failures and finish with coverage totals.
 Execute with a structured argument vector, without a shell.
 
@@ -138,9 +141,10 @@ when a required metric is unavailable.
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
 - Progress names the measured files before launch and completes the same line
-  with status and timing. Child output is suppressed; failures name their
-  working directory and full reproducible command, with paths and arguments
-  quoted unambiguously. Cache hits print only their result without a child.
+  with status and timing. Successful child output is suppressed; failures name
+  their working directory and full reproducible command, with paths and
+  arguments quoted unambiguously, then print captured stdout and stderr.
+  Cache hits print only their result without a child.
 - Future verbosity controls change presentation only; they must not change
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the

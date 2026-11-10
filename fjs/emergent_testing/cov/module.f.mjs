@@ -16,7 +16,7 @@
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, now, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
+import { capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
@@ -72,12 +72,11 @@ const runModule = (options, command, root) => {
     const id = /** @type {const} */ ({ module: directory, path: '', name: _modulePaths(command, root).join(', ') })
     const announced = reporter.start(id)
     const timed = step(announced, () => now())
-    const started = spawn('node', args, { stdio: 'ignore', cwd: directory })
-    const ended = step(started, childWait)
-    const checked = resultMapStep(ended, ([tag, value]) => {
-        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
-        const [status, code] = value
-        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
+    const captured = capture('node', args, { cwd: directory })
+    const checked = resultMapStep(captured, ([tag, value]) => {
+        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value), stdout: '', stderr: '' }) }
+        const { status: [status, code], stdout, stderr } = value
+        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}`, stdout, stderr })
     })
     const outcome = historyStep(history(timed), () => checked)
     const stopped = historyStep(outcome, () => now())
@@ -85,8 +84,8 @@ const runModule = (options, command, root) => {
     const reported = historyStep(history(measured), ({ passed, duration }) =>
         reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
             { duration, result: ok(undefined) }, false))
-    const diagnostics = historyStep(reported, (_, { passed, detail }) => passed
-        ? pureOk(undefined) : log(`${_commandLine(directory, args)}\n${detail}`))
+    const diagnostics = historyStep(reported, (_, { passed, detail, stdout, stderr }) => passed
+        ? pureOk(undefined) : log([_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '').join('\n')))
     return mapStep(diagnostics, ([, , { passed }]) => passed)
 }
 
