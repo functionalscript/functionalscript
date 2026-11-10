@@ -35,6 +35,35 @@ parameters become locals of the caller.
 - **Equivalence.** A fragment behaves exactly as the function it replaces.
   The conformance run covers both modes.
 
+## Runtime modules
+
+The [modular runtime](./modular-runtime.md) builds on fragments. A runtime
+module's functions, such as the String module's `unpack`, `length` and
+`at`, are always inlined, and its manifest is the list of them, plus the
+number of stack slots an unpacked value needs. Two things are new there:
+
+- **A null entry** means a no-op, so the compiler emits nothing for it.
+  The IR operation and its WASM template differ here. In the IR, `unpack`
+  answers a `str`. Its template answers nothing, because it writes the
+  slot locals instead. So a template with no slots to write has no work
+  to do, and may be null: that is `unpack` of a module with no slots, whose
+  `str` the emitter makes the source `any` local itself. `length` and
+  `at` leave an `i32` on the stack and are never null.
+- **Stack frame offsets are local indices, bound by the inliner.** A
+  WASM local index is an immediate of `local.get` and `local.set`, not a
+  run-time value, so an offset cannot be a parameter of an ordinary
+  function. A module function is therefore a template, not a callable
+  function. Its first locals stand for the source `any` and for the
+  slots, by a fixed numbering, and the inliner renumbers them at each use
+  to the caller's locals that the code generator chose. `unpack` writes
+  those locals and `length` and `at` read the same ones. This is the
+  renumbering an inliner does for any fragment, whose parameters become
+  the caller's locals.
+
+In the *portable* mode, where nothing is inlined, an offset would have to
+point into linear memory. That case is left open
+([README, open question 8](./README.md#open-questions)).
+
 ## Our own linker first
 
 The inliner is ours, built on `fjs/media/wasm`, so that no external

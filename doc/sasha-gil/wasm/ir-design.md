@@ -14,7 +14,9 @@ them ([Comparison round](#comparison-round)). Nothing here is decided yet.
 
 - The IR is a **typed expression tree with structured control flow**:
   `block`, `if`, `loop` and `br`, as in WASM and in Rust.
-- It has **six types**: `any`, `f64`, `i32`, `bool`, `void` and `never`.
+- It has **seven types**: `any`, `f64`, `i32`, `bool`, `str`, `void` and
+  `never`. `str` is an unpacked string whose layout a runtime module
+  chooses (choice 13).
   `any` is L0's opaque value. Everything a type check decided is already
   explicit.
 - **A JavaScript primitive written in the IR is that constant**: `1.5` is an
@@ -127,12 +129,14 @@ Each choice gives the pick first, then the alternatives and the reason.
   nothing: FunctionalScript values are immutable, so almost every local is
   assigned once already (choice 6).
 
-### 2. Six types, and the IR does not track a value's kind
+### 2. Seven types, and the IR does not track a value's kind
 
-- **Pick:** `any`, `f64`, `i32`, `bool`, `void` and `never`.
+- **Pick:** `any`, `f64`, `i32`, `bool`, `str`, `void` and `never`.
   - `any` is L0's opaque value, an `i64` in WASM and an `Any` in Rust.
   - `f64` is an unpacked number, and `bool` an unpacked boolean.
   - `i32` is an index, a length, a kind tag, a code index or a builder.
+  - `str` is a string unpacked by the runtime's String module, borrowed
+    from its source `any` (choice 13).
   - `void` is the type of a statement such as `push`.
   - `never` is the type of `br`, `return`, `throw` and `unreachable`. It
     fits wherever any type is expected.
@@ -143,7 +147,9 @@ Each choice gives the pick first, then the alternatives and the reason.
   because L0 has no typed references
   ([L0 design §2](./l0-design.md#2-typed-values-exist-only-in-the-compiler)).
   What the lowering knew about a kind shows up as the operations it chose:
-  `l0.length` instead of `l1.length`.
+  `l0.length` instead of `l1.length`. `str` is no exception: it is a
+  representation, not a kind, and holds only what a String module
+  unpacked.
 
 ### 3. A JavaScript primitive is its own constant
 
@@ -188,7 +194,7 @@ Each choice gives the pick first, then the alternatives and the reason.
   })
   ```
 
-  There are four tables:
+  There are five tables:
   - `prim` holds the typed operations every target has: `f64_add`, `f64_lt`,
     `i32_add`, `bool_not`, `f64_from_i32`, and so on.
   - `l0` holds the L0 imports, under their ABI names
@@ -201,6 +207,9 @@ Each choice gives the pick first, then the alternatives and the reason.
     call through it is a direct call, never an import. The stock module
     calls its own L1 bodies this way, and the `l1` table only for the
     native rows.
+  - `str` holds the String module's `unpack`, `length` and `at` over an
+    unpacked string (choice 13). Its rows are always inlined from the
+    runtime's String module, never imported.
 
   `table` turns the rows into the constructors the example uses, so
   `l0.to_f64(x)` is the call node, and TypeScript checks its arity and
@@ -349,6 +358,30 @@ Each choice gives the pick first, then the alternatives and the reason.
   comparisons. The printer gives the proofs and reviews a readable IR,
   before any WASM exists.
 
+### 13. An unpacked string is an IR type, laid out by the runtime module
+
+Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
+
+- **Pick:** the seventh type, `str`, is a string unpacked by the runtime's
+  String module. A `str` table holds its three rows: `unpack` from an
+  `any` to a `str`, `length` of a `str` as an `i32`, and `at` of a `str`
+  and an `i32` index as an `i32` unit. The IR does not say how big a `str`
+  is or what it holds.
+- **The emitter lays it out.** It reads the String module's manifest,
+  gives each `str` local as many WASM locals as the manifest asks for, and
+  inlines the three functions over them. For a module with no slots, a
+  `str` local is the source `any` local itself, and a null `unpack` emits
+  nothing.
+- **Lifetime:** a `str` borrows its source `any`. The lifetime pass
+  (choice 9) keeps the source alive until the last use of the `str`, so
+  `unpack` costs no reference count, and a `str` is never dropped.
+- **Alternatives:** a type per runtime module, such as `naive_str`; the
+  slots as plain `i32` and `i64` locals that the lowering writes.
+- **Why:** the program stays the same for every String module, so the IR
+  stays target-independent (choice 11), and swapping a module is an
+  emitter change. A program may still be built for one runtime, as the
+  [specialized mode](./inline-fragments.md#rules) is.
+
 ## What lives where
 
 | Concern | Today, in the Rust path | With the IR |
@@ -364,7 +397,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 Each step is a PR or a short stack, proved before the next starts.
 
-1. **The IR itself.** The schema, the constructors, the four tables, the
+1. **The IR itself.** The schema, the constructors, the five tables, the
    validator and the printer, with proofs over hand-written functions such
    as `subtract` above.
 2. **The lifetime pass**, and the validator for the owned stage, so that
@@ -392,6 +425,9 @@ Each step is a PR or a short stack, proved before the next starts.
   `br` that leaves several blocks.
 - **Names or numbers for locals (6).** Names read well. Each pass must keep
   them unique, though, and a pass that duplicates code must rename.
+- **Unpacked strings (13).** BigInt unpacking is likely to follow the same
+  shape. If it does, `str` becomes one case of a general rule: a runtime
+  module declares a type, and the IR names it.
 - **Where the code lives.** A proposal is `fjs/codegen/ir`, with
   `fjs/codegen/wasm` and `fjs/codegen/rust` as emitters. The IR is not
   WASM's alone, so `fjs/wasm` seems wrong for it.
