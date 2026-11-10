@@ -1871,6 +1871,7 @@ export const proof = {
     // path is their own binary, and only Node takes `-e`.
     capture: {
         argumentsDirectoryAndInputEof: () => withTemporary('fjs-capture-cwd-', async directory => {
+            /** @type {readonly string[]} */
             const args = ["space and 'quote'", '$(echo wrong)', '& %PATH%']
             await writeFile(join(directory, 'marker'), 'selected working directory')
             await within('capture input EOF', 10_000, hostCheck(capture('node', ['-e',
@@ -1891,6 +1892,7 @@ export const proof = {
             }))
         },
         largeUtf8Streams: async () => {
+            /** @type {number} */
             const copies = 270_000
             const emoji = String.fromCodePoint(0x1_f642)
             await within('capture drains both large pipes', 10_000, hostCheck(capture('node', ['-e',
@@ -1913,6 +1915,7 @@ export const proof = {
         trailingOutputAfterExit: async () => {
             // Windows kills non-detached descendants when their parent exits.
             // This child must survive its parent to finish the inherited pipes.
+            /** @type {string} */
             const descendant = 'setTimeout(() => { process.stdout.write("late stdout"); process.stderr.write("late stderr"); }, 50)'
             const source = `require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], { stdio: ["ignore", 1, 2], detached: true }).unref();`
             await within('capture waits for both pipes to close', 10_000, hostCheck(capture('node', ['-e', source]), result => {
