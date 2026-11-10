@@ -499,7 +499,10 @@ export const proof = /** @type {const} */ ({
         assertError(result)
     },
     dynamicInputsAreUncacheable: () => {
-        for (const expression of /** @type {const} */ (['import("./helper.f.mjs")', 'import.meta.url', 'require("./helper.f.mjs")', 'process.env.VALUE', 'globalThis.value'])) {
+        for (const expression of /** @type {const} */ ([
+            'import("./helper.f.mjs")', 'import.meta.url', 'require("./helper.f.mjs")', 'process.env.VALUE', 'globalThis.value',
+            'Date.now()', 'new Date()', 'Math.random()', 'Math["random"]()',
+        ])) {
             assertError(execute({ repo: { unit: {
                 'module.f.mjs': [utf8(`export const proof = () => ${expression};`)],
                 'helper.f.mjs': [utf8('export default 1;')],

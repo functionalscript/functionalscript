@@ -192,6 +192,11 @@ dynamic `import`, `import.meta`, `require`, `eval`/`Function`, and explicit
 host-global references. Such sources still run coverage normally, without
 reusing an incomplete static graph.
 
+Clock reads through `Date` and randomness through `Math.random` also run
+uncached. Static access to known deterministic Math functions and constants is
+cacheable; aliasing the Math namespace or using a dynamic property key is
+conservatively refused.
+
 A directory is cached only when every measured target has an exact success.
 Native children inherit stdout and stderr, so their reporter output appears
 live. The existing quiet Node reporter filters passed tests and fully covered
