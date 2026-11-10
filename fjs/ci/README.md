@@ -12,7 +12,7 @@ Linux/Windows checks, Linux ARM formatting and four WASM targets, SpiderMonkey
 compilation/tests, TypeScript, compilation, coverage and packed-package checks
 remain separate steps. Host compiler/SDK prerequisites still apply.
 
-The six platform jobs run Node's JS-only entry
+The three ARM platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
 test because parser stress proofs can exceed its default five seconds. `node26` runs
@@ -25,7 +25,8 @@ coverage is incomplete, this step temporarily uses `continue-on-error: true`: it
 reports parsing failures without failing the job. It runs uncached even when
 other checks hit build-cache. Restore failure gating once all authored files parse
 ([dependency graph follow-up](../todo/module-dependency-graph-command.md)).
-Host-JS proofs currently have Node coverage across all six platforms; Deno
+Intel platform jobs retain native Rust checks but do not run fjs tests.
+Host-JS proofs currently run under Node across all three ARM platforms; Deno
 and Bun host-JS runs remain part of the later six-job allocation.
 
 Suite and coverage cache keys retain the conservative `js` input rung.

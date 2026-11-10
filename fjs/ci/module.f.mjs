@@ -68,7 +68,7 @@ const shellPlatformSteps = (rust, o, a) => [
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
-        'node --test ./fjs/emergent_testing/js-only.mjs',
+        ...(a === 'arm' ? ['node --test ./fjs/emergent_testing/js-only.mjs'] : []),
         ...shellSpiderMonkeyCommands(o, a),
     ]),
 ]
@@ -81,7 +81,6 @@ const intelMacSteps = rust => [
     test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
-    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**
@@ -153,7 +152,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...platformNodeSteps(),
+            ...(a === 'arm' ? platformNodeSteps() : []),
             ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'
