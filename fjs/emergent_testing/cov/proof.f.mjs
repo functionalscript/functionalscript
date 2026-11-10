@@ -163,15 +163,16 @@ export const proof = /** @type {const} */ ({
         assertEq(state.commands[0]?.[2], '.')
         assert(state.output.map(([, text]) => text).join('').includes('module.f.js: ok,'))
     },
-    cacheFallbackAndSyncOption: () => {
+    failedAdmissionAndSyncOption: () => {
         const [state, result] = execute([passed, passed], {}, tree, false, false, reporterUrl, true)
-        assertEq(exitCode(result), 0)
+        assertEq(exitCode(result), 1)
         assertEq(state.commands.length, 2)
         const output = state.output.map(([, text]) => text).join('')
-        // Cache initialization succeeds; unavailable target inputs then fall back.
+        // Cache initialization succeeds; invalid target inputs fail the modules.
         assert(!output.includes('UNCACHED:'))
-        assert(output.includes('UNCACHED /repo/a:'))
-        assert(output.includes('UNCACHED /repo/z:'))
+        assert(output.includes('CACHE ADMISSION /repo/a:'))
+        assert(output.includes('CACHE ADMISSION /repo/z:'))
+        assert(output.includes('Coverage: 0 passed, 2 failed, 2 total'))
         const [synced, syncResult] = execute([passed, passed], { args: ['node', '--sync'] })
         assertEq(exitCode(syncResult), 0)
         assertEq(synced.commands.length, 2)

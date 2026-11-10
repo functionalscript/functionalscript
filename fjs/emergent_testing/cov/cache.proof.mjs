@@ -158,6 +158,33 @@ const _seedPacked = (root, count) => {
 }
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
+    failedAdmissionCannotPassThroughNativeCoverage: () => withFixture(root => {
+        const repo = join(root, 'source')
+        initialize(repo, ['bad', 'good'])
+        write(repo, 'bad/proof.f.mjs', 'import * as unit from "./module.f.js"; export const proof = { covers: () => unit.value() };\n')
+        const before = sourceState(repo)
+
+        // Node accepts this proof and reaches complete native coverage, while
+        // dependency analysis refuses the unsupported namespace import.
+        const native = execute(join(repo, 'bad'), process.execPath, [
+            '--test', '--experimental-test-coverage', '--test-coverage-include=module.f.js',
+            '--test-coverage-lines=100', '--test-coverage-branches=100', '--test-coverage-functions=100',
+            fileURLToPath(new URL('../one.mjs', import.meta.url)),
+        ])
+        assert.equal(native.status, 0, native.output)
+
+        for (const cached of [0, 1]) {
+            const result = execute(repo, process.execPath, [cli, 'cov', 'node'])
+            assert.equal(result.status, 1, result.output)
+            assert(result.output.includes('CACHE ADMISSION '), result.output)
+            assert(result.output.includes('bad/proof.f.mjs: unexpected token'), result.output)
+            assert(result.output.includes('bad/module.f.js: ok,'), result.output)
+            assert(result.output.includes(cached === 0 ? 'good/module.f.js: ok,' : 'good/module.f.js...Cached'), result.output)
+            assert(result.output.includes(`Coverage: 1 passed, 1 failed, 2 total (${cached} cached)`), result.output)
+            assert.equal(entries(repo).length, 1)
+        }
+        assert.deepEqual(sourceState(repo), before)
+    }),
     destructuredMathRemainsCacheable: () => withFixture(root => {
         const repo = join(root, 'source')
         initialize(repo, ['unit'])
@@ -396,8 +423,9 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const original = coverage(join(repo, 'b'))
         assert(original.includes('b/module.f.js: ok,'), original)
         const before = git(repo, ['rev-parse', 'build-cache'])
-        // This host-dependent proof runs uncached. The graph for b has already
-        // been captured when a changes b's input, before b's old cache hit.
+        // This host-dependent proof fails admission but still runs. The graph
+        // for b has already been captured when a changes b's input, before
+        // b's old cache hit.
         write(repo, 'a/proof.f.mjs', `
 import { writeFileSync } from 'node:fs';
 import { value } from './module.f.js';
@@ -407,7 +435,8 @@ export const proof = { changesLaterInput: () => {
 } };
 `)
         const changed = execute(repo, process.execPath, [cli, 'cov', 'node'])
-        assert.equal(changed.status, 0, changed.output)
+        assert.equal(changed.status, 1, changed.output)
+        assert(changed.output.includes('CACHE ADMISSION '), changed.output)
         assert(changed.output.includes('b/module.f.js: ok,'), changed.output)
         assert(!changed.output.includes('...Cached'), changed.output)
         assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)

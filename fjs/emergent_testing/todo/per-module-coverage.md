@@ -107,6 +107,12 @@ fail the module. Validate structured coverage data rather than parsing the
 formatted report. Fix the proofs or implementation the switch exposes instead
 of lowering thresholds or allowing exceptions.
 
+Dependency-analysis or manifest-admission failures also fail the command,
+even when the affected native proofs pass. Report `CACHE ADMISSION`, continue
+running proofs and independent directories, and retain their stable successes.
+Ordinary cold-cache misses run and populate the cache. Cache storage outages
+remain an explicit uncached fallback.
+
 #### CI and scope
 
 CI's dedicated `cov` job invokes `npm start cov node` directly from the
@@ -139,6 +145,8 @@ when a required metric is unavailable.
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
+- Failed source admission cannot become a successful command through passing
+  native proofs, while ordinary cache misses remain successful.
 - The ordinary FJS suite retains proofs outside measured module directories.
 
 ### Tasks

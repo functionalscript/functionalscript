@@ -12,16 +12,16 @@
 import { foldStep, history, historyStep, mapStep, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { error, errorMessage } from '../../../effects/node/module.f.mjs'
 
-/** Failed admission affects only the directory whose inputs could not be named.
+/** Failed admission fails only the directory whose inputs could not be named.
  * @type {(command: Command, cache: CoverageCache) => Effect<NodeOp, Planned, IoChannel>}
  */
 const prepare = (command, cache) => resultStep(cache.prepare(command),
     /** @returns {Effect<NodeOp, Planned, IoChannel>} */
     ([tag, value]) =>
     tag === 'error'
-        ? mapStep(error(`UNCACHED ${command.directory}: ${errorMessage(value)}`),
-            () => ({ command, entries: null, cached: false }))
-        : pureOk({ command, entries: value, cached: false }))
+        ? mapStep(error(`CACHE ADMISSION ${command.directory}: ${errorMessage(value)}`),
+            () => ({ command, entries: null, cached: false, admissionFailed: true }))
+        : pureOk({ command, entries: value, cached: false, admissionFailed: false }))
 
 /** Align one lookup result with each directory's complete target entry set.
  * @type {(planned: readonly Planned[], hits: readonly boolean[]) => readonly Planned[]}
@@ -46,7 +46,7 @@ const unavailable = (planned, message) => mapStep(error(`UNCACHED: ${message}`),
  * @type {(commands: readonly Command[], cache: CoverageCache | null) => Effect<NodeOp, readonly Planned[], IoChannel>}
  */
 export const createPlan = (commands, cache) => {
-    if (cache === null) { return pureOk(commands.map(command => ({ command, entries: null, cached: false }))) }
+    if (cache === null) { return pureOk(commands.map(command => ({ command, entries: null, cached: false, admissionFailed: false }))) }
     const prepared = foldStep(pureOk(commands), /** @type {readonly Planned[]} */ ([]), command => planned =>
         mapStep(prepare(command, cache), item => [...planned, item]))
     return step(prepared, planned => {
@@ -77,7 +77,8 @@ const uncached = run => mapStep(run(), passed => ({ outcome: passed ? 'passed' :
  * @type {(item: Planned, run: () => Effect<NodeOp, boolean, IoChannel>, cache: CoverageCache | null) => Effect<NodeOp, RunResult, IoChannel>}
  */
 export const runPlanned = (item, run, cache) => {
-    const { command, entries, cached } = item
+    const { command, entries, cached, admissionFailed } = item
+    if (admissionFailed) { return mapStep(run(), () => ({ outcome: 'failed', entries: [] })) }
     if (cache === null || entries === null || entries.length === 0) { return uncached(run) }
     const validated = history(validate(command, cache))
     const executed = historyStep(validated,

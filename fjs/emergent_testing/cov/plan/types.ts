@@ -29,6 +29,8 @@ export type Planned = {
     readonly command: Command
     readonly entries: readonly Entry[] | null
     readonly cached: boolean
+    /** Invalid source inputs fail the module even when its Node proofs pass. */
+    readonly admissionFailed: boolean
 }
 
 /** Successful inputs are returned to the caller for one end-of-run batch. */
