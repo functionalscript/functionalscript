@@ -82,9 +82,9 @@ const initialize = (root, directories, markers = false) => {
     git(root, ['init', '--quiet', '--initial-branch=main'])
     identify(root)
     write(root, 'package.json', '{"type":"module"}\n')
-    // Timing markers need only a count and timestamp, not directory data in code.
+    // Fixed completion markers count children without adding runtime inputs.
     const proofSource = markers
-        ? 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED fixture", Date.now()); return undefined; } };\n'
+        ? 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED fixture"); return undefined; } };\n'
         : 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); return undefined; } };\n'
     for (const directory of directories) {
         write(root, `${directory}/helper.f.js`, 'export const helper = () => 1;\n')
@@ -128,13 +128,40 @@ const sourceState = root => ({
 /** @type {(root: string) => readonly string[]} */
 const entries = root => git(root, ['ls-tree', '-r', '--name-only', 'build-cache']).split('\n')
 
+/** Untracked runtime inputs execute naturally on every invocation, without recording success.
+ * @type {(source: string, reference: string) => void}
+ */
+const _uncacheable = (source, reference) => withFixture(root => {
+    const repo = join(root, 'source')
+    initialize(repo, ['unit'])
+    write(repo, 'unit/proof.f.mjs', source)
+    const before = sourceState(repo)
+    const args = /** @type {const} */ ([cli, 'cov', 'node'])
+    const results = /** @type {const} */ ([
+        execute(join(repo, 'unit'), process.execPath, args),
+        execute(join(repo, 'unit'), process.execPath, args),
+    ])
+    const output = results.map(result => result.output).join('\n')
+    for (const result of results) {
+        assert.equal(result.status, 0, output)
+        assert(result.output.includes('unit/module.f.js...Ok'), output)
+        assert(result.output.includes(`untracked runtime input: ${reference}`), output)
+        assert(result.output.includes('UNCACHED'), output)
+        assert(!result.output.includes('...Cached'), output)
+        nativeOutput(result.output)
+    }
+    const stored = execute(repo, 'git', ['show-ref', '--verify', '--quiet', 'refs/heads/build-cache'])
+    assert.equal(stored.status, 1, stored.output)
+    assert.deepEqual(sourceState(repo), before)
+    assert.equal(git(repo, ['status', '--porcelain']), ' M unit/proof.f.mjs')
+})
+
 /** @type {(path: string) => readonly { readonly argv: readonly string[], readonly time: string }[]} */
 const _commands = path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line))
     .filter(event => event.event === 'start' && Array.isArray(event.argv))
 
-/** @type {(output: string) => readonly number[]} */
-const _finished = output => output.split('\n').filter(line => line.includes('CACHE_CHILD_FINISHED '))
-    .map(line => Number(line.slice(line.indexOf('CACHE_CHILD_FINISHED ') + 'CACHE_CHILD_FINISHED '.length).split(' ')[1]))
+/** @type {(output: string) => number} */
+const _finished = output => output.split('\n').filter(line => line.includes('CACHE_CHILD_FINISHED ')).length
 
 /** Seed canonical SHA-256 CAS entries through one native import, then pack Git's
  * objects. Payload construction reuses the production shard/encoding helpers.
@@ -156,6 +183,12 @@ const _seedPacked = (root, count) => {
 }
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
+    timeDependentProofsNeverCache: () => _uncacheable(
+        'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); Date.now(); return undefined; } };\n',
+        'Date'),
+    randomDependentProofsNeverCache: () => _uncacheable(
+        'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); Math.random(); return undefined; } };\n',
+        'Math.random'),
     localSuccessAndInvalidation: () => withFixture(root => {
         const repo = join(root, 'source')
         initialize(repo, ['unit'])
@@ -286,7 +319,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         git(origin, ['init', '--bare', '--quiet', '--initial-branch=main'])
         initialize(repo, ['a', 'b', 'c'], true)
         git(repo, ['remote', 'add', 'origin', origin])
-        write(repo, 'b/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED b", Date.now()); throw "batch fixture failure"; } };\n')
+        write(repo, 'b/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED b"); throw "batch fixture failure"; } };\n')
         const before = sourceState(repo)
 
         const output = coverage(repo, true, 1, { GIT_TRACE2_EVENT: trace })
@@ -308,15 +341,10 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.equal(imports.length, 1, JSON.stringify(imports))
         const pushes = events.filter(event => event.argv.includes('push'))
         assert.equal(pushes.length, 1, JSON.stringify(pushes))
-        const children = _finished(output)
-        assert.equal(children.length, 3, output)
-        assert(children.every(time => Number.isFinite(time)), output)
+        assert.equal(_finished(output), 3, output)
         const inventories = events.filter(event => event.argv.includes('for-each-ref')
             && event.argv.includes('--format=%(refname)%00%(objectname)'))
         assert.equal(inventories.length, 2, JSON.stringify(inventories))
-        assert(Date.parse(inventories[0].time) <= Math.min(...children), JSON.stringify(inventories))
-        assert(Date.parse(inventories[1].time) >= Math.max(...children), JSON.stringify(inventories))
-        assert(Date.parse(imports[0].time) >= Math.max(...children), JSON.stringify(imports))
         assert(Date.parse(pushes[0].time) >= Date.parse(imports[0].time), JSON.stringify(pushes))
         const saved = entries(repo)
         assert.equal(saved.length, 2)
@@ -358,15 +386,11 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             if (phase === 'warm') {
                 assert(output.includes('unit/module.f.js...Cached'), output)
                 cachedOutput(output)
-                assert.equal(_finished(output).length, 0, output)
+                assert.equal(_finished(output), 0, output)
             } else {
                 assert(output.includes('unit/module.f.js...Ok'), output)
                 nativeOutput(output)
-                const children = _finished(output)
-                assert.equal(children.length, 1, output)
-                assert(Number.isFinite(children[0]), output)
-                assert(Date.parse(inventories[0].time) <= children[0], JSON.stringify(inventories))
-                assert(Date.parse(inventories[1].time) >= children[0], JSON.stringify(inventories))
+                assert.equal(_finished(output), 1, output)
                 assert(Date.parse(imports[0].time) >= Date.parse(inventories[1].time), JSON.stringify(imports))
             }
             const expected = seeded + (phase === 'changed' ? 2 : 1)
