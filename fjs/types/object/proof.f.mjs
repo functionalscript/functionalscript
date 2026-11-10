@@ -15,7 +15,7 @@ export const proof = {
     objectGuard: () => {
         assert(isObject({}))
         assert(isObject({ value: 1 }))
-        for (const value of [null, [], 1, 'object', undefined]) {
+        for (const value of /** @type {const} */ ([null, [], 1, 'object', undefined])) {
             assert(!isObject(value))
         }
     },

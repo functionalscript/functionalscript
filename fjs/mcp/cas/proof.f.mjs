@@ -85,7 +85,7 @@ const textOf = result => {
 
 export const proof = {
     casAddAcceptsTextAndBase64: () => {
-        for (const args of [{ content: 'A' }, { content: 'QQ==', type: 'base64' }]) {
+        for (const args of /** @type {const} */ ([{ content: 'A' }, { content: 'QQ==', type: 'base64' }])) {
             const result = drive({ stat: [ok({ size: 1 })] })(toolHandle('cas_add')(args))
             assert(result.isError !== true, result)
             // SHA-256 of the single byte 0x41, independently of its input encoding.
@@ -109,7 +109,7 @@ export const proof = {
     },
     casGetReturnsMetadataAndInlineTextOrBinary: () => {
         for (const [byte, type, payload] of /** @type {const} */ ([[0x41n, 'text', 'A'], [0xffn, 'base64', '/w==']])) {
-            for (const content of [false, true]) {
+            for (const content of /** @type {const} */ ([false, true])) {
                 const result = drive({ readBytes: [ok(vec8(byte)), ok(vec(0n)(0n)), ok(vec8(byte)), ok(vec(0n)(0n))] })
                     (toolHandle('cas_get')({ hash: someHash, content }))
                 assert(result.isError !== true, result)
@@ -126,7 +126,7 @@ export const proof = {
     },
     casGetOversizedTextReturnsMetadataButRefusesInlineContent: () => {
         const chunk = assertNotNullish(tryUtf8('A'.repeat(Number(maxLengthBytes))))
-        for (const content of [false, true]) {
+        for (const content of /** @type {const} */ ([false, true])) {
             const result = drive({ readBytes: [ok(chunk), ok(vec8(0x41n)), ok(vec(0n)(0n))] })
                 (toolHandle('cas_get')({ hash: someHash, content }))
             if (content) {
