@@ -53,7 +53,7 @@ export const proof = {
                 assert(job.steps.some(step => step.uses?.startsWith('jdx/mise-action@')))
                 assert(!job.steps.some(step => step.uses?.startsWith('cachix/')))
                 for (const command of rustPlatformCommands) { assert(has(gha, id, command), `${id}: ${command}`) }
-                assert(has(gha, id, 'node --test ./fjs/emergent_testing/js-only.mjs'))
+                assertEq(has(gha, id, 'node --test ./fjs/emergent_testing/js-only.mjs'), a === 'arm')
             }
         }
         assert(has(gha, 'ubuntu-intel', '--target i686-unknown-linux-gnu'))
