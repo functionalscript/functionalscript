@@ -62,15 +62,34 @@ vvvv_vvvv_vvvv_vvvv
 
 ```rust
 #[repr(transparent)]
-pub struct Any(u64);
+pub struct Type(u8)
 
 const NUMBER_TYPE    : u8 = 0x0;
 const BOOLEAN_TYPE   : u8 = 0x1;
 const UNDEFINED_TYPE : u8 = 0x2;
 const OBJECT_TYPE    : u8 = 0x3;
-const STRING_TYPE    : u32 = 0x4;
-const BIGINT_TYPE    : u32 = 0x5;
-const FUNCTION_TYPE  : u32 = 0x6;
+const STRING_TYPE    : u8 = 0x4;
+const BIGINT_TYPE    : u8 = 0x5;
+const FUNCTION_TYPE  : u8 = 0x6;
+
+impl Type {
+    const NUMBER: Self    = Self(NUMBER_TYPE);
+    const BOOLEAN: Self   = Self(BOOLEAN_TYPE);
+    const UNDEFINED: Self = Self(UNDEFINED_TYPE);
+    const OBJECT: Self    = Self(OBJECT_TYPE);
+    const STRING: Self    = Self(STRING_TYPE);
+    const BIGINT: Self    = Self(BIGINT_TYPE);
+    const FUNCTION: Self  = Self(FUNCTION_TYPE);
+    
+    const fn new(v: u8) -> Self {
+        Self(v & 0xF)
+    }
+}
+
+//
+
+#[repr(transparent)]
+pub struct Any(u64);
 
 //
 
@@ -150,14 +169,14 @@ impl Any {
         self.0 & SHORT_BIGINT == SHORT_BIGINT
     }
 
-    pub fn typeof_(&self) -> u32 {
+    pub fn typeof_(&self) -> Type {
         if self.is_finite() { return NUMBER_TYPE; }
         if self.0 & 1 == 1 { return BIGINT_TYPE; }
         // reference
-        if self.0 & 2 == 2 { return (self.0 >> 48) & 0xF; }
+        if self.0 & 2 == 2 { return Type::new(self.0 >> 48); }
         // scalar
         if self.0 & 0xC != 0 { return STRING_TYPE; }
-        (self.0 >> 4) & 0xF
+        Type::new(self.0 >> 4)
     }
 }
 
