@@ -15,7 +15,7 @@ import { asNominal } from "../../types/nominal/module.f.js"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
 import {
-    handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
+    capture, handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
     requestBodyOffsetMessage, writeBytes, writeExclusive,
 } from "./module.f.mjs"
 import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
@@ -95,6 +95,10 @@ const lengths = (source, bound) => {
 const vec32 = vec(32n)
 
 export const proof = {
+    captureIsUnavailableInVirtualRunner: () => {
+        const [, result] = virtual(emptyState)(capture('node', ['--version']))
+        assertStructurallySame(result, error(['notImplemented', 'capture']))
+    },
     directoryFailure: () => {
         assert(isDirectory(ioError({ code: 'EISDIR', message: 'directory' })))
         assert(!isDirectory(ioError({ code: 'ENOENT', message: 'missing' })))

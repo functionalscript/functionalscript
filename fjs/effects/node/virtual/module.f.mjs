@@ -1500,7 +1500,7 @@ export const virtualOperationMap = {
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `spawn`, `childWait`,
+ * **It implements part of `NodeOp`, and says so.** `exec`, `capture`, `spawn`, `childWait`,
  * `forever` and `test` have no meaning against an in-memory filesystem, and
  * `inflate` needs a decoder this runner does not carry until
  * [`todo/inflate.md`](../../../../todo/inflate.md) is done. `exec`, `forever`

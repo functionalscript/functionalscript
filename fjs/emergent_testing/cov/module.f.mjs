@@ -16,7 +16,7 @@
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, now, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
+import { capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
@@ -73,19 +73,18 @@ const runModule = (options, command, root) => {
     const announced = reporter.start(id)
     const timed = step(announced, () => now())
     const outcome = historyStep(history(timed), () => {
-        const ended = step(spawn('node', args, { stdio: 'ignore', cwd: directory }), childWait)
-        return resultMapStep(ended, ([tag, value]) => {
-            if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
-            const [status, code] = value
-            return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
+        return resultMapStep(capture('node', args, { cwd: directory }), ([tag, value]) => {
+            if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value), stdout: '', stderr: '' }) }
+            const { status: [status, code], stdout, stderr } = value
+            return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}`, stdout, stderr })
         })
     })
-    return step(outcome, ([{ passed, detail }, start]) => step(now(), end => {
+    return step(outcome, ([{ passed, detail, stdout, stderr }, start]) => step(now(), end => {
         const duration = end - start
         const reported = reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
             { duration, result: ok(undefined) }, false)
         return mapStep(step(reported, () => passed ? pureOk(undefined)
-            : log(`${_commandLine(directory, args)}\n${detail}`)), () => passed)
+            : log([_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '').join('\n'))), () => passed)
     }))
 }
 

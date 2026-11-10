@@ -203,10 +203,33 @@ export const proof = /** @type {const} */ ({
             })
             const result = invoke(root, [cli, 'cov', 'node'])
             assert.notEqual(result.status, 0, result.output)
-            assert.equal(result.output.includes('TEST_FAILURE'), false, result.output)
+            assert.equal(result.output.includes('TEST_FAILURE'), true, result.output)
             assert.ok(result.output.includes('module.f.mjs: error,'), result.output)
             assert.ok(result.output.includes('command:'), result.output)
             assert.ok(result.output.includes('exited 1'), result.output)
+        })
+    },
+    coverageFailureLogsPrecedeLaterModules: () => {
+        if (runtime !== 'node') return
+        withFixture(root => {
+            writeFixture(root, {
+                'a/module.f.mjs': 'export const value = () => 1',
+                'a/proof.f.mjs': 'import { value } from "./module.f.mjs"; export const proof = { fails: () => { value(); console.log("FAILED_STDOUT"); console.error("FAILED_STDERR"); throw Error("FAILED_DETAILS") } }',
+                'b/module.f.mjs': 'export const value = () => 2',
+                'b/proof.f.mjs': 'import { value } from "./module.f.mjs"; export const proof = { passes: () => { value(); console.log("SUCCESS_STDOUT"); console.error("SUCCESS_STDERR") } }',
+            })
+            const result = invoke(root, [cli, 'cov', 'node'])
+            assert.equal(result.status, 1, result.output)
+            const failed = result.output.indexOf('/a/module.f.mjs: error,')
+            const stdout = result.output.indexOf('FAILED_STDOUT')
+            const stderr = result.output.indexOf('FAILED_STDERR')
+            const later = result.output.indexOf('/b/module.f.mjs: ok,')
+            assert.ok(failed >= 0 && stdout > failed && stderr > failed, result.output)
+            assert.ok(later > stdout && later > stderr, result.output)
+            assert.ok(result.output.includes('FAILED_DETAILS'), result.output)
+            assert.equal(result.output.includes('SUCCESS_STDOUT'), false, result.output)
+            assert.equal(result.output.includes('SUCCESS_STDERR'), false, result.output)
+            assert.ok(result.output.includes('Coverage: 1 passed, 1 failed, 2 total'), result.output)
         })
     },
     coverageReportAdmission: () => {

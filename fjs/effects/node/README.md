@@ -29,7 +29,7 @@ the end of the chain: `0` on success, and on failure the error printed to
 |----------------|--------------------------------------------------------------------------------|
 |files           |`readFile`, `readUtf8File`, `readWhole`, `writeFile`, `writeUtf8File`, `writeFiles`, `writeBytes`, `writeChunks`, `mkdir`, `readdir`, `rm`, `rmdir`, `rename`, `access`, `exists`, `stat`, `open`, `fstat`, `pread`, `close`, `createExclusive`, `writeExclusive`|
 |network         |`fetch`, `createServer`, `listen`, `forever`                                    |
-|processes       |`exec`, `spawn`, `childWait`                                                    |
+|processes       |`exec`, `execFile`, `capture`, `spawn`, `childWait`                                                    |
 |other           |`inflate`, `now`, `resolveFileModule`, `test`                                   |
 |from `common`   |`write`, `log`, `error`, `errorExit`, `read`, `readLine`, `sandbox`, `catch_`, `import_`, `all`, `allOk`, `both`, re-exported here|
 

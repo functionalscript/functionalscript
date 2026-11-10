@@ -203,9 +203,12 @@ Before each child starts, the runner opens a progress line naming the directory'
 measured files by repository-relative path. Files that share a proof run are
 joined with `, `. The runner completes the line with the same status and timing
 as emergent testing: `module.f.js: ok, 360.0000 ms` or
-`module.f.js: error, 360.0000 ms`. Child stdout and stderr are hidden. Failures
-also print the working directory, reproducible command and exit status, signal
-or launch/wait error. Cache hits launch no child and print only
+`module.f.js: error, 360.0000 ms`. Successful child output stays hidden. After a
+failed child's result, the runner prints the working directory, reproducible
+command and exit status or signal, then replays captured stdout and stderr.
+Each stream keeps its contents; their original ordering relative to each other
+is not preserved. Launch/capture errors are reported directly. Cache hits launch
+no child and print only
 `module.f.js...Cached` for each target. The runner continues after failures and
 exits nonzero if any module failed.
 

@@ -962,6 +962,31 @@ export const runNodeEffect = asyncRunAll({
             child.stdin?.end(options.stdin, 'utf8')
         }
     }),
+    capture: (command, args, options) => io(() => new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            cwd: options?.cwd, stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        let stdout = ''
+        let stderr = ''
+        // Both pipes drain immediately: waiting on one first can block a child
+        // whose other stream fills. Encoding on the stream retains split UTF-8
+        // sequences, unlike decoding each data event independently.
+        child.stdout.setEncoding('utf8')
+        child.stderr.setEncoding('utf8')
+        child.stdout.on('data', (/** @type {string} */ chunk) => { stdout += chunk })
+        child.stderr.on('data', (/** @type {string} */ chunk) => { stderr += chunk })
+        /** @type {(problem: Error) => void} */
+        const streamFailure = problem => {
+            tryCatch(() => child.kill())
+            reject(problem)
+        }
+        child.stdout.once('error', streamFailure)
+        child.stderr.once('error', streamFailure)
+        child.once('error', reject)
+        // `exit` can precede the final data events, including output inherited
+        // by a descendant. `close` follows EOF on both captured pipes.
+        child.once('close', (code, signal) => resolve({ status: exitStatus(code, signal), stdout, stderr }))
+    })),
     // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
     // terminal, waited for. The handle is the branded `ChildProcess` itself, as
     // `createServer` brands its server below — no table. It is answered only

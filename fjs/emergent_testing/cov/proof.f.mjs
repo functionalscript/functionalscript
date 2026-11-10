@@ -1,6 +1,6 @@
 /**
  * @import { IoResult } from '../../effects/types.ts'
- * @import { Child, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { CapturedProcess, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
@@ -14,7 +14,6 @@ import { exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, _showCached, isCoverageTarget, main } from './module.f.mjs'
 
@@ -44,12 +43,12 @@ const tree = /** @type {const} */ ({
  * @param {readonly IoResult<ExitStatus>[]} outcomes
  * @param {Partial<NodeProgramOptions>} [options]
  * @param {StringMap<readonly (readonly [string, boolean])[]>} [directories]
- * @param {boolean} [spawnFails]
+ * @param {boolean} [captureFails]
  * @param {boolean} [writeFails]
  * @param {string | null} [reporter]
  * @param {boolean} [cacheAvailable]
  */
-const execute = (outcomes, options = {}, directories = tree, spawnFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false) => {
+const execute = (outcomes, options = {}, directories = tree, captureFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false) => {
     /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
@@ -71,19 +70,20 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             return [state, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
                 entries.map(([name, isDirectory]) => ({ name, parentPath: path, isDirectory, isFile: !isDirectory })))]
         },
-        spawn: (command, args, options) => state => {
-            assertEq(options.stdio, 'ignore')
+        capture: (command, args, options) => state => {
             // The progress name must reach the reader before the child starts.
             const name = assertNotNullish(state.output.at(-1)?.[1])
             assert(name.endsWith(': '))
             assert(name.includes('module.f.'))
-            /** @type {Child} */
-            const child = asNominal('child')
-            return [{ ...state, commands: [...state.commands, [command, args, options.cwd]] },
-                spawnFails ? error(ioError({ message: 'spawn unavailable' })) : ok(child)]
+            const outcome = captureFails ? error(ioError({ message: 'capture unavailable' }))
+                : assertNotNullish(outcomes[state.commands.length])
+            /** @type {IoResult<CapturedProcess>} */
+            const captured = outcome[0] === 'error' ? outcome : ok({
+                status: outcome[1], stdout: 'CHILD_STDOUT', stderr: 'CHILD_STDERR',
+            })
+            return [{ ...state, commands: [...state.commands, [command, args, options?.cwd]] }, captured]
         },
         now: () => state => [state, ok(0)],
-        childWait: () => state => [state, assertNotNullish(outcomes[state.commands.length - 1])],
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
             writeFails ? error(['notImplemented', 'write']) : ok(undefined),
@@ -149,6 +149,7 @@ export const proof = /** @type {const} */ ({
         assert(output.includes('a/demo.f.mjs, a/module.f.mjs: ok,'))
         assert(output.includes('z/module.f.js: ok,'))
         assert(!output.includes('cwd:') && !output.includes('command:'))
+        assert(!output.includes('CHILD_STDOUT') && !output.includes('CHILD_STDERR'))
         assert(output.includes('Coverage: 2 passed, 0 failed, 2 total'))
     },
     subtree: () => {
@@ -184,7 +185,11 @@ export const proof = /** @type {const} */ ({
             assertEq(state.commands.length, 2)
             assert(state.output.some(([stream, text]) => stream === 'stdout' && text.includes("cwd: 'a'")))
             assert(state.output.some(([, text]) => text.includes('error,')))
-            assert(state.output.map(([, text]) => text).join('').includes('z/module.f.js: ok,'))
+            const output = state.output.map(([, text]) => text).join('')
+            assert(output.includes('z/module.f.js: ok,'))
+            assertEq(output.includes('CHILD_STDOUT'), outcome[0] === 'ok')
+            assertEq(output.includes('CHILD_STDERR'), outcome[0] === 'ok')
+            assert(output.indexOf('error,') < output.indexOf("cwd: 'a'"))
         }
         const [state, result] = execute([], {}, tree, true)
         assertEq(exitCode(result), 1)
