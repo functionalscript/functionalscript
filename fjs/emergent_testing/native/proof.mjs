@@ -147,13 +147,12 @@ export const proof = /** @type {const} */ ({
             const result = invoke(root, [cli, 'cov', 'node'], selected)
             assert.equal(result.status, 0, result.output)
             assert.equal(result.output.includes('OUTSIDE_SCOPE'), false, result.output)
-            assert.ok(result.output.includes('--test-coverage-lines=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-branches=100'), result.output)
-            assert.ok(result.output.includes('--test-coverage-functions=100'), result.output)
-            assert.ok(result.output.includes('one.mjs'), result.output)
-            assert.ok(result.output.includes(`cwd: '${join(selected, 'a module').replaceAll('\\', '/')}'`), result.output)
-            assert.equal(result.output.split('command:').length - 1, 2, result.output)
-            assert.ok(result.output.indexOf('command:') < result.output.indexOf('FIRST_MODULE_PROOF'), result.output)
+            assert.equal(result.output.includes('FIRST_MODULE_PROOF'), false, result.output)
+            assert.equal(result.output.includes('command:'), false, result.output)
+            assert.ok(result.output.includes('a module/demo.f.mjs, '), result.output)
+            assert.ok(result.output.includes('a module/module.f.js: ok,'), result.output)
+            assert.ok(result.output.includes('/b/module.f.mjs: ok,'), result.output)
+            assert.ok(result.output.includes('Coverage: 2 passed, 0 failed, 2 total'), result.output)
         })
     },
     coverageIsolation: () => {
@@ -178,7 +177,9 @@ export const proof = /** @type {const} */ ({
             assert.equal(combined.status, 0, combined.output)
             const result = invoke(root, [cli, 'cov', 'node'])
             assert.notEqual(result.status, 0, result.output)
-            assert.ok(result.output.includes('LATER_MODULE_PROOF'), result.output)
+            assert.equal(result.output.includes('LATER_MODULE_PROOF'), false, result.output)
+            assert.ok(result.output.includes('/a/module.f.mjs: error,'), result.output)
+            assert.ok(result.output.includes('/b/module.f.mjs: ok,'), result.output)
         })
     },
     coverageFailures: () => {
@@ -202,7 +203,10 @@ export const proof = /** @type {const} */ ({
             })
             const result = invoke(root, [cli, 'cov', 'node'])
             assert.notEqual(result.status, 0, result.output)
-            assert.ok(result.output.includes('TEST_FAILURE'), result.output)
+            assert.equal(result.output.includes('TEST_FAILURE'), false, result.output)
+            assert.ok(result.output.includes('module.f.mjs: error,'), result.output)
+            assert.ok(result.output.includes('command:'), result.output)
+            assert.ok(result.output.includes('exited 1'), result.output)
         })
     },
     coverageReportAdmission: () => {

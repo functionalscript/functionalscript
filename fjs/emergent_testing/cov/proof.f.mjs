@@ -69,12 +69,15 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
             return [next, ok(results)]
         },
         spawn: (command, args, options) => state => {
-            assertEq(options.stdio, 'inherit')
+            assertEq(options.stdio, 'ignore')
+            assertEq(state.output.at(-1)?.[1], state.commands.length === 0
+                ? 'a/demo.f.mjs, a/module.f.mjs: ' : 'z/module.f.js: ')
             /** @type {Child} */
             const child = asNominal('child')
             return [{ ...state, commands: [...state.commands, [command, args, options.cwd]] },
                 spawnFails ? error(ioError({ message: 'spawn unavailable' })) : ok(child)]
         },
+        now: () => state => [state, ok(0)],
         childWait: () => state => [state, assertNotNullish(outcomes[state.commands.length - 1])],
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
@@ -138,7 +141,8 @@ export const proof = /** @type {const} */ ({
             ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
-        assert(output.indexOf('cwd:') < output.indexOf('PASS a'))
+        assert(output.startsWith('a/demo.f.mjs, a/module.f.mjs: ok,'))
+        assert(!output.includes('command:'))
         assert(output.includes('Coverage: 2 passed, 0 failed, 2 total'))
     },
     subtree: () => {
@@ -152,8 +156,10 @@ export const proof = /** @type {const} */ ({
             const [state, result] = execute([outcome, passed])
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 2)
-            assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes('FAIL a:')))
-            assert(state.output.some(([, text]) => text.includes('PASS z')))
+            assert(state.output.some(([, text]) => text.includes('a/demo.f.mjs, a/module.f.mjs: ')))
+            assert(state.output.some(([, text]) => text.includes('error,')))
+            assert(state.output.some(([, text]) => text.includes("cwd: 'a'\ncommand: ")))
+            assert(state.output.some(([, text]) => text.includes('z/module.f.js: ')))
         }
         const [state, result] = execute([], {}, tree, true)
         assertEq(exitCode(result), 1)

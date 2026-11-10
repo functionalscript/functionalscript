@@ -151,9 +151,11 @@ directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
 
-The runner prints each working directory and complete command before
-launching it, continues after failures, and exits nonzero if any module
-failed. It accepts no flags. The repository-wide `npm run cov` gate retains
+The runner names the measured files before each child starts, then completes
+the line with the same status and timing as emergent testing. Child output is
+hidden. Failed runs also print the working directory, complete command and
+exit status for reproduction. The runner continues after failures and exits
+nonzero if any module failed. It accepts no flags. The repository-wide `npm run cov` gate retains
 its combined suite until the remaining per-module proof gaps and CI rollout
 in [per-module coverage](./todo/per-module-coverage.md) are complete.
 

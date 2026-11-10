@@ -1,21 +1,23 @@
 /**
  * Runs each module directory's own proofs under native Node coverage.
- * Commands are printed before launch and children run sequentially without
- * a shell, so their coverage and working directories remain independent.
+ * Children run quietly and sequentially without a shell. Progress uses the
+ * emergent-testing reporter, with each directory's measured files as its name.
  *
  * @module
  *
+ * @import { Catch, Sandbox } from '../../effects/common/types.ts'
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeProgram, Write, Subprocess } from '../../effects/node/types.ts'
+ * @import { NodeProgram, Write, Subprocess, Now, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { _CoverageFile, _Module } from './types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
+import { childWait, now, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
+import { defaultReporter } from '../module.f.mjs'
 
 /** The existing measured source set, independently of proof discovery. @type {(path: string) => boolean} */
 export const isCoverageTarget = path =>
@@ -65,24 +67,34 @@ export const _coverageFailures = (expected, files) => [
         .map(file => `Unexpected coverage: ${file.path}`),
 ]
 
-/** Finish one child while allowing independent directories to continue after failure. @type {(command: { readonly directory: string, readonly args: readonly string[] }) => Effect<Subprocess | Write, boolean, IoChannel>} */
-const runModule = ({ directory, args }) => {
-    const announced = log(_commandLine(directory, args))
-    const started = step(announced, () =>
-        spawn('node', args, { stdio: 'inherit', cwd: directory }))
-    const ended = step(started, childWait)
-    const outcome = resultMapStep(ended, ([tag, value]) => {
-        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
-        const [status, code] = value
-        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
+/** Finish one child while allowing independent directories to continue after failure.
+ * @type {(options: NodeProgramOptions, command: { readonly directory: string, readonly files: readonly string[], readonly args: readonly string[] }) => Effect<Subprocess | Write | Now | Sandbox | Catch, boolean, IoChannel>}
+ */
+const runModule = (options, { directory, files, args }) => {
+    const reporter = defaultReporter(options)
+    const id = { module: directory, path: '', name: files.map(file => normalize(join(directory, file))).join(', ') }
+    const announced = reporter.start(id)
+    const timed = step(announced, () => now())
+    const outcome = historyStep(history(timed), () => {
+        const ended = step(spawn('node', args, { stdio: 'ignore', cwd: directory }), childWait)
+        return resultMapStep(ended, ([tag, value]) => {
+            if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
+            const [status, code] = value
+            return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
+        })
     })
-    const reported = historyStep(history(outcome), ({ passed, detail }) =>
-        passed ? log(`PASS ${directory}`) : error(`FAIL ${directory}: ${detail}`))
-    return mapStep(reported, ([, { passed }]) => passed)
+    return step(outcome, ([{ passed, detail }, start]) => step(now(), end => {
+        const duration = end - start
+        const reported = reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
+            { duration, result: ok(undefined) }, false)
+        return mapStep(step(reported, () => passed ? pureOk(undefined)
+            : log(`${_commandLine(directory, args)}\n${detail}`)), () => passed)
+    }))
 }
 
 /** Run the selected subtree under Node. No output or scheduling flags yet. @type {NodeProgram} */
-export const main = ({ args, env, packageRoot }) => {
+export const main = options => {
+    const { args, env, packageRoot } = options
     if (args.length !== 1 || args[0] !== 'node') { return errorExit('Usage: fjs cov node') }
     const discovered = allFiles(sourceRoot(env), isCoverageTarget)
     const grouped = mapStep(discovered, _modules)
@@ -92,10 +104,10 @@ export const main = ({ args, env, packageRoot }) => {
     const reporter = historyStep(history(modules), () =>
         resolveFileModule(normalize(join(packageRoot, 'fjs/emergent_testing/cov/reporter.mjs')), null))
     const commands = mapStep(reporter, ([{ id }, modules]) => modules.map(({ directory, files }) => ({
-        directory, args: _nodeArgs(packageRoot, files, id),
+        directory, files, args: _nodeArgs(packageRoot, files, id),
     })))
     const results = foldStep(commands, { failed: 0, total: 0 }, command => ({ failed, total }) => {
-        const checked = runModule(command)
+        const checked = runModule(options, command)
         return mapStep(checked, passed => ({ failed: failed + (passed ? 0 : 1), total: total + 1 }))
     })
     const reported = historyStep(history(results), ({ failed, total }) =>

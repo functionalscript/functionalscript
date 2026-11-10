@@ -78,31 +78,14 @@ scheduling is separate work if measurements justify it.
 
 #### Reporting
 
-**Print each command before executing it by default.** Show the working
-directory, the executable and every argument, including the entry path,
-coverage filters and thresholds. Quote paths and arguments unambiguously so a
-reader can reproduce the invocation. Execute with a structured argument
-vector, without a shell; the displayed command is a rendering of that
-invocation, not shell code the runner evaluates.
+Use the emergent-testing reporter's open progress line: name the directory's
+measured files before starting its child, then complete the line with status
+and timing. Hide child output. On failure, print the working directory,
+complete invocation and exit status (or launch/wait error) so the run can be
+reproduced directly. Continue after failures and finish with coverage totals.
+Execute with a structured argument vector, without a shell.
 
-`fjs cov node` accepts mutually exclusive `--quiet` and `--verbose` flags.
-With npm, use `--` to forward options, for example
-`npm start -- cov node --verbose`. Reject a request that supplies both flags.
-
-- **Default:** print each command before launch, including successful runs,
-  then each module's result and per-file coverage, and a final summary.
-  Retain failure diagnostics and uncovered locations while suppressing the
-  native runner's routine passing-test output.
-- **`--quiet`:** suppress successful module results and routine command
-  logging. Print failures and the final summary; every failure still names
-  its working directory and complete command, with diagnostics and uncovered
-  locations where available.
-- **`--verbose`:** print each command before launch and retain the full native
-  test and coverage output, including passing tests, as well as module results
-  and the final summary.
-
-These flags change presentation only: discovery, proof execution, coverage
-requirements and exit status are identical in every mode.
+Quiet/verbose modes and additional diagnostics remain future work.
 
 #### Coverage contract
 
@@ -143,12 +126,9 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Default and verbose output name the working directory and complete command
-  before each launch, with spaces in paths and arguments represented
-  unambiguously. Quiet output suppresses routine commands but retains the
-  working directory and command for every failure.
-- Quiet and verbose modes change output only; supplying both flags is an
-  error.
+- Progress names the measured files before launch and completes the same line
+  with status and timing. Child output is suppressed; failures name their
+  working directory and full reproducible command.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
 - The ordinary FJS suite retains proofs outside measured module directories.
@@ -157,9 +137,9 @@ when a required metric is unavailable.
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
 - [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, command logging and module results.
-- [ ] Add quiet/verbose modes and per-file output for passing targets; the
-      first implementation uses command logging and native quiet summaries.
+      validation and shared emergent-testing progress.
+- [ ] Consider quiet/verbose modes and additional failure diagnostics; the
+      default uses shared emergent-testing progress and hides child output.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [ ] Fix the exposed gaps in modules' own proofs or implementations.
