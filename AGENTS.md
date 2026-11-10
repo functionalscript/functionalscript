@@ -312,11 +312,11 @@ is not. Instances predating this rule are not precedent for new ones.
 ## 7. Continuous integration
 
 The generator in `fjs/ci` owns the committed workflows; run `./dev.sh npm run gen`
-after changing its sources or inputs. All ten jobs use mise, across Linux,
+after changing its sources or inputs. All eleven jobs use mise, across Linux,
 macOS and Windows on x64 and ARM64. Each native or runtime check remains a
 separate workflow step. The additional `cov` job caches isolated Node coverage
 by dependency manifest and synchronizes successful manifests in one batch at
-the end of a run when permitted; `node26` retains its combined coverage check
+the end of a run when permitted; `node` retains its combined coverage check
 and cache. The packed-package consumer uses a clean temporary directory and
 `setup-node` outside the repository environment.
 
