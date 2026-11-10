@@ -1911,8 +1911,10 @@ export const proof = {
             }))
         },
         trailingOutputAfterExit: async () => {
+            // Windows kills non-detached descendants when their parent exits.
+            // This child must survive its parent to finish the inherited pipes.
             const descendant = 'setTimeout(() => { process.stdout.write("late stdout"); process.stderr.write("late stderr"); }, 50)'
-            const source = `require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], { stdio: ["ignore", 1, 2] }).unref();`
+            const source = `require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(descendant)}], { stdio: ["ignore", 1, 2], detached: true }).unref();`
             await within('capture waits for both pipes to close', 10_000, hostCheck(capture('node', ['-e', source]), result => {
                 assertStructurallySame(unwrap(result), {
                     status: ['exited', 0], stdout: 'late stdout', stderr: 'late stderr',
