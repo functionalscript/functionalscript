@@ -170,12 +170,12 @@ impl Any {
     }
 
     pub fn typeof_(&self) -> Type {
-        if self.is_finite() { return NUMBER_TYPE; }
-        if self.0 & 1 == 1 { return BIGINT_TYPE; }
+        if self.is_finite() { return Type::NUMBER; }
+        if self.0 & 1 == 1 { return Type::BIGINT; }
         // reference
         if self.0 & 2 == 2 { return Type::new(self.0 >> 48); }
         // scalar
-        if self.0 & 0xC != 0 { return STRING_TYPE; }
+        if self.0 & 0xC != 0 { return Type::STRING; }
         Type::new(self.0 >> 4)
     }
 }
