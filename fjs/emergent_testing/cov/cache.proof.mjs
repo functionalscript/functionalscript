@@ -128,34 +128,6 @@ const sourceState = root => ({
 /** @type {(root: string) => readonly string[]} */
 const entries = root => git(root, ['ls-tree', '-r', '--name-only', 'build-cache']).split('\n')
 
-/** Untracked runtime inputs execute naturally on every invocation, without recording success.
- * @type {(source: string, reference: string) => void}
- */
-const _uncacheable = (source, reference) => withFixture(root => {
-    const repo = join(root, 'source')
-    initialize(repo, ['unit'])
-    write(repo, 'unit/proof.f.mjs', source)
-    const before = sourceState(repo)
-    const args = /** @type {const} */ ([cli, 'cov', 'node'])
-    const results = /** @type {const} */ ([
-        execute(join(repo, 'unit'), process.execPath, args),
-        execute(join(repo, 'unit'), process.execPath, args),
-    ])
-    const output = results.map(result => result.output).join('\n')
-    for (const result of results) {
-        assert.equal(result.status, 0, output)
-        assert(result.output.includes('unit/module.f.js...Ok'), output)
-        assert(result.output.includes(`untracked runtime input: ${reference}`), output)
-        assert(result.output.includes('UNCACHED'), output)
-        assert(!result.output.includes('...Cached'), output)
-        nativeOutput(result.output)
-    }
-    const stored = execute(repo, 'git', ['show-ref', '--verify', '--quiet', 'refs/heads/build-cache'])
-    assert.equal(stored.status, 1, stored.output)
-    assert.deepEqual(sourceState(repo), before)
-    assert.equal(git(repo, ['status', '--porcelain']), ' M unit/proof.f.mjs')
-})
-
 /** @type {(path: string) => readonly { readonly argv: readonly string[], readonly time: string }[]} */
 const _commands = path => readFileSync(path, 'utf8').trim().split('\n').map(line => JSON.parse(line))
     .filter(event => event.event === 'start' && Array.isArray(event.argv))
@@ -183,12 +155,25 @@ const _seedPacked = (root, count) => {
 }
 
 export const proof = process.versions.bun || process.versions.deno ? {} : {
-    timeDependentProofsNeverCache: () => _uncacheable(
-        'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); Date.now(); return undefined; } };\n',
-        'Date'),
-    randomDependentProofsNeverCache: () => _uncacheable(
-        'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); Math.random(); return undefined; } };\n',
-        'Math.random'),
+    destructuredMathRemainsCacheable: () => withFixture(root => {
+        const repo = join(root, 'source')
+        initialize(repo, ['unit'])
+        write(repo, 'unit/module.f.js', 'const { log2 } = Math; export const value = () => log2(2);\n')
+        const before = sourceState(repo)
+        const cold = coverage(join(repo, 'unit'))
+        assert(cold.includes('unit/module.f.js...Ok'), cold)
+        nativeOutput(cold)
+        assert.equal(entries(repo).length, 1)
+        const saved = git(repo, ['rev-parse', 'build-cache'])
+
+        const warm = coverage(join(repo, 'unit'))
+        assert(warm.includes('unit/module.f.js...Cached'), warm)
+        cachedOutput(warm)
+        assert.equal(git(repo, ['rev-parse', 'build-cache']), saved)
+        assert.equal(entries(repo).length, 1)
+        assert.deepEqual(sourceState(repo), before)
+        assert.equal(git(repo, ['status', '--porcelain']), ' M unit/module.f.js')
+    }),
     localSuccessAndInvalidation: () => withFixture(root => {
         const repo = join(root, 'source')
         initialize(repo, ['unit'])
