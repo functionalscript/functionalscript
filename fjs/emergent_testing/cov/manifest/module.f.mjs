@@ -175,18 +175,29 @@ const closure = (graph, directory) => {
     return ok({ ...value, required: unique(value.required), scopes: unique(value.scopes) })
 }
 
-/** Materialize the existing manifest shape from the shared graph. @type {(graph: Graph, directory: string, targets: readonly string[], contract: Unknown) => Effect<NodeOp, Manifest, IoChannel>} */
+/** Materialize content hashes and module relationships from the shared graph. @type {(graph: Graph, directory: string, targets: readonly string[], contract: Unknown) => Effect<NodeOp, Manifest, IoChannel>} */
 export const graphManifest = (graph, directory, targets, contract) => {
     const reached = closure(graph, directory)
     if (reached[0] === 'error') { return pure(reached) }
-    const paths = unique([...reached[1].required, ...reached[1].scopes]).toSorted(compare)
+    const sources = reached[1]
+    const record = assertOk(assertNotNullish(graph.directories[normalize(directory)]))
+    const paths = unique([...sources.required, ...sources.scopes]).toSorted(compare)
     const prefix = graph.root.endsWith('/') ? graph.root : `${graph.root}/`
     return pureOk({
-        version: 1, directory: normalize(directory).slice(prefix.length) || '.',
+        version: 2, directory: normalize(directory).slice(prefix.length) || '.',
         targets: targets.toSorted(compare), contract,
         files: Object.fromEntries(paths.flatMap(path => {
             const file = assertNotNullish(graph.files[path])
             return file[0] === 'error' ? [] : [[path.slice(prefix.length), file[1].hash]]
+        })),
+        // Closure order gives opaque host identities portable local names.
+        // Hashes alone cannot distinguish equal-byte aliases that share an
+        // instance from aliases that load different module instances.
+        roots: Object.fromEntries(record.roots.map(({ path, source }) =>
+            [path.slice(prefix.length), sources.seen.indexOf(source.id)])),
+        modules: sources.nodes.map(({ source, children }) => ({
+            path: normalize(source.path).slice(prefix.length), json: source.json,
+            imports: children.map(source => sources.seen.indexOf(source.id)),
         })),
     })
 }

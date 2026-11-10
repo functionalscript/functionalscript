@@ -184,6 +184,13 @@ directories. Graph construction reads, hashes and parses each source once, reusi
 shared imports. Each directory's manifest selects its reachable inputs from that
 snapshot.
 
+The manifest also records resolved module relationships: `roots` maps immediate
+authored siblings to closure-local module indices, and `modules` lists their
+repository-relative paths and ordered imported module indices. This preserves
+module identity sharing without storing checkout-specific URLs. Retargeting a
+symlink therefore invalidates the cached success even when all file bytes stay
+the same.
+
 Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
 so adding a nested package scope invalidates affected manifests. Without the
