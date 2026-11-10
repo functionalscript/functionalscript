@@ -14,13 +14,13 @@ pub fn module<A: IStaticFunction>(runtime: Any<A>) -> Result<Any<A>, Any<A>> {
         let _b6: Any<A> = Object::default().to_any();
         [(Any::option_dot(_b4.clone(), || Ok(string_any("a"))).dot(|| Ok(string_any("b"))).end())?, {
             let _b8: Any<A> = (Any::option_dot((Any::dot(_b6.clone(), string_any("a")).end())?, || Ok(string_any("b"))).end())?;
-            if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq(_b8.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b8.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b8.clone() }
+            if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b8.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b8.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b8.clone() }
         }, {
             let _b15: Any<A> = (Any::option_dot((Any::option_dot(_b6.clone(), || Ok(string_any("a"))).end())?, || Ok(string_any("b"))).end())?;
-            if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq(_b15.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b15.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b15.clone() }
+            if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b15.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b15.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b15.clone() }
         }, (Any::dot(_b4.clone(), string_any("f")).option_call(&runtime, || Ok([f64_any(0x4000000000000000)].to_array().to_any())).end())?, {
             let _b22: Any<A> = (Any::dot(_b6.clone(), string_any("f")).option_call(&runtime, || Ok([f64_any(0x4008000000000000)].to_array().to_any())).end())?;
-            if Any::<A>::to_boolean(if Any::<A>::to_boolean((strict_eq(_b22.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b22.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b22.clone() }
+            if Any::<A>::to_boolean(&if Any::<A>::to_boolean(&(strict_eq(_b22.clone(), Nullish::Null.to_any()))?) { true.to_any() } else { (strict_eq(_b22.clone(), Nullish::Undefined.to_any()))? }) { f64_any(0x0000000000000000) } else { _b22.clone() }
         }, (Any::dot((Any::option_dot(_b4.clone(), || Ok(string_any("a"))).end())?, string_any("b")).end())?].to_array().to_any()
     })].to_object().to_any())
 }

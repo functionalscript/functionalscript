@@ -151,11 +151,92 @@ directory's own proofs in a separate Node process. Each measured file must
 reach 100% line, branch and function coverage. Missing proofs or coverage
 fail the check.
 
-The runner prints each working directory and complete command before
-launching it, continues after failures, and exits nonzero if any module
-failed. It accepts no flags. The repository-wide `npm run cov` gate retains
-its combined suite until the remaining per-module proof gaps and CI rollout
-in [per-module coverage](./todo/per-module-coverage.md) are complete.
+The runner separates planning, execution and recording:
+
+1. Build the shared dependency graph and all target manifests, hash their cache
+   keys once, and check them against one native Git inventory of `build-cache`.
+   Matching entries' blob contents are verified together against the exact
+   prepared manifests before they count as hits.
+2. Run the planned misses sequentially and remember stable successful entries.
+   A directory whose targets all hit needs no coverage child.
+3. Record the new successful entries in one local Git `fast-import` commit,
+   then synchronize when requested. An empty batch creates no commit.
+
+Each measured target has its own canonical dependency manifest,
+including all immediate authored siblings, their transitive static imports,
+working-tree content hashes, coverage settings and runtime facts.
+The manifest names its `module`, directory and sorted target inventory; its
+`files` object maps repository-relative paths to SHA-256/CBase32 hashes. The
+contract records actual Node versions, platform, architecture, relevant execution
+settings and the tool's FunctionalScript version from `package.json` in
+`contract.runtime.functionalscript`. Tool source files do not
+form a shared fingerprint: changing a CLI, reporter or framework source at the
+same version preserves cached successes unless it is also an actual dependency
+of that target. Changes to tooling behavior within a version can therefore reuse
+earlier successes. A FunctionalScript version change invalidates all isolated
+coverage successes.
+
+JSON leaves and shared dependencies are included once; dependency cycles do not
+repeat files. At startup, the runner probes Node once and builds one shared
+dependency graph for all selected
+directories. Graph construction reads, hashes and parses each source once, reusing
+shared imports. Each directory's manifest selects its reachable inputs from that
+snapshot.
+
+The manifest also records resolved module relationships: `roots` maps immediate
+authored siblings to closure-local module indices, and `modules` lists their
+repository-relative paths and ordered imported module indices. This preserves
+module identity sharing without storing checkout-specific URLs. Retargeting a
+symlink therefore invalidates the cached success even when all file bytes stay
+the same.
+
+Caching requires and hashes the repository root's `package.json`. It also hashes
+every present ancestor `package.json` of loaded files inside that repository,
+so adding a nested package scope invalidates affected manifests. Without the
+root package metadata, coverage runs uncached instead of relying on an
+unrepresented package scope outside the repository. Runtime references and
+namespace bindings do not impose an additional cache-admission restriction.
+The manifest follows static imports without executing the source.
+
+A directory is cached only when every measured target has an exact success.
+Native children inherit stdout and stderr, so their reporter output appears
+live. The existing quiet Node reporter filters passed tests and fully covered
+files. After a child finishes, each target prints a complete repository-relative
+result line: `module.f.js...Ok` or `module.f.js...Failed`. Failures also identify
+the working directory and reproducible command. Cache hits launch no child and
+print only `module.f.js...Cached` for each target. The runner continues after
+failures and exits nonzero if any module failed.
+
+Before using a planned result and after a successful child, the runner verifies the
+snapshot's relevant bytes, authored sibling inventory, package scopes and module
+resolution identities.
+These checks reuse the graph without parsing or hashing
+again. A stale planned hit runs coverage instead; changed inputs contribute no
+success for that snapshot. Execution performs no cache lookup, key rehashing or
+cache write. The native reporter imports only the small coverage-admission
+checks, keeping dependency planning and cache machinery out of each child's
+startup. Stable successes are recorded after all modules finish, even when
+another module failed.
+Failed coverage contributes no manifest. An interrupted run cannot certify its
+unfinished coverage. Incomplete dependency parsing/resolution, unsupported
+preload settings, and cache errors are reported explicitly and leave the run
+uncached.
+
+`npm start -- cov node --sync` also fetches `origin/build-cache` at startup and
+publishes one batch after module processing and local recording finish. No
+module or cache hit triggers a publication during the run. The final sync also
+retries unpublished local successes. Concurrent additions are replayed onto the
+latest remote parent using normal push retries, then the local branch is
+refreshed for subsequent runs. The command preserves the source checkout and
+never force pushes. Without `--sync`, recording is still batched locally.
+
+CI's additional `cov` job invokes this isolated runner from the repository root,
+with `--sync` only for permitted same-repository runs outside Dependabot. The
+`node26` job runs the full authored FJS suite with `npm start t`, using the
+built-in reporter without coverage. This retains proofs outside measured module
+directories while the dedicated job owns coverage. Further rollout work is
+tracked in
+[per-module coverage](./todo/per-module-coverage.md).
 
 ### External runners (Node, Bun, Deno)
 
@@ -188,9 +269,10 @@ suite this size that is a log nobody reads. `node/module.mjs` is a reporter
 that keeps what a reader acts on — the failures, the skipped and `todo` tests,
 a test's logs with its name on them, its diagnostics with its location and
 what it printed with its file, the run's summary, the files under a coverage
-threshold — and drops the rest; `npm run cov` passes it as
+threshold — and drops the rest. A native Node invocation selects it with
 `--test-reporter=./fjs/emergent_testing/node/module.mjs`, and a consumer can
-name the package's copy the same way.
+name the package's copy the same way. The isolated coverage runner wraps it with
+`cov/reporter.mjs` to check the expected targets before filtering the output.
 
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.

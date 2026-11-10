@@ -42,6 +42,7 @@ parse('C:\\a\\..\\b')     // ['b'], and its root is 'C:/'
 | `concat(a)(b)` | `b` resolved against `a`; an absolute `b` replaces `a` |
 | `parent` | the directory a path is in; `parent('/')` is `/`, `parent('x')` is `.` |
 | `basename` | the last segment, or `''` for a root |
+| `extension` | what follows the last `.` of the last segment, `''` for `.gitignore` |
 | `ancestors` | every directory above a path, outermost first |
 | `join(...segments)` | segments joined with `/`, with no normalization |
 | `under(dir, name)` | a name below a directory that came from outside |

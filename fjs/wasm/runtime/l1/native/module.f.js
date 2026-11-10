@@ -17,6 +17,7 @@
  */
 
 import { asBigInt, asNumber, asString } from '../../l0/module.f.js'
+import { error } from '../error/module.f.js'
 
 /**
  * Whether two bigints are equal, the bigint case of `===`.
@@ -97,7 +98,7 @@ export const bigintMultiply = (a, b) => {
  */
 export const bigintDivide = (a, b) => {
     const [x, y] = bigints('bigintDivide', a, b)
-    if (y === 0n) { throw 'RangeError: Division by zero' }
+    if (y === 0n) { throw error.divisionByZero }
     return x / y
 }
 

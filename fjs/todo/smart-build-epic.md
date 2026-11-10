@@ -10,13 +10,14 @@ taking about ten minutes. The goal of smart build and testing is to build and
 test only modules affected by a change, using `build-cache`.
 
 Saving to and loading from the `build-cache` branch is already implemented.
-The `fjs cov` command also supports running coverage for individual modules.
-The next foundation is a module dependency graph.
+The `fjs cov` command uses the static dependency graph to cache successful
+coverage for individual measured targets. Inputs the scanner cannot completely
+resolve remain uncached while the remaining graph foundations are developed.
 
 ### Scope
 
-This epic tracks the foundations. How smart build uses them will be designed
-later.
+This epic tracks the foundations. The dependency graph's build-cache consumer
+is documented in [per-module coverage caching](../ci/cache/README.md#isolated-coverage-manifests).
 
 ### Tasks
 
@@ -29,7 +30,8 @@ later.
   - [x] Implement the [dependency graph CLI command](./module-dependency-graph-command.md)
         with `_deps.json` output.
   - [ ] Draw the dependency graph on a website.
-- [ ] Integrate the dependency graph with `build-cache`.
+- [x] Integrate the dependency graph with `build-cache` through
+      [per-module coverage](../ci/cache/README.md#isolated-coverage-manifests).
 
 ### Related
 

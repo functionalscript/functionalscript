@@ -15,27 +15,24 @@ import { max } from '../number/max/module.f.js'
 const twoPow = exp => 1n << BigInt(exp)
 
 /**
- * Doubles the mantissa magnitude one bit at a time, compensating the exponent,
- * until it reaches `min`; the sign is restored on return. A zero mantissa is
- * returned unchanged: it can never reach a lower bound, so shifting it would
- * not terminate.
+ * Shifts a positive mantissa left by the fewest bits that bring it to at
+ * least `min`, compensating the exponent; one already there is returned
+ * unchanged. The shift is read off the two bit lengths: at the length of
+ * `min` the shifted mantissa is either there or one bit short of it.
+ *
+ * Only {@link scale} calls it, with a magnitude {@link withSign} has taken
+ * the sign and the zero off, so neither is a case here.
  *
  * There is no downward twin: a magnitude that overshoots is brought back by
- * `truncate`, which has to know what it cut off and so cannot be a shift loop.
+ * `truncate`, which has to know what it cut off and so cannot be a shift.
  *
  * @type {(_: BigFloat) => (min: bigint) => BigFloat}
  */
 const increaseMantissa = ([m, e]) => min => {
-    if (m === 0n) {
-        return [m, e]
-    }
-    const s = sign(m)
-    m = abs(m)
-    while (m < min) {
-        m <<= 1n
-        e -= 1
-    }
-    return [BigInt(s) * m, e]
+    const k = bitLength(min) - bitLength(m)
+    if (k < 0n) { return [m, e] }
+    const shift = (m << k) < min ? k + 1n : k
+    return [m << shift, e - Number(shift)]
 }
 
 /** @type {(base: bigint) => (exp: number) => bigint} */
@@ -218,14 +215,4 @@ export const tryDecToFormat = ({ precision, minExp, maxExp }) => {
         // Zero is in every format, even one whose largest value is below 1/2.
         return m !== 0n && bitLength(m) + BigInt(e) > maxBits ? null : result
     }
-}
-
-export const proof = {
-    // normalizeMantissa guards against zero mantissa to prevent an infinite loop;
-    // this path is unreachable through decToBin (which returns early for 0n),
-    // so we exercise it here where the private helper is in scope.
-    normalizeMantissaZero: () => {
-        increaseMantissa([0n, 5])(1n)
-        return undefined
-    },
 }

@@ -19,10 +19,8 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { errorMask } from '../../text/code_point/module.f.js'
-import { stringToCodePointList } from '../../text/utf16/module.f.js'
+import { codePoints } from '../../text/utf16/module.f.js'
 import { fixpoint } from '../../types/function/module.f.js'
-import { toArray } from '../../types/list/alt/module.f.js'
 import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.js'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.js'
@@ -287,24 +285,6 @@ const emit = ({ names, taken, ruleSet }, name, rule) =>
 const symbolTerminal = n => {
     assert(isSymbol(n), ['not a symbol', n])
     return n === MAX_SAFE_INTEGER ? ['set', n] : ['set', n, n + 1]
-}
-
-/**
- * The code points of a string, one symbol each: a string rule, and the text
- * the front end's `set`, `range` and `literals` and the byte alphabet's
- * `ascii` read. Malformed UTF-16 is refused rather than encoded as a symbol
- * outside the domain — the decoder tags a lone surrogate with `errorMask`,
- * which makes it negative, so nothing downstream would tell it from a
- * mistake of its own.
- *
- * @throws If `s` holds a lone surrogate.
- *
- * @type {(s: string) => readonly number[]}
- */
-export const codePoints = s => {
-    const list = toArray(stringToCodePointList(s))
-    assert(list.every(c => (c & errorMask) === 0), ['malformed UTF-16', s])
-    return list
 }
 
 /** @type {(parent: string) => (acc: _Lowered<readonly Entry<string>[]>, child: Entry<FRule>) => _Lowered<readonly Entry<string>[]>} */

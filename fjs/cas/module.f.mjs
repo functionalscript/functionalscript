@@ -9,17 +9,16 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
- * @import { IoChannel, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
+ * @import { IoChannel, Now, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
  *  @import { EffectList } from '../effects/list/types.ts'
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
 import { join, normalize } from '../path/module.f.js'
-import { byteLength, empty, isWholeBytes, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { byteLength, empty, isWholeBytes, maxLength, msb } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
-    foldStep,
     forEachStep,
     history,
     historyStep,
@@ -37,7 +36,7 @@ import {
     ioError,
     mkdir,
     now,
-    randomInt,
+    random256,
     readBytes,
     readdir,
     rename,
@@ -397,20 +396,6 @@ export const fileCas = sha2 => path => {
         url: at
     }
 }
-
-/** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls:
- * what a name nobody else is writing to is made of, here for a staging file
- * and in [`fjs/cas/git`](./git/module.f.mjs) for a loose object's temporary
- * file, which is why it is exported.
- *
- * @type {Effect<RandomInt, Vec, NotImplemented>}
- */
-export const random256 =
-    foldStep(
-        pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
-        empty,
-        () => (/** @type {Vec} */ acc) =>
-            ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 
 /**
  * Streams the file at `path` through `cas.write`, returning the content hash.

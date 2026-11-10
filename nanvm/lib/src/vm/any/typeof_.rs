@@ -1,49 +1,4 @@
-use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
-};
-
-/// The tag `Any::typeof_` returns, one per `Unpacked` variant.
-struct TypeOf;
-
-impl<A: IVm> Dispatch<A> for TypeOf {
-    type Result = &'static str;
-
-    fn nullish(self, v: Nullish) -> Self::Result {
-        match v {
-            // `null` is famously an object in JavaScript's `typeof`.
-            Nullish::Null => "object",
-            Nullish::Undefined => "undefined",
-        }
-    }
-
-    fn bool(self, _: bool) -> Self::Result {
-        "boolean"
-    }
-
-    fn number(self, _: Number) -> Self::Result {
-        "number"
-    }
-
-    fn string(self, _: String<A>) -> Self::Result {
-        "string"
-    }
-
-    fn bigint(self, _: BigInt<A>) -> Self::Result {
-        "bigint"
-    }
-
-    fn object(self, _: Object<A>) -> Self::Result {
-        "object"
-    }
-
-    fn array(self, _: Array<A>) -> Self::Result {
-        "object"
-    }
-
-    fn function(self, _: Function<A>) -> Self::Result {
-        "function"
-    }
-}
+use crate::vm::{Any, IVm, Nullish, Unpacked};
 
 impl<A: IVm> Any<A> {
     /// `typeof`. Not a `core::ops` trait — Rust has no unary operator to
@@ -53,7 +8,17 @@ impl<A: IVm> Any<A> {
     /// resolves the collision while keeping the name recognizable. Never
     /// throws, but stays a `Result` to match every other operator's shape.
     /// <https://tc39.es/ecma262/#sec-typeof-operator>
-    pub fn typeof_(self) -> Result<Any<A>, Any<A>> {
-        Ok(self.dispatch(TypeOf).into())
+    pub fn typeof_(&self) -> Result<Any<A>, Any<A>> {
+        let tag = self.with_unpacked(|v| match v {
+            Unpacked::Nullish(Nullish::Undefined) => "undefined",
+            Unpacked::Boolean(_) => "boolean",
+            Unpacked::Number(_) => "number",
+            Unpacked::String(_) => "string",
+            Unpacked::BigInt(_) => "bigint",
+            // `null` is famously an object in JavaScript's `typeof`.
+            Unpacked::Nullish(Nullish::Null) | Unpacked::Object(_) | Unpacked::Array(_) => "object",
+            Unpacked::Function(_) => "function",
+        });
+        Ok(tag.into())
     }
 }

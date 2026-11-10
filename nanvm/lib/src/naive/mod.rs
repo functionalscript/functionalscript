@@ -29,6 +29,10 @@ impl IVm for Naive {
         self.0
     }
 
+    fn with_unpacked<R>(&self, f: impl FnOnce(&Unpacked<Self>) -> R) -> R {
+        f(&self.0)
+    }
+
     /// `naive` holds a static function, and makes a function no other way.
     fn static_function(
         code: StaticCode<Naive>,

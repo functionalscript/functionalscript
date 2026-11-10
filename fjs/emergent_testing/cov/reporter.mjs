@@ -12,7 +12,7 @@ import { resolve } from 'node:path'
 import process from 'node:process'
 
 import quiet from '../node/module.mjs'
-import { _coverageFailures, isCoverageTarget } from './module.f.mjs'
+import { _coverageFailures, isCoverageTarget } from './check/module.f.mjs'
 
 /** @type {(source: AsyncIterable<_Event>) => AsyncGenerator<string>} */
 export default async function* (source) {

@@ -7,7 +7,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.js'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes, unpack, unpackedUint, isVec } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, maxVecBytes, u8ListToVec, tryU8ListToVec, tryU8ListToVecMsb, u8List, u8ListToVecMsb, u8ListToVecChunksMsb, u8ListToMaxVecChunksMsb, u8ArrayMsb, chunkList, tailPaddedUintChunkList, fromSentinel, padLastBlockMsb, unpadMsb, bytesIn, bitsIn, wholeBytes, isWholeBytesIn, byteLength, isWholeBytes, unpack, unpackedUint, isVec } from './module.f.mjs'
 import { repeat as listRepeat } from '../list/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 
@@ -226,6 +226,9 @@ export const proof = {
         maxLengthBytes: () => {
             assertEq(maxLengthBytes, 131_072n)
             assert(isWholeBytesIn(maxLength))
+        },
+        maxVecBytes: () => {
+            assertEq(maxVecBytes, 131_072)
         },
     },
     bitset: () => {
@@ -601,7 +604,7 @@ export const proof = {
             assertEq(toArray(u8ListToVecChunksMsb(3)([])).length, 0)
         },
         max: () => {
-            const chunks = toArray(u8ListToVecChunksMsb(Number(maxLengthBytes))(listRepeat(0x12)(131_073)))
+            const chunks = toArray(u8ListToMaxVecChunksMsb(listRepeat(0x12)(131_073)))
             assertEq(chunks.length, 2)
             assertEq(length(chunks[0]), maxLength)
             assertEq(chunks[1], vec8(0x12n))
@@ -609,7 +612,7 @@ export const proof = {
         throw: {
             zero: () => { u8ListToVecChunksMsb(0) },
             fraction: () => { u8ListToVecChunksMsb(1.5) },
-            overMax: () => { u8ListToVecChunksMsb(Number(maxLengthBytes) + 1) },
+            overMax: () => { u8ListToVecChunksMsb(maxVecBytes + 1) },
             notByte: () => { toArray(u8ListToVecChunksMsb(2)([1, 256])) },
         },
     },

@@ -112,7 +112,7 @@ walks as well as the now stack-safe output stages.
       explicit stack in each walk over a chain's steps named above, and
       proofs at that depth — or a refusal at a stated depth, if the limit
       is kept.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

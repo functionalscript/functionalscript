@@ -72,6 +72,7 @@ be watched happening.
 |`resultStep(e, f)`               |either, with the whole `Result` |handle both branches explicitly                    |
 |`attemptStep(e)`                 |none; answers the `Result`      |carry an outcome on as a value                     |
 |`finallyStep(e, f)`              |either, keeping `e`'s answer    |clean up whatever happened                         |
+|`compensateStep(e, cleanup)`     |`error`, keeping `e`'s error    |undo what a failed `e` left behind                 |
 |`foldStep`, `forEachStep`, `walkStep`|each item, stopping at an error|loop over a list without growing the stack       |
 |`pureOk(v)`, `pureError(e)`      |                                |lift a value or an error into an effect            |
 |`do_(command)`                   |                                |declare an operation                               |
@@ -199,6 +200,13 @@ policy had repeated, on the principle that a derivable form earns a name by
 being canonical vocabulary, and added once two consumers in `fjs/git/refstore`
 — a lock held across a delete, and the directories made for one — had each
 written it out by hand.
+
+`compensateStep` is its error-branch sibling: `catchStep` plus the same
+policy, run `cleanup` only where `e` failed, drop the cleanup's answer and
+fail with `e`'s error. It was named once four sites in three modules — a
+partial file removed in `fjs/effects/node`, a staged object in `fjs/git/loose`,
+a lock in `fjs/git/refstore/write` — had each spelled it out with the same
+paragraph about which error the caller needs to hear.
 
 ### `pureOk` / `pureError`, not `ok` / `error`
 

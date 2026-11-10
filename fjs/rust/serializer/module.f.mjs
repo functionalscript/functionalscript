@@ -16,10 +16,10 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { intrinsicLength, isIntrinsic, isStatic, staticText } from '../../edag/module.f.mjs'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.mjs'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
-import { _entryText, _hasEntryText, _intrinsicText } from '../../compiler/serializer/function_text/module.f.mjs'
-import { _resolve } from '../../compiler/serializer/names/module.f.mjs'
+import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
+import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
 import { pushAll, walk } from '../../types/stack_walk/module.f.js'
 import { toArray as listToArray } from '../../types/list/alt/module.f.js'
 
@@ -98,7 +98,7 @@ export const op1Rust = {
     '-': a => `<Any<A> as core::ops::Neg>::neg(${a})`,
     '!': a => `<Any<A> as core::ops::Not>::not(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
-    typeof: a => `Any::typeof_(${a})`,
+    typeof: a => `Any::typeof_(&${a})`,
     Number: a => `Any::number(${a})`,
     BigInt: a => `Any::bigint(${a})`,
     String: a => cat([`${a}.to_string().map(|v| v`, toAny, ')']),
@@ -331,7 +331,7 @@ const pure = result => v => result ? `Ok(${v})` : v
 const fallible = result => v => result ? v : `(${v})?`
 
 /** Pin the VM parameter even when a condition is only a primitive literal. @type {(value: string) => string} */
-const truth = value => `Any::<A>::to_boolean(${value})`
+const truth = value => `Any::<A>::to_boolean(&${value})`
 
 /** Map's SameValueZero keys need a separate identity for IEEE negative zero. */
 const negativeZero = {}
@@ -486,15 +486,16 @@ const operation = (s, n, result) => {
         }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
     }
-    if (tag === 'entry' || tag === 'hasEntry') {
-        const text = helperText(tag === 'entry' ? _entryText('helper') : _hasEntryText('helper'))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', tag === 'entry' ? 'Any::entry(' : 'Any::has_entry(', argRead(0), ', ', argRead(1), tag === 'entry' ? ')' : ').map(|v| v.to_any())', ', ', num('2'), ', ', vm('Array'), `::default(), ${represented(text)})`, toAny])))
-    }
-    if (isIntrinsic([tag])) {
-        const id = /** @type {import('../../edag/types.ts').IntrinsicId} */ (tag)
-        const length = intrinsicLength(id)
+    if (isHelper([tag])) {
+        // the arity and the text are the helper table's; only the native
+        // body is this writer's own
+        const id = /** @type {import('../../edag/types.ts').HelperId} */ (tag)
+        const length = helperLength(id)
         const args = Array.from({ length: length - 1 }, (_, k) => argRead(k + 1))
-        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, ')), ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_intrinsicText(id)('helper')))})`, toAny])))
+        const native = id === 'entry' ? ['Any::entry(', argRead(0), ', ', argRead(1), ')']
+            : id === 'hasEntry' ? ['Any::has_entry(', argRead(0), ', ', argRead(1), ').map(|v| v.to_any())']
+            : ['Any::dot(', argRead(0), ', ', stringCall('string_any')(id), ').end_call_native(|| Ok([', ...args.flatMap((x, k) => k === 0 ? [x] : [', ', x]), ']', toArray, toAny, '))']
+        return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', ...native, ', ', num(`${length}`), ', ', vm('Array'), `::default(), ${represented(helperText(_helperText(id)('helper')))})`, toAny])))
     }
     switch (tag) {
         case 'array': { return array(s, n[1], result) }
@@ -510,7 +511,7 @@ const operation = (s, n, result) => {
                 : map2((v, args) => `Any::option_call(${v}, ${args})`)(expression(s, n[1], false), argumentThunk(s, /** @type {readonly (Value | readonly ['...', Value])[]} */ (n[2])))
             return map1(fallible(result))(map2((start, rest) => `${start}${rest}`)(open, steps(s, /** @type {Step<Value> | undefined} */ (n[3]), tag === '.', tag !== '?.()')))
         }
-        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
+        case 'instanceof': { return map1(fallible(result))(flat(map1(v => cat([`Any::instanceof_(&${v}, `, vm('Constructor'), `::${n[2]})`]))(expression(s, n[1], false)))) }
         // the naive spelling: the runtime's `in` body called with the key
         // and the value, which a VM may substitute natively (DESIGN.md §13)
         case 'in': {

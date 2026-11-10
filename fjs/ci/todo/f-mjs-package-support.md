@@ -243,7 +243,7 @@ emission, `npm pack`, and a clean consumer.
       implementation and proof `.f.ts` are retired, so the fixture must not
       reintroduce them). The proof is not optional paperwork: `fjs/AGENTS.md`
       §1.2 requires 100% proof coverage for every authored `.f.mjs`, so a
-      fixture without one fails `npm run cov` and lands the repository in
+      fixture without one fails `npm start cov node` and lands the repository in
       violation of its own rule — while demonstrating package support.
       Two constraints follow from what the fixture is *for*:
   - It must be a **conforming** module: its private type stays out of every

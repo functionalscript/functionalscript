@@ -14,7 +14,7 @@
  *   ; on` is one it reads.
  * - A header ends at its `]` and the line goes on: `[a] x = 1` sets `a.x`
  *   and `[a][b] x = 1` sets `b.x`, both as Git sets them.
- * - A section and a key are case-insensitive and read lowercased, a
+ * - A section and a key are ASCII case-insensitive and read lowercased, a
  *   subsection is case-sensitive and kept as written, and a `\` in one
  *   stands for the character after it.
  * - No whitespace may sit inside a header but the run between the section
@@ -47,7 +47,7 @@
  */
 
 import { entry as objectEntry } from '../../types/object/entry/module.f.js'
-import { charIs, codePoints, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
+import { asciiLowercase, charIs, codePoints, digitsValue, hexDigitsValue, isDigit, isLatinLetter } from '../../text/ascii/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { untilNul } from '../bytes/module.f.js'
 
@@ -189,7 +189,7 @@ const falseWords = ['false', 'no', 'off', '']
 const prefixes = { b: 2n, x: 16n }
 
 /**
- * What a `k`, `m` or `g` after a number scales it by, however cased.
+ * What a `k`, `m` or `g` after a number scales it by, in either ASCII case.
  *
  * @type {StringMap<bigint>}
  */
@@ -263,9 +263,9 @@ const tryDigits = (digits, radix) => {
 const tryInt = value => {
     const text = afterCSpace(value)
     const signed = text[0] === '+' || text[0] === '-' ? text.slice(1) : text
-    const unit = objectEntry(factors, signed.slice(-1).toLowerCase())
+    const unit = objectEntry(factors, asciiLowercase(signed.slice(-1)))
     const body = unit === undefined ? signed : signed.slice(0, -1)
-    const marked = body[0] === '0' ? objectEntry(prefixes, body[1]?.toLowerCase()) : undefined
+    const marked = body[0] === '0' ? objectEntry(prefixes, asciiLowercase(body.slice(1, 2))) : undefined
     // A leading `0` is an octal digit as well as the mark of the base, so
     // where no letter follows it, it stays in the digits and `0` alone is
     // the number it spells.
@@ -279,14 +279,14 @@ const tryInt = value => {
 
 /**
  * The boolean a value spells as Git's parser reads one, or `null` where it
- * spells none: one of {@link trueWords} or {@link falseWords}, however
- * cased, or a number as {@link tryInt} reads one, which is true where it
+ * spells none: one of {@link trueWords} or {@link falseWords}, in any
+ * ASCII case, or a number as {@link tryInt} reads one, which is true where it
  * is not zero.
  *
  * @type {(value: string) => Nullable<boolean>}
  */
 const tryBool = value => {
-    const word = value.toLowerCase()
+    const word = asciiLowercase(value)
     if (trueWords.includes(word)) { return true }
     if (falseWords.includes(word)) { return false }
     const n = tryInt(value)
@@ -423,7 +423,7 @@ const trySub = (section, rest) => {
 const tryHeader = line => {
     const section = sectionAt(line.slice(1))
     const rest = line.slice(section.length + 1)
-    const lower = section.toLowerCase()
+    const lower = asciiLowercase(section)
     // A name and its `]` and nothing between them, or the whitespace that
     // may stand before a subsection's opening quote and nothing else.
     if (rest[0] === ']') { return section === '' ? null : [lower, rest.slice(1)] }
@@ -451,7 +451,7 @@ const tryLine = (section, raw) => {
     const after = afterKeySpace(line.slice(key.length))
     if (after !== '' && after[0] !== '=') { return null }
     const value = after === '' ? bareValue : tryValue(after.slice(1))
-    return value === null ? null : [section, [section, key.toLowerCase(), value]]
+    return value === null ? null : [section, [section, asciiLowercase(key), value]]
 }
 
 /**

@@ -15,6 +15,7 @@ import type {
     _exp,
     _optionLambda,
     _optionPropertyLambda,
+    helpers,
     intrinsics,
     array,
     arg,
@@ -247,6 +248,9 @@ export type Op0Id =
 
 /** An intrinsic's tag, the member's name: `'slice'`, `'charCodeAt'`. The list is `intrinsics` in `module.f.mjs`. */
 export type IntrinsicId = (typeof intrinsics)[number][0]
+
+/** A helper's tag: `'entry'`, `'hasEntry'` or an intrinsic's. The list is `helpers` in `module.f.mjs`. */
+export type HelperId = (typeof helpers)[number][0]
 
 /** A static function's tag, its path's keys joined by `.`: `'Object.is'`, `'Number.isInteger'`. */
 export type StaticId = 'String.fromCharCode' | 'Object.is' | 'Object.entries' | 'Object.fromEntries' | 'Number.isInteger' | 'Number.isSafeInteger' | 'Number.isNaN' | 'Number.isFinite'

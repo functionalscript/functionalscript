@@ -1,5 +1,6 @@
 import { assertEq } from '../../asserts/module.f.js'
-import { percentDecode, percentEncodePath } from './module.f.mjs'
+import { percentDecode, percentEncodeComponent, percentEncodePath } from './module.f.mjs'
+import { unwrap } from '../../types/nullable/module.f.js'
 
 export const proof = {
     empty: () => assertEq(percentDecode(''), ''),
@@ -48,6 +49,23 @@ export const proof = {
             assertEq(percentEncodePath('/a%'), null)
             assertEq(percentEncodePath('/a%zz'), null)
             assertEq(percentEncodePath('/\uD800'), null)
+        },
+    },
+    encodeComponent: {
+        // Letters, digits and RFC 3986's other unreserved characters pass
+        // through.
+        unreserved: () => assertEq(percentEncodeComponent('aZ09-._~'), 'aZ09-._~'),
+        // A path's `/` and an escape's `%` are escaped like any other byte,
+        // and so is each UTF-8 byte of a non-ASCII character.
+        others: () => {
+            assertEq(percentEncodeComponent('a/b%20c&d=e'), 'a%2Fb%2520c%26d%3De')
+            assertEq(percentEncodeComponent('hello&雪'), 'hello%26%E9%9B%AA')
+        },
+        roundTrip: () => assertEq(percentDecode(unwrap(percentEncodeComponent('/\x1B[31m/%41 П'))), '/\x1B[31m/%41 П'),
+        // A lone surrogate has no UTF-8 bytes, so there is nothing to encode.
+        loneSurrogate: () => {
+            assertEq(percentEncodeComponent('\uD800'), null)
+            assertEq(percentEncodeComponent('a\uDC00'), null)
         },
     },
 }

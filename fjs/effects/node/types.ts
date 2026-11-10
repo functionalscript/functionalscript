@@ -188,8 +188,14 @@ export type ExecResult = {
 
 export type Exec = readonly['exec', (command: string, stdin?: string) => IoResult<ExecResult>]
 
+/** Optional UTF-8 input and per-output-stream capture bound for an executable. */
+export type ExecFileOptions = {
+    readonly stdin?: string
+    readonly maxBuffer?: number
+}
+
 /** Run an executable with literal argv and capture both streams, without a shell. */
-export type ExecFile = readonly['execFile', (command: string, args: readonly string[]) => IoResult<ExecResult>]
+export type ExecFile = readonly['execFile', (command: string, args: readonly string[], options?: ExecFileOptions) => IoResult<ExecResult>]
 
 // spawn
 

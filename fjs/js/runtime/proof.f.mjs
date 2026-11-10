@@ -115,16 +115,16 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [global, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
-            const body = table[`${global}.${name}`]
-            const namespace = host[global]
+        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
+            const body = table[`${namespaceName}.${name}`]
+            const namespace = host[namespaceName]
             const detached = namespace[name]
-            assertEq(body.length, detached.length, [global, name])
+            assertEq(body.length, detached.length, [namespaceName, name])
             for (const a of samples) {
                 for (const b of samples) {
                     const expected = body(a, b)
-                    assertEq(namespace[name](a, b), expected, [global, name, 'method', a, b])
-                    assertEq(detached(a, b), expected, [global, name, 'detached', a, b])
+                    assertEq(namespace[name](a, b), expected, [namespaceName, name, 'method', a, b])
+                    assertEq(detached(a, b), expected, [namespaceName, name, 'detached', a, b])
                 }
             }
         }
@@ -135,12 +135,12 @@ export const proof = {
     // detached and on its namespace, as `host` checks a body's:
     // Both natives read no `this`; compare their successful coercion inputs.
     natives: () => {
-        for (const [global, name] of staticPaths.filter(isNative)) {
-            assertEq(table[`${global}.${name}`], host[global][name], [global, name])
-            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[global])
+        for (const [namespaceName, name] of staticPaths.filter(isNative)) {
+            assertEq(table[`${namespaceName}.${name}`], host[namespaceName][name], [namespaceName, name])
+            const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[namespaceName])
             const detached = namespace[name]
-            for (const a of samples.filter(a => a !== null && a !== undefined && (global !== 'String' || typeof a !== 'bigint'))) {
-                assertStructurallySame(detached(a), namespace[name](a), [global, name, a])
+            for (const a of samples.filter(a => a !== null && a !== undefined && (namespaceName !== 'String' || typeof a !== 'bigint'))) {
+                assertStructurallySame(detached(a), namespace[name](a), [namespaceName, name, a])
             }
         }
     },

@@ -42,16 +42,11 @@ pub fn function_any<A: IStaticFunction>() -> Any<A> {
 /// arrays by their elements, objects by their properties as a set, and
 /// functions by identity.
 ///
-/// `==` on `Any` is JavaScript's `===`, which gets `NaN` and `-0` backwards,
-/// so numbers are compared by their bits instead — and since a `Number`
-/// holds one `NaN`, equal bits is the whole of `Object.is` on numbers. It is
-/// also identity on an array or an object, and a method such as `map`
-/// answers a fresh array, which no expectation can be the same object as.
+/// A leaf is [`Any::same_value`], which is `Object.is`. On an array or an
+/// object it is identity, and a method such as `map` answers a fresh array,
+/// which no expectation can be the same object as, so containers are walked.
 fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     match (a.clone().into(), b.clone().into()) {
-        (Unpacked::Number(x), Unpacked::Number(y)) => {
-            f64::from(x).to_bits() == f64::from(y).to_bits()
-        }
         (Unpacked::Array(x), Unpacked::Array(y)) => {
             x.length() == y.length() && (0..x.length()).all(|i| same(&x[i], &y[i]))
         }
@@ -62,7 +57,7 @@ fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
                     y.own_property(k).is_some_and(|w| same(v, &w))
                 })
         }
-        _ => a == b,
+        _ => a.same_value(b),
     }
 }
 

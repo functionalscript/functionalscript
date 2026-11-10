@@ -26,7 +26,7 @@ import { dialect as revisionDialect, mediaType as revisionMediaType } from '../m
 import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
 import { emptyState, virtual, virtualAt } from '../effects/node/virtual/module.f.mjs'
-import { _casMcpSession } from './module.f.mjs'
+import { _casMcpSession, casMcpServer } from './module.f.mjs'
 import { unwrap, unwrap as unwrapResult } from '../types/result/module.f.js'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
@@ -796,5 +796,10 @@ export const proof = {
         assertEq(result.mimeType, 'application/octet-stream')
         assertEq(result.type, 'base64')
         assertEq(result.blob, binaryB64)
+    },
+    // `casMcpServer` drives a real stdio server, so no case runs it; building
+    // its effect covers the wiring.
+    casMcpServer: () => {
+        casMcpServer('/')
     },
 }

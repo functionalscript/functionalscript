@@ -1,7 +1,7 @@
 import { assertEq } from '../../asserts/module.f.js'
 import {
     allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
-    objectPrototype, prohibitedCalls, prototypeNames, stringPrototype,
+    objectPrototype, prohibitedAccess, prohibitedCalls, prototypeNames, stringPrototype,
 } from './module.f.js'
 
 /** @type {readonly (readonly string[])[]} */
@@ -9,6 +9,10 @@ const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype
 
 /** Sorted by code unit, each name once. @type {(names: readonly string[]) => boolean} */
 const ascending = names => names.every((name, i) => i === 0 || names[i - 1] < name)
+
+/** The read rule and the call rule. */
+const read = prohibitedAccess(false)
+const call = prohibitedAccess(true)
 
 export const proof = {
     // each list is sorted and has each name once; none is checked against
@@ -45,5 +49,17 @@ export const proof = {
         for (const name of ['__proto__', 'arguments', 'caller', 'constructor', 'name']) {
             assertEq(prohibitedCalls.includes(/** @type {any} */ (name)), true)
         }
+    },
+    // a read refuses every prototype name but `length`; a call refuses
+    // `prohibitedCalls` only, so `at` is a call and not a read
+    access: () => {
+        assertEq(read('length'), null)
+        assertEq(call('length'), null)
+        assertEq(read('at'), 'property name')
+        assertEq(call('at'), null)
+        assertEq(read('push'), 'property name')
+        assertEq(call('push'), 'member function')
+        assertEq(read('x'), null)
+        assertEq(call('x'), null)
     },
 }

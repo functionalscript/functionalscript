@@ -8,6 +8,7 @@
  * @import { _Source } from '../compiler/source/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import { _Checked } from './private.ts'
+ * @import { Result } from '../types/result/types.ts'
  */
 
 import { allFiles, isAuthored, sourceRoot } from '../dev/module.f.mjs'
@@ -20,19 +21,39 @@ import { error as errorLine, errorExit, errorMessage, log, resolveFileModule, wr
 import { foldStep, history, historyStep, mapStep, pure, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.js'
+import { error, mapOk, ok, okList } from '../types/result/module.f.js'
 
-/** Read syntax imports through the same attribute reader and resolver as compilation. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
-const dependencies = source => {
+/**
+ * Unresolved syntax imports from UTF-8 text already read by the caller.
+ * Original specifiers and import attributes are retained for later host
+ * resolution. JSON sources have no imports and need neither parsing nor
+ * syntax validation.
+ *
+ * @type {(source: _Source, text: string) => Result<readonly AstImport[], ParseError>}
+ */
+export const dependencyImports = (source, text) => {
     const { path, json } = source
     const mismatch = _attributeError(source)
-    if (mismatch !== null) { return pureError(mismatch) }
-    if (json) { return pureOk([]) }
-    const parsed = step(readSource(path), text => pure(parseSyntax(tokenize(stringToList(text))(path))))
-    /** @type {readonly AstImport[]} */
-    const empty = []
-    const imports = step(parsed, module => foldStep(pureOk(module.imports), empty, statement => records =>
-        mapStep(pure(_readImport(statement)), record => [...records, { ...record, name: null }])))
-    return step(imports, _importSources(source))
+    if (mismatch !== null) { return error(mismatch) }
+    if (json) { return ok([]) }
+    const [tag, module] = parseSyntax(tokenize(stringToList(text))(path))
+    if (tag === 'error') { return error(module) }
+    return mapOk((/** @type {readonly Omit<AstImport, 'name'>[]} */ records) =>
+        records.map(record => ({ ...record, name: null })))(okList(module.imports.map(_readImport)))
+}
+
+/** Resolve checked import records through the compiler's host resolver. @type {(source: _Source, imports: readonly AstImport[]) => Effect<ResolveFileModule, readonly _Source[], ParseError>} */
+export const resolveDependencies = (source, imports) => _importSources(source)(imports)
+
+/** Derive and resolve imports from already-read UTF-8 source text. @type {(source: _Source, text: string) => Effect<ResolveFileModule, readonly _Source[], ParseError>} */
+export const dependenciesFromSource = (source, text) =>
+    step(pure(dependencyImports(source, text)), imports => resolveDependencies(source, imports))
+
+/** Read source text once before deriving its syntax dependencies. @type {(source: _Source) => Effect<ReadWhole | ResolveFileModule, readonly _Source[], ParseError>} */
+export const dependencies = source => {
+    // Data sources and mismatched attributes are answered before any read.
+    if (source.json || _attributeError(source) !== null) { return dependenciesFromSource(source, '') }
+    return step(readSource(source.path), text => dependenciesFromSource(source, text))
 }
 
 /** Visit a module once, recording it before descent so cycles remain graph edges. @type {(source: _Source) => (state: _Checked) => Effect<ReadWhole | ResolveFileModule | Write, _Checked, IoChannel>} */

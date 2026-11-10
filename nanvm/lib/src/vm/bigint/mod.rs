@@ -197,7 +197,7 @@ impl<A: IVm> BigInt<A> {
         (self + rhs).expect("a binary64's exact arithmetic is far under BigInt's size limit")
     }
 
-    /// `pub(crate)`, not private: `BooleanCoercion` (`vm/boolean_coercion.rs`)
+    /// `pub(crate)`, not private: `Unpacked::to_boolean` (`vm/boolean_coercion.rs`)
     /// uses this to test `0n` without constructing and comparing against a
     /// throwaway `BigInt::default()`.
     pub(crate) fn is_zero(&self) -> bool {

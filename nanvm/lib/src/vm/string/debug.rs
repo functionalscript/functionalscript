@@ -1,4 +1,7 @@
-use crate::vm::{IVm, String};
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{IVm, String},
+};
 use core::{
     fmt::{Debug, Formatter, Result, Write},
     ops::RangeInclusive,
@@ -10,8 +13,8 @@ impl<A: IVm> Debug for String<A> {
         const BACKSLASH: u16 = '\\' as u16;
         const PRINTABLE_ASCII: RangeInclusive<u16> = 0x20..=0x7F;
         f.write_char('"')?;
-        for i in self.clone().into_iter() {
-            match i {
+        for i in 0..self.length() {
+            match self[i] {
                 DOUBLE_QUOTE => f.write_str("\\\"")?,
                 BACKSLASH => f.write_str("\\\\")?,
                 c => {
