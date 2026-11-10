@@ -163,7 +163,7 @@ untagged(text)               // 'let x = 0x1;'
 fromTagged(text)             // ok([['let', 'keyword'], [' x = '], ['0x1', 'number'], [';']])
 ```
 
-This is the idiom `fjs/compiler/serializer/names` already uses for symbolic
+This is the idiom `fjs/js/ast/serializer/names` already uses for symbolic
 names (`\0name\0`, resolved into `$0`, `$1`, … at the output). It is **not**
 markup in the public text:
 

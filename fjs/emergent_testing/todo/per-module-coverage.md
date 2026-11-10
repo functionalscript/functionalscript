@@ -5,14 +5,14 @@
 
 ### Problem
 
-`npm run cov` runs every proof at once and then checks coverage. A module
-passes when *any* proof reaches its code, not when its own proof does, which is
+The former `npm run cov` script ran every proof at once and then checked coverage.
+A module passed when *any* proof reached its code, not when its own proof did, which is
 what [`fjs/AGENTS.md`](../../AGENTS.md#12-proof-coverage-is-mandatory)
 requires. At `78c51a1d`, `fjs/types/list/module.f.mjs` passes, but its own
 proof leaves a branch of `lengthList` unreached.
 
-It is also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
-minutes for the whole suite, so only CI runs it. One module under coverage took
+It was also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
+minutes for the whole suite, so it ran only in CI. One module under coverage took
 about half a second.
 
 ### Proposal
@@ -79,13 +79,18 @@ scheduling is separate work if measurements justify it.
 #### Reporting
 
 Use the emergent-testing reporter's open progress line: name the directory's
-measured files before starting its child, then complete the line with status
-and timing. Hide child output. On failure, print the working directory,
-complete invocation and exit status (or launch/wait error) so the run can be
-reproduced directly. Continue after failures and finish with coverage totals.
+measured files by repository-relative path before starting its child, joining
+files that share a proof run with `, `, then complete the line with status and
+timing. Hide child stdout and stderr. On failure, print the working directory,
+complete invocation and exit status, signal or launch/wait error so the run can
+be reproduced directly. Cache hits launch no child and print only `...Cached`
+for each target. Continue after failures and finish with coverage totals.
 Execute with a structured argument vector, without a shell.
 
-Quiet/verbose modes and additional diagnostics remain future work.
+The command currently accepts `--sync` for end-of-run cache publication.
+`--quiet` and `--verbose` remain future reporting work, not implemented flags.
+Any future verbosity controls must preserve proof selection, strict coverage
+requirements and exit status.
 
 #### Coverage contract
 
@@ -104,11 +109,11 @@ of lowering thresholds or allowing exceptions.
 
 #### CI and scope
 
-Make `npm run cov` delegate to `fjs cov node`; CI invokes it from the
-repository root. Retain one ordinary full native FJS test run without
-coverage, through `fjs/emergent_testing/fjs-only.mjs`, so proof-only
-integration directories, fixture imports and module-level assertions still
-run. That run does not contribute coverage to the isolated checks.
+CI's dedicated `cov` job invokes `npm start cov node` directly from the
+repository root. The `node` job runs `npm start t` with the built-in reporter
+without coverage, retaining the full authored FJS suite: proof-only integration
+directories, fixture imports and module-level assertions. Its whole-check cache
+records a `suite` result; coverage remains the dedicated job's responsibility.
 
 Node is the initial coverage authority. Deno and Bun coverage support is
 deferred; their existing test runs remain. Future coverage adapters must say
@@ -128,7 +133,10 @@ when a required metric is unavailable.
 - Previous runs and other modules cannot supply coverage for a module.
 - Progress names the measured files before launch and completes the same line
   with status and timing. Child output is suppressed; failures name their
-  working directory and full reproducible command.
+  working directory and full reproducible command, with paths and arguments
+  quoted unambiguously. Cache hits print only their result without a child.
+- Future verbosity controls change presentation only; they must not change
+  discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
 - The ordinary FJS suite retains proofs outside measured module directories.
@@ -137,14 +145,18 @@ when a required metric is unavailable.
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
 - [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation and shared emergent-testing progress.
-- [ ] Consider quiet/verbose modes and additional failure diagnostics; the
-      default uses shared emergent-testing progress and hides child output.
+      validation, failure diagnostics and shared emergent-testing progress.
+- [x] Name measured files before each child and complete the progress line with
+      status and timing while hiding child output.
+- [ ] Consider explicit quiet/verbose controls and additional failure diagnostics;
+      neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
-- [ ] Fix the exposed gaps in modules' own proofs or implementations.
-- [ ] Wire `npm run cov` and CI to the runner, retaining the full native FJS
-      test pass without coverage; update contributor and runner documentation.
+- [x] Fix the exposed gaps in modules' own proofs or implementations.
+- [x] Add a CI job invoking `npm start cov node` without changing the existing
+      jobs; update contributor and runner documentation.
+- [x] Replace `node26`'s combined coverage check with `npm start t`, retaining
+      the full authored FJS test pass alongside the dedicated coverage job.
 - [ ] Add `fjs cov deno`, with per-module isolation and explicit
       coverage-metric enforcement.
 - [ ] Add `fjs cov bun`, with per-module isolation and explicit
@@ -152,6 +164,9 @@ when a required metric is unavailable.
 
 ### Related
 
+- [Cache coverage by module dependencies](../../ci/cache/README.md#isolated-coverage-manifests)
+  — dependency manifests and successful-result reuse; this issue
+  retains ownership of proof isolation and the gaps exposed by its rollout
 - [run-subset-of-tests](./run-subset-of-tests.md) — general test selection
 - [coverage-over-fjs-only](./coverage-over-fjs-only.md) — proof discovery and
   the existing measured source set

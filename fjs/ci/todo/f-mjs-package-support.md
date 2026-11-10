@@ -243,7 +243,7 @@ emission, `npm pack`, and a clean consumer.
       implementation and proof `.f.ts` are retired, so the fixture must not
       reintroduce them). The proof is not optional paperwork: `fjs/AGENTS.md`
       §1.2 requires 100% proof coverage for every authored `.f.mjs`, so a
-      fixture without one fails `npm run cov` and lands the repository in
+      fixture without one fails `npm start cov node` and lands the repository in
       violation of its own rule — while demonstrating package support.
       Two constraints follow from what the fixture is *for*:
   - It must be a **conforming** module: its private type stays out of every
@@ -337,7 +337,7 @@ emission, `npm pack`, and a clean consumer.
       repository checkout, consuming the tarball handed over as an artifact by
       [`ci-integration-tests.md`](ci-integration-tests.md), which also owned
       the job-ordering edge that kept it from racing the upload. It is now the
-      packed-package check closing the `node26` job, every command started in
+      packed-package check closing the `node` job, every command started in
       a consumer directory under the runner's temporary directory — neither
       inside the checkout nor above it — that the job packs the tarball into.
       Either way there is no `tsconfig.json` up the tree to inherit, no
@@ -437,7 +437,7 @@ not, and the pipeline is simplified accordingly.
   no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
-  check closing the `node26` job, which imports a published `.f.js` from a
+  check closing the `node` job, which imports a published `.f.js` from a
   clean consumer of the packed package.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative extension contract.
 - [`.f.mjs` test and coverage support](../../emergent_testing/todo/f-mjs-test-and-coverage.md)

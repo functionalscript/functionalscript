@@ -59,7 +59,7 @@ permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.mjs`](./dev/module.f.mjs) matches authored
-FunctionalScript source, and both `npm run cov` and `deno task cov` include
+FunctionalScript source, and both `npm start cov node` and `deno task cov` include
 `module.f.mjs`, `module.f.js` and `demo.f.mjs`. Ordinary (non-FunctionalScript)
 `.mjs` files stay opt-in through the `proof.mjs` filename convention.
 
@@ -664,12 +664,12 @@ declaration says, not about whether a mismatch is currently observable.
 one shape: the type describes an object that lives outside FunctionalScript
 files** — a host or library API this repository does not own and cannot
 redeclare, mutable by that API's own contract (a Node.js builtin, a
-third-party SDK's object). `IncomingMessage = Readable & {…}` in
-`fjs/effects/node/module.mjs` (§3.2, "Composition over intersection") is the
-existing example: it describes Node's own object, not FunctionalScript data.
-Even there, prefer `readonly` on any member this codebase only reads — the
-exception is for a member the external API itself requires writable or
-reassigns, not a blanket pass for the whole type.
+third-party SDK's object). Even there, prefer `readonly` on any member this
+codebase only reads — the exception is for a member the external API itself
+requires writable or reassigns, not a blanket pass for the whole type.
+`_IncomingMessage` in `fjs/effects/node/private.ts` (§3.2, "Composition over
+intersection") describes Node's own object and is still `readonly` member by
+member, since nothing here writes one.
 
 A type over data this repository defines and constructs is not exempt just
 because a change would be a breaking API change for consumers — that is a
@@ -1055,7 +1055,7 @@ satisfy the rule. The cases in this repository:
   value still *is* a `symbol` / an `S` at runtime. A named field would invent a
   wrapper that never exists.
 - **Describing an object you don't own, or a flat serialized shape.**
-  `IncomingMessage = Readable & {…}` in `fjs/effects/node/module.mjs` describes
+  `_IncomingMessage = _Readable & {…}` in `fjs/effects/node/private.ts` describes
   Node's object, which really does carry both member sets on one level. Nesting
   the base under a field there would describe something that isn't there — and
   for a wire format it would change the encoding, not just the type. A grammar
@@ -1154,8 +1154,10 @@ hand-written values to cover that; comment why they are literal.
 
 When a sibling module already has the type or helper you need, import it — add
 `export` to the existing declaration if it's not yet exported, rather than
-duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`,
-`prependPath`, `primitive0Validate`, `constPrimitiveValidate` from `validate`).
+duplicating it (e.g. `fjs/rtti/parse` and `fjs/rtti/validate` take the error
+shape, the path bookkeeping, the primitive checks and the container readers
+from `fjs/rtti/common`, through `readerOf`, rather than one reader importing
+them from the other).
 
 #### Hoist helpers to module scope
 
@@ -1364,7 +1366,7 @@ repository-owned dependencies follow these source rules:
   TypeScript-only type declaration;
 - a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
   revision accepts it whole, its imports included; the packed-package check
-  closing the `node26` CI job imports a published `.f.js` from a clean
+  closing the `node` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control
   ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).

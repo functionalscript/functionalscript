@@ -74,7 +74,7 @@ error is the default to implement, since it needs nothing new.
       two levels down; a name reused in sibling functions is fine.
 - [ ] `spec/README.md`: the Functions section's "may shadow a module name"
       replaced by the rule.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

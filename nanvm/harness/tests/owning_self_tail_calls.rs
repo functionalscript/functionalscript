@@ -1,17 +1,14 @@
 //! Owning self tail calls remain bounded across generated source-loop helpers.
 //! The shallow default also participates in the shared fixture corpus.
 
-use nanvm_harness::{Action, fixtures::owning_self_tail_calls, run, runtime};
+use nanvm_harness::{Action, fixtures::owning_self_tail_calls, run};
 use nanvm_lib::{
     naive::Naive,
     vm::{Function, Object, ToAny, ToArray},
 };
 
 fn exports() -> Object<Naive> {
-    owning_self_tail_calls::module::<Naive>(runtime())
-        .unwrap()
-        .try_into()
-        .unwrap()
+    nanvm_lib::vm::exports(owning_self_tail_calls::module::<Naive>).unwrap()
 }
 
 fn function(exports: &Object<Naive>, name: &str) -> Function<Naive> {

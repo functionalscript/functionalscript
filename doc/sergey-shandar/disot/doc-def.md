@@ -8,9 +8,9 @@ A document’s name, authorship, and timestamps can be described separately; the
 
 A document can have multiple names and identifiers:
 
-* **Hash identifiers:** different hash algorithms produce their respective identifiers, such as `sha256:...` and `sha512:...`. For a given hash algorithm, the same document always has the same hash.
-* **Local names:** the same document can be stored in two distinct files, such as `myDocument.txt` and `notes.txt`, even within the same directory.
-* **URLs:** different URLs can reference the same document, making it available from multiple locations.
+- **Hash identifiers:** different hash algorithms produce their respective identifiers, such as `sha256:...` and `sha512:...`. For a given hash algorithm, the same document always has the same hash.
+- **Local names:** the same document can be stored in two distinct files, such as `myDocument.txt` and `notes.txt`, even within the same directory.
+- **URLs:** different URLs can reference the same document, making it available from multiple locations.
 
 The document’s identity is independent of these names and locations.
 

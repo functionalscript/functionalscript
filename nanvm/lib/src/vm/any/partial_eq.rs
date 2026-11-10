@@ -3,7 +3,7 @@ use crate::vm::{Any, IVm, Unpacked};
 /// Same as `===` in ECMAScript.
 impl<A: IVm> PartialEq for Any<A> {
     fn eq(&self, other: &Self) -> bool {
-        self.0.clone().to_unpacked() == other.0.clone().to_unpacked()
+        self.with_unpacked(|a| other.with_unpacked(|b| a == b))
     }
 }
 
@@ -12,7 +12,7 @@ impl<A: IVm> Any<A> {
     /// equality `includes` searches with: `===`, except that `NaN` equals
     /// `NaN`. `0` and `-0` stay equal, as under `===`.
     pub(crate) fn same_value_zero(&self, other: &Self) -> bool {
-        self == other || (self.clone().is_nan() && other.clone().is_nan())
+        self == other || (self.is_nan() && other.is_nan())
     }
 
     /// `SameValue` (<https://tc39.es/ecma262/#sec-samevalue>), the equality
@@ -20,18 +20,20 @@ impl<A: IVm> Any<A> {
     /// not equal `-0`. Every `NaN` is the one quiet `NaN`
     /// ([`Number::NAN`](crate::vm::Number)), so equal bits are equal values.
     pub fn same_value(&self, other: &Self) -> bool {
-        match (Unpacked::from(self.clone()), Unpacked::from(other.clone())) {
-            (Unpacked::Number(a), Unpacked::Number(b)) => {
-                f64::from(a).to_bits() == f64::from(b).to_bits()
-            }
-            _ => self == other,
-        }
+        self.with_unpacked(|a| {
+            other.with_unpacked(|b| match (a, b) {
+                (Unpacked::Number(a), Unpacked::Number(b)) => {
+                    f64::from(*a).to_bits() == f64::from(*b).to_bits()
+                }
+                _ => a == b,
+            })
+        })
     }
 
     /// Whether `self` is the string `s`, compared without building a VM
     /// string from `s` — a key against a built-in name.
     pub(crate) fn is_str(&self, s: &str) -> bool {
-        matches!(Unpacked::from(self.clone()), Unpacked::String(k) if k.is_str(s))
+        self.with_unpacked(|v| matches!(v, Unpacked::String(k) if k.is_str(s)))
     }
 }
 

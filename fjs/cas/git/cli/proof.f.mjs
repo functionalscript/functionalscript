@@ -94,8 +94,8 @@ export const proof = {
         assertEq(refused.code, 1)
         assertEq(refused.stderr, 'set user.name and user.email in ./.git/config or ./.gitconfig\n')
         assertEq(headAt(refused.state), null)
-        const global = { ...bare, '.gitconfig': text('[user]\n\tname = Global\n\temail = g@example.com\n') }
-        const added = ran(global, ['git', 'add', 'build-cache', 'file.txt'])
+        const withGlobalConfig = { ...bare, '.gitconfig': text('[user]\n\tname = Global\n\temail = g@example.com\n') }
+        const added = ran(withGlobalConfig, ['git', 'add', 'build-cache', 'file.txt'])
         assertEq(added.code, 0, added.stderr)
         assertEq(added.stdout, `${alphaKey}\n`)
         const bracketed = { ...bare, '.git': { ...bare['.git'], config: text(`${initConfig}\n[user]\n\tname = A <B>\n\temail = cas@example.com\n`) } }

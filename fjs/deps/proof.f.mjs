@@ -12,13 +12,16 @@ import { utf8 } from '../text/module.f.mjs'
 import { vec8 } from '../types/bit_vec/module.f.mjs'
 import { error } from '../types/result/module.f.js'
 import { readSource } from '../compiler/source/module.f.mjs'
-import { main, _relativeGraph } from './module.f.mjs'
+import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.mjs'
 
 /**
  * @param {Dir} root
  * @param {Partial<NodeProgramOptions>} [options]
  */
 const execute = (root, options = {}) => virtualAt(root)(main({ ...defaultNodeProgramOptions, ...options }))
+
+/** Dependency text needs resolution alone: a read request would be refused by this runner. */
+const resolveOnly = partialRun(nodeCommands)({ resolveFileModule: virtualOperationMap.resolveFileModule })
 
 /** Every authored source is discovered; hidden, third-party and other suffixes stay excluded. */
 const sources = /** @type {const} */ ({
@@ -45,6 +48,91 @@ const sources = /** @type {const} */ ({
 })
 
 export const proof = /** @type {const} */ ({
+    parsedImportsCanBeResolvedAgain: () => {
+        const source = { id: '/pkg/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false }
+        const imports = assertOk(dependencyImports(source,
+            'import value from "./helper%2ef.js"; import data from "../data.json" with {type:"json"}; export default value;'))
+        assertStructurallySame(imports, [
+            { specifier: './helper%2ef.js', json: false, name: null },
+            { specifier: '../data.json', json: true, name: null },
+        ])
+        const [, original] = resolveOnly(emptyState)(resolveDependencies(source, imports))
+        assertStructurallySame(assertOk(original), [
+            { id: '/pkg/helper.f.js', path: '/pkg/helper.f.js', json: false, name: null },
+            { id: '/data.json', path: '/data.json', json: true, name: null },
+        ])
+        const [, relocated] = resolveOnly(emptyState)(resolveDependencies({ ...source, id: '/elsewhere/pkg/module.f.mjs' }, imports))
+        assertStructurallySame(assertOk(relocated), [
+            { id: '/elsewhere/pkg/helper.f.js', path: '/elsewhere/pkg/helper.f.js', json: false, name: null },
+            { id: '/elsewhere/data.json', path: '/elsewhere/data.json', json: true, name: null },
+        ])
+    },
+    dependencyTextDoesNotReadFiles: () => {
+        const source = { id: '/pkg/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false }
+        const [, result] = resolveOnly(emptyState)(dependenciesFromSource(source,
+            'import value from "./helper.f.js"; import data from "../data.json" with {type:"json"}; export default unknown;'))
+        assertStructurallySame(assertOk(result), [
+            { id: '/pkg/helper.f.js', path: '/pkg/helper.f.js', json: false, name: null },
+            { id: '/data.json', path: '/data.json', json: true, name: null },
+        ])
+        const [, noImports] = resolveOnly(emptyState)(dependenciesFromSource(source, 'export default unknown;'))
+        assertStructurallySame(assertOk(noImports), [])
+    },
+    dependencyTextValidatesSyntax: () => {
+        const source = /** @type {const} */ ({ id: '/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false })
+        const [, malformed] = resolveOnly(emptyState)(dependenciesFromSource(source, 'export default ;'))
+        const failure = assertError(malformed)
+        assertEq(failure.metadata?.path, source.path)
+        assertEq(failure.message, 'unexpected token')
+    },
+    dependencyTextPreservesAttributeChecks: () => {
+        const data = /** @type {const} */ ({ id: '/data.json', path: '/data.json', json: true })
+        const [, json] = resolveOnly(emptyState)(dependenciesFromSource(data, 'neither JavaScript nor JSON'))
+        assertStructurallySame(assertOk(json), [])
+        const [, jsonFile] = resolveOnly(emptyState)(dependencies(data))
+        assertStructurallySame(assertOk(jsonFile), [])
+        for (const source of [{ ...data, json: false }, { id: '/module.f.mjs', path: '/module.f.mjs', json: true }]) {
+            const expected = source.json
+                ? 'only a JSON module is imported with { type: "json" }'
+                : 'a JSON module needs the import attribute with { type: "json" }'
+            const [, result] = resolveOnly(emptyState)(dependenciesFromSource(source, 'export default ;'))
+            assertEq(assertError(result).message, expected)
+            const [, file] = resolveOnly(emptyState)(dependencies(source))
+            assertEq(assertError(file).message, expected)
+        }
+        for (const [attribute, expected] of [['wrong:"json"', 'unknown import attribute'], ['type:"wrong"', 'unknown import type']]) {
+            const [, result] = resolveOnly(emptyState)(dependenciesFromSource(
+                { id: '/module.f.mjs', path: '/module.f.mjs', json: false },
+                `import data from "./data.json" with {${attribute}}; export default data;`))
+            assertEq(assertError(result).message, expected)
+        }
+    },
+    dependencyTextPreservesImportFailures: () => {
+        const source = { id: '/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false }
+        for (const [specifier, expected] of [
+            ['package', 'unsupported import specifier "package": expected ./, ../, or /'],
+            ['./bad%zz.f.js', 'invalid module specifier: ./bad%zz.f.js'],
+        ]) {
+            const [, result] = resolveOnly(emptyState)(dependenciesFromSource(source,
+                `import value from "${specifier}"; export default value;`))
+            assertStructurallySame(assertError(result), { path: source.path, metadata: null, message: expected })
+        }
+        const denied = partialRun(nodeCommands)({
+            resolveFileModule: () => state => [state, error(ioError({ code: 'EACCES', message: 'cannot resolve dependency' }))],
+        })
+        const [, result] = denied(emptyState)(dependenciesFromSource(source,
+            'import value from "./helper.f.js"; export default value;'))
+        assertStructurallySame(assertError(result), {
+            path: source.path, metadata: null, message: 'module resolution failed: cannot resolve dependency',
+        })
+    },
+    dynamicImportsDoNotAddStaticDependencies: () => {
+        const files = /** @type {const} */ ({ 'module.f.mjs': [utf8('export const proof = () => import("./helper.f.mjs");')] })
+        const [state, result] = execute(files)
+        assertEq(exitCode(result), 0, state.stderr)
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertStructurallySame(JSON.parse(assertOk(written)), { 'module.f.mjs': [] })
+    },
     relativeGraphPaths: () => {
         assertEq(JSON.stringify(_relativeGraph('/repo/pkg', {
             '/repo/pkg/module.f.js': ['/repo/pkg/sub/helper.f.js', '/repo/pkg-other/shared.f.js'],

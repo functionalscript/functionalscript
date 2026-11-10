@@ -185,20 +185,17 @@ text. Separator conversion/defaulting and full value conversion remain with
 operation dispatch.
 
 [`value/at`](value/at/module.f.mjs) supplies relative indexing for evaluated
-arrays and strings with primitive indices. It applies abstract ToNumber,
-truncates fractions toward zero, and counts negative indices from the end.
-Array elements retain their identities; strings yield UTF-16 code units.
-Out-of-range reads succeed with tagged undefined; bigint indices fail even
-for empty receivers. Callers own method dispatch, operand evaluation and
-conversion of nonprimitive indices, using the number hint for ordinary objects.
+arrays and strings: it truncates fractions toward zero and counts negative
+indices from the end. Array elements retain their identities; strings yield
+UTF-16 code units. Out-of-range reads answer tagged undefined.
 
-[`value/slice`](value/slice/module.f.mjs) slices evaluated arrays and strings
-with primitive start/end bounds. Tagged undefined means an omitted bound:
-start defaults to zero and end to the receiver's length. Other bounds use
-abstract ToNumber, with bigint failing even for empty receivers or ranges.
-Array results are fresh values sharing the selected elements; strings retain
-UTF-16 substring semantics. Callers own method dispatch, operand evaluation
-and conversion of nonprimitive bounds, using the number hint for ordinary objects.
+[`value/slice`](value/slice/module.f.mjs) slices evaluated arrays and strings;
+an `undefined` end means the receiver's length. Array results are fresh values
+sharing the selected elements; strings retain UTF-16 substring semantics.
+
+Both take numbers: the array and string method dispatchers convert the
+operands with `toNumber` first, so a bigint index fails there, once, and
+neither module converts again.
 
 The shared [serializer](../compiler/serializer/module.f.mjs) exposes
 `functionText(analysis, index): string` for a function whose analysis and body

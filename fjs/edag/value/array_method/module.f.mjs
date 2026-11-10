@@ -164,11 +164,11 @@ export const arrayMethod = (receiver, key, args, invoke) => {
             const result = toNumber(first, invoke)
             const [kind, number] = result
             if (kind === 'error') { return result }
-            if (key === 'at') { return at(receiver, number) }
+            if (key === 'at') { return ok(at(receiver, number)) }
             if (key === 'slice') {
-                const end = isUndefined(second) ? ok(/** @type {const} */ (['undefined'])) : toNumber(second, invoke)
+                const end = isUndefined(second) ? ok(undefined) : toNumber(second, invoke)
                 const [endKind, last] = end
-                return endKind === 'error' ? end : slice(receiver, number, last)
+                return endKind === 'error' ? end : ok(slice(receiver, number, last))
             }
             const relative = toIntegerOrInfinity(number)
             if (key === 'with') {

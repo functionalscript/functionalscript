@@ -10,9 +10,10 @@
 import { casToolRegistry } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { ioError } from '../../effects/node/module.f.mjs'
-import { vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.js'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
+import { tryUtf8 } from '../../text/module.f.mjs'
 import { number as rttiNumber, string as rttiString } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'
@@ -50,9 +51,8 @@ const drive = overrides => {
     return e => unwrap(driver(e)[0])
 }
 
-// `syncRevision` is only reached on a *successful* write, which none of these
-// cases exercise, so the cache key's actual identity never matters — only its
-// type does.
+// These writes store ordinary text or binary rather than revisions, so
+// `syncRevision` leaves the Evo cache untouched and the key is not read.
 const cacheKey = /** @type {Key<Cache>} */ (/** @type {any} */ ('unused-cache-key'))
 
 const registry = casToolRegistry(fileCas(sha256)('.'))(cacheKey)
@@ -76,7 +76,76 @@ const meta = /** @type {const} */ ({
 })
 const parseMeta = rttiParse(meta)
 
+/** @type {(result: ToolsCallResult) => string} */
+const textOf = result => {
+    const [item] = result.content
+    assert(item.type === 'text')
+    return item.text
+}
+
 export const proof = {
+    casAddAcceptsTextAndBase64: () => {
+        for (const args of /** @type {const} */ ([{ content: 'A' }, { content: 'QQ==', type: 'base64' }])) {
+            const result = drive({ stat: [ok({ size: 1 })] })(toolHandle('cas_add')(args))
+            assert(result.isError !== true, result)
+            // SHA-256 of the single byte 0x41, independently of its input encoding.
+            const expected = vec(256n)(0x559a_ead0_8264_d579_5d39_0971_8cdd_05ab_d495_72e8_4fe5_5590_eef3_1a88_a08f_dffdn)
+            assertEq(textOf(result), vecToCBase32(expected))
+        }
+    },
+    casAddRejectsMalformedBase64: () => {
+        const result = drive({})(toolHandle('cas_add')({ content: '!', type: 'base64' }))
+        assertEq(result.isError, true)
+        assert(textOf(result).includes('too large or malformed'))
+    },
+    casGetRejectsMalformedOrMissingHashes: () => {
+        const malformed = drive({})(toolHandle('cas_get')({ hash: '!' }))
+        assertEq(malformed.isError, true)
+        assert(textOf(malformed).includes('invalid cBase32 hash'))
+        const missing = drive({ readBytes: [error(ioError({ message: 'absent' }))] })
+            (toolHandle('cas_get')({ hash: someHash }))
+        assertEq(missing.isError, true)
+        assert(textOf(missing).includes('no such hash'))
+    },
+    casGetReturnsMetadataAndInlineTextOrBinary: () => {
+        for (const [byte, type, payload] of /** @type {const} */ ([[0x41n, 'text', 'A'], [0xffn, 'base64', '/w==']])) {
+            for (const content of /** @type {const} */ ([false, true])) {
+                const result = drive({ readBytes: [ok(vec8(byte)), ok(vec(0n)(0n)), ok(vec8(byte)), ok(vec(0n)(0n))] })
+                    (toolHandle('cas_get')({ hash: someHash, content }))
+                assert(result.isError !== true, result)
+                const parsed = unwrap(parseJson(textOf(result)))
+                assert(parsed !== null && typeof parsed === 'object' && !(parsed instanceof Array))
+                assertEq(parsed.length, 1)
+                assertEq(parsed.type, type)
+                assertEq(parsed.mimeType, type === 'text' ? 'text/plain' : 'application/octet-stream')
+                assertEq(parsed.uri, `cas:${someHash}`)
+                assertEq(parsed.text, content && type === 'text' ? payload : undefined)
+                assertEq(parsed.blob, content && type === 'base64' ? payload : undefined)
+            }
+        }
+    },
+    casGetOversizedTextReturnsMetadataButRefusesInlineContent: () => {
+        const chunk = assertNotNullish(tryUtf8('A'.repeat(Number(maxLengthBytes))))
+        for (const content of /** @type {const} */ ([false, true])) {
+            const result = drive({ readBytes: [ok(chunk), ok(vec8(0x41n)), ok(vec(0n)(0n))] })
+                (toolHandle('cas_get')({ hash: someHash, content }))
+            if (content) {
+                assertEq(result.isError, true)
+                assert(textOf(result).includes('blob too large to fetch inline'))
+                assert(textOf(result).includes(`get ${someHash} <path>`))
+            } else {
+                assert(result.isError !== true, result)
+                const parsed = unwrap(parseMeta(unwrap(parseJson(textOf(result)))))
+                assertEq(parsed.length, Number(maxLengthBytes) + 1)
+                assertEq(parsed.type, 'text')
+            }
+        }
+    },
+    casListEmptyStoreReturnsEmptyText: () => {
+        const result = drive({})(toolHandle('cas_list')({}))
+        assert(result.isError !== true, result)
+        assertEq(textOf(result), '')
+    },
     // cas_list: a store that exists but cannot be walked is a tool-level error
     // carrying the host's own words — neither a panic (which is what it used
     // to be, one `unwrap` deep) nor an empty listing, which would tell the

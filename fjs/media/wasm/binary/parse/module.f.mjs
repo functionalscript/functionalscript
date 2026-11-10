@@ -275,7 +275,7 @@ const import_ = then(name, module => then(name, name => map(
     desc => ({ module, name, desc }))))
 
 /** @type {_Read<Global>} */
-const global = then(globalType, type => map(expr, init => ({ type, init })))
+const _globalDefinition = then(globalType, type => map(expr, init => ({ type, init })))
 
 /** @type {_Read<Export>} */
 const export_ = then(name, name => then(tag('export kind', externKinds), kind => map(u32, index => ({ name, kind, index }))))
@@ -426,7 +426,7 @@ const known = {
     3: ['func', map(vec(u32), funcs => ({ funcs }))],
     4: ['table', map(vec(tableType), tables => ({ tables }))],
     5: ['memory', map(vec(limits), memories => ({ memories }))],
-    6: ['global', map(vec(global), globals => ({ globals }))],
+    6: ['global', map(vec(_globalDefinition), globals => ({ globals }))],
     7: ['export', map(vec(export_), exports => ({ exports }))],
     8: ['start', map(u32, start => ({ start }))],
     9: ['elem', map(vec(element), elements => ({ elements }))],

@@ -7,7 +7,6 @@
 #[path = "../gen.fast/deferred_owning_tail_calls.rs"]
 mod deferred;
 
-use nanvm_harness::runtime;
 use nanvm_lib::{
     common::sized_index::SizedIndex,
     naive::Naive,
@@ -15,10 +14,7 @@ use nanvm_lib::{
 };
 
 fn exports() -> Object<Naive> {
-    deferred::module::<Naive>(runtime())
-        .unwrap()
-        .try_into()
-        .unwrap()
+    nanvm_lib::vm::exports(deferred::module::<Naive>).unwrap()
 }
 
 fn function(exports: &Object<Naive>, name: &str) -> Function<Naive> {
