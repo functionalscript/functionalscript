@@ -64,10 +64,10 @@ vvvv_vvvv_vvvv_vvvv
 #[repr(transparent)]
 pub struct Any(u64);
 
-const NUMBER_TYPE    : u32 = 0x0;
-const BOOLEAN_TYPE   : u32 = 0x1;
-const UNDEFINED_TYPE : u32 = 0x2;
-const OBJECT_TYPE    : u32 = 0x3;
+const NUMBER_TYPE    : u8 = 0x0;
+const BOOLEAN_TYPE   : u8 = 0x1;
+const UNDEFINED_TYPE : u8 = 0x2;
+const OBJECT_TYPE    : u8 = 0x3;
 const STRING_TYPE    : u32 = 0x4;
 const BIGINT_TYPE    : u32 = 0x5;
 const FUNCTION_TYPE  : u32 = 0x6;
