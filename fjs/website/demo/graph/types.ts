@@ -91,6 +91,10 @@ export type Ranked = Node & { readonly rank: number }
  * not add Tab stops; keyboard navigation still visits original connections.
  * Recursion draws dotted, independently of
  * `kind`; a lazy recursive branch uses a dot-and-dash pattern.
+ *
+ * **`span` is how many rows an edge's port takes**, one when it is absent:
+ * a {@link Graph} drawn as a `table` gives the port of an edge to a node as
+ * many rows as that node is tall, so the node sits level with it.
  */
 export type Edge = {
     readonly from: number
@@ -99,6 +103,7 @@ export type Edge = {
     readonly kind?: string | undefined
     readonly corner?: Corner | undefined
     readonly back?: boolean | undefined
+    readonly span?: number | undefined
 }
 
 /**
@@ -174,6 +179,16 @@ export type Graph = {
      * component bands instead of centering across unrelated components.
      */
     readonly centerColumns?: boolean | undefined
+    /**
+     * Draw a tree as a table: each child level with the port its edge
+     * leaves from, so every edge runs straight across, and a row of one
+     * column is the same row in every other. A node's port to a child is
+     * as tall as the child — see {@link Edge}'s `span` — and the rest of
+     * its rows are values, so a parent is as tall as its whole subtree,
+     * with a blank cell beside each child. A graph with a node two edges
+     * reach, a back edge, or a child not as tall as its port is refused.
+     */
+    readonly table?: boolean | undefined
 }
 
 /**

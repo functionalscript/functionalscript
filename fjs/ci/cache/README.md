@@ -7,6 +7,9 @@ type check cannot certify a package check or another engine's suite.
 
 The repository's own CI enables the cache. The general workflow generator
 leaves it disabled, since its input selectors describe this repository.
+The dedicated `cov` job starts unconditionally, then its coverage command
+checks [per-target dependency manifests](../../emergent_testing/README.md#testing-and-covering-one-module).
+It does not use the whole-check input selectors below.
 
 ## Inputs and keys
 
@@ -36,16 +39,85 @@ and pinned tool versions into a contract. Its entry contains that contract and
 its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
-Compile checks use `fjs`; suites and coverage use `js`; TypeScript and the
-packed-package check use `ts`; Rust checks use `rust`. Coverage still loads
-plain JavaScript proofs, so it must use `js`. Generated-file drift checks and
-the WASM demo rebuild always run because their complete inputs are not yet
-enumerated.
+Compile checks use `fjs`; suites, including `node26`'s `npm start t`, use `js`;
+TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
+The additional isolated `cov` job does not use the whole-check cache.
+Generated-file drift checks and the WASM demo rebuild always run because their
+complete inputs are not yet enumerated.
+
+## Isolated coverage manifests
+
+`npm start cov node` uses the same Git CAS branch through a separate manifest
+contract. Each measured target's manifest contains repository-relative paths
+and working-tree SHA-256/CBase32 hashes of every immediate authored sibling and
+its transitive static dependencies. It also includes coverage settings and the
+actual runtime facts, with FunctionalScript's `package.json` version identifying
+the tool. Canonical JSON makes the key deterministic. Local edits, proof
+inventory changes and runtime changes invalidate the affected success; changing
+the FunctionalScript version invalidates every isolated coverage success.
+Tool sources are not a shared fingerprint, so edits to the CLI, reporter or
+framework at the same version preserve successes unless those files are actual
+dependencies of the target. This deliberately permits reuse across same-version
+tool behavior changes. The repository root's `package.json` is a required input;
+all present ancestor `package.json` files for loaded files inside the repository are
+hashed too. New nested package scopes therefore
+invalidate the affected manifests. A missing root package file leaves the run
+uncached rather than depending on package metadata outside the repository.
+
+Planning uses one runtime probe and one shared dependency graph. Source bytes,
+hashes and parsed imports are shared across all targets. Target manifests select
+their reachable inputs without rebuilding the graph. Their keys are hashed once,
+then checked together against one native Git inventory of `build-cache`;
+matching blobs are verified in one
+batch against the exact prepared manifest contents. An unsupported directory
+leaves independent directories eligible for caching.
+
+Cache-only admission refuses dynamic `import`, `import.meta`, `require`,
+`eval`/`Function`, and explicit host-global references. These forms continue
+through ordinary coverage without cache reuse; no language semantics change.
+
+A directory's coverage process is skipped only when every measured target has
+an exact local success. Before using its plan and after successful coverage, the runner
+compares relevant input bytes, sibling inventories, package scopes and resolution
+identities against the snapshot, without reparsing or rehashing. Changed inputs
+run coverage, including a planned cache hit that became stale, and cannot publish
+that snapshot's success. During execution there are no cache lookups, key hashes
+or cache writes; the runner remembers stable successes for the recording phase.
+Dependency validation includes original import paths and absent nearer package
+scopes, so retargeted symlinks and newly added package boundaries invalidate reuse.
+After all modules finish, new successful entries are stored in one native Git
+`fast-import` commit. An empty batch writes no commit. Failed coverage contributes
+no manifest, while other modules' successes are retained. Incomplete dependency
+analysis, unsupported preload settings and cache failures are reported and run
+uncached. [Measurement records](../../emergent_testing/cov/measurements.md)
+distinguish full planning, reporter startup and earlier preparation-only timings.
+
+With `npm start -- cov node --sync`, the command fetches the remote baseline
+at startup and publishes once after module processing and batch recording.
+Modules and cache hits do not synchronize individually. The final publication
+also retries pending local successes. Concurrent additions are fetched and
+replayed on top of the latest remote parent using normal push retries. The
+local branch is then refreshed for subsequent runs. Without the flag, only the
+local branch is read or updated. The source checkout is untouched.
+
+Native children inherit stdout and stderr for live reporter output, retaining
+the existing quiet Node reporter's filtering. Its small admission-check module
+does not import the cache or dependency planner. After a child finishes, each
+target prints its repository-relative filename followed by `...Ok` or
+`...Failed`. Failures also identify the command and directory. Cache hits launch
+no child and print only `...Cached` for each target.
+
+The repository's additional `cov` job supplies the bot's author/committer
+identity and enables `--sync` only for same-repository runs outside Dependabot.
+Forks, Dependabot and generic generated workflows use local caching without
+publication. The other jobs retain their whole-check lifecycle; `node26` records
+its `npm start t` result as `suite`. Its command participates in the key, so an
+earlier combined-coverage success cannot skip the new test command.
 
 ## Job lifecycle
 
-Each job fetches only the tip of `build-cache` into the local cache branch and
-`refs/remotes/origin/build-cache`, then initializes the cache before expensive
+Each whole-check job fetches only the tip of `build-cache` into the local branch
+and `refs/remotes/origin/build-cache`, then initializes the cache before expensive
 tool installation. The remote ref preserves the initial publication baseline.
 Initialization uses `GITHUB_JOB` to select the checks and platform directly
 from the same repository configuration used by the CI generator. It takes no
@@ -94,7 +166,9 @@ publication. A report failure does not block later checks. The checks themselves
 still fail the job on error. Publication stops if fetching or merging fails, or
 after ten unsuccessful push attempts. Unpublished entries only cost another run.
 
-Only committed CI snapshots are supported. The checkout uses LF line endings;
+The whole-check cache supports only committed CI snapshots; isolated coverage
+manifests additionally support local working-tree bytes. The checkout uses LF
+line endings;
 symlinks, submodules, or unrepresented inputs cannot certify a check. Executable
 mode bits are outside the file identities, as in the original cache design. The
 platform key is as coarse as the runner label and tool pins: runner patch

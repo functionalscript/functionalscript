@@ -117,4 +117,4 @@ export const isKeyword = word => keywords.some(keyword => keyword === word)
  *
  * @type {(word: string) => boolean}
  */
-export const isReservedGlobal = word => reservedGlobals.some(global => global === word)
+export const isReservedGlobal = word => reservedGlobals.some(reservedName => reservedName === word)

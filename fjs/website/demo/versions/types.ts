@@ -15,16 +15,17 @@ import type { Corner, Graph, Inline } from '../graph/types.ts'
  * One part of a node: an edge to a child node, or a value drawn in a row
  * of its own.
  *
- * - A child takes no row: it leaves from its `corner` of the node's right
- *   side — the top for its first child, the bottom for its last, and the
- *   middle for a B-tree's middle one.
+ * - A child with a `corner` takes no row: it leaves from that corner of the
+ *   node's right side — the top for its first child, the bottom for its
+ *   last. A child without one takes a row of its own, as tall as the child
+ *   in a `table` ({@link Layout}).
  * - A value with an empty `label` is drawn alone, filling its row, and
  *   `parts` draws it in pieces, as an {@link Inline}'s do.
  * - A value with a `key` is that key, and a click on it moves the key:
  *   removes it and inserts it again.
  */
 export type Row<N> =
-    | { readonly to: N, readonly corner: Corner }
+    | { readonly to: N, readonly corner?: Corner | undefined }
     | { readonly label: string, readonly inline: string, readonly parts?: Inline['parts'], readonly key?: number }
 
 /**
@@ -49,8 +50,12 @@ export type Keys = {
  * - `depth` — a node one column right of its deepest parent: right for an
  *   unbalanced one, whose shallow leaves would otherwise be stretched to the
  *   last column.
+ * - `table` — a node one column right of its parent, as `depth` has it,
+ *   and level with its row there: each key in a row of its own, in key
+ *   order, a node as tall as its whole subtree, and every arrow straight
+ *   across. For a tree whose rows are its children and keys in order.
  */
-export type Layout = 'leaves' | 'depth'
+export type Layout = 'leaves' | 'depth' | 'table'
 
 /**
  * How the drawing reads a structure's nodes. Two nodes are the same node

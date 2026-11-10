@@ -49,7 +49,7 @@ member functions.
 
 The EDAG keeps a call's argument count, so `f(x)` and `f(x, undefined)` are two
 calls, and three built-ins answer them differently, as JavaScript does. They read
-the argument through `present` in `method.rs` rather than `argument`:
+the argument through `Array::present` rather than `Array::argument`:
 
 - `lastIndexOf(x)` searches from the end; `lastIndexOf(x, undefined)` from `0`.
 - `reduce(f)` and `reduceRight(f)` throw on an empty array;

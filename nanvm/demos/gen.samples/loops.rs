@@ -9,7 +9,7 @@ pub fn module<A: IStaticFunction>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
     Ok([(string_key("default"), A::static_function(|_self, _args| {
         let _b14: Any<A> = A::static_function(|_self, _args| {
             let mut _b1103: Any<A> = _args.argument(0);
-            '_loop14: while Any::<A>::to_boolean({
+            '_loop14: while Any::<A>::to_boolean(&{
                 let _b1104: Any<A> = _b1103.clone();
                 let _b2: Any<A> = (Any::dot(_b1104.clone(), f64_any(0x3ff0000000000000)).end())?;
                 let _b3: Any<A> = (Any::dot(_b1104.clone(), f64_any(0x0000000000000000)).end())?;

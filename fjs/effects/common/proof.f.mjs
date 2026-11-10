@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { run as mockRun } from '../mock/module.f.mjs'
+import { run as mockRun, runAll } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.mjs'
@@ -76,10 +76,7 @@ const loader = mockRun(/** @type {Parameters<typeof mockRun<Import, null>>[0]} *
  * and is not observable here.
  *
  * @type {RunInstance<All, null>} */
-const fanOut = mockRun(/** @type {Parameters<typeof mockRun<All, null>>[0]} */ ({
-    all: (/** @type {readonly Effect<never, unknown, unknown>[]} */ ...effects) =>
-        (/** @type {null} */ s) => [s, ok(effects.map(e => fanOut(s)(e)[1]))],
-}))
+const fanOut = runAll({})
 
 /**
  * A runner that writes into a string, tagging each chunk with the stream it

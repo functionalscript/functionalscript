@@ -53,9 +53,10 @@ substitutions of the same bodies, checked by the same proof tables.
   view out of the modules that the interpreter and the Rust backend
   compile. Those executors would otherwise have to recognise every
   intrinsic of the view as well.
-- **Cost:** `String.fromCharCode` and `Object.entries` are quadratic as
-  written. That is the price of a reference body, and it is the first place
-  for a native substitution.
+- **Cost:** `String.fromCharCode` and `Object.entries` are built in one
+  pass, through the builders of the L0 view
+  ([l0-design.md §22](./l0-design.md#22-building-in-one-pass)). The bodies
+  are in [`fjs/wasm/runtime/l1/builtin`](../../../fjs/wasm/runtime/l1/builtin/module.f.js).
 
 ### 3. Statics link by name
 

@@ -33,15 +33,10 @@ fn malformed<T>(what: impl Into<String>) -> Result<T, Malformed> {
 
 /// Argument `index` of the payload, which must be there.
 pub fn argument<A: IVm>(payload: &Array<A>, index: u32, name: &str) -> Result<Any<A>, Malformed> {
-    match optional_argument(payload, index) {
+    match payload.present(index) {
         Some(any) => Ok(any),
         None => malformed(format!("missing argument {index}, `{name}`")),
     }
-}
-
-/// Argument `index` of the payload, if it is there.
-pub fn optional_argument<A: IVm>(payload: &Array<A>, index: u32) -> Option<Any<A>> {
-    (index < payload.length()).then(|| payload[index].clone())
 }
 
 /// The payload may hold no more than the operation's parameters: its
@@ -282,8 +277,9 @@ pub fn encode_error<A: IVm>(error: Any<A>) -> Any<A> {
 
 /// The inverse of [`encode_result`]: an `['ok', value]` or `['error', error]`
 /// tuple as the `Result` it spells. The runners never read one back, so it
-/// is the tests' own: they unwrap a program's answer with it.
-#[cfg(test)]
+/// is the tests' own: they unwrap a program's answer with it, and the
+/// harness's through the `test-support` feature.
+#[cfg(any(test, feature = "test-support"))]
 pub fn decode_result<A: IVm>(any: Any<A>) -> Result<Result<Any<A>, Any<A>>, Malformed> {
     let Ok(tuple) = Array::try_from(any) else {
         return malformed("not a result tuple");

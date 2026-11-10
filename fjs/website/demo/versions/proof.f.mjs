@@ -155,6 +155,13 @@ export const proof = {
         },
     },
     graphOf: {
+        // Table ports span every value in the child subtree, recursively.
+        table: () => {
+            const g = graphOf(chain('table'))({ before: null, after: ofThree })
+            assertEq(g.table, true)
+            assertEq(JSON.stringify(g.nodes.map(node => node.rank)), '[0,1,2]')
+            assertEq(JSON.stringify(g.edges.filter(edge => typeof edge.to === 'number').map(edge => edge.span)), '[2,1]')
+        },
         // Inserting 0 in front builds one cell and shares the three after
         // it. Only the new list is drawn, with one arrow, into its root.
         sharesTheTail: () => {

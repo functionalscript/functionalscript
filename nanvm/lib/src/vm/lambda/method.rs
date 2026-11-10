@@ -75,14 +75,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
     ]
 }
 
-/// The `i`-th argument if the call passed one, `undefined` included, and
-/// `None` if it did not: for the few built-ins whose answer depends on
-/// whether an argument is there, not only on its value — `lastIndexOf(x)`
-/// searches from the end, `lastIndexOf(x, undefined)` from `0`.
-pub(super) fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
-    (i < args.length()).then(|| args[i].clone())
-}
-
 /// A search's position as JavaScript answers it: the index, or `-1`.
 pub(super) fn index_or_minus_one<A: IVm>(found: Option<u32>) -> Any<A> {
     Number::from(found.map_or(-1.0, f64::from)).to_any()
@@ -182,7 +174,7 @@ fn array_to_reversed<A: IVm>(receiver: Any<A>, _: Array<A>) -> Result<Any<A>, An
 /// as present or not.
 fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?
-        .to_spliced(present(&args, 0), present(&args, 1), args.rest(2))
+        .to_spliced(args.present(0), args.present(1), args.rest(2))
         .to_any_result()
 }
 
@@ -256,13 +248,13 @@ fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<
 /// `[].reduce(f, undefined)` answers `undefined`.
 fn array_reduce<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    a.reduce(&f, present(&args, 1))
+    a.reduce(&f, args.present(1))
 }
 
 /// `Array.prototype.reduceRight`, `vm/array/reduce.rs`.
 fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
-    a.reduce_right(&f, present(&args, 1))
+    a.reduce_right(&f, args.present(1))
 }
 
 /// `Array.prototype.flat`, `vm/array/flat.rs`: the depth `1` when absent or
@@ -323,7 +315,7 @@ fn array_join<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>
 /// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
 /// the three whose position is read only when passed.
 fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), present(&args, 1))?;
+    let found = Array::try_from(receiver)?.last_index_of(&args.argument(0), args.present(1))?;
     Ok(index_or_minus_one(found))
 }
 

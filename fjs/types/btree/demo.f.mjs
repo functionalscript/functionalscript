@@ -11,9 +11,11 @@
  * **The demo is a [versions demo](../../website/demo/versions/module.f.mjs)**,
  * which draws the new version and marks what the old one holds too; this
  * module says only what a B-tree is. Its nodes are compared as objects, since that
- * is how a B-tree shares. Every leaf of a B-tree is equally deep, so the
- * leaves line up in the last column, and a column reads in order of its
- * nodes' average keys.
+ * is how a B-tree shares. **It is drawn as a table**: every key in a row
+ * of its own, in key order, and a node as tall as its whole subtree, its
+ * keys in their rows and a blank cell beside each child, so every arrow
+ * runs straight across. Every leaf of a B-tree is equally deep, so the
+ * leaves line up in the last column.
  *
  * **Generate builds a random tree**: the keys 10, 20, … up to the count,
  * inserted in an order the browser picks — how a level of the
@@ -41,11 +43,11 @@ import { hasEntry } from '../object/entry/module.f.js'
 const keyRow = key => ({ label: '', inline: String(key), key })
 
 /**
- * A node's rows: its keys, each alone in a row, and its subtrees as edges
- * from its right side — the first from the top corner, a middle one from
- * the middle, the last from the bottom corner — rather than from rows of
- * their own. A node has no title: its keys and its arrows say which of the
- * four kinds it is.
+ * A node's rows, in key order: its subtrees and its keys, each key alone
+ * in a row. Drawn as a table, a subtree's row is as tall as the subtree,
+ * so every key of the tree has a row of its own and every arrow runs
+ * straight across. A node has no title: its keys and its arrows say which
+ * of the four kinds it is.
  *
  * @type {(node: TNode<number>) => readonly Row<TNode<number>>[]}
  */
@@ -58,14 +60,11 @@ const rowsOf = node => {
         }
         case 3: {
             const [l, v, r] = node
-            return [keyRow(v), { to: l, corner: 'top' }, { to: r, corner: 'bottom' }]
+            return [{ to: l }, keyRow(v), { to: r }]
         }
         default: {
             const [l, v0, m, v1, r] = node
-            return [
-                keyRow(v0), keyRow(v1),
-                { to: l, corner: 'top' }, { to: m, corner: 'middle' }, { to: r, corner: 'bottom' },
-            ]
+            return [{ to: l }, keyRow(v0), { to: m }, keyRow(v1), { to: r }]
         }
     }
 }
@@ -82,7 +81,7 @@ export const structure = {
     insert: key => set(cmp(key))(() => key),
     remove: key => remove(cmp(key)),
     root: tree => tree,
-    shape: () => ({ rows: rowsOf, title: () => '', order: average, layout: 'leaves' }),
+    shape: () => ({ rows: rowsOf, title: () => '', order: average, layout: 'table' }),
 }
 
 /**

@@ -34,7 +34,7 @@ in its temporal dead zone and throw.
 The EDAG's node is `['instanceof', exp, 'Array']`: the constructor is a
 *name* from a closed list, not an operand, since no global is a value there
 ([`fjs/edag`](../../../fjs/edag/README.md)); `nanvm-lib` answers it with
-`Any::instanceof_(x, Constructor::Array)`. The writer spells it with
+`Any::instanceof_(&x, Constructor::Array)`. The writer spells it with
 spaces around the word, `a instanceof Array`.
 
 ## Examples

@@ -22,7 +22,7 @@ do not, and whether §1.2 reaches them is not written down:
 - [ ] State in `fjs/AGENTS.md` §1.2 whether a module that exports only data
       needs a proof of its own, and add one for `fjs/ci/config` and
       `fjs/website/style` if it does.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

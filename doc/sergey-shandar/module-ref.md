@@ -14,7 +14,7 @@ Because we can have diamond dependencies where a specific revision can be resolv
   ```js
   import { y } from './c/module.js'
   export const x = y * 2
-  ``
+  ```
 - `a/b/c/module.f.js`
   ```js
   export const y = 3
@@ -33,7 +33,6 @@ That's the reason we use `./b/module.f.js` instead of flatten `../b/module.f.js`
 This tree module structure helps a lot to resolve module conflicts but we may also have a lot of duplications. Since we can't change files, and module resolvers, the main question is if we can use symlinks to deduplicate the same modules. Note, we may symlinks the whole directory.
 
 Questions:
--
 
 ## Algorithm
 

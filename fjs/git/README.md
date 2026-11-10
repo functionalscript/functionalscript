@@ -96,9 +96,10 @@ what a grammar can and cannot do for the formats.
   refusals the host's `inflate` effect used to give, so a caller that tells them
   apart by code is told nothing new.
 - [`loose/`](loose/module.f.mjs) — a loose object file read whole, inflated by
-  that and past its envelope. One of the two places a real repository meets the
-  decoder; [`packstore/`](packstore/module.f.mjs) below is the other, and is the
-  one a clone actually takes.
+  that and past its envelope, and written: the envelope as one stored zlib
+  stream, under a temporary name renamed into place. One of the two places a
+  real repository meets the decoder; [`packstore/`](packstore/module.f.mjs)
+  below is the other, and is the one a clone actually takes.
 - [`packstore/`](packstore/module.f.mjs) — the same for the other place an
   object lives: from an id to the object a pack below `objects/pack/` holds,
   through the `.idx` beside it. Two rules here are the effects' and not the

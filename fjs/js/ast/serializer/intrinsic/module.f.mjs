@@ -1,11 +1,11 @@
 /** JavaScript syntax for EDAG intrinsic function values. @module
- * @import { IntrinsicId } from '../../../../edag/types.ts'
+ * @import { HelperId, IntrinsicId } from '../../../../edag/types.ts'
  * @import { Chunk } from '../../../../text/marked/types.ts'
  */
 
 import { chunksText, keyword, literal } from '../../../../text/marked/module.f.mjs'
-import { intrinsicLength } from '../../../../edag/module.f.mjs'
-import { _name as name, _binding as binding, _arg as argName } from '../../../../compiler/serializer/names/module.f.mjs'
+import { helperLength } from '../../../../edag/module.f.mjs'
+import { _name as name, _binding as binding, _arg as argName } from '../names/module.f.mjs'
 
 /**
  * The `entry` helper's text, the one spelling of `['entry']` — the
@@ -91,7 +91,19 @@ export const _intrinsicText = id => path => chunksText(_intrinsicChunks(id)(path
 
 /** {@link _intrinsicText} as chunks, as {@link _entryChunks}: one, since the text holds no keyword and no literal. @type {(id: IntrinsicId) => (path: string) => readonly Chunk[]} */
 export const _intrinsicChunks = id => path => {
-    const names = indices(intrinsicLength(id)).map(k => argName(path, k))
+    const names = indices(helperLength(id)).map(k => argName(path, k))
     const [receiver, ...rest] = names
     return [`(${names.map(binding).join(',')})=>${receiver}.${id}(${rest.join(',')})`]
 }
+
+/**
+ * A helper's text by its tag, {@link _entryChunks}, {@link _hasEntryChunks}
+ * or {@link _intrinsicChunks}: the one dispatch from a helper node to its
+ * spelling, which every writer asks.
+ *
+ * @type {(id: HelperId) => (path: string) => readonly Chunk[]}
+ */
+export const _helperChunks = id => id === 'entry' ? _entryChunks : id === 'hasEntry' ? _hasEntryChunks : _intrinsicChunks(id)
+
+/** {@link _helperChunks} as text. @type {(id: HelperId) => (path: string) => string} */
+export const _helperText = id => path => chunksText(_helperChunks(id)(path))

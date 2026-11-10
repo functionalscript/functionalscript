@@ -32,13 +32,13 @@
 
 import { asyncPartialRun, io } from '../module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
-import { _maxVecBytes, exitCode, nodeCommands } from '../node/module.f.mjs'
+import { exitCode, lexicalFileModule, nodeCommands } from '../node/module.f.mjs'
 import { _orderDirents } from '../node/virtual/readdir/module.f.mjs'
 import { concat, normalize } from '../../path/module.f.js'
-import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 import { fromVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { tryShellQuote } from '../../text/shell/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
+import { maxVecBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
 
 
@@ -136,13 +136,13 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
     }),
     import: path => io(() => import(absolute(path))),
     // Lexical, as the virtual host resolves: the shell has neither `URL` nor
-    // `realpath`, so a module's identity is its normalized absolute path, and
-    // a module reached through two symbolic links would be two modules. The
-    // repository tracks no links.
+    // `realpath`, so a root is anchored to the working directory and a
+    // module's identity is its normalized absolute path. The repository
+    // tracks no links.
     resolveFileModule: (name, parent) => io(async () => {
-        const path = parent === null ? absolute(name) : resolveImportPath(parent)(name)
-        if (path === null) { throw new Error('invalid module specifier') }
-        return { id: normalize(path), path }
+        const [kind, found] = lexicalFileModule(parent === null ? absolute(name) : name, parent)
+        if (kind === 'error') { throw new Error(found) }
+        return found
     }),
     // In `Vec` windows of the most bytes one holds, as the Node host reads. A
     // directory is refused first: the shell reads one as "too large for a
@@ -152,8 +152,8 @@ const runShellEffect = asyncPartialRun(nodeCommands)({
         if (isDirectory(path)) { throw new Error(`${path} is not a file`) }
         const bytes = shell.os.file.readFile(path, 'binary')
         /** @type {readonly Uint8Array[]} */
-        const windows = Array.from({ length: Math.ceil(bytes.length / _maxVecBytes) },
-            (_, i) => bytes.subarray(i * _maxVecBytes, (i + 1) * _maxVecBytes))
+        const windows = Array.from({ length: Math.ceil(bytes.length / maxVecBytes) },
+            (_, i) => bytes.subarray(i * maxVecBytes, (i + 1) * maxVecBytes))
         return windows.map(toVec)
     }),
     mkdir: (path, options) => io(async () => { onPath(options?.recursive === true ? 'mkdir -p' : 'mkdir', path) }),

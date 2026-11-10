@@ -46,7 +46,7 @@
  */
 
 import { error, mapOk, ok, okList, okThen } from '../../../types/result/module.f.js'
-import { useLinesTagged } from '../../../edag/rust/module.f.mjs'
+import { useLinesTagged } from '../../../rust/serializer/module.f.mjs'
 import { generatedHeader } from '../../../media/rust/item/module.f.js'
 import { tagged, untagged } from '../../../text/marked/module.f.mjs'
 import { isNative } from '../../../js/static/module.f.js'

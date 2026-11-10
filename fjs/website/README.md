@@ -166,8 +166,9 @@ documentation**. A directory is a crate's when it has a `Cargo.toml` and its
 path, with `/` and `-` read as `_`, names a crate rustdoc documented:
 `nanvm/lib` is `nanvm_lib`.
 
-The generator copies `target/doc` there unchanged and writes one page of its
-own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
+The generator copies `target/doc` there unchanged, but for each page's
+`og:url` ([A shared link shows a card](#a-shared-link-shows-a-card)), and
+writes one page of its own, `cargo.doc/index.html`, listing the crates: stable rustdoc writes no root
 page. It does not run `cargo` — whoever builds the site runs
 `cargo doc --no-deps --workspace` first, and a build without `target/doc`
 writes no `cargo.doc/` and no links. `target/` itself is never served: it
@@ -888,13 +889,20 @@ search result shows, is cut at a word and ends with "…"; otherwise each
 platform cuts it mid-sentence at a length of its own. A release names its
 version, and every other page uses the site's own sentence.
 
-**rustdoc's pages carry what does not vary by page.** `cargo doc` writes the
-Rust API reference, and the site adds one fixed fragment to every page's
-`<head>` there, `rustdocHead`. It carries `siteMeta`, the tags `shell`'s
-pages share: the site's name, the page kind, the card type and, where the
-build has an origin, the root page's card image. Each page's title and description are
-rustdoc's own `<title>` and `<meta name="description">`, which a card falls
-back to; `og:title` and `og:url`, which Open Graph requires, are missing
+**rustdoc's pages carry what does not vary by page, and their URL.**
+`cargo doc` writes the Rust API reference, and the site adds one fixed
+fragment to every page's `<head>` there, `rustdocHead`. It carries
+`siteMeta`, the tags `shell`'s pages share: the site's name, the page kind,
+the card type and, where the build has an origin, the root page's card
+image. It ends with a marker, `<!--og:url-->`, which the generator replaces
+with the page's `og:url` as it copies the page (`withPageUrl` in
+[`cargo-doc/`](./cargo-doc/module.f.mjs)): the copy knows the page's path,
+and the marker is a string the site wrote, so finding it reads nothing of
+rustdoc's markup. A build without an origin leaves the comment, and a
+redirect page, which rustdoc writes without the fragment, has neither.
+Each page's title and description are rustdoc's own `<title>` and
+`<meta name="description">`, which a card falls back to; `og:title`, which
+Open Graph requires, is missing
 ([rustdoc-page-cards](todo/rustdoc-page-cards.md)).
 
 **A URL and an image wherever the build has an origin.** Open Graph wants

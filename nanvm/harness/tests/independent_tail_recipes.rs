@@ -4,17 +4,13 @@
 #[path = "../gen.fast/independent_tail_recipes.rs"]
 mod independent;
 
-use nanvm_harness::runtime;
 use nanvm_lib::{
     naive::Naive,
     vm::{Array, Function, Nullish, Object, ToAny, ToArray},
 };
 
 fn exports() -> Object<Naive> {
-    independent::module::<Naive>(runtime())
-        .unwrap()
-        .try_into()
-        .unwrap()
+    nanvm_lib::vm::exports(independent::module::<Naive>).unwrap()
 }
 
 fn function(exports: &Object<Naive>, name: &str) -> Function<Naive> {

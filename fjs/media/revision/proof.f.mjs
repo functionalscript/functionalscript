@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertError } from '../../asserts/module.f.js'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences } from './module.f.mjs'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText, hashEntries, mapHashes, checkReferences, lockFieldError, lockMapError } from './module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 
@@ -35,6 +35,13 @@ const validRevisionOf = extra => {
 }
 
 export const proof = {
+    lockReferences: () => {
+        assertEq(lockFieldError(h1), null)
+        assertEq(lockMapError({ dependency: h2 }), null)
+        assertEq(lockFieldError('bad!'), 'lock reference is not a valid hash: bad!')
+        assertEq(lockMapError({ scope: { dependency: 'bad!' } }),
+            'lock value for scope/dependency is not a valid hash: bad!')
+    },
     dialectAndMediaType: () => {
         assertEq(dialect, 'vnd.fjs.revision')
         assertEq(mediaType, 'application/vnd.fjs.revision+json')

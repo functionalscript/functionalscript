@@ -98,14 +98,3 @@ export const _casMcpSession = home => transport => {
  * @type {(home: string) => Effect<Read | Write | MemOp | FileCasOperation, void, IoChannel>}
  */
 export const casMcpServer = home => _casMcpSession(home)(stdioTransport)
-
-// ── Tests ────────────────────────────────────────────────────────────────────
-
-export const proof = {
-    // casMcpServer is never called in integration tests because it drives a
-    // real stdio server; call it here to cover its effect-building body.
-    casMcpServer: () => {
-        casMcpServer('/')
-        return undefined
-    },
-}

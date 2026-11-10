@@ -29,6 +29,7 @@ import {
     shellRustVersionSteps,
 } from './rust/module.f.mjs'
 import {
+    coverageJob,
     installNode,
     nodeVersionJobs,
     nodeVersionStep,
@@ -207,7 +208,12 @@ export const ciWorkflow = setup => rust => {
         permissions: {
             contents: 'read',
         },
-        jobs: { ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs), ...setup.extraJobs },
+        // Coverage owns its per-module cache, outside whole-check gates.
+        jobs: {
+            ...(setup.smart ? smartJobs(selectedJobs) : selectedJobs),
+            ...miseJobs({ cov: coverageJob(setup.smart === true) }, false),
+            ...setup.extraJobs,
+        },
     }
     return gha
 }

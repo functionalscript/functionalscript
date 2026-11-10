@@ -31,9 +31,6 @@ quote, as CommonMark does, while `entryTexts` joins it silently, so the
 changelog page shows a reading GitHub does not
 ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
-Also here: the private `arr`, `node => unmapped(node)`, is `items` exported by
-[`fjs/ebnf/ast`](../../../ebnf/ast/module.f.js).
-
 ### Proposal
 
 `tryParse` is `tryParseBlocks` plus the one check: an empty document is no
@@ -51,7 +48,7 @@ prefix follow.
 - [ ] Write `tryParse` over `tryParseBlocks`; delete `entryTexts` and the
       separate image gate in `tryParseEntry`.
 - [ ] Decide marker padding: admit it in `listMarker` or fix the release file.
-- [ ] Import `items` from `ebnf/ast` in place of `arr`.
+- [x] Import `items` from `ebnf/ast` in place of `arr`.
 - [ ] Reduce the module header's "block layer" paragraph to one sentence.
 
 ### Related

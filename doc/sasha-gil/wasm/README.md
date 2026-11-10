@@ -77,7 +77,8 @@ later by substitution.
    small program. A host supplies L0 and L1's native rows: NaNVM built as its
    own `.wasm`, or a small runtime in JavaScript. Then the same program
    specialized for NaNVM, with its `to_f64` and `from_f64` inlined as
-   fragments.
+   fragments. The backend starts with a typed IR, written as an eDSL,
+   that a Rust backend can share ([ir-design.md](./ir-design.md)).
 5. **Spec and conformance.** The agreed interface as a spec, and the
    existing harness corpus run against any runtime, in both the portable and
    the specialized mode.
@@ -96,6 +97,7 @@ inliner.
 | 2026-11-02 | Linking and inlining use our own tools, built on `fjs/media/wasm`. Binaryen is at most a later comparison ([inline-fragments.md](./inline-fragments.md#our-own-linker-first)). |
 | 2026-11-03 | The L0 view has builders, `buildArray` and `buildObject`, and L0 has `join`, so a body builds a container or a string of computed size in one pass ([l0-design.md §22](./l0-design.md#22-building-in-one-pass)). |
 | 2026-11-04 | A throw traps: L0 has `throw`, code and `call` answer one `any`, and only the host catches, through host-only exports ([l0-throw-trap.md](./l0-throw-trap.md)). |
+| 2026-11-05 | The WASM backend starts with an eDSL for a typed IR one phase before the target, meant for Rust and later backends too. Its first design is independent; a second round compares it with Binaryen's IR and similar designs ([ir-design.md](./ir-design.md)). |
 
 ## Open questions
 
@@ -123,3 +125,6 @@ until the owner decides them.
 6. How small and how simple must an inline fragment be, and how does a
    specialized program name the runtime it was built for? See
    [inline-fragments.md](./inline-fragments.md#open).
+7. Does the Rust backend move to the code IR, calling L0 and L1, or keep
+   today's higher-level `nanvm_lib` API? See
+   [ir-design.md](./ir-design.md#where-it-sits).

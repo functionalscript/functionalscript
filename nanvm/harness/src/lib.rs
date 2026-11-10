@@ -28,7 +28,7 @@ pub use compare::{Case, check, same_graph};
 
 use core::fmt::{self, Debug, Display, Formatter};
 
-use nanvm_lib::vm::{Any, Array, Function, IVm, JsonError, Object};
+use nanvm_lib::vm::{Any, Array, Function, IVm, JsonError, Module, exports};
 
 /// What the harness does with the selected export.
 pub enum Action<A: IVm> {
@@ -98,28 +98,15 @@ impl<A: IVm> PartialEq for RunError<A> {
     }
 }
 
-/// A compiled module's `module`: a function of the runtime value it is
-/// given, answering its export object or the throw its initialization
-/// ended in.
-pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
-
-/// The runtime value every compiled module takes as its parameter, built
-/// once per run: `nanvm_lib::vm::runtime`, which cannot fail for the
-/// runtime the repository compiles.
-pub fn runtime<A: IVm>() -> Any<A> {
-    nanvm_lib::vm::runtime::<A>().expect("the runtime value")
-}
-
 /// Evaluates a module once, selects one of its exports, reads or calls it,
 /// and renders that one value as JSON. Nothing else in the export object is
 /// called or serialized.
 ///
-/// `module` is the shape generated modules expose, [`Module<A>`]:
-/// `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`,
-/// taking the runtime value and returning the object of all exports, or
-/// the value the module threw. Any other result is a generator bug, not an
-/// input, and panics. A module holding a function bounds `A` on
-/// `IStaticFunction`, which `naive` implements.
+/// `module` is the shape generated modules expose, [`Module<A>`], read
+/// through [`exports`]: the object of all exports, or the value the module
+/// threw, a module answering anything else refused as a thrown `TypeError`.
+/// A module holding a function bounds `A` on `IStaticFunction`, which
+/// `naive` implements.
 ///
 /// `export` is looked up among the object's own properties by presence,
 /// not by value: an export holding `undefined` is found, and reading it
@@ -138,11 +125,8 @@ pub fn run<A: IVm>(
     export: &str,
     action: Action<A>,
 ) -> Result<std::string::String, RunError<A>> {
-    let exports: Object<A> = module(runtime::<A>())
+    let value = exports(module)
         .map_err(RunError::Thrown)?
-        .try_into()
-        .expect("a compiled module returns its export object");
-    let value = exports
         .own_property(&export.into())
         .ok_or_else(|| RunError::NoExport(export.into()))?;
     match action {
@@ -171,11 +155,16 @@ mod tests {
             bigint, exports, function, function_text, missing, named, named_imports, number,
             object, rest_function, special_numbers, throw,
         },
-        run, runtime,
+        run,
     };
 
     /// A compiled fixture's `module`, at the VM every test runs.
-    type Module = crate::Module<Naive>;
+    type Module = nanvm_lib::vm::Module<Naive>;
+
+    /// A fixture's export object.
+    fn exports_of(module: Module) -> Object<Naive> {
+        nanvm_lib::vm::exports(module).unwrap()
+    }
 
     /// The fixture's default export as JSON text, the way most tests read it.
     ///
@@ -189,8 +178,8 @@ mod tests {
     /// The fixture's default export as a value, for a test that checks what
     /// JSON cannot hold.
     fn default_export(module: Module) -> Any<Naive> {
-        module(runtime())
-            .unwrap()
+        exports_of(module)
+            .to_any()
             .dot("default".into())
             .end()
             .unwrap()
@@ -202,11 +191,11 @@ mod tests {
     #[test]
     fn module_result_contains_exports() {
         assert_eq!(
-            number::module::<Naive>(runtime()).unwrap().to_json(),
+            exports_of(number::module).to_any().to_json(),
             Ok(r#"{"default":42}"#.into())
         );
         assert_eq!(
-            object::module::<Naive>(runtime()).unwrap().to_json(),
+            exports_of(object::module).to_any().to_json(),
             Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
         );
     }
@@ -249,9 +238,12 @@ mod tests {
 
     /// A broken module is refused, not reported as a value with no JSON.
     #[test]
-    #[should_panic(expected = "a compiled module returns its export object")]
-    fn non_object_module_panics() {
-        let _ = read_default(not_an_object);
+    fn non_object_module_is_refused() {
+        let error = read_default(not_an_object).unwrap_err();
+        assert!(matches!(
+            &error,
+            RunError::Thrown(v) if *v == "TypeError: a compiled module answers its export object".into()
+        ));
     }
 
     /// The language's own `throw`: a function whose block body ends in the
@@ -284,10 +276,7 @@ mod tests {
     /// identity and source text, including when constructed inside a call.
     #[test]
     fn undefined_function_exports() {
-        let exports: Object<Naive> = function::module::<Naive>(runtime())
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let exports = exports_of(function::module);
         let noop = exports.own_property(&"noop".into()).unwrap();
         assert_eq!(noop, exports.own_property(&"repeated".into()).unwrap());
         assert_ne!(noop, exports.own_property(&"other".into()).unwrap());
@@ -318,10 +307,7 @@ mod tests {
             read_default(function_text::module),
             Ok(r#"["()=>1","()=>1!","()=>1|2","(...$1)=>$0[0]+$1[0]","(...$0)=>(...$1)=>$0[0]+$1[0]",true,false,7,8,false,false]"#.into())
         );
-        let exports: Object<Naive> = function_text::module::<Naive>(runtime())
-            .unwrap()
-            .try_into()
-            .unwrap();
+        let exports = exports_of(function_text::module);
         let inc = exports.own_property(&"inc".into()).unwrap();
         assert_eq!(inc.to_string(), Ok("(...$1)=>$0[0]+$1[0]".into()));
     }
@@ -336,7 +322,7 @@ mod tests {
     #[test]
     fn named_exports() {
         assert_eq!(
-            named::module::<Naive>(runtime()).unwrap().to_json(),
+            exports_of(named::module).to_any().to_json(),
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
         assert_eq!(read_default(named::module), Ok("[5]".into()));
