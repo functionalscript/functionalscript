@@ -78,13 +78,14 @@ scheduling is separate work if measurements justify it.
 
 #### Reporting
 
-Native children inherit stdout and stderr for live reporter output. Keep the
-existing quiet Node reporter's filtering of passed tests and fully covered
-files. After a child finishes, print one complete result line per measured
-target, using its repository-relative path followed by `...Ok` or `...Failed`.
-Cache hits launch no child and print only `...Cached` for each target. Failure
-diagnostics also identify the working directory and full, unambiguously quoted
-command. Execute the child with a structured argument vector, without a shell.
+Use the emergent-testing reporter's open progress line: name the directory's
+measured files by repository-relative path before starting its child, joining
+files that share a proof run with `, `, then complete the line with status and
+timing. Hide child stdout and stderr. On failure, print the working directory,
+complete invocation and exit status, signal or launch/wait error so the run can
+be reproduced directly. Cache hits launch no child and print only `...Cached`
+for each target. Continue after failures and finish with coverage totals.
+Execute with a structured argument vector, without a shell.
 
 The command currently accepts `--sync` for end-of-run cache publication.
 `--quiet` and `--verbose` remain future reporting work, not implemented flags.
@@ -130,11 +131,10 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Native child stdout and stderr appear live through the existing reporter.
-  After the child finishes, every measured target prints its repository-relative
-  path and complete result line. Cache hits print only their result without a
-  child. Failures identify the working directory and complete command, with
-  paths and arguments quoted unambiguously.
+- Progress names the measured files before launch and completes the same line
+  with status and timing. Child output is suppressed; failures name their
+  working directory and full reproducible command, with paths and arguments
+  quoted unambiguously. Cache hits print only their result without a child.
 - Future verbosity controls change presentation only; they must not change
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
@@ -145,10 +145,11 @@ when a required metric is unavailable.
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
 - [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, failure diagnostics and module results.
-- [x] Add per-file results after live native reporting.
-- [ ] Add explicit quiet/verbose controls, retaining live reporting by default and
-      full failure diagnostics; neither flag is currently implemented.
+      validation, failure diagnostics and shared emergent-testing progress.
+- [x] Name measured files before each child and complete the progress line with
+      status and timing while hiding child output.
+- [ ] Consider explicit quiet/verbose controls and additional failure diagnostics;
+      neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
 - [x] Fix the exposed gaps in modules' own proofs or implementations.

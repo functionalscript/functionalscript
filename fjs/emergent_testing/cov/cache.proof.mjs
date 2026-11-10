@@ -82,7 +82,7 @@ const initialize = (root, directories, markers = false) => {
     git(root, ['init', '--quiet', '--initial-branch=main'])
     identify(root)
     write(root, 'package.json', '{"type":"module"}\n')
-    // Fixed completion markers count children without adding runtime inputs.
+    // Child markers exercise output suppression without adding runtime inputs.
     const proofSource = markers
         ? 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); console.log("CACHE_CHILD_FINISHED fixture"); return undefined; } };\n'
         : 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); return undefined; } };\n'
@@ -104,10 +104,12 @@ const coverage = (cwd, synchronize = false, status = 0, extraEnv = {}) => {
     return result.output
 }
 
-/** Executed children retain their native test and coverage output. @type {(output: string) => void} */
-const nativeOutput = output => {
-    assert(output.includes('ℹ tests'), output)
-    assert(output.includes('start of coverage report'), output)
+/** Executed children report progress without a native transcript. @type {(output: string) => void} */
+const executedOutput = output => {
+    assert(output.includes(': ok,'), output)
+    assert(!output.includes('ℹ tests'), output)
+    assert(!output.includes('start of coverage report'), output)
+    assert(!output.includes('CACHE_CHILD_FINISHED '), output)
     assert(!output.includes('command:'), output)
 }
 
@@ -133,7 +135,8 @@ const _commands = path => readFileSync(path, 'utf8').trim().split('\n').map(line
     .filter(event => event.event === 'start' && Array.isArray(event.argv))
 
 /** @type {(output: string) => number} */
-const _finished = output => output.split('\n').filter(line => line.includes('CACHE_CHILD_FINISHED ')).length
+const _results = output => output.split('\n').filter(line =>
+    line.includes('/module.f.js: ok,') || line.includes('/module.f.js: error,')).length
 
 /** Seed canonical SHA-256 CAS entries through one native import, then pack Git's
  * objects. Payload construction reuses the production shard/encoding helpers.
@@ -161,8 +164,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         write(repo, 'unit/module.f.js', 'const { log2 } = Math; export const value = () => log2(2);\n')
         const before = sourceState(repo)
         const cold = coverage(join(repo, 'unit'))
-        assert(cold.includes('unit/module.f.js...Ok'), cold)
-        nativeOutput(cold)
+        assert(cold.includes('unit/module.f.js: ok,'), cold)
+        executedOutput(cold)
         assert.equal(entries(repo).length, 1)
         const saved = git(repo, ['rev-parse', 'build-cache'])
 
@@ -181,9 +184,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const modulePath = join(repo, 'unit/module.f.js')
         const moduleBefore = readFileSync(modulePath)
         const cold = coverage(join(repo, 'unit'))
-        assert(cold.includes('unit/module.f.js...Ok'), cold)
-        nativeOutput(cold)
-        assert(cold.indexOf('start of coverage report') < cold.indexOf('unit/module.f.js...Ok'), cold)
+        assert(cold.includes('unit/module.f.js: ok,'), cold)
+        executedOutput(cold)
         assert(cold.includes('0 cached'), cold)
         assert.equal(entries(repo).length, 1)
         const first = git(repo, ['rev-parse', 'build-cache'])
@@ -200,7 +202,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         for (const scope of ['package.json', 'unit/package.json']) {
             write(repo, scope, '{"type":"commonjs"}\n')
             const incompatible = coverage(join(repo, 'unit'), false, 1)
-            assert(incompatible.includes('unit/module.f.js...Failed'), incompatible)
+            assert(incompatible.includes('unit/module.f.js: error,'), incompatible)
             assert(incompatible.includes('command:'), incompatible)
             assert(!incompatible.includes('...Cached'), incompatible)
             assert.equal(git(repo, ['rev-parse', 'build-cache']), first)
@@ -214,8 +216,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
 
         write(repo, 'unit/helper.f.js', 'export const helper = () => 2;\n')
         const changed = coverage(join(repo, 'unit'))
-        assert(changed.includes('unit/module.f.js...Ok'), changed)
-        nativeOutput(changed)
+        assert(changed.includes('unit/module.f.js: ok,'), changed)
+        executedOutput(changed)
         assert(!changed.includes('...Cached'), changed)
         assert.equal(entries(repo).length, 2)
         const successful = git(repo, ['rev-parse', 'build-cache'])
@@ -223,9 +225,9 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
 
         write(repo, 'unit/proof.f.mjs', 'import { value } from "./module.f.js"; export const proof = { covers: () => { value(); throw "fixture failure"; } };\n')
         const failed = coverage(join(repo, 'unit'), false, 1)
-        assert(failed.includes('unit/module.f.js...Failed'), failed)
-        assert(failed.includes('fixture failure'), failed)
-        assert(failed.includes('ℹ tests'), failed)
+        assert(failed.includes('unit/module.f.js: error,'), failed)
+        assert(!failed.includes('fixture failure'), failed)
+        assert(!failed.includes('ℹ tests'), failed)
         assert(failed.includes('command:'), failed)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), successful)
         assert.equal(entries(repo).length, 2)
@@ -251,8 +253,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const bBefore = sourceState(b)
 
         const first = coverage(join(a, 'a'), true)
-        assert(first.includes('a/module.f.js...Ok'), first)
-        nativeOutput(first)
+        assert(first.includes('a/module.f.js: ok,'), first)
+        executedOutput(first)
         const firstTip = git(origin, ['rev-parse', 'build-cache'])
         const shared = coverage(join(b, 'a'), true)
         assert(shared.includes('a/module.f.js...Cached'), shared)
@@ -261,14 +263,14 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
 
         const pending = coverage(join(a, 'b'))
-        assert(pending.includes('b/module.f.js...Ok'), pending)
-        nativeOutput(pending)
+        assert(pending.includes('b/module.f.js: ok,'), pending)
+        executedOutput(pending)
         const aEntries = entries(a)
         assert.equal(aEntries.length, 2)
         assert.equal(git(origin, ['rev-parse', 'build-cache']), firstTip)
         const advancing = coverage(join(b, 'c'), true)
-        assert(advancing.includes('c/module.f.js...Ok'), advancing)
-        nativeOutput(advancing)
+        assert(advancing.includes('c/module.f.js: ok,'), advancing)
+        executedOutput(advancing)
         const bEntries = entries(b)
         assert.equal(bEntries.length, 2)
         const advancedTip = git(origin, ['rev-parse', 'build-cache'])
@@ -308,15 +310,15 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const before = sourceState(repo)
 
         const output = coverage(repo, true, 1, { GIT_TRACE2_EVENT: trace })
-        assert(output.includes('a/module.f.js...Ok'), output)
-        assert(output.includes('b/module.f.js...Failed'), output)
-        assert(output.includes('c/module.f.js...Ok'), output)
-        assert(output.includes('batch fixture failure'), output)
-        assert(output.includes('ℹ tests'), output)
+        assert(output.includes('a/module.f.js: ok,'), output)
+        assert(output.includes('b/module.f.js: error,'), output)
+        assert(output.includes('c/module.f.js: ok,'), output)
+        assert(!output.includes('batch fixture failure'), output)
+        assert(!output.includes('ℹ tests'), output)
         assert(output.includes('command:'), output)
         assert(output.includes('Coverage: 2 passed, 1 failed, 3 total (0 cached)'), output)
-        assert(output.indexOf('a/module.f.js...Ok') < output.indexOf('b/module.f.js...Failed'), output)
-        assert(output.indexOf('b/module.f.js...Failed') < output.indexOf('c/module.f.js...Ok'), output)
+        assert(output.indexOf('a/module.f.js: ok,') < output.indexOf('b/module.f.js: error,'), output)
+        assert(output.indexOf('b/module.f.js: error,') < output.indexOf('c/module.f.js: ok,'), output)
 
         // Native Git trace events distinguish one end-of-command publication
         // from a push after each successful module. All targets are processed
@@ -326,7 +328,8 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         assert.equal(imports.length, 1, JSON.stringify(imports))
         const pushes = events.filter(event => event.argv.includes('push'))
         assert.equal(pushes.length, 1, JSON.stringify(pushes))
-        assert.equal(_finished(output), 3, output)
+        assert.equal(_results(output), 3, output)
+        assert(!output.includes('CACHE_CHILD_FINISHED '), output)
         const inventories = events.filter(event => event.argv.includes('for-each-ref')
             && event.argv.includes('--format=%(refname)%00%(objectname)'))
         assert.equal(inventories.length, 2, JSON.stringify(inventories))
@@ -371,11 +374,11 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
             if (phase === 'warm') {
                 assert(output.includes('unit/module.f.js...Cached'), output)
                 cachedOutput(output)
-                assert.equal(_finished(output), 0, output)
+                assert.equal(_results(output), 0, output)
             } else {
-                assert(output.includes('unit/module.f.js...Ok'), output)
-                nativeOutput(output)
-                assert.equal(_finished(output), 1, output)
+                assert(output.includes('unit/module.f.js: ok,'), output)
+                executedOutput(output)
+                assert.equal(_results(output), 1, output)
                 assert(Date.parse(imports[0].time) >= Date.parse(inventories[1].time), JSON.stringify(imports))
             }
             const expected = seeded + (phase === 'changed' ? 2 : 1)
@@ -391,7 +394,7 @@ export const proof = process.versions.bun || process.versions.deno ? {} : {
         const repo = join(root, 'source')
         initialize(repo, ['a', 'b'])
         const original = coverage(join(repo, 'b'))
-        assert(original.includes('b/module.f.js...Ok'), original)
+        assert(original.includes('b/module.f.js: ok,'), original)
         const before = git(repo, ['rev-parse', 'build-cache'])
         // This host-dependent proof runs uncached. The graph for b has already
         // been captured when a changes b's input, before b's old cache hit.
@@ -405,12 +408,12 @@ export const proof = { changesLaterInput: () => {
 `)
         const changed = execute(repo, process.execPath, [cli, 'cov', 'node'])
         assert.equal(changed.status, 0, changed.output)
-        assert(changed.output.includes('b/module.f.js...Ok'), changed.output)
+        assert(changed.output.includes('b/module.f.js: ok,'), changed.output)
         assert(!changed.output.includes('...Cached'), changed.output)
         assert(changed.output.includes('coverage inputs changed since the cache snapshot'), changed.output)
         assert.equal(git(repo, ['rev-parse', 'build-cache']), before)
         const fresh = coverage(join(repo, 'b'))
-        assert(fresh.includes('b/module.f.js...Ok'), fresh)
+        assert(fresh.includes('b/module.f.js: ok,'), fresh)
         assert.equal(entries(repo).length, 2)
         assert(coverage(join(repo, 'b')).includes('b/module.f.js...Cached'))
     }),

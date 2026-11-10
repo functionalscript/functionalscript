@@ -212,6 +212,7 @@ export type Child =
  * so what it writes reaches the reader as it is written and its two streams
  * keep their order — what the `exec` capture cannot give.
  *
+ * `stdio: 'ignore'` discards child input and output for quiet runners.
  * It is required rather than optional for now: a piped child has no reader
  * until the rest of the family in
  * [`todo/spawn-effect.md`](./todo/spawn-effect.md) lands, and a child whose
@@ -220,7 +221,7 @@ export type Child =
  * process's directory.
  */
 export type SpawnOptions = {
-    readonly stdio: 'inherit'
+    readonly stdio: 'inherit' | 'ignore'
     readonly cwd?: string
 }
 

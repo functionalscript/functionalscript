@@ -1,13 +1,14 @@
 /**
  * Runs each module directory's own proofs under native Node coverage.
- * Children run sequentially without a shell and inherit stdout and stderr.
+ * Children run quietly and sequentially without a shell. Progress uses the
+ * emergent-testing reporter, with each directory's measured files as its name.
  * The complete plan is prepared before any child runs. Stable successful entries
  * are committed and synchronized after executing the plan.
  *
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeOp, NodeProgram, NodeProgramOptions, Write, Subprocess } from '../../effects/node/types.ts'
+ * @import { NodeOp, NodeProgram, NodeProgramOptions, Write } from '../../effects/node/types.ts'
  * @import { _Module } from './types.ts'
  * @import { CoverageCache, Command, Outcome, Planned } from './plan/types.ts'
  * @import { Entry } from './cache/types.ts'
@@ -15,11 +16,12 @@
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
 import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
-import { childWait, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
+import { childWait, now, error, errorExit, errorMessage, log, resolveFileModule, spawn } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { cmp } from '../../types/string/module.f.js'
 import { shellQuote } from '../../text/shell/module.f.js'
+import { defaultReporter } from '../module.f.mjs'
 import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
 import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.mjs'
@@ -61,20 +63,30 @@ export const _modulePaths = ({ directory, files }, root) => {
     return files.map(file => under(relative, file))
 }
 
-/** Run one child with live output while allowing independent directories to continue after failure. @type {(command: Command, root: string) => Effect<Subprocess | Write, boolean, IoChannel>} */
-const runModule = (command, root) => {
+/** Run one quiet child with shared test progress; independent directories continue after failure.
+ * @type {(options: NodeProgramOptions, command: Command, root: string) => Effect<NodeOp, boolean, IoChannel>}
+ */
+const runModule = (options, command, root) => {
     const { directory, args } = command
-    const started = spawn('node', args, { stdio: 'inherit', cwd: directory })
+    const reporter = defaultReporter(options)
+    const id = /** @type {const} */ ({ module: directory, path: '', name: _modulePaths(command, root).join(', ') })
+    const announced = reporter.start(id)
+    const timed = step(announced, () => now())
+    const started = spawn('node', args, { stdio: 'ignore', cwd: directory })
     const ended = step(started, childWait)
-    const outcome = resultMapStep(ended, ([tag, value]) => {
+    const checked = resultMapStep(ended, ([tag, value]) => {
         if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value) }) }
         const [status, code] = value
         return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}` })
     })
-    const targets = historyStep(history(outcome), ({ passed }) =>
-        forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...${passed ? 'Ok' : 'Failed'}`)))
-    const diagnostics = historyStep(targets, (_, { passed, detail }) => passed
-        ? pureOk(undefined) : error(`${_commandLine(directory, args)}\n${detail}`))
+    const outcome = historyStep(history(timed), () => checked)
+    const stopped = historyStep(outcome, () => now())
+    const measured = mapStep(stopped, ([end, result, start]) => ({ ...result, duration: end - start }))
+    const reported = historyStep(history(measured), ({ passed, duration }) =>
+        reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
+            { duration, result: ok(undefined) }, false))
+    const diagnostics = historyStep(reported, (_, { passed, detail }) => passed
+        ? pureOk(undefined) : log(`${_commandLine(directory, args)}\n${detail}`))
     return mapStep(diagnostics, ([, , { passed }]) => passed)
 }
 
@@ -99,12 +111,12 @@ const coverageCache = (options, synchronize, commands) => resultStep(openCoverag
 const increments = { passed: { failed: 0, cached: 0 }, failed: { failed: 1, cached: 0 }, cached: { failed: 0, cached: 1 } }
 
 /** Execute only the prepared misses and retain stable successes for one commit.
- * @type {(plan: readonly Planned[], root: string, cache: CoverageCache | null) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly entries: readonly Entry[] }, IoChannel>}
+ * @type {(options: NodeProgramOptions, plan: readonly Planned[], root: string, cache: CoverageCache | null) => Effect<NodeOp, { readonly failed: number, readonly cached: number, readonly total: number, readonly entries: readonly Entry[] }, IoChannel>}
  */
-const runPlan = (plan, root, cache) => foldStep(pureOk(plan), {
+const runPlan = (options, plan, root, cache) => foldStep(pureOk(plan), {
     failed: 0, cached: 0, total: 0, entries: /** @type {readonly Entry[]} */ ([]),
 }, item => totals => {
-    const checked = runPlanned(item, () => runModule(item.command, root), cache)
+    const checked = runPlanned(item, () => runModule(options, item.command, root), cache)
     const shown = historyStep(history(checked), ({ outcome }) => _showCached(item.command, root, outcome))
     return mapStep(shown, ([, { outcome, entries }]) => {
         const change = increments[outcome]
@@ -134,7 +146,7 @@ export const main = options => {
         }])))
     const context = historyStep(history(commands), commands => coverageCache(options, args.length === 2, commands))
     const planned = historyStep(context, (cache, commands) => createPlan(commands, cache))
-    const executed = historyStep(planned, (plan, cache) => runPlan(plan, cache?.root ?? packageRoot, cache))
+    const executed = historyStep(planned, (plan, cache) => runPlan(options, plan, cache?.root ?? packageRoot, cache))
     const committed = historyStep(executed, (results, _plan, cache) => _saveBatch(cache, results.entries))
     const results = mapStep(committed, ([, totals]) => totals)
     const reported = historyStep(history(results), ({ failed, cached, total }) =>

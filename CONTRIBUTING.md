@@ -169,10 +169,12 @@ The runner executes each module directory's own proofs in a fresh Node
 process and requires 100% line, branch and function coverage of its immediate
 `module.f.mjs`, `module.f.js` and `demo.f.mjs` files. Imported dependencies and
 descendant modules cannot supply coverage to another directory's result.
-Native children inherit stdout and stderr, so their reporter output appears
-live. After a child finishes, each target prints its repository-relative path
-followed by `...Ok` or `...Failed`; failures also identify the working directory
-and complete command. Exact successful dependency manifests in the local
+Before each child starts, the runner opens a progress line naming its measured
+files by repository-relative path, joined with `, ` when they share a proof run.
+The shared emergent-testing reporter completes the line with status and timing,
+for example `module.f.js: ok, 360.0000 ms`. Child stdout and stderr are hidden.
+Failures also identify the working directory, complete command and exit status,
+signal or launch/wait error. Exact successful dependency manifests in the local
 `build-cache` branch skip the native child and print only `...Cached` for each
 target. Manifests include working-tree hashes of all sibling authored
 files and their transitive dependencies, plus the runner/runtime contract.
@@ -207,14 +209,13 @@ Node's `npm start cov node` and Deno's `cov` and `cov-html` reports measure
 already includes imported demos without a filename filter; CI uses Node's
 100% line, branch and function thresholds as the coverage gate.
 
-The isolated coverage runner reports live through
-[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs),
-which checks the expected targets before delegating to
+The isolated coverage child uses
+[`fjs/emergent_testing/cov/reporter.mjs`](./fjs/emergent_testing/cov/reporter.mjs)
+to check the expected targets before delegating to
 [`fjs/emergent_testing/node/module.mjs`](./fjs/emergent_testing/node/module.mjs).
-This is Node's `spec` reporter with the passed tests and the fully covered files
-filtered out, so a green run prints its summary — the test counts and the
-`all files` coverage row — and a red one prints each failure and each file
-under a threshold. The runner then prints module results and failure diagnostics.
+Its report is hidden by the parent runner, which displays progress through the
+shared emergent-testing reporter instead. To inspect native test failures and
+uncovered locations, rerun the command printed for a failed module directly.
 
 To validate the packed npm package itself against clean Node, Deno, and Bun
 consumers — for example after changing `prepack`, `files`, or anything that

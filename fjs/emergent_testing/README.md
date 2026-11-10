@@ -199,13 +199,15 @@ namespace bindings do not impose an additional cache-admission restriction.
 The manifest follows static imports without executing the source.
 
 A directory is cached only when every measured target has an exact success.
-Native children inherit stdout and stderr, so their reporter output appears
-live. The existing quiet Node reporter filters passed tests and fully covered
-files. After a child finishes, each target prints a complete repository-relative
-result line: `module.f.js...Ok` or `module.f.js...Failed`. Failures also identify
-the working directory and reproducible command. Cache hits launch no child and
-print only `module.f.js...Cached` for each target. The runner continues after
-failures and exits nonzero if any module failed.
+Before each child starts, the runner opens a progress line naming the directory's
+measured files by repository-relative path. Files that share a proof run are
+joined with `, `. The runner completes the line with the same status and timing
+as emergent testing: `module.f.js: ok, 360.0000 ms` or
+`module.f.js: error, 360.0000 ms`. Child stdout and stderr are hidden. Failures
+also print the working directory, reproducible command and exit status, signal
+or launch/wait error. Cache hits launch no child and print only
+`module.f.js...Cached` for each target. The runner continues after failures and
+exits nonzero if any module failed.
 
 Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module

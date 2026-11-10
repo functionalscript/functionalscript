@@ -72,12 +72,17 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
                 entries.map(([name, isDirectory]) => ({ name, parentPath: path, isDirectory, isFile: !isDirectory })))]
         },
         spawn: (command, args, options) => state => {
-            assertEq(options.stdio, 'inherit')
+            assertEq(options.stdio, 'ignore')
+            // The progress name must reach the reader before the child starts.
+            const name = assertNotNullish(state.output.at(-1)?.[1])
+            assert(name.endsWith(': '))
+            assert(name.includes('module.f.'))
             /** @type {Child} */
             const child = asNominal('child')
             return [{ ...state, commands: [...state.commands, [command, args, options.cwd]] },
                 spawnFails ? error(ioError({ message: 'spawn unavailable' })) : ok(child)]
         },
+        now: () => state => [state, ok(0)],
         childWait: () => state => [state, assertNotNullish(outcomes[state.commands.length - 1])],
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
@@ -141,7 +146,8 @@ export const proof = /** @type {const} */ ({
             ['node', _nodeArgs('/package root', ['module.f.js'], reporterUrl), 'z'],
         ])
         const output = state.output.map(([, text]) => text).join('')
-        assert(output.includes('a/demo.f.mjs...Ok\na/module.f.mjs...Ok\nz/module.f.js...Ok\n'))
+        assert(output.includes('a/demo.f.mjs, a/module.f.mjs: ok,'))
+        assert(output.includes('z/module.f.js: ok,'))
         assert(!output.includes('cwd:') && !output.includes('command:'))
         assert(output.includes('Coverage: 2 passed, 0 failed, 2 total'))
     },
@@ -155,7 +161,7 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute([passed], {}, { '.': [['module.f.js', false]] })
         assertEq(exitCode(result), 0)
         assertEq(state.commands[0]?.[2], '.')
-        assert(state.output.map(([, text]) => text).join('').includes('module.f.js...Ok'))
+        assert(state.output.map(([, text]) => text).join('').includes('module.f.js: ok,'))
     },
     cacheFallbackAndSyncOption: () => {
         const [state, result] = execute([passed, passed], {}, tree, false, false, reporterUrl, true)
@@ -175,8 +181,9 @@ export const proof = /** @type {const} */ ({
             const [state, result] = execute([outcome, passed])
             assertEq(exitCode(result), 1)
             assertEq(state.commands.length, 2)
-            assert(state.output.some(([stream, text]) => stream === 'stderr' && text.includes("cwd: 'a'")))
-            assert(state.output.map(([, text]) => text).join('').includes('z/module.f.js...Ok'))
+            assert(state.output.some(([stream, text]) => stream === 'stdout' && text.includes("cwd: 'a'")))
+            assert(state.output.some(([, text]) => text.includes('error,')))
+            assert(state.output.map(([, text]) => text).join('').includes('z/module.f.js: ok,'))
         }
         const [state, result] = execute([], {}, tree, true)
         assertEq(exitCode(result), 1)
