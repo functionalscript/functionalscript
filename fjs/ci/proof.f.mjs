@@ -40,7 +40,7 @@ const has = (gha, id, fragment) => gha.jobs[id]?.steps.some(step => (step.env?.F
 export const proof = {
     matrix: () => {
         const gha = generate(true)
-        assertEq(Object.keys(gha.jobs).length, 10)
+        assertEq(Object.keys(gha.jobs).length, 11)
         assertEq(gha.permissions.contents, 'read')
         assertEq(gha.concurrency?.['cancel-in-progress'], true)
         for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
@@ -60,16 +60,22 @@ export const proof = {
         assert(has(gha, 'windows-intel', '--target i686-pc-windows-msvc'))
         for (const target of wasmTargets) { assert(has(gha, 'ubuntu-arm', `--target ${target}`), target) }
         assert(has(gha, 'ubuntu-arm', 'cargo fmt -- --check'))
-        assert(has(gha, 'ubuntu-arm', 'npm run sm c'))
-        assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
-        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm start t', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node26', command), command) }
+        assertEq(gha.jobs.spidermonkey?.['runs-on'], images.ubuntu.arm)
+        for (const id of Object.keys(gha.jobs).filter(id => id !== 'spidermonkey')) {
+            assert(!has(gha, id, 'spidermonkey'), id)
+            assert(!has(gha, id, 'npm run sm '), id)
+        }
+        assert(!has(gha, 'spidermonkey', 'cargo '))
+        assert(has(gha, 'spidermonkey', 'npm run sm c'))
+        assert(has(gha, 'spidermonkey', 'npm run sm t'))
+        for (const command of ['tsc', 'npm start deps', 'npm start compile', 'npm start t', 'npm pack', 'npm run gen', 'git diff --cached --exit-code']) { assert(has(gha, 'node', command), command) }
         assert(has(gha, 'deno', 'deno test -A ./fjs/emergent_testing/fjs-only.mjs'))
         assert(has(gha, 'bun', 'bun test --timeout 30000 ./fjs/emergent_testing/fjs-only.mjs'))
     },
     noRust: () => {
         const gha = generate(false)
         for (const id of Object.keys(gha.jobs)) { assert(!has(gha, id, 'cargo '), id) }
-        assert(has(gha, 'ubuntu-arm', 'npm run sm t'))
+        assert(has(gha, 'spidermonkey', 'npm run sm t'))
     },
     injected: () => {
         for (const command of ['printenv FOO', 'echo "env ready"', 'env FOO=value node extra.mjs', 'echo "$(env node --version)"', 'echo "${{ matrix.name }}"', 'false; echo done', 'cd dir && node extra.mjs', 'NODE_OPTIONS=x node extra.mjs']) {
@@ -95,7 +101,7 @@ export const proof = {
         const [state, result] = virtualAt({})(ownMain())
         assertEq(exitCode(result), 0)
         const gha = workflow(state, 'gen.ci.yml')
-        const steps = gha.jobs.node26?.steps
+        const steps = gha.jobs.node?.steps
         assert(steps !== undefined)
         assert(steps.some(step => step['working-directory'] !== undefined && step.run?.includes(packageConsumer.module)))
         for (const step of steps.filter(step => step['working-directory'] !== undefined)) {
@@ -110,8 +116,8 @@ export const proof = {
     defaultsAndSmart: () => {
         const [state, result] = virtualAt({})(main())
         assertEq(exitCode(result), 0)
-        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 10)
-        assert(has(generate(true, () => [], true), 'node26', 'ci init'))
+        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 11)
+        assert(has(generate(true, () => [], true), 'node', 'ci init'))
         const [, queued] = virtualAt({})(ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
         assertEq(exitCode(queued), 0)
     },
@@ -137,10 +143,10 @@ export const proof = {
             const coverageJobs = definedEntries(gha.jobs).flatMap(([id, job]) =>
                 job.steps.flatMap(step => step.run?.startsWith(smart ? 'mise exec -- npm start -- cov node' : 'mise exec -- npm start cov node') ? [id] : []))
             assertStructurallySame(coverageJobs, ['cov'])
-            assert(has(gha, 'node26', 'npm start t'))
-            assert(!has(gha, 'node26', 'npm run cov'))
-            assertEq(has(gha, 'node26', 'ci report suite'), smart)
-            assert(!has(gha, 'node26', 'ci report coverage'))
+            assert(has(gha, 'node', 'npm start t'))
+            assert(!has(gha, 'node', 'npm run cov'))
+            assertEq(has(gha, 'node', 'ci report suite'), smart)
+            assert(!has(gha, 'node', 'ci report coverage'))
         }
         assertStructurallySame(generate(false).jobs.cov, generate(true).jobs.cov)
     },

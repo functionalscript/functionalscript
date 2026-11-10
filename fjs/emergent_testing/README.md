@@ -232,7 +232,7 @@ never force pushes. Without `--sync`, recording is still batched locally.
 
 CI's additional `cov` job invokes this isolated runner from the repository root,
 with `--sync` only for permitted same-repository runs outside Dependabot. The
-`node26` job runs the full authored FJS suite with `npm start t`, using the
+`node` job runs the full authored FJS suite with `npm start t`, using the
 built-in reporter without coverage. This retains proofs outside measured module
 directories while the dedicated job owns coverage. Further rollout work is
 tracked in

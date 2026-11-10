@@ -6,8 +6,8 @@ mise manifest and lock; callers must provide those files. This replaces the
 previous generated environment API. `Setup.environment` is removed because
 this branch has one environment manager.
 
-The ten test jobs cover Linux, macOS and Windows on x64 and ARM64, canonical
-Node, Deno and Bun checks, and dedicated Node coverage. Native Rust debug/release
+The eleven test jobs cover Linux, macOS and Windows on x64 and ARM64, canonical
+Node, Deno, Bun and SpiderMonkey checks, and dedicated Node coverage. Native Rust debug/release
 tests and Clippy, i686 Linux/Windows checks, Linux ARM formatting and four WASM
 targets, SpiderMonkey compilation/tests, TypeScript, compilation, coverage and
 packed-package checks remain separate steps. Host compiler/SDK prerequisites
@@ -16,7 +16,7 @@ still apply.
 The three ARM platform jobs run Node's JS-only entry
 (`node --test ./fjs/emergent_testing/js-only.mjs`). The Deno and Bun jobs run
 `fjs-only.mjs` through their native runners without coverage. Bun allows 30 seconds per
-test because parser stress proofs can exceed its default five seconds. `node26`
+test because parser stress proofs can exceed its default five seconds. `node`
 runs the full authored FJS suite via `npm start t`, using the built-in reporter
 without coverage and the successful-check cache's `suite` entry. The dedicated
 `cov` job runs `npm start cov node`, checking each module directory's own proofs
@@ -27,8 +27,8 @@ Dependabot pass `--sync`, saving successful manifests and publishing one batch
 after all modules finish; forks and Dependabot keep local batch recording only.
 The full test suite retains proofs outside measured module directories.
 Each measured file in the isolated run prints `...Ok`, `...Cached`,
-or `...Failed`; native output streams live through the quiet reporter. SpiderMonkey compilation
-and FJS tests remain on `ubuntu-arm`.
+or `...Failed`; native output streams live through the quiet reporter. SpiderMonkey
+compilation and FJS tests run in the dedicated `spidermonkey` job on ARM Linux.
 The canonical Node job runs `npm start deps` after type checking and before
 compilation and the full test suite. It checks generic AST formation for every
 authored `.f.js` and `.f.mjs` file, including proofs, demos and helpers. While generic AST
@@ -58,7 +58,7 @@ these whole-check gates. Unsupported dependency analysis remains uncached.
 - `smart`: successful-check caching; `cache`: input classification and keys.
 - `self`: this repository's consumer and additional steps.
 
-The test workflow runs ten jobs on pull requests and merge-group entries.
+The test workflow runs eleven jobs on pull requests and merge-group entries.
 The other jobs retain their successful-check caching.
 The `cov` command always starts, then checks its own per-target manifests.
 The new job supplies cache-publication identity and contents-write permission;
