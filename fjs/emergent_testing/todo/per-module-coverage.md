@@ -85,9 +85,9 @@ timing. Capture child stdout and stderr, keeping successful output hidden. After
 a failed child's result, print the working directory, complete invocation and
 exit status or signal, then replay stdout followed by stderr. Grouping the two
 streams does not preserve their original ordering relative to each other.
-Report launch/capture errors directly. Cache hits launch no child and print only
-`...Cached`
-for each target. Continue after failures and finish with coverage totals.
+Report launch/capture errors directly. Cache hits launch no child and print no
+per-file result. Continue after failures and finish with coverage totals,
+including the cached module count.
 Execute with a structured argument vector, without a shell.
 
 The command currently accepts `--sync` for end-of-run cache publication.
@@ -144,7 +144,7 @@ when a required metric is unavailable.
   with status and timing. Successful child output is suppressed; failures name
   their working directory and full reproducible command, with paths and
   arguments quoted unambiguously, then print captured stdout and stderr.
-  Cache hits print only their result without a child.
+  Cache hits print no per-file result and contribute to the final cached count.
 - Future verbosity controls change presentation only; they must not change
   discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the

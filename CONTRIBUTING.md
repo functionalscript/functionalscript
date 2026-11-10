@@ -178,9 +178,10 @@ command and exit status or signal, then the captured stdout and stderr. The two
 streams are grouped, so their original ordering relative to each other is not
 preserved. Launch/capture errors are reported directly. Exact successful
 dependency manifests in the local
-`build-cache` branch skip the native child and print only `...Cached` for each
-target. Manifests include working-tree hashes of all sibling authored
-files and their transitive dependencies, plus the runner/runtime contract.
+`build-cache` branch skip the native child without printing per-file results.
+The final summary includes the cached module count. Manifests include
+working-tree hashes of all sibling authored files and their transitive
+dependencies, plus the runner/runtime contract.
 After validating unchanged inputs, the command collects successful manifests
 and saves them in one batch when all modules finish. Another module's failure
 does not discard those successes; failed coverage contributes no manifest.

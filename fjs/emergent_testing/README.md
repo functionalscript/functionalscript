@@ -208,9 +208,9 @@ failed child's result, the runner prints the working directory, reproducible
 command and exit status or signal, then replays captured stdout and stderr.
 Each stream keeps its contents; their original ordering relative to each other
 is not preserved. Launch/capture errors are reported directly. Cache hits launch
-no child and print only
-`module.f.js...Cached` for each target. The runner continues after failures and
-exits nonzero if any module failed.
+no child and print no per-file result. The final summary includes the cached
+module count. The runner continues after failures and exits nonzero if any
+module failed.
 
 Before using a planned result and after a successful child, the runner verifies the
 snapshot's relevant bytes, authored sibling inventory, package scopes and module

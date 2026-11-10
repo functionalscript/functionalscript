@@ -8,14 +8,14 @@
  * @module
  *
  * @import { Effect, IoChannel } from '../../effects/types.ts'
- * @import { NodeOp, NodeProgram, NodeProgramOptions, Write } from '../../effects/node/types.ts'
+ * @import { NodeOp, NodeProgram, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { _Module } from './types.ts'
  * @import { CoverageCache, Command, Outcome, Planned } from './plan/types.ts'
  * @import { Entry } from './cache/types.ts'
  */
 
 import { allFiles, sourceRoot } from '../../dev/module.f.mjs'
-import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, refuse, resultMapStep, resultStep, step } from '../../effects/module.f.mjs'
 import { capture, now, error, errorExit, errorMessage, log, resolveFileModule } from '../../effects/node/module.f.mjs'
 import { basename, join, normalize, parent, under } from '../../path/module.f.js'
 import { ok } from '../../types/result/module.f.js'
@@ -96,10 +96,6 @@ export const _saveBatch = (cache, entries) => {
     return step(saved, () => catchStep(cache.sync(), problem => error(`CACHE: synchronizing manifests: ${errorMessage(problem)}`)))
 }
 
-/** Cached targets need no native child or test log. @type {(command: _Module, root: string, outcome: Outcome) => Effect<Write, void, IoChannel>} */
-export const _showCached = (command, root, outcome) => outcome === 'cached'
-    ? forEachStep(pureOk(_modulePaths(command, root)), name => log(`${name}...Cached`)) : pureOk(undefined)
-
 /** Prepare shared inputs once; a cache failure costs coverage work, never a skipped check. @type {(options: NodeProgramOptions, synchronize: boolean, commands: readonly Command[]) => Effect<NodeOp, CoverageCache | null, IoChannel>} */
 const coverageCache = (options, synchronize, commands) => resultStep(openCoverageCache(options, synchronize, commands),
     /** @returns {Effect<NodeOp, CoverageCache | null, IoChannel>} */
@@ -116,8 +112,7 @@ const runPlan = (options, plan, root, cache) => foldStep(pureOk(plan), {
     failed: 0, cached: 0, total: 0, entries: /** @type {readonly Entry[]} */ ([]),
 }, item => totals => {
     const checked = runPlanned(item, () => runModule(options, item.command, root), cache)
-    const shown = historyStep(history(checked), ({ outcome }) => _showCached(item.command, root, outcome))
-    return mapStep(shown, ([, { outcome, entries }]) => {
+    return mapStep(checked, ({ outcome, entries }) => {
         const change = increments[outcome]
         return {
             failed: totals.failed + change.failed, cached: totals.cached + change.cached,
