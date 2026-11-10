@@ -69,23 +69,24 @@ export const _modulePaths = ({ directory, files }, root) => {
 const runModule = (options, command, root) => {
     const { directory, args } = command
     const reporter = defaultReporter(options)
-    const id = { module: directory, path: '', name: _modulePaths(command, root).join(', ') }
+    const id = /** @type {const} */ ({ module: directory, path: '', name: _modulePaths(command, root).join(', ') })
     const announced = reporter.start(id)
     const timed = step(announced, () => now())
-    const outcome = historyStep(history(timed), () => {
-        return resultMapStep(capture('node', args, { cwd: directory }), ([tag, value]) => {
-            if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value), stdout: '', stderr: '' }) }
-            const { status: [status, code], stdout, stderr } = value
-            return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}`, stdout, stderr })
-        })
+    const captured = capture('node', args, { cwd: directory })
+    const checked = resultMapStep(captured, ([tag, value]) => {
+        if (tag === 'error') { return ok({ passed: false, detail: errorMessage(value), stdout: '', stderr: '' }) }
+        const { status: [status, code], stdout, stderr } = value
+        return ok({ passed: status === 'exited' && code === 0, detail: `${status} ${code}`, stdout, stderr })
     })
-    return step(outcome, ([{ passed, detail, stdout, stderr }, start]) => step(now(), end => {
-        const duration = end - start
-        const reported = reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
-            { duration, result: ok(undefined) }, false)
-        return mapStep(step(reported, () => passed ? pureOk(undefined)
-            : log([_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '').join('\n'))), () => passed)
-    }))
+    const outcome = historyStep(history(timed), () => checked)
+    const stopped = historyStep(outcome, () => now())
+    const measured = mapStep(stopped, ([end, result, start]) => ({ ...result, duration: end - start }))
+    const reported = historyStep(history(measured), ({ passed, duration }) =>
+        reporter.result({ ...id, duration, status: passed ? 'passed' : 'failed' },
+            { duration, result: ok(undefined) }, false))
+    const diagnostics = historyStep(reported, (_, { passed, detail, stdout, stderr }) => passed
+        ? pureOk(undefined) : log([_commandLine(directory, args), detail, stdout, stderr].filter(text => text !== '').join('\n')))
+    return mapStep(diagnostics, ([, , { passed }]) => passed)
 }
 
 /** Commit and publish once after execution; cache errors cannot hide coverage results. @type {(cache: CoverageCache | null, entries: readonly Entry[]) => Effect<NodeOp, void, IoChannel>} */
