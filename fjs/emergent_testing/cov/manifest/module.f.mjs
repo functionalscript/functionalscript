@@ -8,7 +8,6 @@
  * @import { _Source } from '../../../compiler/source/types.ts'
  * @import { List } from '../../../types/list/types.ts'
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { StringMap } from '../../../types/object/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Manifest, Graph, _Node, _Directory } from './types.ts'
  * @import { _Closure } from './private.ts'
@@ -26,7 +25,6 @@ import { normalize, parent, under } from '../../../path/module.f.js'
 import { fromU8List } from '../../../text/utf8/module.f.mjs'
 import { u8ListMsb } from '../../../types/bit_vec/module.f.mjs'
 import { equal, flatMap, sameItems } from '../../../types/list/module.f.js'
-import { definedEntries } from '../../../types/object/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.js'
 import { cmp } from '../../../types/string/module.f.js'
 import { validate } from './ast/module.f.mjs'
@@ -132,24 +130,15 @@ const directoryGraph = directory => graph => {
 }
 
 /**
- * Snapshot all selected directories together. Opaque framework inputs share
- * file reads and hashes with authored sources but have no static-source admission.
- * @type {(root: string, directories: readonly string[], opaqueFiles?: StringMap<string>) => Effect<NodeOp, Graph, IoChannel>}
+ * Snapshot all selected directories together, sharing source reads and hashes.
+ * @type {(root: string, directories: readonly string[]) => Effect<NodeOp, Graph, IoChannel>}
  */
-export const buildGraph = (root, directories, opaqueFiles = {}) => {
+export const buildGraph = (root, directories) => {
     /** @type {Graph} */
     const initial = {
         root: normalize(root), files: {}, imports: {}, nodes: {}, directories: {},
-        opaquePaths: Object.fromEntries(definedEntries(opaqueFiles).map(([label, path]) => [label, normalize(path)])),
-        opaqueFiles: {},
     }
-    const framework = foldStep(pureOk(definedEntries(initial.opaquePaths)), initial, ([label, path]) => graph =>
-        step(read(graph, path), graph => {
-            const file = assertNotNullish(graph.files[path])
-            return file[0] === 'error' ? pureError(file[1])
-                    : pureOk({ ...graph, opaqueFiles: { ...graph.opaqueFiles, [label]: file[1].hash } })
-        }))
-    const rootScope = step(framework, graph => read(graph, under(graph.root, 'package.json')))
+    const rootScope = read(initial, under(initial.root, 'package.json'))
     return step(rootScope, graph => foldStep(pureOk(directories), graph, directoryGraph))
 }
 
@@ -224,7 +213,7 @@ export const validateGraph = (graph, directory) => {
     const reached = closure(graph, directory)
     if (reached[0] === 'error') { return pureOk(false) }
     const record = assertOk(assertNotNullish(graph.directories[normalize(directory)]))
-    const paths = unique([...reached[1].required, ...reached[1].scopes, ...definedEntries(graph.opaquePaths).map(([, path]) => path)])
+    const paths = unique([...reached[1].required, ...reached[1].scopes])
     const checked = resultStep(inventory(normalize(directory)), result =>
         pureOk(result[0] === 'ok' && sameItems(record.files)(result[1])))
     const files = step(checked, valid => foldStep(pureOk(paths), valid, path => valid => !valid ? pureOk(false)

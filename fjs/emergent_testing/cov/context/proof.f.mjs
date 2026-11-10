@@ -7,7 +7,6 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
 import { encodeScalar } from '../../../basen/base16/module.f.js'
-import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
 import { ioError, runPure } from '../../../effects/module.f.mjs'
 import { partialRun } from '../../../effects/mock/module.f.mjs'
@@ -29,11 +28,8 @@ const options = {
 
 const framework = /** @type {const} */ ('export default 1;')
 const runtimePath = /** @type {const} */ ('/tool/fjs/emergent_testing/cov/runtime.mjs')
-const runtimeLabel = /** @type {const} */ ('fjs/emergent_testing/cov/runtime.mjs')
 const runtimeSource = /** @type {const} */ ('export default "runtime";')
 const digest = computeSync(sha256)
-const frameworkHash = vecToCBase32(digest(u8ListToMaxVecChunksMsb(stringToU8List(framework))))
-const runtimeHash = vecToCBase32(digest(u8ListToMaxVecChunksMsb(stringToU8List(runtimeSource))))
 const hex = encodeScalar(64)
 /** @type {(text: string) => string} */
 const fingerprint = text => hex(uint(digest(u8ListToMaxVecChunksMsb(stringToU8List(text)))))
@@ -43,16 +39,7 @@ const facts = /** @type {const} */ ({
     node: '26.13.0', versions: { node: '26.13.0', v8: 'actual-v8' }, platform: 'linux', arch: 'x64',
     env: { NODE_OPTIONS: null, NODE_PATH: null, LANG: 'C', LC_ALL: null, TZ: null },
 })
-const runtime = /** @type {const} */ ({
-    ...facts,
-    files: ['fjs/framework.mjs', runtimeLabel],
-    fingerprints: { 'fjs/framework.mjs': fingerprint(framework), [runtimeLabel]: fingerprint(runtimeSource) },
-    resolutions: [
-        { name: '/tool/fjs/framework-alias.mjs', id: 'file:///tool/fjs/framework.mjs', path: '/tool/fjs/framework.mjs' },
-        { name: runtimePath, id: `file://${runtimePath}`, path: runtimePath },
-    ],
-    absentScopes: ['/tool/fjs/package.json', '/tool/package.json'],
-})
+const runtime = /** @type {const} */ ({ ...facts, functionalscript: '0.58.0' })
 
 /** @type {Command} */
 const command = { directory: '/repo/unit', files: ['module.f.js', 'demo.f.mjs'], args: ['--test'] }
@@ -149,13 +136,7 @@ const operations = (runtimeOutput = JSON.stringify(runtime), runtimeFails = fals
         },
         resolveFileModule: (name, parent) => {
             assert(!(parent === null && (name === command.directory || name === other.directory)))
-            const resolve = virtualOperationMap.resolveFileModule(name === '/tool/fjs/framework-alias.mjs' ? '/tool/fjs/framework.mjs' : name, parent)
-            return state => {
-                const [next, result] = resolve(state)
-                const found = assertOk(result)
-                return [next, ok(name === runtimePath || name === '/tool/fjs/framework-alias.mjs'
-                    ? { ...found, id: `file://${found.path}` } : found)]
-            }
+            return virtualOperationMap.resolveFileModule(name, parent)
         },
         spawn: (executable, args, opts) => state => {
             assertEq(executable, 'git')
@@ -178,8 +159,7 @@ export const proof = /** @type {const} */ ({
         const lines = state.stdout.split('\n')
         assertEq(lines.filter(line => line.startsWith('["node"')).length, 1)
         assertEq(lines.filter(line => line === 'read /repo/unit/module.f.js').length, 1)
-        assertEq(lines.filter(line => line === 'read /tool/fjs/framework.mjs').length, 1)
-        assertEq(lines.filter(line => line === `read ${runtimePath}`).length, 2)
+        assert(!lines.some(line => line.startsWith('read /tool/')))
         assertEq(lines.filter(line => line === 'directory /repo/unit').length, 1)
         const [prepared, result] = run(state)(cache.prepare(command))
         const entries = assertOk(result)
@@ -196,7 +176,7 @@ export const proof = /** @type {const} */ ({
         assertEq(first.module, 'unit/demo.f.mjs')
         assertEq(second.module, 'unit/module.f.js')
         assertStructurallySame(first.contract, {
-            runtime: { ...facts, files: { 'fjs/framework.mjs': frameworkHash, [runtimeLabel]: runtimeHash } },
+            runtime,
             coverage: { engine: 'node', targets: command.files, lines: 100, branches: 100, functions: 100 },
         })
         assertStructurallySame(first.files, second.files)
@@ -258,132 +238,45 @@ export const proof = /** @type {const} */ ({
     runtimeFailures: () => {
         for (const [output, fails] of /** @type {const} */ ([
             ['not JSON', false], ['', true], ['null', false], ['[]', false], ['1', false],
-            ['{}', false], ['{"files":null}', false], ['{"files":[1]}', false],
+            ['{}', false], ['{"functionalscript":null}', false],
+            ['{"functionalscript":1}', false], ['{"functionalscript":""}', false],
         ])) {
             const run = partialRun(nodeCommands)(operations(output, fails))
             assertError(run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
         }
     },
-    malformedRuntimeReceipts: () => {
-        for (const value of /** @type {const} */ ([
-            { ...runtime, fingerprints: null },
-            { ...runtime, fingerprints: 1 },
-            { ...runtime, fingerprints: [] },
-            { ...runtime, fingerprints: { file: 1 } },
-            { ...runtime, resolutions: null },
-            { ...runtime, absentScopes: null },
-            { ...runtime, absentScopes: [1] },
-            .../** @type {const} */ ([null, 1, [], {}, { name: 1 }, { name: 'entry', id: 1 }, { name: 'entry', id: 'identity', path: 1 }])
-                .map(resolution => ({ ...runtime, resolutions: [resolution] })),
-        ])) {
-            const run = partialRun(nodeCommands)(operations(JSON.stringify(value)))
-            assertError(run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-        }
-    },
-    fingerprintsMustMatchLoadedBytes: () => {
-        for (const fingerprints of /** @type {const} */ ([
-            {},
-            { ...runtime.fingerprints, 'fjs/framework.mjs': '0'.repeat(64) },
-            { ...runtime.fingerprints, unexpected: fingerprint(framework) },
-            { [runtimeLabel]: fingerprint(runtimeSource), wrong: fingerprint(framework) },
-        ])) {
-            const run = partialRun(nodeCommands)(operations(JSON.stringify({ ...runtime, fingerprints })))
-            assertError(run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-        }
+    toolVersionControlsSharedIdentity: () => {
         const run = partialRun(nodeCommands)(operations())
-        /** @type {Dir} */
-        const changed = { ...files, tool: { fjs: { ...files.tool.fjs, 'framework.mjs': [utf8('export default 2;')] } } }
-        assertError(run({ ...emptyState, root: changed })(openCoverageCache(options, false, [command]))[1])
-    },
-    initialProbeBytesArePinned: () => {
-        const changed = /** @type {const} */ ('export default "changed runtime";')
-        const base = operations(JSON.stringify({ ...runtime, fingerprints: { ...runtime.fingerprints, [runtimeLabel]: fingerprint(changed) } }))
-        const exec = assertNotNullish(base.execFile)
-        const run = partialRun(nodeCommands)({
-            ...base,
-            execFile: (executable, args) => state => {
-                const [next, result] = exec(executable, args)(state)
-                return [executable === 'node' ? { ...next, root: { ...files, tool: { fjs: {
-                    ...files.tool.fjs, emergent_testing: { cov: { 'runtime.mjs': [utf8(changed)] } },
-                } } } } : next, result]
-            },
-        })
-        assertError(run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-        const omitted = partialRun(nodeCommands)(operations(JSON.stringify({
-            ...runtime, files: ['fjs/framework.mjs'], fingerprints: { 'fjs/framework.mjs': fingerprint(framework) },
-        })))
-        assertError(omitted({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-        const original = operations(JSON.stringify({
-            ...runtime, files: ['fjs/framework.mjs'], fingerprints: { 'fjs/framework.mjs': fingerprint(framework) },
-        }))
-        const resolve = assertNotNullish(original.resolveFileModule)
-        const read = assertNotNullish(original.readWhole)
-        const unreadable = partialRun(nodeCommands)({
-            ...original,
-            resolveFileModule: (name, parent) => resolve(name === runtimePath ? '/repo/unit/module.f.js' : name, parent),
-            readWhole: path => state => path === '/repo/unit/module.f.js' && state.stdout.includes('["node"')
-                ? [state, error(ioError({ code: 'EACCES', message: 'probe target became unreadable' }))]
-                : read(path)(state),
-        })
-        assertError(unreadable({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-    },
-    nativeRuntimePathSeparators: () => {
-        const nativePath = runtimePath.replaceAll('/', '\\')
-        const base = operations(JSON.stringify({ ...runtime, resolutions: runtime.resolutions.map(resolution =>
-            resolution.name === runtimePath ? { ...resolution, path: nativePath } : resolution) }))
-        const resolve = assertNotNullish(base.resolveFileModule)
-        const run = partialRun(nodeCommands)({
-            ...base,
-            resolveFileModule: (name, parent) => state => {
-                const [next, result] = resolve(name, parent)(state)
-                const found = assertOk(result)
-                return [next, ok(name === runtimePath ? { ...found, path: nativePath } : found)]
-            },
-        })
         const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
         const cache = assertOk(opened)
-        assertEq(assertOk(run(state)(cache.validate(command))[1]), true)
-    },
-    runtimeScopesMustRemainAbsent: () => {
-        const run = partialRun(nodeCommands)(operations())
-        /** @type {Dir} */
-        const appeared = { ...files, tool: { ...files.tool, fjs: { ...files.tool.fjs, 'package.json': [utf8('{"type":"module"}')] } } }
-        assertError(run({ ...emptyState, root: appeared })(openCoverageCache(options, false, [command]))[1])
-        const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
-        const cache = assertOk(opened)
-        assertEq(assertOk(run({ ...state, root: appeared })(cache.validate(command))[1]), false)
-        const base = operations()
-        const read = assertNotNullish(base.readWhole)
-        const denied = partialRun(nodeCommands)({
-            ...base,
-            readWhole: path => path === '/tool/fjs/package.json'
-                ? state => [state, error(ioError({ code: 'EACCES', message: 'cannot inspect runtime scope' }))]
-                : read(path),
-        })
-        assertError(denied({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))[1])
-        assertEq(assertOk(denied(state)(cache.validate(command))[1]), false)
-    },
-    runtimeAliasesAreValidatedWithoutAnotherProbe: () => {
-        const base = operations()
-        const run = partialRun(nodeCommands)(base)
-        const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
-        const cache = assertOk(opened)
-        const resolve = assertNotNullish(base.resolveFileModule)
-        for (const replacement of /** @type {const} */ ([
-            ok({ id: 'file:///tool/fjs/other.mjs', path: '/tool/fjs/other.mjs' }),
-            ok({ id: 'file:///tool/fjs/framework.mjs', path: '/tool/fjs/other.mjs' }),
-            error(ioError({ code: 'ENOENT', message: 'runtime alias disappeared' })),
+        const entries = assertOk(run(state)(cache.prepare(command))[1])
+        const [saved, stored] = run(state)(cache.saveMany(entries))
+        assertOk(stored)
+        /** @type {State} */
+        const changedTool = { ...saved, root: { ...files, tool: { fjs: {
+            'framework.mjs': [utf8('export default 2;')],
+            emergent_testing: { cov: { 'runtime.mjs': [utf8('changed tool source')] } },
+        } } } }
+        const [reopened, result] = run(changedTool)(openCoverageCache(options, false, [command]))
+        const reused = assertOk(result)
+        const unchanged = assertOk(run(reopened)(reused.prepare(command))[1])
+        assertStructurallySame(unchanged, entries)
+        assertStructurallySame(assertOk(run(reopened)(reused.lookup(unchanged))[1]), [true, true])
+        assertEq(assertOk(run(changedTool)(cache.validate(command))[1]), true)
+        for (const runtimeChange of /** @type {const} */ ([
+            { ...runtime, functionalscript: '0.59.0' },
+            { ...runtime, node: 'different-node' },
+            { ...runtime, versions: { ...runtime.versions, v8: 'different-v8' } },
+            { ...runtime, platform: 'win32' },
+            { ...runtime, arch: 'arm64' },
+            { ...runtime, env: { ...runtime.env, TZ: 'different-zone' } },
         ])) {
-            const retargeted = partialRun(nodeCommands)({
-                ...base,
-                resolveFileModule: (name, parent) => name === '/tool/fjs/framework-alias.mjs'
-                    ? state => [state, replacement] : resolve(name, parent),
-            })
-            const [next, result] = retargeted(state)(cache.validate(command))
-            assertEq(assertOk(result), false)
-            /** @type {readonly string[]} */
-            const lines = next.stdout.split('\n')
-            assertEq(lines.filter(line => line.startsWith('["node"')).length, 1)
+            const changed = partialRun(nodeCommands)(operations(JSON.stringify(runtimeChange)))
+            const [next, opened] = changed(saved)(openCoverageCache(options, false, [command]))
+            const updated = assertOk(opened)
+            const missed = assertOk(changed(next)(updated.prepare(command))[1])
+            assert(missed.every((entry, index) => entry.key !== entries[index].key))
+            assertStructurallySame(assertOk(changed(next)(updated.lookup(missed))[1]), [false, false])
         }
     },
     validationDetectsChangedInputs: () => {
@@ -391,11 +284,6 @@ export const proof = /** @type {const} */ ({
         const [state, opened] = run({ ...emptyState, root: files })(openCoverageCache(options, false, [command]))
         const cache = assertOk(opened)
         assertEq(assertOk(run(state)(cache.validate(command))[1]), true)
-        /** @type {State} */
-        const changedRuntime = { ...state, root: { ...files, tool: { ...files.tool, fjs: {
-            ...files.tool.fjs, 'framework.mjs': [utf8('export default 2;')],
-        } } } }
-        assertEq(assertOk(run(changedRuntime)(cache.validate(command))[1]), false)
         /** @type {State} */
         const changedSource = { ...state, root: { ...files, repo: { ...files.repo, unit: {
             ...files.repo.unit, 'module.f.js': [utf8('export default 2;')],

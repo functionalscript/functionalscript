@@ -82,7 +82,7 @@ const sharedTree = /** @type {const} */ ({
 export const proof = /** @type {const} */ ({
     sharedGraphReadsAndDerivesOnce: () => {
         const [state, result] = traced({ ...emptyState, root: { repo: sharedTree } })(
-            buildGraph('/repo', ['/repo/a', '/repo/b'], { framework: '/repo/shared/module.f.js' }))
+            buildGraph('/repo', ['/repo/a', '/repo/b']))
         const graph = assertOk(result)
         for (const path of /** @type {const} */ (['/repo/package.json', '/repo/a/module.f.js', '/repo/b/module.f.js',
             '/repo/shared/module.f.js', '/repo/shared/leaf.f.mjs'])) {
@@ -92,7 +92,6 @@ export const proof = /** @type {const} */ ({
         // selected directories reach it. Each source is read for that parse
         // and its hash together, rather than read again by dependencies().
         assertEq(count(state.stdout, 'resolve ./leaf.f.mjs from /repo/shared/module.f.js'), 1)
-        assertEq(graph.opaqueFiles.framework, hash(sharedModule))
         const pure = partialRun(nodeCommands)({})
         const [, first] = pure(null)(graphManifest(graph, '/repo/a', ['module.f.js'], contract))
         const [, second] = pure(null)(graphManifest(graph, '/repo/b', ['module.f.js'], contract))
@@ -151,19 +150,17 @@ export const proof = /** @type {const} */ ({
         const source = /** @type {const} */ ('export default "😀";')
         const whole = /** @type {const} */ ({ repo: {
             'package.json': [utf8(packageJson)], unit: { 'module.f.js': [utf8(source)] },
-        }, 'framework.mjs': [utf8('framework bytes')] })
+        } })
         const chunks = /** @type {const} */ ({ ...whole,
             repo: { ...whole.repo, unit: { 'module.f.js': [
                 utf8('export default "'), vec8(0xf0n), vec8(0x9fn), vec8(0x98n), vec8(0x80n), utf8('";'),
             ] } },
-            'framework.mjs': [utf8('frame'), utf8('work bytes')],
         })
         // Filesystem reads may split a Unicode scalar between chunks. Those
         // boundaries are transport details, independent of the source bytes.
         for (const [before, after] of /** @type {const} */ ([[whole, chunks], [chunks, whole]])) {
-            const [, result] = virtualAt(before)(buildGraph('/repo', ['/repo/unit'], { runtime: '/framework.mjs' }))
+            const [, result] = virtualAt(before)(buildGraph('/repo', ['/repo/unit']))
             const graph = assertOk(result)
-            assertEq(graph.opaqueFiles.runtime, hash('framework bytes'))
             assertEq(assertOk(virtualAt(after)(validateGraph(graph, '/repo/unit'))[1]), true)
             assertEq(assertOk(virtualAt({})(graphManifest(graph, '/repo/unit', ['module.f.js'], contract))[1])
                 .files['unit/module.f.js'], hash(source))
@@ -230,19 +227,18 @@ export const proof = /** @type {const} */ ({
         })
         assertEq(assertOk(unresolved({ ...emptyState, root: files })(validateGraph(graph, '/repo/a'))[1]), false)
     },
-    sharedGraphRetainsAliasesAndOpaqueInputs: () => {
+    sharedGraphRetainsAliases: () => {
         const contents = /** @type {const} */ ('export default 0;')
         const files = /** @type {const} */ ({ repo: { 'package.json': [utf8(packageJson)], unit: {
             'module.f.js': [utf8(contents)], 'alias.proof.f.mjs': [utf8(contents)],
-        } }, 'framework.mjs': [utf8('framework bytes')] })
+        } } })
         const aliases = partialRun(nodeCommands)({
             ...virtualOperationMap,
             resolveFileModule: (name, parent) => virtualOperationMap.resolveFileModule(
                 name.endsWith('/alias.proof.f.mjs') ? '/repo/unit/module.f.js' : name, parent),
         })
-        const [, result] = aliases({ ...emptyState, root: files })(buildGraph('/repo', ['/repo/unit'], { framework: '/framework.mjs' }))
+        const [, result] = aliases({ ...emptyState, root: files })(buildGraph('/repo', ['/repo/unit']))
         const graph = assertOk(result)
-        assertEq(graph.opaqueFiles.framework, hash('framework bytes'))
         const value = assertOk(virtualAt({})(graphManifest(graph, '/repo/unit', ['module.f.js'], contract))[1])
         assertEq(value.files['unit/alias.proof.f.mjs'], hash(contents))
         assertEq(value.files['unit/module.f.js'], hash(contents))
@@ -253,10 +249,6 @@ export const proof = /** @type {const} */ ({
             ...files.repo.unit, 'alias.proof.f.mjs': [utf8('changed alias bytes')],
         } } }
         assertEq(assertOk(aliases({ ...emptyState, root: changedAlias })(validateGraph(graph, '/repo/unit'))[1]), false)
-        /** @type {Dir} */
-        const changedFramework = { ...files, 'framework.mjs': [utf8('changed framework bytes')] }
-        assertEq(assertOk(aliases({ ...emptyState, root: changedFramework })(validateGraph(graph, '/repo/unit'))[1]), false)
-        assertError(virtualAt(files)(buildGraph('/repo', ['/repo/unit'], { missing: '/missing-framework.mjs' }))[1])
     },
     sharedGraphReusesPhysicalSourceAcrossIdentities: () => {
         const contents = /** @type {const} */ ('export default 0;')

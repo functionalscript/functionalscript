@@ -45,13 +45,11 @@ export type _Directory = {
     readonly roots: readonly { readonly path: string, readonly source: _Source }[]
 }
 
-/** One immutable run's sources, dependency edges, and framework inputs. */
+/** One immutable run's sources and dependency edges. */
 export type Graph = {
     readonly root: string
     readonly files: StringMap<Result<_File, IoChannel>>
     readonly imports: StringMap<Result<readonly AstImport[], IoChannel>>
     readonly nodes: StringMap<Result<_Node, IoChannel>>
     readonly directories: StringMap<Result<_Directory, IoChannel>>
-    readonly opaquePaths: StringMap<string>
-    readonly opaqueFiles: StringMap<string>
 }

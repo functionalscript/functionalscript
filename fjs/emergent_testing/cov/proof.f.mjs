@@ -8,16 +8,12 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { encodeScalar } from '../../basen/base16/module.f.js'
-import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { ioError, pureError, pureOk } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
 import { exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { join, normalize } from '../../path/module.f.js'
-import { utf8 } from '../../text/module.f.mjs'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
-import { uint } from '../../types/bit_vec/module.f.mjs'
 import { asNominal } from '../../types/nominal/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _saveBatch, _showCached, isCoverageTarget, main } from './module.f.mjs'
@@ -32,13 +28,7 @@ const signaled = ok(['signaled', 'SIGTERM'])
 const unavailable = error(ioError({ message: 'child unavailable' }))
 
 const reporterUrl = /** @type {const} */ ('file:///package%20root/fjs/emergent_testing/cov/reporter.mjs')
-const runtimeSource = utf8('export default true;')
-const runtimeFile = /** @type {const} */ ('fjs/emergent_testing/cov/runtime.mjs')
-const runtime = /** @type {const} */ ({
-    files: [runtimeFile],
-    fingerprints: { [runtimeFile]: encodeScalar(64)(uint(computeSync(sha256)([runtimeSource]))) },
-    resolutions: [], absentScopes: [],
-})
+const runtime = /** @type {const} */ ({ functionalscript: '0.58.0', node: '26.13.0' })
 
 /** A filesystem with ignored dependencies and differently named measured files. */
 const tree = /** @type {const} */ ({
@@ -66,8 +56,7 @@ const execute = (outcomes, options = {}, directories = tree, spawnFails = false,
         execFile: (command, args) => state => [state, cacheAvailable
             ? ok({ stdout: command === 'node' ? JSON.stringify(runtime) : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
             : error(['notImplemented', 'execFile'])],
-        readWhole: path => state => [state, path.endsWith(`/${runtimeFile}`)
-            ? ok([runtimeSource]) : error(['notImplemented', 'readWhole'])],
+        readWhole: () => state => [state, error(['notImplemented', 'readWhole'])],
         resolveFileModule: (name, parent) => state => {
             assertEq(parent, null)
             if (name !== normalize(join(options.packageRoot ?? '/package root', 'fjs/emergent_testing/cov/reporter.mjs'))) {
@@ -172,6 +161,11 @@ export const proof = /** @type {const} */ ({
         const [state, result] = execute([passed, passed], {}, tree, false, false, reporterUrl, true)
         assertEq(exitCode(result), 0)
         assertEq(state.commands.length, 2)
+        const output = state.output.map(([, text]) => text).join('')
+        // Cache initialization succeeds; unavailable target inputs then fall back.
+        assert(!output.includes('UNCACHED:'))
+        assert(output.includes('UNCACHED /repo/a:'))
+        assert(output.includes('UNCACHED /repo/z:'))
         const [synced, syncResult] = execute([passed, passed], { args: ['node', '--sync'] })
         assertEq(exitCode(syncResult), 0)
         assertEq(synced.commands.length, 2)
