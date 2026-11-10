@@ -860,8 +860,8 @@ export const configuredAuthor = (dir, home) => {
     const localPath = under(dir, 'config')
     const globalPath = under(home, '.gitconfig')
     const local = history(configAt(localPath))
-    const global = historyStep(local, () => configAt(globalPath))
-    return step(global, ([g, l]) => {
+    const configs = historyStep(local, () => configAt(globalPath))
+    return step(configs, ([g, l]) => {
         /** @type {(key: string) => Nullable<string>} */
         const value = key => lastValue(l, 'user', key) ?? lastValue(g, 'user', key)
         const name = value('name')

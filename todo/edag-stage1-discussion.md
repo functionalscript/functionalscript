@@ -1339,6 +1339,7 @@ the **graph**, not a tree expansion:
   is a cycle *between* functions, which `["self"]` does not reach —
   either the partner is passed as an argument, or the group is hashed
   together with members addressed by index.
+
 #### 10. Free variables: module consts, imports, built-ins
 
 **Status:** open

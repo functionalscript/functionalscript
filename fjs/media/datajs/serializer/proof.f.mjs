@@ -3,7 +3,7 @@
  * @import { _Read, _Value } from './types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { errorMask } from '../../../text/code_point/module.f.js'
 import { stringToCodePointList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
@@ -11,7 +11,7 @@ import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'
 import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, tryMarked, trySerialize, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -347,9 +347,15 @@ export const proof = {
         const value = [1, { a: 2 }]
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
+        assertEq(concat(unwrap(tryJsonSerialize(value))), '[1,{"a":2}]')
     },
     // The leaves carry their kinds and nothing else does: punctuation, keys
     // spelled as names and the writer's keywords stay plain strings.
+    jsonMarked: () => {
+        assertStructurallySame(unwrap(tryJsonMarked({ k: [1.5] })), [
+            ['{'], ['"k"', 'string'], [':'], ['['], ['1.5', 'number'], [']'], ['}'],
+        ])
+    },
     marked: () => {
         const value = [1, 'a', null, undefined, true, 2n, -0]
         assertEq(JSON.stringify(toArray(unwrap(_trySerialize(value)))),

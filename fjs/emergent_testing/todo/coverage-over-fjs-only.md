@@ -5,21 +5,21 @@
 
 ### Current state
 
-`npm run cov` now selects `fjs/emergent_testing/fjs-only.mjs`, measuring
-`module.f.mjs`, `module.f.js` and `demo.f.mjs` with the existing 100% thresholds.
+`npm start cov node` runs each directory's own FunctionalScript proofs through
+`one.mjs`, measuring `module.f.mjs`, `module.f.js` and `demo.f.mjs` with the
+existing 100% thresholds. The former combined `npm run cov` script was removed.
 The Deno and Bun CI jobs run the FJS-only native entry without coverage;
 local `deno task cov` still offers combined-suite coverage.
 
-Coverage cache keys deliberately retain the conservative `js` input rung.
-Narrowing them to `fjs` requires auditing every host dependency imported by
-an authored proof. The selected command and package manifest already
-invalidate results from the former combined coverage run.
+Full-suite test cache keys deliberately retain the conservative `js` input
+rung. Narrowing them to `fjs` requires auditing every host dependency imported
+by an authored proof. Isolated coverage uses per-target dependency manifests.
 
 ### Proposal
 
 Under coverage, load FunctionalScript proofs from `.f.mjs` and `.f.js` files
 only. `isAuthored` in `fjs/dev` already selects those files. The Node coverage
-run uses the FJS-only native entry from
+run uses the shallow FJS-only native entry from
 [the implemented runner split](../README.md#selecting-fjs-or-host-js-with-a-native-runner), in place of the combined
 entry that uses `shouldLoad`.
 
@@ -58,7 +58,7 @@ runs. CI reruns the complete gate on the final change.
 - [x] Run Node coverage through the FJS-only native entry using `isAuthored`
       and list the modules whose coverage drops.
 - [x] Close each gap in the module's own `proof.f.mjs`.
-- [x] Make `npm run cov` select the FJS-only native entry and retain its
+- [x] Make the former `npm run cov` select the FJS-only native entry and retain its
       coverage thresholds. The generated CI requires coverage under Node only.
 - [ ] Keep host-JS proofs in the JS-only native entries for Node, Deno and Bun;
       the six-job migration removes the existing Deno/Bun coverage commands

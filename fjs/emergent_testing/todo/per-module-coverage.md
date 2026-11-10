@@ -5,14 +5,14 @@
 
 ### Problem
 
-`npm run cov` runs every proof at once and then checks coverage. A module
-passes when *any* proof reaches its code, not when its own proof does, which is
+The former `npm run cov` script ran every proof at once and then checked coverage.
+A module passed when *any* proof reached its code, not when its own proof did, which is
 what [`fjs/AGENTS.md`](../../AGENTS.md#12-proof-coverage-is-mandatory)
 requires. At `78c51a1d`, `fjs/types/list/module.f.mjs` passes, but its own
 proof leaves a branch of `lengthList` unreached.
 
-It is also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
-minutes for the whole suite, so only CI runs it. One module under coverage took
+It was also slow: at `78c51a1d`, on a four-core machine with Node 22, about six
+minutes for the whole suite, so it ran only in CI. One module under coverage took
 about half a second.
 
 ### Proposal
@@ -78,31 +78,18 @@ scheduling is separate work if measurements justify it.
 
 #### Reporting
 
-**Print each command before executing it by default.** Show the working
-directory, the executable and every argument, including the entry path,
-coverage filters and thresholds. Quote paths and arguments unambiguously so a
-reader can reproduce the invocation. Execute with a structured argument
-vector, without a shell; the displayed command is a rendering of that
-invocation, not shell code the runner evaluates.
+Native children inherit stdout and stderr for live reporter output. Keep the
+existing quiet Node reporter's filtering of passed tests and fully covered
+files. After a child finishes, print one complete result line per measured
+target, using its repository-relative path followed by `...Ok` or `...Failed`.
+Cache hits launch no child and print only `...Cached` for each target. Failure
+diagnostics also identify the working directory and full, unambiguously quoted
+command. Execute the child with a structured argument vector, without a shell.
 
-`fjs cov node` accepts mutually exclusive `--quiet` and `--verbose` flags.
-With npm, use `--` to forward options, for example
-`npm start -- cov node --verbose`. Reject a request that supplies both flags.
-
-- **Default:** print each command before launch, including successful runs,
-  then each module's result and per-file coverage, and a final summary.
-  Retain failure diagnostics and uncovered locations while suppressing the
-  native runner's routine passing-test output.
-- **`--quiet`:** suppress successful module results and routine command
-  logging. Print failures and the final summary; every failure still names
-  its working directory and complete command, with diagnostics and uncovered
-  locations where available.
-- **`--verbose`:** print each command before launch and retain the full native
-  test and coverage output, including passing tests, as well as module results
-  and the final summary.
-
-These flags change presentation only: discovery, proof execution, coverage
-requirements and exit status are identical in every mode.
+The command currently accepts `--sync` for end-of-run cache publication.
+`--quiet` and `--verbose` remain future reporting work, not implemented flags.
+Any future verbosity controls must preserve proof selection, strict coverage
+requirements and exit status.
 
 #### Coverage contract
 
@@ -121,11 +108,11 @@ of lowering thresholds or allowing exceptions.
 
 #### CI and scope
 
-Make `npm run cov` delegate to `fjs cov node`; CI invokes it from the
-repository root. Retain one ordinary full native FJS test run without
-coverage, through `fjs/emergent_testing/fjs-only.mjs`, so proof-only
-integration directories, fixture imports and module-level assertions still
-run. That run does not contribute coverage to the isolated checks.
+CI's dedicated `cov` job invokes `npm start cov node` directly from the
+repository root. The `node26` job runs `npm start t` with the built-in reporter
+without coverage, retaining the full authored FJS suite: proof-only integration
+directories, fixture imports and module-level assertions. Its whole-check cache
+records a `suite` result; coverage remains the dedicated job's responsibility.
 
 Node is the initial coverage authority. Deno and Bun coverage support is
 deferred; their existing test runs remain. Future coverage adapters must say
@@ -143,12 +130,13 @@ when a required metric is unavailable.
 - A rounded `100%` with an uncovered item fails, and complete coverage cannot
   turn a failed or empty test run into a pass.
 - Previous runs and other modules cannot supply coverage for a module.
-- Default and verbose output name the working directory and complete command
-  before each launch, with spaces in paths and arguments represented
-  unambiguously. Quiet output suppresses routine commands but retains the
-  working directory and command for every failure.
-- Quiet and verbose modes change output only; supplying both flags is an
-  error.
+- Native child stdout and stderr appear live through the existing reporter.
+  After the child finishes, every measured target prints its repository-relative
+  path and complete result line. Cache hits print only their result without a
+  child. Failures identify the working directory and complete command, with
+  paths and arguments quoted unambiguously.
+- Future verbosity controls change presentation only; they must not change
+  discovery, coverage requirements or exit status.
 - Module failures do not stop the remaining checks; any failure makes the
   final exit status nonzero.
 - The ordinary FJS suite retains proofs outside measured module directories.
@@ -157,14 +145,17 @@ when a required metric is unavailable.
 
 - [x] Add shallow proof discovery and `one.mjs`, reusing native registration.
 - [x] Add `fjs cov node` with isolated sequential runs, strict coverage
-      validation, command logging and module results.
-- [ ] Add quiet/verbose modes and per-file output for passing targets; the
-      first implementation uses command logging and native quiet summaries.
+      validation, failure diagnostics and module results.
+- [x] Add per-file results after live native reporting.
+- [ ] Add explicit quiet/verbose controls, retaining live reporting by default and
+      full failure diagnostics; neither flag is currently implemented.
 - [x] Add regression proofs for the isolation, discovery, coverage and
       reporting contracts above.
-- [ ] Fix the exposed gaps in modules' own proofs or implementations.
-- [ ] Wire `npm run cov` and CI to the runner, retaining the full native FJS
-      test pass without coverage; update contributor and runner documentation.
+- [x] Fix the exposed gaps in modules' own proofs or implementations.
+- [x] Add a CI job invoking `npm start cov node` without changing the existing
+      jobs; update contributor and runner documentation.
+- [x] Replace `node26`'s combined coverage check with `npm start t`, retaining
+      the full authored FJS test pass alongside the dedicated coverage job.
 - [ ] Add `fjs cov deno`, with per-module isolation and explicit
       coverage-metric enforcement.
 - [ ] Add `fjs cov bun`, with per-module isolation and explicit
@@ -172,6 +163,9 @@ when a required metric is unavailable.
 
 ### Related
 
+- [Cache coverage by module dependencies](../../ci/cache/README.md#isolated-coverage-manifests)
+  — dependency manifests and successful-result reuse; this issue
+  retains ownership of proof isolation and the gaps exposed by its rollout
 - [run-subset-of-tests](./run-subset-of-tests.md) — general test selection
 - [coverage-over-fjs-only](./coverage-over-fjs-only.md) — proof discovery and
   the existing measured source set
