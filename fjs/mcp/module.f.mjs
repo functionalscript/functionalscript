@@ -68,7 +68,7 @@ export const casMcpHandlers = cas => cacheKey =>
  * @type {McpConfig}
  */
 export const casConfig = {
-    serverInfo: { name: 'functionalscript-cas', version: '0.58.0' },
+    serverInfo: { name: 'functionalscript-cas', version: '0.59.0' },
     capabilities: { tools: {} },
     protocolVersions: ['2024-11-05'],
 }
