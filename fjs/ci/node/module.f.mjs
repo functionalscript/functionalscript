@@ -13,17 +13,11 @@ import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
-/** @type {(v: string) => string} */
-export const major = v => v.split('.')[0]
-
-/** @type {(version: string) => string} */
-const jobId = version => `node${major(version)}`
-
 /**
  * The job that packs the tarball and checks it as a consumer would. Named
  * here so a proof reading the workflow need not repeat the id.
  */
-export const packageJobId = jobId(node)
+export const packageJobId = /** @type {const} */ ('node')
 
 /**
  * Installs the pinned Node through `setup-node`. Every job that installs Node

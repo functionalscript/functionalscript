@@ -99,7 +99,7 @@ export const miseJobs = (jobs, rust) => Object.fromEntries(definedEntries(jobs).
                 run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386',
                 shell: 'bash',
             }] : []),
-            ...(id === 'ubuntu-arm' ? [{ run: 'mise -E spidermonkey lock http:spidermonkey --platform linux-arm64', shell: 'bash' }, spiderMonkeyInstall.step] : []),
+            ...(id === 'spidermonkey' ? [{ run: 'mise -E spidermonkey lock http:spidermonkey --platform linux-arm64', shell: 'bash' }, spiderMonkeyInstall.step] : []),
             ...before.filter(step => step.run !== undefined).map(migratedStep),
             ...after.map(migratedStep),
         ],

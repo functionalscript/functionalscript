@@ -91,7 +91,7 @@ without running it during compilation.
 ### Repository compiler-compatibility migration
 
 **Blocked by:** nothing. Package support for authored `.f.js` is complete,
-the packed-package check closing the `node26` CI job importing a published
+the packed-package check closing the `node` CI job importing a published
 `.f.js` from a clean consumer
 ([`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs)).
 
@@ -1898,7 +1898,7 @@ is on hold and is not part of this completed MVP or a self-hosting prerequisite.
 ### Related
 
 - [`fjs/ci/package/module.f.mjs`](../fjs/ci/package/module.f.mjs) — the
-  packed-package check closing the `node26` CI job, the clean-consumer check
+  packed-package check closing the `node` CI job, the clean-consumer check
   of a published `.f.js`.
 - [`fjs/compiler/README.md`](../fjs/compiler/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
