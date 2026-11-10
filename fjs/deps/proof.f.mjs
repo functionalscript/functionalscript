@@ -5,13 +5,13 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../asserts/module.f.js'
 import { exitCode, nodeCommands } from '../effects/node/module.f.mjs'
-import { ioError, step } from '../effects/module.f.mjs'
+import { ioError } from '../effects/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual, virtualAt, virtualOperationMap } from '../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { vec8 } from '../types/bit_vec/module.f.mjs'
 import { error } from '../types/result/module.f.js'
-import { _rootSource, readSource } from '../compiler/source/module.f.mjs'
+import { readSource } from '../compiler/source/module.f.mjs'
 import { dependencies, dependenciesFromSource, dependencyImports, resolveDependencies, main, _relativeGraph } from './module.f.mjs'
 
 /**
@@ -79,25 +79,17 @@ export const proof = /** @type {const} */ ({
         assertStructurallySame(assertOk(noImports), [])
     },
     dependencyTextValidatesSyntax: () => {
-        const source = { id: '/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false }
-        const [, refused] = resolveOnly(emptyState)(dependenciesFromSource(source,
-            'import value from "./helper.f.js"; export default value;', module => {
-                assertEq(module.imports.length, 1)
-                return 'dependency input refused'
-            }))
-        assertStructurallySame(assertError(refused), {
-            path: source.path, metadata: null, message: 'dependency input refused',
-        })
+        const source = /** @type {const} */ ({ id: '/module.f.mjs', path: '/diagnostics/module.f.mjs', json: false })
         const [, malformed] = resolveOnly(emptyState)(dependenciesFromSource(source, 'export default ;'))
         const failure = assertError(malformed)
         assertEq(failure.metadata?.path, source.path)
         assertEq(failure.message, 'unexpected token')
     },
     dependencyTextPreservesAttributeChecks: () => {
-        const data = { id: '/data.json', path: '/data.json', json: true }
-        const [, json] = resolveOnly(emptyState)(dependenciesFromSource(data, 'neither JavaScript nor JSON', () => 'must not validate JSON'))
+        const data = /** @type {const} */ ({ id: '/data.json', path: '/data.json', json: true })
+        const [, json] = resolveOnly(emptyState)(dependenciesFromSource(data, 'neither JavaScript nor JSON'))
         assertStructurallySame(assertOk(json), [])
-        const [, jsonFile] = resolveOnly(emptyState)(dependencies(data, () => 'must not validate JSON'))
+        const [, jsonFile] = resolveOnly(emptyState)(dependencies(data))
         assertStructurallySame(assertOk(jsonFile), [])
         for (const source of [{ ...data, json: false }, { id: '/module.f.mjs', path: '/module.f.mjs', json: true }]) {
             const expected = source.json
@@ -134,16 +126,12 @@ export const proof = /** @type {const} */ ({
             path: source.path, metadata: null, message: 'module resolution failed: cannot resolve dependency',
         })
     },
-    optionalSyntaxValidation: () => {
-        const files = { 'module.f.mjs': [utf8('export const proof = () => import("./helper.f.mjs");')] }
+    dynamicImportsDoNotAddStaticDependencies: () => {
+        const files = /** @type {const} */ ({ 'module.f.mjs': [utf8('export const proof = () => import("./helper.f.mjs");')] })
         const [state, result] = execute(files)
         assertEq(exitCode(result), 0, state.stderr)
-        const checked = step(_rootSource('/module.f.mjs'), source => dependencies(source, module => {
-            assertEq(module.imports.length, 0)
-            return 'runtime dependency is not statically tracked'
-        }))
-        const [, refused] = virtualAt(files)(checked)
-        assertEq(assertError(refused).message, 'runtime dependency is not statically tracked')
+        const [, written] = virtual(state)(readSource('_deps.json'))
+        assertStructurallySame(JSON.parse(assertOk(written)), { 'module.f.mjs': [] })
     },
     relativeGraphPaths: () => {
         assertEq(JSON.stringify(_relativeGraph('/repo/pkg', {

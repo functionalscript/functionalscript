@@ -52,6 +52,11 @@ rest of L1 natively, or by linking the reference bodies.
 
 A runtime may also offer small WASM fragments that the compiler inlines in
 place of a call to it: [inline-fragments.md](./inline-fragments.md).
+A runtime can be assembled from pluggable runtime modules, each with a
+manifest, so that, for example, a string representation can be chosen
+apart from the rest: [modular-runtime.md](./modular-runtime.md).
+L0 itself may be split the same way, into five modules cut by kind, each
+imported or inlined: [modular-l0.md](./modular-l0.md).
 
 The same three layers already exist in NaNVM's Rust source. The notes for
 each layer say where.
@@ -98,6 +103,9 @@ inliner.
 | 2026-11-03 | The L0 view has builders, `buildArray` and `buildObject`, and L0 has `join`, so a body builds a container or a string of computed size in one pass ([l0-design.md §22](./l0-design.md#22-building-in-one-pass)). |
 | 2026-11-04 | A throw traps: L0 has `throw`, code and `call` answer one `any`, and only the host catches, through host-only exports ([l0-throw-trap.md](./l0-throw-trap.md)). |
 | 2026-11-05 | The WASM backend starts with an eDSL for a typed IR one phase before the target, meant for Rust and later backends too. Its first design is independent; a second round compares it with Binaryen's IR and similar designs ([ir-design.md](./ir-design.md)). |
+| 2026-11-09 | A runtime is assembled from runtime modules with manifests. The first one is the String module: `unpack`, `length` and `at`, in three variants (Naive, NaN CPU-saving, NaN memory-saving) ([modular-runtime.md](./modular-runtime.md)). |
+| 2026-11-09 | An unpacked value borrows its source `any`, which the code generator keeps alive until the last access, so unpacking costs no reference count ([modular-runtime.md](./modular-runtime.md)). |
+| 2026-11-09 | A runtime module's functions are inlined, and its stack frame offsets are local indices fixed at compile time, so no shadow stack is needed ([modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion)). |
 
 ## Open questions
 
@@ -128,3 +136,12 @@ until the owner decides them.
 7. Does the Rust backend move to the code IR, calling L0 and L1, or keep
    today's higher-level `nanvm_lib` API? See
    [ir-design.md](./ir-design.md#where-it-sits).
+8. If a runtime module's function is ever called rather than inlined, does
+   it take offsets into a shadow stack, or the unpacked value itself as
+   results and arguments? See
+   [modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion).
+   Proposed: neither. A called module function is in import form, which
+   has no slots, so it takes the `any` itself
+   ([modular-l0.md §5](./modular-l0.md#5-import-form-is-the-portable-mode)).
+9. Should L0 be split into modules by kind, with an import name and a
+   version each? See [modular-l0.md](./modular-l0.md).

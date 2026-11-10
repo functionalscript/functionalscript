@@ -194,15 +194,9 @@ Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
 so adding a nested package scope invalidates affected manifests. Without the
 root package metadata, coverage runs uncached instead of relying on an
-unrepresented package scope outside the repository. Cache admission also refuses
-dynamic `import`, `import.meta`, `require`, `eval`/`Function`, and explicit
-host-global references. Such sources still run coverage normally, without
-reusing an incomplete static graph.
-
-Clock reads through `Date` and randomness through `Math.random` also run
-uncached. Static access to known deterministic Math functions and constants is
-cacheable; aliasing the Math namespace or using a dynamic property key is
-conservatively refused.
+unrepresented package scope outside the repository. Runtime references and
+namespace bindings do not impose an additional cache-admission restriction.
+The manifest follows static imports without executing the source.
 
 A directory is cached only when every measured target has an exact success.
 Native children inherit stdout and stderr, so their reporter output appears
@@ -238,7 +232,7 @@ never force pushes. Without `--sync`, recording is still batched locally.
 
 CI's additional `cov` job invokes this isolated runner from the repository root,
 with `--sync` only for permitted same-repository runs outside Dependabot. The
-`node26` job runs the full authored FJS suite with `npm start t`, using the
+`node` job runs the full authored FJS suite with `npm start t`, using the
 built-in reporter without coverage. This retains proofs outside measured module
 directories while the dedicated job owns coverage. Further rollout work is
 tracked in

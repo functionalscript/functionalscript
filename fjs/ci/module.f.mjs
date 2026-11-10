@@ -38,7 +38,7 @@ import {
 import { environmentCommand, environmentSteps } from './environment/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
-import { shellSpiderMonkeyCommands, shellSpiderMonkeyVersionSteps } from './spidermonkey/module.f.mjs'
+import { spiderMonkeySteps } from './spidermonkey/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { miseJobs } from './mise/module.f.mjs'
 import { smartJobs } from './smart/module.f.mjs'
@@ -65,12 +65,10 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
 const shellPlatformSteps = (rust, o, a) => [
     nodeVersionStep(),
     ...(rust ? shellRustVersionSteps(o, a) : []),
-    ...shellSpiderMonkeyVersionSteps(o, a),
     ...environmentSteps([
         'npm ci',
         ...(rust ? shellRustCommands(o, a) : []),
-        'node --test ./fjs/emergent_testing/js-only.mjs',
-        ...shellSpiderMonkeyCommands(o, a),
+        ...(a === 'arm' ? ['node --test ./fjs/emergent_testing/js-only.mjs'] : []),
     ]),
 ]
 
@@ -82,7 +80,6 @@ const intelMacSteps = rust => [
     test({ run: `test "$(node --version)" = "v${node}"` }),
     test({ run: 'npm ci' }),
     ...(rust ? rustPlatformSteps('macos', 'intel') : []),
-    test({ run: 'node --test ./fjs/emergent_testing/js-only.mjs' }),
 ]
 
 /**
@@ -154,7 +151,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
     const result = o === 'windows'
         ? [
             ...(rust ? rustPlatformSteps(o, a) : []),
-            ...platformNodeSteps(),
+            ...(a === 'arm' ? platformNodeSteps() : []),
             ...nodeExtra.map(inShell),
         ]
         : o === 'macos' && a === 'intel'
@@ -169,6 +166,7 @@ const platformJob = (rust, nodeExtra, mergeQueueOnly) => o => a => {
 const canonicalJobs = packageConsumer => ({
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
+    spidermonkey: ubuntuArm(spiderMonkeySteps),
     ...nodeVersionJobs(packageConsumer),
 })
 

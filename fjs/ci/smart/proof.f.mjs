@@ -17,7 +17,7 @@ const job = (steps, image = 'ubuntu-26.04-arm') => ({
 })
 
 /** @type {(steps: readonly Step[], id?: string) => Job} */
-const cached = (steps, id = 'node26') => {
+const cached = (steps, id = 'node') => {
     const result = smartJobs({ [id]: job(steps) })[id]
     assert(result !== undefined)
     return result
@@ -63,7 +63,7 @@ export const proof = /** @type {const} */ ({
     /** Commands and shared prerequisites keep their original execution order. */
     checks: () => {
         const source = job([uses('actions/checkout'), mise, nodeVersion, tscVersion, install, tsc, compile, fjsSuite, pack, consumer])
-        const result = checks('node26', source)
+        const result = checks('node', source)
         assertStructurallySame(result, [
             { id: 'tsc', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, tsc] },
             { id: 'compile', rung: 'fjs', steps: [mise, nodeVersion, install, compile] },
@@ -136,7 +136,7 @@ export const proof = /** @type {const} */ ({
         }
         assertEq(source.steps.find(step => step.uses?.startsWith('actions/setup-node@') && step.if !== undefined)?.if, "steps.init.outputs.hit-package != 'true'")
         assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
-        assert(checks('node26', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
+        assert(checks('node', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
         assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report package').length, 1)
     },
     dependencyAstCheckStaysUncached: () => {
@@ -148,7 +148,7 @@ export const proof = /** @type {const} */ ({
         assertEq(check['working-directory'], undefined)
         assertEq(stepWith(source, nodeVersion.run).if, undefined)
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertStructurallySame(checks('node26', job(steps)), checks('node26', job([mise, nodeVersion, suite])))
+        assertStructurallySame(checks('node', job(steps)), checks('node', job([mise, nodeVersion, suite])))
         assertStructurallySame(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).map(step => step.run), [
             'mise exec -- npm start ci report suite',
         ])

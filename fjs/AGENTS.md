@@ -1366,7 +1366,7 @@ repository-owned dependencies follow these source rules:
   TypeScript-only type declaration;
 - a module is renamed `.f.mjs` -> `.f.js` once the compiler of the same
   revision accepts it whole, its imports included; the packed-package check
-  closing the `node26` CI job imports a published `.f.js` from a clean
+  closing the `node` CI job imports a published `.f.js` from a clean
   consumer of the packed package, runs it and type-checks a use of its
   declaration with a negative control
   ([`ci/package/module.f.mjs`](./ci/package/module.f.mjs)).
