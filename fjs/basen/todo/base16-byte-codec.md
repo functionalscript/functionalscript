@@ -116,7 +116,7 @@ unit, surrogates included.
       [#2938](https://github.com/functionalscript/functionalscript/pull/2938).
 - [x] Decide whether a fixed-width hex formatter belongs beside it, and if
       so move the writers above onto it: it does, as `encodeScalar`.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

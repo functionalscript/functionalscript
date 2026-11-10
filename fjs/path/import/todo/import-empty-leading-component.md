@@ -44,7 +44,7 @@ keeping it is what roots the path.
       `./x//y` and `bad%//../dep` as they are today.
 - [ ] Refuse in `decode`, or in `_foldRejoin` for every spelling whose
       classifier keeps an empty segment, and say which in the JSDoc.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

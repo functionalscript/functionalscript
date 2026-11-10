@@ -274,7 +274,7 @@ Open for review before code:
       a Deno permission error.
 - [x] `../virtual/module.f.mjs`: the not-implemented list names `spawn` and
       `childWait`.
-- [ ] `tsc`, `npm test`, `npm run cov`.
+- [ ] `tsc`, `npm test`, `npm start cov node`.
 
 ### Related
 

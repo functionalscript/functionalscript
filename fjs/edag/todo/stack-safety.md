@@ -196,7 +196,7 @@ discovered one `RangeError` at a time.
       proof of object nesting needs a deeper fixture of its own. The same
       corpus compiles to `.rs` since a bigint past `i64` has a spelling,
       so the Rust proof is the overflow itself.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

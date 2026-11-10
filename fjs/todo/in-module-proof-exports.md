@@ -55,7 +55,7 @@ PR. A breaking notice is optional before 1.0.
       export is gone.
 - [ ] `fjs/types/btree/remove`: remove the unreachable branches, then the
       `proof` export.
-- [ ] Explain the API change; `tsc`, `fjs test`, `npm run cov` at 100%.
+- [ ] Explain the API change; `tsc`, `fjs test`, `npm start cov node` at 100%.
 
 ### Related
 

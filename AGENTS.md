@@ -46,7 +46,7 @@ for and why every pull request waits for it. The pull request waits; the
 session does not: push, and go on with the next step or hand the dialog back
 to the owner, rather than sitting on a run that can take tens of minutes. A
 red result comes back as an event, or the owner brings it, and is handled
-then. A full local run — `node --test`, `npm run cov` — is a choice, never a
+then. A full local run — `node --test`, `npm start cov node` — is a choice, never a
 requirement: take it when an answer CI would give later is worth having now.
 Each check must complete with exit code 0
 and an observed final summary; a partial or interrupted run is not a result. If

@@ -87,7 +87,7 @@ const nodeSteps = consumer => [
     ...environmentSteps(['npm ci', 'tsc']),
     // Temporary until every authored file forms a generic AST (module-dependency-graph-command.md).
     test({ run: environmentCommand('npm start deps'), 'continue-on-error': true }),
-    ...environmentSteps(['npm start compile', 'npm run cov']),
+    ...environmentSteps(['npm start compile', 'npm start t']),
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),

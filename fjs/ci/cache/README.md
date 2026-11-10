@@ -39,7 +39,7 @@ and pinned tool versions into a contract. Its entry contains that contract and
 its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
-Compile checks use `fjs`; suites and `node26`'s combined coverage use `js`;
+Compile checks use `fjs`; suites, including `node26`'s `npm start t`, use `js`;
 TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
 The additional isolated `cov` job does not use the whole-check cache.
 Generated-file drift checks and the WASM demo rebuild always run because their
@@ -58,9 +58,8 @@ the FunctionalScript version invalidates every isolated coverage success.
 Tool sources are not a shared fingerprint, so edits to the CLI, reporter or
 framework at the same version preserve successes unless those files are actual
 dependencies of the target. This deliberately permits reuse across same-version
-tool behavior changes; run the uncached `npm run cov` when validating coverage
-tooling itself. The repository root's `package.json` is a required input; all
-present ancestor `package.json` files for loaded files inside the repository are
+tool behavior changes. The repository root's `package.json` is a required input;
+all present ancestor `package.json` files for loaded files inside the repository are
 hashed too. New nested package scopes therefore
 invalidate the affected manifests. A missing root package file leaves the run
 uncached rather than depending on package metadata outside the repository.
@@ -111,8 +110,9 @@ no child and print only `...Cached` for each target.
 The repository's additional `cov` job supplies the bot's author/committer
 identity and enables `--sync` only for same-repository runs outside Dependabot.
 Forks, Dependabot and generic generated workflows use local caching without
-publication. Existing jobs, including `node26`'s combined coverage cache, retain
-their current lifecycle.
+publication. The other jobs retain their whole-check lifecycle; `node26` records
+its `npm start t` result as `suite`. Its command participates in the key, so an
+earlier combined-coverage success cannot skip the new test command.
 
 ## Job lifecycle
 
