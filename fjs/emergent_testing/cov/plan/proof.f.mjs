@@ -101,8 +101,8 @@ export const proof = /** @type {const} */ ({
         const planned = assertOk(result).planned
         assertStructurallySame(state.calls, ['prepare /repo/a', 'prepare /repo/b', lookupCall])
         assertStructurallySame(planned, [
-            { command: commands[0], entries: defaults['/repo/a'], cached: true },
-            { command: commands[1], entries: defaults['/repo/b'], cached: false },
+            { command: commands[0], entries: defaults['/repo/a'], cached: true, admissionFailed: false },
+            { command: commands[1], entries: defaults['/repo/b'], cached: false, admissionFailed: false },
         ])
         assertStructurallySame(state.output, [])
     },
@@ -140,19 +140,37 @@ export const proof = /** @type {const} */ ({
         assertEq(state.calls.filter(call => call.startsWith('prepare ')).length, commands.length)
         assertEq(state.calls.filter(call => call.startsWith('lookup ')).length, 1)
     },
-    failedAdmissionDoesNotBlockOtherDirectories: () => {
+    failedAdmissionFailsWithoutBlockingOtherDirectories: () => {
         const [state, result] = execute({ prepareErrors: ['/repo/a'], hits: [true] })
         const value = assertOk(result)
         assertEq(value.planned[0].entries, null)
         assertEq(value.planned[0].cached, false)
         assertEq(value.planned[1].cached, true)
         assertStructurallySame(value.results, [
-            { outcome: 'passed', entries: [] }, { outcome: 'cached', entries: [] },
+            { outcome: 'failed', entries: [] }, { outcome: 'cached', entries: [] },
         ])
         assertStructurallySame(state.calls, [
             'prepare /repo/a', 'prepare /repo/b', 'lookup third', 'run /repo/a', 'validate /repo/b',
         ])
-        assertStructurallySame(state.output, [['stderr', 'UNCACHED /repo/a: prepare unavailable\n']])
+        assertStructurallySame(state.output, [['stderr', 'CACHE ADMISSION /repo/a: prepare unavailable\n']])
+    },
+    admissionFailureSurvivesLookupFailure: () => {
+        const [state, result] = execute({ prepareErrors: ['/repo/a'], lookupError: true })
+        assertStructurallySame(assertOk(result).results, [
+            { outcome: 'failed', entries: [] }, { outcome: 'passed', entries: [] },
+        ])
+        assertStructurallySame(state.calls, [
+            'prepare /repo/a', 'prepare /repo/b', 'lookup third', 'run /repo/a', 'run /repo/b',
+        ])
+    },
+    admissionFailureCannotBeOverriddenByProofs: () => {
+        for (const passed of /** @type {const} */ ([false, true])) {
+            const [state, result] = execute({ prepareErrors: ['/repo/a', '/repo/b'], passed })
+            assertStructurallySame(assertOk(result).results, [
+                { outcome: 'failed', entries: [] }, { outcome: 'failed', entries: [] },
+            ])
+            assertStructurallySame(state.calls, ['prepare /repo/a', 'prepare /repo/b', 'run /repo/a', 'run /repo/b'])
+        }
     },
     unavailableLookupWithholdsAllRecords: () => {
         for (const options of /** @type {const} */ ([{ lookupError: true }, { hits: [] }, { hits: [true] }, { hits: [true, true, true, true] }])) {
@@ -241,7 +259,7 @@ export const proof = /** @type {const} */ ({
             sync: () => { throw 'sync during execution'; },
         }
         /** @type {Planned} */
-        const item = { command: commands[0], entries: [first, second], cached: false }
+        const item = { command: commands[0], entries: [first, second], cached: false, admissionFailed: false }
         const [, result] = run(undefined)(runPlanned(item, () => pureOk(true), cache))
         assertEq(assertOk(result).entries, item.entries)
         // Disabling the backend after planning must still execute coverage.

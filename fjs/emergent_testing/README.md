@@ -193,10 +193,10 @@ the same.
 Caching requires and hashes the repository root's `package.json`. It also hashes
 every present ancestor `package.json` of loaded files inside that repository,
 so adding a nested package scope invalidates affected manifests. Without the
-root package metadata, coverage runs uncached instead of relying on an
-unrepresented package scope outside the repository. Runtime references and
-namespace bindings do not impose an additional cache-admission restriction.
-The manifest follows static imports without executing the source.
+root package metadata, the source cannot be admitted instead of relying on an
+unrepresented package scope outside the repository. Runtime references do not
+impose an additional cache-admission restriction. Dependency analysis uses the
+compiler's syntax parser and follows static imports without executing source.
 
 A directory is cached only when every measured target has an exact success.
 Before each child starts, the runner opens a progress line naming the directory's
@@ -220,9 +220,12 @@ checks, keeping dependency planning and cache machinery out of each child's
 startup. Stable successes are recorded after all modules finish, even when
 another module failed.
 Failed coverage contributes no manifest. An interrupted run cannot certify its
-unfinished coverage. Incomplete dependency parsing/resolution, unsupported
-preload settings, and cache errors are reported explicitly and leave the run
-uncached.
+unfinished coverage. A dependency parsing/resolution or manifest-admission
+failure reports `CACHE ADMISSION` and makes the overall command fail, even if
+that directory's native proofs pass. The proofs still run, other directories
+continue, and their stable successes are retained. A normal cold-cache miss
+runs coverage and records its success. Unsupported preload settings and cache
+storage errors are reported explicitly and leave the run uncached.
 
 `npm start -- cov node --sync` also fetches `origin/build-cache` at startup and
 publishes one batch after module processing and local recording finish. No

@@ -187,8 +187,11 @@ The `--` forwards the synchronization flag through npm. The command fetches the
 remote baseline at startup and publishes one batch at the end, retrying
 concurrent updates and pending local successes. Modules and warm hits do not
 publish individually. Without `--sync`, recording is still batched locally and
-no remote access is needed. Unsupported dependency analysis or unavailable
-caching is reported and coverage runs uncached.
+no remote access is needed. A dependency-analysis or manifest-admission failure
+is reported as `CACHE ADMISSION` and makes the command fail, even if native
+proofs pass. The affected proofs and remaining modules still run; independent
+successful manifests are retained. A normal cache miss runs coverage and
+records its success. Unavailable cache storage is reported and runs uncached.
 
 To test only one directory without coverage or discovery below it, use the
 explicit native entry:
