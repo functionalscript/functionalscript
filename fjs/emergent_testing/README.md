@@ -214,7 +214,13 @@ that block.
 Each stream keeps its contents; their original ordering relative to each other
 is not preserved. Launch/capture errors are reported directly. Cache hits launch
 no child and print no per-file result. The final summary includes the cached
-module count. Child failures do not stop other jobs or later batches; the runner
+module count and a timing line, for example
+`Time: 1.2000 s elapsed, 2.1000 s tests`. Elapsed command time runs from before
+discovery through final cache saving and synchronization. Test time sums measured
+child durations once per directory, including failed runs; cache hits contribute
+zero. A directory with multiple measured files still contributes only once.
+Parallel child durations can sum to more than the elapsed command time.
+Child failures do not stop other jobs or later batches; the runner
 exits nonzero if any module failed.
 
 Before using a planned result and after a successful child, the runner verifies the

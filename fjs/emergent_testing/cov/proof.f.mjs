@@ -1,6 +1,6 @@
 /**
  * @import { IoResult } from '../../effects/types.ts'
- * @import { CapturedProcess, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { CapturedProcess, Child, ExitStatus, NodeOp, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { _CoverageFile } from './types.ts'
@@ -15,6 +15,7 @@ import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.m
 import { join, normalize } from '../../path/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
+import { asNominal } from '../../types/nominal/module.f.js'
 import { _commandLine, _coverageFailures, _modulePaths, _modules, _nodeArgs, _runPlan, _saveBatch, isCoverageTarget, main } from './module.f.mjs'
 
 /** @type {IoResult<ExitStatus>} */
@@ -48,15 +49,25 @@ const tree = /** @type {const} */ ({
  * @param {string | null} [reporter]
  * @param {boolean} [cacheAvailable]
  * @param {IoResult<number>} [capacity]
+ * @param {{ readonly setup: number, readonly children: readonly number[], readonly synchronization: number }} [timing]
  */
-const execute = (outcomes, options = {}, directories = tree, captureFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false, capacity = ok(2)) => {
-    /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[] }} State */
+const execute = (outcomes, options = {}, directories = tree, captureFails = false, writeFails = false, reporter = reporterUrl, cacheAvailable = false, capacity = ok(2), timing = { setup: 0, children: [], synchronization: 0 }) => {
+    /** @typedef {{ readonly commands: readonly (readonly [string, readonly string[], string | undefined])[], readonly output: readonly (readonly [string, string])[], readonly clock: number, readonly snapshots: readonly number[], readonly synchronized: boolean, readonly gitArgs: readonly string[] }} State */
     /** @type {PartialMemOperationMap<NodeOp, State>} */
     const operations = {
         availableParallelism: () => state => [state, capacity],
         execFile: (command, args) => state => [state, cacheAvailable
-            ? ok({ stdout: command === 'node' ? JSON.stringify(runtime) : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
+            ? ok({ stdout: command === 'node' ? JSON.stringify(runtime) : args[2] === 'ls-remote' ? '' : args[2] === '--show-toplevel' ? '/repo\n' : '/repo/.git\n', stderr: '' })
             : error(['notImplemented', 'execFile'])],
+        spawn: (command, args) => state => {
+            assertEq(command, 'git')
+            /** @type {Child} */
+            const child = asNominal('git')
+            const publishing = state.commands.length !== 0 && !state.synchronized
+            return [{ ...state, gitArgs: args, synchronized: state.synchronized || publishing,
+                clock: state.clock + (publishing ? timing.synchronization : 0) }, ok(child)]
+        },
+        childWait: () => state => [state, ok(['exited', state.gitArgs.includes('show-ref') ? 1 : 0])],
         readWhole: () => state => [state, error(['notImplemented', 'readWhole'])],
         resolveFileModule: (name, parent) => state => {
             assertEq(parent, null)
@@ -69,7 +80,7 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
         },
         readdir: path => state => {
             const entries = directories[normalize(path) === '' ? '.' : normalize(path)]
-            return [state, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
+            return [{ ...state, clock: state.clock + (normalize(path) === '' ? timing.setup : 0) }, entries === undefined ? error(ioError({ message: 'directory unavailable' })) : ok(
                 entries.map(([name, isDirectory]) => ({ name, parentPath: path, isDirectory, isFile: !isDirectory })))]
         },
         capture: (command, args, options) => state => {
@@ -83,9 +94,10 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
             const captured = outcome[0] === 'error' ? outcome : ok({
                 status: outcome[1], stdout: 'CHILD_STDOUT', stderr: 'CHILD_STDERR',
             })
-            return [{ ...state, commands: [...state.commands, [command, args, options?.cwd]] }, captured]
+            return [{ ...state, commands: [...state.commands, [command, args, options?.cwd]],
+                clock: state.clock + (timing.children[state.commands.length] ?? 0) }, captured]
         },
-        now: () => state => [state, ok(0)],
+        now: () => state => [{ ...state, snapshots: [...state.snapshots, state.clock] }, ok(state.clock)],
         write: (stream, bytes) => state => [
             { ...state, output: [...state.output, [stream, utf8ToString(bytes)]] },
             writeFails ? error(['notImplemented', 'write']) : ok(undefined),
@@ -93,7 +105,7 @@ const execute = (outcomes, options = {}, directories = tree, captureFails = fals
     }
     /** @type {RunInstance<NodeOp, State>} */
     const run = partialRun(nodeCommands)(operations)
-    return run({ commands: [], output: [] })(main({
+    return run({ commands: [], output: [], clock: 0, snapshots: [], synchronized: false, gitArgs: [] })(main({
         ...defaultNodeProgramOptions, args: ['node'], packageRoot: '/package root', ...options,
     }))
 }
@@ -199,6 +211,19 @@ export const proof = /** @type {const} */ ({
         assertEq(exitCode(result), 1)
         assertEq(state.commands.length, 2)
     },
+    timingIncludesDiscoveryAndFinalSynchronization: () => {
+        const [state, result] = execute([passed, failed], { args: ['node', '--sync'] }, tree,
+            false, false, reporterUrl, true, ok(2), { setup: 5, children: [7, 11], synchronization: 13 })
+        assertEq(exitCode(result), 1)
+        assert(state.synchronized)
+        assertStructurallySame(state.snapshots, [0, 5, 12, 12, 23, 36])
+        const output = state.output.map(([, text]) => text).join('')
+        assert(output.includes('a/demo.f.mjs: ok, 7.0000 ms\na/module.f.mjs: ok, 7.0000 ms\n'))
+        assert(output.includes('z/module.f.js: error, 11.0000 ms\n'))
+        // Two measured files share the first process; its seven milliseconds
+        // count once. The failed second process still contributes eleven.
+        assert(output.endsWith('Time: 36.0000 ms elapsed, 18.0000 ms tests\n'))
+    },
     systemInfoUnavailable: () => {
         const [state, result] = execute([], {}, tree, false, false, reporterUrl, false,
             error(ioError({ message: 'system info unavailable' })))
@@ -209,7 +234,7 @@ export const proof = /** @type {const} */ ({
     emptyExecutionPlan: () => {
         const run = partialRun(nodeCommands)({})
         const [, result] = run(undefined)(_runPlan(defaultNodeProgramOptions, [], '/repo', null, 2))
-        assertStructurallySame(assertOk(result), { failed: 0, cached: 0, total: 0, entries: [] })
+        assertStructurallySame(assertOk(result), { failed: 0, cached: 0, total: 0, duration: 0, entries: [] })
     },
     refused: () => {
         for (const args of /** @type {const} */ ([[], ['bun'], ['node', '--quiet'], ['node', '--jobs=2'], ['node', '--sync', 'extra']])) {
