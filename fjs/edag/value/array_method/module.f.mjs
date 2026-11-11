@@ -49,7 +49,6 @@ const visit = (receiver, key, fn, invoke) => {
         const [kind, value] = result
         if (kind === 'error') { return result }
         switch (key) {
-            case 'map': { output = [...output, value]; break }
             case 'flatMap': { output = [...output, ...flatten([value], 1)]; break }
             case 'filter': { if (truthy(value)) { output = [...output, element] } break }
             case 'every': { if (!truthy(value)) { return ok(false) } break }
@@ -61,7 +60,7 @@ const visit = (receiver, key, fn, invoke) => {
         }
     }
     switch (key) {
-        case 'map': case 'flatMap': case 'filter': { return ok(['[]', output]) }
+        case 'flatMap': case 'filter': { return ok(['[]', output]) }
         case 'every': { return ok(true) }
         case 'some': { return ok(false) }
         case 'findIndex': case 'findLastIndex': { return ok(-1) }
@@ -183,7 +182,7 @@ export const arrayMethod = (receiver, key, args, invoke) => {
             return ok(['[]', [...values.slice(0, start), ...args.slice(2), ...values.slice(end)]])
         }
         case 'every': case 'filter': case 'find': case 'findIndex': case 'findLast':
-        case 'findLastIndex': case 'flatMap': case 'map': case 'some': case 'reduce': case 'reduceRight': {
+        case 'findLastIndex': case 'flatMap': case 'some': case 'reduce': case 'reduceRight': {
             if (!callable(first)) { return error(['undefined']) }
             return key === 'reduce' || key === 'reduceRight' ? reduce(receiver, key, args, first, invoke) : visit(receiver, key, first, invoke)
         }

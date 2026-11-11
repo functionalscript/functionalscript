@@ -7,12 +7,15 @@
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Commands } from '../effects/types.ts'
  * @import { CompileValue } from '../edag/value/to_unknown/types.ts'
+ * @import { Exp } from '../edag/types.ts'
  */
 
 import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.mjs'
-import { compile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
+import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
+import runtimeEdag from '../js/runtime/gen.edag.data.js'
+import { pureOk } from '../effects/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
 import { memo } from '../edag/memo/module.f.mjs'
@@ -602,7 +605,14 @@ export const proof = {
         assertEq(compileSource(source)('output.data.js'), 'export default 7;')
         assertEq(compileSource('const f = x => x + 2; export default f(3);')('output.json'), '5')
         assertEq(compileSource('const f = x => y => x + y; export default f(2)(3);')('output.data.js'), 'export default 5;')
-        assertEq(compileSource('export default [1, 2].map(x => x + 1);')('output.json'), '[2,3]')
+        // Supply the authored common runtime for map rather than extending
+        // the stand-in with a second implementation of its body.
+        const common = unwrap(read(memo(unwrap(analysis(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag)))))({ args: [] }), 'runtime'))
+        assert(common instanceof Array && common[0] === '{}')
+        const root = /** @type {const} */ ({ 'input.f.js': [utf8('export default [1, 2].map(x => x + 1);')] })
+        const [state, result] = virtualAt(root)(compileFile(pureOk(common))('input.f.js', 'output.json'))
+        unwrap(result)
+        assertEq(readOutput(state.root, 'output.json'), '[2,3]')
         assertEq(jsonRefused('export const unused = null.x; export default 7;'), 'input.f.js - error: module initialization failed')
     },
     outputRoute: {

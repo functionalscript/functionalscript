@@ -2,13 +2,17 @@
  * Built-in calls convert in language order, preserve callback failures and
  * format strings and numbers like the corresponding primitive host methods.
  *
+ * @import { Exp } from '../../types.ts'
  * @import { EdagValue, Values, Function as ValueFunction } from '../types.ts'
  * @import { Invoke } from '../call/types.ts'
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { invoke } from '../../amnesia/module.f.mjs'
+import { invoke, invokeWith, vm } from '../../amnesia/module.f.mjs'
+import runtimeEdag from '../../../js/runtime/gen.edag.data.js'
+import { read } from '../property/module.f.mjs'
+import { toData } from '../to_unknown/module.f.mjs'
 import { admits, hasMethod, method } from './module.f.mjs'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
@@ -49,8 +53,9 @@ export const proof = {
             assertEq(has(/** @type {EdagValue} */ (receiver), 'valueOf'), false)
             assertEq(has(/** @type {EdagValue} */ (receiver), 'missing'), false)
         }
-        assertEq(has(['[]', []], 'map'), true)
+        assertEq(has(['[]', []], 'map'), false)
         assertEq(has('x', 'map'), false)
+        refuses(['[]', []], 'map', [fn])
         refuses(null, 'toString', [])
         refuses(1n, 'toFixed', [])
         refuses(1, 'missing', [])
@@ -186,6 +191,38 @@ export const proof = {
         const shadowing = table([['dot', ['=>', 2, [], ['=>', 0, [], 'dotted']]]])
         assertEq(assertOk(method('abc', 'slice', [1], invoke, shadowing)), 'dotted')
         assertEq(assertOk(hasMethod('abc', 'slice', shadowing, invoke)), true)
+    },
+    // The generated common runtime supplies map's only implementation. Its
+    // callback receives element, index and the original represented receiver;
+    // callback results and throws keep their identities across the shared body.
+    runtimeMap: () => {
+        const loaded = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(loaded instanceof Array && loaded[0] === '{}')
+        const invoke = invokeWith(loaded)
+        const receiver = /** @type {const} */ (['[]', [4, 5]])
+        const callback = /** @type {const} */ (['=>', 3, [], ['[]', [['arg', 0], ['arg', 1], ['arg', 2]]]])
+        assertEq(assertOk(hasMethod(receiver, 'map', loaded, invoke)), true)
+        assertEq(assertOk(hasMethod('x', 'map', loaded, invoke)), false)
+        const argumentsResult = assertOk(method(receiver, 'map', [callback], invoke, loaded))
+        assertStructurallySame(assertOk(toData(argumentsResult)), [[4, 0, [4, 5]], [5, 1, [4, 5]]])
+        const receivers = assertOk(method(receiver, 'map', [['=>', 3, [], ['arg', 2]]], invoke, loaded))
+        assert(receivers instanceof Array && receivers[0] === '[]')
+        assertEq(receivers[1][0], receiver)
+        assertEq(receivers[1][1], receiver)
+        const child = /** @type {const} */ (['{}', []])
+        const children = assertOk(method(['[]', [child]], 'map', [['=>', 1, [], ['arg', 0]]], invoke, loaded))
+        assert(children instanceof Array && children[0] === '[]')
+        assertEq(children[1][0], child)
+        assertStructurallySame(assertOk(method(['[]', []], 'map', [callback], invoke, loaded)), ['[]', []])
+        for (const args of /** @type {const} */ ([[], [null], [['{}', []]]])) {
+            assertError(method(['[]', []], 'map', args, invoke, loaded))
+        }
+        const throws = /** @type {const} */ (['=>', 0, [child], ['throw', ['frame', 0]]])
+        assertEq(assertError(method(receiver, 'map', [throws], invoke, loaded)), child)
+        for (const missing of [table([]), table([['dot', 'x']]), dispatching(['=>', 1, [], ['undefined']])]) {
+            assertEq(assertOk(hasMethod(receiver, 'map', missing, invoke)), false)
+            assertStructurallySame(assertError(method(receiver, 'map', [callback], invoke, missing)), undefinedValue)
+        }
     },
     splitting: () => {
         check('a,b,c', 'split', [','], ['[]', ['a', 'b', 'c']])

@@ -204,10 +204,13 @@ export const runtime = { static: id => entry(statics, id), dot }
       first — with the corpus in `nanvm/member` as the oracle; the
       primitives no body can define stay native as intrinsics, listed in
       `fjs/edag`, as the statics' are in `fjs/js/static`. `startsWith`
-      and `codePointAt` are written; the string names over `slice` and
+      and `codePointAt`, and array `map`, are written; the string names over `slice` and
       `charCodeAt` alone — `at`, `charAt`, `endsWith`, `includes`,
       `indexOf`, `lastIndexOf`, `substring`, `isWellFormed` — are the
       next batch.
+- [x] Move `Array.prototype.map` to one typed common-runtime body, remove
+      both native implementations, and prove callback arguments, identity,
+      validation on empty arrays and throw propagation across executors.
 
 ### Related
 

@@ -10,7 +10,7 @@
  */
 
 import { conditional } from '../testlib.f.js'
-import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invokerWith, noIn, operation, staticCall } from './module.f.mjs'
 import { read } from '../value/property/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.data.js'
@@ -377,7 +377,9 @@ export const proof = {
         const child = /** @type {const} */ (['[]', []])
         const body = /** @type {const} */ (['===', child, child])
         eq(['()', ['=>', 0, [], body], []], false)
-        eq(['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [], body]]]], ['[]', [false]])
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        assertStructurallySame(under(runtime, ['.', ['[]', [1]], 'map', ['|()', [['=>', 0, [], body]]]]), ['ok', ['[]', [false]]])
     },
     failures: () => {
         failure(['throw', 1], 1)

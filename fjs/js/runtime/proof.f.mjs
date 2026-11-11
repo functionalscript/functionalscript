@@ -1,6 +1,6 @@
 /** @import { Exp } from '../../edag/types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
+import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../../asserts/module.f.js'
 import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
@@ -67,6 +67,16 @@ const samples = [
 ]
 
 export const proof = {
+    map: () => {
+        const input = /** @type {const} */ ([1, undefined, 3])
+        /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */
+        const callback = (value, index, receiver) => [value, index, receiver]
+        const body = assertNotNullish(member.map(input))
+        assertEq(body.length, 1)
+        assertStructurallySame(body(callback), input.map(callback))
+        assertEq(member.map({}), undefined)
+        assertEq(runtime.dot(input, 'map') === undefined, false)
+    },
     fromCharCode: () => {
         const { fromCharCode } = String
         assertEq(statics['String.fromCharCode'], fromCharCode)
