@@ -18,9 +18,9 @@ import { refusedDemo } from '../../../fjs/compiler/refused_demo/module.f.mjs'
  * @type {Suggestion}
  */
 export const suggestion = {
-    message: "`Math` is not bound: a FunctionalScript module reads only what it binds or imports",
-    width: 4,
-    label: "JavaScript reads the global `Math` here",
+    message: "`globalThis` is not bound: a FunctionalScript module reads only what it binds or imports",
+    width: 10,
+    label: "JavaScript reads the global `globalThis` here",
     help: "write the function, or import it from a module:",
     fix: "const max = (a, b) => a < b ? b : a;",
     note: "refused by design, see spec/bindings/globals/README.md",
@@ -37,6 +37,6 @@ export const answer = '2'
  * The text of `sample.mjs`, which the proof pins what `fjs compile` prints
  * for. The host proof, `proof.mjs`, holds it to the file.
  */
-export const sample = "export default Math.max(1, 2);\n"
+export const sample = "export default globalThis.Math.max(1, 2);\n"
 
 export const demo = refusedDemo({ directory: 'spec/bindings/globals', answer, alternative, suggestion })

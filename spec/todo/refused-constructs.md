@@ -101,7 +101,7 @@ describes:
 | `acc.property-assignment` | `a.b = 1` | open (related: [mutability](../design/mutability.md)) |
 | `name.literal-word` | `const NaN = 1`, `const undefined = 1`, `const Infinity = 1` | design ([literal words](./2445-literal-words-as-references.md); page: [Binding a Literal Word Is Refused](../bindings/literal-words/README.md)) |
 | `name.intrinsic` | `const String = 1`, `export default String`, `export default Object` | design ([built-ins](./2360-built-in.md); [global names](./2365-global-names.md) reserves `Array`, `Number`, `Object` and `String` with no standalone value; page: [Binding a Built-in's Name Is Refused](../bindings/intrinsic-names/README.md)) |
-| `name.unbound` | `zzz`, `Math`, `JSON`, `globalThis`, `Promise` | design; a bare global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
+| `name.unbound` | `zzz`, `JSON`, `globalThis`, `Promise` | design; an unadmitted global stays refused after [global names](./2365-global-names.md), which only improves the diagnostic (page: [A Global Is Refused](../bindings/globals/README.md)) |
 | `name.forward-reference` | `export const a = b; export const b = 1;` | open ([forward references](./3140-forward-references.md) resolves only the object grouping and keeps refusing a later `const`) |
 | `name.body-forward-reference` | `() => { const y = x; const x = 2; return y; }` with an outer `x` | planned ([body const forward reference](../../fjs/compiler/parser/todo/body-const-forward-reference.md)) |
 | `name.reserved-export` | `export const then = 1` | design ([exporting a value](../modules/exports/README.md); page: [Exporting `then` Is Refused](../modules/exports/then/README.md)) |
