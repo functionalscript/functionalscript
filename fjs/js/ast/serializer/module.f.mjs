@@ -18,10 +18,11 @@ import { leafSerialize } from '../../../media/datajs/serializer/module.f.mjs'
 import { next, reverse } from '../../../types/list/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { chunkText, tagged, untagged } from '../../../text/marked/module.f.mjs'
-import { _name as symbol, _binding as declaration, _resolve as resolve } from '../../../compiler/serializer/names/module.f.mjs'
-import { _entryChunks, _hasEntryChunks, _intrinsicChunks } from './intrinsic/module.f.mjs'
+import { _name as symbol, _binding as declaration, _resolve as resolve } from './names/module.f.mjs'
+import { _helperChunks } from './intrinsic/module.f.mjs'
 import { _memberPresentChunks } from './member_present/module.f.mjs'
-import { isIntrinsic } from '../../../edag/module.f.mjs'
+import { isHelper } from '../../../edag/module.f.mjs'
+import { eagerLayers, prefixLayer } from '../../../compiler/ast/module.f.js'
 import { maxLength } from '../../../types/function/length/module.f.js'
 import { assertNotNullish } from '../../../asserts/module.f.js'
 
@@ -131,23 +132,31 @@ const name = (context, id) => {
 /** @type {(context: Context, id: BindingId) => string} */
 const declared = (context, id) => declaration(name(context, id))
 
+/**
+ * The writer's level of each binary operator of `compiler/ast`'s
+ * `eagerLayers`, the grammar's own ladder: the loosest layer, `|`, at `5`,
+ * above `?:` and the lazy operators, and each tighter layer one more, so an
+ * operator moved between layers moves in the writer too.
+ *
+ * @type {readonly (readonly [string, number])[]}
+ */
+const binaryLevels = eagerLayers.flatMap((layer, i) =>
+    Object.entries(layer).map(([, tag]) => /** @type {const} */ ([tag, 4 + eagerLayers.length - i])))
+
+/** The prefix operators' tags, as `compiler/ast`'s `prefixLayer` states them. @type {readonly string[]} */
+const prefixTags = Object.entries(prefixLayer).map(([, tag]) => tag)
+
 /** @type {(value: Value) => number} */
 const precedence = input => {
     const value = syntaxValue(input)
     if (!(value instanceof Array)) { return typeof value === 'number' && (value < 0 || Object.is(value, -0)) || typeof value === 'bigint' && value < 0n ? 14 : 16 }
     const op = value[0]
-    if (op === 'function' || op === 'entry' || op === 'hasEntry' || (value.length === 1 && isIntrinsic(value))) { return 1 }
+    if (op === 'function' || isHelper(value)) { return 1 }
     if (op === 'if' || op === '?:') { return 2 }
-    if (op === '|') { return 5 }
-    if (op === '^') { return 6 }
-    if (op === '&') { return 7 }
-    if (op === '===' || op === '!==') { return 8 }
-    if (op === '<' || op === '<=' || op === '>' || op === '>=' || op === 'instanceof' || op === 'in') { return 9 }
-    if (op === '<<' || op === '>>' || op === '>>>') { return 10 }
-    if ((op === '+' || op === '-') && value.length === 3) { return 11 }
-    if (op === '*' || op === '/' || op === '%') { return 12 }
+    const binary = value.length === 3 ? binaryLevels.find(([tag]) => tag === op) : undefined
+    if (binary !== undefined) { return binary[1] }
     if (op === '**') { return 13 }
-    if (op === '+' || op === '-' || op === '~' || op === '!' || op === 'typeof') { return 14 }
+    if (prefixTags.includes(op)) { return 14 }
     return 16
 }
 
@@ -240,9 +249,7 @@ const optionalRegion = input => {
 const operatorText = (context, operator) => {
     if (operator.length === 1) {
         const path = `helper${context.values.indexOf(operator)}`
-        if (operator[0] === 'entry') { return taggedChunks(_entryChunks(path)) }
-        if (operator[0] === 'hasEntry') { return taggedChunks(_hasEntryChunks(path)) }
-        return isIntrinsic(operator) ? taggedChunks(_intrinsicChunks(operator[0])(path)) : operator[0]
+        return isHelper(operator) ? taggedChunks(_helperChunks(operator[0])(path)) : operator[0]
     }
     switch (operator[0]) {
         case 'array': { return `[${itemText(context, operator[1])}]` }
@@ -296,7 +303,7 @@ const operatorText = (context, operator) => {
             const leftText = expression(context, left, level + (tag === '**' ? 1 : 0))
             const leftValue = syntaxValue(left)
             const signedLeaf = typeof leftValue === 'number' && (leftValue < 0 || Object.is(leftValue, -0)) || typeof leftValue === 'bigint' && leftValue < 0n
-            const unary = leftValue instanceof Array && ['-', '+', '~', '!', 'typeof'].includes(leftValue[0]) && leftValue.length === 2
+            const unary = leftValue instanceof Array && prefixTags.includes(leftValue[0]) && leftValue.length === 2
             const l = tag === '**' && (signedLeaf || unary) ? `(${leftText})` : leftText
             const r = expression(context, right, level + (tag === '**' ? 0 : 1))
             return `${l}${tag}${r}`

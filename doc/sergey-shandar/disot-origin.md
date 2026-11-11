@@ -122,7 +122,7 @@ block-beta
 
 ### Authorship
 
-We can use [Decentralized Identifier (DID)](https://en.wikipedia.org/wiki/Decentralized_identifier) and digital signatures to confirm document ownership, its author and other properties, such licensing and when the document was created using [Trusted Timestamping] (https://en.wikipedia.org/wiki/Trusted_timestamping).
+We can use [Decentralized Identifier (DID)](https://en.wikipedia.org/wiki/Decentralized_identifier) and digital signatures to confirm document ownership, its author and other properties, such licensing and when the document was created using [Trusted Timestamping](https://en.wikipedia.org/wiki/Trusted_timestamping).
 
 Note, the sequence should like this:
 

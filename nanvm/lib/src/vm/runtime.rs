@@ -25,6 +25,23 @@
 #[path = "gen.runtime.rs"]
 pub(super) mod compiled;
 
+use crate::vm::{Any, IVm, Object, error};
+
+/// A compiled module: what `fjs compile` prints as
+/// `pub fn module<A: IVm>(runtime: Any<A>) -> Result<Any<A>, Any<A>>`, a
+/// function of the runtime value answering its export object or the value
+/// its initialization threw.
+pub type Module<A> = fn(Any<A>) -> Result<Any<A>, Any<A>>;
+
+/// `module` instantiated with the runtime value: its export object, or
+/// what it threw. A value that is not an object is refused with a
+/// `TypeError`, since no compiled module answers one; every consumer that
+/// runs a module reads its exports through this, so the refusal is said
+/// once.
+pub fn exports<A: IVm>(module: Module<A>) -> Result<Object<A>, Any<A>> {
+    Object::try_from(module(compiled::runtime::<A>()?)?).map_err(|_| error::not_an_export_object())
+}
+
 #[cfg(test)]
 mod tests {
     use super::compiled::runtime;
@@ -35,6 +52,32 @@ mod tests {
     };
 
     type A = Naive;
+
+    /// A module answering a fixed object, its throw, or a value that is no
+    /// export object.
+    fn object(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+        Ok([("a".into(), 1.0.to_any())].to_object().to_any())
+    }
+    fn throwing(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+        Err("boom".into())
+    }
+    fn number(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
+        Ok(42.0.to_any())
+    }
+
+    /// The export object is the module's answer; a throw is its value, and
+    /// a value that is no object is refused with one `TypeError`.
+    #[test]
+    fn exports() {
+        use crate::vm::exports;
+        let object = exports::<A>(object).unwrap();
+        assert_eq!(object.own_property(&"a".into()), Some(1.0.to_any()));
+        assert_eq!(exports::<A>(throwing).unwrap_err(), "boom".into());
+        assert_eq!(
+            exports::<A>(number).unwrap_err(),
+            error::not_an_export_object()
+        );
+    }
 
     /// A property of the runtime value, by its key: `static`, `dot`.
     fn at(value: &Any<A>, key: &str) -> Any<A> {

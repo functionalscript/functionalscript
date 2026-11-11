@@ -21,19 +21,19 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { EffectList, Next } from '../list/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, AvailableParallelism, Await, Capture, Catch, ChildWait, Close, Console, CreateExclusive, CreateServer, Dirent, Env, Exec, ExecFile, ExecResult, Fetch, FileModule, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Overrun, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadRequestBytes, RequestBody, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Rmdir, Sandbox, SandboxResult, Server, ServerResponse, Spawn, Stat, Test, TestContext, TestFn, Underrun, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _DoubledLength, _FramingHeader, _Gate, _NoBody, _PumpStep, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { tryUtf8, utf8 } from '../../text/module.f.mjs'
-import { isDigits } from '../../text/ascii/module.f.js'
+import { asciiLowercase, isDigits } from '../../text/ascii/module.f.js'
 import { utf8ToString } from '../../text/utf8/module.f.mjs'
 import { floorCodePointBoundary } from '../../text/utf16/module.f.js'
 import { concat } from '../../types/list/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, empty as emptyVec, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, maxVecBytes, msb, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
-import { ok } from '../../types/result/module.f.js'
+import { error as resultError, ok } from '../../types/result/module.f.js'
 import {
     commandsOf, do_, errorMessage as effectsErrorMessage, ioError as effectsIoError, toIoError as effectsToIoError,
 } from '../module.f.mjs'
@@ -45,9 +45,10 @@ import {
     read as commonRead, readLine as commonReadLine, sandbox as commonSandbox, write as commonWrite,
 } from '../common/module.f.mjs'
 import {
-    catchStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    compensateStep, foldStep, forEachStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
-import { parent } from '../../path/module.f.js'
+import { normalize, parent } from '../../path/module.f.js'
+import { resolve as resolveImportPath } from '../../path/import/module.f.mjs'
 
 /**
  * `errorMessage`, `ioError` and `toIoError` are declared in
@@ -82,6 +83,21 @@ export const errorExit = commonErrorExit
 export const import_ = commonImport_
 export const log = commonLog
 export const randomInt = commonRandomInt
+
+/**
+ * A 256-bit random `Vec`, built from 8 sequential {@link randomInt} (32-bit)
+ * calls: what a name nobody else is writing to is made of — a CAS staging
+ * file ([`fjs/cas`](../../cas/module.f.mjs)) and a loose object's temporary
+ * file ([`fjs/git/loose`](../../git/loose/module.f.mjs)).
+ *
+ * @type {Effect<RandomInt, Vec, NotImplemented>}
+ */
+export const random256 =
+    foldStep(
+        pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
+        emptyVec,
+        () => (/** @type {Vec} */ acc) =>
+            ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 export const read = commonRead
 export const readLine = commonReadLine
 export const sandbox = commonSandbox
@@ -279,7 +295,7 @@ export const isDirectory = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, catch: null, childWait: null, close: null,
+    access: null, all: null, availableParallelism: null, await: null, capture: null, catch: null, childWait: null, close: null,
     createExclusive: null,
     createServer: null, exec: null, execFile: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
@@ -316,6 +332,24 @@ export const mkdir = do_('mkdir')
 
 /** @type {Func<ResolveFileModule>} */
 export const resolveFileModule = do_('resolveFileModule')
+
+/** What every host answers an import specifier with that names no path. @type {string} */
+export const invalidModuleSpecifier = 'invalid module specifier'
+
+/**
+ * A module's identity by lexical resolution, for a host that has no
+ * `realpath`: `name` itself where there is no importer, else `name` resolved
+ * against the importer's path, and the identity is that path normalized. A module
+ * reached through two symbolic links is then two modules. The virtual host
+ * resolves this way, and the SpiderMonkey host does after anchoring a root
+ * `name` to its working directory.
+ *
+ * @type {(name: string, importer: string | null) => Result<FileModule, string>}
+ */
+export const lexicalFileModule = (name, importer) => {
+    const path = importer === null ? name : resolveImportPath(importer)(name)
+    return path === null ? resultError(invalidModuleSpecifier) : ok({ id: normalize(path), path })
+}
 
 // readFile
 
@@ -422,6 +456,9 @@ export const exec = do_('exec')
 /** @type {Func<ExecFile>} */
 export const execFile = do_('execFile')
 
+/** @type {Func<Capture>} */
+export const capture = do_('capture')
+
 // spawn
 
 /** @type {Func<Spawn>} */
@@ -520,9 +557,9 @@ const writeLoop = path => {
  * **It fails closed.** Once `path` exists, any failure — of the stream itself,
  * of a chunk that is not whole bytes, of a `writeBytes` — removes it before
  * the error is returned, so a failed write leaves no partial file behind for
- * a later reader to mistake for the whole. The removal's own outcome is
- * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
- * what the caller needs to hear, and a failed `rm` has no better answer.
+ * a later reader to mistake for the whole. The removal is a
+ * {@link compensateStep}: its own outcome is discarded, and the write's error
+ * is what the caller hears.
  *
  * The removal names `path`, as every `writeBytes` before it does, so a file
  * put there by someone else mid-write is written into and then removed —
@@ -536,18 +573,9 @@ const writeLoop = path => {
 export const writeFromStream = (path, e) => {
     // Only what runs after `createExclusive` is cleaned up after: an `EEXIST`
     // is someone else's file, and removing it would be the failure's doing.
-    const written = catchStep(
-        writeLoop(path)(0, e),
-        err => resultStep(rm(path), () => pureError(err)))
+    const written = compensateStep(writeLoop(path)(0, e), rm(path))
     return ioStep(createExclusive(path), () => written)
 }
-
-/**
- * The most bytes one `Vec` holds, as a `number`: what a chunk may not exceed,
- * and the window a host's `readWhole` reads in. Linkage between this module
- * and the hosts that implement its operations, not API.
- */
-export const _maxVecBytes = Number(maxLengthBytes)
 
 /**
  * The most UTF-16 code units a piece has, less one, so that a piece of
@@ -555,7 +583,7 @@ export const _maxVecBytes = Number(maxLengthBytes)
  * most three bytes, a surrogate pair four for its two. The extra unit is the
  * one a cut may take back, below.
  */
-const chunkUnits = Math.floor(_maxVecBytes / 3) - 1
+const chunkUnits = Math.floor(maxVecBytes / 3) - 1
 
 /**
  * The pieces of `s`, each of at most `units + 1` code units: the cut after
@@ -592,17 +620,15 @@ export const _vecList = (vs, i) => () => ok(i < vs.length ? { first: vs[i], tail
  * by a `Vec`'s. No chunks is an empty file. **It fails closed**, as
  * {@link writeFromStream} does: once the first chunk is written, a failure
  * removes `path` before the error is returned, so no truncated file is left
- * behind for a reader to mistake for the whole. The removal's own outcome is
- * discarded.
+ * behind for a reader to mistake for the whole. The removal is a
+ * {@link compensateStep}, whose own outcome is discarded.
  *
  * @type {(path: string, chunks: readonly Vec[]) => Effect<WriteFile | WriteBytes | Rm, void, IoChannel>}
  */
 export const writeChunks = (path, chunks) => {
     if (chunks.length === 0) { return writeFile(path, emptyVec) }
     const [first, ...rest] = chunks
-    const written = catchStep(
-        writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)),
-        err => resultStep(rm(path), () => pureError(err)))
+    const written = compensateStep(writeLoop(path)(Number(byteLength(first)), _vecList(rest, 0)), rm(path))
     return ioStep(writeFile(path, first), () => written)
 }
 
@@ -654,7 +680,7 @@ export const writeFiles = files => forEachStep(
  * the other.
  *
  * **Bounded, it advances by the length it got.** Both `fjs/cas` loops stepped
- * `offset + _maxVecBytes` whatever the read returned, which is sound only
+ * `offset + maxVecBytes` whatever the read returned, which is sound only
  * because an unbounded fold ends at the first empty read — on a local regular
  * file a short read is the last one. Under a declared length a short chunk is
  * not the last, and a fixed step would leave a hole in a body whose size the
@@ -690,7 +716,7 @@ export const readChunks = (source, bound) => {
     }
     /** @type {(offset: number) => EffectList<any, Vec, IoChannel>} */
     const loop = offset => {
-        const remaining = bound === null ? _maxVecBytes : bound - offset
+        const remaining = bound === null ? maxVecBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
         // A source that performs a command suspends here, so the list is built
         // one cell per pull. A source that answers purely does not: `nonEmpty`
@@ -698,7 +724,7 @@ export const readChunks = (source, bound) => {
         // the whole chain is constructed up front and a large bound overflows
         // the stack. That is the list representation's property, not this
         // loop's — every chunk source with a real host behind it is a command.
-        return ioStep(source(offset, min(_maxVecBytes, remaining)), chunk => cell(chunk, offset))
+        return ioStep(source(offset, min(maxVecBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
 }
@@ -868,13 +894,16 @@ export const releaseHandle = handle => resultMapStep(close(handle), () => ok(nul
  * ever taken against it — {@link responseGate}'s fourth gate refuses such a
  * response before a bound is read.
  *
- * `name` is given already lower-cased; every caller here is a literal.
+ * `name` is given already lower-cased; every caller here is a literal. HTTP
+ * compares a header name ASCII case-insensitively, so the keys are lowered
+ * by {@link asciiLowercase}, never `toLowerCase()`, which would also take
+ * `'\u212a'`, the Kelvin sign, for a `k`.
  *
  * @type {(headers: Headers, name: string) => Nullable<string>}
  */
 export const headerValue = (headers, name) => {
     for (const [k, v] of definedEntries(headers)) {
-        if (k.toLowerCase() === name) { return v }
+        if (asciiLowercase(k) === name) { return v }
     }
     return null
 }
@@ -886,7 +915,7 @@ export const headerValue = (headers, name) => {
  * @type {(headers: Headers, name: string) => number}
  */
 const headerCount = (headers, name) =>
-    definedEntries(headers).filter(([k]) => k.toLowerCase() === name).length
+    definedEntries(headers).filter(([k]) => asciiLowercase(k) === name).length
 
 /**
  * The length `headers` declares, or `null` for a response that declares none this
@@ -1272,6 +1301,9 @@ export const forever = do_('forever')
 
 /** @type {Func<Now>} */
 export const now = do_('now')
+
+/** The host's available task parallelism. @type {Func<AvailableParallelism>} */
+export const availableParallelism = do_('availableParallelism')
 
 // sandbox and catch are declared in `../common`, which is where an operation
 // with a second implementer belongs; they are re-exported below so a node-side

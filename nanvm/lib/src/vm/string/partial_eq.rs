@@ -1,4 +1,7 @@
-use crate::vm::{IContainer, IVm, String};
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{IContainer, IVm, String},
+};
 
 impl<A: IVm> PartialEq for String<A> {
     fn eq(&self, other: &Self) -> bool {
@@ -15,7 +18,7 @@ impl<A: IVm> String<A> {
     /// impl would leave every `s == "x".into()` in the crate without a
     /// target type for `into`.
     pub(crate) fn is_str(&self, s: &str) -> bool {
-        self.clone().into_iter().eq(s.encode_utf16())
+        (0..self.length()).map(|i| self[i]).eq(s.encode_utf16())
     }
 }
 

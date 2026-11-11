@@ -145,7 +145,7 @@ const import_ = ({ module, name: n, desc }) => [
 ]
 
 /** @type {(x: Global) => Bytes} */
-const global = ({ type, init }) => [...globalType(type), ...expr(init)]
+const _globalDefinition = ({ type, init }) => [...globalType(type), ...expr(init)]
 
 /** @type {(x: Export) => Bytes} */
 const export_ = ({ name: n, kind, index }) => [...name(n), externKinds[kind], ...u32(index)]
@@ -240,7 +240,7 @@ const known = m => {
         [3, 'func', some(m.functions, f => u32(f.type))],
         [4, 'table', some(m.tables, tableType)],
         [5, 'memory', some(m.memories, limits)],
-        [6, 'global', some(m.globals, global)],
+        [6, 'global', some(m.globals, _globalDefinition)],
         [7, 'export', some(m.exports, export_)],
         [8, 'start', m.start === null ? null : u32(m.start)],
         [9, 'elem', some(m.elements, element)],

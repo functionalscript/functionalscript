@@ -22,7 +22,7 @@
 use nanvm_lib::{
     common::sized_index::SizedIndex,
     naive::Naive,
-    vm::{Any, IVm, Nullish, Object, ToAny, Unpacked},
+    vm::{Any, IVm, Nullish, Object, ToAny, Unpacked, exports},
 };
 
 /// A corpus fixture and what it is expected to be, one row of the generated
@@ -31,10 +31,10 @@ pub struct Case {
     /// The fixture's Rust module name.
     pub name: &'static str,
     /// The compiled fixture's `module`, of the runtime value it is given.
-    pub fixture: crate::Module<Naive>,
+    pub fixture: nanvm_lib::vm::Module<Naive>,
     /// The expectation's `module`: the interpreter's value as a graph, or the
     /// throw it ended in, of the runtime value it is given and never reads.
-    pub expected: crate::Module<Naive>,
+    pub expected: nanvm_lib::vm::Module<Naive>,
     /// The UTF-8 bytes of the default's JSON text, where it has a JSON form.
     pub json: Option<&'static [u8]>,
     /// Whether the fixture is expected to throw while it initializes.
@@ -44,8 +44,7 @@ pub struct Case {
 /// Whether two graphs are the same value, and, where they are not, the first
 /// difference found, with the path to it.
 ///
-/// Leaves compare as `Object.is` does, numbers by their bits (`NaN`, `-0`),
-/// everything else by `==`. Arrays compare by their elements. Objects compare
+/// Leaves compare by [`Any::same_value`], which is `Object.is`. Arrays compare by their elements. Objects compare
 /// by their [`Object::own_entries`], pairwise and in order, so a duplicated
 /// raw slot (an object spread's overwrite) equals the interpreter's
 /// normalized object while the right entries in the wrong observable order
@@ -69,14 +68,6 @@ struct Walk<A: IVm> {
 impl<A: IVm> Walk<A> {
     fn walk(&mut self, path: &str, actual: &Any<A>, expected: &Any<A>) -> Result<(), String> {
         match (actual.clone().into(), expected.clone().into()) {
-            (Unpacked::Number(a), Unpacked::Number(e)) => {
-                let (a, e) = (f64::from(a), f64::from(e));
-                if a.to_bits() == e.to_bits() {
-                    Ok(())
-                } else {
-                    Err(format!("{path}: {a:?} is not {e:?}"))
-                }
-            }
             (Unpacked::Array(a), Unpacked::Array(e)) => {
                 if self.entered(path, actual, expected)? {
                     return Ok(());
@@ -106,7 +97,7 @@ impl<A: IVm> Walk<A> {
                     }
                 })
             }
-            _ if actual == expected => Ok(()),
+            _ if actual.same_value(expected) => Ok(()),
             _ => Err(format!("{path}: {actual:?} is not {expected:?}")),
         }
     }
@@ -132,11 +123,10 @@ impl<A: IVm> Walk<A> {
 /// The `default` export of a module's export object, `undefined` for a
 /// module without one: the expectation is the interpreter's `read 'default'`,
 /// which answers `undefined` for it.
-fn default_of<A: IVm>(exports: Any<A>) -> Result<Any<A>, String> {
-    let exports = Object::try_from(exports).map_err(|_| "the exports are not an object")?;
-    Ok(exports
+fn default_of<A: IVm>(exports: Object<A>) -> Any<A> {
+    exports
         .own_property(&"default".into())
-        .unwrap_or(Nullish::Undefined.to_any()))
+        .unwrap_or(Nullish::Undefined.to_any())
 }
 
 /// Runs both layers for one case: `Ok` when the compiled fixture is what its
@@ -147,15 +137,14 @@ fn default_of<A: IVm>(exports: Any<A>) -> Result<Any<A>, String> {
 /// share could make both throw. The thrown value, which is engine-specific,
 /// is not compared.
 pub fn check(case: &Case) -> Result<(), String> {
-    let runtime = crate::runtime::<Naive>();
-    match ((case.fixture)(runtime.clone()), case.throws) {
+    match (exports(case.fixture), case.throws) {
         (Err(_), true) => Ok(()),
         (Err(thrown), false) => Err(format!("threw {thrown:?}, expected a value")),
         (Ok(value), true) => Err(format!("expected a throw, got {value:?}")),
         (Ok(actual), false) => {
             let expected =
-                (case.expected)(runtime).map_err(|e| format!("the expectation threw {e:?}"))?;
-            let (actual, expected) = (default_of(actual)?, default_of(expected)?);
+                exports(case.expected).map_err(|e| format!("the expectation threw {e:?}"))?;
+            let (actual, expected) = (default_of(actual), default_of(expected));
             check_json(case.json, &actual)?;
             same_graph(&actual, &expected)
         }

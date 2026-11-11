@@ -44,6 +44,3 @@ export type Work =
     | { readonly kind: 'logical'; readonly tag: LogicalTag; readonly operands: readonly SourceValue[]; readonly rest: Work }
     | null
 export type Results = { readonly value: Value; readonly rest: Results } | null
-export type ReferenceTask =
-    | { readonly kind: 'value'; readonly value: Value }
-    | { readonly kind: 'block'; readonly block: Block }

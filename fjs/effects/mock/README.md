@@ -30,6 +30,11 @@ run(counter)(0)(twice) // [2, ['ok', [1, 0]]], newest first
 |--------------------------|-------------------------------------------------------------------------|
 |`run(handlers)`           |every operation the program can perform has a handler                    |
 |`partialRun(commands)(handlers)`|some do not: a missing one answers `error(notImplemented(command))`|
+|`runAll(handlers)`         |the program uses `all`, which the runner answers over itself            |
+
+Neither `runAll` nor `partialRun`, where `commands` includes `all`, takes a
+handler for `all`: they run its effects in turn through the runner itself,
+threading the state, so a mock never writes that fold.
 
 A proof asserts on both halves of the answer: the final state says what the
 program did, and the `Result` what it answered. The demo on

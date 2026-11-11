@@ -4,7 +4,6 @@
 #[path = "../gen.fast/mixed_self_uses.rs"]
 mod mixed_self_uses;
 
-use nanvm_harness::runtime;
 use nanvm_lib::{
     common::sized_index::SizedIndex,
     naive::Naive,
@@ -12,7 +11,10 @@ use nanvm_lib::{
 };
 
 fn function() -> Function<Naive> {
-    let call = Function::try_from(mixed_self_uses::module::<Naive>(runtime()).unwrap()).unwrap();
+    let call = Function::try_from(
+        mixed_self_uses::module::<Naive>(nanvm_lib::vm::runtime::<Naive>().unwrap()).unwrap(),
+    )
+    .unwrap();
     assert_eq!(call.length(), 1);
     call
 }

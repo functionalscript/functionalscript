@@ -55,21 +55,17 @@ const checkId = (jobId, step) => {
     const run = command(step)
     return jobId === 'deno' || jobId === 'bun' ? 'suite'
         : run.startsWith('cargo ') ? 'rust'
-        : run === 'node --test ./fjs/emergent_testing/js-only.mjs' ? 'suite'
+        : run === 'node --test ./fjs/emergent_testing/js-only.mjs' || run === 'npm start t' ? 'suite'
         : run === 'tsc' ? 'tsc'
         : run === 'npm start compile' ? 'compile'
-        : run === 'npm run cov' ? 'coverage'
         : run === 'npm run sm c' ? 'spidermonkey-compile'
         : run === 'npm run sm t' ? 'spidermonkey-suite'
-        : step['working-directory'] !== undefined || run.startsWith('mkdir ') || run.startsWith('npm pack ')
-            || isAction(step, 'actions/setup-node') && step.with?.['package-manager-cache'] === 'false'
-            ? 'package'
-            : undefined
+        : undefined
 }
 
 /** @type {(id: string) => Rung} */
 const rung = id => id === 'rust' ? 'rust'
-    : id === 'tsc' || id === 'package' ? 'ts'
+    : id === 'tsc' ? 'ts'
     : id === 'compile' || id === 'spidermonkey-compile' ? 'fjs'
     : 'js'
 
@@ -89,7 +85,7 @@ const dependencies = (jobId, ids, step) => {
         : run.includes('js --version') || run === 'mise -E spidermonkey install --locked http:spidermonkey'
             || run.startsWith('mise -E spidermonkey lock http:spidermonkey --platform ')
             ? ids.filter(id => id.startsWith('spidermonkey-'))
-        : run.includes('tsc --version') ? ids.filter(id => id === 'tsc' || id === 'package')
+        : run.includes('tsc --version') ? ids.filter(id => id === 'tsc')
         : isEnvironmentSetup(step) || run.includes('node --version') ? ids
         : []
 }
@@ -133,14 +129,20 @@ const cachedJob = (jobId, source) => {
     const work = source.steps.filter(step =>
         !isAction(step, 'actions/checkout')
         && !isEnvironmentSetup(step)
-        && !(isAction(step, 'actions/setup-node') && step.with?.['package-manager-cache'] !== 'false'))
+        && !isAction(step, 'actions/setup-node'))
     // The generator drift check and demo rebuild stay uncached. Their Node
     // version check must still run when all of the cacheable checks hit.
     const uncachedShell = work.some(step =>
         shellPrefixes.some(prefix => step.run?.startsWith(prefix) === true) && dependencies(jobId, ids, step).length === 0)
+    // A successful-check cache restores no tarball. Packing must run on every
+    // producer job, with the dependencies and compiler its prepack hook uses.
+    const packing = work.some(step => command(step).startsWith('npm pack '))
     const gated = work.flatMap((step, index) => {
         const depends = dependencies(jobId, ids, step)
-        const condition = depends.length === 0 || uncachedShell && command(step).includes('node --version')
+        const run = command(step)
+        const uncachedPrerequisite = uncachedShell && run.includes('node --version')
+            || packing && (run === 'npm ci' || run.includes('tsc --version'))
+        const condition = depends.length === 0 || uncachedPrerequisite
             ? {} : { if: misses(depends) }
         const own = checkId(jobId, step)
         const last = own !== undefined && !work.slice(index + 1).some(next => checkId(jobId, next) === own)

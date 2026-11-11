@@ -8,12 +8,12 @@ use std::{
 };
 
 /// A fresh directory under the system's, removed when dropped.
-pub(crate) struct Scratch(PathBuf);
+pub struct Scratch(PathBuf);
 
 impl Scratch {
     /// A directory named by `name`, the process and a count, so that tests
     /// running at once never share one.
-    pub(crate) fn new(name: &str) -> Self {
+    pub fn new(name: &str) -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
@@ -30,12 +30,12 @@ impl Scratch {
         Self(path)
     }
 
-    pub(crate) fn path(&self) -> &Path {
+    pub fn path(&self) -> &Path {
         &self.0
     }
 
     /// The path of `name` in the directory, as the operations take it.
-    pub(crate) fn at(&self, name: &str) -> String {
+    pub fn at(&self, name: &str) -> String {
         self.0.join(name).to_string_lossy().into_owned()
     }
 }

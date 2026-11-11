@@ -2,12 +2,19 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { parse } from '../../rtti/parse/module.f.mjs'
-import { allowedCallbackOrigin, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerTokenSchema, tokenSchema, userSchema, validPending, validVerifier } from './module.f.mjs'
+import { allowedCallbackOrigin, authorizeEndpoint, authorizeParams, callbackCode, callbackParams, isCallback, loginMessages, pending as pendingOf, redirectMatches, withStatus, callbackPath, configPath, configSchema, exchangeFailureMessage, exchangeFailureSchema, exchangeSchema, pendingSchema, providerErrorReason, providerErrorSchema, providerOutcome, providerTokenSchema, tokenPath, tokenSchema, userSchema, validCallback, validExchange, validPending, validVerifier, workerConfig } from './module.f.mjs'
 
 const verifier = 'a'.repeat(43)
 const pending = /** @type {const} */ ({ state: 'unguessable', verifier, createdAt: 1_000 })
 
 export const proof = /** @type {const} */ ({
+    // The wire paths both hosts import, pinned: a change here moves the
+    // Worker's routes and the page's requests together, and nothing else.
+    routes: () => {
+        assertEq(configPath, '/auth/github/config')
+        assertEq(tokenPath, '/auth/github/token')
+        assertEq(callbackPath, '/prs/')
+    },
     schemas: () => {
         assertStructurallySame(assertOk(parse(configSchema)({ clientId: 'public', redirectUri: 'https://example.com/prs/', extra: true })),
             { clientId: 'public', redirectUri: 'https://example.com/prs/' })
@@ -97,6 +104,74 @@ export const proof = /** @type {const} */ ({
         assertEq(validVerifier(`${'a'.repeat(42)}=`), false)
         assertEq(validVerifier(`${'a'.repeat(42)}é`), false)
     },
+    callbacks: () => {
+        const url = /** @type {const} */ ({ protocol: 'https:', hostname: 'example.com', pathname: '/prs/', search: '', hash: '', username: '', password: '' })
+        assert(validCallback(url))
+        assert(validCallback({ ...url, protocol: 'http:', hostname: 'localhost' }))
+        assert(validCallback({ ...url, protocol: 'http:', hostname: '127.0.0.1' }))
+        assert(validCallback({ ...url, protocol: 'http:', hostname: '[::1]' }))
+        assertEq(validCallback({ ...url, protocol: 'http:' }), false)
+        assertEq(validCallback({ ...url, protocol: 'ftp:', hostname: 'localhost' }), false)
+        assertEq(validCallback({ ...url, pathname: '/prs' }), false)
+        assertEq(validCallback({ ...url, search: '?a=1' }), false)
+        assertEq(validCallback({ ...url, hash: '#a' }), false)
+        assertEq(validCallback({ ...url, username: 'user' }), false)
+        assertEq(validCallback({ ...url, password: 'secret' }), false)
+    },
+    workerConfig: () => {
+        const env = /** @type {const} */ ({ GITHUB_CLIENT_ID: 'id', GITHUB_CLIENT_SECRET: 'secret', GITHUB_REDIRECT_URI: 'https://example.com/prs/' })
+        const admitted = /** @type {const} */ ({ redirect: true, preview: false })
+        assertStructurallySame(assertOk(workerConfig(env, admitted)), { clientId: 'id', clientSecret: 'secret' })
+        assertStructurallySame(assertOk(workerConfig({ ...env, GITHUB_PREVIEW_REDIRECT_URI: '' }, admitted)), { clientId: 'id', clientSecret: 'secret' })
+        assertStructurallySame(assertOk(workerConfig({ ...env, GITHUB_PREVIEW_REDIRECT_URI: 'https://p.example.com/prs/' }, { redirect: true, preview: true })),
+            { clientId: 'id', clientSecret: 'secret' })
+        assertStructurallySame(assertError(workerConfig({}, { redirect: false, preview: false })), {
+            error: 'GitHub login is not configured.',
+            missingBindings: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_REDIRECT_URI'],
+            invalidRedirectUri: false,
+        })
+        assertStructurallySame(assertError(workerConfig({ ...env, GITHUB_CLIENT_SECRET: '' }, admitted)), {
+            error: 'GitHub login is not configured.',
+            missingBindings: ['GITHUB_CLIENT_SECRET'],
+            invalidRedirectUri: false,
+        })
+        assertStructurallySame(assertError(workerConfig({ ...env, GITHUB_CLIENT_ID: '' }, admitted)), {
+            error: 'GitHub login is not configured.',
+            missingBindings: ['GITHUB_CLIENT_ID'],
+            invalidRedirectUri: false,
+        })
+        assertStructurallySame(assertError(workerConfig(env, { redirect: false, preview: false })), {
+            error: 'GitHub login is not configured.',
+            missingBindings: [],
+            invalidRedirectUri: true,
+        })
+        assertStructurallySame(assertError(workerConfig({ ...env, GITHUB_PREVIEW_REDIRECT_URI: 'http://p.example.com/prs/' }, admitted)), {
+            error: 'GitHub login is not configured.',
+            missingBindings: [],
+            invalidRedirectUri: false,
+            invalidPreviewRedirectUri: true,
+        })
+    },
+    exchanges: () => {
+        assert(validExchange({ code: 'c', verifier }))
+        assert(validExchange({ code: 'c'.repeat(1_024), verifier }))
+        assertEq(validExchange({ code: '', verifier }), false)
+        assertEq(validExchange({ code: 'c'.repeat(1_025), verifier }), false)
+        assertEq(validExchange({ code: 'c', verifier: 'short' }), false)
+    },
+    providerOutcomes: () => {
+        const token = /** @type {const} */ ({ access_token: 'token', token_type: 'bearer', scope: '' })
+        assertStructurallySame(assertOk(providerOutcome(200, token)), { access_token: 'token', token_type: 'bearer' })
+        assertStructurallySame(assertError(providerOutcome(302, token)), ['provider_error', 502])
+        assertStructurallySame(assertError(providerOutcome(200, { error: 'bad_verification_code' })), ['bad_verification_code', 400])
+        assertStructurallySame(assertError(providerOutcome(500, { error: 'private-provider-detail' })), ['provider_error', 502])
+        assertStructurallySame(assertError(providerOutcome(503, token)), ['provider_error', 502])
+        assertStructurallySame(assertError(providerOutcome(404, token)), ['provider_error', 400])
+        assertStructurallySame(assertError(providerOutcome(199, token)), ['provider_error', 400])
+        assertStructurallySame(assertError(providerOutcome(200, { access_token: 'token' })), ['provider_error', 400])
+        assertStructurallySame(assertError(providerOutcome(200, { ...token, access_token: '' })), ['provider_error', 400])
+        assertStructurallySame(assertError(providerOutcome(200, { ...token, scope: 'repo' })), ['unexpected_scope', 400])
+    },
     pendingAuthorization: () => {
         assert(validPending(pending, 'unguessable', 1_000))
         assert(validPending(pending, 'unguessable', 601_000))
@@ -107,5 +182,39 @@ export const proof = /** @type {const} */ ({
         assertEq(validPending(pending, 'unguessable', NaN), false)
         assertEq(validPending(pending, 'unguessable', 999), false)
         assertEq(validPending(pending, 'unguessable', 601_001), false)
+    },
+    callbackQuery: () => {
+        assertStructurallySame(callbackParams, ['code', 'state', 'error', 'error_description', 'error_uri'])
+        assert(isCallback(['code']))
+        assert(isCallback(['page', 'state']))
+        assert(isCallback(['error']))
+        assertEq(isCallback([]), false)
+        assertEq(isCallback(['error_description', 'page']), false)
+        assertEq(callbackCode(['code'], ['unguessable'], pending, 1_000), 'code')
+        assertEq(callbackCode([], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['a', 'b'], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode([''], ['unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['code'], [], pending, 1_000), null)
+        assertEq(callbackCode(['code'], ['unguessable', 'unguessable'], pending, 1_000), null)
+        assertEq(callbackCode(['code'], ['mismatch'], pending, 1_000), null)
+    },
+    authorization: () => {
+        const config = /** @type {const} */ ({ clientId: 'client', redirectUri: `https://example.com${callbackPath}` })
+        assert(redirectMatches(config, 'https://example.com'))
+        assertEq(redirectMatches({ ...config, clientId: '' }, 'https://example.com'), false)
+        assertEq(redirectMatches(config, 'https://other.example'), false)
+        assertEq(authorizeEndpoint, 'https://github.com/login/oauth/authorize')
+        assertStructurallySame(authorizeParams(config, 'state', 'challenge'), {
+            client_id: 'client',
+            redirect_uri: 'https://example.com/prs/',
+            prompt: 'select_account',
+            state: 'state',
+            code_challenge: 'challenge',
+            code_challenge_method: 'S256',
+        })
+        assertStructurallySame(pendingOf('state', 'verifier', 5), { state: 'state', verifier: 'verifier', createdAt: 5 })
+    },
+    messages: () => {
+        assertEq(withStatus(loginMessages.exchangeFailed, 400), 'Could not exchange the GitHub login code. Please try again. (HTTP 400)')
     },
 })

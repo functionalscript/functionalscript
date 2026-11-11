@@ -2,9 +2,9 @@
 
 This is the manual method used by
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520). Its
-Node half runs in CI now: the packed-package check closing the `node26` job
-([`package/module.f.mjs`](./package/module.f.mjs)) installs the tarball for a
-clean consumer, imports a published `.f.js`, runs it and type-checks a use of
+Node half runs in CI now: `node` packs and uploads the tarball, then the
+`package` job ([`package/module.f.mjs`](./package/module.f.mjs)) downloads and
+installs it for a clean consumer, imports a published `.f.js`, runs it and type-checks a use of
 its declaration with a negative control. The Deno and Bun halves below remain
 manual.
 
@@ -21,7 +21,7 @@ For current validation, use the exact Node, TypeScript/TSGO, Deno and Bun pins
 in [`config/module.f.js`](./config/module.f.js). Build the tarball inside
 `./dev.sh`, then install it in clean directories outside the checkout. Node's
 CI consumer deliberately installs the selected Node and TypeScript versions
-outside Nix; the manual equivalents must also use those exact versions,
+without mise; the manual equivalents must also use those exact versions,
 rather than an unpinned `npx tsc`. Observe each tool's version before its check.
 An older tool requires a FunctionalScript release whose tested toolset record
 names it, such as `npm install -g functionalscript@<release>`.

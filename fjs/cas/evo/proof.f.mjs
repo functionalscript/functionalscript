@@ -31,7 +31,7 @@ import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { dialect as revisionDialect } from '../../media/revision/module.f.mjs'
 import {
-    buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision,
+    buildCache, decodeRevisionBlob, initEvo, evo, emptyCache, syncRevision, evoError, evoSummary,
 } from './module.f.mjs'
 
 const store = fileCas(sha256)('.')
@@ -127,6 +127,10 @@ const assertEvoError = (r, expected) =>
         ['expected an evo error containing', expected, r])
 
 export const proof = {
+    channelSummaries: () => {
+        assertEq(evoSummary(evoError('invalid revision')), 'invalid revision')
+        assertEq(evoSummary(['notImplemented', 'readBytes']), 'operation not implemented: readBytes')
+    },
     buildCacheEmptyStoreYieldsEmptyCache: () => {
         const [, cache] = virtualOk(emptyState)(buildCache(store))
         assertStructurallySame(cache, emptyCache)

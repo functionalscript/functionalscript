@@ -1,7 +1,7 @@
 import { assertEq } from '../../../../asserts/module.f.js'
 import { chunksText } from '../../../../text/marked/module.f.mjs'
-import { _resolve } from '../../../../compiler/serializer/names/module.f.mjs'
-import { _entryChunks, _entryText, _hasEntryChunks, _hasEntryText, _intrinsicChunks, _intrinsicText } from './module.f.mjs'
+import { _resolve } from '../names/module.f.mjs'
+import { _entryChunks, _entryText, _hasEntryChunks, _hasEntryText, _helperText, _intrinsicChunks, _intrinsicText } from './module.f.mjs'
 
 export const proof = {
     entry: () => {
@@ -15,5 +15,12 @@ export const proof = {
     intrinsic: () => {
         assertEq(_intrinsicText('slice')('slice'), chunksText(_intrinsicChunks('slice')('slice')))
         assertEq(chunksText(_resolve([_intrinsicText('slice')('slice')])), '($0,$1,$2)=>$0.slice($1,$2)')
+    },
+    // Each helper's text by its tag is the text its own writer gives.
+    helper: () => {
+        assertEq(_helperText('entry')('h'), _entryText('h'))
+        assertEq(_helperText('hasEntry')('h'), _hasEntryText('h'))
+        assertEq(_helperText('slice')('h'), _intrinsicText('slice')('h'))
+        assertEq(_helperText('charCodeAt')('h'), _intrinsicText('charCodeAt')('h'))
     },
 }

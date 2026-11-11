@@ -7,11 +7,13 @@
 
 import {
     constContainerRead,
+    admitsAbsence,
     containerRead,
     declaredTest,
     eachEntry,
     isArray,
     isObject,
+    hasUndeclaredMember,
     noAccumulate,
     noDeclared,
     readerOf,
@@ -21,7 +23,7 @@ import {
     undeclaredMembers,
     verror,
 } from './module.f.mjs'
-import { array, number, option, or, record, rest } from '../module.f.mjs'
+import { array, number, option, or, record, rest, unknown } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { assert, assertEq, assertErrorPath, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 
@@ -71,6 +73,34 @@ const structRead = constContainerRead(listing)(isObject, structSchemaEntries, st
 const restStructRead = restContainerRead(listing)(isObject, structSchemaEntries, structItem, collected)
 
 export const proof = {
+    absenceSchemas: () => {
+        /** @type {import('../types.ts').Type} */
+        const recursive = () => ['or', recursive, option]
+        assert(admitsAbsence(recursive))
+        assert(!admitsAbsence(or(1, number)))
+    },
+    arrayMembers: () => {
+        assert(hasUndeclaredMember(declaredTest([]), [1]))
+        assert(!hasUndeclaredMember(declaredTest(['0']), [1]))
+        assert(!hasUndeclaredMember(declaredTest([]), []))
+    },
+    memberChecksAgree: () => {
+        /** @type {readonly (readonly [readonly string[], ReadonlyArray<Unknown> | StringMap<Unknown>, readonly (readonly [string, Unknown])[]])[]} */
+        const cases = [
+            [[], [], []],
+            [[], [1], [['0', 1]]],
+            [['0'], [1], []],
+            [['0'], [1, , 3], [['2', 3]]],
+            [['a'], { a: 1 }, []],
+            [['a'], { a: 1, b: 2 }, [['b', 2]]],
+        ]
+        for (const [names, value, expected] of cases) {
+            const declared = declaredTest(names)
+            const members = undeclaredMembers(declared, value)
+            assertStructurallySame(members, expected)
+            assertEq(hasUndeclaredMember(declared, value), members.length !== 0)
+        }
+    },
     empty: () => {
         const r = eachEntry([], item, [], collect)
         assert(r[0] === 'ok')
@@ -109,18 +139,17 @@ export const proof = {
     },
     // The other half of a container's loop: the members a bare schema rejects
     // and a `rest` one holds to its rest. One function answers both kinds — a
-    // struct's undeclared own keys, and an array's positions past the prefix
-    // together with the own keys that are no position at all.
+    // struct's undeclared own keys, and an array's positions past the prefix.
     undeclared: {
         struct: () => {
             const r = undeclaredMembers(declaredTest(['a']), { a: 1, b: 2 })
             assertStructurallySame(r, [['b', 2]])
         },
-        // The positions come first, in index order, then the keys that name
-        // none — so the reported error path is the leftmost failing member.
+        // Positions stay in index order, so an error path names the leftmost
+        // failing member beyond the prefix.
         tuple: () => {
-            const r = undeclaredMembers(declaredTest(['0']), Object.assign([1, 2], { foo: 3, '01': 4 }))
-            assertStructurallySame(r, [['1', 2], ['foo', 3], ['01', 4]])
+            const r = undeclaredMembers(declaredTest(['0']), [1, 2, 3])
+            assertStructurallySame(r, [['1', 2], ['2', 3]])
         },
         none: () => assertEq(undeclaredMembers(declaredTest(['a']), { a: 1 }).length, 0),
         // A uniform container declares nothing, so every member is undeclared.
@@ -132,7 +161,7 @@ export const proof = {
         // kind also answers with its `length`; see `fits` in
         // `../parse/module.f.mjs`.
         holeIsNoMember: () => assertEq(undeclaredMembers(declaredTest(['0']), [1, , 3]).length, 1),
-        // The walk is bounded by what the value and its prototypes carry, not
+        // The walk is bounded by what the value carries, not
         // by `length` — this one carries a single own property, `length`, so
         // it answers at once. Materializing the range instead exhausted memory
         // long before any check could reject the value.
@@ -250,6 +279,12 @@ export const proof = {
         const read = readerOf(
             { empty: undefined, cons: noAccumulate },
             { array: tagged('array'), record: tagged('record'), tuple: tagged('tuple'), struct: tagged('struct') })
+        const constant = () => /** @type {const} */ (['const', 3])
+        assertEq(assertOk(read(3)(3)), 3)
+        assertErrorPath([])(read(3)(4))
+        assertEq(assertOk(read(constant)(3)), 3)
+        assertEq(assertOk(read(unknown)(null)), null)
+        assertErrorPath([])(read(option)(undefined))
         assertStructurallySame(assertOk(read(array(number))([1])), ['array', [1]])
         assertStructurallySame(assertOk(read(record(number))({ a: 1 })), ['record', { a: 1 }])
         assertStructurallySame(assertOk(read([number])([1])), ['tuple', [1]])

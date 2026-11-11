@@ -13,6 +13,16 @@ pub trait SizedIndex<I: Uint>: Index<I> {
     fn is_empty(&self) -> bool {
         self.length() == default()
     }
+    /// Element `i` if it is below [`length`](Self::length), and `None` past
+    /// the end, where `Index` panics: the bound every reader of an element
+    /// that may be absent would otherwise write for itself.
+    fn get(&self, i: I) -> Option<&Self::Output> {
+        if i < self.length() {
+            Some(&self[i])
+        } else {
+            None
+        }
+    }
     fn last(&self) -> Option<&Self::Output> {
         if self.is_empty() {
             None
@@ -31,5 +41,23 @@ pub trait SizedIndex<I: Uint>: Index<I> {
 impl<T> SizedIndex<usize> for [T] {
     fn length(&self) -> usize {
         self.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SizedIndex;
+    use crate::{naive::Naive, vm::String};
+
+    /// An index below the length is its element; the length and past it
+    /// are `None`, where `Index` would panic.
+    #[test]
+    fn get() {
+        let s: String<Naive> = "ab".into();
+        assert_eq!(s.get(0), Some(&0x61));
+        assert_eq!(s.get(1), Some(&0x62));
+        assert_eq!(s.get(2), None);
+        assert_eq!(s.get(u32::MAX), None);
+        assert_eq!(String::<Naive>::from("").get(0), None);
     }
 }

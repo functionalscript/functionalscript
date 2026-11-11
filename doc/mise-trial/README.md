@@ -81,5 +81,5 @@ to the session's shell.
 `./dev.sh npm run gen` writes all generated source and workflows using Node.
 Tool lock updates are separate: update central pins and manifests together,
 refresh manager locks for every platform and commit any npm sidecars. Run
-scoped checks before pushing; CI validates all nine jobs. The generic `fjs ci`
+scoped checks before pushing; CI validates all twelve jobs. The generic `fjs ci`
 command requires the caller's committed manager manifest and lock.

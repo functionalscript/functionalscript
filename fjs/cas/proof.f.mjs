@@ -231,6 +231,11 @@ export const proof = {
         const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
         assertEq(msb.cmp(readResult[1])(expected), 0, 'multi-chunk read content mismatch')
     },
+    casListMissingStoreIsEmpty: () => {
+        const [state, result] = virtual(emptyState)(fileCas(sha256)('fresh-store').list())
+        assertStructurallySame(result, ok([]))
+        assertStructurallySame(state.root, emptyState.root)
+    },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the
         // first, leaving exactly one shard in the store.

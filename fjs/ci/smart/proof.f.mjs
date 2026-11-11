@@ -17,7 +17,7 @@ const job = (steps, image = 'ubuntu-26.04-arm') => ({
 })
 
 /** @type {(steps: readonly Step[], id?: string) => Job} */
-const cached = (steps, id = 'node26') => {
+const cached = (steps, id = 'node') => {
     const result = smartJobs({ [id]: job(steps) })[id]
     assert(result !== undefined)
     return result
@@ -38,7 +38,7 @@ const suite = /** @type {const} */ ({ run: 'mise exec -- node --test ./fjs/emerg
 const compile = /** @type {const} */ ({ run: 'mise exec -- npm start compile' })
 const deps = /** @type {const} */ ({ run: 'mise exec -- npm start deps', shell: 'bash', 'continue-on-error': true })
 const tsc = /** @type {const} */ ({ run: 'mise exec -- tsc' })
-const coverage = /** @type {const} */ ({ run: 'mise exec -- npm run cov' })
+const fjsSuite = /** @type {const} */ ({ run: 'mise exec -- npm start t' })
 const pack = /** @type {const} */ ({ run: 'mise exec -- npm pack --pack-destination "$RUNNER_TEMP/consumer"' })
 const rustVersion = /** @type {const} */ ({ run: `test "$(mise exec -- rustc --version | cut -d' ' -f1,2)" = "rustc 1.99.1"`, shell: 'bash' })
 const multilib = /** @type {const} */ ({ run: 'sudo apt-get update && sudo apt-get install -y gcc-multilib libc6-dev-i386', shell: 'bash' })
@@ -62,13 +62,12 @@ export const proof = /** @type {const} */ ({
     },
     /** Commands and shared prerequisites keep their original execution order. */
     checks: () => {
-        const source = job([uses('actions/checkout'), mise, nodeVersion, tscVersion, install, tsc, compile, coverage, pack, consumer])
-        const result = checks('node26', source)
+        const source = job([uses('actions/checkout'), mise, nodeVersion, tscVersion, install, tsc, compile, fjsSuite, pack, consumer])
+        const result = checks('node', source)
         assertStructurallySame(result, [
             { id: 'tsc', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, tsc] },
             { id: 'compile', rung: 'fjs', steps: [mise, nodeVersion, install, compile] },
-            { id: 'coverage', rung: 'js', steps: [mise, nodeVersion, install, coverage] },
-            { id: 'package', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, pack, consumer] },
+            { id: 'suite', rung: 'js', steps: [mise, nodeVersion, install, fjsSuite] },
         ])
         assertOk(parse(checksSchema)(result))
     },
@@ -123,21 +122,33 @@ export const proof = /** @type {const} */ ({
             .every(step => step['continue-on-error'] === true))
     },
     /** A partial hit cannot skip npm ci when another dependent check misses. */
-    sharedInstallAndPackage: () => {
-        const source = cached([
-            mise, install, tsc, compile, coverage,
-            { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack,
-            installNode({ 'package-manager-cache': 'false' }), consumer,
-        ])
-        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-coverage != 'true' || steps.init.outputs.hit-package != 'true'")
+    sharedInstall: () => {
+        const source = cached([mise, install, tscVersion, tsc, compile, fjsSuite])
+        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, install.run).if, gate)
-        for (const run of ['mkdir "$RUNNER_TEMP/consumer"', pack.run, consumer.run]) {
-            assertEq(stepWith(source, run).if, "steps.init.outputs.hit-package != 'true'")
-        }
-        assertEq(source.steps.find(step => step.uses?.startsWith('actions/setup-node@') && step.if !== undefined)?.if, "steps.init.outputs.hit-package != 'true'")
+        assertEq(stepWith(source, tscVersion.run).if, "steps.init.outputs.hit-tsc != 'true'")
         assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
-        assert(checks('node26', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
-        assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report package').length, 1)
+    },
+    /** Even all source-check hits must build and upload a new tarball. */
+    artifactBuildStaysUncached: () => {
+        const upload = uses('actions/upload-artifact', { name: 'package-tarball', path: '${{ runner.temp }}/consumer/*.tgz' })
+        const source = cached([
+            mise, nodeVersion, tscVersion, install, tsc, compile, fjsSuite,
+            { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack, upload,
+        ])
+        for (const run of [nodeVersion.run, tscVersion.run, install.run, 'mkdir "$RUNNER_TEMP/consumer"', pack.run]) {
+            assertEq(stepWith(source, run).if, undefined)
+        }
+        const uploaded = source.steps.find(step => step.uses === upload.uses)
+        assert(uploaded !== undefined)
+        assertEq(uploaded.if, undefined)
+        assert(source.steps.indexOf(stepWith(source, pack.run)) < source.steps.indexOf(uploaded))
+        for (const [run, id] of /** @type {const} */ ([[tsc.run, 'tsc'], [compile.run, 'compile'], [fjsSuite.run, 'suite']])) {
+            assertEq(stepWith(source, run).if, `steps.init.outputs.hit-${id} != 'true'`)
+        }
+        assert(!source.steps.some(step => step.run === 'mise exec -- npm start ci report package'))
+        assert(!source.steps.some(step => step.if?.includes('hit-package') === true))
+        assertStructurallySame(checks('node', job([pack, upload, consumer])), [])
     },
     dependencyAstCheckStaysUncached: () => {
         const steps = /** @type {const} */ ([mise, nodeVersion, suite, deps])
@@ -148,7 +159,7 @@ export const proof = /** @type {const} */ ({
         assertEq(check['working-directory'], undefined)
         assertEq(stepWith(source, nodeVersion.run).if, undefined)
         assertEq(stepWith(source, suite.run).if, "steps.init.outputs.hit-suite != 'true'")
-        assertStructurallySame(checks('node26', job(steps)), checks('node26', job([mise, nodeVersion, suite])))
+        assertStructurallySame(checks('node', job(steps)), checks('node', job([mise, nodeVersion, suite])))
         assertStructurallySame(source.steps.filter(step => step.run?.startsWith('mise exec -- npm start ci report ')).map(step => step.run), [
             'mise exec -- npm start ci report suite',
         ])
@@ -193,7 +204,7 @@ export const proof = /** @type {const} */ ({
         assertEq(stepWith(source, 'node --test ./fjs/emergent_testing/js-only.mjs').if, "steps.init.outputs.hit-suite != 'true'")
         assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report suite').length, 1)
     },
-    /** Each alternative engine groups its install, pin verification and coverage. */
+    /** Each alternative engine groups its install, pin verification and tests. */
     engines: () => {
         for (const id of ['deno', 'bun']) {
             const source = cached([mise, uses('actions/checkout'), { run: `${id} install` }, { run: `${id} test` }], id)

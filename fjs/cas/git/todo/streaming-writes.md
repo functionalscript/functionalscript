@@ -10,7 +10,7 @@ whole while its blob is written: the loose object's envelope,
 `blob <size>\0`, states the size before the first byte, and the Git id is
 the hash over envelope and bytes together, so neither the file's name nor
 its first bytes are known until the payload has been seen to its end.
-`gathered` keeps the chunks, and `writeObject` takes the payload as the
+`gathered` keeps the chunks, and `fjs/git/loose`'s `write` takes the payload as the
 `Bytes` list every writer in [`fjs/git`](../../../git/README.md) takes.
 
 `fileCas` never holds a payload: it streams each chunk to a staging file as
@@ -36,10 +36,10 @@ spelling it twice.
 
 - [ ] An incremental `fjs/zlib/stored`: a block at a time, the checksum
       folded as the blocks go by.
-- [ ] `writeObject` over a staged file: the envelope from the staged size,
+- [ ] The loose `write` over a staged file: the envelope from the staged size,
       the id folded as the file is read, the stream written as it is read.
 - [ ] `gathered` keeps no chunks; `write` stages and hashes in one pass and
-      hands the staged file to `writeObject`.
+      hands the staged file to the loose `write`.
 
 ### Related
 

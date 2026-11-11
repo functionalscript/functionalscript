@@ -41,11 +41,12 @@ import { asyncRunAll, io } from '../module.mjs'
 import { asyncMemoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap, randomIntOperationMap } from '../common/module.mjs'
 import {
-    _maxVecBytes, emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, fileSizeRefusal, inflateTrailingCode, inflateTrailingMessage, invalidModuleSpecifier,
     notAFileCode, notAFileMessage, pumpCell, refusalMessage, refusedStatus, requestBody, requestBodyOffsetMessage,
     responseGate, runnerResponse, toIoError, windowRefusal,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.js'
+import { maxVecBytes } from '../../types/bit_vec/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
@@ -730,7 +731,7 @@ export const runNodeEffect = asyncRunAll({
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
     resolveFileModule: (name, parent) => io(async () => {
         if (parent !== null && decodeImportPath(name) === null) {
-            throw new Error('invalid module specifier')
+            throw new Error(invalidModuleSpecifier)
         }
         const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
         if (url.protocol !== 'file:') {
@@ -833,11 +834,11 @@ export const runNodeEffect = asyncRunAll({
             // through a handle instead.
             let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
-                const chunk = await fill(fh, Buffer.alloc(_maxVecBytes), null)
+                const chunk = await fill(fh, Buffer.alloc(maxVecBytes), null)
                 if (chunk.length !== 0) {
                     chunks = [...chunks, toVec(chunk)]
                 }
-                if (chunk.length < _maxVecBytes) {
+                if (chunk.length < maxVecBytes) {
                     return chunks
                 }
             }
@@ -858,7 +859,7 @@ export const runNodeEffect = asyncRunAll({
         // typings do not spell, so the shape is stated here, once, at the
         // boundary.
         const { buffer, engine } = /** @type {{ readonly buffer: Uint8Array, readonly engine: { readonly bytesWritten: number } }} */
-            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: _maxVecBytes })))
+            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: maxVecBytes })))
         if (engine.bytesWritten !== input.length) {
             throw hostError(inflateTrailingCode, inflateTrailingMessage(input.length - engine.bytesWritten))
         }
@@ -944,10 +945,48 @@ export const runNodeEffect = asyncRunAll({
         )
         child.stdin?.end(stdin)
     }),
-    execFile: (command, args) => new Promise(resolve => {
-        execFile(command, args, (e, stdout, stderr) =>
-            resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr })))
+    execFile: (command, args, options) => new Promise(resolve => {
+        /** @type {NodeJS.ErrnoException | null} */
+        let inputError = null
+        const child = execFile(command, args,
+            options?.maxBuffer === undefined ? {} : { maxBuffer: options.maxBuffer },
+            (e, stdout, stderr) => {
+                const failure = e ?? inputError
+                resolve(failure !== null ? error(toIoError(failure)) : ok({ stdout, stderr }))
+            })
+        if (options?.stdin !== undefined) {
+            // A child may finish before consuming all input: Node reports the
+            // closed pipe as EPIPE or, on Windows, EOF. Its exit still decides
+            // the operation; other stream errors keep host diagnostics.
+            child.stdin?.on('error', (/** @type {NodeJS.ErrnoException} */ e) => { if (e.code !== 'EPIPE' && e.code !== 'EOF') { inputError = e } })
+            child.stdin?.end(options.stdin, 'utf8')
+        }
     }),
+    capture: (command, args, options) => io(() => new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            cwd: options?.cwd, stdio: ['ignore', 'pipe', 'pipe'],
+        })
+        let stdout = ''
+        let stderr = ''
+        // Both pipes drain immediately: waiting on one first can block a child
+        // whose other stream fills. Encoding on the stream retains split UTF-8
+        // sequences, unlike decoding each data event independently.
+        child.stdout.setEncoding('utf8')
+        child.stderr.setEncoding('utf8')
+        child.stdout.on('data', (/** @type {string} */ chunk) => { stdout += chunk })
+        child.stderr.on('data', (/** @type {string} */ chunk) => { stderr += chunk })
+        /** @type {(problem: Error) => void} */
+        const streamFailure = problem => {
+            tryCatch(() => child.kill())
+            reject(problem)
+        }
+        child.stdout.once('error', streamFailure)
+        child.stderr.once('error', streamFailure)
+        child.once('error', reject)
+        // `exit` can precede the final data events, including output inherited
+        // by a descendant. `close` follows EOF on both captured pipes.
+        child.once('close', (code, signal) => resolve({ status: exitStatus(code, signal), stdout, stderr }))
+    })),
     // The subprocess slice of `./todo/spawn-effect.md`: a child on this process's
     // terminal, waited for. The handle is the branded `ChildProcess` itself, as
     // `createServer` brands its server below — no table. It is answered only
@@ -1069,6 +1108,7 @@ export const runNodeEffect = asyncRunAll({
     })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
+    availableParallelism: () => io(async () => os.availableParallelism()),
     // `sandbox` and `catch` are every host's, and `randomInt` is the browser
     // page's too, so node spreads them rather than writing a second copy:
     // `../common/module.mjs`.

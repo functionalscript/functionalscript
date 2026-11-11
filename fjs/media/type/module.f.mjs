@@ -58,7 +58,7 @@ import { fromStateFold } from '../../types/function/operator/module.f.js'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.js'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
-import { basename } from '../../path/module.f.js'
+import { extension } from '../../path/module.f.js'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //
@@ -317,18 +317,6 @@ const byExtension = /** @type {const} */ ({
 const octetStream = 'application/octet-stream'
 
 /**
- * The lower-case extension of the last segment of `path`, or `''` when it has
- * none. A leading dot is a name, not an extension: `.gitignore` has none.
- *
- * @type {(path: string) => string}
- */
-const extension = path => {
-    const name = basename(path)
-    const dot = name.lastIndexOf('.')
-    return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
-}
-
-/**
  * The `Content-Type` a file name implies, from its extension alone — the bytes
  * are never read. Text types carry `; charset=utf-8`, so the result is a
  * complete header value rather than a bare media type; an absent or unknown
@@ -342,7 +330,7 @@ const extension = path => {
  * @type {(path: string) => string}
  */
 export const detectPath = path => {
-    const mime = at(extension(path))(byExtension)
+    const mime = at(extension(path).toLowerCase())(byExtension)
     if (mime === null) { return octetStream }
     return mime.startsWith('text/') ? `${mime}; charset=utf-8` : mime
 }

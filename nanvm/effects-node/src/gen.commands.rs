@@ -5,7 +5,9 @@
 pub const COMMANDS: &[&str] = &[
     "access",
     "all",
+    "availableParallelism",
     "await",
+    "capture",
     "catch",
     "childWait",
     "close",

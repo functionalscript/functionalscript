@@ -8,12 +8,17 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { byteLength, empty, isVec, maxLengthBytes, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, length, maxLengthBytes, msb, u8ArrayMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8 } from "../../text/module.f.mjs"
 import { utf8ToString } from "../../text/utf8/module.f.mjs"
+import { asNominal } from "../../types/nominal/module.f.js"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
+import {
+    availableParallelism, capture, handleSource, isDirectory, notAFileMessage, open, releaseHandle, requestBody,
+    requestBodyOffsetMessage, writeBytes, writeExclusive,
+} from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, carriesNoBody, declaredLength, doubledLengthMessage, errorMessage, errorSummary, exists, exitStep, fetch, framingHeaderMessage, headerValue, inflate, inflateTrailingMessage, invalidModuleSpecifier, ioError, lexicalFileModule, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, refusalMessage, refusedStatus, responseGate, rm, runnerResponse, sandbox, unframedBodyMessage, writeFile, writeChunks, writeFiles, writeUtf8File, writeExclusiveUtf8File, _pieces, _vecList, rename, readBytes, randomInt, random256, writeFromStream, plainTextResponse, pumpCell, readWholeBytes, readChunks, windowRefusal, maxOffset, fileSizeRefusal } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual, virtualAt } from "./virtual/module.f.mjs"
@@ -86,7 +91,66 @@ const lengths = (source, bound) => {
 }
 
 
+/** One `randomInt` draw as a `Vec`: 32 bits. */
+const vec32 = vec(32n)
+
 export const proof = {
+    availableParallelismIsUnavailableInVirtualRunner: () => {
+        const [, result] = virtual(emptyState)(availableParallelism())
+        assertStructurallySame(result, error(['notImplemented', 'availableParallelism']))
+    },
+    captureIsUnavailableInVirtualRunner: () => {
+        const [, result] = virtual(emptyState)(capture('node', ['--version']))
+        assertStructurallySame(result, error(['notImplemented', 'capture']))
+    },
+    directoryFailure: () => {
+        assert(isDirectory(ioError({ code: 'EISDIR', message: 'directory' })))
+        assert(!isDirectory(ioError({ code: 'ENOENT', message: 'missing' })))
+        assert(!isDirectory(['notImplemented', 'readFile']))
+    },
+    refusedWritesLeaveFilesUntouched: () => {
+        const initial = /** @type {const} */ ({ file: [utf8('unchanged')] })
+        const [exclusive, refused] = virtualAt(initial)(writeExclusive('new', [vec(1n)(1n)]))
+        assert(refused[0] === 'error')
+        assertIoMessage(refused[1], 'invalid buffer size')
+        assertStructurallySame(exclusive.root, initial)
+        for (const [offset, message] of /** @type {const} */ ([
+            [-1, 'Offset -1 is negative'],
+            [maxOffset, `Write of 2 bytes at offset ${maxOffset} exceeds maximum allowed offset of ${maxOffset}`],
+        ])) {
+            const [state, result] = virtualAt(initial)(writeBytes('file', offset, utf8('ab')))
+            assert(result[0] === 'error')
+            assertIoMessage(result[1], message)
+            assertStructurallySame(state.root, initial)
+        }
+    },
+    openFileSourceAndRelease: () => {
+        const [opened, result] = virtualAt({ file: [utf8('abc')] })(open('file'))
+        const handle = assertOk(result)
+        const [read, bytes] = virtual(opened)(handleSource(handle)(1, 1))
+        assertEq(utf8ToString(assertOk(bytes)), 'b')
+        const [closed, released] = virtual(read)(releaseHandle(handle))
+        assertEq(assertOk(released), null)
+        assertEq(closed.handles.length, 0)
+        // A failed close also completes cleanup without replacing its result.
+        assertEq(assertOk(virtual(closed)(releaseHandle(handle))[1]), null)
+    },
+    requestStream: () => {
+        const body = requestBody(asNominal(0))
+        const [firstState, first] = virtual({ ...emptyState, bodies: [{ rest: [utf8('ab'), utf8('c')], offset: 0 }] })(body)
+        const one = assertOk(first)
+        assert(one !== undefined)
+        assertEq(utf8ToString(one.first), 'ab')
+        const [secondState, second] = virtual(firstState)(one.tail)
+        const two = assertOk(second)
+        assert(two !== undefined)
+        assertEq(utf8ToString(two.first), 'c')
+        const [endState, end] = virtual(secondState)(two.tail)
+        assertEq(assertOk(end), undefined)
+        assertEq(endState.bodies[0].offset, 3)
+        assertEq(requestBodyOffsetMessage(0, 3), 'request body is at 3, not 0')
+        assertEq(notAFileMessage('dir/device'), 'dir/device is not a regular file')
+    },
     isPort: {
         // Both ends are ports: `0` asks for an ephemeral one.
         inRange: () => {
@@ -110,6 +174,14 @@ export const proof = {
         assertEq(badPortCode, 'ERR_SOCKET_BAD_PORT')
         assertEq(badPortMessage(-1), 'options.port should be >= 0 and < 65536. Received type number (-1).')
         assertEq(badPortMessage(NaN), 'options.port should be >= 0 and < 65536. Received type number (NaN).')
+    },
+    // A root name is its own path; an import resolves against its importer;
+    // the identity is the path normalized.
+    lexicalFileModule: () => {
+        assertStructurallySame(lexicalFileModule('./dir/../main.mjs', null), ok({ id: 'main.mjs', path: './dir/../main.mjs' }))
+        assertStructurallySame(lexicalFileModule('../lib/dep.mjs', 'app/main.mjs'), ok({ id: 'lib/dep.mjs', path: 'lib/dep.mjs' }))
+        assertStructurallySame(lexicalFileModule('./bad%', 'main.mjs'), error(invalidModuleSpecifier))
+        assertEq(invalidModuleSpecifier, 'invalid module specifier')
     },
     isNotFound: {
         enoent: () => {
@@ -823,6 +895,14 @@ export const proof = {
             assertEq(t, 'error')
         },
     },
+    // Eight `randomInt` draws, each 32 bits, the first one first: from the
+    // virtual host's counter, `0` to `7`.
+    random256: () => {
+        const [, r] = virtual(emptyState)(random256)
+        const expected = [0, 1, 2, 3, 4, 5, 6, 7].reduce((acc, i) => msb.concat(acc)(vec32(BigInt(i))), empty)
+        assertEq(msb.cmp(assertOk(r))(expected), 0)
+        assertEq(length(assertOk(r)), 256n)
+    },
     randomInt: {
         increments: () => {
             const [state1, r1] = virtual(emptyState)(randomInt())
@@ -967,6 +1047,9 @@ export const proof = {
             assertEq(headerValue({ 'CONTENT-LENGTH': '7' }, 'content-length'), '7')
             assertEq(headerValue({}, 'content-length'), null)
             assertEq(headerValue({ 'content-type': 'text/plain' }, 'content-length'), null)
+            // HTTP folds a name's case in ASCII alone: `'\u212a'`, the Kelvin
+            // sign, is no `k`, though `toLowerCase()` makes it one.
+            assertEq(headerValue({ '\u212aeep-alive': 'timeout=5' }, 'keep-alive'), null)
             // A name that is **there with no value** is a name that names nothing.
             // `StringMap` admits it — every value can be missing — and Node's own
             // `req.headers` produces such entries, so the branch is a fixture
