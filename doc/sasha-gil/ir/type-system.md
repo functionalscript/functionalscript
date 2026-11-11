@@ -390,11 +390,12 @@ is not adjacent.
 
 - **Width.** Each pattern is 64 bits long, and each field is exactly as
   wide as its type.
-- **References fit.** A reference field holds the pointer without its
-  alignment bits, so a 4-aligned pointer of up to 48 bits fits `p…p`.
-  That an address is always that narrow is each target's promise. It
-  holds on WASM, where an address is an `i32` offset into linear memory,
-  and [pointer-width.md](./pointer-width.md) holds the options for Rust.
+- **References fit.** A reference field holds an offset into the heap
+  without its alignment bits, so a 4-aligned offset below 2^48 fits
+  `p…p`. On both targets the heap is memory the runtime owns, linear
+  memory on WASM and one buffer on Rust, and the Heap module keeps every
+  offset in range by construction
+  ([pointer-width.md](./pointer-width.md#decision)).
 - **No confusion.** The variants are pairwise disjoint, including the
   bits of `f64c`. A pattern is a set of masked values, so this is a
   small, exact check.
@@ -1036,7 +1037,7 @@ emitter stays a total function from a checked module, as in
 | `add`, `div`, `shr`, `lt` and the rest | the instruction on the carrier, `_s` or `_u` by range | the operator on the carrier, which can neither overflow nor panic |
 | `f64`, `f64c` | `f64` | `f64` |
 | product | one local per field, multi-value results | a tuple |
-| `load`, `store` | `i64.load`, `i32.store16` and the like, on linear memory | as [pointer-width.md](./pointer-width.md) decides |
+| `load`, `store` | `i64.load`, `i32.store16` and the like, on linear memory | an indexed read or write of the heap buffer, in safe code ([pointer-width.md](./pointer-width.md#decision)) |
 | `code(…)` | a table index, called with `call_indirect` | a function pointer |
 | branch on a small integer | `br_table` | `match` |
 | `loop_` with parameters | `loop` with its parameters as locals | `loop` over `let mut` bindings |
@@ -1059,17 +1060,17 @@ emitter stays a total function from a checked module, as in
   moved, borrowed and cloned in the emitted Rust, so a mistake of the
   lifetime pass is still a borrow-checker error there
   ([IR choice 9](./ir-design.md#9-lifetimes-are-one-pass-over-the-ir)).
-- **How Rust reaches the heap is open.** The first draft made `ref(O)` on
-  Rust "a pointer from `Rc::into_raw` or `Box::into_raw`", the way NaNVM's
-  test-only [`nanenum.rs`](../../../nanvm/lib/src/nanenum.rs) packs one.
-  [pointer-width.md](./pointer-width.md) shows that such a pointer does
-  not fit the box on every host, and lists the options. The two tables
-  above fit its
-  [option A](./pointer-width.md#a-the-rust-target-gets-a-heap-region-and-stores-offsets),
-  where Rust reads one heap format as WASM does. With native pointers
-  instead, the Rust emitter would take objects and references from the
-  owned stage and spell them as `Rc` and `Box`, and the rest of this note
-  would not change.
+- **Rust reaches the heap as WASM does.** The first draft made `ref(O)`
+  on Rust "a pointer from `Rc::into_raw` or `Box::into_raw`", the way
+  NaNVM's test-only [`nanenum.rs`](../../../nanvm/lib/src/nanenum.rs)
+  packs one. Such a pointer does not fit the box on every host, so the
+  owner chose
+  [option A](./pointer-width.md#a-the-rust-target-gets-a-heap-region-and-stores-offsets)
+  in its safe-buffer variant ([decision](./pointer-width.md#decision)):
+  the heap is one buffer, a reference is an offset into it, and the
+  emitted Rust reads it with indexed loads and stores. A bad offset is
+  then a bounds-check panic or a wrong value in the buffer, never
+  undefined behavior, and the emitter needs no `unsafe` for the heap.
 
 Two things stay target-specific: how memory is reached, and how a `trap`
 reason reaches the host. Everything else is decided once, in the IR.
@@ -1173,8 +1174,8 @@ with L0, everything runs on a JavaScript host before any WASM exists.
    the interpreter on the same tables.
 9. **The lowering** from prepared FAST, starting with the L1 module, whose
    types the closure rule already gives.
-10. **The Rust emitter**, once
-    [pointer-width.md](./pointer-width.md) is decided. NaNVM's L0 is
+10. **The Rust emitter**, over the heap buffer that
+    [pointer-width.md](./pointer-width.md#decision) chose. NaNVM's L0 is
     emitted beside `nanvm_lib`, and replaces it only once it does
     everything that one does
     ([DESIGN.md §11](../../DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
@@ -1191,9 +1192,9 @@ draft.
 1. **The floor.** Who writes the allocator? The first draft recommended
    that each target provide it. Recommended now: the Heap module, written
    once at the low level, so that the allocator, the counts and `recover`
-   are IR code that the interpreter runs. On Rust the same module serves
-   if [pointer-width.md](./pointer-width.md) picks its option A, and
-   Rust's allocator otherwise.
+   are IR code that the interpreter runs. On Rust the same module serves,
+   over the heap buffer that [pointer-width.md](./pointer-width.md#decision)
+   chose.
 2. **Integer refinements.** One interval per type, or sets of intervals,
    as [`fjs/types/range_set`](../../../fjs/types/range_set/module.f.js)
    has? Recommended: one interval. Division no longer asks for sets:

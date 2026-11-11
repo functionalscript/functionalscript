@@ -1,8 +1,8 @@
 # Pointer width in the NaN box
 
-Proposed, not decided. This note answers a review finding on
-[type-system.md](./type-system.md#what-the-checker-proves) and waits for
-the owner's choice.
+Decided on 2026-11-11: option A, in its safe-buffer variant
+([Decision](#decision)). This note answers a review finding on
+[type-system.md](./type-system.md#what-the-checker-proves).
 
 ## The problem
 
@@ -122,12 +122,28 @@ to the runtime, so this is allowed.
 - **Against:** two layouts to declare and prove, a 128-bit or tagged
   `any` on Rust, and no bit-for-bit comparison between targets.
 
-## Recommendation
+## Decision
 
-A. Until A lands, the Rust emitter that still uses `Rc` keeps B's check
-in release builds. If chosen, [type-system.md](./type-system.md) changes in three
-places: the checker rule says "offset" instead of "pointer", the Rust
-column's `ref(O)` and `stat(O)` rows name the regions, and the floor
-lists the Rust allocator next to the WASM one. The Rust step-3 question
-in NaNVM, loader-owned memory against Rust's allocator, gets the same
-answer.
+The owner chose A in its safe-buffer variant on 2026-11-11. The Rust
+heap is one buffer, which the emitted Rust reads and writes through
+indexed loads and stores in safe code. `p` is an offset into that
+buffer, as it is into WASM's linear memory, so both targets share one
+layout and one heap format. `try_from_bits` has no reference variants on
+either target, and references cross the host boundary only as handles.
+
+[type-system.md](./type-system.md) records it in three places: the
+checker rule under
+[What the checker proves](./type-system.md#what-the-checker-proves), the
+Rust `load` and `store` row and the bullet on how Rust reaches the heap
+under
+[Emitting WASM and Rust](./type-system.md#emitting-wasm-and-rust-from-the-same-module),
+and the Heap module of
+[The floor](./type-system.md#the-floor-state-lives-in-one-module) with
+[open question 1](./type-system.md#open-questions), which serves Rust
+too.
+
+Until the Rust emitter exists, nothing changes in NaNVM: `nanvm_lib`
+keeps `Naive`, and any code that still packs an `Rc` keeps B's check in
+release builds. NaNVM's step-3 question, loader-owned memory against
+Rust's allocator, gets the same answer: the heap is memory the runtime
+owns, not Rust's allocator.
