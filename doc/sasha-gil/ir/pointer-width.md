@@ -52,11 +52,13 @@ bit.
   same heap, so the targets can be tested against each other bit for bit.
   It works on every host above, CHERI included, because no pointer is
   packed. The checker's rule becomes "an offset below 2^48", which each
-  target's allocator guarantees by construction. Bits from outside go
-  through `try_from_bits`, which must also check `p` against the region's
-  actual size, since a region smaller than 2^48 leaves offsets that fit
-  the pattern and point past the end. With that check, a forged `p` can
-  only reach inside the region, which is the WASM sandbox's argument again
+  target's allocator guarantees by construction. A bound check alone does
+  not make bits from outside safe on Rust: an offset inside the region can
+  still name an object's interior, a freed slot or an object of another
+  type, and turning it into `&O` is undefined behavior. WASM only bounds
+  the damage to its sandbox. So on Rust, `try_from_bits` refuses reference
+  variants, and references cross the host boundary only as handles, as in
+  NaNVM's `l0::abi`
   ([open question 7](./type-system.md#open-questions)).
 - **Against:** the Rust target needs its own allocator, the same job as
   the WASM target's ([open question 1](./type-system.md#open-questions)),
