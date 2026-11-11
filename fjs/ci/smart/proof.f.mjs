@@ -68,7 +68,6 @@ export const proof = /** @type {const} */ ({
             { id: 'tsc', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, tsc] },
             { id: 'compile', rung: 'fjs', steps: [mise, nodeVersion, install, compile] },
             { id: 'suite', rung: 'js', steps: [mise, nodeVersion, install, fjsSuite] },
-            { id: 'package', rung: 'ts', steps: [mise, nodeVersion, tscVersion, install, pack, consumer] },
         ])
         assertOk(parse(checksSchema)(result))
     },
@@ -123,21 +122,33 @@ export const proof = /** @type {const} */ ({
             .every(step => step['continue-on-error'] === true))
     },
     /** A partial hit cannot skip npm ci when another dependent check misses. */
-    sharedInstallAndPackage: () => {
-        const source = cached([
-            mise, install, tsc, compile, fjsSuite,
-            { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack,
-            installNode({ 'package-manager-cache': 'false' }), consumer,
-        ])
-        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-suite != 'true' || steps.init.outputs.hit-package != 'true'")
+    sharedInstall: () => {
+        const source = cached([mise, install, tscVersion, tsc, compile, fjsSuite])
+        const gate = /** @type {const} */ ("steps.init.outputs.hit-tsc != 'true' || steps.init.outputs.hit-compile != 'true' || steps.init.outputs.hit-suite != 'true'")
         assertEq(stepWith(source, install.run).if, gate)
-        for (const run of ['mkdir "$RUNNER_TEMP/consumer"', pack.run, consumer.run]) {
-            assertEq(stepWith(source, run).if, "steps.init.outputs.hit-package != 'true'")
-        }
-        assertEq(source.steps.find(step => step.uses?.startsWith('actions/setup-node@') && step.if !== undefined)?.if, "steps.init.outputs.hit-package != 'true'")
+        assertEq(stepWith(source, tscVersion.run).if, "steps.init.outputs.hit-tsc != 'true'")
         assertEq(source.steps.find(step => step.id === 'init')?.env, undefined)
-        assert(checks('node', job([consumer]))[0]?.steps[0]?.['working-directory'] === '${{ runner.temp }}/consumer')
-        assertEq(source.steps.filter(step => step.run === 'mise exec -- npm start ci report package').length, 1)
+    },
+    /** Even all source-check hits must build and upload a new tarball. */
+    artifactBuildStaysUncached: () => {
+        const upload = uses('actions/upload-artifact', { name: 'package-tarball', path: '${{ runner.temp }}/consumer/*.tgz' })
+        const source = cached([
+            mise, nodeVersion, tscVersion, install, tsc, compile, fjsSuite,
+            { run: 'mkdir "$RUNNER_TEMP/consumer"' }, pack, upload,
+        ])
+        for (const run of [nodeVersion.run, tscVersion.run, install.run, 'mkdir "$RUNNER_TEMP/consumer"', pack.run]) {
+            assertEq(stepWith(source, run).if, undefined)
+        }
+        const uploaded = source.steps.find(step => step.uses === upload.uses)
+        assert(uploaded !== undefined)
+        assertEq(uploaded.if, undefined)
+        assert(source.steps.indexOf(stepWith(source, pack.run)) < source.steps.indexOf(uploaded))
+        for (const [run, id] of /** @type {const} */ ([[tsc.run, 'tsc'], [compile.run, 'compile'], [fjsSuite.run, 'suite']])) {
+            assertEq(stepWith(source, run).if, `steps.init.outputs.hit-${id} != 'true'`)
+        }
+        assert(!source.steps.some(step => step.run === 'mise exec -- npm start ci report package'))
+        assert(!source.steps.some(step => step.if?.includes('hit-package') === true))
+        assertStructurallySame(checks('node', job([pack, upload, consumer])), [])
     },
     dependencyAstCheckStaysUncached: () => {
         const steps = /** @type {const} */ ([mise, nodeVersion, suite, deps])

@@ -15,7 +15,7 @@ import { images, jobTimeout, node, typescript } from './config/module.f.js'
 import { rustPlatformCommands, wasmTargets } from './rust/module.f.mjs'
 import { empty } from '../types/bit_vec/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
-import { coverageSyncFlag } from './node/module.f.mjs'
+import { coverageSyncFlag, packageJobId } from './node/module.f.mjs'
 /** @type {(root: Dir, names: readonly string[]) => Dir} */
 const directory = (root, names) => names.reduce((dir, name) => {
     const value = dir[name]
@@ -40,7 +40,7 @@ const has = (gha, id, fragment) => gha.jobs[id]?.steps.some(step => (step.env?.F
 export const proof = {
     matrix: () => {
         const gha = generate(true)
-        assertEq(Object.keys(gha.jobs).length, 11)
+        assertEq(Object.keys(gha.jobs).length, 12)
         assertEq(gha.permissions.contents, 'read')
         assertEq(gha.concurrency?.['cancel-in-progress'], true)
         for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
@@ -101,7 +101,7 @@ export const proof = {
         const [state, result] = virtualAt({})(ownMain())
         assertEq(exitCode(result), 0)
         const gha = workflow(state, 'gen.ci.yml')
-        const steps = gha.jobs.node?.steps
+        const steps = gha.jobs[packageJobId]?.steps
         assert(steps !== undefined)
         assert(steps.some(step => step['working-directory'] !== undefined && step.run?.includes(packageConsumer.module)))
         for (const step of steps.filter(step => step['working-directory'] !== undefined)) {
@@ -116,10 +116,60 @@ export const proof = {
     defaultsAndSmart: () => {
         const [state, result] = virtualAt({})(main())
         assertEq(exitCode(result), 0)
-        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 11)
+        assertEq(Object.keys(workflow(state, 'gen.ci.yml').jobs).length, 12)
         assert(has(generate(true, () => [], true), 'node', 'ci init'))
         const [, queued] = virtualAt({})(ci({ nodeExtra: () => [], mergeQueueOnly: ['macos'] }))
         assertEq(exitCode(queued), 0)
+    },
+    artifactConsumer: () => {
+        for (const smart of [false, true]) {
+            const gha = generate(true, () => [], smart)
+            const producer = gha.jobs.node
+            const consumer = gha.jobs[packageJobId]
+            assert(producer !== undefined && consumer !== undefined)
+            assertStructurallySame(consumer.needs, ['node'])
+            assertEq(consumer['runs-on'], images.ubuntu.arm)
+            assertEq(consumer['timeout-minutes'], jobTimeout)
+            assertEq(consumer.if, undefined)
+            assertEq(consumer.permissions, undefined)
+            assert(consumer.steps.every(step => step.if === undefined && step['continue-on-error'] === undefined))
+            assert(!consumer.steps.some(step => step.uses?.startsWith('actions/checkout@') || step.uses?.startsWith('jdx/mise-action@')))
+            assert(!has(gha, packageJobId, 'ci init'))
+            assert(!has(gha, packageJobId, 'npm pack'))
+            assert(!has(gha, 'node', ' good.mts'))
+            assert(!producer.steps.some(step => step['working-directory'] !== undefined || step.uses?.startsWith('actions/setup-node@')))
+            assert(!has(gha, 'node', 'ci report package'))
+
+            const pack = producer.steps.findIndex(step => step.run?.startsWith('mise exec -- npm pack '))
+            const drift = producer.steps.findIndex(step => step.run === 'git add -A && git diff --cached --exit-code')
+            const upload = producer.steps.findIndex(step => step.uses?.startsWith('actions/upload-artifact@'))
+            assert(pack >= 0 && pack < drift && drift < upload)
+            const productionSteps = producer.steps.filter(step => step.run === 'mise exec -- npm ci' || step.run?.includes('tsc --version') || step.run?.startsWith('mkdir ') || step.run?.startsWith('mise exec -- npm pack ') || step.uses?.startsWith('actions/upload-artifact@'))
+            assertEq(productionSteps.length, 5)
+            for (const step of productionSteps) {
+                assertEq(step.if, undefined)
+                assertEq(step['continue-on-error'], undefined)
+            }
+            const artifact = producer.steps[upload]
+            assert(artifact !== undefined)
+            assertEq(artifact.with?.name, 'package-tarball')
+            assertEq(artifact.with?.path, '${{ runner.temp }}/consumer/*.tgz')
+            assertEq(artifact.with?.['if-no-files-found'], 'error')
+            const setup = consumer.steps[0]
+            const download = consumer.steps[1]
+            assert(setup?.uses?.startsWith('actions/setup-node@') === true)
+            assertEq(setup.with?.['node-version'], node)
+            assertEq(setup.with?.['package-manager-cache'], 'false')
+            assert(download?.uses?.startsWith('actions/download-artifact@') === true)
+            assertEq(download.with?.name, artifact.with?.name)
+            assertEq(download.with?.path, '${{ runner.temp }}/consumer')
+            assert(has(gha, packageJobId, `typescript@${typescript.version}`))
+            assert(has(gha, packageJobId, 'npx tsc'))
+            for (const step of consumer.steps.filter(step => step.run !== undefined)) {
+                assertEq(step['working-directory'], download.with?.path)
+                assert(!step.run?.startsWith('mise '))
+            }
+        }
     },
     uncachedCoverage: () => {
         for (const smart of [false, true]) {

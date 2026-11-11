@@ -312,13 +312,15 @@ is not. Instances predating this rule are not precedent for new ones.
 ## 7. Continuous integration
 
 The generator in `fjs/ci` owns the committed workflows; run `./dev.sh npm run gen`
-after changing its sources or inputs. All eleven jobs use mise, across Linux,
-macOS and Windows on x64 and ARM64. Each native or runtime check remains a
+after changing its sources or inputs. Eleven of the twelve jobs use mise, across
+Linux, macOS and Windows on x64 and ARM64. Each native or runtime check remains a
 separate workflow step. The additional `cov` job caches isolated Node coverage
 by dependency manifest and synchronizes successful manifests in one batch at
-the end of a run when permitted; `node` retains its combined coverage check
-and cache. The packed-package consumer uses a clean temporary directory and
-`setup-node` outside the repository environment.
+the end of a run when permitted; `node` runs the full source test suite with
+its own successful-check cache. `node` always builds and uploads the npm tarball.
+The separate `package` job downloads that artifact and tests it in a clean
+temporary directory, using `setup-node` and npm-installed TypeScript without a
+checkout or mise. Packing and consumer validation run without whole-check caching.
 
 `fjs ci` requires the caller's committed mise manifest and lock. It writes only
 the CI and publishing workflows. See [the generator](./fjs/ci/README.md).

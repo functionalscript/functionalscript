@@ -53,7 +53,7 @@ export const proof = {
         assertStructurallySame(generated, repositoryWorkflow)
         const checks = ciWorkflow({ nodeExtra: () => [], packageConsumer, smart: true })(true)
         assertStructurallySame(generated, checks)
-        assertEq(Object.keys(generated.jobs).length, 11)
+        assertEq(Object.keys(generated.jobs).length, 12)
         assertStructurallySame(generated.on, { pull_request: {}, merge_group: {} })
         const [state] = virtualAt({})(main())
         const github = state.root['.github']

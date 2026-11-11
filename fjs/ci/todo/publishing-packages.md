@@ -88,7 +88,7 @@ though `**/*.js` deliberately stays in `package.json`'s `files`. Stage 2 can
 therefore use `.f.js` as authored compiler-compatible FunctionalScript.
 Standalone authored `.f.js` source is directly checked, gets `.d.ts`, is
 packed, and resolves for a clean consumer, which the packed-package check
-closing the `node` job ([`../package/module.f.mjs`](../package/module.f.mjs))
+in the `package` job ([`../package/module.f.mjs`](../package/module.f.mjs))
 proves on every run.
 
 ### Stage-1 TypeScript configuration
@@ -232,7 +232,7 @@ declaration with a negative control.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
 - [`../package/module.f.mjs`](../package/module.f.mjs) — the packed-package
-  check closing the `node` job, the clean-consumer check of the packed
+  check in the `package` job, the clean-consumer check of the packed
   package and its published `.f.js`.
 - [`fjs/compiler/README.md`](../../compiler/README.md) — authoritative FunctionalScript
   extension and migration contract.

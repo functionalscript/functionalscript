@@ -1,6 +1,6 @@
 /**
- * CI step builders for Node.js: setup-node installation, platform smoke tests,
- * the selected-version canonical job.
+ * CI step builders for Node.js: installation, source checks, coverage and
+ * the separate packed-package consumer.
  *
  * @module
  *
@@ -8,16 +8,18 @@
  * @import { PackageConsumer } from '../types.ts'
  */
 
-import { node, typescript } from '../config/module.f.js'
+import { images, jobTimeout, node, typescript } from '../config/module.f.js'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { environmentCommand, environmentSteps, environmentVersionStep } from '../environment/module.f.mjs'
 import { consumerDirectory, packageCheckSteps } from '../package/module.f.mjs'
 
 /**
- * The job that packs the tarball and checks it as a consumer would. Named
- * here so a proof reading the workflow need not repeat the id.
+ * The isolated consumer job, after the source job uploads its tarball.
  */
-export const packageJobId = /** @type {const} */ ('node')
+export const packageJobId = /** @type {const} */ ('package')
+
+/** One artifact shared by the producer and the consumer in the same run. */
+const packageArtifact = /** @type {const} */ ('package-tarball')
 
 /**
  * Installs the pinned Node through `setup-node`. Every job that installs Node
@@ -73,9 +75,9 @@ export const coverageJob = (synchronize = false) => ({
 })
 
 /**
- * @type {(consumer: PackageConsumer | undefined) => readonly MetaStep[]}
+ * @type {readonly MetaStep[]}
  */
-const nodeSteps = consumer => [
+const nodeSteps = [
     nodeVersionStep(),
     tscVersionStep,
     ...environmentSteps(['npm ci', 'tsc']),
@@ -85,14 +87,33 @@ const nodeSteps = consumer => [
     test({ run: `mkdir ${consumerDirectory}` }),
     ...environmentSteps([`npm pack --pack-destination ${consumerDirectory}`, 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
-    // The consumer's Node. `setup-node` reads the checkout's `package.json`
-    // to decide whether to restore an npm cache, so caching is off: a
-    // consumer's setup must not depend on the repository it consumes.
-    test(installNode({ 'package-manager-cache': 'false' })),
-    ...packageCheckSteps(consumer).map(test),
+    test(uses('actions/upload-artifact', {
+        name: packageArtifact,
+        path: '${{ runner.temp }}/consumer/*.tgz',
+        'if-no-files-found': 'error',
+    })),
 ]
 
-/** @type {(consumer: PackageConsumer | undefined) => Jobs} */
-export const nodeVersionJobs = consumer => ({
-    [packageJobId]: ubuntuArm(nodeSteps(consumer)),
+/** @type {() => Jobs} */
+export const nodeVersionJobs = () => ({
+    node: ubuntuArm(nodeSteps),
+})
+
+/**
+ * Tests the producer's exact tarball with consumer tooling on a fresh runner.
+ * No checkout, mise or successful-check cache can supply missing package files.
+ * @type {(consumer: PackageConsumer | undefined) => Job}
+ */
+export const packageJob = consumer => ({
+    'runs-on': images.ubuntu.arm,
+    'timeout-minutes': jobTimeout,
+    needs: ['node'],
+    steps: [
+        installNode({ 'package-manager-cache': 'false' }),
+        uses('actions/download-artifact', {
+            name: packageArtifact,
+            path: '${{ runner.temp }}/consumer',
+        }),
+        ...packageCheckSteps(consumer),
+    ],
 })

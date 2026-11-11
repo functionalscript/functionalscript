@@ -46,6 +46,8 @@ export const actions = /** @type {const} */({
     'jdx/mise-action': 'v5',
     'actions/checkout': 'v7.0.1',
     'actions/setup-node': 'v7.1.0',
+    'actions/upload-artifact': 'v7.0.2',
+    'actions/download-artifact': 'v8.0.2',
     'actions/cache': 'v6.1.0',
     'dtolnay/rust-toolchain': rust,
 })

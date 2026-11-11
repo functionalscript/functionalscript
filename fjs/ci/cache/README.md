@@ -40,10 +40,17 @@ its selected input manifest. Canonical JSON uses `stringifySorted`, SHA-256,
 and the existing CBase32 CAS keys. Check names alone never establish a hit.
 
 Compile checks use `fjs`; suites, including `node`'s `npm start t`, use `js`;
-TypeScript and the packed-package check use `ts`; Rust checks use `rust`.
+TypeScript uses `ts`; Rust checks use `rust`.
 The additional isolated `cov` job does not use the whole-check cache.
 Generated-file drift checks and the WASM demo rebuild always run because their
 complete inputs are not yet enumerated.
+
+Packing in `node`, artifact upload and the separate `package` consumer job
+run without whole-check caching. The consumer downloads the tarball built
+by this run; cached source-check successes do not restore it. `npm ci` and the
+TypeScript version check in `node` also run unconditionally so `prepack` can
+emit declarations even when all source checks hit. A successful pack records
+no package-test success; validation happens in the consumer job.
 
 ## Isolated coverage manifests
 
@@ -124,8 +131,9 @@ from the same repository configuration used by the CI generator. It takes no
 arguments and needs no custom environment variables or generated settings files.
 Initialization writes one hit flag per check to `$GITHUB_OUTPUT` and saves the
 original manifests under `$RUNNER_TEMP`.
-Checks keep their producer and consumer steps under one gate. A shared install
-runs when any dependent check misses.
+A shared install runs when any dependent cached check misses, or when uncached
+packing requires it. Package production and consumer validation use the artifact
+handoff described above rather than a shared successful-check gate.
 
 `npm start ci report <check>` stores the manifest only after that check
 succeeds. The workflow supplies the bot's name and email through

@@ -1,4 +1,4 @@
-import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJobId, platformNodeSteps } from './module.f.mjs'
+import { coverageJob, coverageSyncFlag, installNode, nodeVersionJobs, packageJob, packageJobId, platformNodeSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { environmentCommand } from '../environment/module.f.mjs'
 import { actions, node } from '../config/module.f.js'
@@ -10,7 +10,7 @@ const runs = steps.flatMap(s => s.run !== undefined ? [s.run] : [])
 
 export const proof = {
     canonicalAstCheck: () => {
-        const job = nodeVersionJobs(undefined)[packageJobId]
+        const job = nodeVersionJobs().node
         assert(job !== undefined)
         const { steps: canonicalSteps } = job
         const matching = canonicalSteps.filter(step => step.run === environmentCommand('npm start deps'))
@@ -27,12 +27,22 @@ export const proof = {
         assert(checkout >= 0 && canonicalSteps.indexOf(check) > checkout)
     },
     fullSuite: () => {
-        const job = nodeVersionJobs(undefined)[packageJobId]
+        const job = nodeVersionJobs().node
         assert(job !== undefined)
         const tests = job.steps.filter(step => step.run === environmentCommand('npm start t'))
         assertEq(tests.length, 1)
         assertEq(tests[0]?.['continue-on-error'], undefined)
         assert(!job.steps.some(step => step.run === environmentCommand('npm run cov')))
+    },
+    packedConsumer: () => {
+        const consumer = packageJob(undefined)
+        assertEq(packageJobId, 'package')
+        assertStructurallySame(consumer.needs, ['node'])
+        assertEq(consumer.steps[0]?.with?.['node-version'], node)
+        assertEq(consumer.steps[0]?.with?.['package-manager-cache'], 'false')
+        assertEq(consumer.steps[1]?.uses, `actions/download-artifact@${actions['actions/download-artifact']}`)
+        assert(consumer.steps.every(step => !step.uses?.startsWith('actions/checkout@') && !step.uses?.startsWith('jdx/mise-action@')))
+        assert(consumer.steps.some(step => step.run === 'npx tsc'))
     },
     coverage: () => {
         assertStructurallySame(coverageJob().steps.flatMap(step => step.run === undefined ? [] : [step.run]), [
