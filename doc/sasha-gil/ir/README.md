@@ -16,6 +16,7 @@ has its own table.
 | Note | Holds |
 | --- | --- |
 | [ir-design.md](./ir-design.md) | The first, independent design: types, op tables, effects, control flow, the lifetime pass, emitters, and the unpacked `str` |
+| [type-system.md](./type-system.md) | Proposed, not decided: the IR as both the code generator's IR and a safe typed language for writing the runtime by hand, with integer ranges, sums with declared bit layouts, and derived ownership |
 
 ## What the IR builds on
 
