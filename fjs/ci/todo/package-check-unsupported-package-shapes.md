@@ -5,8 +5,8 @@
 
 ### Problem
 
-[`../package/module.f.mjs`](../package/module.f.mjs) generates the steps closing
-the `node` job, which install the packed tarball and type-check it. It works
+[`../package/module.f.mjs`](../package/module.f.mjs) generates the `package`
+job, which installs the tarball uploaded by `node` and type-checks it. It works
 for a package shaped like this repository's, and three review findings on
 [#1767](https://github.com/functionalscript/functionalscript/pull/1767) named
 shapes it does not handle — one of them fixed as far as a glob can go, the rest
@@ -26,7 +26,7 @@ would change is whether the map itself is exercised: a package whose
 every project now, and this one fails it with `TS18003`: `include` matches
 nothing, and TypeScript says so rather than passing on an empty set. Loud, and
 arguably right — a package whose consumers get no types is a package this check
-has nothing to say about — but it is a red `node` rather than an absent check,
+has nothing to say about — but it is a red `package` rather than an absent check,
 and the project did not ask for either.
 
 This case replaced a different one. The job used to be generated only when the

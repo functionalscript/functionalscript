@@ -232,7 +232,7 @@ the website; same-repository PRs upload previews. Fork PRs build without uploadi
 Pushes to `main` deploy production. Other branches need an open PR (a draft is
 enough) for a preview.
 
-The original CI workflow keeps all nine test jobs on PRs and merge-group
+The original CI workflow keeps all twelve test jobs on PRs and merge-group
 entries, using its existing cache. It has no deployment gates or push trigger.
 Website uploads have their own concurrency and do not affect test jobs. The
 website workflow does not run in the merge queue; the website check is not a
