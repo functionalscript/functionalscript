@@ -12,7 +12,7 @@ import {
     or,
     string,
     array as rttiArray,
-} from "../rtti/module.f.mjs";
+} from "../rtti/module.f.js";
 
 /**
  * Every tuple here is closed — the members it declares and nothing else, which
@@ -552,7 +552,7 @@ export const comma = /** @type {const} */ ([',', exps])
  * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
  * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
  */
-export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2'])
+export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite', 'Math.log2'])
 
 /**
  * A static function as a value, `['Object.is']`: the function the

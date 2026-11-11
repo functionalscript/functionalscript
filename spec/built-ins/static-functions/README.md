@@ -29,7 +29,7 @@ export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.
 ```
 
 The admitted static functions include `Math.log2`, `Object.is`,
-`Object.entries`, `Object.fromEntries`, `String.fromCharCode` and the
+`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
 four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
@@ -41,7 +41,19 @@ UTF-16 code units under their index strings, nothing for a number, a
 boolean, a `bigint` or a function, and a failure on `null` and
 `undefined`. An entry holding `undefined` is listed, as JavaScript lists
 it ([undefined-valued properties](../../todo/1010-undefined-property.md)).
-`Object.fromEntries` is its inverse, JavaScript's over an array of entries:
+`Object.keys` returns a fresh array of those keys alone, in the same order:
+`Object.keys({ b: 1, "0": 2 })` is `["0", "b"]`. It includes a key whose
+value is `undefined` and treats `__proto__` as an ordinary own data key.
+Arrays and strings contribute their enumerable index strings; strings use
+UTF-16 indices, so `Object.keys("😀")` is `["0", "1"]`. Numbers, booleans,
+bigints and functions yield an empty array. Null and undefined fail, including
+a call with no argument. The function has `length` 1, ignores additional
+arguments after they are evaluated, and works detached as
+`const { keys } = Object`. Its common-runtime body projects native entries
+through the shared array `map` implementation; no native keys operation is
+added. FunctionalScript values have no getters or proxies, so reading entry
+values while enumerating introduces no additional observation.
+`Object.fromEntries` constructs an object from an array of entries, as in JavaScript:
 a fresh object with each element's `[0]` as a key, converted to a string,
 and its `[1]` as the value, in order, so a key written twice keeps its first
 position and its last value, and `__proto__` is an own key like any other.
@@ -99,7 +111,7 @@ builds with `this` as its constructor — `Promise.resolve`,
 reserved together with the member it admits. A module cannot bind it as a
 `const`, parameter or import, and it is no value: the word alone,
 `const o = Object;`, an array pattern over it, a member the namespace does
-not admit — `Object.keys(o)` — and a computed key, `Object[k]`, are
+not admit — `Object.values(o)` — and a computed key, `Object[k]`, are
 compilation errors (`reserved word`), a namespace being closed at compile
 time. It stands in one other place, the
 [`entry` helper](../../property-access/entries/README.md)'s
@@ -126,7 +138,7 @@ for exact semantic cases, with separate numerical accuracy cases for
 every executor answers the node from it, and an executor with no binding
 for it fails, naming it, rather than answer. `Object.entries` and
 `String.fromCharCode` are native primitives; the others,
-`Object.fromEntries` and `Math.log2` among them, have bodies. The native
+`Object.keys`, `Object.fromEntries` and `Math.log2` among them, have bodies. The native
 primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
@@ -157,7 +169,7 @@ export default (...a) => [is(a[0], -0), isInteger(a[0]), Number.isFinite(1 / a[0
 
 ## Reference
 
-- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
+- ECMA-262: [Object.is](https://tc39.es/ecma262/#sec-object.is), [Object.entries](https://tc39.es/ecma262/#sec-object.entries), [Object.keys](https://tc39.es/ecma262/#sec-object.keys), [Object.fromEntries](https://tc39.es/ecma262/#sec-object.fromentries), [Number.isInteger](https://tc39.es/ecma262/#sec-number.isinteger)
 - MDN: <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries>, <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries>
 
 `String.fromCharCode(...codes)` is a native static that constructs a string

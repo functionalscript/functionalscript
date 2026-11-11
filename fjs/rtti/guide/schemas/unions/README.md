@@ -30,7 +30,7 @@ what is left canonically. So two spellings of one set have one data form, and
 The demo on this page runs the *Two spellings, one set* lesson: pick
 `or(true, false)` or `boolean`, and the comparison under the graph reports
 `equal → true`; the TypeScript type and the JSON Schema of the two are the
-same. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+same. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
@@ -42,6 +42,6 @@ same. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
 
 ## Where it is implemented
 
-`or` and `never` in [`module.f.mjs`](../../../module.f.mjs); normalization,
+`or` and `never` in [`module.f.js`](../../../module.f.js); normalization,
 `equal`, `cmp` and `subset` in [`data`](../../../data/module.f.mjs), which
 documents them ([`data/README.md`](../../../data/README.md)).

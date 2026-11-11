@@ -49,6 +49,10 @@ pub mod object_from_entries;
 pub mod object_from_entries_not_array_throws;
 pub mod object_from_entries_throws;
 pub mod object_is;
+pub mod object_keys;
+pub mod object_keys_missing_throws;
+pub mod object_keys_null_throws;
+pub mod object_keys_undefined_throws;
 pub mod object_spread;
 pub mod operators;
 pub mod optional;
@@ -124,6 +128,10 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "object_from_entries_not_array_throws", fixture: crate::fixtures::object_from_entries_not_array_throws::module::<Naive>, expected: object_from_entries_not_array_throws::module::<Naive>, json: object_from_entries_not_array_throws::JSON, throws: object_from_entries_not_array_throws::THROWS },
     crate::Case { name: "object_from_entries_throws", fixture: crate::fixtures::object_from_entries_throws::module::<Naive>, expected: object_from_entries_throws::module::<Naive>, json: object_from_entries_throws::JSON, throws: object_from_entries_throws::THROWS },
     crate::Case { name: "object_is", fixture: crate::fixtures::object_is::module::<Naive>, expected: object_is::module::<Naive>, json: object_is::JSON, throws: object_is::THROWS },
+    crate::Case { name: "object_keys", fixture: crate::fixtures::object_keys::module::<Naive>, expected: object_keys::module::<Naive>, json: object_keys::JSON, throws: object_keys::THROWS },
+    crate::Case { name: "object_keys_missing_throws", fixture: crate::fixtures::object_keys_missing_throws::module::<Naive>, expected: object_keys_missing_throws::module::<Naive>, json: object_keys_missing_throws::JSON, throws: object_keys_missing_throws::THROWS },
+    crate::Case { name: "object_keys_null_throws", fixture: crate::fixtures::object_keys_null_throws::module::<Naive>, expected: object_keys_null_throws::module::<Naive>, json: object_keys_null_throws::JSON, throws: object_keys_null_throws::THROWS },
+    crate::Case { name: "object_keys_undefined_throws", fixture: crate::fixtures::object_keys_undefined_throws::module::<Naive>, expected: object_keys_undefined_throws::module::<Naive>, json: object_keys_undefined_throws::JSON, throws: object_keys_undefined_throws::THROWS },
     crate::Case { name: "object_spread", fixture: crate::fixtures::object_spread::module::<Naive>, expected: object_spread::module::<Naive>, json: object_spread::JSON, throws: object_spread::THROWS },
     crate::Case { name: "operators", fixture: crate::fixtures::operators::module::<Naive>, expected: operators::module::<Naive>, json: operators::JSON, throws: operators::THROWS },
     crate::Case { name: "optional", fixture: crate::fixtures::optional::module::<Naive>, expected: optional::module::<Naive>, json: optional::JSON, throws: optional::THROWS },

@@ -66,7 +66,8 @@ name not yet decided, or, where it says so, never admitted.
       [`fjs/js/todo/runtime-static.md`](../../fjs/js/todo/runtime-static.md)).
       The namespace's other members stay unticked, each an admission of
       its own. `Object.entries` is admitted too, native in every executor,
-      and `Object.fromEntries`, its body in the runtime (the records below)
+      and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
+      (the records below)
 - [ ] `Function`
 - [ ] `Boolean`
 - [ ] `Symbol`
@@ -244,6 +245,43 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       [built-in static functions](../built-ins/static-functions/README.md)
       page updated.
 - [ ] Recount the modules this unblocks and rename those that then compile.
+
+##### `Object.keys` proposal and approval
+
+**Status:** approved and implemented.
+
+**Problem.** Modules that need an object's keys use `Object.keys`, which was
+refused even though the language already had native `Object.entries` and a
+shared array `map` body.
+
+**Proposal.** Admit `Object.keys`, `Object["keys"]` and namespace destructuring
+such as `const { keys } = Object`, with the same first-class function behavior
+as the other statics: the EDAG node `['Object.keys']`, `length` 1, stable
+identity and `function keys() { [native code] }` as its function text. Return
+a fresh array of enumerable own string keys in JavaScript's order, including
+keys holding undefined; preserve array/string index enumeration, scalar and
+function inputs, nullish failure and ordinary extra-argument evaluation.
+
+**One body.** Project native entries through the shared array `map` body. The
+runtime captures native `Object.entries` once and calls the map body directly,
+so the implementation needs no member dispatch during bootstrap and adds no
+native primitive. FunctionalScript values have no accessors or proxies, so
+enumerating entry values before discarding them changes no observation.
+
+**Benefits.** Familiar JavaScript syntax and one semantic implementation,
+reusing the array mapper that every executor already shares.
+
+**Drawbacks.** It allocates entries whose values are discarded and uses the
+reference mapper's O(n²) immutable result accumulation. The spelling inside
+the runtime calls the typed map body directly because the current bootstrap
+does not dispatch member calls through its own runtime.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Object.keys` based on `.map`, in a new pull request, in
+[the working session](https://chatgpt.com/local/6af401d2-2f04-8191-9c7c-c4ddba48e03b).
+
+The runtime host proofs and the Object.keys harness fixtures hold the shared
+body, represented interpreters and generated NaNVM code to JavaScript.
 
 #### Number and Math
 

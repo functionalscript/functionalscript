@@ -1547,6 +1547,7 @@ pub fn module<A: IVm>(_runtime: Any<A>) -> Result<Any<A>, Any<A>> {
                 'Methods and properties': 'ooooo',
                 'Static functions': 'ooooo',
                 'Object.entries': 'ooooo',
+                'Object.keys': 'ooooo',
                 'Optional chaining': 'xoooo',
                 'Optional chaining: a long chain': 'xxooo',
                 'The entry helper': 'xoooo',

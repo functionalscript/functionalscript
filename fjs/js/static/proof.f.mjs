@@ -8,11 +8,11 @@ export const proof = {
     // namespace, the global called as a function and the converting global
     // `isNaN` are not.
     isStatic: () => {
-        assertEq(statics.length, 9)
-        for (const path of [['String', 'fromCharCode'], ['Object', 'is'], ['Object', 'entries'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2']]) {
+        assertEq(statics.length, 10)
+        for (const path of [['String', 'fromCharCode'], ['Object', 'is'], ['Object', 'entries'], ['Object', 'keys'], ['Object', 'fromEntries'], ['Number', 'isInteger'], ['Number', 'isSafeInteger'], ['Number', 'isNaN'], ['Number', 'isFinite'], ['Math', 'log2']]) {
             assertEq(isStatic(path), true)
         }
-        for (const path of [['Object'], ['Object', 'is', 'x'], ['Object', 'keys'], ['Number', 'is'], ['Number', 'entries'], ['Object', 'isInteger'], ['Number', 'MAX_SAFE_INTEGER'], ['Object', ''], ['Math'], ['Math', 'log'], ['Math', 'log2', 'x'], ['isNaN'], []]) {
+        for (const path of [['Object'], ['Object', 'is', 'x'], ['Object', 'values'], ['Number', 'is'], ['Number', 'entries'], ['Object', 'isInteger'], ['Number', 'MAX_SAFE_INTEGER'], ['Object', ''], ['Math'], ['Math', 'log'], ['Math', 'log2', 'x'], ['isNaN'], []]) {
             assertEq(isStatic(path), false)
         }
     },

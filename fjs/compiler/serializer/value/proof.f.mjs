@@ -59,6 +59,7 @@ export const proof = {
     // often the value holds it.
     statics: () => {
         assertEq(stringify(['Object.entries']), 'export default Object.entries;')
+        assertEq(stringify(['Object.keys']), 'export default Object.keys;')
         assertEq(stringify(['Object.is']), 'export default Object.is;')
         assertEq(stringify(['Number.isNaN']), 'export default Number.isNaN;')
         assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'export default [Object.entries,Object.entries];')

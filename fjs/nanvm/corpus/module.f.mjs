@@ -14,7 +14,7 @@
  * @module
  */
 
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 
 /** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
 export const fixturesDirectory = 'nanvm/harness/fixtures'

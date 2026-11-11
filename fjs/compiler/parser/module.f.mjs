@@ -160,7 +160,7 @@ const captureShadowed = foldError('capture shadowed')
  * anywhere but as the namespace of an admitted static member,
  * {@link staticRead}: never a module's to bind, under
  * [spec: global names](../../../spec/todo/2365-global-names.md)' rule, and
- * no value, so `Number.MAX_VALUE`, `Object.keys` and a bare `Number` are
+ * no value, so `Number.MAX_VALUE`, `Object.values` and a bare `Number` are
  * refused at the word as `typeof.x` would be.
  */
 const reservedWord = foldError('reserved word')
@@ -1290,7 +1290,7 @@ const staticMember = (namespaceName, named) => {
  * The static member an access reads, where its base is the bare word
  * of a namespace and its key a constant naming an admitted member, in
  * either spelling, {@link staticMember}; `null` for every other access,
- * which is resolved as any is — so `Object.keys` and `Number.MAX_VALUE`
+ * which is resolved as any is — so `Object.values` and `Number.MAX_VALUE`
  * enter the word and are refused at it. The word is a reserved global,
  * which no scope binds, so it alone decides.
  *

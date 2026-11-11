@@ -6,8 +6,8 @@
 ### Problem
 
 `array` in [`array`](../array/module.f.mjs), `object` in
-[`object`](../object/module.f.mjs), `func` in
-[`function`](../function/module.f.mjs) and `prepare`/`call` in
+[`object`](../object/module.f.js), `func` in
+[`function`](../function/module.f.js) and `prepare`/`call` in
 [`call`](../call/module.f.mjs) take deferred operands — `ValueThunk`,
 `ObjectItems`, a `callee: ValueResult`. Their consumers outside proofs,
 [`fjs/edag/operations`](../../operations/module.f.mjs) and the dispatchers

@@ -25,7 +25,7 @@
  */
 
 import { arrayIndex } from '../../../js/array_index/module.f.js'
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { helperLength, isHelper, isStatic, noStatic } from '../../module.f.mjs'
 import { isFunction, tagUndefined } from '../semantics/module.f.mjs'

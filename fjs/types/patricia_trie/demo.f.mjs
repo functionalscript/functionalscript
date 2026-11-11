@@ -36,7 +36,7 @@
  * @import { Keys, Preset, Row, Structure } from '../../website/demo/versions/types.ts'
  */
 
-import { patriciaTrie } from './module.f.mjs'
+import { patriciaTrie } from './module.f.js'
 import { binaryKeys, versionsDemo } from '../../website/demo/versions/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.js'
 import { max } from '../number/max/module.f.js'

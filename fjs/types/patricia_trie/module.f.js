@@ -6,7 +6,7 @@
  * @import { Create, PatriciaTrie } from './types.ts'
  */
 
-import { splitLast } from '../array/module.f.mjs'
+import { splitLast } from '../array/module.f.js'
 import { doneStep, nextStep } from '../function/operator/module.f.js'
 
 /**

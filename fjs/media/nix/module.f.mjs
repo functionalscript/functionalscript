@@ -19,7 +19,7 @@
  */
 
 import { concat } from '../../types/string/module.f.js'
-import { findMap, includes, occurrences } from '../../types/array/module.f.mjs'
+import { findMap, includes, occurrences } from '../../types/array/module.f.js'
 import { error, mapOk, ok } from '../../types/result/module.f.js'
 import {
     apostrophe,

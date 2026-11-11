@@ -67,7 +67,7 @@ arguments to declarations.
 - [ ] If it is: measure it against the `edag` cycle first — convert one node
       there and diff the emitted `.d.mts` for `any`.
 - [ ] Pick the name (`type` collides with the `type:` member in several
-      schemas; `schema` may read better) and site it in `../module.f.mjs`.
+      schemas; `schema` may read better) and site it in `../module.f.js`.
 - [ ] Convert in batches, diffing declaration emit per batch, per the method in
       [`../../../todo/inline-type-casts.md`](../../../todo/inline-type-casts.md).
 

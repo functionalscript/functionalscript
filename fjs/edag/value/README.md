@@ -31,13 +31,13 @@ written once in [`../values.md`](../values.md), and the root
 |-------------------------------------------|------------------------------------------------------------------------------|
 |**Constructing**                           |                                                                              |
 |[`array`](./array/module.f.mjs)            |arrays from deferred items and spreads, and joining them as strings          |
-|[`object`](./object/module.f.mjs)          |objects from deferred properties and spreads, keys in enumeration order      |
-|[`function`](./function/module.f.mjs)      |functions from deferred captures and a body                                  |
+|[`object`](./object/module.f.js)          |objects from deferred properties and spreads, keys in enumeration order      |
+|[`function`](./function/module.f.js)      |functions from deferred captures and a body                                  |
 |**Reading**                                |                                                                              |
 |[`property`](./property/module.f.mjs)      |property lookup: object fields, array items and `length`, string code units  |
 |[`at`](./at/module.f.mjs)                  |`at` on arrays and strings, counting negative indices from the end           |
-|[`slice`](./slice/module.f.mjs)            |`slice` on arrays and strings                                                |
-|[`entries`](./entries/module.f.mjs)        |`Object.entries`, the one static no body can define                          |
+|[`slice`](./slice/module.f.js)            |`slice` on arrays and strings                                                |
+|[`entries`](./entries/module.f.js)        |`Object.entries`, the one static no body can define                          |
 |**Operating**                              |                                                                              |
 |[`semantics`](./semantics/module.f.mjs)    |truthiness, `typeof`, and strict equality by node identity                   |
 |[`numeric`](./numeric/module.f.mjs)        |unary `+`, `-`, `~` and `Number(x)`                                          |

@@ -26,7 +26,7 @@
  * @import { Type } from '../../rtti/types.ts'
  */
 
-import { array, bigint, boolean, number, option, or, string } from '../../rtti/module.f.mjs'
+import { array, bigint, boolean, number, option, or, string } from '../../rtti/module.f.js'
 
 /**
  * A bit vector, the bytes of a file. At run time it is a `bigint`; the brand

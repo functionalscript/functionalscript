@@ -43,7 +43,7 @@ The demo on this page runs the *Subset* lesson: `{ a: 42 }` and
 `{ a: number }`, which both accept `{"a":42}`. The comparison under the graph
 reports that the first is a subset of the second, and not equal to it. Type
 `{"a":7}` to see only the second accept it. The lesson is defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others. The
 *Canonical form* section of every demo shows a schema's data form.
 

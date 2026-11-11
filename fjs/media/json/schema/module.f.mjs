@@ -25,7 +25,7 @@
 
 import { assert } from '../../../asserts/module.f.js'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
-import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
+import { array, number, option, or, record, string } from '../../../rtti/module.f.js'
 import {
     admitsAbsence,
     requiredPrefix,

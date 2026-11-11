@@ -143,7 +143,7 @@ mod tests {
             .unwrap();
         assert_eq!(pairs.to_json(), Ok(r#"[["0","a"],["1","b"]]"#.into()));
         assert!(entries.call([].to_array().to_any()).is_err());
-        for id in ["Object.keys", "Math.max", "Object", "is", "toString", ""] {
+        for id in ["Object.values", "Math.max", "Object", "is", "toString", ""] {
             assert!(static_at(&rt, id).is_nullish(), "{id}");
         }
         let dot = at(&rt, "dot");
@@ -182,9 +182,56 @@ mod tests {
             static_read(&rt, "Object.entries").unwrap(),
             static_at(&rt, "Object.entries")
         );
-        for path in ["Object.keys", "Math.max", "Object", "Math"] {
+        assert_eq!(
+            static_read(&rt, "Object.keys").unwrap(),
+            static_at(&rt, "Object.keys")
+        );
+        for path in ["Object.values", "Math.max", "Object", "Math"] {
             assert_eq!(static_read(&rt, path), Err(error::no_static_function(path)));
         }
+    }
+
+    /// `Object.keys` is the shared runtime's function over native entries,
+    /// with stable identity, standard function metadata and a fresh result.
+    /// A runtime without its binding cannot supply a native fallback.
+    #[test]
+    fn object_keys_uses_the_common_runtime() {
+        let rt: Any<A> = runtime::<A>().unwrap();
+        let keys = static_read(&rt, "Object.keys").unwrap();
+        assert_eq!(keys, static_read(&rt, "Object.keys").unwrap());
+        assert_eq!(
+            keys.clone().to_string(),
+            Ok("function keys() { [native code] }".into())
+        );
+        assert_eq!(
+            Any::dot(keys.clone(), "length".into()).end(),
+            Ok(1.0.to_any())
+        );
+        let input = [
+            ("b".into(), 1.0.to_any()),
+            ("10".into(), 2.0.to_any()),
+            ("2".into(), 3.0.to_any()),
+            ("u".into(), Any::undefined()),
+            ("__proto__".into(), 4.0.to_any()),
+        ]
+        .to_object()
+        .to_any();
+        let result = keys.clone().call([input].to_array().to_any()).unwrap();
+        assert_eq!(
+            result.to_json(),
+            Ok(r#"["2","10","b","u","__proto__"]"#.into())
+        );
+        let first = keys.clone().call(["".into()].to_array().to_any()).unwrap();
+        let second = keys.call(["".into()].to_array().to_any()).unwrap();
+        assert_ne!(first, second);
+        assert!(static_read::<A>(&Any::undefined(), "Object.keys").is_err());
+        let missing: Any<A> = [("static".into(), returns(Any::undefined()))]
+            .to_object()
+            .to_any();
+        assert_eq!(
+            static_read(&missing, "Object.keys"),
+            Err(error::no_static_function("Object.keys"))
+        );
     }
 
     /// A call step reaches a body through the value: `"abc".startsWith`

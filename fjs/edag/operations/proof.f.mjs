@@ -6,6 +6,7 @@
  * @import { Exp, ExpOp } from '../types.ts'
  * @import { Closure, EdagValue, Runtime } from '../value/types.ts'
  * @import { Outcome } from '../value/call/types.ts'
+ * @import { ValueResult } from '../value/control/types.ts'
  * @import { Context, Evaluator } from './types.ts'
  */
 
@@ -363,6 +364,29 @@ export const proof = {
         eq(['String', ['Object.entries']], 'function entries() { [native code] }')
         failure(['()', ['Object.entries'], [null]])
         failure(['()', ['Object.entries'], []])
+    },
+    // Keys are a runtime body over native entries and the shared array map,
+    // with static identity, arity and text supplied by the existing protocol.
+    objectKeys: () => {
+        const runtime = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+        assert(runtime instanceof Array && runtime[0] === '{}')
+        /** @type {(node: Exp) => ValueResult} */
+        const evaluate = node => vm({ ...context, runtime })(node)
+        const keys = /** @type {const} */ (['Object.keys'])
+        assertStructurallySame(evaluate(['()', keys, [['{}', [
+            [':', '10', 1], [':', '2', 2], [':', 'present', ['undefined']], [':', '__proto__', 3],
+        ]]]]), ['ok', ['[]', ['2', '10', 'present', '__proto__']]])
+        assertStructurallySame(evaluate(['()', keys, ['😀a']]), ['ok', ['[]', ['0', '1', '2']]])
+        assertStructurallySame(evaluate(['[]', [
+            ['===', keys, ['Object.keys']], ['typeof', keys], ['.', keys, 'length'], ['String', keys],
+        ]]), ['ok', ['[]', [true, 'function', 1, 'function keys() { [native code] }']]])
+        /** @type {readonly Exp[]} */
+        const emptyInputs = [0, true, 1n, ['[]', []], ['{}', []], ['=>', 0, [], 1]]
+        for (const input of emptyInputs) { assertStructurallySame(evaluate(['()', keys, [input]]), ['ok', ['[]', []]]) }
+        assertError(evaluate(['()', keys, [null]]))
+        assertError(evaluate(['()', keys, [['undefined']]]))
+        assertError(evaluate(['()', keys, []]))
+        failure(keys, noStatic('Object.keys'))
     },
     calls: () => {
         const at = /** @type {const} */ (['[]', [42]])
