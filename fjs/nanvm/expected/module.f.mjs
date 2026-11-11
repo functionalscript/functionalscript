@@ -35,7 +35,7 @@
  */
 
 import { toRust } from '../../compiler/rust/module.f.mjs'
-import { read } from '../../edag/value/property/module.f.mjs'
+import { read } from '../../edag/value/property/module.f.js'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { tryJsonStringify } from '../../media/datajs/serializer/module.f.mjs'
 import { stringToU8List } from '../../text/utf8/module.f.mjs'

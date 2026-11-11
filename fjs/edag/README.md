@@ -115,7 +115,7 @@ which makes it in the invocation's place
 callback, the loop over the calls a body leaves, from a body evaluator.
 The memo interpreter threads its immutable cache around these stateless helpers.
 
-[`value/property`](value/property/module.f.mjs) reads resolved string keys
+[`value/property`](value/property/module.f.js) reads resolved string keys
 from represented values, preserving stored field and element identities.
 Arrays, strings and functions expose their lengths; string indices read
 UTF-16 code units. Missing properties return tagged undefined and nullish
@@ -145,7 +145,7 @@ evaluator is retired; both FJS EDAG VMs and compiler initialization use this
 representation. [Runtime compilation](values.md#runtime-compilation) converts
 these values, including evaluated closures, through the target backend.
 
-[`value/coercion`](value/coercion/module.f.mjs) converts ordinary objects to
+[`value/coercion`](value/coercion/module.f.js) converts ordinary objects to
 primitives by trying `valueOf` and `toString` in the hint's order. Own methods
 shadow stock behavior, including noncallable values. Represented functions
 run through the call helper; their first primitive result or failure returns
@@ -155,7 +155,7 @@ semantics helper. Abstract ToNumber rejects bigint; ToNumeric preserves it.
 [`value/convert`](value/convert/module.f.mjs) composes these helpers with array
 and function conversion; memo owns operation dispatch.
 
-[`value/numeric`](value/numeric/module.f.mjs) supplies a `unary` operation
+[`value/numeric`](value/numeric/module.f.js) supplies a `unary` operation
 table over evaluated primitives. Unary `+` fails on bigint, `-` and `~`
 preserve bigint, and explicit `Number` converts it. Its `binary` table supplies
 `+`, `-`, `*`, `/`, `%`, `**`, `&`, `|`, `^`, `<<`, `>>` and `>>>`.
@@ -169,7 +169,7 @@ negative bigint exponents fail with tagged undefined. Both tables return
 For ordinary objects, pass `'number'` to `objectToPrimitive` for all these
 operations, including addition's default conversion.
 
-[`value/relational`](value/relational/module.f.mjs) supplies a `binary` table
+[`value/relational`](value/relational/module.f.js) supplies a `binary` table
 for `<`, `<=`, `>` and `>=` over evaluated primitives. Two strings compare
 by UTF-16 code unit; mixed number/bigint comparisons preserve numeric value,
 and bigint/string comparisons parse the string as an integer. NaN, tagged

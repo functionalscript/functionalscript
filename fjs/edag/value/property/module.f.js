@@ -42,7 +42,7 @@ export const findProperty = (value, key) => value[1].find(([, name]) => name ===
 /** The element `key` names, an array's or a string's, by its canonical index within the length, or `undefined` where there is none. @type {(values: Values | string, key: string) => EdagValue | undefined} */
 const elementOf = (values, key) => {
     const index = arrayIndex(key)
-    return index === null || index >= values.length ? undefined : values[index]
+    return index === null || index >= values.length ? undefined : values[Number(index)]
 }
 
 /** The element `key` names, or tagged undefined. @type {(values: Values | string, key: string) => ValueResult} */

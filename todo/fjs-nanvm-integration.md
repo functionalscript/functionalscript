@@ -144,44 +144,43 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured from base revision `917495f64`, with two property-access rewrites
-and whole-module conversions in
-[#3761](https://github.com/functionalscript/functionalscript/pull/3761).
-[`edag/value/call`](../fjs/edag/value/call/module.f.js) spells its numeric
-argument access `values[Number(i)]`.
-[`nanvm/corpus`](../fjs/nanvm/corpus/module.f.js) uses the existing `entry`
-helper for its exception-name lookup and `children[Number(i)]` when pairing
-normalized object children with their keys. Both complete sources compile and
-are renamed to `.f.js`, with runtime, proof, type and documentation references
-updated. Their existing proofs retain call-binding identities, fixture
-selection and corpus normalization observations.
+Measured from base revision `7a0cb24a2`, with the numeric-access rewrite and
+four whole-module conversions in
+[#3762](https://github.com/functionalscript/functionalscript/pull/3762).
+[`edag/value/property`](../fjs/edag/value/property/module.f.js) spells its
+indexed element lookup `values[Number(index)]`, preserving the canonical
+array-index checks for arrays and UTF-16 strings. Its conversion exposes
+[`edag/value/coercion`](../fjs/edag/value/coercion/module.f.js), followed by
+[`edag/value/numeric`](../fjs/edag/value/numeric/module.f.js) and
+[`edag/value/relational`](../fjs/edag/value/relational/module.f.js). Those three
+complete sources compile unchanged. All four are renamed to `.f.js`, with
+runtime, proof and documentation references updated.
 
 Runtime imports and re-exports were rediscovered from JavaScript ASTs under
 `fjs/` and `spec/`, excluding generated paths, proofs and JSDoc-only imports.
 A leaf has only authored `.f.js` runtime dependencies. Each candidate's full
 source was checked through the compiler's `resolve` and `runNodeEffect`,
-without generating output. The first pass accepted `edag/value/call` and
-`nanvm/corpus` and refused twelve other leaves. The second pass refused the
-newly exposed `edag/value/property`. The actual renamed runtime graph matches
-the simulated graph, and all authored `.f.js` runtime dependencies are
-authored `.f.js`.
+without generating output. The first pass accepted `edag/value/property`
+and refused twelve other leaves. The second accepted `edag/value/coercion`;
+the third accepted `edag/value/numeric` and `edag/value/relational`, exposing
+no further candidates. The actual renamed runtime graph matches the simulated
+graph, and all authored `.f.js` runtime dependencies are authored `.f.js`.
 
-The graph remains **641 authored non-proof sources**. After the two
-conversions, the compiler-compatible population is **240 authored `.f.js`
-files**; **401 authored non-proof `.f.mjs` files** remain. All thirteen
+The graph remains **641 authored non-proof sources**. After the four
+conversions, the compiler-compatible population is **244 authored `.f.js`
+files**; **397 authored non-proof `.f.mjs` files** remain. All twelve
 remaining leaves are refused as written, so no further rename-only pass is
 available.
 
 Every leaf and exposed path in the table names `fjs/<path>/module.f.mjs`.
 Locations are one-based `line:column` in the unchanged blocked sources at
-`917495f64`. Exposure counts are immediate: rename that leaf alone after the
-two conversions, then rediscover leaves without assuming that another
+`7a0cb24a2`. Exposure counts are immediate: rename that leaf alone after the
+four conversions, then rediscover leaves without assuming that another
 blocked source has changed.
 
 | Leaf still `.f.mjs` | First refused construct (compiler refusal) | Location | Additional leaves its conversion exposes |
 | --- | --- | --- | --- |
 | `edag/from_fast/loop/completions` | `new Set` in a spread (`new is not admitted`) | `31:17` | 0 |
-| `edag/value/property` | Numeric index `values[index]` without `Number(...)` (`computed key is not Number(...)`) | `45:74` | 1: `edag/value/coercion` |
 | `js/ast` | `new Map` for declaration positions (`new is not admitted`) | `54:23` | 4: `edag/from_fast/loop/owning`, `js/ast/control`, `js/ast/returns`, `js/ast/sugar/effects` |
 | `js/string_escape` | `new Map(pairs)` in `lookup` (`new is not admitted`) | `94:17` | 2: `ci/package`, `nanvm/demos/spell` |
 | `media/datajs/vectors` | Global `JSON.stringify(value)` (`const not found`) | `97:33` | 0 |
@@ -198,6 +197,16 @@ For the next pass, rediscover the runtime dependency leaves, compile every
 candidate, rename accepted sources and update their references, then
 rediscover and repeat until a pass accepts none. Keep earlier measurements
 pinned to their recorded revisions.
+
+#### Leaf migration fixed point at `7a0cb24a2` (historical)
+
+The [full audit](https://github.com/functionalscript/functionalscript/blob/7a0cb24a238151a030ba61865da8f9d60e725849/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)
+records the call-binding and corpus property-access rewrites and two
+conversions in
+[#3761](https://github.com/functionalscript/functionalscript/pull/3761), from
+base `917495f64`: 240 authored `.f.js` files, 401 non-proof `.f.mjs` files and
+thirteen refused leaves. The pinned record retains the rewrite details,
+measurement method, refusal locations and exposure lists.
 
 #### Leaf migration fixed point at `917495f64` (historical)
 

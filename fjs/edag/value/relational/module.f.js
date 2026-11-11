@@ -14,7 +14,7 @@
  */
 
 import { ok } from '../../../types/result/module.f.js'
-import { primitiveToNumeric } from '../coercion/module.f.mjs'
+import { primitiveToNumeric } from '../coercion/module.f.js'
 
 /** Preserve strings for lexical and bigint/string comparisons. @param {Primitive} value */
 const comparable = value => typeof value === 'string' ? value : primitiveToNumeric(value)
