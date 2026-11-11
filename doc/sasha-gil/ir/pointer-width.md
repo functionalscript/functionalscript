@@ -52,8 +52,11 @@ bit.
   same heap, so the targets can be tested against each other bit for bit.
   It works on every host above, CHERI included, because no pointer is
   packed. The checker's rule becomes "an offset below 2^48", which each
-  target's allocator guarantees by construction. A forged `p` can only
-  reach inside the region, which is the WASM sandbox's argument again
+  target's allocator guarantees by construction. Bits from outside go
+  through `try_from_bits`, which must also check `p` against the region's
+  actual size, since a region smaller than 2^48 leaves offsets that fit
+  the pattern and point past the end. With that check, a forged `p` can
+  only reach inside the region, which is the WASM sandbox's argument again
   ([open question 7](./type-system.md#open-questions)).
 - **Against:** the Rust target needs its own allocator, the same job as
   the WASM target's ([open question 1](./type-system.md#open-questions)),
@@ -70,8 +73,10 @@ outside `p…p` or a low alignment bit.
 
 - **For:** the smallest change, and Rust's allocator and `Rc` stay.
 - **Against:** the program fails at run time on Android and CHERI. The
-  check is a guard, not a layout. It is still worth having as a debug
-  assertion under any option.
+  check is a guard, not a layout. While any target packs native
+  pointers, the check must stay in release builds: a pointer that loses
+  its high bits comes back as an invalid `Rc`, which is undefined
+  behavior. Under A it becomes a debug assertion on the allocator.
 
 ### C. Strip the tag and restore it
 
@@ -105,8 +110,8 @@ to the runtime, so this is allowed.
 
 ## Recommendation
 
-A, with B's check as a debug assertion while the Rust emitter still uses
-`Rc`. If chosen, [type-system.md](./type-system.md) changes in three
+A. Until A lands, the Rust emitter that still uses `Rc` keeps B's check
+in release builds. If chosen, [type-system.md](./type-system.md) changes in three
 places: the checker rule says "offset" instead of "pointer", the Rust
 column's `ref(O)` and `stat(O)` rows name the regions, and the floor
 lists the Rust allocator next to the WASM one. The Rust step-3 question
