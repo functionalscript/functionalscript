@@ -511,7 +511,8 @@ A view is how code reads an object that it does not own:
 - **It has a source.** The source is the local it was lent from, such as
   the `any` whose arm it came out of. A use of a view is a use of its
   source, so the source is not dropped or consumed before the view's last
-  use. There is no lifetime syntax.
+  use. A view that comes out of an `if_` or a `match` has the sources of
+  every branch. There is no lifetime syntax.
 - **It is second-class.** A view can be bound to a local and passed to a
   call. It cannot be stored in an object or carried by a loop parameter.
   A type that holds a view, such as an unpacked string, is second-class
@@ -538,6 +539,9 @@ is stated once, for every type.
 - A `match` borrows its operand, so the payloads in its arms are views
   and borrowed values. A `match` on a unique value moves the payloads
   out instead.
+- A counted field or item that is read through a reference is borrowed
+  in the same way. Like a view, a borrowed value has a source and is
+  used only while the source lives.
 
 Lean 4, Swift and Hylo pass parameters this way (from memory). The
 [comparison](./comparison.md#memory-ownership-and-reference-counting) sets
@@ -549,11 +553,15 @@ this against Perceus, where every argument is owned.
   `object('StrObj', { units: tail(u16, u(31)) })`. A tail is a length of
   the given type and that many items. The count header is implicit, and
   no code reads it.
+- **What an object holds.** A field or an item has a copy or a counted
+  type. An object holds no view and no `uniq`: a child object is frozen
+  before it is stored, so every pointer in the heap is counted or
+  static.
 - **Building.** `alloc(O, fields, capacity)` returns a `uniq(O)` with an
   empty tail. `push(u, item)` appends an item and counts the length, and
-  `set(u, field, value)` writes a field. Both take the `uniq` and return
-  it, so mutation is threading a unique value, and the emitter writes in
-  place.
+  `set(u, field, value)` writes a field and drops the value it replaces.
+  Both take the `uniq` and return it, so mutation is threading a unique
+  value, and the emitter writes in place.
 - **No uninitialized reads.** An item at or past the length cannot be
   read, and a `push` past the capacity traps.
 - **Freezing.** `freeze(u)` turns a `uniq(O)` into a `ref(O)` with a
@@ -588,15 +596,17 @@ is consumed exactly once on every path
   path is found by reading the tree once. A loop borrows the locals of
   its surroundings for as long as it runs.
 - **The pass is not trusted.** The checker validates the owned stage:
-  one consumption per path, no use after it, and every view inside the
-  life of its source.
+  one consumption per path, no use after it, and every view and borrowed
+  value inside the life of its source.
 - **Later: specialized drops.** A `drop` in a branch where the variant is
   known becomes that variant's code, often nothing at all.
 
 ### Release is derived
 
 When a `drop` takes a count to zero, a derived `release` drops each
-counted field and tail item, then frees the object. These are
+counted field and tail item, then frees the object. That is all an object
+can own, because it holds no `uniq`. The `drop` of a `uniq` runs the same
+`release` at once, over the items pushed so far. These are
 [modular-l0.md](../wasm/modular-l0.md#7-modules-meet-through-a-runtime-internal-interface)'s
 `release` hooks, generated instead of written. The derived `release` must
 not recurse, because a deep array would overflow the stack (NaNVM's
@@ -1247,7 +1257,9 @@ note, [pointer-width.md](./pointer-width.md). Codex's review of this
 revision found a division that the WASM emitter could not spell and a
 remainder that panics in Rust, and
 [No target's corner case leaks in](#no-targets-corner-case-leaks-in)
-answers both.
+answers both. It also found that a `uniq` stored in an object would
+never be released, so
+[an object now holds none](#heap-objects-are-immutable-once-frozen).
 
 | Topic | First draft | Now | Why |
 | --- | --- | --- | --- |
@@ -1262,6 +1274,7 @@ answers both.
 | Borrowed pointers | "a borrowed local names its source" | `view(O)`, a fourth reference | the `p` of an arm on `long` had no type |
 | Ownership kinds | copy or linear | copy, counted or unique | a counted value needs no linearity in written code; a unique one does |
 | Results that borrow | not covered | a result holding a view borrows from the borrowed arguments | `unpack` returns such a value |
+| What an object holds | not covered | copy and counted fields and items; no view and no `uniq` | the derived `release` then drops everything an object owns |
 | State and constants | not covered | one Heap module; constants built in `init` | `thrown`, `enter` and `recover` need state |
 | The floor | each target provides an allocator | the Heap module, at the low level | with two levels it can be IR code, run by the interpreter |
 | Staging | checker, lifetime pass, emitters | two levels, three forms, one interpreter | every pass is tested by running before and after; emitters stay thin |
