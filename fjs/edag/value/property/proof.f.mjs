@@ -7,7 +7,6 @@
  */
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
-import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { object } from '../object/module.f.js'
