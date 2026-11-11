@@ -58,12 +58,12 @@ alone:
 
 1. **Typing.** Which values are a known `f64` or `bool`, and which
    operator becomes an instruction instead of an L1 call
-   ([L1 design §4](./l1-design.md#4-typed-lowering-is-the-compilers-not-l1s)).
+   ([L1 design §4](../wasm/l1-design.md#4-typed-lowering-is-the-compilers-not-l1s)).
 2. **Closure conversion.** A function value becomes `make_function` of a
    code index and a frame, and a capture becomes a `frame` read
-   ([L0 design §12](./l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
+   ([L0 design §12](../wasm/l0-design.md#12-functions-a-code-index-a-frame-a-length-and-a-text)).
 3. **Lifetimes.** Where a reference is duplicated and where it is dropped
-   ([L0 design §10](./l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
+   ([L0 design §10](../wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)).
 
 The lowering itself is a separate design. This one fixes what it produces.
 
@@ -145,7 +145,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 - **Why:** `bool` is `i32` in WASM, but Rust keeps them apart, and an `if`
   on an `i32` would have to compare with zero. A kind is not a type here,
   because L0 has no typed references
-  ([L0 design §2](./l0-design.md#2-typed-values-exist-only-in-the-compiler)).
+  ([L0 design §2](../wasm/l0-design.md#2-typed-values-exist-only-in-the-compiler)).
   What the lowering knew about a kind shows up as the operations it chose:
   `l0.length` instead of `l1.length`. `str` is no exception: it is a
   representation, not a kind, and holds only what a String module
@@ -173,7 +173,7 @@ Each choice gives the pick first, then the alternatives and the reason.
   value of its own: a number already means `f64`. Locals are read with
   `get('x')`, because `'x'` already means a string. How a literal is made
   belongs to the target. WASM writes the units to a data segment and calls
-  `make_string` in `init` ([L0 design §6](./l0-design.md#6-literals-built-once-at-start-up)).
+  `make_string` in `init` ([L0 design §6](../wasm/l0-design.md#6-literals-built-once-at-start-up)).
   Rust can keep a static `&[u16]`. The IR only says which value.
 
 ### 4. Every operation comes from a table
@@ -198,10 +198,10 @@ Each choice gives the pick first, then the alternatives and the reason.
   - `prim` holds the typed operations every target has: `f64_add`, `f64_lt`,
     `i32_add`, `bool_not`, `f64_from_i32`, and so on.
   - `l0` holds the L0 imports, under their ABI names
-    ([L0 design, Summary](./l0-design.md#summary)), except the ones that
+    ([L0 design, Summary](../wasm/l0-design.md#summary)), except the ones that
     take a pointer (choice 10).
   - `l1` holds the L1 operations, all `any` to `any`
-    ([L1 design §5](./l1-design.md#5-one-calling-convention-for-every-l1-operation)).
+    ([L1 design §5](../wasm/l1-design.md#5-one-calling-convention-for-every-l1-operation)).
     A module imports what it calls from this table.
   - `self` is the module's own functions, built from its definitions. A
     call through it is a direct call, never an import. The stock module
@@ -230,7 +230,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 ### 5. A row says what a call may do
 
 - **Pick:** each row has one of four effects, in increasing order:
-  `pure`, `traps` (a precondition, [L0 design §11](./l0-design.md#11-misuse-traps-and-only-calls-fail)),
+  `pure`, `traps` (a precondition, [L0 design §11](../wasm/l0-design.md#11-misuse-traps-and-only-calls-fail)),
   `allocates`, and `throws`. Each `any` parameter is borrowed unless the row
   says `own`, and an `any` result is always owned.
 - **Alternatives:** no effects at all, with every call opaque; a full
@@ -282,14 +282,14 @@ Each choice gives the pick first, then the alternatives and the reason.
   one keeps the WASM emitter a direct mapping, because WASM is the target
   this IR exists for. `throw_` is a node and not an `l0` call, because it
   is `never`. In WASM it is `call $throw` and then `unreachable`
-  ([L0 design §13](./l0-design.md#13-errors-a-throw-traps)), and in Rust it
+  ([L0 design §13](../wasm/l0-design.md#13-errors-a-throw-traps)), and in Rust it
   is the runtime's own throw. `br_table` and `select` can come later, as
   optimizations, once a lowering wants them.
 
 ### 8. A module is functions, exports and `init`
 
 - **Pick:** a module holds named functions, the names it exports, and its
-  `init` function ([L0 design §20](./l0-design.md#20-a-program-is-one-module-with-an-init-export)).
+  `init` function ([L0 design §20](../wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)).
   `code('f')` is the `i32` code index of function `f`, for `make_function`.
   A function that becomes a value has the shape `(self any, args any) ->
   any`. Any other function may have any signature, and a direct call to it
@@ -298,7 +298,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 - **Why:** imports are the `l0` and `l1` rows the module calls, and
   literals are the strings and bigints it holds. Both are derived from the
   body, so listing them again could only drift. The direct call is what
-  [L1 design §5](./l1-design.md#5-one-calling-convention-for-every-l1-operation)
+  [L1 design §5](../wasm/l1-design.md#5-one-calling-convention-for-every-l1-operation)
   needs to compile a top-level function to a plain WASM function.
 
 ### 9. Lifetimes are one pass over the IR
@@ -319,7 +319,7 @@ Each choice gives the pick first, then the alternatives and the reason.
   borrowed one as `&x`, and `dup` as `.clone()`, so a mistake in the pass
   is a borrow-checker error in the generated Rust. A frame the host
   abandons after a throw runs no `drop`, which L0 already allows
-  ([L0 design §13](./l0-design.md#13-errors-a-throw-traps)).
+  ([L0 design §13](../wasm/l0-design.md#13-errors-a-throw-traps)).
 
 ### 10. No memory, table or bytes in the IR
 
@@ -339,7 +339,7 @@ Each choice gives the pick first, then the alternatives and the reason.
   `l1` rows are imports and calls, and `prim` rows are instructions. For
   Rust, a row is a call to the runtime's function of that name. A per-row
   override can replace the rule, for example with a WASM
-  [inline fragment](./inline-fragments.md).
+  [inline fragment](../wasm/inline-fragments.md).
 - **Alternatives:** each emitter has its own case for every row.
 - **Why:** everything an emitter could refuse is checked earlier, by the
   validator, so failures are found once. The rule means a new row needs no
@@ -360,7 +360,7 @@ Each choice gives the pick first, then the alternatives and the reason.
 
 ### 13. An unpacked string is an IR type, laid out by the runtime module
 
-Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
+Added 2026-11-09 for the [modular runtime](../wasm/modular-runtime.md).
 
 - **Pick:** the seventh type, `str`, is a string unpacked by the runtime's
   String module. A `str` table holds its three rows: `unpack` from an
@@ -380,7 +380,7 @@ Added 2026-11-09 for the [modular runtime](./modular-runtime.md).
 - **Why:** the program stays the same for every String module, so the IR
   stays target-independent (choice 11), and swapping a module is an
   emitter change. A program may still be built for one runtime, as the
-  [specialized mode](./inline-fragments.md#rules) is.
+  [specialized mode](../wasm/inline-fragments.md#rules) is.
 
 ## What lives where
 
@@ -410,7 +410,7 @@ Each step is a PR or a short stack, proved before the next starts.
    function with its FunctionalScript original on the parity tables.
 4. **The lowering** from prepared FAST with types, first for the L1 module,
    whose closure rule makes every operand's type known
-   ([L1 design §2](./l1-design.md#2-the-closure-rule)).
+   ([L1 design §2](../wasm/l1-design.md#2-the-closure-rule)).
 5. **A Rust emitter** over the same IR, against NaNVM's L0 in Rust. It
    replaces the current serializer only after it does everything that one
    does ([DESIGN.md §11](../../DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
@@ -428,7 +428,7 @@ Each step is a PR or a short stack, proved before the next starts.
 - **Unpacked strings (13).** BigInt unpacking is likely to follow the same
   shape. If it does, `str` becomes one case of a general rule: a runtime
   module declares a type, and the IR names it. With
-  [a modular L0](./modular-l0.md#the-code-ir), the `l0` table's rows
+  [a modular L0](../wasm/modular-l0.md#the-code-ir), the `l0` table's rows
   would also be grouped by module.
 - **Where the code lives.** A proposal is `fjs/codegen/ir`, with
   `fjs/codegen/wasm` and `fjs/codegen/rust` as emitters. The IR is not
