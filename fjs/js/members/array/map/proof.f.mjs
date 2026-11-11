@@ -4,7 +4,7 @@ import { map } from './module.f.js'
 /** @type {(value: unknown, index: number, array: readonly unknown[]) => readonly unknown[]} */
 const args = (value, index, array) => [value, index, array]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     host: () => {
         for (const input of [[], [1], [1, undefined, null, 4]]) {
             assertStructurallySame(map(input, args), input.map(args))
@@ -33,4 +33,4 @@ export const proof = {
         invalidNonempty: () => map([1], {}),
         callback: () => map([1, 2], () => { throw 'callback' }),
     },
-}
+})
