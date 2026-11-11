@@ -51,6 +51,22 @@ import { entry, hasEntry } from '../../types/object/entry/module.f.js'
 import { charCodeAt, slice } from '../intrinsic/module.f.js'
 import { map as arrayMap } from '../members/array/map/module.f.js'
 
+/** The native enumerator, shared by its own static entry and the keys body. */
+const ownEntries = Object.entries
+
+/** An entry's key. @type {(pair: readonly [string, unknown]) => string} */
+const keyOf = ([key]) => key
+
+/**
+ * `Object.keys`: enumerate once, then project the keys through the shared
+ * array map body. Native entries supplies own enumerable string keys in
+ * JavaScript order and throws for a nullish value. FunctionalScript values
+ * have no accessors or proxies, so reading the values introduces no effect.
+ *
+ * @param {{}} value
+ */
+const keys = value => arrayMap(ownEntries(value), keyOf)
+
 /**
  * [`Number.isNaN`](https://tc39.es/ecma262/#sec-number.isnan): whether `n`
  * is `NaN`. `NaN` is the one value that is not strictly equal to itself, so
@@ -241,7 +257,8 @@ export const member = {
  */
 export const statics = {
     'Object.is': is,
-    'Object.entries': Object.entries,
+    'Object.entries': ownEntries,
+    'Object.keys': keys,
     'String.fromCharCode': String.fromCharCode,
     'Object.fromEntries': fromEntries,
     'Number.isInteger': isInteger,

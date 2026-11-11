@@ -186,6 +186,13 @@ export const proof = {
         assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
         assertStructurallySame(operandsOf(is), [])
     },
+    objectKeys: () => {
+        const keys = /** @type {const} */ (['Object.keys'])
+        const repeated = an(['[]', [keys, ['Object.keys']]])
+        assertEq(repeated.nodes.filter(node => node[0] === 'Object.keys').length, 1)
+        assertStructurallySame(operandsOf(keys), [])
+        assertOk(checked(an(['()', keys, [['{}', []]]])))
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],
