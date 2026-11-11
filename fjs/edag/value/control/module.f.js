@@ -12,7 +12,7 @@
  */
 
 import { error, ok } from '../../../types/result/module.f.js'
-import { truthy } from '../semantics/module.f.mjs'
+import { truthy } from '../semantics/module.f.js'
 
 /**
  * Comma/sequence evaluation: earlier operands run even though their values

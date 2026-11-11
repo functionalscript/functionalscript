@@ -10,7 +10,7 @@ export type AstImport = {
     readonly name: string | null
 }
 
-export type UnaryTag = '+' | '-' | '~' | '!' | 'typeof' | 'Number' | 'String' | 'BigInt'
+export type UnaryTag = '+' | '-' | '~' | '!' | 'typeof' | 'Number' | 'String' | 'BigInt' | 'Boolean'
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'
@@ -24,4 +24,4 @@ type _BinaryTagsAreComplete = Assert<Equal<(typeof binaryTags)[number], BinaryTa
 type _Values<T> = T extends unknown ? T[keyof T] : never
 type _LayerTag = _Values<(typeof eagerLayers)[number] | (typeof lazyLayers)[number]>
 type _LayersAreComplete = Assert<Equal<_LayerTag | '**', BinaryTag | 'instanceof' | 'in'>>
-type _PrefixesAreUnary = Assert<Equal<_Values<typeof prefixLayer>, Exclude<UnaryTag, 'Number' | 'String' | 'BigInt'>>>
+type _PrefixesAreUnary = Assert<Equal<_Values<typeof prefixLayer>, Exclude<UnaryTag, 'Number' | 'String' | 'BigInt' | 'Boolean'>>>

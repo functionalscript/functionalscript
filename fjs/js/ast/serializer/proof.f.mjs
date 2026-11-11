@@ -133,7 +133,7 @@ export const proof = {
             ['.', ['object', []], 'f', ['|?.()', [], ['|.', 'x']]],
             ['?.', null, 'f', ['|!()', []]],
             [',', []], [',', [1, 2]], ['?:', true, 1, 2],
-            ['Number', '2'], ['BigInt', '2'], ['String', 2], ['typeof', 2], ['~', 1], ['!', 1], ['-', 1], ['-', 3, 1],
+            ['Boolean', 0], ['Number', '2'], ['BigInt', '2'], ['String', 2], ['typeof', 2], ['~', 1], ['!', 1], ['-', 1], ['-', 3, 1],
             ['+', 1, ['*', 2, 3]], ['+', 1, ['+', 2, 3]], ['+', 1, ['+', 2]],
             ['**', ['**', 2, 3], 4], ['**', 2, ['**', 3, 2]],
             choice(false, false, 2), nullishValue, choice(true, 2, true),
@@ -152,6 +152,9 @@ export const proof = {
             assertEq(typeof expression(value), 'string')
         }
         assertEq(expression(['+', 1, ['*', 2, 3]]), '1+2*3')
+        assertEq(expression(['Boolean', undefined]), 'Boolean(undefined)')
+        assertEq(expression(['.', ['Boolean', 0], 'x']), 'Boolean(0).x')
+        assertEq(expression(['()', ['Boolean', 0], [1]]), 'Boolean(0)(1)')
         assertEq(expression(['+', 1, ['+', 2, 3]]), '1+(2+3)')
         assertEq(expression(choice(choice(['===', andValue, null], true, ['===', andValue, undefined]), 2, andValue)), '((true?1:true)===null?true:(true?1:true)===undefined)?2:true?1:true')
         assertEq(expression(['.', ['object', [[':', 'a-b', 2]]], 'a-b']), '{"a-b":2}["a-b"]')

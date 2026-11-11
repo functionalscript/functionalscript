@@ -64,6 +64,10 @@ const empty = ['[]', []]
 const first = ['=>', 0, [], ['.', ['rest'], 0]]
 
 export const proof = {
+    booleanOperand: () => {
+        assertStructurallySame(nodesOf(['Boolean', ['[]', []]]), [['[]', []], ['Boolean', ['#', 0]]])
+        assertStructurallySame(nodesOf(['Boolean', ['undefined']]), [['undefined'], ['Boolean', ['#', 0]]])
+    },
     bigintOperand: () => {
         assertStructurallySame(nodesOf(['BigInt', ['+', 1, 2]]), [['+', 1, 2], ['BigInt', ['#', 0]]])
     },

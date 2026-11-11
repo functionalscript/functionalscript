@@ -104,7 +104,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 const op0Ids = /** @type {const} */ (['undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', 'slice', 'charCodeAt', 'Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
-const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw'])
+const op1Ids = /** @type {const} */ (['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof', 'throw'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
@@ -711,22 +711,27 @@ export const proof = {
     op1: {
         ok: () => {
             // Every id `op1` accepts, pinned individually: deleting any one
-            // of these six from `op1Id` reddens exactly this loop, not
+            // of these ids from `op1Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op1Ids) {
                 assertOk(v([id, 1]))
             }
             assertOk(v(['!', ['!', 1]])) // an exp nested inside the operand
+            assertOk(v(['Boolean', ['undefined']]))
             // Composes through `exp`'s recursion like any other node.
             assertOk(v(['[]', [['Number', 1]]]))
             assertOk(v(['()', ['Number', 1], [2]]))
         },
         // A missing operand reads as `undefined`, no longer a valid bare
         // `exp` — see `op0`.
-        missingTailIsError: () => assertNoMatch(v(['!'])),
+        missingTailIsError: () => {
+            assertNoMatch(v(['!']))
+            assertNoMatch(v(['Boolean']))
+            assertNoMatch(v(['Boolean', 0, 1]))
+        },
         error: () => assertNoMatch(v(['negz', 1])),
         // `op1Id` is a real constraint, not a stand-in for `string`: an id
-        // outside its six members is rejected, both directly and as part
+        // outside its declared members is rejected, both directly and as part
         // of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp1Id('xyz'))

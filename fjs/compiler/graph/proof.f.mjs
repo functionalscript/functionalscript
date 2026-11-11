@@ -354,7 +354,7 @@ export const proof = {
             assertStructurallySame(shape.children, [['operand', ['a']]])
         },
         op1: () => {
-            for (const tag of ['String', 'Number', 'BigInt', '!', '~', 'typeof']) {
+            for (const tag of ['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof']) {
                 const shape = nodeShapeOf([tag, ['a']], tag)
                 assertEq(shape.label, tag)
                 assertStructurallySame(shape.children, [['operand', ['a']]])

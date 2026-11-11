@@ -30,8 +30,8 @@
  */
 
 import { error } from '../../../types/result/module.f.js'
-import { array } from '../array/module.f.mjs'
-import { isFunction } from '../semantics/module.f.mjs'
+import { array } from '../array/module.f.js'
+import { isFunction } from '../semantics/module.f.js'
 import { helperLength, isHelper } from '../../module.f.js'
 
 /**

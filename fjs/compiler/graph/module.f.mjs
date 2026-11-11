@@ -99,7 +99,7 @@ import { operatorOperands } from '../../js/ast/module.f.mjs'
 // they are the EDAG's own list.
 /** @type {ReadonlySet<string>} */
 const leaves = new Set([...helperIds, ...staticIds])
-const op1 = new Set(['String', 'Number', 'BigInt', '!', '~', 'typeof'])
+const op1 = new Set(['String', 'Number', 'BigInt', 'Boolean', '!', '~', 'typeof'])
 const op2 = new Set([
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',

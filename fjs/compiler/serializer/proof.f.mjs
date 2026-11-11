@@ -1545,7 +1545,7 @@ export const proof = {
         // each conversion is the call it is in JavaScript: its
         // operand an argument, which groups nothing, and the call binding
         // tighter than every operator, as a call does
-        for (const tag of /** @type {const} */ (['Number', 'String'])) {
+        for (const tag of /** @type {const} */ (['Number', 'String', 'Boolean'])) {
             writes([tag, 1], `export default ${tag}(1);`)
             writes([tag, ['|', 1, 2]], `export default ${tag}(1|2);`)
             writes([tag, ['=>', 0, [], 1]], `export default ${tag}(()=>1);`)

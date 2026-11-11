@@ -12,7 +12,7 @@
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { primitiveToString } from '../coercion/module.f.mjs'
-import { array, join } from './module.f.mjs'
+import { array, join } from './module.f.js'
 
 /** A later operand that must never be evaluated. @type {() => never} */
 const skipped = () => { assert(false, 'an operand after a failure was evaluated') }

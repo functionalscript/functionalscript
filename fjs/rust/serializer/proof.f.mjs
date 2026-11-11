@@ -37,7 +37,7 @@ export const proof = {
     operators: () => {
         /** @type {readonly Value[]} */
         const values = [
-            ['!', true], ['~', 0], ['-', 1], ['typeof', 1], ['Number', '1'], ['BigInt', '1'], ['String', 1],
+            ['!', true], ['~', 0], ['-', 1], ['typeof', 1], ['Number', '1'], ['BigInt', '1'], ['String', 1], ['Boolean', 0],
             ['+', 1, 2], ['-', 1, 2], ['*', 1, 2], ['/', 1, 2], ['%', 1, 2], ['**', 1, 2],
             ['&', 1, 2], ['|', 1, 2], ['^', 1, 2], ['<<', 1, 2], ['>>', 1, 2], ['>>>', 1, 2],
             ['===', 1, 2], ['!==', 1, 2], ['<', 1, 2], ['<=', 1, 2], ['>', 1, 2], ['>=', 1, 2],
@@ -56,6 +56,15 @@ export const proof = {
         assertEq(valueTagged(['in', 'x', 1], { ...options, runtime: null }, [], false)[0], 'error')
         assertEq(op1Rust['+']?.('v'), 'Any::unary_plus(v)')
         assertEq(op1Rust.throw?.('v'), 'Err(v)')
+    },
+    /** Boolean dispatches through the shared body and retains its operand once. */
+    booleanRuntime: () => {
+        assertEq(text(['Boolean', 0], true),
+            '{ let (boolean_value, boolean_body) = (f64_any(0x0000000000000000), (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }')
+        assertEq(text(['Boolean', ['()', ['ref', x], []]], true),
+            '{ let (boolean_value, boolean_body) = ((Any::call(_b0.clone(), Array::default().to_any()))?, (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }')
+        assertStructurallySame(valueTagged(['Boolean', 0], { ...options, runtime: null }),
+            ['error', ['a Boolean operator with no runtime in scope; the core may not use what it defines', ['Boolean', 0]]])
     },
     /** Inspection borrows the complete operand, including fallible and conditional expressions. */
     borrowedInspectionOperands: () => {
