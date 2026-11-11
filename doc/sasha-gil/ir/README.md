@@ -17,6 +17,7 @@ has its own table.
 | --- | --- |
 | [ir-design.md](./ir-design.md) | The first, independent design: types, op tables, effects, control flow, the lifetime pass, emitters, and the unpacked `str` |
 | [type-system.md](./type-system.md) | Proposed, not decided: the IR as both the code generator's IR and a safe typed language for writing the runtime by hand, with integer ranges, sums with declared bit layouts, and derived ownership |
+| [pointer-width.md](./pointer-width.md) | Proposed, not decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits; recommends a heap region with offsets, as on WASM |
 
 ## What the IR builds on
 
