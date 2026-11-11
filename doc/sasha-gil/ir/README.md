@@ -18,7 +18,7 @@ has its own table.
 | [ir-design.md](./ir-design.md) | The first, independent design: types, op tables, effects, control flow, the lifetime pass, emitters, and the unpacked `str` |
 | [type-system.md](./type-system.md) | Proposed, not decided: the IR as both the code generator's IR and a safe typed language for writing the runtime by hand, with exact integer ranges, sums with declared bit layouts, derived ownership, and a low level under the high one; revised after a second review and the comparison |
 | [comparison.md](./comparison.md) | The comparison round: the plan set against Binaryen's IR, CLIF, MIR, MLIR, Lean's IR, Perceus and Habit's bitdata, and where each finding went |
-| [pointer-width.md](./pointer-width.md) | Proposed, not decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits; recommends a heap region with offsets, as on WASM |
+| [pointer-width.md](./pointer-width.md) | Decided: how a heap reference fits the NaN box on Rust, where pointers may be wider than 48 bits. Rust's heap is one buffer read in safe code, and a reference is an offset into it, as on WASM |
 
 ## What the IR builds on
 
@@ -37,9 +37,8 @@ it through its tables:
 
 1. **The owner's review of [type-system.md](./type-system.md).** Its
    [open questions](./type-system.md#open-questions) each carry a
-   recommendation, and [pointer-width.md](./pointer-width.md) waits for
-   a choice. Once decided, [ir-design.md](./ir-design.md) changes as the
-   note's table lists.
+   recommendation. Once decided, [ir-design.md](./ir-design.md) changes
+   as the note's table lists.
 2. **The lowering.** From prepared FAST into the IR: typing, closure
    conversion and lifetimes. [ir-design.md](./ir-design.md#where-it-sits)
    calls it a separate design.

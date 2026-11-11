@@ -108,6 +108,7 @@ inliner.
 | 2026-11-09 | A runtime is assembled from runtime modules with manifests. The first one is the String module: `unpack`, `length` and `at`, in three variants (Naive, NaN CPU-saving, NaN memory-saving) ([modular-runtime.md](./modular-runtime.md)). |
 | 2026-11-09 | An unpacked value borrows its source `any`, which the code generator keeps alive until the last access, so unpacking costs no reference count ([modular-runtime.md](./modular-runtime.md)). |
 | 2026-11-09 | A runtime module's functions are inlined, and its stack frame offsets are local indices fixed at compile time, so no shadow stack is needed ([modular-runtime.md](./modular-runtime.md#stack-frame-offsets-are-a-compile-time-notion)). |
+| 2026-11-11 | A NaN-boxed reference is an offset into a heap the runtime owns, on Rust as on WASM: Rust's heap is one buffer read through indexed loads and stores in safe code, and imported bits never become a reference ([pointer-width.md](../ir/pointer-width.md#decision)). |
 
 ## Open questions
 
