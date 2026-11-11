@@ -24,7 +24,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { assoc, dedup } from '../../types/array/module.f.mjs'
+import { assoc, dedup } from '../../types/array/module.f.js'
 import { cmp as cmpValue } from '../../types/function/compare/module.f.js'
 import { strictEqual as strictEqualCurried } from '../../types/function/operator/module.f.js'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'

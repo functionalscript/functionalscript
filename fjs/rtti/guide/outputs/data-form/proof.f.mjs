@@ -1,8 +1,8 @@
 import { assert } from '../../../../asserts/module.f.js'
 import { cmp, equal, subset, toData } from '../../../data/module.f.mjs'
-import { boolean, number, or, string } from '../../../module.f.mjs'
+import { boolean, number, or, string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
-import { lessons } from './sample.f.mjs'
+import { lessons } from './sample.f.js'
 import { demo } from './demo.f.mjs'
 
 const verdicts = verdictsOf(lessons)

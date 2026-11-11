@@ -20,7 +20,7 @@
  */
 
 import { exp, intrinsicId, primitive, staticId } from '../module.f.mjs'
-import { array as rttiArray, number, string } from '../../rtti/module.f.mjs'
+import { array as rttiArray, number, string } from '../../rtti/module.f.js'
 
 /**
  * The raw recursive schema, pinned separately from its phantom annotation.
@@ -74,6 +74,6 @@ export const intrinsicFunction = /** @type {const} */ ([intrinsicId])
  * however often it is read, `Object.is === Object.is`, with no captures
  * and no body of its own — its text is its name's, and its call and its
  * `length` are the executor's to answer, from the body the runtime holds
- * at its path, or natively, `Object.entries` (`./entries/module.f.mjs`).
+ * at its path, or natively, `Object.entries` (`./entries/module.f.js`).
  */
 export const staticFunction = /** @type {const} */ ([staticId])

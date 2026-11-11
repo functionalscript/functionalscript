@@ -31,6 +31,13 @@ A name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
 
+`Object.keys` projects the keys from native `Object.entries` through the same
+typed array `map` body that implements the member function. The runtime captures
+the entries function once and calls both functions directly, without a member
+lookup or a new native keys operation. Enumeration order and undefined-valued
+entries come from the existing primitive. The array mapper copies its immutable
+accumulator, so this reference body costs O(n²).
+
 ## Inside the admitted set
 
 Which names a module may call stays
@@ -279,7 +286,7 @@ cycle:
   answers when given none, so the runtime is always compiled with no
   runtime, whatever the pass does elsewhere.
 - **Nothing in the runtime calls a member function or reads a static
-  function: no initializer, and no body.** The module builds closures and
+  function defined by the runtime: no initializer, and no body.** The module builds closures and
   nothing else, and so does every module it imports, transitively — a
   helper shared with the rest of `fjs/` must hold this too, or be inlined —
   so the runtime can be interpreted from nothing. Loading it from source
@@ -292,8 +299,9 @@ cycle:
   reading it as a value, never by its name: the core may not use what it
   defines, and the whole module is the core, which the proof checks on the
   compiled EDAG — no chain step anywhere in it, and no static node but the
-  natives the table lists as themselves, `Object.entries`, which every
-  executor binds and no body reads. This is what lets NaNVM hold the
+  natives the table lists as themselves. `Object.entries` is captured once,
+  shared with its table entry and called by the keys body; every executor
+  binds it without a runtime. This is what lets NaNVM hold the
   runtime as a value its bodies never name: the runtime printer prints the
   module with no runtime in scope, so a member call or a static read of a
   body anywhere in it, body or initializer, is the backend's refusal, by

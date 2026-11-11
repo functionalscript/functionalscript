@@ -23,10 +23,11 @@ const table = /** @type {Readonly<Record<string, (a: unknown, b: unknown) => unk
 const host = /** @type {Readonly<Record<string, Readonly<Record<string, (a: unknown, b: unknown) => unknown>>>>} */ (/** @type {unknown} */ ({ Object, Number, String }))
 
 /**
- * The statics whose argument is an array of entries, which no pair of
- * {@link samples} is: `host` leaves them to a proof of their own.
+ * Statics with structural results or inputs outside the scalar host loop:
+ * each has a host-oracle proof of its own.
+ * @type {readonly string[]}
  */
-const entryShaped = ['Object.fromEntries']
+const separateStatics = ['Object.fromEntries', 'Object.keys']
 
 const array = /** @type {readonly unknown[]} */ ([])
 const object = {}
@@ -66,7 +67,7 @@ const samples = [
     array, [], [1], [NaN], object, {}, f, () => 1,
 ]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     map: () => {
         const input = /** @type {const} */ ([1, undefined, 3])
         /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */
@@ -112,7 +113,7 @@ export const proof = {
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.keys', 'Math.max', 'toString', 'constructor', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every
@@ -125,7 +126,7 @@ export const proof = {
     // (`../static/module.f.js`), and a built-in that reads `this` throws
     // here on every engine the suite runs on.
     host: () => {
-        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !entryShaped.includes(path.join('.')))) {
+        for (const [namespaceName, name] of staticPaths.filter(path => !isNative(path) && !separateStatics.includes(path.join('.')))) {
             const body = table[`${namespaceName}.${name}`]
             const namespace = host[namespaceName]
             const detached = namespace[name]
@@ -177,6 +178,30 @@ export const proof = {
             assertStructurallySame(expected, entries(fromEntries(c)), c)
         }
         assert(body([]) !== body([]))
+    },
+    // `Object.keys` projects native entries through the shared mapper. Its
+    // fresh arrays compare structurally with the host, detached or called on
+    // the namespace; extra arguments are ignored in both forms.
+    objectKeys: () => {
+        const body = table['Object.keys']
+        const { keys } = Object
+        assertEq(body.length, keys.length)
+        /** @type {readonly {}[]} */
+        const cases = [
+            ...samples.filter(value => value !== null && value !== undefined),
+            { b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4, '01': 5, '': 6 },
+            { ['constructor']: undefined, length: 1 }, [undefined], 'a😀', '\ud800',
+        ]
+        for (const input of cases) {
+            const expected = Object.keys(input)
+            assertStructurallySame(body(input, undefined), expected, input)
+            assertStructurallySame(body(input, 'ignored'), keys(input), input)
+        }
+        assertStructurallySame(body({ b: 1, '10': 2, '2': 3, a: undefined, ['__proto__']: 4 }, undefined), ['2', '10', 'b', 'a', '__proto__'])
+        assertStructurallySame(body('a😀', undefined), ['0', '1', '2'])
+        const input = /** @type {const} */ ({ a: 1 })
+        assert(body(input, undefined) !== body(input, undefined))
+        assertEq(runtime.static('Object.keys'), statics['Object.keys'])
     },
     // The two values `===` reads the other way, which `Object.is` exists
     // for, and none of the four predicates converting its argument, are the
@@ -333,9 +358,10 @@ export const proof = {
     // core: no body and no initializer holds a member call, an optional
     // chain or a static function the runtime defines — a native is reached
     // through an intrinsic, `slice` in `found` and `charCodeAt` in
-    // `codePointAt`, called as a function, and the native static
-    // `Object.entries` is the built-in itself at its own table entry, the
-    // one static node anywhere, so no body reads it — so the module can be
+    // `codePointAt`, called as a function. Native static bindings are read
+    // once: `Object.entries` is shared by its own table entry and the keys
+    // body, which calls that captured native and the shared map function
+    // directly. Neither needs a runtime lookup, so the module can be
     // evaluated with no runtime, and NaNVM can hold it as a value whose
     // bodies never name it (`../runtime/README.md`, "How NaNVM finds
     // it"). The intrinsic is there, as a node, where the member call was.
@@ -346,7 +372,8 @@ export const proof = {
         assertEq(staticNodes([['Object.is']]).join(), 'Object.is')
         assertEq(steps(edag).join(), '')
         const natives = staticPaths.filter(isNative)
-        // the distinct static nodes: a body reading one writes a node of its own
+        // Only native static nodes are present, one binding per native even
+        // when a body captures the same binding as its static-table entry.
         assertEq([...new Set(staticNodes(edag))].map(node => node[0]).join(), natives.map(path => path.join('.')).join())
         for (const path of natives) {
             assertEq(JSON.stringify(at(at(edag, 'statics'), path.join('.'))), JSON.stringify([path.join('.')]))
@@ -386,5 +413,7 @@ export const proof = {
         // …and so does a value that is not an array, even one the host
         // iterates: the language admits no other iterable as entries.
         fromEntriesNotArray: () => { statics['Object.fromEntries']('') },
+        objectKeysNull: () => { table['Object.keys'](null, undefined) },
+        objectKeysUndefined: () => { table['Object.keys'](undefined, undefined) },
     },
-}
+})

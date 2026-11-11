@@ -8,7 +8,7 @@
  * @import { Tag0, _Type0, Bigint, Unknown, Option, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
  */
 
-import { includes } from '../types/array/module.f.mjs'
+import { includes } from '../types/array/module.f.js'
 
 export const _primitive0List = /** @type {const} */ (['bigint', 'boolean', 'number', 'string'])
 

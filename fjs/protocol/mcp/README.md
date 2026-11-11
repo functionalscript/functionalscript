@@ -65,7 +65,7 @@ export const fromRegistry = <O extends Operation>(
 Define argument schemas as RTTI:
 
 ```ts
-import { string, number, option, or } from '../../rtti/module.f.mjs'
+import { string, number, option, or } from '../../rtti/module.f.js'
 
 const addArgs = { a: number, b: number } as const
 const greetArgs = { name: string, greeting: or(option, string) } as const

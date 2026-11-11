@@ -103,7 +103,7 @@ The demo on this page runs the *Closed vs open* lesson: the value
 `{ name: string, age: number }` and accepted by its `open` form. Pick either
 schema to see its graph, its TypeScript type, its JSON Schema and the two
 readers' answers, and the comparison under them reports that the closed
-schema is a subset of the open one. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+schema is a subset of the open one. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

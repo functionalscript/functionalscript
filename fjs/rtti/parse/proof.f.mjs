@@ -8,7 +8,7 @@
  */
 
 import { parse } from './module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {

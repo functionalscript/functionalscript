@@ -17,7 +17,7 @@
 
 import { assertOk } from '../../asserts/module.f.js'
 import { identity } from '../../types/function/module.f.js'
-import { isArray } from '../../types/array/module.f.mjs'
+import { isArray } from '../../types/array/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { findProperty, read } from '../../edag/value/property/module.f.mjs'
 import { toData, toUnknown } from '../../edag/value/to_unknown/module.f.mjs'

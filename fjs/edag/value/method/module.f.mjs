@@ -18,7 +18,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, prototypes } from '../../../js/prototype/module.f.js'
 import { call } from '../call/module.f.mjs'
@@ -27,7 +27,7 @@ import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/m
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { arrayMethod } from '../array_method/module.f.mjs'
 import { at } from '../at/module.f.mjs'
-import { slice } from '../slice/module.f.mjs'
+import { slice } from '../slice/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 
 /** A non-nullish receiver's type, by its global's name, as `fjs/js/runtime` keys it. @type {(receiver: EdagValue) => keyof typeof prototypes} */

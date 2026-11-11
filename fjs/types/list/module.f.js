@@ -212,7 +212,7 @@ export const find = def => f => compose(filter(f))(first(def))
  * `null` when it gives none. `filterMap` drops the `null`s lazily, so `f` is
  * not called past the first answer.
  *
- * [`fjs/types/array`](../array/module.f.mjs)'s `findMap` is the same over an
+ * [`fjs/types/array`](../array/module.f.js)'s `findMap` is the same over an
  * array, for a recursive walk that cannot spend the frames a lazy list takes.
  *
  * @type {<I, O>(f: (value: I) => O | null) => (input: List<I>) => O | null}

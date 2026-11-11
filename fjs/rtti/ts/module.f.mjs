@@ -21,7 +21,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.js'
-import { assoc, dedup } from '../../types/array/module.f.mjs'
+import { assoc, dedup } from '../../types/array/module.f.js'
 import { isIdentifier } from '../../js/identifier/module.f.js'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.js'
 import { definedEntries } from '../../types/object/module.f.mjs'

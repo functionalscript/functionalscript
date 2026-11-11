@@ -1,9 +1,9 @@
 import { assert, assertOk } from '../../../../asserts/module.f.js'
 import { parse } from '../../../parse/module.f.mjs'
 import { validate } from '../../../validate/module.f.mjs'
-import { string } from '../../../module.f.mjs'
+import { string } from '../../../module.f.js'
 import { drawsFirst, verdicts as verdictsOf } from '../../testlib.f.mjs'
-import { lessons } from './sample.f.mjs'
+import { lessons } from './sample.f.js'
 import { demo } from './demo.f.mjs'
 
 const verdicts = verdictsOf(lessons)

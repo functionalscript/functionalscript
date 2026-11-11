@@ -50,7 +50,7 @@ The demo on this page runs the *Lossy integers* lesson:
 `{ id: bigint, max: 9007199254740993n, note: or(option, string) }`, whose JSON
 Schema has `"type": "integer"` for `id`, the constant `9007199254740992` for
 `max`, and only `id` and `max` under `required`. The lesson is defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

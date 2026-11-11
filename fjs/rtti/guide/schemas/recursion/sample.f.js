@@ -8,7 +8,7 @@
  * @import { DemoExample, Type } from '../../../types.ts'
  */
 
-import { array, number, option, or, string } from '../../../module.f.mjs'
+import { array, number, option, or, string } from '../../../module.f.js'
 
 const address = /** @type {const} */ ({ street: string, city: string })
 
