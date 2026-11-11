@@ -104,7 +104,7 @@ use the same binding rules with either spelling.
   `const entries = Object.entries;` though `entries` is a prototype name.
   An array pattern over it, and a key it does not admit, are refused at
   the word (`reserved word`) — but a key it does not admit that is a
-  prototype name, `keys` or `toString`, is refused first, at the key, as
+  prototype name, `values` or `toString`, is refused first, at the key, as
   in any pattern (`prohibited property name`).
 - A **parameter pattern** is one fixed parameter, its source the argument
   in its position: `([a, { b }], c) => …` binds `a` and `b` from the first

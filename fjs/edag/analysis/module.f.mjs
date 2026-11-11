@@ -277,6 +277,7 @@ const handlers = {
     // until it has its row
     'Object.is': o0,
     'Object.entries': o0,
+    'Object.keys': o0,
     'String.fromCharCode': o0,
     'Object.fromEntries': o0,
     'Number.isInteger': o0,

@@ -738,6 +738,7 @@ pub const ABSENT: &[(&str, &str)] = &[
 pub const STATICS: &[&[&str]] = &[
     &["Object", "is"],
     &["Object", "entries"],
+    &["Object", "keys"],
     &["String", "fromCharCode"],
     &["Object", "fromEntries"],
     &["Number", "isInteger"],
