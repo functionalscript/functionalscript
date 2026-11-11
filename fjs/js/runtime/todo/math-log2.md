@@ -1,7 +1,7 @@
 ## Implement Math.log2
 
 **Priority:** P3
-**Status:** open — approved for implementation
+**Status:** wip — approved for implementation
 
 ### Problem
 
