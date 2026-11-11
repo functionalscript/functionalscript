@@ -2,8 +2,8 @@
 //! module into `gen.runtime.rs` beside this file, through the runtime
 //! printer (`fjs/compiler/rust/runtime`) and the ordinary backend, as any
 //! module is compiled. [`runtime`] answers the `runtime` export object —
-//! three functions, `static` and `dot` over the module's tables, and `in`,
-//! the body of the `in` operator — built
+//! four functions: `static` and `dot` over the module's tables, `in`,
+//! the body of the `in` operator, and `Boolean`, the shared `!!value` body — built
 //! once by whoever runs compiled modules and handed to each as its
 //! parameter: a compiled module reads a static function from it,
 //! `static_read(&runtime, "Object.is")?`, which calls `static` with the id
@@ -13,7 +13,9 @@
 //! table ([`Member::call`](crate::vm::lambda::Member)), and an `in` node
 //! calls its `in` with the key and the value, the naive spelling a
 //! native answer may one day substitute
-//! (`todo/in-native-substitution.md`). Every static body
+//! (`todo/in-native-substitution.md`). A `Boolean` node calls its `Boolean`
+//! body with the operand, using the existing logical-not operations rather
+//! than a separate native conversion. Every static body
 //! is a closure carrying the NativeFunction text of its id, and
 //! `Object.entries` is the built-in itself, so the table is complete; the
 //! identity is the value's, two reads of a static one closure. No VM holds a runtime, and
@@ -48,7 +50,7 @@ mod tests {
     use crate::vm::test::function::{returns, throws};
     use crate::{
         naive::Naive,
-        vm::{Any, BigInt, ToAny, ToArray, ToObject, error, unstable::static_read},
+        vm::{Any, BigInt, Nullish, ToAny, ToArray, ToObject, error, unstable::static_read},
     };
 
     type A = Naive;
@@ -79,7 +81,7 @@ mod tests {
         );
     }
 
-    /// A property of the runtime value, by its key: `static`, `dot`.
+    /// A property of the runtime value, by its key.
     fn at(value: &Any<A>, key: &str) -> Any<A> {
         Any::dot(value.clone(), key.into()).end().unwrap()
     }
@@ -91,7 +93,51 @@ mod tests {
             .unwrap()
     }
 
-    /// The runtime as a value: the export object with its two functions.
+    /// The generated Boolean body uses logical not twice. Containers and
+    /// functions are truthy without calling their primitive-conversion hooks.
+    #[test]
+    fn boolean_body() {
+        let rt: Any<A> = runtime::<A>().unwrap();
+        let boolean = at(&rt, "Boolean");
+        let boom = throws("must not convert".into());
+        let hooked: Any<A> = [
+            ("valueOf".into(), boom.clone()),
+            ("toString".into(), boom.clone()),
+        ]
+        .to_object()
+        .to_any();
+        let cases = [
+            (Any::<A>::undefined(), false),
+            (Nullish::Null.to_any(), false),
+            (false.to_any(), false),
+            (true.to_any(), true),
+            (0.0.to_any(), false),
+            ((-0.0).to_any(), false),
+            (f64::NAN.to_any(), false),
+            (1.0.to_any(), true),
+            ((-1.0).to_any(), true),
+            (f64::INFINITY.to_any(), true),
+            (f64::NEG_INFINITY.to_any(), true),
+            ("".into(), false),
+            ("false".into(), true),
+            (BigInt::<A>::from(0i64).to_any(), false),
+            (BigInt::<A>::from(1i64).to_any(), true),
+            (BigInt::<A>::from(-1i64).to_any(), true),
+            ([].to_array().to_any(), true),
+            ([].to_object().to_any(), true),
+            (hooked, true),
+            (boom, true),
+        ];
+        for (value, expected) in cases {
+            assert_eq!(
+                boolean.clone().call([value].to_array().to_any()),
+                Ok(expected.to_any())
+            );
+        }
+        assert_eq!(boolean.call([].to_array().to_any()), Ok(false.to_any()));
+    }
+
+    /// The runtime as a value: its lookup functions over the shared tables.
     /// `static` answers a body as a function — `Object.is`, SameValue,
     /// with the NativeFunction text of its id and the `length` of its body
     /// — one value however often it is asked, as the language's own

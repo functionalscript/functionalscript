@@ -12,7 +12,7 @@
  * @import { Array as ValueArray, EdagValue } from '../types.ts'
  */
 
-import { tagUndefined } from '../semantics/module.f.mjs'
+import { tagUndefined } from '../semantics/module.f.js'
 
 /** Array.at and String.at over represented receivers. @type {(receiver: ValueArray | string, index: number) => EdagValue} */
 export const at = (receiver, index) =>

@@ -85,6 +85,17 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    /** Boolean is a runtime body, including inside a captured function. */
+    booleanRuntime: () => {
+        assertStructurallySame(scoped(['Boolean', 0]), [
+            '{ let (boolean_value, boolean_body) = (f64_any(0x0000000000000000), (Any::dot(runtime.clone(), string_any("Boolean")).end())?); Any::call(boolean_body, [boolean_value].to_array().to_any()) }',
+        ])
+        assertStructurallySame(printedWithout(['Boolean', 0]),
+            ['error', ['a Boolean operator with no runtime in scope; the core may not use what it defines', ['Boolean', 0]]])
+        const captured = scoped(['=>', 1, [], ['Boolean', ['arg', 0]]]).join('\n')
+        assert(captured.includes('Any::dot(A::frame(_self)[0].clone(), string_any("Boolean"))'))
+        assert(captured.includes('[runtime.clone()].to_array()'))
+    },
     // A non-tail call still reads the closure's `self_` as a Function.
     self: () => {
         /** @type {Exp} */
@@ -980,6 +991,8 @@ export const proof = {
             assertEq(needsRuntime(['Object.is']), true)
             // the entry check calls the runtime's `in` body
             assertEq(needsRuntime(['in', 'x', ['{}', []]]), true)
+            assertEq(needsRuntime(['Boolean', 0]), true)
+            assertEq(needsRuntime(['=>', 1, [], ['Boolean', ['arg', 0]]]), true)
             assertEq(needsRuntime(['[]', [1, ['Number.isNaN']]]), true)
             assertEq(needsRuntime(['=>', 0, [], ['Object.is']]), true)
             assertEq(needsRuntime(['.', ['{}', []], 'b', ['|()', []]]), true)

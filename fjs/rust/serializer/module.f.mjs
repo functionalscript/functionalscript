@@ -518,6 +518,14 @@ const operation = (s, n, result) => {
             if (s.runtime === null) { return error(['an in operator with no runtime in scope; the core may not use what it defines', n]) }
             return map1(fallible(result))(flat(map1(v => cat([`Any::call((Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('in'), ').end())?, [', stringCall('string_any')(n[1]), `, ${v}]`, toArray, toAny, ')']))(expression(s, n[2], false))))
         }
+        // Boolean is the shared `!!value` body. The tuple evaluates its
+        // operand before lookup, with both outside the new bindings' scope.
+        case 'Boolean': {
+            if (s.runtime === null) { return error(['a Boolean operator with no runtime in scope; the core may not use what it defines', n]) }
+            return map1(fallible(result))(flat(map1(v => cat(['{ ', kw('let'), ' (boolean_value, boolean_body) = (', v,
+                `, (Any::dot(${s.runtime}.clone(), `, stringCall('string_any')('Boolean'), ').end())?); ',
+                'Any::call(boolean_body, [boolean_value]', toArray, toAny, ') }']))(expression(s, n[1], false))))
+        }
         case ',': {
             const values = n[1]
             return values.length === 0 ? map1(pure(result))(primitiveExpr(undefined))

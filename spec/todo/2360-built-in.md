@@ -23,10 +23,12 @@ no later than this file admits any of it, a name at a time
 
 A ticked box below marks a name the language is to admit, not one it admits
 today. Implemented reserved globals are `Infinity`, `NaN` and `undefined`
-([numbers](../values/numbers/README.md)), `Number` and `String`, as the
-conversions `Number(exp)` and `String(exp)`, their
+([numbers](../values/numbers/README.md)), `Boolean`, `Number`, `String` and
+`BigInt`, as their conversion operators, their
 words reserved ([number conversion](../conversions/number/README.md),
-[string conversion](../conversions/string/README.md)), and `Array`, as the
+[string conversion](../conversions/string/README.md),
+[bigint conversion](../conversions/bigint/README.md),
+[boolean conversion](../conversions/boolean/README.md)), and `Array`, as the
 right operand of [`instanceof`](../operators/instanceof/README.md), and `Object` and
 `Number`, as the namespaces of the static functions `Object.is` and the
 four `Number` predicates, each a value
@@ -69,7 +71,11 @@ name not yet decided, or, where it says so, never admitted.
       and `Object.fromEntries` and `Object.keys`, their bodies in the runtime
       (the records below)
 - [ ] `Function`
-- [ ] `Boolean`
+- [x] `Boolean` — the conversion operator `Boolean(value)`, implemented by
+      the common runtime body `value => !!value`. `Boolean()` supplies
+      `undefined`; the word cannot be bound or read as a function value.
+      See [boolean conversion](../conversions/boolean/README.md) and the
+      [approved proposal](https://github.com/functionalscript/functionalscript/blob/cb40112b480cb83ce55bfbb19ba07ddbe390e8c6/spec/todo/boolean-operator.md).
 - [ ] `Symbol`
 
 ##### `Object.entries` proposal and approval

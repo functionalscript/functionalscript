@@ -3,7 +3,7 @@ import { examplePicker } from '../../website/demo/examples/module.f.js'
 import { dependenciesOf, examples } from './module.f.js'
 import { isFileName } from '../demo_files/module.f.mjs'
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     /**
      * The picker refuses a repeated name or source, so building one over the
      * shared list is the proof that every demo's drop-down can be built from
@@ -13,6 +13,12 @@ export const proof = {
         const picker = examplePicker(examples)
         assertEq(picker.idOf(picker.pick('Hex escape')), 'hex-escape')
         assertEq(picker.sourceOf('hex-escape'), picker.pick('Hex escape'))
+    },
+    booleanConversion: () => {
+        const picker = examplePicker(examples)
+        assertEq(picker.idOf(picker.pick('Boolean conversion')), 'boolean-conversion')
+        assertEq(picker.sourceOf('boolean-conversion'), picker.pick('Boolean conversion'))
+        assertEq(dependenciesOf('boolean-conversion').length, 0)
     },
     distinct: () => {
         const picker = examplePicker(examples)
@@ -26,4 +32,4 @@ export const proof = {
             for (const [name] of dependenciesOf(id)) { assert(isFileName(name), `${id}: ${name}`) }
         }
     },
-}
+})

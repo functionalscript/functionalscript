@@ -23,7 +23,7 @@
 
 import { isArray } from '../../../types/array/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
-import { isNullish } from '../semantics/module.f.mjs'
+import { isNullish } from '../semantics/module.f.js'
 
 /** The evaluated elements of an iterable value, or null. @param {EdagValue} value */
 const spreadValues = value => {

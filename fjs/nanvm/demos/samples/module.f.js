@@ -67,6 +67,10 @@ export const samples = [
         [2, ['returned', '"text"']],
         [3, ['threw', '["unknown",3]']],
     ] },
+    { name: 'boolean_conversion', directory: 'spec/conversions/boolean', calls: [
+        [0, ['returned', '[false,false,true,true,true]']],
+        [1, ['returned', '[true,false,true,true,true]']],
+    ] },
     { name: 'number_conversion', directory: 'spec/conversions/number', calls: [
         [7, ['returned', '[7,16,1,7]']],
         [0.5, ['returned', '[0.5,16,1,0.5]']],

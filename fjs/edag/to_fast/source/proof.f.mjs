@@ -71,6 +71,7 @@ export const proof = {
         assertEq(reason(['memberPresent', ['[]', []], ['Number', 0]], true), 'an internal member-presence query')
         assertEq(reason(['()', ['=>', 0, [], 1], [['args']]]), 'a args node')
         assertEq(reason(['+', 1, 2]), null)
+        assertEq(reason(['Boolean', ['undefined']]), null)
         assertEq(reason(['+', 1]), 'a unary + node')
         assertEq(reason([',', []]), 'a comma with fewer than two operands')
         assertEq(reason([',', [1]]), 'a comma with fewer than two operands')
