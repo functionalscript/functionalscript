@@ -1037,7 +1037,7 @@ emitter stays a total function from a checked module, as in
 | `add`, `div`, `shr`, `lt` and the rest | the instruction on the carrier, `_s` or `_u` by range | the operator on the carrier, which can neither overflow nor panic |
 | `f64`, `f64c` | `f64` | `f64` |
 | product | one local per field, multi-value results | a tuple |
-| `load`, `store` | `i64.load`, `i32.store16` and the like, on linear memory | an indexed read or write of the heap buffer, in safe code ([pointer-width.md](./pointer-width.md#decision)) |
+| `load`, `store` | `i64.load`, `i32.store16` and the like, on linear memory | an indexed read or write of the one buffer that holds the heap and the static objects, in safe code ([pointer-width.md](./pointer-width.md#decision)) |
 | `code(…)` | a table index, called with `call_indirect` | a function pointer |
 | branch on a small integer | `br_table` | `match` |
 | `loop_` with parameters | `loop` with its parameters as locals | `loop` over `let mut` bindings |

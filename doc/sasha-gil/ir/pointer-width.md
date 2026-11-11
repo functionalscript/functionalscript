@@ -128,7 +128,11 @@ The owner chose A in its safe-buffer variant on 2026-11-11. The Rust
 heap is one buffer, which the emitted Rust reads and writes through
 indexed loads and stores in safe code. `p` is an offset into that
 buffer, as it is into WASM's linear memory, so both targets share one
-layout and one heap format. `try_from_bits` has no reference variants on
+layout and one heap format. Static objects live in the same buffer, as a
+WASM data segment lives in linear memory: the runtime copies them in at
+start-up, so `heap` and `lit` both hold offsets into one address space
+and only the sign bit tells a counted object from an immortal one.
+`try_from_bits` has no reference variants on
 either target, and references cross the host boundary only as handles.
 
 [type-system.md](./type-system.md) records it in three places: the
