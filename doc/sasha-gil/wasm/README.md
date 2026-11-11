@@ -109,6 +109,9 @@ inliner.
 
 ## Open questions
 
+Smaller improvements and gaps found in reviews are kept in
+[TODO_DESIGN.md](./TODO_DESIGN.md).
+
 The designs propose an answer to each of the first five. They stay open
 until the owner decides them.
 
