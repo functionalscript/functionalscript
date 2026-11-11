@@ -10,7 +10,7 @@ import type { Exp, IntrinsicId, Primitive as EdagPrimitive, StaticId } from '../
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Check, Check3 } from '../../rtti/ts/types.ts'
-import type { _value, value, values, array, property, object, func, entryFunction, hasEntryFunction, intrinsicFunction, staticFunction } from './module.f.mjs'
+import type { _value, value, values, array, property, object, func, entryFunction, hasEntryFunction, intrinsicFunction, staticFunction } from './module.f.js'
 
 /** Evaluated primitives include EDAG's tagged undefined. */
 export type Primitive = EdagPrimitive | readonly ['undefined']

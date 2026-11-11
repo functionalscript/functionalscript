@@ -7,7 +7,7 @@
 
 [`analysis`](../analysis/module.f.mjs) builds a table that merges structurally
 equal identity-free nodes within each scope; `identityAnalysis` retains source
-node identity. The latter uses [`sharing`](../sharing/module.f.mjs)'s
+node identity. The latter uses [`sharing`](../sharing/module.f.js)'s
 `sharedNodesOf` for repeated source-object counts. Distinct equal allocations
 remain distinct, while two edges to the same allocation retain sharing.
 
@@ -86,7 +86,7 @@ need not enforce the same first failing operation in generated output.
 
 ### Related
 
-- [`sharing`](../sharing/module.f.mjs) — linked-object identity queries.
+- [`sharing`](../sharing/module.f.js) — linked-object identity queries.
 - [analysis](./analysis.md) — merged and identity-table contracts.
 - [`to_fast`](../to_fast/README.md) — common output placement and normalization.
 - [`edag/rust` proofs](../rust/proof.f.mjs) — raw graph adapter regression cases.

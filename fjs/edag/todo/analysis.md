@@ -170,7 +170,7 @@ Two consumers then follow, and share amnesia's operations:
   occurrences merge again. It now writes from `identityAnalysis`, which
   merges nothing: every node the graph shares is one `const`, whatever its
   kind, and two equal nodes are two, as
-  [`../sharing`](../sharing/module.f.mjs) counts them.
+  [`../sharing`](../sharing/module.f.js) counts them.
 - **The value outputs**, `.data.js` and `.json`, read no table. The memo
   executor returns an `EdagValue`; `toData` preserves its sharing as ordinary
   JavaScript identity, `[s, s]` one array. The DataJS serializer hoists by

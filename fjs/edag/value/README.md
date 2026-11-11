@@ -3,7 +3,7 @@
 What an EDAG evaluates to, and every operation on it. A value is data or a
 function: data is a primitive, or an array or object node whose items are
 values; a function keeps its evaluated captures and its body as an
-unevaluated EDAG expression. [`module.f.mjs`](./module.f.mjs) holds the shape
+unevaluated EDAG expression. [`module.f.js`](./module.f.js) holds the shape
 schemas, [`types.ts`](./types.ts) the `EdagValue` type, and the directories
 below hold the operations both interpreters, [`memo`](../memo/README.md) and
 [`amnesia`](../amnesia/README.md), share.
