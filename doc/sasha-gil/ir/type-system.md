@@ -143,6 +143,13 @@ const i32 = i(32) // int(-(2n ** 31n), 2n ** 31n - 1n)
   `i32.lt_s` or `i32.lt_u`, from the operands' ranges. A comparison of a
   `u64` with an `i64` is exact too: it is made in a carrier that holds
   both.
+- **Two words are for intermediates.** `add`, `sub`, `mul`, the bitwise
+  operations, shifts and comparisons take two-word operands. `div`, `rem`
+  and the conversions to and from floats take one word: the operands of a
+  division both fit `u64`, or both fit `i64`. WASM has no short form for
+  the wide ones, so the checker refuses them on every target, and a
+  module never compiles for Rust alone
+  ([open question 12](#open-questions)).
 
 ### One exact operation, four fits
 
@@ -168,9 +175,9 @@ the low n bits of the result depend only on the low n bits of the
 operands, and a left shift is a multiplication. So a wide intermediate
 whose use fits one word costs nothing: `wrap(u64, mul(a, b))` is one
 `i64.mul`. Two words are computed only where a wide value reaches a
-comparison, a division, a right shift or a local. The Rust emitter uses
-`u128` there, and the WASM emitter runs a small pass first that rewrites
-two-word operations into one-word ones.
+comparison, a right shift or a local. The Rust emitter uses `u128` there,
+and the WASM emitter runs a small pass first that rewrites two-word
+operations into one-word ones.
 
 Bigint code is the case that needs it. This is one step of a
 multiplication over `u64` digits:
@@ -205,14 +212,55 @@ all of them:
 - **Types remove checks.** Where the operand types exclude the failure,
   both forms are total and no check is emitted: `div` by an
   `int(1n, 9n)`, or `at` on an `array(T, 8)` with an `int(0n, 7n)` index.
-- **No target's corner case leaks in.** The quotient of two `i64` values
-  has type `int(-(2n ** 63n), 2n ** 63n)`, one value wider than `i64`,
-  because −2^63 / −1 is 2^63. The code fits it with `narrow`, `wrap` or
-  `clamp`, and the emitter spells that choice. WASM's trap and Rust's
-  panic for this case never decide the meaning.
 - **Ask, do not predict.** `try_at` asks for the item and branches on the
   answer. That replaces "compute whether the index fits, then read",
   which principle 5 rules out.
+
+### No target's corner case leaks in
+
+Target instructions have corner cases. A signed division traps in WASM
+and panics in Rust on a zero divisor and on −2^63 / −1. Rust's `%` also
+panics on −2^63 % −1, where the remainder is 0 and WASM's `i64.rem_s`
+returns it. A WASM shift takes its amount modulo the width of its word,
+and in a Rust debug build an amount that large panics. WASM's
+`i64.trunc_f64_s` traps on a NaN and on a float out of range, where
+Rust's `as` saturates. None of these decides what an operation means.
+
+- **The meaning is the exact one.** The quotient of two `i64` values has
+  type `int(-(2n ** 63n), 2n ** 63n)`, one value wider than `i64`,
+  because −2^63 / −1 is 2^63. The code fits it with `narrow`, `wrap` or
+  `clamp`. A `u64` shifted right by 64 or more is 0.
+- **The low level excludes the corner cases.** Its `div` and `rem` have
+  a divisor whose type excludes 0, and operands and a quotient that
+  share one word. Its shifts have an amount below the width of their
+  word. A float has no range in its type, so the truncation of a float
+  is the saturating one there, which WASM's `i64.trunc_sat_f64_s` and
+  Rust's `as` compute alike. So each of them is total, and every target
+  computes the same value for it.
+
+[Data lowering](#emitting-wasm-and-rust-from-the-same-module) adds the
+tests that the types need. A division is split on its divisor:
+
+```js
+// div(a, b) for two i64 values
+if_(lt(b, 0n),
+    // where b is not −1, it is at most −2
+    if_(eq(b, -1n), sub(0n, a), div(a, b)),
+    // where b is not 0, it is at least 1
+    if_(eq(b, 0n), trap('division by zero'), div(a, b)))
+```
+
+Each `div` that is left has a quotient that fits `i64` by the ordinary
+range rules. `rem` is split in the same way, with 0 in the −1 branch. A
+shift whose amount can reach the width of its word gets a test of the
+amount: a full shift left leaves 0 in that word, and a full shift right
+gives 0, or −1 for a negative operand. A `trunc` gets the tests for a
+NaN and for the bounds.
+
+The split also shows why one interval per type is enough
+([open question 2](#open-questions)). An interval cannot say "not zero"
+or "not −1", but a sign test puts each of them at an end of a range,
+where the next test removes it.
 
 ### Flow refinement is two rules
 
@@ -227,7 +275,9 @@ in scope, and two rules are enough:
    `if_` on `lt`, `le`, `eq` or one of their negations, an operand that is
    a local gets the range that the other operand's range allows. After
    `lt(i, n)` with `n: u(31)`, the true branch has
-   `i: int(0n, 2n ** 31n - 2n)`.
+   `i: int(0n, 2n ** 31n - 2n)`. Where an `eq` is false, a local loses a
+   value only at an end of its range: in the false branch of
+   `eq(b, 0n)`, a `b: u64` is at least 1.
 
 The checker keeps one range per local and nothing that relates two
 locals. After `lt(i, n)` it knows the range of `i`, not that `i` is below
@@ -676,7 +726,9 @@ low level                     checked: integers, floats, memory
   ranges, floats, products and code, and adds `load` and `store` on a
   linear memory. Sums, objects and references are gone, and ownership
   stays only for a sealed imported type (below). Integers are still
-  exact there.
+  exact there, and each integer operation is one that every target
+  computes exactly
+  ([No target's corner case leaks in](#no-targets-corner-case-leaks-in)).
 - **Data lowering does what the declarations say.** A `match` on declared
   bits becomes mask tests, a field read becomes a shift or a `load`, and
   `alloc`, `dup`, `drop` and `release` become calls into Heap and updates
@@ -776,8 +828,8 @@ down, nothing depends on who wrote a function.
   [IR choice 13](./ir-design.md#13-an-unpacked-string-is-an-ir-type-laid-out-by-the-runtime-module)
   is a type the String module exports. It borrows its source, as a type
   that holds a view does, and its slots are the locals that the type's
-  layout takes, so a manifest's slot list is derived. BigInt, and any later module, follows the same
-  rule, which closes the to-do
+  layout takes, so a manifest's slot list is derived. BigInt, and any
+  later module, follows the same rule, which closes the to-do
   ["one rule for BigInt and later types"](../wasm/TODO_DESIGN.md#one-rule-for-bigint-and-later-types).
 - Template form and import form become a choice made when linking. In
   template form, the module's IR is compiled into the program and inlined.
@@ -957,6 +1009,7 @@ ones. It is the same for every target:
 | packed array | shifts by index times width |
 | `ref(O)`, `uniq(O)`, `stat(O)`, `view(O)` | an address, as an integer |
 | field and tail reads | the bounds check, then a `load` |
+| `div`, `rem`, shifts and `trunc` | the tests that the types need, then an operation that [cannot fail](#no-targets-corner-case-leaks-in) |
 | `alloc`, `push`, `set`, `freeze` | calls into Heap, and `store`s |
 | `dup`, `drop` | the mask test from the layout, then a `load`, an `add` and a `store` on the count, and `release` at zero |
 | `match` | a branch on the tag, or mask tests on bits |
@@ -970,7 +1023,7 @@ emitter stays a total function from a checked module, as in
 | --- | --- | --- |
 | integer in one word | an `i32` or `i64` local, the narrower that holds the range | `u32`, `i32`, `u64` or `i64` |
 | integer in two words | two `i64` locals, after the wide-integer pass | `u128` or `i128` |
-| `add`, `lt` and the rest | the instruction on the carrier, `_s` or `_u` by range | the operator on the carrier, which cannot overflow |
+| `add`, `div`, `shr`, `lt` and the rest | the instruction on the carrier, `_s` or `_u` by range | the operator on the carrier, which can neither overflow nor panic |
 | `f64`, `f64c` | `f64` | `f64` |
 | product | one local per field, multi-value results | a tuple |
 | `load`, `store` | `i64.load`, `i32.store16` and the like, on linear memory | as [pointer-width.md](./pointer-width.md) decides |
@@ -980,14 +1033,18 @@ emitter stays a total function from a checked module, as in
 | `trap(reason)` | `unreachable`, the reason in a side table | `panic!(reason)` |
 | opaque imported type | its carrier, and imports | the runtime's type, with moves and `clone` |
 
-- **The wide-integer pass** is WASM's only. It rewrites a two-word `add`,
-  `sub`, `mul`, comparison or constant shift into one-word instructions,
-  and refuses the rest until a use appears. WASM's wide-arithmetic
-  proposal, with `i64.add128` and `i64.mul_wide_u` (from memory), would
-  make it one instruction each.
+- **The wide-integer pass** is WASM's only, and it refuses nothing that
+  reaches it. `add` and `sub` carry between the words, `mul` adds partial
+  products, the bitwise operations and comparisons go word by word, and a
+  shift moves bits across the words, with a branch when its amount is
+  not a constant. `div`, `rem` and the float conversions never arrive
+  with two words, because the checker takes them in one word only
+  ([Integers are exact](#integers-are-exact)). WASM's wide-arithmetic
+  proposal, with `i64.add128` and `i64.mul_wide_u` (from memory), has an
+  instruction for each of the first three.
 - **Rust re-checks the ranges.** If the range analysis is right, no Rust
-  operator in the output can overflow. A debug build tests that on every
-  run, for free.
+  operator in the output can overflow or panic, and that includes `/`,
+  `%` and the shifts. A debug build tests that on every run, for free.
 - **Rust keeps its second check for program code.** An opaque `Any` is
   moved, borrowed and cloned in the emitted Rust, so a mistake of the
   lifetime pass is still a borrow-checker error there
@@ -1129,8 +1186,10 @@ draft.
    Rust's allocator otherwise.
 2. **Integer refinements.** One interval per type, or sets of intervals,
    as [`fjs/types/range_set`](../../../fjs/types/range_set/module.f.js)
-   has? Recommended: one interval. Division no longer asks for sets,
-   because `div` checks its own divisor.
+   has? Recommended: one interval. Division no longer asks for sets:
+   `div` checks its own divisor, and the lowering excludes 0 and −1 on
+   each side of a sign test
+   ([No target's corner case leaks in](#no-targets-corner-case-leaks-in)).
 3. **Generics.** Host functions only, or type parameters in the IR itself?
    Recommended: host functions only, so the IR stays monomorphic.
 4. **Loop parameters.** Do they replace `var_` and `set`? Recommended:
@@ -1161,9 +1220,11 @@ draft.
     with `try_unique`. Recommended: keep L0 as it is, and measure before
     adding `own` variants.
 12. **Wide integers.** Is exactness up to 128 bits worth the wide-integer
-    pass, and may a two-word integer be a field? Recommended: yes for
+    pass, and how far does a two-word integer go: may it be a field, an
+    operand of `div`, or converted to a float? Recommended: yes for
     locals, parameters and results, since `u64` arithmetic has no exact
-    type without them; fields when a use appears.
+    type without them; the rest when a use appears. A wide division
+    would then be a function written in the IR, which the pass calls.
 13. **Evaluation at compile time.** The interpreter can run a runtime
     constructor while compiling and emit the object as `stat` data. A
     literal then costs nothing at start-up, and `init` builds nothing.
@@ -1182,13 +1243,19 @@ draft.
 The second review read the first draft against the notes it builds on,
 and the [comparison round](./comparison.md) read it against other IRs.
 The Codex finding on the first draft, about pointer width, has its own
-note, [pointer-width.md](./pointer-width.md).
+note, [pointer-width.md](./pointer-width.md). Codex's review of this
+revision found a division that the WASM emitter could not spell and a
+remainder that panics in Rust, and
+[No target's corner case leaks in](#no-targets-corner-case-leaks-in)
+answers both.
 
 | Topic | First draft | Now | Why |
 | --- | --- | --- | --- |
 | Integer width | at most 64 bits; `add_carry` and `mul_wide` | exact up to 128 bits | `add` of two `u64` values had no type, so `wrap` could not even be written around it |
 | Fitting | `wrap`, `narrow` and `try_narrow` as primitives | four definitions over ordinary operations | fewer primitives, and one rule for Rust's and CLIF's many |
-| Division | the divisor's type must exclude 0 | `div` traps, `try_div` asks, and the type can still remove the check | an interval cannot say "not zero" for a signed divisor; −2^63 / −1 was not covered |
+| Division | the divisor's type must exclude 0 | `div` traps, `try_div` asks, and the type can still remove the check; the first draft's rule is now the low level's | an interval cannot say "not zero" for a signed divisor; −2^63 / −1 was not covered |
+| Corner cases of targets | not covered | excluded by type at the low level, where data lowering adds the tests | Rust's `%` panics on −2^63 % −1, and WASM takes a shift's amount modulo the width |
+| Wide operands | not covered | `div`, `rem` and float conversions take one word | WASM has no short form for them, and an emitter may not refuse a checked module |
 | Failing operations | case by case | every check has two forms | one rule, and DESIGN.md §6 |
 | Refinement | by example | two rules, sound because no local is reassigned | the checker has to be small enough to trust |
 | Sums | flat, with groups only in a layout | trees, where every node is a type | groups compose across modules, and a shared field has a type |

@@ -339,8 +339,10 @@ values are immutable.
   plan, `div` checks for a zero divisor only when the divisor's type
   includes 0. The second case is exact arithmetic: −2^63 / −1 is 2^63, so
   the quotient of two `i64` values has a type one value wider than `i64`,
-  and the code says how to fit it. The plan rounds toward zero, as WASM,
-  Rust and JavaScript's BigInt do.
+  and the code says how to fit it. Data lowering tests the divisor for
+  both cases, so the division that reaches a target
+  [cannot fail](./type-system.md#no-targets-corner-case-leaks-in). The
+  plan rounds toward zero, as WASM, Rust and JavaScript's BigInt do.
 - **Overflow.** CLIF's `iadd` wraps, `uadd_overflow` also returns an
   overflow flag, `uadd_overflow_trap` traps, and the `_cin` forms take a
   carry in. MIR checks overflow in debug builds and skips the checks in
