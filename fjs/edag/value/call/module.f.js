@@ -45,7 +45,7 @@ export const bind = (length, values) => {
     /** @type {Values} */
     let fixed = []
     for (let i = 0; i < length; i += 1) {
-        fixed = [...fixed, i < values.length ? values[i] : ['undefined']]
+        fixed = [...fixed, i < values.length ? values[Number(i)] : ['undefined']]
     }
     return [fixed, ['[]', values.slice(length)]]
 }

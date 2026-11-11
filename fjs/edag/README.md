@@ -103,7 +103,7 @@ templates, while sharing within that graph is preserved. Body code stays
 unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
 the retained body with a fresh invocation cache.
 
-[`value/call`](value/call/module.f.mjs) prepares bare calls over represented
+[`value/call`](value/call/module.f.js) prepares bare calls over represented
 values. It resolves deferred arguments and spreads, pads missing fixed
 arguments with tagged undefined and creates a fresh rest array per call.
 Callee and argument failures propagate unchanged; arguments resolve before

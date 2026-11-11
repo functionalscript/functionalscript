@@ -11,7 +11,7 @@
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { identityAnalysis } from '../../../edag/analysis/module.f.mjs'
 import { invoke, memo } from '../../../edag/memo/module.f.mjs'
-import { call } from '../../../edag/value/call/module.f.mjs'
+import { call } from '../../../edag/value/call/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { _defaultExport, unresolved } from '../../../compiler/edag/module.f.mjs'
 import { parse } from '../../../compiler/source/module.f.mjs'

@@ -45,7 +45,7 @@ written once in [`../values.md`](../values.md), and the root
 |[`coercion`](./coercion/module.f.mjs), [`convert`](./convert/module.f.mjs)|objects to primitives, primitives to strings and numbers|
 |[`control`](./control/module.f.js)        |`throw`, `?:` and sequencing, demanding only the operands they select        |
 |**Calling**                                |                                                                              |
-|[`call`](./call/module.f.mjs)              |calls of represented functions, arguments resolved left to right             |
+|[`call`](./call/module.f.js)              |calls of represented functions, arguments resolved left to right             |
 |[`method`](./method/module.f.mjs)          |built-in method calls, resolved through the runtime the executor was given   |
 |[`array_method`](./array_method/module.f.mjs)|`map`, `filter`, `sort` and the other pure array methods                   |
 |**Checking and leaving**                   |                                                                              |

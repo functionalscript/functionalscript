@@ -8,7 +8,7 @@
 `array` in [`array`](../array/module.f.js), `object` in
 [`object`](../object/module.f.js), `func` in
 [`function`](../function/module.f.js) and `prepare`/`call` in
-[`call`](../call/module.f.mjs) take deferred operands — `ValueThunk`,
+[`call`](../call/module.f.js) take deferred operands — `ValueThunk`,
 `ObjectItems`, a `callee: ValueResult`. Their consumers outside proofs,
 [`fjs/edag/operations`](../../operations/module.f.mjs) and the dispatchers
 under `value/`, already hold evaluated values and wrap them to fit:

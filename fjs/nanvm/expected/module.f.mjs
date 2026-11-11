@@ -42,7 +42,7 @@ import { stringToU8List } from '../../text/utf8/module.f.mjs'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { assertOk } from '../../asserts/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
-import { withoutNegativeZero } from '../corpus/module.f.mjs'
+import { withoutNegativeZero } from '../corpus/module.f.js'
 import { encodeScalar } from '../../basen/base16/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 

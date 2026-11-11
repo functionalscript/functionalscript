@@ -18,7 +18,7 @@ import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
-import { settle } from '../value/call/module.f.mjs'
+import { settle } from '../value/call/module.f.js'
 
 /** @type {Context} */
 const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
