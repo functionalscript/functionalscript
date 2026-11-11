@@ -74,7 +74,8 @@ and reads it through indexed loads and stores in safe code, never through
 the emitters has only integers, floats and memory: both emitters then
 read the heap the same way. A bad offset becomes a bounds-check panic or
 a wrong value inside the buffer, as in WASM, and never undefined
-behavior. So `try_from_bits` could accept reference variants again. The
+behavior. A wrong value is still wrong, so `try_from_bits` keeps refusing
+reference variants and references still cross as handles. The
 buffer may grow and move, because no address is held across an
 allocation. Each access pays a bounds check, which the compiler removes
 where it can prove the index in range.
