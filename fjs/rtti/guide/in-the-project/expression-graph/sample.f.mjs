@@ -9,7 +9,7 @@
  */
 
 import { projectSchema } from '../../../schema-demo/module.f.mjs'
-import { op1Id } from '../../../../edag/module.f.mjs'
+import { op1Id } from '../../../../edag/module.f.js'
 import { value as edagValue } from '../../../../edag/value/module.f.mjs'
 
 /** @type {readonly DemoExample[]} */

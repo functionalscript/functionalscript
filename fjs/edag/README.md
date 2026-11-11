@@ -11,7 +11,7 @@ call starts fresh, per the per-invocation memo scope in
 [interpret-edag.md](../compiler/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
-decide semantic equivalence. The schema in [module.f.mjs](module.f.mjs) owns
+decide semantic equivalence. The schema in [module.f.js](module.f.js) owns
 node kinds and operand shapes independently of its producers and executors.
 The [FunctionalScript](../compiler/) compiler lowers parsed modules to EDAG
 ([compile-modules-to-edag.md](../compiler/todo/compile-modules-to-edag.md));
@@ -22,7 +22,7 @@ the compiler serializer's function-text renderer.
 
 |Module                                |Holds                                                                    |
 |--------------------------------------|-------------------------------------------------------------------------|
-|[`.`](module.f.mjs)                   |the schema: every node kind and its operands                              |
+|[`.`](module.f.js)                   |the schema: every node kind and its operands                              |
 |[`value`](value/README.md)            |what a graph evaluates to, and every operation on it                     |
 |[`analysis`](analysis/README.md)      |one table of a graph's nodes, scopes and shared entries                  |
 |[`sharing`](sharing/README.md)        |which nodes are reached from more than one place                         |
@@ -249,7 +249,7 @@ uniqueness is structural — the wrong shapes are unspellable rather than
 rejected by a validation pass a producer has to remember to run.
 
 The shape is defined once, as an [RTTI](../rtti/) schema in
-[module.f.mjs](module.f.mjs) — the specification of record, checkable at
+[module.f.js](module.f.js) — the specification of record, checkable at
 runtime with `validate(exp)` (shape only — see Caveats). [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
 two cannot drift. Every tuple in the schema is closed — none of them says
@@ -302,7 +302,7 @@ are compared in [execution-models.md](execution-models.md).
 
 ## Literal descriptions
 
-`fromValue(other)(value)` in [module.f.mjs](module.f.mjs) encodes a typed
+`fromValue(other)(value)` in [module.f.js](module.f.js) encodes a typed
 `Plain<F>` description as an EDAG expression. Primitive leaves stay primitive;
 `undefined`, arrays and objects become literal nodes. Object members follow
 enumeration order and retain explicitly present `undefined` values. Every
@@ -325,7 +325,7 @@ first two counts (`+`, `-`)
 are their own kinds, because what distinguishes them is the hidden control
 flow they own rather than how many operands they take; see
 [Chains](#chains). This table is an overview; the contract of
-record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
+record for each node is the JSDoc in [module.f.js](module.f.js) — on the
 node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`/`op3Id`
 vocabularies.
 

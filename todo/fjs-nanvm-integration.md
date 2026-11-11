@@ -144,53 +144,53 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
-Measured from base revision `ddb70468f`, with the rename-only conversions in
-[#3755](https://github.com/functionalscript/functionalscript/pull/3755).
-Twenty-five complete authored sources are accepted as written and renamed to
-`.f.js`: twelve `module.f.mjs` implementations and thirteen RTTI guide
-`sample.f.mjs` files. Runtime, proof, type and documentation references follow
-the renames; the sources need no semantic rewrites.
+Measured from base revision `6ec5f8bdc`, with the source rewrites and two
+whole-module conversions in
+[#3756](https://github.com/functionalscript/functionalscript/pull/3756).
+[`edag`](../fjs/edag/module.f.js) and
+[`media/json/rtti`](../fjs/media/json/rtti/module.f.js) now compile using the
+current syntax and are renamed to `.f.js`, with their runtime, proof, type and
+documentation references updated.
+
+JSON's `unknown` thunk builds its recursive record and array branches from
+its own binding. EDAG builds expression and option-chain branches around
+already-bound self thunks, with leaf schemas before their consumers. Both
+retain their public exports, declared schema types and accepted value sets.
+JSON's canonical schema remains identical; EDAG expansions can create fresh
+internal descriptors with different identities and diagnostic rule labels.
+EDAG's `fromValue` uses the compiled `types/array` `isArray` helper, and
+`nativeFunctionText` precedes its `staticText` consumer.
 
 Runtime imports and re-exports were rediscovered from JavaScript ASTs under
 `fjs/` and `spec/`, excluding generated paths, proofs and JSDoc-only imports.
 A leaf has only authored `.f.js` runtime dependencies. Each candidate's full
 source was checked through the compiler's `resolve` and `runNodeEffect`,
-without generating output. After accepting a pass, its files were treated as
-renamed before finding the next leaves. The four completed passes are:
+without generating output. The first pass accepted the two rewritten
+modules and refused thirteen other leaves. Treating those modules as renamed
+exposed three more leaves, all refused in the second pass. The actual renamed
+runtime graph matches that simulated graph, and all authored `.f.js` runtime
+dependencies are authored `.f.js`.
 
-1. Three implementations: `edag/value/slice`, `emergent_testing/cov/check`
-   and `types/array`.
-2. Five implementations: `edag/value/entries`, `edag/value/function`,
-   `edag/value/object`, `rtti` and `types/patricia_trie`.
-3. The `effects/schema` implementation and thirteen `rtti/guide/` samples:
-   `outputs/data-form`, `outputs/json-schema`, `outputs/typescript`,
-   `readers/errors`, `readers/parse-and-validate`,
-   `schemas/arrays-and-records`, `schemas/closed-containers`,
-   `schemas/constants`, `schemas/open-containers`, `schemas/option`,
-   `schemas/primitives`, `schemas/recursion` and `schemas/unions`.
-4. Three implementations: `rtti/guide/outputs`, `rtti/guide/readers` and
-   `rtti/guide/schemas`.
-
-Implementation paths above name `fjs/<path>/module.f.js`; sample paths name
-`fjs/rtti/guide/<path>/sample.f.js`. The compiler-compatible population grows
-from 204 to **229 authored `.f.js` files**; authored non-proof `.f.mjs` files
-fall from 435 to **410**. All fifteen remaining leaves are refused as written,
-so there is no further rename-only pass.
+The compiler-compatible population grows from 229 to **231 authored `.f.js`
+files**; authored non-proof `.f.mjs` files fall from 410 to **408**. All sixteen
+remaining leaves are refused as written, so no further rename-only pass is
+available.
 
 Every leaf and exposed path in the table names `fjs/<path>/module.f.mjs`.
-Locations are one-based `line:column` in the unchanged source at `ddb70468f`.
-Exposure counts are immediate: rename that leaf alone after the completed
-passes, then rediscover leaves without assuming that another blocked source
-has changed.
+Locations are one-based `line:column` in the unchanged blocked sources at
+`6ec5f8bdc`. Exposure counts are immediate: rename that leaf alone after the
+two conversions, then rediscover leaves without assuming that another
+blocked source has changed.
 
 | Leaf still `.f.mjs` | First refused construct (compiler refusal) | Location | Additional leaves its conversion exposes |
 | --- | --- | --- | --- |
 | `edag/from_fast/loop/completions` | `new Set` in a spread (`new is not admitted`) | `31:17` | 0 |
-| `edag` | Forward reference to `primitive` in `_exp` (`const not found`) | `67:5` | 3: `edag/sharing`, `edag/value`, `edag/value/semantics` |
-| `js/ast` | `new Map` for declaration positions (`new is not admitted`) | `54:23` | 3: `edag/from_fast/loop/owning`, `js/ast/control`, `js/ast/sugar/effects` |
+| `edag/sharing` | Forward reference to `eagerOperandsOf` in `operandsOf` (`const not found`) | `125:29` | 0 |
+| `edag/value` | Forward reference to `array` in `_value` (`const not found`) | `31:62` | 0 |
+| `edag/value/semantics` | Global `Boolean` in `truthy` (`const not found`) | `34:32` | 3: `edag/value/array`, `edag/value/at`, `edag/value/control` |
+| `js/ast` | `new Map` for declaration positions (`new is not admitted`) | `54:23` | 4: `edag/from_fast/loop/owning`, `js/ast/control`, `js/ast/returns`, `js/ast/sugar/effects` |
 | `js/string_escape` | `new Map(pairs)` in `lookup` (`new is not admitted`) | `94:17` | 2: `ci/package`, `nanvm/demos/spell` |
 | `media/datajs/vectors` | Global `JSON.stringify(value)` (`const not found`) | `97:33` | 0 |
-| `media/json/rtti` | Forward reference to `object` in `unknown` (`const not found`) | `43:48` | 0 |
 | `media/nix` | `[initial, ...trailing]` string destructuring (`rest element not supported`) | `68:21` | 0 |
 | `media/rust` | Global `Math.floor` in `exponentOf` (`const not found`) | `142:21` | 0 |
 | `nanvm/corpus` | String-key access `exceptions[name]` (`computed key is not Number(...)`) | `48:92` | 0 |
@@ -201,10 +201,19 @@ has changed.
 | `types/set` | `new Set()` in the union monoid (`new is not admitted`) | `43:15` | 0 |
 | `website/demo/secp` | Global `Math.sqrt(square)` (`const not found`) | `118:76` | 0 |
 
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted sources and update their references,
-then rediscover and repeat until a pass accepts none. Keep earlier
-measurements pinned to their recorded revisions.
+For the next pass, rediscover the runtime dependency leaves, compile every
+candidate, rename accepted sources and update their references, then
+rediscover and repeat until a pass accepts none. Keep earlier measurements
+pinned to their recorded revisions.
+
+#### Leaf migration fixed point at `6ec5f8bdc` (historical)
+
+The [full audit](https://github.com/functionalscript/functionalscript/blob/6ec5f8bdcda6fe3ed1c7e3c83e5d403ad897e925/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point)
+records the twenty-five rename-only conversions across four passes in
+[#3755](https://github.com/functionalscript/functionalscript/pull/3755), from
+base `ddb70468f`: 229 authored `.f.js` files, 410 non-proof `.f.mjs` files and
+fifteen refused leaves. The pinned record retains the accepted paths,
+measurement method, refusal locations and exposure lists.
 
 #### Leaf migration fixed point at `b3d28bed4` (historical)
 

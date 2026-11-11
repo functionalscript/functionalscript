@@ -31,7 +31,7 @@ import { isKeyword, isReservedGlobal } from '../../js/keywords/module.f.js'
 import { prohibitedAccess } from '../../js/prototype/module.f.js'
 import { nameOf, parseSyntax, textOf } from './syntax/module.f.mjs'
 import { isBinary, isUnary } from '../ast/module.f.js'
-import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.mjs'
+import { helperLength, intrinsics, staticIds, staticPath } from '../../edag/module.f.js'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import { _sourceBinding as sourceBinding, _traced as traced, _completedTrace as completedTrace, _planOrigins as planOrigins, _declared as declared, _isVariable as isVariable, _initialized as initialized, _moduleScope as moduleScope, _regionScope as regionScope, _restoredScope as restoredScope } from './scope/module.f.mjs'
 

@@ -1,5 +1,5 @@
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { intrinsics } from '../../edag/module.f.mjs'
+import { intrinsics } from '../../edag/module.f.js'
 import { charCodeAt, slice } from './module.f.js'
 
 /** The helper on any receiver, as the intrinsic is. @type {(s: unknown, start: unknown, end: unknown) => unknown} */

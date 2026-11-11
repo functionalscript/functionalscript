@@ -16,7 +16,7 @@
 
 import { error } from '../../types/result/module.f.js'
 import { todo } from '../../asserts/module.f.js'
-import { fromValue } from '../../edag/module.f.mjs'
+import { fromValue } from '../../edag/module.f.js'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.js'
 import { decode as decodeImportPath, specifierKind } from '../../path/import/module.f.mjs'

@@ -7,7 +7,7 @@
  *
  * The JSON value types (`Unknown`, `Primitive`, `Object`, `Array`) live in
  * [`./types.ts`](./types.ts), and the rtti schemas they are pinned against in
- * [`./rtti/module.f.mjs`](./rtti/module.f.mjs).
+ * [`./rtti/module.f.js`](./rtti/module.f.js).
  *
  * This is the standard, bigint-free codec: numbers are JavaScript `number`s.
  * [`./extended/module.f.mjs`](./extended/module.f.mjs) is the sibling codec

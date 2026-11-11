@@ -34,7 +34,7 @@ import {
     unionFold,
     withoutUnits,
 } from '../../../rtti/data/module.f.mjs'
-import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
+import { unknown as jsonUnknown } from '../rtti/module.f.js'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
 export const _unknownThunk = () => ['const', unknownConst]

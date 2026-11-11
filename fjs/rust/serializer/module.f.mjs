@@ -16,7 +16,7 @@
 import { f64Bits, i64Literal, stringLiteral, u64WordItems, utf16Units } from '../../media/rust/module.f.mjs'
 import { indent } from '../../media/rust/item/module.f.js'
 import { error, mapOk, ok, okList, okThen, unwrap } from '../../types/result/module.f.js'
-import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.mjs'
+import { helperLength, isHelper, isStatic, staticText } from '../../edag/module.f.js'
 import { chunksText, tagged, untagged } from '../../text/marked/module.f.mjs'
 import { _helperText } from '../../js/ast/serializer/intrinsic/module.f.mjs'
 import { _resolve } from '../../js/ast/serializer/names/module.f.mjs'
