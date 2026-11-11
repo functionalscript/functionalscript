@@ -47,7 +47,7 @@ fn lookup<A: IVm, const N: usize>(
 }
 
 /// `Array.prototype`'s.
-fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
+fn array<A: IVm>() -> [(&'static str, Method<A>); 22] {
     [
         ("at", array_at),
         ("concat", array_concat),
@@ -63,7 +63,6 @@ fn array<A: IVm>() -> [(&'static str, Method<A>); 23] {
         ("indexOf", array_index_of),
         ("join", array_join),
         ("lastIndexOf", array_last_index_of),
-        ("map", array_map),
         ("reduce", array_reduce),
         ("reduceRight", array_reduce_right),
         ("slice", array_slice),
@@ -239,12 +238,6 @@ fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any
     Ok(index_or_minus_one(a.find_last_index(&f)?))
 }
 
-/// `Array.prototype.map`, `vm/array/map.rs`.
-fn array_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let (a, f) = with_callback(receiver, &args)?;
-    a.map(&f).to_any_result()
-}
-
 /// `Array.prototype.filter`, `vm/array/filter.rs`.
 fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let (a, f) = with_callback(receiver, &args)?;
@@ -329,10 +322,11 @@ fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::test::function::{no_args, returns, rt, throws};
+    use crate::vm::test::function::{identity, no_args, returns, rt, throws};
     use crate::{
+        common::sized_index::SizedIndex,
         naive::Naive,
-        vm::{Any, BigInt, Function, ToAny, ToArray, ToObject, error},
+        vm::{Any, Array, BigInt, Function, ToAny, ToArray, ToObject, error},
     };
 
     type A = Naive;
@@ -517,6 +511,38 @@ mod tests {
             arr.dot("at".into()).end_call(&rt(), no_args),
             Ok(1.0.to_any())
         );
+    }
+
+    /// `map` has no native fallback: the common runtime supplies its body,
+    /// which passes each value, its index and the original receiver to the
+    /// callback, retaining the receiver's identity.
+    #[test]
+    fn array_map_uses_the_common_runtime() {
+        let values: Array<A> = [10.0.to_any(), 20.0.to_any()].to_array();
+        let receiver = values.clone().to_any();
+        let key: Any<A> = "map".into();
+        assert!(super::method::<A>(&receiver, &key).is_none());
+        assert!(
+            receiver
+                .clone()
+                .dot(key.clone())
+                .end_call(&Any::undefined(), || Ok([identity()].to_array().to_any()))
+                .is_err()
+        );
+        let mapped = receiver
+            .clone()
+            .dot(key)
+            .end_call(&rt(), || Ok([identity()].to_array().to_any()))
+            .unwrap();
+        let mapped = Array::try_from(mapped).unwrap();
+        assert_eq!(mapped.length(), 2);
+        for index in 0..2 {
+            let args = Array::try_from(mapped[index].clone()).unwrap();
+            assert_eq!(args.length(), 3);
+            assert_eq!(args[0], values[index]);
+            assert_eq!(args[1], f64::from(index).to_any());
+            assert_eq!(args[2], receiver);
+        }
     }
 
     /// A receiver of each type the completeness table names.

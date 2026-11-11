@@ -313,28 +313,35 @@ mod tests {
             object.member_present("at".into(), &answering(seven())),
             Ok(false.to_any())
         );
-        for (_, name) in super::super::methods_table::RUNTIME_ONLY {
-            let text: Any<A> = "abc".into();
+        for (type_, name) in super::super::methods_table::RUNTIME_ONLY {
+            let receiver: Any<A> = match *type_ {
+                "String" => "abc".into(),
+                "Array" => [1.0.to_any()].to_array().to_any(),
+                _ => panic!("no runtime-only test receiver for {type_}"),
+            };
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .member_present((*name).into(), &Any::undefined()),
                 Ok(false.to_any())
             );
             assert_eq!(
-                text.clone().member_present((*name).into(), &rt()),
+                receiver.clone().member_present((*name).into(), &rt()),
                 Ok(true.to_any())
             );
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .member_present((*name).into(), &answering(Nullish::Null.to_any())),
                 Ok(true.to_any())
             );
             assert_eq!(
-                text.clone().member_present((*name).into(), &throwing()),
+                receiver.clone().member_present((*name).into(), &throwing()),
                 Err("lookup".into())
             );
             assert_eq!(
-                text.clone()
+                receiver
+                    .clone()
                     .dot((*name).into())
                     .option_call(&Any::undefined(), || panic!(
                         "missing runtime skips arguments"
@@ -343,7 +350,8 @@ mod tests {
                 Ok(Any::undefined())
             );
             assert_eq!(
-                text.dot((*name).into())
+                receiver
+                    .dot((*name).into())
                     .end_call(&answering(seven()), no_args),
                 Ok(7.0.to_any())
             );

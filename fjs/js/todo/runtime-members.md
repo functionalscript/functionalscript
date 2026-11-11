@@ -208,7 +208,7 @@ export const runtime = { static: id => entry(statics, id), dot }
       `charCodeAt` alone — `at`, `charAt`, `endsWith`, `includes`,
       `indexOf`, `lastIndexOf`, `substring`, `isWellFormed` — are the
       next batch.
-- [ ] Move `Array.prototype.map` to one typed common-runtime body, remove
+- [x] Move `Array.prototype.map` to one typed common-runtime body, remove
       both native implementations, and prove callback arguments, identity,
       validation on empty arrays and throw propagation across executors.
 

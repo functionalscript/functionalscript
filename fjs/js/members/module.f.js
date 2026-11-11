@@ -8,11 +8,12 @@
  * types every type's keys as exactly the admitted names of its prototype,
  * and every entry as callable with the receiver and the arguments.
  *
- * An entry is a body, or `todo` where none is written yet: the executors
- * answer those natively today, NaNVM in `vm/lambda` and the interpreter in
- * `fjs/edag/value/method`, and the bodies written so far, `startsWith`
- * and `codePointAt`, are the `member` section of
- * [`../runtime`](../runtime/module.f.js), which NaNVM compiles to a value. Which names stay native, and how the
+ * An entry is a body, or `todo` where none is written yet. The array's
+ * `map` is the first typed body here, also used by the `member` section of
+ * [`../runtime`](../runtime/module.f.js), beside its `startsWith` and
+ * `codePointAt` bodies. The remaining names are answered natively today,
+ * NaNVM in `vm/lambda` and the interpreter in `fjs/edag/value/method`.
+ * Which names stay native, and how the
  * executors are generated from this table, is decided after it is filled
  * ([`../todo/runtime-members.md`](../todo/runtime-members.md)).
  *
@@ -22,6 +23,7 @@
  */
 
 import { todo } from '../../asserts/module.f.js'
+import { map } from './array/map/module.f.js'
 
 /** @type {Members} */
 export const members = {
@@ -83,7 +85,7 @@ export const members = {
         indexOf: todo,
         join: todo,
         lastIndexOf: todo,
-        map: todo,
+        map,
         reduce: todo,
         reduceRight: todo,
         slice: todo,

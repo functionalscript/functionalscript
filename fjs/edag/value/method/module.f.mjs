@@ -75,7 +75,7 @@ export const callee = (runtime, key, receiver, invoke) => {
  *
  * @type {readonly string[]}
  */
-export const _runtimeOnly = ['startsWith', 'codePointAt']
+export const _runtimeOnly = ['startsWith', 'codePointAt', 'map']
 
 /**
  * Whether `key` is a name a call may make on the receiver: a non-nullish

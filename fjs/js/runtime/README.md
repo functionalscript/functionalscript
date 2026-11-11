@@ -3,7 +3,7 @@
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
 holds two tables and exports `runtime`, three functions an executor asks:
 two over the tables, and the body of the `in` operator. The `member` table holds, by name, the member
-functions whose **body** is written, `startsWith`: each a
+functions whose **body** is written, `startsWith`, `codePointAt` and `map`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
 for a receiver the name is no member of, or the function of the arguments
 as the call passed them, `undefined` past the end — the body dispatches on
@@ -185,15 +185,12 @@ takes it from there:
 sequenceDiagram
     participant M as compiled module
     participant L as nanvm-lib call step
-    participant T as native table
     participant R as the runtime value
     M->>L: Any::dot([1], "map").end_call(&runtime, args)
     L->>L: own property? none on an array
     L->>R: runtime.dot(receiver, "map")
-    R-->>L: the function of the arguments, or undefined
-    L->>T: method(receiver, "map"), for undefined
-    T-->>L: the native, while map has no body
-    L->>L: f.call(args), or the TypeError
+    R-->>L: the shared map function of the arguments
+    L->>L: f.call(args)
     L-->>M: the answer, or Err(thrown)
 ```
 
@@ -317,4 +314,9 @@ cycle:
    the body through `amnesia` and on NaNVM.
 
 `startsWith` is the first; `codePointAt`, over the intrinsic `charCodeAt`,
-the second.
+the second. Array `map` uses the typed body in
+[`../members/array/map`](../members/array/map/module.f.js), shared with the
+member inventory. It checks the callback before iterating, passes the element,
+index and original array, and propagates the first throw. The interpreter and
+NaNVM have no native `map` fallback. The simple immutable accumulation copies
+the result on each iteration, so it costs O(n²).

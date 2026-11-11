@@ -174,7 +174,8 @@ presence decides an answer, are
 - [x] `indexOf` — `vm/array/index_of.rs`
 - [x] `join` — `vm/array/join.rs`
 - [x] `lastIndexOf` — `vm/array/last_index_of.rs`
-- [x] `map` — `vm/array/map.rs`
+- [x] `map` — `fjs/js/runtime/module.f.js`, the shared runtime's body;
+      the native Rust implementation has been removed
 - [x] `reduce` — `vm/array/reduce.rs`
 - [x] `reduceRight` — `vm/array/reduce.rs`
 - [x] `slice` — `vm/array/slice.rs`

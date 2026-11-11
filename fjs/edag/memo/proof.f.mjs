@@ -13,6 +13,8 @@ import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { memo, invoke } from './module.f.mjs'
 import { noIn } from '../operations/module.f.mjs'
+import runtimeEdag from '../../js/runtime/gen.edag.data.js'
+import { read } from '../value/property/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
 import { call } from '../value/call/module.f.mjs'
 import { ok } from '../../types/result/module.f.js'
@@ -48,6 +50,16 @@ const array = v => /**@type {any}*/(v)
 
 /** Call a represented function; this proof adapter never exposes a runtime function. @type {(v: EdagValue, args?: Values) => EdagValue} */
 const apply = (v, args = []) => assertOk(call(ok(v), args.map(a => () => ok(a)), invoke))
+
+/** The common runtime, loaded without a runtime as its bootstrap requires. */
+const commonRuntime = () => {
+    const runtime = assertOk(read(vm(context)(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
+    assert(runtime instanceof Array && runtime[0] === '{}')
+    return runtime
+}
+
+/** A method supplied by the common runtime, interpreted with memoization. @type {(e: Exp) => unknown} */
+const runWithRuntime = e => assertOk(toData(assertOk(memo(assertOk(analysis(e)))({ ...context, runtime: commonRuntime() }))))
 
 /** @type {(v: EdagValue) => Values} */
 const elements = v => /** @type {ValueArray} */ (v)[1]
@@ -287,7 +299,7 @@ export const proof = {
         eq(['()', ['=>', 0, [], ['===', ['entry'], ['entry']]], []], false)
         const helper = /** @type {Exp} */ (['entry'])
         eq(['===', helper, helper], true)
-        assertStructurallySame(run(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
+        assertStructurallySame(runWithRuntime(['.', ['[]', [1, 2]], 'map', ['|()', [['entry']]]]), [undefined, undefined])
         eq(['String', ['entry']], '($0,$1)=>{const $2=Object.getOwnPropertyDescriptor($0,$1);return $2?.enumerable?$2.value:undefined;}')
         fails(['.', ['{}', [[':', 'toString', 0]]], 'toString', ['|()', []]])
         // `length` is own and not enumerable: no entry, no member name and
@@ -307,7 +319,7 @@ export const proof = {
         assertStructurallySame(run(entries('ab')), [['0', 'a'], ['1', 'b']])
         assertStructurallySame(run(entries(1n)), [])
         assertStructurallySame(run(entries(['Object.entries'])), [])
-        assertStructurallySame(run(['.', ['[]', ['ab']], 'map', ['|()', [['Object.entries']]]]), [[['0', 'a'], ['1', 'b']]])
+        assertStructurallySame(runWithRuntime(['.', ['[]', ['ab']], 'map', ['|()', [['Object.entries']]]]), [[['0', 'a'], ['1', 'b']]])
         eq(['.', ['Object.entries'], 'length'], 1)
         eq(['typeof', ['Object.entries']], 'function')
         eq(['===', ['Object.entries'], ['Object.entries']], true)
@@ -354,7 +366,7 @@ export const proof = {
     callbackFailures: () => {
         /** @type {EdagValue} */
         const payload = ['{}', [[':', 'message', 'callback failure']]]
-        const invocation = { args: [payload] }
+        const invocation = { args: [payload], runtime: commonRuntime() }
         /** @type {Exp} */
         const callback = ['=>', 0, [['.', ['args'], 0]], ['throw', ['frame', 0]]]
         for (const method of ['map', 'reduce', 'toSorted']) {
@@ -372,7 +384,7 @@ export const proof = {
             for (const result of [
                 memo(assertOk(analysis(implicit)))(invocation),
                 vm({ ...invocation, frame: [] })(implicit),
-            ]) { assertStructurallySame(result, ['error', ['undefined']]) }
+            ]) { assertError(result) }
         }
     },
     throw: {

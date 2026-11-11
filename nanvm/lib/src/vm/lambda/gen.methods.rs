@@ -3,6 +3,7 @@
 /// Admitted pairs whose ordinary member resolution requires a runtime implementation.
 #[rustfmt::skip]
 pub const RUNTIME_ONLY: &[(&str, &str)] = &[
+    ("Array", "map"),
     ("String", "codePointAt"),
     ("String", "startsWith"),
 ];
