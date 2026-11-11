@@ -21,7 +21,7 @@ Small, mechanical fixes. Each is one line.
    take the text as a string value: `(code, frame, length, text)`.
 3. **The lifetime pass.** [l0-core.md § Lifetime](./l0-core.md#lifetime)
    says the last-use analysis is something "no pass does today". The
-   [IR design, choice 9](./ir-design.md#9-lifetimes-are-one-pass-over-the-ir)
+   [IR design, choice 9](../ir/ir-design.md#9-lifetimes-are-one-pass-over-the-ir)
    now plans that pass.
 4. **`i64` is decided in practice, but still open on paper.**
    [README open question 1](./README.md#open-questions) and
@@ -84,7 +84,7 @@ compacting collector later would not. One sentence of contract belongs in
 ### The precondition of `unpack`
 
 `unpack` assumes its `any` is a string. The IR does not track kinds
-([IR choice 2](./ir-design.md#2-seven-types-and-the-ir-does-not-track-a-values-kind)),
+([IR choice 2](../ir/ir-design.md#2-seven-types-and-the-ir-does-not-track-a-values-kind)),
 so its validator cannot check this. Either the lowering emits `unpack`
 only after a `kind` test, or where the closure rule proves the type, or
 `unpack` traps on a non-string, as L0 misuse does
@@ -141,6 +141,6 @@ its modules (a build flag, the manifest, the loader).
 - **The modular runtime memo's shape.** Once its parts settle, it could
   split into a decided part (what the README records) and an open part
   (the experiment plan, the CPU-saving layout).
-- **Where the IR code lives.** The [IR design](./ir-design.md#where-this-draft-is-least-sure)
+- **Where the IR code lives.** The [IR design](../ir/ir-design.md#where-this-draft-is-least-sure)
   proposes `fjs/codegen/ir`, while the runtime lives in
   `fjs/wasm/runtime`. Deciding before IR step 1 avoids a move PR later.

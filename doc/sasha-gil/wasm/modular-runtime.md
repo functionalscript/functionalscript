@@ -58,6 +58,6 @@ The memory-saving NaN VM string module specifies zero stack frame slots requirem
 
 - [L0 design §2](./l0-design.md#2-typed-values-exist-only-in-the-compiler) and [§16](./l0-design.md#16-four-string-functions-that-need-no-memory): what an unpacked string adds to L0's typed values and string functions.
 - [Inline fragments](./inline-fragments.md#runtime-modules): runtime module functions are fragments, and the manifest lists them.
-- [Code IR, choice 13](./ir-design.md#13-an-unpacked-string-is-an-ir-type-laid-out-by-the-runtime-module): how the IR names an unpacked string, and how an emitter lays it out from the manifest.
+- [Code IR, choice 13](../ir/ir-design.md#13-an-unpacked-string-is-an-ir-type-laid-out-by-the-runtime-module): how the IR names an unpacked string, and how an emitter lays it out from the manifest.
 - [A modular L0](./modular-l0.md): L0 itself split into runtime modules, with this String module as one of them.
 - [README](./README.md#decisions): the decisions taken from this memo.
