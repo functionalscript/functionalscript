@@ -208,207 +208,27 @@ measurements pinned to their recorded revisions.
 
 #### Leaf migration fixed point at `b3d28bed4` (historical)
 
-Measured on `b3d28bed4`, the leaf conversion updates in
-[#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
-on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).
-The thirteen whole-module conversions are `path`, `js/ast/sugar/pattern`,
-`website/demo/mirror`, `types/prime_field`, `crypto/vdf`, `crypto/secp`,
-`types/sorted_list`, `types/sorted_set`, `types/number`, `types/function/length`,
-`types/range_map`, `types/range_set` and `zlib/window`. Each is renamed to
-`.f.js`, with its runtime, proof, type and documentation references updated.
-
-The conversions use `Number(...)` for numeric computed keys, compiled numeric
-helpers for `Math.min`, `Math.abs` and `Math.ceil`, and `generate` for
-index-generated arrays.
-Pattern's policy callback is renamed from `name` to `bindingName`; the public
-`PrimeField.reduce` property becomes `mod`, including its callers and docs.
-Secp reads its own `sub` callback through `entry` and `assertNotNullish`, keeping
-the public subtraction API. Sorted-list helpers precede their consumers.
-Number's fixed mask table and window's byte insertion use array `.reduce`.
-Graph, bigint and version use admitted loop updates; bigint's returning guard
-no longer has a redundant `else`. The numeric `abs` helper preserves `NaN`,
-infinities and positive zero from either zero.
-
-Further rewrites wrap numeric computed keys in completions, AST, WAT,
-version, graph and window, and read WAT and graph's own record fields through
-`entry` and `assertNotNullish`. WAT uses the compiled `abs` and `min` helpers.
-WAT and graph's safe index generators use `generate`; WAT's string arrays use
-code-point string spread, covered by an astral Unicode name proof.
-All `BigInt(...)` conversions remain unchanged pending language support.
-Two graph `Array.from` calls remain: `maxRank + 1` and
-`to.rank - from.rank - 1` can be fractional or negative under the public
-numeric rank contract. Direct `generate` would change their length coercion.
-Window now uses the compiled numeric `ceil` helper, preserving signed zeros,
-`NaN` and infinities. Its whole module compiles; its conversion exposes no
-additional leaves.
-
-The compiler-compatible population is 184 authored `.f.js` files;
-424 authored non-proof `.f.mjs` files remain.
-Runtime import and re-export declarations were rediscovered from JavaScript
-ASTs under `fjs/` and `spec/`, excluding generated files and proofs. All eleven
-remaining leaves are refused as written.
-
-| Leaf under `fjs/` (still `.f.mjs`) | First refused construct | Additional leaves its conversion exposes |
-| --- | --- | ---: |
-| `edag/from_fast/loop/completions` | `new Set` in a spread | 0 |
-| `js/ast` | `for...of` | 2 |
-| `media/wasm/wat` | `new Map` | 0 |
-| `text/utf16` | `String.fromCharCode` | 3 |
-| `types/array` | `new Map` in `occurrences` ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 7 |
-| `types/bigint` | `for...of` in `combination` | 3 |
-| `types/list/iterable` | Generator method `*[Symbol.iterator]` | 0 |
-| `types/map` | `new Map` with EDAG-node keys | 0 |
-| `types/set` | `new Set()` in the union monoid | 0 |
-| `types/version` | Global `BigInt` in `maxPart` | 0 |
-| `website/demo/graph` | `new Map(bands)` in `bandsOf` | 1 |
-
-The measured `types/list/iterable` leaf is now a
-[host JavaScript adapter](../fjs/types/list/iterable/module.mjs). It and its proof
-use `.mjs`, after production FunctionalScript consumers stopped importing it.
-
-The preceding twelve-leaf measurement is retained in the
-[earlier #3497 audit](https://github.com/functionalscript/functionalscript/blob/374ad5cb5dfdc5548b9d663c8de175107fd10ecc/todo/fjs-nanvm-integration.md#current-leaf-migration-fixed-point).
-
-After a compiler feature lands, rediscover the runtime dependency leaves,
-compile every candidate, rename accepted modules and update their references,
-then rediscover and repeat until a pass accepts none. Update the current table
-with the remaining refusals; keep historical measurements pinned to their
-recorded revisions.
+The [full audit](https://github.com/functionalscript/functionalscript/blob/05400c71fb1d8c54255b2e0d79813d9562d6ebdd/todo/fjs-nanvm-integration.md#leaf-migration-fixed-point-at-b3d28bed4-historical) records the thirteen conversions in
+[#3497](https://github.com/functionalscript/functionalscript/pull/3497):
+184 authored `.f.js` files, 424 non-proof `.f.mjs` files and eleven
+refused leaves. The pinned record retains the conversion details,
+refusal table and earlier measurements.
 
 #### Leaf migration fixed point at `d4b096a3a` (historical)
 
-Measured on `d4b096a3a`, the conversion step of
-[#3463](https://github.com/functionalscript/functionalscript/pull/3463),
-stacked on [#3462](https://github.com/functionalscript/functionalscript/pull/3462).
-Runtime import and re-export declarations were rediscovered from the JavaScript
-ASTs of authored non-proof `.f.mjs` files under `fjs/` and `spec/`, skipping
-generated files and JSDoc-only imports. Every remaining leaf was compiled as
-written; all three are refused.
-
-| Leaf file | First refused construct | Additional leaves its conversion exposes |
-| --- | --- | ---: |
-| `fjs/types/array/module.f.mjs` | `new Map` in `occurrences`, whose keys are strings ([conversion rule 9](../doc/CONVERTING.md#9-a-map-or-a-set-of-strings)) | 6 |
-| `fjs/types/list/module.f.mjs` | The forward reference to `flat` in `flatStep` (`const not found`; [forward references](../spec/todo/3140-forward-references.md)) | 8 |
-| `fjs/types/map/module.f.mjs` | `new Map` in `mapSet`; its EDAG-node keys do not meet conversion rule 9 | 0 |
-
-The compiler-compatible population is 158 authored `.f.js` files; 446 authored
-non-proof `.f.mjs` files remain. The new `.f.js` modules are the independent
-monoid repetition, array repetition and `generate` helpers, plus the converted
-[`WASM instruction table`](../fjs/media/wasm/instruction/module.f.js) and
-[`Huffman module`](../fjs/zlib/huffman/module.f.js). Extracting repetition exposes
-`types/array` as a leaf; renaming the two table modules exposes no further leaf.
-
-`Array.from` becomes `generate`; Huffman's `Array(n).fill(v)` becomes
-`repeat(n)(v)`, and numeric computed keys use `Number`. The WASM table reduces
-its opcodes with the existing numeric `max` and reads mnemonic entries with
-`entry`. Huffman's mapping callback captures a constant target index instead
-of the reassigned loop variable. The compiler accepts both complete modules,
-including the `break` in `decode`, which earlier audits had not reached.
+The [full audit](https://github.com/functionalscript/functionalscript/blob/05400c71fb1d8c54255b2e0d79813d9562d6ebdd/todo/fjs-nanvm-integration.md#leaf-migration-fixed-point-at-d4b096a3a-historical) records the conversions in
+[#3463](https://github.com/functionalscript/functionalscript/pull/3463):
+158 authored `.f.js` files, 446 non-proof `.f.mjs` files and three
+refused leaves. The pinned record retains the dependency analysis,
+refusal table and conversion details.
 
 #### Leaf migration fixed point at `d6b55c6` (historical)
 
-Measured on `d6b55c6`, the head of
-[#3443](https://github.com/functionalscript/functionalscript/pull/3443), the
-specification step of the `in` operator, which stands on
-[#3440](https://github.com/functionalscript/functionalscript/pull/3440),
-[#3442](https://github.com/functionalscript/functionalscript/pull/3442) and
-[#3447](https://github.com/functionalscript/functionalscript/pull/3447): the
-compiler measured admits `"k" in o`, which `main` refuses until the stack
-lands, and one row below moves because of it. A leaf is as defined in the
-`5dcd94b` audit below. This time the leaves were found by reading the
-`import` and `export … from` declarations of every authored non-proof
-`.f.mjs` under `fjs/` and `spec/` — implementation modules, demos, samples
-and test libraries alike, generated files skipped — and keeping each whose
-every runtime import is an `.f.js`; a JSDoc `@import` does not count. Each
-leaf was then compiled as written, and a refused one again in a copy, with
-the smallest value-preserving respelling that moves past the refusal, until
-the copy was accepted or the next refusal was one no respelling removes.
-The accepted ones were converted in the same step, and the leaves
-rediscovered.
-
-| Pass | Leaves checked | Converted to `.f.js` |
-| --- | ---: | --- |
-| 1 | 6 | `spec/undecided/samples`, accepted as written; `zlib/bits`, `js/ast/invocation` and `types/stack_walk`, each with the respelling below |
-| 2 | 3 | None: `zlib/huffman`, which the `zlib/bits` rename exposed, is refused as written; `types/list` at a forward reference once its destructuring assignments are written as assignments; `types/map` as before |
-
-What each conversion changed, beside the extension and the references
-that follow it — the proof's import, the importers, and the documents that
-link the module:
-
-- `spec/undecided/samples`: nothing. One `const` of strings, the open
-  rows' samples, which the [undecided page](../spec/undecided/README.md)
-  compiles one by one. It is under `spec/`, which the earlier audits did
-  not walk, and the rule in
-  [AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs) said it
-  was misnamed. Its references are the page's `README.md`, `demo.f.mjs`
-  and `proof.f.mjs`.
-- `zlib/bits`: the one key computed at run time in `read`,
-  `input[first + i]`, read as `input[Number(first + i)]`
-  ([CONVERTING.md rule 1](../doc/CONVERTING.md#1-computed-keys)). The `for`
-  the `1ce90e7` row stopped at is admitted, classic `for` lowering to
-  `while`, and so are the two variables it steps and the `\|=` behind it
-  ([compound assignments](../spec/bindings/variables/README.md#compound-assignments)).
-  Its importers are `zlib/huffman` and `zlib/inflate`.
-- `js/ast/invocation`, new since `1ce90e7` from
-  [#3326](https://github.com/functionalscript/functionalscript/pull/3326):
-  the `length` projections of the rest array in `_restTransition`, built
-  by `Array.from({ length }, …)`, a global name with no admitted spelling
-  (`reserved word`; [built-ins](../spec/todo/2360-built-in.md),
-  [global names](../spec/todo/2365-global-names.md)), are built by
-  `projections`, a recursive helper of the module; and `exit[2][length]`
-  in `_restArguments` is read as `exit[2][Number(length)]`, the one refusal
-  behind the first. `instanceof Array`, `.at(-1)`, `.slice` and `.every`
-  are admitted. Its importers are `edag/from_fast/loop/root` and
-  `edag/to_fast/tail`.
-- `types/stack_walk`: the two destructuring assignments in `walkFold`'s
-  loop, `[acc, step] = enter(acc, step[2])` and
-  `[acc, step] = resume(acc, top, step[1])`, each through a `const`
-  holding the pair, `const entered = enter(acc, step[2])` then
-  `acc = entered[0]` and `step = entered[1]`. Destructuring assignment is
-  what [variables](../spec/bindings/variables/README.md) leaves to a
-  separate extension, and the
-  [register](../spec/todo/refused-constructs.md) has no row for it. The
-  `return` guards inside `while (true)` the `1ce90e7` row stopped at are
-  admitted, the loop being a
-  [terminal unconditional one](../spec/control-flow/loops/README.md#a-terminal-unconditional-loop)
-  since [#3418](https://github.com/functionalscript/functionalscript/pull/3418).
-  Its importers are `ebnf/ll1`, `media/datajs/parser`,
-  `media/datajs/serializer` and `rust/serializer`.
-- `types/list`, which stays `.f.mjs`: the two destructuring assignments
-  in `next`, `[head, tail] = [head.head, concat(head.tail)(tail)]` and
-  `[head, tail] = [tail, null]`, written as the plain assignments they
-  are, `tail = concat(head.tail)(tail)` then `head = head.head`, and
-  `head = tail` then `tail = null`. Each formed an array to take it apart
-  again; with them gone the compiler reaches the forward reference below.
-
-The authored `.f.js` population under `fjs/` grows from 62 to 65 — from
-51 at `1ce90e7`, `types/function/compare` among the ones in between, since
-#3418 admitted the terminal unconditional loop its `bsearch` ends in — and
-`npm start compile` checks 152, 87 of them under `spec/`.
-
-The three leaves left, measured at the same compiler. Locations are
-`line:column`; paths are relative to the repository root.
-
-| Leaf file | Location | First refused construct | Measured behind it |
-| --- | ---: | --- | --- |
-| `fjs/zlib/huffman/module.f.mjs` | 28:19 | `Array` in `Array.from({ length: 16 }, …)` in `code`, a global name (`reserved word`; [built-ins](../spec/todo/2360-built-in.md), [global names](../spec/todo/2365-global-names.md)), counting the lengths | With that, the second `Array.from` in `code`, the five `Array(n).fill(v)` of the fixed codes, `dynamic` and `nextLengths`, and every key computed at run time written out: `i`, the `for` variable of `dynamic`, captured by the `map` callback that places a length (`reassigned variable captured`, [variables](../spec/bindings/variables/README.md)). Not measured further; the `break` in `decode` is behind it |
-| `fjs/types/list/module.f.mjs` | 80:19 | `flat` read in `flatStep` before its declaration, `flat` being `apply(flatStep)` (`const not found`, [forward references](../spec/todo/3140-forward-references.md)), the shape every `…Step` helper here shares with the export after it. The two destructuring assignments in `next` the first measurement stopped at are written as plain assignments in this step, and `'head' in head` before them, a blocker of the `1ce90e7` row, is admitted by the `in` operator this is measured with | Nothing: a forward reference is no respelling's to remove. Eight modules import no `.f.mjs` but this one — `common/monoid`, `text/code_point`, `types/btree` and its `remove` and `set`, `types/list/alt` and `iterable`, `types/sorted_list` — so it is the leaf whose conversion opens the most |
-| `fjs/types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word: the `1ce90e7` row, unchanged; `Map` is not a language type, and its one importer, `edag/analysis`, keys the map by EDAG nodes, so rule 9 does not apply | Nothing |
-
-To recheck the table without writing output, run this from the repository
-root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['fjs/types/list/module.f.mjs', 'fjs/types/map/module.f.mjs', 'fjs/zlib/huffman/module.f.mjs'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute(leaf)));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+The [full audit](https://github.com/functionalscript/functionalscript/blob/05400c71fb1d8c54255b2e0d79813d9562d6ebdd/todo/fjs-nanvm-integration.md#leaf-migration-fixed-point-at-d6b55c6-historical) records the conversion waves measured with
+the `in` operator in
+[#3443](https://github.com/functionalscript/functionalscript/pull/3443).
+The pinned record retains the compiler profile, accepted rewrites,
+remaining refusals and reproduction command.
 
 #### Leaf migration fixed point at `1ce90e7` (historical)
 
