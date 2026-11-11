@@ -68,6 +68,17 @@ bit.
   hand out `&O`. The region's size is a target parameter, smaller on
   32-bit hosts.
 
+A variant of A puts the region in one Rust buffer, such as a `Vec<u64>`,
+and reads it through indexed loads and stores in safe code, never through
+`&O`. It fits an IR that lowers in stages, where the last stage before
+the emitters has only integers, floats and memory: both emitters then
+read the heap the same way. A bad offset becomes a bounds-check panic or
+a wrong value inside the buffer, as in WASM, and never undefined
+behavior. So `try_from_bits` could accept reference variants again. The
+buffer may grow and move, because no address is held across an
+allocation. Each access pays a bounds check, which the compiler removes
+where it can prove the index in range.
+
 ### B. Native pointers, checked when packed
 
 Keep `Rc::into_raw`, and trap at the constructor if the pointer has a bit
