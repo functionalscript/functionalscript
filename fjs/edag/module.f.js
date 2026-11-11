@@ -40,37 +40,37 @@ import { isArray } from '../types/array/module.f.js'
  */
 
 // Leaf schemas precede the recursive builder; public exports keep their docs below.
-const _primitive = or(null, boolean, number, string, bigint)
+const primitiveSchema = or(null, boolean, number, string, bigint)
 
-const _arg = /** @type {const} */ (['arg', number])
+const argSchema = /** @type {const} */ (['arg', number])
 
-const _frame = /** @type {const} */ (['frame', number])
+const frameSchema = /** @type {const} */ (['frame', number])
 
-const _staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+const staticNames = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
 
-const _staticId = or(..._staticIds)
+const staticIdSchema = or(...staticNames)
 
-const _intrinsics = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
+const intrinsicDefinitions = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
 
-const _intrinsicIds = _intrinsics.map(([id]) => id)
+const intrinsicNames = intrinsicDefinitions.map(([id]) => id)
 
-const _intrinsicId = or(..._intrinsicIds)
+const intrinsicIdSchema = or(...intrinsicNames)
 
-const _op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', _intrinsicId, _staticId)
+const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicIdSchema, staticIdSchema)
 
-const _op1Id = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
+const op1IdSchema = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
 
-const _op2Id = or(
+const op2IdSchema = or(
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>'
 )
 
-const _op12Id = or('+', '-')
+const op12IdSchema = or('+', '-')
 
-const _op3Id = or('?:')
+const op3IdSchema = or('?:')
 
-const _constructorId = or('Array')
+const constructorIdSchema = or('Array')
 
 /**
  * One level of the expression grammar, with an already-bound recursion anchor.
@@ -82,12 +82,12 @@ const _constructorId = or('Array')
 const schemasFor = expression => {
     /** @type {Phantom<E, Exp>} */
     const exp = expression
-    const op0Id = _op0Id
-    const op1Id = _op1Id
-    const op2Id = _op2Id
-    const op12Id = _op12Id
-    const op3Id = _op3Id
-    const constructorId = _constructorId
+    const op0Id = op0IdSchema
+    const op1Id = op1IdSchema
+    const op2Id = op2IdSchema
+    const op12Id = op12IdSchema
+    const op3Id = op3IdSchema
+    const constructorId = constructorIdSchema
 
     const exps = rttiArray(exp)
 
@@ -123,21 +123,21 @@ const schemasFor = expression => {
     ])
 
     /** @type {_OptionPropertyLambdaSchema<Phantom<E, Exp>>} */
-    const _optionPropertyLambda = () => {
+    const optionPropertyLambdaSchema = () => {
         /** @type {_OptionLambdaSchema<Phantom<E, Exp>>} */
-        const _optionLambda = () => ['or', ...regionProductions(_optionLambda, _optionPropertyLambda)]
-        return ['or', ...regionProductions(_optionLambda, _optionPropertyLambda),
-            ['|?.()', args], ['|?.()', args, _optionLambda], ['|!()', args]]
+        const optionLambdaSchema = () => ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambdaSchema)]
+        return ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambdaSchema),
+            ['|?.()', args], ['|?.()', args, optionLambdaSchema], ['|!()', args]]
     }
 
-    /** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
-    const optionPropertyLambda = _optionPropertyLambda
+    /** @type {Phantom<typeof optionPropertyLambdaSchema, OptionPropertyLambda>} */
+    const optionPropertyLambda = optionPropertyLambdaSchema
 
     /** @type {_OptionLambdaSchema<Phantom<E, Exp>>} */
-    const _optionLambda = () => ['or', ...regionProductions(_optionLambda, optionPropertyLambda)]
+    const optionLambdaSchema = () => ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambda)]
 
-    /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
-    const optionLambda = _optionLambda
+    /** @type {Phantom<typeof optionLambdaSchema, OptionLambda>} */
+    const optionLambda = optionLambdaSchema
 
     const propertyLambda = or(
         /** @type {const} */ (['|()', args]),
@@ -184,7 +184,8 @@ const schemasFor = expression => {
     return {
         exps, func, spread, items, array, args, property, properties, object, numberCast, index, memberPresent,
         propertyLambda, callNode: call, dot, optionDot, optionCall, comma, op0, op1, op2, op12, op3,
-        instanceOf, inOp, _optionLambda, optionLambda, _optionPropertyLambda, optionPropertyLambda,
+        instanceOf, inOp, _optionLambda: optionLambdaSchema, optionLambda,
+        _optionPropertyLambda: optionPropertyLambdaSchema, optionPropertyLambda,
     }
 }
 
@@ -221,7 +222,7 @@ const schemasFor = expression => {
 export const _exp = () => {
     const schemas = schemasFor(_exp)
     return ['or',
-        _primitive,
+        primitiveSchema,
         schemas.array,
         schemas.object,
         schemas.dot,
@@ -238,8 +239,8 @@ export const _exp = () => {
         schemas.inOp,
         schemas.memberPresent,
         schemas.func,
-        _arg,
-        _frame,
+        argSchema,
+        frameSchema,
     ]
 }
 
@@ -258,7 +259,7 @@ const schemas = schemasFor(exp)
  * `op0`/`op1`/`op2` grouping below by the same arity rule as every other
  * operation, not here.
  */
-export const primitive = _primitive
+export const primitive = primitiveSchema
 
 /**
  * A plain value as fresh literal nodes. Present `undefined` properties stay
@@ -305,7 +306,7 @@ export const exps = schemas.exps
 /** @type {readonly ['=>', typeof number, typeof exps, typeof exp]} */
 export const func = schemas.func
 /** A constant fixed-position read; its index must be canonical and below the owning length. */
-export const arg = _arg
+export const arg = argSchema
 /**
  * A constant read of slot `N` of the owning function's frame — the value
  * the enclosing scope put at position `N` of the slots of `func`. The index
@@ -313,7 +314,7 @@ export const arg = _arg
  * by the analysis and the operations, since the frame as a whole is not a
  * value the body can name.
  */
-export const frame = _frame
+export const frame = frameSchema
 
 // Spread
 
@@ -705,7 +706,7 @@ export const comma = schemas.comma
  * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
  * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
  */
-export const staticIds = _staticIds
+export const staticIds = staticNames
 
 /**
  * A static function as a value, `['Object.is']`: the function the
@@ -718,7 +719,7 @@ export const staticIds = _staticIds
  * its context carries holds, and with neither it fails naming it rather
  * than answer.
  */
-export const staticId = _staticId
+export const staticId = staticIdSchema
 
 /**
  * Whether a node — the EDAG's, or the AST's, which shares it — is a static
@@ -796,13 +797,13 @@ export const noStatic = name => `no binding for the static ${name}`
  * (`fjs/js/runtime/README.md`, "Two invariants"). As a value the node is fresh where it
  * is established, as `entry` is and every `=>` is.
  */
-export const intrinsics = _intrinsics
+export const intrinsics = intrinsicDefinitions
 
 /** The intrinsics' tags, {@link intrinsics}: `slice`, `charCodeAt`. */
-export const intrinsicIds = _intrinsicIds
+export const intrinsicIds = intrinsicNames
 
 /** An intrinsic as a value, `['slice']`: one tag of {@link intrinsicIds}. */
-export const intrinsicId = _intrinsicId
+export const intrinsicId = intrinsicIdSchema
 
 /**
  * Whether a node — the EDAG's, or the AST's, which shares it — is an
@@ -904,7 +905,7 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = _op0Id
+export const op0Id = op0IdSchema
 
 
 /** @type {readonly [typeof op0Id]} */
@@ -930,7 +931,7 @@ export const op0 = schemas.op0
  * node's is: in an arm of `?:` it fails only where the arm is selected,
  * and an executor never establishes it where the program would not.
  */
-export const op1Id = _op1Id
+export const op1Id = op1IdSchema
 
 /** @type {readonly [typeof op1Id, typeof exp]} */
 export const op1 = schemas.op1
@@ -942,7 +943,7 @@ export const op1 = schemas.op1
  * are normalized to conditionals before graph construction. `+` and `-` also
  * have unary arities and belong to op12; static functions remain values.
  */
-export const op2Id = _op2Id
+export const op2Id = op2IdSchema
 
 /** @type {readonly [typeof op2Id, typeof exp, typeof exp]} */
 export const op2 = schemas.op2
@@ -973,7 +974,7 @@ export const op2 = schemas.op2
  * operations the language admits as syntax is the language's decision, not
  * the schema's.
  */
-export const op12Id = _op12Id
+export const op12Id = op12IdSchema
 
 /** @type {() => readonly ['or',
  *  readonly [typeof op12Id, typeof exp],
@@ -992,7 +993,7 @@ export const op12 = schemas.op12
  * extension path", implemented — as a vocabulary of its own, since `op1` and
  * `op2` each fix one operand count and `op12` fixes two.
  */
-export const op3Id = _op3Id
+export const op3Id = op3IdSchema
 
 /** @type {readonly [typeof op3Id, typeof exp, typeof exp, typeof exp]} */
 export const op3 = schemas.op3
@@ -1007,7 +1008,7 @@ export const op3 = schemas.op3
  * `typeof x === "object"` and `typeof x === "function"` are the language's
  * spellings for those (`../../spec/README.md`, Operators).
  */
-export const constructorId = _constructorId
+export const constructorId = constructorIdSchema
 
 /**
  * `['instanceof', x, c]` is `x instanceof c` for a built-in constructor
