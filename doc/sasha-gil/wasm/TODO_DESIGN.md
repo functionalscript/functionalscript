@@ -9,9 +9,11 @@ items here is decided. Remove an item when a note takes it up.
 
 Small, mechanical fixes. Each is one line.
 
-1. **The L0 function count.** [l0-core.md](./l0-core.md) says the design
-   "names 31" functions. The [L0 design summary](./l0-design.md#summary)
-   says 32, since `throw` was added on 2026-11-04. A modular L0 would make
+1. **The L0 function count.** At commit 071b574, [l0-core.md](./l0-core.md)
+   says the design "names 31" functions, and the
+   [L0 design summary](./l0-design.md#summary) says 32, since `throw` was
+   added on 2026-11-04. The fix could name the summary table instead of a
+   number. A modular L0 would make
    it 35 ([modular-l0.md §2](./modular-l0.md#2-length-splits-into-one-function-per-module)).
 2. **The `make_function` signature.** [l0-core.md § Calls and returns](./l0-core.md#calls-and-returns)
    still shows `make_function(code_index, frame, length, text_ptr, text_len)`.
@@ -61,8 +63,11 @@ layouts avoid it:
 - pack the units into two `i64` locals, four 16-bit units each, and
   answer `(slot >> (16 * (i & 3))) & 0xFFFF`, choosing the `i64` by
   `i < 4`;
-- keep the 6-bit or 7-bit codes packed as in the NaN payload, and decode
-  one unit with a shift, a mask and a small table.
+- keep the codes packed as in the NaN payload, and decode one unit with
+  a shift, a mask and a small table. The payload has three encodings,
+  1 to 3 units of 16 bits, 4 to 7 of 7 bits, or 8 of 6 bits
+  ([NaN VM README](../../sergey-shandar/nanvm/README.md)), so the template
+  branches on the encoding as well as on the index.
 
 The second is close to the memory-saving module, which suggests measuring
 before keeping two NaN String modules.
@@ -95,8 +100,10 @@ case avoids an eighth hard-coded IR type.
 
 ### How strings are made
 
-The String module only reads. `concat`, `substring`, `join` and literals
-go through import-form functions and produce an `any`. Two consequences
+The String module's templates only read. Making a string, through
+`make_string`, `from_unit`, `concat`, `substring`, Containers' `join` or a
+literal, stays an import in both forms
+([modular-l0.md](./modular-l0.md#summary)) and produces an `any`. Two consequences
 are worth writing down: a literal is known at compile time, so its `str`
 could be a constant with no `unpack`; and a loop that builds a string
 never benefits from the module.
