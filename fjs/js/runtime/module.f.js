@@ -150,6 +150,86 @@ const fromEntries = entries => {
  */
 const toNumber = value => /** @type {number} */ (value) - 0
 
+/*
+ * The logarithm polynomial and compensated combination follow OpenLibm's
+ * src/e_log2.c and src/k_log.h (FreeBSD/fdlibm). Exact power-of-two scaling
+ * and an arithmetic high-part split replace their IEEE word operations.
+ * https://github.com/JuliaMath/openlibm/blob/master/src/e_log2.c
+ *
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this software is freely
+ * granted, provided that this notice is preserved.
+ */
+
+/** Exact powers of two and their exponents, largest first. */
+const log2Scales = /** @type {const} */ ([
+    [1.3407807929942597e154, 512],
+    [1.157920892373162e77, 256],
+    [3.402823669209385e38, 128],
+    [1.8446744073709552e19, 64],
+    [0x1_0000_0000, 32],
+    [0x1_0000, 16],
+    [0x100, 8],
+    [16, 4],
+    [4, 2],
+    [2, 1],
+])
+
+/**
+ * The numerical log2 kernel. Reduce exactly to x in [sqrt(.5), sqrt(2)),
+ * approximate log(1+f) with f = x-1, and combine k + log(1+f)/ln(2) with
+ * compensated arithmetic. No native logarithm, bit reinterpretation or
+ * supporting Math function is needed. The proof checks a two-ULP accuracy
+ * target against high-precision reference values and exact powers of two.
+ *
+ * @type {(n: number) => number}
+ */
+const numberLog2 = n => {
+    if (!(n > 0)) { return n === 0 ? -Infinity : NaN }
+    if (n === Infinity) { return n }
+    /** @type {{ readonly x: number, readonly k: number }} */
+    let state = { x: n, k: 0 }
+    // Exact scaling, including the smallest subnormal, before normalization.
+    if (state.x < 1) {
+        state = { x: state.x * 4.49423283715579e307, k: -1022 } // 2^1022
+        if (state.x < 1) {
+            state = { x: state.x * 0x10_0000_0000_0000, k: state.k - 52 } // 2^52
+        }
+    }
+    for (const [scale, exponent] of log2Scales) {
+        if (state.x >= scale) {
+            state = { x: state.x / scale, k: state.k + exponent }
+        }
+    }
+    if (state.x >= 1.4142135623730951) {
+        state = { x: state.x * 0.5, k: state.k + 1 }
+    }
+    const k = state.k
+    const f = state.x - 1
+    const s = f / (2 + f)
+    const z = s * s
+    const w = z * z
+    const t1 = w * (3.999999999940941908e-1 + w * (2.222219843214978396e-1 + w * 1.531383769920937332e-1))
+    const t2 = z * (6.666666666666735130e-1 + w * (2.857142874366239149e-1 + w * (1.818357216161805012e-1 + w * 1.479819860511658591e-1)))
+    const r = t2 + t1
+    const hfsq = 0.5 * f * f
+    const approx = f - hfsq
+    // Dekker splitting with 2^32+1 gives a high part with at most 21 bits;
+    // its product with the 32-bit high part of 1/ln(2) is exact.
+    const split = 0x1_0000_0001 * approx
+    const hi = split - (split - approx)
+    const lo = ((f - hi) - hfsq) + s * (hfsq + r)
+    const valHi = hi * 1.44269504072144627571
+    const valLo = (lo + hi) * 1.67517131648865118353e-10 + lo * 1.44269504072144627571
+    const result = k + valHi
+    const tail = valLo + ((k - result) + valHi)
+    return result + tail
+}
+
+/** Math.log2: ToNumber once, then the shared numerical kernel. @type {(value?: unknown) => number} */
+const log2 = value => numberLog2(toNumber(value))
+
 /**
  * An argument as `ToIntegerOrInfinity` reads one: `ToNumber`, then `NaN`
  * made `0`, an infinity kept, and a finite number truncated toward zero,
@@ -248,6 +328,7 @@ export const statics = {
     'Number.isSafeInteger': isSafeInteger,
     'Number.isNaN': isNaN_,
     'Number.isFinite': isFinite_,
+    'Math.log2': log2,
 }
 
 /** The runtime: the three functions an executor asks, `static`, `dot` and `in`. */

@@ -225,5 +225,5 @@ part of reviving this — not a requirement on it in the meantime.
 - [`fjs/types/bit_vec/module.f.mjs`](../../../types/bit_vec/module.f.mjs) — signed
   length-bearing `Vec`, `maxLength`, `unpack`, and existing `fromSentinel`
   representation.
-- [`fjs/types/bigint/module.f.mjs`](../../../types/bigint/module.f.mjs) — defines the
+- [`fjs/types/bigint/module.f.js`](../../../types/bigint/module.f.js) — defines the
   cross-runtime bigint `maxLength` and documents Bun's exact-limit behavior.

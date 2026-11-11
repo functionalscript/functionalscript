@@ -10,7 +10,7 @@
  * @import { Pow } from './types.ts'
  */
 
-import { mask } from '../../types/bigint/module.f.mjs'
+import { mask } from '../../types/bigint/module.f.js'
 import { uint } from '../../types/bit_vec/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
 

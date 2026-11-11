@@ -29,7 +29,7 @@
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
-import { bitLength, divUp, mask, maxLength as bigintMaxLength, roundUp8, xor } from '../bigint/module.f.mjs'
+import { bitLength, divUp, mask, maxLength as bigintMaxLength, roundUp8, xor } from '../bigint/module.f.js'
 import { compose, flip, identity } from '../function/module.f.js'
 import { map, next, run } from '../list/module.f.js'
 import { nextStep, doneStep } from '../function/operator/module.f.js'

@@ -25,7 +25,9 @@ an executor answers the operator's node by, or
 substitutes natively — the key rule that keeps its answer JavaScript's
 is the parser's ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The tables are exported too, for the type pins, the
 proof and the Rust printer; no executor reads them. The proof checks every
-static body against the host's own built-in at the same path. The design
+static body's exact semantic cases against the host's own built-in at the
+same path; `Math.log2` also has numerical reference cases with an error
+tolerance. The design
 of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
 A name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
@@ -44,6 +46,55 @@ body's own first step, `typeof self === 'string'`, not a key of the
 table: one function per name, for every receiver. The keys are not the
 admitted set and need not be: a table keying every admitted name with a
 marker in place of a body would only duplicate the parser's list.
+
+## Math functions
+
+`Math.log2` has one numerical body here. The represented executor runs it
+and the Rust backend compiles it; Rust does not substitute `f64::log2`.
+The body converts its argument with `ToNumber` and handles JavaScript's
+exact special cases. Its numerical kernel follows the FreeBSD/fdlibm
+polynomial and compensated combination from
+[OpenLibm](https://github.com/JuliaMath/openlibm/blob/master/src/e_log2.c).
+A table of exact powers of two reduces the input to the interval around
+1; a Dekker arithmetic split replaces the source's IEEE word operations.
+It needs no other `Math` function and no third-party runtime dependency.
+
+The proof checks a two-ULP error target against literal references computed
+with mpmath at 100 decimal digits from the exact binary64 inputs. The cases
+include neighbours of 1 and of the reduction boundary, subnormals and
+extreme magnitudes. A separate proof checks every representable power of
+two, from `2 ** -1074` through `2 ** 1023`, exactly. This validates the
+listed cases; it is not a proof of a global two-ULP bound. Ordinary positive
+answers are implementation-approximated under ECMAScript, rather than
+required to match each host engine bit for bit.
+
+To reproduce a reference row `[input, expected, ulp]`, decode the input as
+a binary64 value first, then pass its exact integer ratio to mpmath:
+
+```python
+import math
+import mpmath as mp
+
+mp.mp.dps = 100
+x = float.fromhex('0x1.8p+0')  # exact binary64 input, here 1.5
+numerator, denominator = x.as_integer_ratio()
+expected = float(mp.log(mp.mpf(numerator) / denominator, 2))
+ulp = math.ulp(expected)
+print(x, expected, ulp)
+```
+
+The binary64-rounded reference output determines the ULP, not the input's
+magnitude; using an input-relative tolerance would hide large errors near
+1. Mpmath is a development tool for generating these literals and is not
+an FJS, Rust or WASM dependency.
+
+For further `Math` admissions, use native functions only when compatible
+operations exist in both Rust and core WASM. If either lacks one, write
+its body in the common runtime and use it in Rust too. WASM has no logarithm
+instruction, so both `Math.log2` and a possible supporting `Math.log` need
+shared bodies. Native substitutions can follow later; WASM adds no
+third-party dependencies. This is the rule approved in the
+[Math.log2 admission record](../../../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval).
 
 ## The names without a body
 
@@ -126,7 +177,10 @@ body, and no other pair is.
   without a body.
 
 The generator also writes the module's EDAG as
-`gen.edag.data.js` beside it, for the one consumer that needs the runtime
+`gen.edag.js` beside it, an ordinary JavaScript module exporting the graph
+as `unknown`. This explicit data boundary prevents TypeScript from
+expanding the shared graph into an oversized inferred API.
+The EDAG is for the one consumer that needs the runtime
 as data without the compiler: the corpus proof
 [`../../nanvm/proof.f.mjs`](../../nanvm/proof.f.mjs), which runs every
 member-function case through `amnesia` with this runtime and against the
@@ -143,7 +197,7 @@ flowchart LR
     src["fjs/js/runtime/module.f.js<br/>the source"]
     compiler["fjs compile<br/>on the host engine, no runtime needed"]
     host["host function<br/>import"]
-    edag["gen.edag.data.js<br/>EDAG"]
+    edag["gen.edag.js<br/>EDAG"]
     rust["nanvm/lib/src/vm/gen.runtime.rs<br/>Rust"]
     proof["runtime proof<br/>the body on host values"]
     corpus["corpus proofs<br/>evaluate once, pass as the context's runtime"]

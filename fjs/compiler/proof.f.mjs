@@ -14,7 +14,7 @@ import { exitCode, readUtf8File, nodeCommands } from '../effects/node/module.f.m
 import { compile, compileFile, outputText, noRuntime, runtimeSource, _stringifyTree } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { parse } from './source/module.f.mjs'
-import runtimeEdag from '../js/runtime/gen.edag.data.js'
+import runtimeEdag from '../js/runtime/gen.edag.js'
 import { pureOk } from '../effects/module.f.mjs'
 import { resolve, unresolved } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'

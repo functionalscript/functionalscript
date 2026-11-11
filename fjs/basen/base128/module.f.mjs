@@ -6,7 +6,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { mask } from '../../types/bigint/module.f.mjs'
+import { mask } from '../../types/bigint/module.f.js'
 import { vec8, msb, empty } from '../../types/bit_vec/module.f.mjs'
 
 const { concat, popFront } = msb

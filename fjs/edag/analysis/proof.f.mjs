@@ -186,6 +186,15 @@ export const proof = {
         assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
         assertStructurallySame(operandsOf(is), [])
     },
+    // The new static is a shared value, not a fresh closure at each read.
+    mathLog2: () => {
+        /** @type {Exp} */
+        const log2 = ['Math.log2']
+        assertOk(checked(an(['=>', 0, [log2], ['.', ['frame', 0], 'length']])))
+        const twice = an(['[]', [log2, ['Math.log2']]])
+        assertEq(twice.nodes.filter(node => node[0] === 'Math.log2').length, 1)
+        assertStructurallySame(operandsOf(log2), [])
+    },
     validation: () => {
         for (const e of /** @type {readonly Exp[]} */ ([
             ['rest'], ['arg',0], ['=>',0,[],['arg',0]], ['=>',1,[],['arg',1]],

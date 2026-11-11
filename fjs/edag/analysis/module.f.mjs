@@ -283,6 +283,7 @@ const handlers = {
     'Number.isSafeInteger': o0,
     'Number.isNaN': o0,
     'Number.isFinite': o0,
+    'Math.log2': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,

@@ -10,7 +10,7 @@
  * @import { Thunk } from '../types/list/types.ts'
  */
 
-import { bitLength } from '../types/bigint/module.f.mjs'
+import { bitLength } from '../types/bigint/module.f.js'
 import {
     bitsIn,
     byteLength,

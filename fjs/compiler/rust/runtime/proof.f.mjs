@@ -2,7 +2,7 @@
 import { assert, assertEq, assertError, assertOk } from '../../../asserts/module.f.js'
 import { fromTagged } from '../../../text/marked/module.f.mjs'
 import { occurrences } from '../../../types/string/module.f.js'
-import runtime from '../../../js/runtime/gen.edag.data.js'
+import runtime from '../../../js/runtime/gen.edag.js'
 import { generateRuntime, generateRuntimeTagged } from './module.f.mjs'
 
 /** A function node: its length, slots and body. @type {(length: number, slots: readonly Exp[], body: Exp) => Exp} */

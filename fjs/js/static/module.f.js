@@ -39,8 +39,9 @@
  * `Object.fromEntries`
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectfromentries-proposal-and-approval)),
  * `String.fromCharCode` for native UTF-16 construction,
- * and the four `Number` predicates, none of which converts its argument
- * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)).
+ * the four `Number` predicates, none of which converts its argument
+ * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
+ * and the common-runtime logarithm `Math.log2`.
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
@@ -51,6 +52,7 @@ export const statics = /** @type {const} */ ([
     ['Number', 'isSafeInteger'],
     ['Number', 'isNaN'],
     ['Number', 'isFinite'],
+    ['Math', 'log2'],
 ])
 
 /**

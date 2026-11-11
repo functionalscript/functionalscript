@@ -263,7 +263,10 @@ there. `nanvm/harness/fixtures/object-from-entries.mjs`,
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
-- [ ] `Math`
+- [x] `Math` — a reserved namespace admitting the static function
+      `Math.log2`; other members remain separate admissions
+      ([built-in static functions](../built-ins/static-functions/README.md),
+      the approval below)
 - [ ] `Date`
 
 ##### Number predicates proposal and approval
@@ -313,6 +316,40 @@ the built-ins were admitted, a helper beside each was a second public
 spelling of one function, so modules call the built-in, and the runtime's
 proof checks each body against the host's. **sergey-shandar** proposed
 the move in the same session, after the admission.
+
+##### Math.log2 proposal and approval
+
+**Problem.** The compiler refused `Math.log2`, which the bigint utilities
+use to finish their integer logarithm. Rust provides `f64::log2`, but core
+WASM has no logarithm instruction.
+
+**Proposal.** Admit `Math.log2` as a static function and reserve `Math` as
+its closed namespace. One authored FunctionalScript body in the common
+runtime supplies conversion, exact special cases and the numerical
+operation for represented execution and Rust, and is available to the
+future WASM backend. Detached calls, destructuring, identity, function
+text and `length` retain the usual static-function contract.
+
+Use compatible native operations only when both Rust and core WASM
+provide them. If either lacks an operation, implement it in the common
+runtime and use that body in Rust too. Any supporting `Math` functions
+follow the same rule. WASM adds no third-party dependencies; later native
+substitutions may optimize the shared implementation.
+
+**Benefits.** Familiar JavaScript spelling and one implementation across
+backends, without an external WASM math library. Existing bigint callers
+retain their rounding corrections and exact integer contract.
+
+**Drawbacks.** Reserving `Math` affects existing bindings. The shared
+numerical kernel requires accuracy validation, and Rust initially uses it
+even though its standard library offers a native logarithm. General
+positive results are implementation-approximated, as ECMAScript specifies;
+the exact special cases and conversions are not approximate.
+
+**Language-design approval.** **sergey-shandar** explicitly requested the
+TODO PR and its stacked implementation, permitting any necessary supporting
+`Math` admissions under the rule above, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing
 

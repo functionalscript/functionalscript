@@ -12,7 +12,7 @@
  */
 
 import { assert } from '../../asserts/module.f.js'
-import { divUp8, mask } from '../../types/bigint/module.f.mjs'
+import { divUp8, mask } from '../../types/bigint/module.f.js'
 import {
     vec,
     length,

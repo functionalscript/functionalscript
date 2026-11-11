@@ -6,7 +6,7 @@
  * @example
  *
  * ```js
- * import { sum, abs, log2, bitLength, mask } from './module.f.ts'
+ * import { sum, abs, log2, bitLength, mask } from './module.f.js'
  *
  * const total = sum([1n, 2n, 3n]) // 6n
  * const absoluteValue = abs(-42n) // 42n

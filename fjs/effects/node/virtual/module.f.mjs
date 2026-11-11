@@ -19,7 +19,7 @@ import { assert, todo } from '../../../asserts/module.f.js'
 import { isProperPrefix, join, parse } from '../../../path/module.f.js'
 import { asciiLowercase } from '../../../text/ascii/module.f.js'
 import { utf8ToString } from '../../../text/utf8/module.f.mjs'
-import { divUp8 } from '../../../types/bigint/module.f.mjs'
+import { divUp8 } from '../../../types/bigint/module.f.js'
 import { byteLength, empty, isWholeBytes, length, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.js'
 import {

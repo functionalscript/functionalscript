@@ -5,13 +5,15 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
 import { errorMask } from '../../../text/code_point/module.f.js'
-import { stringToCodePointList } from '../../../text/utf16/module.f.js'
+import { stringToCodePointList, stringToList } from '../../../text/utf16/module.f.js'
 import { toArray } from '../../../types/list/alt/module.f.js'
 import { invert, unwrap } from '../../../types/result/module.f.js'
 import { concat } from '../../../types/string/module.f.js'
 import { tryParse } from '../parser/module.f.mjs'
+import { parseFromTokens } from '../../../compiler/parser/module.f.mjs'
+import { tokenize } from '../../../compiler/tokenizer/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, _tryJsonSerialize, _trySerialize, _tryUnknownStringify, tryMarked, trySerialize, tryJsonSerialize, tryJsonMarked, tryJsonStringify, tryStringify } from './module.f.mjs'
 
 /**
  * A value as a host would hand it: the writer's parameter is the data
@@ -348,6 +350,18 @@ export const proof = {
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
         assertEq(concat(unwrap(tryJsonSerialize(value))), '[1,{"a":2}]')
+    },
+    unknownModule: () => {
+        const shared = [1]
+        const document = unwrap(_tryUnknownStringify([shared, shared]))
+        assertEq(document, 'const $0=[1];\n/** @type {unknown} */\nconst $1=[$0,$0];export default $1;')
+        // The annotation is an ordinary-JavaScript boundary. It does not
+        // change the DataJS writer or add comments to DataJS's grammar.
+        unwrap(parseFromTokens(toArray(tokenize(stringToList(document))(''))))
+        assertEq(text([shared, shared]), 'const $0=[1];export default [$0,$0];')
+        assertEq(unwrap(_tryUnknownStringify('export default marker')),
+            '\n/** @type {unknown} */\nconst $0="export default marker";export default $0;')
+        assertEq(unwrap(invert(_tryUnknownStringify(asHanded(() => 1)))), 'a function is not a DataJS value')
     },
     // The leaves carry their kinds and nothing else does: punctuation, keys
     // spelled as names and the writer's keywords stay plain strings.
