@@ -366,7 +366,7 @@ export const proof = {
     callbackFailures: () => {
         /** @type {EdagValue} */
         const payload = ['{}', [[':', 'message', 'callback failure']]]
-        const invocation = { args: [payload], runtime: commonRuntime() }
+        const invocation = /** @type {const} */ ({ args: [payload], runtime: commonRuntime() })
         /** @type {Exp} */
         const callback = ['=>', 0, [['.', ['args'], 0]], ['throw', ['frame', 0]]]
         for (const method of ['map', 'reduce', 'toSorted']) {

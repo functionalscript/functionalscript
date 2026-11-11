@@ -609,7 +609,7 @@ export const proof = {
         // the stand-in with a second implementation of its body.
         const common = unwrap(read(memo(unwrap(analysis(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag)))))({ args: [] }), 'runtime'))
         assert(common instanceof Array && common[0] === '{}')
-        const root = { 'input.f.js': [utf8('export default [1, 2].map(x => x + 1);')] }
+        const root = /** @type {const} */ ({ 'input.f.js': [utf8('export default [1, 2].map(x => x + 1);')] })
         const [state, result] = virtualAt(root)(compileFile(pureOk(common))('input.f.js', 'output.json'))
         unwrap(result)
         assertEq(readOutput(state.root, 'output.json'), '[2,3]')

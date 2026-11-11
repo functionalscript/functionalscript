@@ -186,7 +186,7 @@ export const proof = {
             // a native fallback in the interpreter.
             const common = assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime'))
             assert(common instanceof Array && common[0] === '{}')
-            const root = { main: [utf8('export default [1,2].map(x=>x+1);')] }
+            const root = /** @type {const} */ ({ main: [utf8('export default [1,2].map(x=>x+1);')] })
             const [, result] = runtime({ ...emptyState, root })(transpile(pureOk(common))('main'))
             assertStructurallySame(unwrap(result), { default: [2, 3] })
         },
