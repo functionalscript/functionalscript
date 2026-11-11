@@ -83,7 +83,7 @@
  * @import { _Chain, _Child, _Definition, _DefinitionTask } from './private.ts'
  */
 
-import { helperIds, staticIds } from '../../edag/module.f.mjs'
+import { helperIds, staticIds } from '../../edag/module.f.js'
 import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { chunksText } from '../../text/marked/module.f.mjs'
 import { graphOf } from '../../website/demo/graph/module.f.mjs'

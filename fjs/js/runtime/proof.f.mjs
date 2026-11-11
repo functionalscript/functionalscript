@@ -4,7 +4,7 @@ import { assert, assertEq, assertStructurallySame, assertNotNullish } from '../.
 import { _moduleExports } from '../../compiler/edag/module.f.mjs'
 import { allowedCalls } from '../prototype/module.f.js'
 import { isNative, statics as staticPaths } from '../static/module.f.js'
-import { isStatic as isStaticNode } from '../../edag/module.f.mjs'
+import { isStatic as isStaticNode } from '../../edag/module.f.js'
 import { member, runtime, statics } from './module.f.js'
 import edag from './gen.edag.data.js'
 

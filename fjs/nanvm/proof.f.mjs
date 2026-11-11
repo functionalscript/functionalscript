@@ -21,7 +21,7 @@
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../asserts/module.f.js'
 import { structurallySame } from '../types/object/structurally_same/module.f.js'
-import { exp } from '../edag/module.f.mjs'
+import { exp } from '../edag/module.f.js'
 import { vm, invoke } from '../edag/amnesia/module.f.mjs'
 import { call } from '../edag/value/call/module.f.mjs'
 import { read } from '../edag/value/property/module.f.mjs'

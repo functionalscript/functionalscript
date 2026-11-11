@@ -31,7 +31,7 @@
  *  properties,
  *  property,
  *  spread,
- * } from './module.f.mjs'
+ * } from './module.f.js'
  * @import {
  *  Array,
  *  Exp,
@@ -48,7 +48,7 @@ import {
     exp, fromValue, isStatic, mapItems, mapSteps, op0Id, op1Id, op12Id, op2Id, op3Id,
     helperIds, helperLength, helpers, intrinsicIds, intrinsics, isFunctionNode, isHelper, isIntrinsic,
     noStatic, optionLambda, optionPropertyLambda, propertyLambda, staticIds, staticPath, staticText, stepOperands,
-} from './module.f.mjs'
+} from './module.f.js'
 
 /**
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
@@ -450,6 +450,18 @@ export const proof = {
             assertOk(vOptionPropertyLambda(['|.', 'c', ['|?.()', [1]]]))
             assertOk(vOptionPropertyLambda(['|.', 'c', ['|.', 'd']]))
         },
+        recursiveAlternation: () => {
+            const continuation = /** @type {const} */ (['|()',
+                [['[]', [['=>', 1, [], ['arg', 0]]]]],
+                ['|.', 'next', ['|?.()', [], ['|()', [], ['|.', 'finish', ['|!()', []]]]]],
+            ])
+            assertOk(vOptionLambda(continuation))
+            assertOk(vOptionPropertyLambda(continuation))
+            assertOk(v(['?.()', ['=>', 0, [], 0], [], continuation]))
+            assertNoMatch(vOptionLambda(['|.', 'next',
+                ['|?.()', [], ['|.', 'finish', ['|!()', [], ['|.', 'tooFar']]]],
+            ]))
+        },
         // `|.` takes an `index` and the call steps take an item list, the
         // same operand schemas the nodes use — so a general `exp` in a naming
         // position is rejected, and so is one where the list goes.
@@ -582,7 +594,7 @@ export const proof = {
     },
     // One entry per JS spelling whose grouping or hidden control flow the
     // grammar exists to distinguish — the shape only, since what each
-    // denotes is the JSDoc on the nodes in `./module.f.mjs` and the executor
+    // denotes is the JSDoc on the nodes in `./module.f.js` and the executor
     // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
     // `../compiler/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.

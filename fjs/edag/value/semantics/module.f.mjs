@@ -17,7 +17,7 @@
 
 import { isArray } from '../../../types/array/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
-import { isHelper, isStatic } from '../../module.f.mjs'
+import { isHelper, isStatic } from '../../module.f.js'
 
 /** Untags undefined for primitive operations, retaining every other value. @param {EdagValue} value */
 export const untagUndefined = value => isArray(value) && value[0] === 'undefined' ? undefined : value

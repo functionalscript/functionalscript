@@ -96,7 +96,7 @@ refused explicitly, not silently omitted or reinterpreted as old tuples.
 
 ### Related
 
-- [`../module.f.mjs`](../module.f.mjs) — the RTTI schema of the format.
+- [`../module.f.js`](../module.f.js) — the RTTI schema of the format.
 - [edag-stage1-discussion](../../../todo/edag-stage1-discussion.md) — the format
   being visualized, and where its semantics are worked out.
 - [`fjs/website/demo/graph`](../../website/demo/graph/module.f.mjs) — the

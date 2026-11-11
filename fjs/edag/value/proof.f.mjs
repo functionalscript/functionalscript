@@ -7,7 +7,7 @@
 
 import { assertEq, assertError, assertOk } from '../../asserts/module.f.js'
 import { validate } from '../../rtti/validate/module.f.mjs'
-import { exp } from '../module.f.mjs'
+import { exp } from '../module.f.js'
 import { _value, value, values, array, property, object, func } from './module.f.mjs'
 
 /** Every accepted value shape is also an EDAG expression shape. @type {(v: Unknown) => void} */
