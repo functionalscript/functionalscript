@@ -12,7 +12,7 @@ import {
     or,
     string,
     array as rttiArray,
-} from "../rtti/module.f.mjs";
+} from "../rtti/module.f.js";
 
 /**
  * Every tuple here is closed — the members it declares and nothing else, which

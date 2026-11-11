@@ -5,7 +5,7 @@
 
 import { assertEq } from '../../asserts/module.f.js'
 import { absentBit, toData, unitBit } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.js'
 import { dataToTs, dataToTsMarked, printer } from './module.f.mjs'
 import { toText, withNames } from '../../text/marked/module.f.mjs'
 

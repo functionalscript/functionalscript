@@ -21,7 +21,7 @@ only the empty array, an empty rest bounding the length.
 The demo on this page runs the *Dictionary* lesson: `record(number)` against
 `{"apples":3,"pears":5}`, with its graph, its TypeScript type, its JSON
 Schema, and what `parse` and `validate` make of the value. Change a count to
-a string to see both refuse it. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+a string to see both refuse it. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
@@ -34,5 +34,5 @@ a string to see both refuse it. The lesson is defined in [`sample.f.mjs`](./samp
 
 ## Where it is implemented
 
-The unary schemas in [`module.f.mjs`](../../../module.f.mjs); the container
+The unary schemas in [`module.f.js`](../../../module.f.js); the container
 skeletons in [`common`](../../../common/module.f.mjs).

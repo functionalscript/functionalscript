@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, includes, repeat, generate, dedup, assoc, occurrences, findMap } from './module.f.js'
 import { stringifySorted } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 

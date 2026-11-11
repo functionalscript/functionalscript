@@ -144,6 +144,70 @@ contract and migration strategy.
 
 #### Current leaf migration fixed point
 
+Measured from base revision `ddb70468f`, with the rename-only conversions in
+[#3755](https://github.com/functionalscript/functionalscript/pull/3755).
+Twenty-five complete authored sources are accepted as written and renamed to
+`.f.js`: twelve `module.f.mjs` implementations and thirteen RTTI guide
+`sample.f.mjs` files. Runtime, proof, type and documentation references follow
+the renames; the sources need no semantic rewrites.
+
+Runtime imports and re-exports were rediscovered from JavaScript ASTs under
+`fjs/` and `spec/`, excluding generated paths, proofs and JSDoc-only imports.
+A leaf has only authored `.f.js` runtime dependencies. Each candidate's full
+source was checked through the compiler's `resolve` and `runNodeEffect`,
+without generating output. After accepting a pass, its files were treated as
+renamed before finding the next leaves. The four completed passes are:
+
+1. Three implementations: `edag/value/slice`, `emergent_testing/cov/check`
+   and `types/array`.
+2. Five implementations: `edag/value/entries`, `edag/value/function`,
+   `edag/value/object`, `rtti` and `types/patricia_trie`.
+3. The `effects/schema` implementation and thirteen `rtti/guide/` samples:
+   `outputs/data-form`, `outputs/json-schema`, `outputs/typescript`,
+   `readers/errors`, `readers/parse-and-validate`,
+   `schemas/arrays-and-records`, `schemas/closed-containers`,
+   `schemas/constants`, `schemas/open-containers`, `schemas/option`,
+   `schemas/primitives`, `schemas/recursion` and `schemas/unions`.
+4. Three implementations: `rtti/guide/outputs`, `rtti/guide/readers` and
+   `rtti/guide/schemas`.
+
+Implementation paths above name `fjs/<path>/module.f.js`; sample paths name
+`fjs/rtti/guide/<path>/sample.f.js`. The compiler-compatible population grows
+from 204 to **229 authored `.f.js` files**; authored non-proof `.f.mjs` files
+fall from 435 to **410**. All fifteen remaining leaves are refused as written,
+so there is no further rename-only pass.
+
+Every leaf and exposed path in the table names `fjs/<path>/module.f.mjs`.
+Locations are one-based `line:column` in the unchanged source at `ddb70468f`.
+Exposure counts are immediate: rename that leaf alone after the completed
+passes, then rediscover leaves without assuming that another blocked source
+has changed.
+
+| Leaf still `.f.mjs` | First refused construct (compiler refusal) | Location | Additional leaves its conversion exposes |
+| --- | --- | --- | --- |
+| `edag/from_fast/loop/completions` | `new Set` in a spread (`new is not admitted`) | `31:17` | 0 |
+| `edag` | Forward reference to `primitive` in `_exp` (`const not found`) | `67:5` | 3: `edag/sharing`, `edag/value`, `edag/value/semantics` |
+| `js/ast` | `new Map` for declaration positions (`new is not admitted`) | `54:23` | 3: `edag/from_fast/loop/owning`, `js/ast/control`, `js/ast/sugar/effects` |
+| `js/string_escape` | `new Map(pairs)` in `lookup` (`new is not admitted`) | `94:17` | 2: `ci/package`, `nanvm/demos/spell` |
+| `media/datajs/vectors` | Global `JSON.stringify(value)` (`const not found`) | `97:33` | 0 |
+| `media/json/rtti` | Forward reference to `object` in `unknown` (`const not found`) | `43:48` | 0 |
+| `media/nix` | `[initial, ...trailing]` string destructuring (`rest element not supported`) | `68:21` | 0 |
+| `media/rust` | Global `Math.floor` in `exponentOf` (`const not found`) | `142:21` | 0 |
+| `nanvm/corpus` | String-key access `exceptions[name]` (`computed key is not Number(...)`) | `48:92` | 0 |
+| `text/marked` | `new Map` for `kindsByCode` (`new is not admitted`) | `192:21` | 2: `js/ast/serializer/names`, `media/wasm/wat` |
+| `types/bigint` | Destructuring `log2` from global `Math` (`const not found`) | `52:28` | 3: `types/bigfloat`, `types/bit_set`, `types/bit_vec` |
+| `types/map` | `new Map` in `mapSet` (`new is not admitted`) | `10:38` | 0 |
+| `types/object` | Global `Object` destructuring for `getOwnPropertyDescriptor` and `fromEntries` (`reserved word`) | `29:70` | 4: `ebnf/data`, `ebnf/utf16`, `effects`, `rtti/common` |
+| `types/set` | `new Set()` in the union monoid (`new is not admitted`) | `43:15` | 0 |
+| `website/demo/secp` | Global `Math.sqrt(square)` (`const not found`) | `118:76` | 0 |
+
+After a compiler feature lands, rediscover the runtime dependency leaves,
+compile every candidate, rename accepted sources and update their references,
+then rediscover and repeat until a pass accepts none. Keep earlier
+measurements pinned to their recorded revisions.
+
+#### Leaf migration fixed point at `b3d28bed4` (historical)
+
 Measured on `b3d28bed4`, the leaf conversion updates in
 [#3497](https://github.com/functionalscript/functionalscript/pull/3497), stacked
 on [#3495](https://github.com/functionalscript/functionalscript/pull/3495).

@@ -3,7 +3,7 @@
  */
 
 import { assert, assertStructurallySame } from '../../../asserts/module.f.js'
-import { _coverageFailures, isCoverageTarget } from './module.f.mjs'
+import { _coverageFailures, isCoverageTarget } from './module.f.js'
 
 /** @type {(path: string) => _CoverageFile} */
 const _full = path => ({

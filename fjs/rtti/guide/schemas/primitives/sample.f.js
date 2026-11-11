@@ -7,7 +7,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { bigint, boolean, number, string, unknown } from '../../../module.f.mjs'
+import { bigint, boolean, number, string, unknown } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

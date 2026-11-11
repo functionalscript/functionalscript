@@ -7,7 +7,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { number, option, or } from '../../../module.f.mjs'
+import { number, option, or } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

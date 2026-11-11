@@ -17,10 +17,12 @@ corresponds to, and the module that implements it.
 
 A page is a directory, `guide/<area>/<page>/`, beside the modules rather than
 among them, so a concept directory is never mistaken for a module. It holds
-the `README.md`, a `sample.f.mjs` with the page's lessons, a `demo.f.mjs` that
+the `README.md`, a `sample.f.js` (or `sample.f.mjs` until it compiles) with the
+page's lessons, a `demo.f.mjs` that
 runs them through [`schemaDemo`](../schema-demo/module.f.mjs), and a
 `proof.f.mjs` that checks the page's examples and the values its text invites
-the reader to type. Each area's `module.f.mjs` lists its pages' lessons, and
+the reader to type. Each area's `module.f.js` (or `module.f.mjs` until it
+compiles) lists its pages' lessons, and
 the [module page's demo](../demo.f.mjs) offers them in a group per area.
 
 ## Contents

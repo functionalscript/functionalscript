@@ -10,7 +10,7 @@
 
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { func } from '../function/module.f.mjs'
+import { func } from '../function/module.f.js'
 import { call, invoker, prepare, settle } from './module.f.mjs'
 
 /** An argument or invocation that must never be demanded. @type {() => never} */

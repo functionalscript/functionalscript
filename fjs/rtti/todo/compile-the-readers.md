@@ -7,7 +7,7 @@
 ### Problem
 
 `common` and `validate` are written in constructs the compiler accepts but for
-four things, so neither module can be renamed `.f.js`:
+three things, so neither module can be renamed `.f.js`:
 
 - **`declaredTest`** builds a `Set` of a schema's declared names, so the
   undeclared-member walk asks one lookup a key rather than scanning the
@@ -21,11 +21,9 @@ four things, so neither module can be renamed `.f.js`:
   grouping that record proposes would resolve it. A `read` that builds the
   visitor itself, which the self case already admits, compiles but builds
   every container handler again on each call.
-- **`types/array`**, imported for `isArray`, waits on `occurrences`
-  ([`occurrences-without-map`](../../types/array/todo/occurrences-without-map.md)).
 - **`types/object`**, imported for `isObject`, `at`, `definedEntries` and
-  `definedValues`, destructures `Object` and still imports the unconverted
-  `types/array` module. Its
+  `definedValues`, destructures `Object`. Its
+  [`array`](../../types/array/module.f.js),
   [`ordered_map`](../../types/ordered_map/module.f.js),
   [`btree`](../../types/btree/module.f.js) and
   [`list`](../../types/list/module.f.js) dependencies are now compiler-compatible.

@@ -12,7 +12,7 @@
  * @import { ValueResult } from '../control/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 
 const { entries } = Object

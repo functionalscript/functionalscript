@@ -1,6 +1,6 @@
 /**
  * The declarations in [`../node/types.ts`](../node/types.ts), pinned to the
- * schemas of [`./module.f.mjs`](./module.f.mjs): an operation derived from its
+ * schemas of [`./module.f.js`](./module.f.js): an operation derived from its
  * schema is exactly the operation declared by hand.
  *
  * @module
@@ -13,7 +13,7 @@ import type { Vec } from '../../types/bit_vec/types.ts'
 import type { Mkdir, ReadFile, Readdir, ResolveFileModule, Rm, Write, WriteBytes, WriteFile } from '../node/types.ts'
 import type { Read } from '../common/types.ts'
 import type { Operation, Param, Return } from '../types.ts'
-import type { mkdir, nothing, read, readFile, readdir, resolveFileModule, rm, vec, write, writeBytes, writeFile } from './module.f.mjs'
+import type { mkdir, nothing, read, readFile, readdir, resolveFileModule, rm, vec, write, writeBytes, writeFile } from './module.f.js'
 
 // Rebuilding the call signature drops the Phantom field, forcing a structural
 // check of the runtime schema. CheckRaw also pins that its root excludes absence.

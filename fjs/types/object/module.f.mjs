@@ -13,7 +13,7 @@
  * @import { StringMap, Entry } from './types.ts'
  */
 
-import { isArray } from '../array/module.f.mjs'
+import { isArray } from '../array/module.f.js'
 import { toArray } from '../list/alt/module.f.js'
 import { fromUndefined } from '../nullable/module.f.js'
 import { entries as mapEntries, fromEntries as mapFromEntries } from '../ordered_map/module.f.js'

@@ -54,7 +54,7 @@ The demo on this page runs the *Built or handed back* lesson:
 `open({ name: string, age: number })` against
 `{"name":"Alice","age":30,"admin":true}`. Both readers accept it; `parse`'s
 answer has no `admin`, and `validate`'s is the value as typed. The lesson is
-defined in [`sample.f.mjs`](./sample.f.mjs), and the
+defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

@@ -12,14 +12,14 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { join } from '../array/module.f.mjs'
 import { at } from '../at/module.f.mjs'
 import { call } from '../call/module.f.mjs'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
 import { is, isFunction, isUndefined, strictEqual, tagUndefined, truthy } from '../semantics/module.f.mjs'
-import { slice } from '../slice/module.f.mjs'
+import { slice } from '../slice/module.f.js'
 import { min } from '../../../types/number/min/module.f.js'
 import { max } from '../../../types/number/max/module.f.js'
 

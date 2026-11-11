@@ -67,18 +67,18 @@
  * @import { DemoExample } from './types.ts'
  */
 
-import { lessons as schemaLessons } from './guide/schemas/module.f.mjs'
-import { lessons as readerLessons } from './guide/readers/module.f.mjs'
-import { lessons as outputLessons } from './guide/outputs/module.f.mjs'
+import { lessons as schemaLessons } from './guide/schemas/module.f.js'
+import { lessons as readerLessons } from './guide/readers/module.f.js'
+import { lessons as outputLessons } from './guide/outputs/module.f.js'
 import { lessons as inTheProject } from './guide/in-the-project/module.f.mjs'
 import { schemaDemo } from './schema-demo/module.f.mjs'
 
 /**
  * The lessons: schemas written to show one rule each, every one owned by the
  * guide page that explains its rule, one group per area of the guide
- * ([`guide/schemas`](./guide/schemas/module.f.mjs),
- * [`guide/readers`](./guide/readers/module.f.mjs),
- * [`guide/outputs`](./guide/outputs/module.f.mjs)).
+ * ([`guide/schemas`](./guide/schemas/module.f.js),
+ * [`guide/readers`](./guide/readers/module.f.js),
+ * [`guide/outputs`](./guide/outputs/module.f.js)).
  *
  * @type {readonly DemoExample[]}
  */
