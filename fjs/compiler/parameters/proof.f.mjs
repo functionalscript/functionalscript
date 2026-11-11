@@ -8,7 +8,7 @@ import { assert, assertEq, assertError, assertOk, assertStructurallySame } from 
 import { analysis, checked } from '../../edag/analysis/module.f.mjs'
 import { vm, invoke as amnesiaInvoke } from '../../edag/amnesia/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { call } from '../../edag/value/call/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { isArray } from '../../types/array/module.f.js'

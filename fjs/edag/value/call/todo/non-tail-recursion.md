@@ -7,7 +7,7 @@
 
 The EDAG interpreters still consume the JavaScript call stack when a
 represented function calls another function whose result it must use before
-returning. In [`settle`](../module.f.mjs), invoking that call enters another
+returning. In [`settle`](../module.f.js), invoking that call enters another
 body evaluator while the caller's evaluation remains on the host stack.
 The `invoker` loop handles tail calls, but does not remove these pending
 non-tail evaluations.

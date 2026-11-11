@@ -11,7 +11,7 @@
 import { assert, assertEq, assertOk, assertError, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { func } from '../function/module.f.js'
-import { call, invoker, prepare, settle } from './module.f.mjs'
+import { call, invoker, prepare, settle } from './module.f.js'
 
 /** An argument or invocation that must never be demanded. @type {() => never} */
 const skipped = () => { assert(false, 'a skipped call step was evaluated') }

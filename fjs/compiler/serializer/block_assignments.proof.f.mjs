@@ -12,7 +12,7 @@
 import { assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { identityAnalysis } from '../../edag/analysis/module.f.mjs'
 import { invoke, memo } from '../../edag/memo/module.f.mjs'
-import { call } from '../../edag/value/call/module.f.mjs'
+import { call } from '../../edag/value/call/module.f.js'
 import { read } from '../../edag/value/property/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { stringify } from '../../js/ast/serializer/module.f.mjs'

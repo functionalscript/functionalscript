@@ -21,7 +21,7 @@
 import { isArray } from '../../../types/array/module.f.js'
 import { ok, error, mapOk, okThen } from '../../../types/result/module.f.js'
 import { allowedCalls, prototypes } from '../../../js/prototype/module.f.js'
-import { call } from '../call/module.f.mjs'
+import { call } from '../call/module.f.js'
 import { functionAt } from '../property/module.f.mjs'
 import { isFunction, isNullish, isUndefined, tagUndefined } from '../semantics/module.f.js'
 import { toIntegerOrInfinity, toNumber, toString } from '../convert/module.f.mjs'
