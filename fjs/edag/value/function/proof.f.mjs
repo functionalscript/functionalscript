@@ -6,10 +6,10 @@
  */
 
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../../asserts/module.f.js'
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { validateClosure } from '../closure/module.f.mjs'
-import { func } from './module.f.mjs'
+import { func } from './module.f.js'
 
 /** A later capture that must never be evaluated. @type {() => never} */
 const skipped = () => { assert(false, 'a capture after a failure was evaluated') }

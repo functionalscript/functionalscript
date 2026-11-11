@@ -15,7 +15,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok } from '../../../types/result/module.f.js'
 import { isHelper, isStatic } from '../../module.f.mjs'
 

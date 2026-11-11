@@ -21,7 +21,7 @@
  * @import { Result } from '../../../types/result/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { error, ok } from '../../../types/result/module.f.js'
 import { isNullish } from '../semantics/module.f.mjs'
 

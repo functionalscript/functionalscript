@@ -78,7 +78,7 @@ Each item below is independently buildable and may become its own issue.
 - [`fjs/mcp/todo/remote-url.md`](../../../mcp/todo/remote-url.md) — the CAS
   server's plan to serve blobs as resources, the first consumer of the
   resource schemas.
-- `fjs/rtti/module.f.mjs` — schema combinators; `fjs/rtti/ts/` is the
+- `fjs/rtti/module.f.js` — schema combinators; `fjs/rtti/ts/` is the
   precedent for a printer.
 - [Model Context Protocol](https://modelcontextprotocol.io/) ·
   [JSON-RPC 2.0](https://www.jsonrpc.org/specification)

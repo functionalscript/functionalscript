@@ -8,7 +8,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { number, or } from '../../../module.f.mjs'
+import { number, or } from '../../../module.f.js'
 
 /** @type {DemoExample} */
 export const signedZero = {

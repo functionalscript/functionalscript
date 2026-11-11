@@ -9,8 +9,8 @@
 
 import { assert, assertEq, assertOk, assertError, assertNotNullish, assertStructurallySame } from '../../../asserts/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
-import { object } from '../object/module.f.mjs'
-import { func } from '../function/module.f.mjs'
+import { object } from '../object/module.f.js'
+import { func } from '../function/module.f.js'
 import { primitiveToBigInt, objectToPrimitive, primitiveToString, primitiveToNumber, primitiveToNumeric } from './module.f.mjs'
 
 /** An invocation that must never happen. @type {() => never} */

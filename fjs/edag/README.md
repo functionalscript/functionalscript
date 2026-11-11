@@ -88,14 +88,14 @@ deferred items, resolving array and string spreads in order. Construction
 stops at the first failure, preserves element identity and creates a fresh
 array value. A non-iterable spread returns `error(['undefined'])`.
 
-[`value/object`](value/object/module.f.mjs) constructs evaluated objects from
+[`value/object`](value/object/module.f.js) constructs evaluated objects from
 deferred string-key properties and object, array and string spreads. It
 preserves property value identity, stops at the first failure and creates a
 fresh object with unique keys in JavaScript enumeration order. Property
 thunks perform key resolution before value evaluation; key coercion belongs
 to the operation/invocation layer.
 
-[`value/function`](value/function/module.f.mjs) constructs function values
+[`value/function`](value/function/module.f.js) constructs function values
 from deferred captures and valid body templates. Captures evaluate in order,
 retaining their identities and propagating the first failure unchanged.
 Each function gets a fresh copy of its body graph, including nested function
@@ -189,7 +189,7 @@ arrays and strings: it truncates fractions toward zero and counts negative
 indices from the end. Array elements retain their identities; strings yield
 UTF-16 code units. Out-of-range reads answer tagged undefined.
 
-[`value/slice`](value/slice/module.f.mjs) slices evaluated arrays and strings;
+[`value/slice`](value/slice/module.f.js) slices evaluated arrays and strings;
 an `undefined` end means the receiver's length. Array results are fresh values
 sharing the selected elements; strings retain UTF-16 substring semantics.
 
@@ -343,7 +343,7 @@ vocabularies.
 | `['entry']` | the language's `entry` helper, as a value: a function of `length` `2` capturing nothing, fresh where it is established as every `=>` is, whose call `['()', ['entry'], [a, b]]` reads the enumerable own property `b` names of `a`: its value, or `undefined` where there is none |
 | `['hasEntry']` | the `hasEntry` helper beside it, the same function but for its answer: `['()', ['hasEntry'], [a, b]]` is whether the enumerable own property is there, `true` for one holding `undefined` ([spec: entry](../../spec/property-access/entries/README.md)) |
 | `['slice']`, `['charCodeAt']` | an intrinsic, as a value: the helper calling a member function no body defines, `(s, a, b) => s.slice(a, b)` recognized whole, a function of its helper's `length`, `3` for `slice`, capturing nothing, fresh where it is established as `entry` is, whose call `['()', ['slice'], [s, a, b]]` is the member call `s.slice(a, b)` as an executor answers it with no runtime — the receiver's own property, else the native, else the `TypeError` — so the runtime's bodies reach a native without naming what the runtime defines (`intrinsics`; [`fjs/js/intrinsic`](../js/intrinsic/module.f.js)) |
-| `['Object.is']`, `['Object.entries']`, `['Object.keys']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.mjs)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
+| `['Object.is']`, `['Object.entries']`, `['Object.keys']`, `['Object.fromEntries']`, `['Number.isInteger']`, `['Number.isSafeInteger']`, `['Number.isNaN']`, `['Number.isFinite']` | a static function, as a value, its tag its path's keys joined by `.` (`staticIds`): the built-in, identified by its name, so the node is its own value, `===` compares the tags, and `String` spells its name's NativeFunction text (`staticText`); capturing nothing, called as any function is, `['()', ['Object.is'], [a, b]]`, its call and its `length` answered by the body the runtime's `static` function answers for the id, `runtime.static('Object.is')`, the id a path [`fjs/js/static`](../js/static/module.f.js) admits joined by `.` — but `Object.entries`, which no body defines and every executor binds natively ([`./value/entries`](./value/entries/module.f.js)). One function, as in JavaScript, not fresh where it is established: two occurrences merge, and every read is the same function. An executor with no binding for it fails rather than answer |
 | `['=>', length, slots[], body]` | function; integer length metadata, the slots of its frame — each an `exp` evaluated in the enclosing scope, `[]` for no captures — and the invocation-scope body |
 | `['frame', N]` | slot `N` of the owning function's captured frame |
 | `['()', exp, items[]]` | call with no receiver, `exp(…)` over the argument list `items[]` — see [Chains](#chains) |

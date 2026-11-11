@@ -27,7 +27,7 @@ import { fmtResult, formatDuration } from '../module.f.mjs'
 import { csiWrite } from '../../text/sgr/module.f.mjs'
 import { createPlan, runPlanned } from './plan/module.f.mjs'
 import { openCoverageCache } from './context/module.f.mjs'
-import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.mjs'
+import { isCoverageTarget as coverageTarget, _coverageFailures as coverageFailures } from './check/module.f.js'
 
 /** Target selection shared with the lightweight native reporter. */
 export const isCoverageTarget = coverageTarget

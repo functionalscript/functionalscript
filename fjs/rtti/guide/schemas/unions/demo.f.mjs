@@ -7,6 +7,6 @@
  */
 
 import { schemaDemo } from '../../../schema-demo/module.f.mjs'
-import { lessons } from './sample.f.mjs'
+import { lessons } from './sample.f.js'
 
 export const demo = schemaDemo([['Unions', lessons]])

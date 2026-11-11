@@ -49,7 +49,7 @@ The demo on this page runs the *Where it failed* lesson:
 item has `"3"` for its quantity. Both readers refuse it at
 `items → 1 → qty`, and the demo marks that member in the value. Make the
 quantity a number to see both accept it. The lesson is defined in
-[`sample.f.mjs`](./sample.f.mjs), and the
+[`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference

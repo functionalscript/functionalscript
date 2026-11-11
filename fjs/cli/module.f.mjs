@@ -11,7 +11,7 @@
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
 import { at, fromEntries, isObject } from '../types/object/module.f.mjs'
-import { isArray } from '../types/array/module.f.mjs'
+import { isArray } from '../types/array/module.f.js'
 import { max } from '../types/number/max/module.f.js'
 
 /** Metadata for the help command implicit in every dispatch table. */

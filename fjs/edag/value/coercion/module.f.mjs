@@ -25,7 +25,7 @@
  * @import { Invoke } from '../call/types.ts'
  */
 
-import { isArray } from '../../../types/array/module.f.mjs'
+import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { call } from '../call/module.f.mjs'
 import { findProperty } from '../property/module.f.mjs'

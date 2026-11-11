@@ -22,7 +22,7 @@ import { history, historyStep, mapStep, pureError, pureOk, step } from '../../ef
 import { error, unwrap as unwrapResult } from '../../types/result/module.f.js'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
-import { string } from '../../rtti/module.f.mjs'
+import { string } from '../../rtti/module.f.js'
 import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
 import { hasEntry } from '../../types/object/entry/module.f.js'
 import {

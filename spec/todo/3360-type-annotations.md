@@ -4,7 +4,7 @@
 **Status:** open
 
 ```js
-import { number, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
+import { number, or, string } from 'functionalscript/fjs/rtti/module.f.js'
 
 export const myType = or(number, string)
 
@@ -91,7 +91,7 @@ More than half of this is built:
 
 | Piece | Where | State |
 | --- | --- | --- |
-| Schema constructors | `fjs/rtti/module.f.mjs` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
+| Schema constructors | `fjs/rtti/module.f.js` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
 | Value checking | `fjs/rtti/parse/` | `parse(schema)(value)` |
 | Canonical data form | `fjs/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
 | TypeScript emission | `fjs/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |

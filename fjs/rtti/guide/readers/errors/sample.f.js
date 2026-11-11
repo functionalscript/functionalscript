@@ -7,7 +7,7 @@
  * @import { DemoExample } from '../../../types.ts'
  */
 
-import { array, number, string } from '../../../module.f.mjs'
+import { array, number, string } from '../../../module.f.js'
 
 /** @type {readonly DemoExample[]} */
 export const lessons = [

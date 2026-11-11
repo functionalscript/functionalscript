@@ -34,7 +34,7 @@ builds `{}`, with no key `a`, and `validate` hands back the `{}` it was given.
 The demo on this page runs the *Absent vs undefined* lesson: `{}` is
 accepted by `{ a: or(option, number) }` and refused by
 `{ a: or(number, undefined) }`. Type `export default {"a":undefined};` to see
-the answers swap. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and the
+the answers swap. The lesson is defined in [`sample.f.js`](./sample.f.js), and the
 [module page's demo](../../../README.md) lists it among all the others.
 
 ## Reference
@@ -50,5 +50,5 @@ the answers swap. The lesson is defined in [`sample.f.mjs`](./sample.f.mjs), and
 
 ## Where it is implemented
 
-`option` in [`module.f.mjs`](../../../module.f.mjs); the absent bit of a
+`option` in [`module.f.js`](../../../module.f.js); the absent bit of a
 member's unit set in [`data`](../../../data/module.f.mjs).
