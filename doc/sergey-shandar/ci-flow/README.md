@@ -13,6 +13,5 @@ When a function receives an input, it may request for additional inputs to conti
 ## Example
 
 ```
-source.f.js-> [parser] -source.f.js AST-> [compiler] -requires source2.d.js EDAG->
+source.f.js-> [parser] -source.f.js AST-> [deps] -> source + requirements -> [loader]
 ```
-
