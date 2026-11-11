@@ -34,7 +34,7 @@ import { parse } from '../transpiler/module.f.mjs'
 import { _tryModuleSerialize, _trySerialize, functionText, tryFunctionText, trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify, tryMarked, tryModuleMarked } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.js'
 import { staticIds } from '../../edag/module.f.js'
-import { operandsOf, visit } from '../../edag/sharing/module.f.mjs'
+import { operandsOf, visit } from '../../edag/sharing/module.f.js'
 import { disagreement } from '../../js/marked/module.f.mjs'
 import { textOfResult, toText } from '../../text/marked/module.f.mjs'
 

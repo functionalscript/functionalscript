@@ -13,7 +13,7 @@ erased. Invoking those functions uses ordinary runtime returns and throws.
 
 ## Value forms
 
-The [type definitions](value/types.ts) and [shape schema](value/module.f.mjs)
+The [type definitions](value/types.ts) and [shape schema](value/module.f.js)
 use the existing EDAG vocabulary:
 
 | Form | Meaning |

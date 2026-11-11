@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { analysis, checked, identityAnalysis, itemOperand, operandsOf, ownOperandsOf, scopeHolds } from './module.f.mjs'
-import { sharedNodesOf } from '../sharing/module.f.mjs'
+import { sharedNodesOf } from '../sharing/module.f.js'
 
 /**
  * What every table satisfies, checked on every case: an entry names only

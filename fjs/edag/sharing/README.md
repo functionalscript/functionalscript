@@ -3,7 +3,7 @@
 Which nodes an EDAG reaches from more than one place. Sharing is the EDAG's
 own word: one node object referenced from several places, as a `const` read
 twice lowers to. So it is a question of identity, never of spelling: two nodes
-spelled alike are two nodes. [`module.f.mjs`](./module.f.mjs) holds the walk.
+spelled alike are two nodes. [`module.f.js`](./module.f.js) holds the walk.
 
 |Export                       |Answers                                                         |
 |-----------------------------|----------------------------------------------------------------|
