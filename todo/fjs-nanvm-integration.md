@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Demo entry, inflate indexes and noise state
+
+#3797 (`6e05b59ae`) reads curve names with `entry`; `website/demo/secp`
+now uses `.f.js`. Both inflate table indexes use `Number(...)`; its next
+refusal is `Math.min` (`211:42`). `noise` threads its seed through `stateScan`;
+`testlib` next stops at `lengths.forEach` (`148:17`).
+The graph has **277 `.f.js`**, **366 `.f.mjs`**, **13 blocked leaves**;
+none accepted and no new leaves exposed.
+
 #### Native maximum and generators
 
 #3797 (`4b9560e0a`) adds native `Math.max` and replaces seven `Array.from`
@@ -1080,20 +1089,9 @@ relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:42 | `new Map(...)` in `mapSet` | `new Map(...)` in `mapDelete`; `Map` is not a language type |
 | `types/object/structurally_same/module.f.mjs` | 56:20 | `new Map(entries(b))` in `structurallySame` | `const { entries } = Object`: `entries` is a prohibited property name, `Array.prototype`'s, and spelled `Object.entries` it is refused at `Object`, whose one admitted member is `is`; the language enumerates no keys |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['types/list', 'types/map', 'types/object/structurally_same'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `0c9ddf8` (historical)
 
