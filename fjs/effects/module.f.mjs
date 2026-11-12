@@ -561,23 +561,6 @@ export const catchStep = (e, f) => {
 export const orElse = (forgiven, fallback) => e => forgiven(e) ? pureOk(fallback) : pureError(e)
 
 /**
- * Applies a pure function to the `ok` value, passing an `error` through
- * unchanged: the functor `map` of this layer, and a {@link step} whose
- * continuation performs nothing further.
- *
- * A trailing pure projection is where a sequence *ends*, not another link in
- * it, and spelling it as a step misreports how many effects a chain runs.
- * Write `mapStep(e, f)`, never `step(e, x => pureOk(f(x)))`.
- *
- * **The operation set does not widen**: a pure projection issues no commands. Neither does the error channel — `f` cannot
- * fail, so a chain that only projects its value keeps the errors it already
- * had.
- *
- * @type {<O extends Operation, T, E, R>(e: Effect<O, T, E>, f: (t: T) => R) => Effect<O, R, E>}
- */
-export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
-
-/**
  * Applies a pure function to the whole {@link Result}: the both-branches
  * sibling of {@link mapStep}, and the {@link resultStep} whose continuation
  * performs nothing further.
@@ -605,6 +588,23 @@ export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
  * ) => Effect<O, OkOf<R>, ErrOf<R>>}
  */
 export const resultMapStep = (e, f) => resultStep(e, r => pure(f(r)))
+
+/**
+ * Applies a pure function to the `ok` value, passing an `error` through
+ * unchanged: the functor `map` of this layer, and a {@link step} whose
+ * continuation performs nothing further.
+ *
+ * A trailing pure projection is where a sequence *ends*, not another link in
+ * it, and spelling it as a step misreports how many effects a chain runs.
+ * Write `mapStep(e, f)`, never `step(e, x => pureOk(f(x)))`.
+ *
+ * **The operation set does not widen**: a pure projection issues no commands. Neither does the error channel — `f` cannot
+ * fail, so a chain that only projects its value keeps the errors it already
+ * had.
+ *
+ * @type {<O extends Operation, T, E, R>(e: Effect<O, T, E>, f: (t: T) => R) => Effect<O, R, E>}
+ */
+export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
 
 /**
  * Runs `e` and answers its whole {@link Result} as the success value, so the
