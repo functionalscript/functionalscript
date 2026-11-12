@@ -11,8 +11,6 @@
 
 import { prime_field, sqrt } from '../../types/prime_field/module.f.js'
 import { repeat } from '../../common/monoid/module.f.js'
-import { assertNotNullish } from '../../asserts/module.f.js'
-import { entry } from '../../types/object/entry/module.f.js'
 
 /**
  * Constructs an elliptic curve with the given initialization parameters.
@@ -42,8 +40,7 @@ import { entry } from '../../types/object/entry/module.f.js'
  */
 export const curve = ({ p, c: [c0, c1], n, g }) => {
     const pf = prime_field(p)
-    const { pow2, pow3, add, mul, neg, div } = pf
-    const sub = assertNotNullish(entry(pf, /** @type {const} */ ('sub')))
+    const { pow2, pow3, add, mul, neg, div, subtract: sub } = pf
     const mul3 = mul(3n)
     const mul2 = mul(2n)
     const addC1 = add(c1)

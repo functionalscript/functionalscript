@@ -21,7 +21,7 @@ import { assertNotNullish } from '../../asserts/module.f.js'
  */
 export const prime_field = p => {
     /** @type {Reduce} */
-    const sub = a => b => {
+    const subtract = a => b => {
         const r = a - b
         return r < 0 ? r + p : r
     }
@@ -39,7 +39,7 @@ export const prime_field = p => {
             const a2 = a0 % a1
             a0 = a1
             a1 = a2
-            const f2 = sub(f0)(mul(f1)(q))
+            const f2 = subtract(f0)(mul(f1)(q))
             f0 = f1
             f1 = f2
         }
@@ -75,7 +75,7 @@ export const prime_field = p => {
         middle,
         max,
         neg: a => a === 0n ? 0n : p - a,
-        sub,
+        subtract,
         add,
         abs: a => middle < a ? p - a : a,
         mul,

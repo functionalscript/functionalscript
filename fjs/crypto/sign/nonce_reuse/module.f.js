@@ -19,7 +19,7 @@ import { error, ok } from '../../../types/result/module.f.js'
  * @type {(curve: Curve) => (hash: Sha2) => (key: bigint, k: bigint, messages: readonly [Vec, Vec]) => Result<ReusedNonce, string>}
  */
 export const reuse = curve => {
-    const { nf: { p: q, div, sub, mul }, mul: pointMul, g } = curve
+    const { nf: { p: q, div, subtract: sub, mul }, mul: pointMul, g } = curve
     const { bits2intModQ } = all(q)
     return hf => {
         const hash = computeSync(hf)
