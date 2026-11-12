@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Memory presence and Git byte fixture
+
+#3791 (`c639e8637`) replaces memory's `Object.hasOwn` binding with
+`hasEntry`; its next refusal is destructuring `values` (`97:34`). The Git
+fixture is now `undefinedByte`, `[undefined, 0x61]`, with matching proof
+names and comments. `git/testlib` now compiles as `.f.js`; references follow.
+The graph has **271 `.f.js` files**, **372 `.f.mjs` files** and
+**16 blocked leaves**; the final pass accepts none, exposing no new leaves.
+
 #### Recursive mock runners
 
 #3791 (`e49e11f76`) makes both `runAll` and `partialRun` define `runner`
@@ -669,20 +678,9 @@ paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['git/config', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `2e0462e` (historical)
 
