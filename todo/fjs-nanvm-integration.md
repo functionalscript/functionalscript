@@ -142,6 +142,17 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Prime-field subtraction rename
+
+The migration in #3783 renames `PrimeField.sub` to `subtract`, updating its
+type and all consumers. The curve implementation binds `subtract` directly
+instead of reading `sub` with `entry`. This clears the last refusal in
+`crypto/sign/nonce_reuse`, which now uses `.f.js` with its references updated.
+
+At `19d3b90ed`, the graph has **266 `.f.js` files**, **377 `.f.mjs` files**
+and **16 blocked leaves**. No additional leaf is exposed by this promotion;
+the remaining blockers are unchanged.
+
 #### SHA-1 numeric indexes
 
 The migration in #3782 makes both computed keys in `crypto/sha1` explicit:
