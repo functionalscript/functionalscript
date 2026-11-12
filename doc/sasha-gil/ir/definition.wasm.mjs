@@ -52,6 +52,9 @@ export const emit = (checked, exports) => {
         return []
     }
     const blockType = t => { const f = flat(t); return f.length === 0 ? null : f.length === 1 ? f[0] : refuse('a block with two results') }
+    /** A constant is one global here, so its type is one word. */
+    const word = (t, what) => { const f = flat(t); return f.length === 1 ? f[0] : refuse(`${what} is ${show(t)}, and this prototype holds a constant in one global`) }
+    const constantWords = new Map(Object.entries(module.constants).map(([name, [x]]) => [name, word(x, `constant ${name}`)]))
 
     // what the module imports and holds, found while its code is emitted
     const fnImports = new Map()
@@ -111,6 +114,7 @@ export const emit = (checked, exports) => {
                     if (x[0] === 'int') { return [[carrier(x).bits === 32 ? ['i32.const', Number(BigInt.asIntN(32, value))] : ['i64.const', BigInt.asIntN(64, value)]], x] }
                     if (x[0] === 'f64c') { return [[['f64.const', bitsOf(value)]], x] }
                     // a literal of a sealed type is made by the function that its interface names
+                    typeof value === 'string' || refuse('this prototype makes a literal from the units of a string only')
                     literals.set(value, null)
                     const maker = decl(x).literal[x[3].join()]
                     return [[['i32.const', { ptr: value }], ['i32.const', value.length], ['call', importRaw(ifaces[maker.module].abi, maker.name, ['i32', 'i32'], [decl(x).carrier])]], x]
@@ -148,12 +152,18 @@ export const emit = (checked, exports) => {
                         // an owned value that the function gives back is passed once, and read again after the call
                         if (x[0] === 'get') { kept = env.get(x[1]).slots; return code }
                         kept = alloc(s.params[k][2], `${t[2]}.kept`)
-                        return [...code, ...kept.map(slot => ['local.tee', slot])]
+                        return [...code, ...set(kept), ...kept.map(slot => ['local.get', slot])]
                     })
                     const target = t[1] === 'self' ? { self: t[2] } : importFn(t[1], t[2])
                     return [never([...args, ['call', target], ...(kept ?? []).map(slot => ['local.get', slot])]), type(t)]
                 }
-                case 'constant': return [[['global.get', t[1] === 'self' ? { constant: t[2] } : (globalImports.set(`${ifaces[t[1]].abi} ${t[2]}`, { module: ifaces[t[1]].abi, name: t[2], type: flat(type(t))[0] }), { global: `${ifaces[t[1]].abi} ${t[2]}` })]], type(t)]
+                case 'constant': {
+                    if (t[1] === 'self') { return [[['global.get', { constant: t[2] }]], type(t)] }
+                    // a constant of an interface is an imported global
+                    const key = `${ifaces[t[1]].abi} ${t[2]}`
+                    globalImports.set(key, { module: ifaces[t[1]].abi, name: t[2], type: word(type(t), `constant ${t[1]}.${t[2]}`) })
+                    return [[['global.get', { global: key }]], type(t)]
+                }
                 case 'code': { if (!codes.includes(t[1])) { codes.push(t[1]) } return [[['i32.const', { code: t[1] }]], type(t)] }
                 case 'make': return [Object.entries(t[1]).flatMap(([k, x]) => as(x, type(t)[1][k])), type(t)]
                 case 'field': {
@@ -256,7 +266,6 @@ export const emit = (checked, exports) => {
         ? [...acc.slice(0, -1), [acc[acc.length - 1][0] + 1, vt]] : [...acc, [1, vt]], [])
     const importTypes = imports.map(x => typeIndex(x.type))
     const definedTypes = defined.map(f => typeIndex(f.type))
-    const carrierOf = name => flat(module.constants[name][0])[0]
     const zero = vt => vt === 'i32' ? [['i32.const', 0]] : vt === 'i64' ? [['i64.const', 0n]] : [['f64.const', 0n]]
     return {
         types,
@@ -266,8 +275,9 @@ export const emit = (checked, exports) => {
         ],
         functions: defined.map((f, k) => ({ type: definedTypes[k], locals: groups(f.locals), body: f.body.map(resolve) })),
         tables: [{ element: 'funcref', limits: { min: codes.length, max: codes.length } }],
-        memories: [{ min: 1, max: null }],
-        globals: Object.keys(module.constants).map(name => ({ type: { type: carrierOf(name), mutable: true }, init: zero(carrierOf(name)) })),
+        // 64 KiB pages that hold the literals' units
+        memories: [{ min: Math.max(1, Math.ceil(dataEnd / 0x1_0000)), max: null }],
+        globals: [...constantWords.values()].map(vt => ({ type: { type: vt, mutable: true }, init: zero(vt) })),
         exports: [
             ...exports.map(name => ({ name, kind: 'func', index: fnIndex.get(`self ${name}`) })),
             { name: 'init', kind: 'func', index: fnIndex.get('self init') },

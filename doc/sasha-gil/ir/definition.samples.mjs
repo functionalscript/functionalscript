@@ -217,6 +217,8 @@ export const exported = ['typeOf', 'stringEquals', 'stringEqualsF', 'toBoolean',
 // ── Mistakes that must be refused ────────────────────────────────────────
 
 const withFunction = f => ({ ...sample, functions: { ...sample.functions, mistake: f } })
+const withConstants = (constants, functions = {}) =>
+    ({ ...sample, constants: { ...sample.constants, ...constants }, functions: { ...sample.functions, ...functions } })
 const beginArray = call('Containers', 'begin_array')
 const push = call('Containers', 'push')
 const seal = call('Containers', 'seal')
@@ -234,6 +236,12 @@ export const mistakes = [
         match(s, [[['number'], null, n(0n)], [null, null, n(1n)]]))), 'checker'],
     ['a transfer with a value of the wrong type', withFunction(fn({ v: any }, index, ({ v }) => br('return', v))), 'checker'],
     ['a kind tag compared with a float', withFunction(fn({ v: any }, bool, ({ v }) => eq(kind(v), lit(f64c, 3)))), 'checker'],
+    ['an operator with an operand too many', withFunction(fn({}, f64c, () => float(n(1n), n(2n)))), 'checker'],
+    // `init` evaluates the constants in their order, so `early` would read a global that is not set yet
+    ['a constant that reads a later one', withConstants({ early: [index, constant('self', 'late')], late: [index, n(1n)] }), 'checker'],
+    ['a constant that calls a function that reads a later one', withConstants(
+        { early: [index, call('self', 'readLate')()], late: [index, n(1n)] },
+        { readLate: fn({}, index, () => constant('self', 'late')) }), 'checker'],
     ['a builder used after it was sealed', withFunction(fn({ v: any }, array, ({ v }) =>
         let_('b', beginArray(n(1n)), b => let_('first', seal(push(b, v)), () => seal(b))))), 'lifetime pass'],
     ['a builder that is never sealed', withFunction(fn({}, any, () => let_('b', beginArray(n(0n)), () => undefined_))), 'lifetime pass'],

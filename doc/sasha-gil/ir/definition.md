@@ -45,7 +45,7 @@ WASM module that runs under Node ([Running it](#running-it)).
   Prepared FAST adds mutable slots, which the IR does not have.
 - **Checked on real code.** In the prototype, 312 calls of emitted WASM
   agree with the FunctionalScript originals, a host that counts every value
-  finds none left over, and 11 deliberate mistakes are refused. Ten points
+  finds none left over, and 14 deliberate mistakes are refused. Ten points
   that the notes do not state came out of it
   ([What the check found](#what-the-check-found)).
 - **What needs the owner.** Whether this note becomes the reference, the
@@ -203,8 +203,12 @@ differs. The emitter then follows six rules:
 A constant is a named term that is evaluated once. `init` is derived: it
 evaluates the constants in their order
 ([L0 design §20](../wasm/l0-design.md#20-a-program-is-one-module-with-an-init-export)).
-A use of a constant is a borrow. One notion covers four things that the
-notes treat apart:
+So the term of a constant reads only the constants before it, itself or
+through a function that it names, and the checker refuses any other read.
+Normalized FAST gives such an order: its definitions run in sequence, and
+a function holds its captures from where it is defined. A use of a
+constant is a borrow. One notion covers four things that the notes treat
+apart:
 
 - a module-level definition of FAST, such as L1's `typeNames`;
 - a string or bigint literal, which is a constant named by its spelling,
@@ -626,10 +630,10 @@ WASM emitter for import form. The module then runs under Node on a host that imp
 
 - **312 calls** of the emitted WASM agree with the FunctionalScript
   originals, and after each one the host has no value left over.
-- **11 mistakes** are refused: 9 by the checker, such as a string function
-  on a value of unknown kind or a counter incremented without a
-  comparison, and 2 by the lifetime pass, a builder used after `seal` and
-  a builder never sealed.
+- **14 mistakes** are refused: 12 by the checker, such as a string
+  function on a value of unknown kind, a counter incremented without a
+  comparison, or a constant that reads a later one, and 2 by the lifetime
+  pass, a builder used after `seal` and a builder never sealed.
 - **Without the lifetime pass** the host reports values left over, so
   the count has teeth.
 
@@ -759,7 +763,8 @@ Each has a recommendation.
 - **Not the whole core.** It has no `call_ref`, no `match` on an integer,
   no sum of its own but `bool`, and integers of one word only. Its WASM
   blocks have one result, so a product crosses a label only as a loop's
-  parameters.
+  parameters. A constant is one global, so a constant of a product is
+  refused, and a literal is made from the units of a string only.
 - **Not a check of the owned stage.** The counting host stands in for it.
 - **Not a runtime.** The host keeps every value in a JavaScript map behind
   a handle, numbers too, so that a misplaced `dup` or `drop` shows.
@@ -784,6 +789,6 @@ node definition.fast.mjs stringEquals       # the normalized FAST it was lowered
 | [`definition.lifetime.mjs`](./definition.lifetime.mjs) | the lifetime pass |
 | [`definition.wasm.mjs`](./definition.wasm.mjs) | the WASM emitter for import form, to [`fjs/media/wasm`](../../../fjs/media/wasm/README.md)'s AST |
 | [`definition.host.mjs`](./definition.host.mjs) | the counting host for `fjs:l0` |
-| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, and the 11 mistakes |
+| [`definition.samples.mjs`](./definition.samples.mjs) | the interfaces, the seven functions, and the 14 mistakes |
 | [`definition.check.mjs`](./definition.check.mjs) | the check; it ends with a summary, and exits with 1 on a difference |
 | [`definition.fast.mjs`](./definition.fast.mjs) | the normalized FAST of a module, from the compiler |

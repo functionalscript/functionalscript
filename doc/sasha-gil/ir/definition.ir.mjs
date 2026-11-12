@@ -300,6 +300,8 @@ export const check = module => {
         : (ifaces[m]?.functions[name] ?? refuse(`no function ${m}.${name}`))
     const sigOf = (m, name) => { const s = signature(m, name); return { ...s, params: s.params.map(([k, mode, t]) => [k, mode, normal(t)]), result: normal(s.result) } }
     const failing = new Map(Object.keys(module.functions).map(k => [k, false]))
+    /** The constants of the module that a function may read, itself or through a function it names. */
+    const reading = new Map(Object.keys(module.functions).map(k => [k, new Set()]))
     /** The literals of sealed types that functions hold, as constants under their spelling. */
     const literals = new Map()
     const fresh = (() => { let k = 0; return () => `$${++k}` })()
@@ -403,6 +405,8 @@ export const check = module => {
                     return done(['op', 'trunc_sat', t[2], e], t[2])
                 }
                 const args = t.slice(2).map(x => ck(x, env))
+                const arity = t[1] === 'float' ? 1 : 2
+                args.length === arity || refuse(`${t[1]} takes ${arity === 1 ? 'one operand' : 'two operands'}`)
                 const [a, b] = args.map(x => types.get(x))
                 const ints = args.every(x => types.get(x)[0] === 'int')
                 const floats = args.every(x => isFloat(types.get(x)))
@@ -430,16 +434,20 @@ export const check = module => {
                 args.length === s.params.length || refuse(`${callee(t[1], t[2])} takes ${s.params.length} arguments`)
                 args.forEach((x, k) => expect(`${callee(t[1], t[2])}, argument ${s.params[k][0]}`, types.get(x), s.params[k][2]))
                 if (t[1] === 'self' ? failing.get(t[2]) : s.fails) { env.fails.yes = true }
+                if (t[1] === 'self') { reading.get(t[2]).forEach(c => env.reads.add(c)) }
                 // a `dup` answers the type of its argument, so a refined value stays refined
                 const isDup = Object.values(ifaces[t[1]]?.types ?? {}).some(d => d.dup === t[2])
                 return done(['call', t[1], t[2], ...args], isDup ? types.get(args[0]) : s.result)
             }
             case 'constant': {
                 const type = t[1] === 'self' ? (literals.get(t[2]) ?? module.constants?.[t[2]])?.[0] : ifaces[t[1]]?.constants[t[2]]
+                if (t[1] === 'self') { env.reads.add(t[2]) }
                 return done(['constant', t[1], t[2]], normal(type ?? refuse(`no constant ${callee(t[1], t[2])}`)))
             }
             case 'code': {
                 const s = sigOf('self', t[1])
+                // whoever holds the value may call it
+                reading.get(t[1]).forEach(c => env.reads.add(c))
                 return done(['code', t[1]], code(s.params.map(([, mode, x]) => [mode, x]), s.result))
             }
             case 'make': {
@@ -512,26 +520,30 @@ export const check = module => {
 
     const constants = {}
     const checkConstants = () => Object.entries(module.constants ?? {}).forEach(([name, [type, e]]) => {
+        const reads = new Set()
         // a constant whose whole term is a literal is that literal's constant
-        const body = ck(e, { locals: new Map(), labels: new Map(), fails: {}, lift: e[0] !== 'lit' })
+        const body = ck(e, { locals: new Map(), labels: new Map(), fails: {}, reads, lift: e[0] !== 'lit' })
         expect(`constant ${name}`, types.get(body), normal(type))
+        // `init` evaluates the constants in their order, and the literals before them
+        reads.forEach(c => Object.hasOwn(constants, c) || literals.has(c) || refuse(`constant ${name} reads ${c} before ${c} is evaluated`))
         constants[name] = [normal(type), body]
     })
     const functions = {}
     const checkFunctions = () => Object.entries(module.functions).forEach(([name, f]) => {
         const s = sigOf('self', name)
         const fails = { yes: false }
+        const reads = new Set()
         const locals = new Map(s.params.map(([k, , type]) => [k, type]))
-        const body = ck(f.body, { locals, labels: new Map([['return', { kind: 'block', type: s.result }]]), fails, lift: true })
+        const body = ck(f.body, { locals, labels: new Map([['return', { kind: 'block', type: s.result }]]), fails, reads, lift: true })
         expect(`function ${name}`, types.get(body), s.result)
-        functions[name] = { params: s.params, result: s.result, body, fails: fails.yes }
+        functions[name] = { params: s.params, result: s.result, body, fails: fails.yes, reads }
     })
-    // the one effect: checked again until no function changes
+    // the one effect, and the constants that a function reads: checked again until no function changes
     for (;;) {
         checkFunctions()
-        const changed = Object.entries(functions).filter(([name, f]) => f.fails !== failing.get(name))
+        const changed = Object.entries(functions).filter(([name, f]) => f.fails !== failing.get(name) || f.reads.size !== reading.get(name).size)
         if (changed.length === 0) { break }
-        changed.forEach(([name, f]) => failing.set(name, f.fails))
+        changed.forEach(([name, f]) => { failing.set(name, f.fails); reading.set(name, f.reads) })
     }
     checkConstants()
     const ownership = t => {
