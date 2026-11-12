@@ -147,10 +147,9 @@ contract and migration strategy.
 #3791 (`c639e8637`) replaces `Object.hasOwn` with `hasEntry` and the Git
 hole with `undefinedByte`, `[undefined, 0x61]`; `git/testlib` now uses `.f.js`.
 `50746db6f` renames `MemoryState.values` to `slots`, updating its consumers.
-Memory next refuses `state.slots[slot(...)]` (`103:53`,
-`computed key is not Number(...)`) and stays `.f.mjs`.
-The graph has **271 `.f.js` files**, **372 `.f.mjs` files** and
-**16 blocked leaves**; the final pass accepts none, exposing no new leaves.
+`dd452b8d2` reads slots with `entry`; memory now uses `.f.js`, with references
+updated. The graph has **272 `.f.js` files**, **371 `.f.mjs` files** and
+**15 blocked leaves**; the final pass accepts none, exposing no new leaves.
 
 #### Recursive mock runners
 
