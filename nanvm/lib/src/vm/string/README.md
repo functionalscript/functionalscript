@@ -14,17 +14,17 @@ equal to what the compiler admits. The same arrangement for `Array` is
 |---|---|
 | [`reads.rs`](reads.rs) | `at`, `charAt`, `charCodeAt`, `isWellFormed`, `toWellFormed` |
 | [`search.rs`](search.rs) | `includes`, `indexOf`, `lastIndexOf`, `endsWith` |
-| [`building.rs`](building.rs) | `slice`, `substring`, `concat`, `repeat`, `padStart`, `padEnd`, `trim`, `trimStart`, `trimEnd` |
+| [`building.rs`](building.rs) | `slice`, `substring`, `repeat`, `padStart`, `padEnd`, `trim`, `trimStart`, `trimEnd` |
 | [`patterns.rs`](patterns.rs) | `replace`, `replaceAll`, `split` |
 | [`casing.rs`](casing.rs) | `toLowerCase`, `toUpperCase` |
 
 ## Answered by the runtime
 
-`startsWith` has no entry here: its body is written once, in
+`startsWith`, `codePointAt` and `concat` have no entries here: their bodies are written once, in
 [`fjs/js/runtime`](../../../../../fjs/js/runtime/README.md), which
 `npm run gen` compiles into [`../gen.runtime.rs`](../gen.runtime.rs), and
-the call step reaches it through [`../runtime.rs`](../runtime.rs) after the
-table above has no entry. The names still here have no body yet: the
+the call step reaches them through [`../runtime.rs`](../runtime.rs).
+The names still here have no body yet: the
 primitives a body is written over, and the names whose bodies wait on a
 primitive the language has not admitted. A name moves out of this table
 when its body lands, or stays beside the body where a measurement justifies

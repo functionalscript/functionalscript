@@ -1,7 +1,6 @@
 mod argument;
 mod at;
 pub(crate) mod callback;
-mod concat;
 pub(crate) mod create;
 mod every;
 mod filter;
