@@ -196,12 +196,15 @@ natively or by a body — and the native table in reverse.
 **The floor grows by the primitives no body can write.** Some static
 functions are definitions over the operators, bodies from the first day:
 `Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.max`,
-`Math.sign`. `Math.trunc`, `Math.floor` and `Math.abs` are admitted natively under the later target rule:
-both Rust and core WASM provide compatible rounding operations, so every executor uses
-its native binding without a common numerical body
+`Math.sign`. `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`
+and `Math.imul` are admitted natively under the later target rule: both Rust
+and core WASM provide compatible numerical operations, so every executor uses
+its native binding after the existing JavaScript conversions, without a
+common numerical body or third-party dependency
 ([truncation](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval),
 [floor](../../../spec/todo/2360-built-in.md#mathfloor-proposal-and-approval),
-[absolute value](../../../spec/todo/2360-built-in.md#mathabs-proposal-and-approval)).
+[absolute value](../../../spec/todo/2360-built-in.md#mathabs-proposal-and-approval),
+[square root, ceiling and integer multiplication](../../../spec/todo/2360-built-in.md#mathsqrt-mathceil-and-mathimul-proposal-and-approval)).
 One is a primitive a VM must bind natively
 because nothing in the language reaches it: `String.fromCharCode`, a
 string from a code unit. The transcendental `Math` names — `sin`, `exp`,

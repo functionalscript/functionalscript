@@ -102,6 +102,119 @@ export const proof = /** @type {const} */ ({
         eq(['()', ['String.fromCharCode'], [true, null, ['undefined'], '66', ['[]', [67]]]], '\u0001\u0000\u0000BC')
         failure(['()', ['String.fromCharCode'], [65, 1n]])
     },
+    mathSqrt: {
+        numbers: () => {
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, NaN],
+                [0, 0], [-0, -0], [1, 1], [4, 2], [2, 1.4142135623730951],
+                [-1, NaN], [-5e-324, NaN], [5e-324, 2.2227587494850775e-162],
+                [1.7976931348623157e308, 1.3407807929942596e154],
+            ]) { eq(['()', ['Math.sqrt'], [value]], expected) }
+            eq(['()', ['Math.sqrt'], []], NaN)
+        },
+        conversion: () => {
+            for (const [value, expected] of /** @type {readonly (readonly [Exp, number])[]} */ ([
+                ['', 0], [' -0 ', -0], [' 0x10 ', 4], ['Infinity', Infinity], ['bad', NaN],
+                [true, 1], [false, 0], [null, 0], [['undefined'], NaN],
+                [['[]', []], 0], [['[]', [9]], 3], [['[]', [16n]], 4], [['{}', []], NaN],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], 25]], [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]]]], 5],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '36']]]], 6],
+            ])) { eq(['()', ['Math.sqrt'], [value]], expected) }
+            eq(['()', ['Math.sqrt'], [16, throws]], 4)
+            failure(['()', ['Math.sqrt'], [throws, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.sqrt'], [1n]])
+            failure(['()', ['Math.sqrt'], [['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]]]])
+            failure(['()', ['Math.sqrt'], [throws]], 'conversion')
+            failure(['()', ['Math.sqrt'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.sqrt'], ['Math.sqrt'])
+            eq(['.', ['Math.sqrt'], 'length'], 1)
+            eq(['String', ['Math.sqrt']], 'function sqrt() { [native code] }')
+            eq(['===', ['Math.sqrt'], ['Math.sqrt']], true)
+            eq(['===', ['Math.sqrt'], ['Math.abs']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.sqrt'], [4]]), ['ok', 2])
+        },
+    },
+    mathCeil: {
+        numbers: () => {
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 1], [-0.5, -0],
+                [1.9, 2], [-1.9, -1], [5e-324, 1], [-5e-324, -0],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+                [-1.7976931348623157e308, -1.7976931348623157e308],
+            ]) { eq(['()', ['Math.ceil'], [value]], expected) }
+            eq(['()', ['Math.ceil'], []], NaN)
+        },
+        conversion: () => {
+            for (const [value, expected] of /** @type {readonly (readonly [Exp, number])[]} */ ([
+                ['', 0], [' -0 ', -0], [' -0.5 ', -0], [' 0x10 ', 16], ['Infinity', Infinity], ['bad', NaN],
+                [true, 1], [false, 0], [null, 0], [['undefined'], NaN],
+                [['[]', []], 0], [['[]', [8.9]], 9], [['[]', [8n]], 8], [['{}', []], NaN],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], 2.9]], [':', 'toString', ['=>', 0, [], ['throw', 'unreached']]]]], 3],
+                [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '-3.9']]]], -3],
+            ])) { eq(['()', ['Math.ceil'], [value]], expected) }
+            eq(['()', ['Math.ceil'], [4.9, throws]], 5)
+            failure(['()', ['Math.ceil'], [throws, ['throw', 'argument']]], 'argument')
+            failure(['()', ['Math.ceil'], [1n]])
+            failure(['()', ['Math.ceil'], [['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]]]])
+            failure(['()', ['Math.ceil'], [throws]], 'conversion')
+            failure(['()', ['Math.ceil'], [['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.ceil'], ['Math.ceil'])
+            eq(['.', ['Math.ceil'], 'length'], 1)
+            eq(['String', ['Math.ceil']], 'function ceil() { [native code] }')
+            eq(['===', ['Math.ceil'], ['Math.ceil']], true)
+            eq(['===', ['Math.ceil'], ['Math.floor']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.ceil'], [-1.9]]), ['ok', -1])
+        },
+    },
+    mathImul: {
+        numbers: () => {
+            for (const [left, right, expected] of [
+                [2, 3, 6], [-2, 3, -6], [0, -1, 0], [-0, 1, 0],
+                [0xffff_ffff, 5, -5], [0x8000_0000, -1, -0x8000_0000],
+                [0x7fff_ffff, 2, -2], [0x1_0000_0001, 2, 2],
+                [0x20_0000_0000_0002, 3, 6], [-1.9, 2.9, -2],
+                [NaN, 3, 0], [Infinity, 2, 0], [-Infinity, 2, 0], [5e-324, 3, 0],
+            ]) { eq(['()', ['Math.imul'], [left, right]], expected) }
+            eq(['()', ['Math.imul'], []], 0)
+            eq(['()', ['Math.imul'], [5]], 0)
+        },
+        conversion: () => {
+            eq(['()', ['Math.imul'], [' 0xffff ', ['[]', [2]]]], 0x1_fffe)
+            eq(['()', ['Math.imul'], [true, ['[]', [8n]]]], 8)
+            eq(['()', ['Math.imul'], [null, ['undefined']]], 0)
+            eq(['()', ['Math.imul'], [['{}', []], 3]], 0)
+            eq(['()', ['Math.imul'], [3, ['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], '4']]]]]], 12)
+            eq(['()', ['Math.imul'], [3, 4, throws]], 12)
+            failure(['()', ['Math.imul'], [throws, 4, ['throw', 'argument']]], 'argument')
+            const right = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'right']]]]])
+            // A failed left conversion prevents the right; even zero requires converting the right.
+            failure(['()', ['Math.imul'], [throws, right]], 'conversion')
+            failure(['()', ['Math.imul'], [1n, right]])
+            failure(['()', ['Math.imul'], [0, right]], 'right')
+            failure(['()', ['Math.imul'], [3, 1n]])
+            const bigintObject = /** @type {const} */ (['{}', [[':', 'valueOf', ['=>', 0, [], 1n]]]])
+            failure(['()', ['Math.imul'], [3, bigintObject]])
+            failure(['()', ['Math.imul'], [bigintObject, right]])
+            failure(['()', ['Math.imul'], [3, ['{}', [[':', 'valueOf', ['=>', 0, [], ['{}', []]]], [':', 'toString', ['=>', 0, [], ['[]', []]]]]]]])
+        },
+        nativeFunction: () => {
+            eq(['Math.imul'], ['Math.imul'])
+            eq(['.', ['Math.imul'], 'length'], 2)
+            eq(['String', ['Math.imul']], 'function imul() { [native code] }')
+            eq(['===', ['Math.imul'], ['Math.imul']], true)
+            eq(['===', ['Math.imul'], ['Math.sqrt']], false)
+            const throwing = /** @type {Runtime} */ (['{}', [[':', 'static', ['=>', 1, [], ['throw', 'unused runtime']]]]])
+            assertStructurallySame(under(throwing, ['()', ['Math.imul'], [2, 3]]), ['ok', 6])
+        },
+    },
     mathAbs: {
         numbers: () => {
             for (const [value, expected] of [
