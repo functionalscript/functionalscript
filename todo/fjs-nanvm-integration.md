@@ -148,6 +148,8 @@ contract and migration strategy.
 copy, preserving binding order, Unicode iteration and fresh tail identity.
 `text/utf8`, `text`, `text/percent`, `effects/common`, `sul/id` and
 `sul/level/hash` now use `.f.js`; references are updated.
+Array rest makes these six compile; [AGENTS.md §3](../AGENTS.md#3-functionalscript-and-typescript-fjs)
+requires these renames and reference updates in the compiler PR.
 The graph has **285 `.f.js`**, **358 `.f.mjs`**, **20 blocked leaves**;
 the final pass accepts none. The other former rest refusals advance to
 `asn.1`'s forward `encode` reference (`284:31`), `ebnf/data`'s `forEach`
