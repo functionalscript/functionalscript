@@ -15,6 +15,28 @@ import { match, partialMatch } from "../module.f.js"
 import { notImplemented } from "../module.f.js"
 import { error, ok } from "../../types/result/module.f.js"
 
+/**
+ * The interpreter loop both runners share: step the effect, thread the state
+ * through the handler's transition, resume with the command's output.
+ *
+ * @type {<O extends Operation, S>(
+ *     next: <O1 extends O, T, E>(e: Effect<O1, T, E>) => MatchResult<O1, T, E, (state: S) => readonly[S, any]>
+ * ) => RunInstance<O, S>}
+ */
+const _loop = next => state => effect => {
+    let s = state
+    let e = effect
+    while (true) {
+        const r = next(e)
+        if (r[0] === 'done') {
+            return [s, r[1]]
+        }
+        const [ns, m] = r[1](s)
+        s = ns
+        e = r[2](m)
+    }
+}
+
 /** @type {<O extends Operation, S>(o: MemOperationMap<O, S>) => RunInstance<O, S>} */
 export const run = o => _loop(match(o))
 
@@ -73,26 +95,4 @@ export const partialRun = commands => o => {
     const runner = _loop(partialMatch(commands, onMissing)(
         commands.includes('all') ? { ...o, all: allOver(() => runner) } : o))
     return runner
-}
-
-/**
- * The interpreter loop both runners share: step the effect, thread the state
- * through the handler's transition, resume with the command's output.
- *
- * @type {<O extends Operation, S>(
- *     next: <O1 extends O, T, E>(e: Effect<O1, T, E>) => MatchResult<O1, T, E, (state: S) => readonly[S, any]>
- * ) => RunInstance<O, S>}
- */
-const _loop = next => state => effect => {
-    let s = state
-    let e = effect
-    while (true) {
-        const r = next(e)
-        if (r[0] === 'done') {
-            return [s, r[1]]
-        }
-        const [ns, m] = r[1](s)
-        s = ns
-        e = r[2](m)
-    }
 }
