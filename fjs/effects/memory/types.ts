@@ -32,5 +32,5 @@ export type MemOp = MemCreate | MemRead | MemWrite
  */
 export type MemoryState = {
     readonly next: number
-    readonly values: StringMap<unknown>
+    readonly slots: StringMap<unknown>
 }

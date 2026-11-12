@@ -17,7 +17,7 @@ const incremented = historyStep(written, (_, key) => mapStep(read(key), n => n +
 const counter = mapStep(incremented, ([n]) => n)
 
 run(memoryOperationMap)(memoryInitial)(counter)
-// [{ next: 1, values: { mem0: 41 } }, ['ok', 42]]
+// [{ next: 1, slots: { mem0: 41 } }, ['ok', 42]]
 ```
 
 Each link is bound at one level, and `historyStep` carries the key forward so

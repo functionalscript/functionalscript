@@ -55,7 +55,7 @@ export const write = do_('memWrite')
  *
  * @type {MemoryState}
  */
-export const memoryInitial = { next: 0, values: {} }
+export const memoryInitial = { next: 0, slots: {} }
 
 /**
  * The rule every memory interpreter applies to a key it is asked to read or
@@ -75,13 +75,13 @@ export const slotId = has => key => {
 }
 
 /**
- * {@link slotId} over {@link MemoryState}'s values, panicking with the
+ * {@link slotId} over {@link MemoryState}'s slots, panicking with the
  * not-found message.
  *
- * @type {(values: MemoryState['values']) => (key: Key<unknown>) => string}
+ * @type {(slots: MemoryState['slots']) => (key: Key<unknown>) => string}
  */
-const slot = values => key => {
-    const r = slotId(id => hasEntry(values, id))(key)
+const slot = slots => key => {
+    const r = slotId(id => hasEntry(slots, id))(key)
     assert(r[0] === 'ok', r[1])
     return r[1]
 }
@@ -94,13 +94,13 @@ const slot = values => key => {
  * @type {MemOperationMap<MemOp, MemoryState>}
  */
 export const memoryOperationMap = {
-    memCreate: value => ({ next, values }) => {
+    memCreate: value => ({ next, slots }) => {
         const id = `mem${next}`
         /** @type {Key<unknown>} */
         const key = asNominal(id)
-        return [{ next: next + 1, values: { ...values, [id]: value } }, ok(key)]
+        return [{ next: next + 1, slots: { ...slots, [id]: value } }, ok(key)]
     },
-    memRead: key => state => [state, ok(state.values[slot(state.values)(key)])],
-    memWrite: (key, value) => ({ next, values }) =>
-        [{ next, values: { ...values, [slot(values)(key)]: value } }, ok(undefined)],
+    memRead: key => state => [state, ok(state.slots[slot(state.slots)(key)])],
+    memWrite: (key, value) => ({ next, slots }) =>
+        [{ next, slots: { ...slots, [slot(slots)(key)]: value } }, ok(undefined)],
 }
