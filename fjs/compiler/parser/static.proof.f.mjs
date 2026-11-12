@@ -173,8 +173,8 @@ export const proof = {
             exported('["()",["Object.fromEntries"],[["[]",[["[]",["a",1]]]]]]'))
         expectRefused('const { fromEntries } = Number; export default 1;', 'reserved word', 25)
     },
-    // Math is a namespace, with log2 admitted as a value and every other
-    // member still closed. The namespace itself cannot be bound or read.
+    // Math is a namespace: its admitted members are values, while every
+    // other member stays closed. The namespace cannot be bound or read.
     mathLog2: () => {
         for (const source of ['Math.log2', 'Math["log2"]', '(Math.log2)']) {
             expectModule(`export default ${source};`, exported('["Math.log2"]'))
@@ -197,6 +197,20 @@ export const proof = {
         ]) { expectRefused(source, 'reserved word', source.indexOf('Math') + 1) }
         expectModule('export default { Math: 1 }.Math;',
             exported('[".",["{}",[[":","Math",1]]],"Math"]'))
+    },
+    mathTrunc: () => {
+        for (const source of ['Math.trunc', 'Math["trunc"]', '(Math.trunc)']) {
+            expectModule(`export default ${source};`, exported('["Math.trunc"]'))
+        }
+        expectModule('export default Math.trunc(3.75);', exported('["()",["Math.trunc"],[3.75]]'))
+        expectModule('export default Math["trunc"]?.(3.75);', exported('["?.()",["Math.trunc"],[3.75]]'))
+        expectModule('const { trunc: f, "trunc": g, trunc: { length } } = Math; export default [f, g, length];',
+            exported('["[]",[["Math.trunc"],["Math.trunc"],[".",["Math.trunc"],"length"]]]'))
+        expectModule('export default x => Math.trunc(x);',
+            exported('["=>",1,[],["()",["Math.trunc"],[["arg",0]]]]'))
+        for (const source of ['Math?.trunc', 'Math?.["trunc"](1)', 'Number.trunc', 'Object.trunc']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
     },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.

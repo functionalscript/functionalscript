@@ -41,7 +41,7 @@
  * `String.fromCharCode` for native UTF-16 construction,
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
- * and the common-runtime logarithm `Math.log2`.
+ * the common-runtime logarithm `Math.log2` and native truncation `Math.trunc`.
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
@@ -54,21 +54,24 @@ export const statics = /** @type {const} */ ([
     ['Number', 'isNaN'],
     ['Number', 'isFinite'],
     ['Math', 'log2'],
+    ['Math', 'trunc'],
 ])
 
 /**
- * The admitted paths no body can define, each a primitive every executor
- * binds natively and the runtime lists as the built-in itself, not as a
+ * The admitted paths every executor binds natively and the runtime lists
+ * as the built-in itself, not as a
  * body: `Object.entries`, since
  * enumerating keys is exactly what the language has no other way to do
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
  * `String.fromCharCode` is native too: it constructs UTF-16 strings from
  * code units without a large lookup table.
+ * `Math.trunc` uses the compatible native truncation in Rust and core WASM.
  * Every other path of {@link statics} has its body in the runtime.
  */
 export const natives = /** @type {const} */ ([
     ['Object', 'entries'],
     ['String', 'fromCharCode'],
+    ['Math', 'trunc'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

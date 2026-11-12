@@ -6,7 +6,7 @@
 
 ### Problem
 
-[`fjs/crypto/sha1`](../sha1/module.f.mjs) computes SHA-1 in `sha2`'s
+[`fjs/crypto/sha1`](../sha1/module.f.js) computes SHA-1 in `sha2`'s
 `Hash<S, R>` shape, proven by the FIPS 180-4 vectors, and `fjs/git/oid`'s `of`
 hashes a Git object with it at the repository's width. That is enough to
 address an object, and to verify one against a name already trusted.

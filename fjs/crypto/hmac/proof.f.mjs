@@ -6,7 +6,7 @@
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { maxLengthBytes, uint, vec } from '../../types/bit_vec/module.f.js'
-import { sha1 } from '../sha1/module.f.mjs'
+import { sha1 } from '../sha1/module.f.js'
 import { sha256, sha384, sha512 } from '../sha2/module.f.js'
 import { hmac } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'

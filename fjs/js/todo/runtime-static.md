@@ -196,7 +196,11 @@ natively or by a body — and the native table in reverse.
 **The floor grows by the primitives no body can write.** Some static
 functions are definitions over the operators, bodies from the first day:
 `Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.max`,
-`Math.trunc`, `Math.sign`. One is a primitive a VM must bind natively
+`Math.sign`. `Math.trunc` is admitted natively under the later target rule:
+both Rust and core WASM provide compatible truncation, so every executor uses
+its native binding without a common numerical body
+([admission](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval)).
+One is a primitive a VM must bind natively
 because nothing in the language reaches it: `String.fromCharCode`, a
 string from a code unit. The transcendental `Math` names — `sin`, `exp`,
 `log`, `pow` with a fractional exponent — are neither, and stay refused:
@@ -206,7 +210,7 @@ agreement the spec requires of every successful result, so such a name is
 admitted only with a body that pins its answer, a correctly rounded
 algorithm or a table, and not before. The runtime's README lists each
 admitted static path as bodied or native, as it lists the member names,
-and a native-only name is absent from the table as a member primitive is.
+and a native-only static holds the built-in itself in the runtime table.
 `Object(a)` is the one `''` whose body needs a decision before it is
 admitted: on an object or an array it is the identity, and on a primitive
 JavaScript answers a wrapper object the language has no value for, so the

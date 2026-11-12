@@ -30,7 +30,7 @@ static body's exact semantic cases against the host's own built-in at the
 same path; `Math.log2` also has numerical reference cases with an error
 tolerance. The design
 of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
-A name without a body is absent, and each VM answers it from its own
+A member name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
 
@@ -75,6 +75,15 @@ admitted set and need not be: a table keying every admitted name with a
 marker in place of a body would only duplicate the parser's list.
 
 ## Math functions
+
+`Math.trunc` is native: Rust supplies `f64::trunc` and core WASM supplies
+`f64.trunc`, both rounding toward zero while preserving signed zero and
+infinities. The runtime table holds the JavaScript built-in itself. Represented
+execution and Rust apply their existing `ToNumber` conversion before the native
+numeric operation, retaining bigint rejection and conversion failures. WASM
+needs no third-party dependency. See the
+[admission record](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval)
+for the native references and boundary cases.
 
 `Math.log2` has one numerical body here. The represented executor runs it
 and the Rust backend compiles it; Rust does not substitute `f64::log2`.
@@ -125,7 +134,7 @@ third-party dependencies. This is the rule approved in the
 
 ## The names without a body
 
-Two kinds, and both are each VM's to bind natively:
+The VMs bind these natively:
 
 - the **primitives**, which no body can define in terms of the rest — for
   a string, the code-unit read `charCodeAt` and the substring `slice`;
@@ -140,6 +149,8 @@ Two kinds, and both are each VM's to bind natively:
   `codePointAt`, whose own body is the one member call and which the
   compiler recognizes whole as a node every executor answers natively, so
   no body of this module makes a member call;
+- the **compatible native math operations** available in both Rust and core
+  WASM, currently `Math.trunc`, under the target rule above;
 - the names whose body **waits on further implementation** — `toLowerCase` and `toUpperCase` on a string from a code
   unit, now admitted as the native `String.fromCharCode`, over which the Unicode case tables are
   written; the number formatters and a nondecimal `toString` radix on

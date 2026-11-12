@@ -359,6 +359,7 @@ export const statics = {
     'Number.isNaN': isNaN_,
     'Number.isFinite': isFinite_,
     'Math.log2': log2,
+    'Math.trunc': Math.trunc,
 }
 
 /** The runtime: table lookup and the `in` and `Boolean` operator bodies. */

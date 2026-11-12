@@ -137,7 +137,7 @@ export const proof = {
         assertEq(some('ab', '1'), 'b')
         for (const key of ['length', '2', '01']) { none('ab', key) }
         /** @type {readonly EdagValue[]} */
-        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], true, 0, 1n]
+        const entryless = [functionValue, ['entry'], ['hasEntry'], ['slice'], ['Object.entries'], ['Math.trunc'], true, 0, 1n]
         for (const receiver of entryless) {
             for (const key of ['length', '0', 'name']) { none(receiver, key) }
         }
@@ -160,7 +160,9 @@ export const proof = {
         // none at the path
         expectValue(['Object.entries'], 'length', 1)
         expectValue(['String.fromCharCode'], 'length', 1)
+        expectValue(['Math.trunc'], 'length', 1)
         missing(['String.fromCharCode'], 'name')
+        missing(['Math.trunc'], 'name')
         missing(['Object.entries'], 'name')
         /** @type {import('../types.ts').Runtime} */
         const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Object.is', ['=>', 2, [], ['===', ['arg', 0], ['arg', 1]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]

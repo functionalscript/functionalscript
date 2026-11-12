@@ -190,14 +190,15 @@ export const proof = {
         assertEq(twice.nodes.filter(node => node[0] === 'Object.is').length, 1)
         assertStructurallySame(operandsOf(is), [])
     },
-    // The new static is a shared value, not a fresh closure at each read.
-    mathLog2: () => {
-        /** @type {Exp} */
-        const log2 = ['Math.log2']
-        assertOk(checked(an(['=>', 0, [log2], ['.', ['frame', 0], 'length']])))
-        const twice = an(['[]', [log2, ['Math.log2']]])
-        assertEq(twice.nodes.filter(node => node[0] === 'Math.log2').length, 1)
-        assertStructurallySame(operandsOf(log2), [])
+    // A Math static is a shared value, not a fresh closure at each read.
+    mathStatics: () => {
+        for (const id of /** @type {const} */ (['Math.log2', 'Math.trunc'])) {
+            const fn = /** @type {const} */ ([id])
+            assertOk(checked(an(['=>', 0, [fn], ['.', ['frame', 0], 'length']])))
+            const twice = an(['[]', [fn, [id]]])
+            assertEq(twice.nodes.filter(node => node[0] === id).length, 1)
+            assertStructurallySame(operandsOf(fn), [])
+        }
     },
     objectKeys: () => {
         const keys = /** @type {const} */ (['Object.keys'])

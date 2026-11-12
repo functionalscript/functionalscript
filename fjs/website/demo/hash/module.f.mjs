@@ -9,7 +9,7 @@
  */
 
 import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.js'
-import { sha1 } from '../../../crypto/sha1/module.f.mjs'
+import { sha1 } from '../../../crypto/sha1/module.f.js'
 import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { codeBlock } from '../code/module.f.js'

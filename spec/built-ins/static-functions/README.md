@@ -28,7 +28,7 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The admitted static functions include `Math.log2`, `Object.is`,
+The admitted static functions include `Math.log2`, `Math.trunc`, `Object.is`,
 `Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
 four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
@@ -66,6 +66,14 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
 `true`.
+
+`Math.trunc(x)` converts its first argument with `ToNumber`, then rounds
+toward zero: `Math.trunc("-1.9")` is `-1`, and `Math.trunc(-0.5)` is `-0`.
+Both zeros and infinities remain unchanged, and `NaN` stays `NaN`.
+Omitting the argument produces `NaN`; a bigint or a failed conversion throws.
+Extra arguments are evaluated but not converted. The function is native in
+every executor because Rust and core WASM both supply compatible truncation
+([admission](../../todo/2360-built-in.md#mathtrunc-proposal-and-approval)).
 
 `Math.log2(x)` returns the base-2 logarithm after JavaScript's `ToNumber`
 conversion: `Math.log2("8")` is `3`, while a BigInt argument throws.
