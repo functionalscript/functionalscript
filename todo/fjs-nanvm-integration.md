@@ -144,10 +144,11 @@ contract and migration strategy.
 
 #### Memory presence and Git byte fixture
 
-#3791 (`c639e8637`) replaces memory's `Object.hasOwn` binding with
-`hasEntry`; its next refusal is destructuring `values` (`97:34`). The Git
-fixture is now `undefinedByte`, `[undefined, 0x61]`, with matching proof
-names and comments. `git/testlib` now compiles as `.f.js`; references follow.
+#3791 (`c639e8637`) replaces `Object.hasOwn` with `hasEntry` and the Git
+hole with `undefinedByte`, `[undefined, 0x61]`; `git/testlib` now uses `.f.js`.
+`50746db6f` renames `MemoryState.values` to `slots`, updating its consumers.
+Memory next refuses `state.slots[slot(...)]` (`103:53`,
+`computed key is not Number(...)`) and stays `.f.mjs`.
 The graph has **271 `.f.js` files**, **372 `.f.mjs` files** and
 **16 blocked leaves**; the final pass accepts none, exposing no new leaves.
 
