@@ -5,7 +5,7 @@
 
 ### Problem
 
-[`module.f.mjs`](../module.f.mjs) exports `fromWords`, the number a list
+[`module.f.js`](../module.f.js) exports `fromWords`, the number a list
 of words spells most significant first, and
 [`fjs/crypto/sha1`](../../sha1/module.f.mjs) imports it for the digest.
 The inverse, a block as its sixteen words, has no shared owner: `sha1`

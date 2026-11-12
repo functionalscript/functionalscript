@@ -8,7 +8,7 @@
  * @import { Node, Element } from '../../../media/html/types.ts'
  */
 
-import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.mjs'
+import { computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from '../../../crypto/sha2/module.f.js'
 import { sha1 } from '../../../crypto/sha1/module.f.mjs'
 import { maxLengthBytes, uint } from '../../../types/bit_vec/module.f.js'
 import { tryUtf8 } from '../../../text/module.f.mjs'

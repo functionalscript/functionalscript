@@ -65,7 +65,7 @@
  * @import { Author, Branch, CasReader, SnapshotOperation, WriteOperation } from './types.ts'
  */
 
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { ascii } from '../../ebnf/byte/module.f.mjs'
 import {
     catchStep, errorMessage, foldStep, history, historyStep, ioError, mapStep, orElse, pure, pureError, pureOk, refuse, resultMapStep, step, walkStep,

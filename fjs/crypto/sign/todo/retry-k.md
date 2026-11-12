@@ -6,7 +6,7 @@
 ### Problem
 
 RFC 6979 §2.4 calls a signature with `r = 0` or `s = 0` invalid, and has the
-signer select a new `k`. `sign` in [`fjs/crypto/sign`](../module.f.mjs) does
+signer select a new `k`. `sign` in [`fjs/crypto/sign`](../module.f.js) does
 not select again: it refuses with an assertion, `r === 0` or `s === 0`. A
 valid request then aborts instead of returning a signature.
 

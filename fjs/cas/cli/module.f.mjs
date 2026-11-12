@@ -10,8 +10,8 @@
  * @import { WriteOperation } from '../git/types.ts'
  */
 
-import { sha256 } from '../../crypto/sha2/module.f.mjs'
-import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { sha256 } from '../../crypto/sha2/module.f.js'
+import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.js'
 
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
 import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'

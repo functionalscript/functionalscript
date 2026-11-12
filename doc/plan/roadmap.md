@@ -31,7 +31,7 @@
 
 **Layer 2 — Content encoding (done)**
 - No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
-  binary), wired in `fjs/mcp/cas/module.f.mjs` via `fjs/basen/base64/module.f.mjs`
+  binary), wired in `fjs/mcp/cas/module.f.mjs` via `fjs/basen/base64/module.f.js`
   (`encode`/`decode`) ✓
 - `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
   or `'base64'`) — decoding follows what the caller says, not autodetection ✓

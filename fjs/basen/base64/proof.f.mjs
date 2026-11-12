@@ -5,7 +5,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { empty, vec, repeat, vec8, maxLength } from '../../types/bit_vec/module.f.js'
-import { encode, decode } from './module.f.mjs'
+import { encode, decode } from './module.f.js'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.js'

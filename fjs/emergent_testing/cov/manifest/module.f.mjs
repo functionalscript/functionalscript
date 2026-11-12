@@ -14,9 +14,9 @@
  */
 
 import { assertNotNullish, assertOk } from '../../../asserts/module.f.js'
-import { vecToCBase32 } from '../../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../../basen/cbase32/module.f.js'
 import { _attributeError, _rootSource } from '../../../compiler/source/module.f.mjs'
-import { computeSync, sha256 } from '../../../crypto/sha2/module.f.mjs'
+import { computeSync, sha256 } from '../../../crypto/sha2/module.f.js'
 import { dependencyImports, resolveDependencies } from '../../../deps/module.f.mjs'
 import { isAuthored } from '../../../dev/module.f.mjs'
 import { foldStep, ioError, mapStep, pure, pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'

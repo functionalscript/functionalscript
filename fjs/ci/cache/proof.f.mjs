@@ -11,7 +11,7 @@
  */
 
 import { assert, assertEq, assertError, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { write as writeLoose } from '../../git/loose/module.f.mjs'
 import { history, historyStep, ioError, runPure } from '../../effects/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'

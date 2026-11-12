@@ -12,7 +12,7 @@
 
 import { mask } from '../../types/bigint/module.f.js'
 import { uint } from '../../types/bit_vec/module.f.js'
-import { computeSync, sha256 } from '../sha2/module.f.mjs'
+import { computeSync, sha256 } from '../sha2/module.f.js'
 
 const nBitsMantissa = mask(24n)
 const mantissaSign = 0x0080_0000n

@@ -44,7 +44,7 @@ import { codePoints, decimalValue, hexDigitsValue } from '../../text/ascii/modul
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { textField, inputField, caption, refusal } from '../../website/demo/module.f.mjs'
 import { codeBlock } from '../../website/demo/code/module.f.js'
-import { computeSync, sha256 } from '../sha2/module.f.mjs'
+import { computeSync, sha256 } from '../sha2/module.f.js'
 import { sandbox } from '../../effects/common/module.f.mjs'
 import { _formatDuration, _validDuration } from './performance/module.f.mjs'
 import { maxLengthBytes, uint } from '../../types/bit_vec/module.f.js'

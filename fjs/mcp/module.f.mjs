@@ -43,7 +43,7 @@ import {
 } from '../protocol/mcp/module.f.mjs'
 import { fileCas } from '../cas/module.f.mjs'
 import { initEvo, evo } from '../cas/evo/module.f.mjs'
-import { sha256 } from '../crypto/sha2/module.f.mjs'
+import { sha256 } from '../crypto/sha2/module.f.js'
 import { casToolRegistry } from './cas/module.f.mjs'
 import { evoToolRegistry } from './evo/module.f.mjs'
 

@@ -4,7 +4,7 @@
  */
 
 import { empty, maxLength, maxLengthBytes, vec } from '../../types/bit_vec/module.f.js'
-import { canonicalCBase32, cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
+import { canonicalCBase32, cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.js'
 import { assert, assertEq } from '../../asserts/module.f.js'
 import { demo, groupsOf } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'

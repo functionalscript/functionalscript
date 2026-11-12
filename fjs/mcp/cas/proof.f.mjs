@@ -11,7 +11,7 @@ import { casToolRegistry } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.js'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { maxLengthBytes, vec, vec8 } from '../../types/bit_vec/module.f.js'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.js'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.js'
 import { tryUtf8 } from '../../text/module.f.mjs'
 import { number as rttiNumber, string as rttiString } from '../../rtti/module.f.js'
@@ -20,7 +20,7 @@ import { unwrap } from '../../types/result/module.f.js'
 import { parse as parseJson } from '../../media/json/module.f.mjs'
 import { fileCas } from '../../cas/module.f.mjs'
 import { _driveCas } from '../../cas/proof.f.mjs'
-import { sha256 } from '../../crypto/sha2/module.f.mjs'
+import { sha256 } from '../../crypto/sha2/module.f.js'
 
 /**
  * Drives a `FileCasOperation | MemOp` effect with `fjs/cas/proof.f.mjs`'s

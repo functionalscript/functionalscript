@@ -142,6 +142,32 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Explicit numeric indexes
+
+The migration in #3780 starts from `70c4234a9` and wraps the already-numeric
+loop cursors in `Number(...)` for the computed string indexes in
+`basen/base64` and `basen/cbase32`, and the array indexes in `crypto/sha2`.
+The keys are numeric before conversion, so the codec and hash results are
+unchanged.
+
+This clears all refusals in those modules. They and their newly accepted
+`crypto/hmac`, `crypto/pow` and `crypto/sign` dependents now use `.f.js`, with
+runtime, type, proof and documentation references updated. Measured at
+`5f3d36d34`, the graph remains **643 authored non-proof sources**:
+**265 `.f.js` files** and **378 `.f.mjs` files**. Every remaining leaf is
+refused; **17 blocked leaves** remain.
+
+Compared with the preceding migration below, the Base64, CBase32 and SHA-2
+rows leave the blocked set, and these candidates become leaves. Locations
+are at `5f3d36d34`:
+
+| Leaf | First refusal | Location |
+| --- | --- | --- |
+| `crypto/sha1` | Reserved global `Array.from(...)` | `110:20` |
+| `crypto/sign/nonce_reuse` | Reading `sub` through destructuring | `22:30` |
+
+The other leaves retain their blockers.
+
 #### Bit-vector member migration
 
 The migration in #3778 starts from `cbf629e98` and renames the custom
