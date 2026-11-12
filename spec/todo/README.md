@@ -205,6 +205,9 @@ information — see [serialization](../design/serialization.md) and
 6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
    alternative for arbitrary length/full-argument construction; not a
    prerequisite for named and rest parameters.
+7. [ ] [object identity `id` pattern](./object-identity-id.md) — string IDs
+   for reference-keyed collections, using a shared JavaScript registry;
+   purity and pattern-versus-effect admission remain undecided.
 
 ### 3.4. Syntactic Sugar
 
