@@ -404,6 +404,56 @@ export const refuse = code => message => pureError(ioError({ code, message }))
 export const notImplemented = command => ['notImplemented', command]
 
 /**
+ * Both paths: run `e` and hand `f` the complete `Result`, which then decides
+ * what the outcome is. Use it where both branches genuinely matter — a report
+ * that records the failure, a retry policy, or the point where a program
+ * escalates an error to a panic by `unwrap`ping it.
+ *
+ * **This is the layer's primitive**, and {@link step} and {@link catchStep} are
+ * written in terms of it — each is this function with a continuation that
+ * inspects the tag first. It used to be the other way round: a `step` in the
+ * representation module composed effects with opaque payloads, and this was
+ * that function re-exported under a narrower type. Since every effect carries a
+ * `Result`, the opaque spelling described nothing the `Result`-shaped one does
+ * not, so the general function lives here now, at the type that says what its
+ * continuation receives.
+ *
+ * {@link finallyStep} is `resultStep` plus one policy — run a cleanup whatever
+ * the answer was, and keep the answer — which is named because two consumers
+ * wrote that policy out by hand before it was.
+ *
+ * **It is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
+ * forced and `f` is called right there: `resultStep(pure(r), f)` *is* `f(r)`,
+ * evaluated where the composition is written rather than where the effect is
+ * run. Only the `Do` case defers — the continuation rebuilt around `f` runs
+ * when a runner reaches that node.
+ *
+ * That is sound rather than an oversight, and it is sound only because of
+ * `Pure`'s contract: a `Pure` holds a result that has already been computed, so
+ * forcing it early observes nothing, repeats nothing, and can throw nothing.
+ * Composing never performs a `Do` node, which is where anything real lives.
+ * Break the contract — hide work behind the thunk — and merely composing a
+ * chain starts running the program.
+ *
+ * A composition cannot be suspended, and no combinator can fix that:
+ * `defer: (() => Effect<O, T, E>) => Effect<O, T, E>` cannot be written, because
+ * the `Pure` / `Do` tag must be known before anything runs and the union has no
+ * third case meaning "not yet decided". That is inherent to the representation,
+ * not a gap in this module's API. A caller that needs to name a composition
+ * without performing it yet has to keep the ingredients and defer the step
+ * itself.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
+ *     e: Effect<O, T, E>,
+ *     f: (r: Result<T, E>) => Effect<Q, R, F>
+ * ) => Effect<O | Q, R, F>}
+ */
+export const resultStep = (e, f) =>
+    typeof e === 'function'
+        ? f(e())
+        : { ...e, continuation: x => resultStep(e.continuation(x), f) }
+
+/**
  * The normal path: run `e`, and continue with `f` **only** if it succeeded. An
  * `error` short-circuits the rest of the chain and is passed through unchanged.
  *
@@ -509,56 +559,6 @@ export const catchStep = (e, f) => {
  * @type {<E, T>(forgiven: (e: E) => boolean, fallback: T) => (e: E) => Effect<never, T, E>}
  */
 export const orElse = (forgiven, fallback) => e => forgiven(e) ? pureOk(fallback) : pureError(e)
-
-/**
- * Both paths: run `e` and hand `f` the complete `Result`, which then decides
- * what the outcome is. Use it where both branches genuinely matter — a report
- * that records the failure, a retry policy, or the point where a program
- * escalates an error to a panic by `unwrap`ping it.
- *
- * **This is the layer's primitive**, and {@link step} and {@link catchStep} are
- * written in terms of it — each is this function with a continuation that
- * inspects the tag first. It used to be the other way round: a `step` in the
- * representation module composed effects with opaque payloads, and this was
- * that function re-exported under a narrower type. Since every effect carries a
- * `Result`, the opaque spelling described nothing the `Result`-shaped one does
- * not, so the general function lives here now, at the type that says what its
- * continuation receives.
- *
- * {@link finallyStep} is `resultStep` plus one policy — run a cleanup whatever
- * the answer was, and keep the answer — which is named because two consumers
- * wrote that policy out by hand before it was.
- *
- * **It is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
- * forced and `f` is called right there: `resultStep(pure(r), f)` *is* `f(r)`,
- * evaluated where the composition is written rather than where the effect is
- * run. Only the `Do` case defers — the continuation rebuilt around `f` runs
- * when a runner reaches that node.
- *
- * That is sound rather than an oversight, and it is sound only because of
- * `Pure`'s contract: a `Pure` holds a result that has already been computed, so
- * forcing it early observes nothing, repeats nothing, and can throw nothing.
- * Composing never performs a `Do` node, which is where anything real lives.
- * Break the contract — hide work behind the thunk — and merely composing a
- * chain starts running the program.
- *
- * A composition cannot be suspended, and no combinator can fix that:
- * `defer: (() => Effect<O, T, E>) => Effect<O, T, E>` cannot be written, because
- * the `Pure` / `Do` tag must be known before anything runs and the union has no
- * third case meaning "not yet decided". That is inherent to the representation,
- * not a gap in this module's API. A caller that needs to name a composition
- * without performing it yet has to keep the ingredients and defer the step
- * itself.
- *
- * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
- *     e: Effect<O, T, E>,
- *     f: (r: Result<T, E>) => Effect<Q, R, F>
- * ) => Effect<O | Q, R, F>}
- */
-export const resultStep = (e, f) =>
-    typeof e === 'function'
-        ? f(e())
-        : { ...e, continuation: x => resultStep(e.continuation(x), f) }
 
 /**
  * Applies a pure function to the `ok` value, passing an `error` through
