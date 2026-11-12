@@ -12,6 +12,10 @@ to this note ([Running it](#running-it)). These are working notes, and
 nothing here is decided: they say what the draft holds, what it leaves
 open, and a proposal for each open point.
 
+On 2026-11-12 the proposals of sections 5.1 to 5.3 were written into
+[type-system.md](./type-system.md), which is still proposed. "The draft"
+below is type-system.md as it was on 2026-11-11.
+
 ## Summary
 
 - **The draft holds.** The whole box is one `bits(64, …)` declaration of

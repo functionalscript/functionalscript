@@ -4,7 +4,8 @@
 purposes: it is the code generator's IR, and it is a typed low-level
 language in which L0, NaNVM's logic and other runtime parts are written by
 hand. **Revised** the same day, after a second review of the first draft
-and the [comparison round](./comparison.md).
+and the [comparison round](./comparison.md), and on 2026-11-12 with what
+[the NaN box in the planned IR](./nan-box-in-ir.md) found.
 [What the review changed](#what-the-review-changed) lists the differences.
 Nothing here is decided yet, and [ir-design.md](./ir-design.md) is
 unchanged until it is.
@@ -93,7 +94,7 @@ type can also be given a name ([Names](#names-do-four-jobs)).
 | Former | Its values | In the eDSL | Notes |
 | --- | --- | --- | --- |
 | Integer range | the integers from `a` to `b` | `int(a, b)`, `u(n)`, `i(n)` | exact, up to 128 bits; signedness is derived from the range |
-| Float | IEEE 754 doubles | `f64`, `f64c` | `f64c` holds one NaN, the canonical one |
+| Float | IEEE 754 doubles | `f64`, `f64c` | `f64c` holds one NaN, `0x7FF8_0000_0000_0000` |
 | Product | one value per field | `{ len: u(4), unit: u16 }`, `array(T, n)` | immutable |
 | Sum | one variant out of a tree | `sum({ none: unit, some: T })` | `T.only('a', 'b')` keeps some variants |
 | Heap object | a record in the heap, with an optional tail array | `object('StrObj', { units: tail(u16, u(31)) })` | always named; reached only through a reference |
@@ -105,11 +106,15 @@ The prelude defines the rest:
 ```js
 const unit = {}
 const never = sum({})
-const bool = sum({ false: unit, true: unit })
+const bool = bits(1, { false: '0', true: '1' })
 const option = T => sum({ none: unit, some: T })
 const u8 = u(8)   // int(0n, 255n)
 const i32 = i(32) // int(-(2n ** 31n), 2n ** 31n - 1n)
 ```
+
+`bool` is a sum with its one bit declared, so that a layout can hold it
+as a field, as the box's `boolean` does
+([What the checker proves](#what-the-checker-proves)).
 
 ### Subtyping is the subset relation
 
@@ -117,6 +122,16 @@ const i32 = i(32) // int(-(2n ** 31n), 2n ** 31n - 1n)
   widening is implicit, and the emitter may extend the carrier.
 - `S.only(x)` is a subtype of `S.only(y)` when the variants `x` are among
   `y`. A subset keeps the parent's tags and layout, so it costs nothing.
+- A `bits` type `A` is a subtype of a `bits` type `B` over the same
+  carrier when each pattern of `A` lies inside a pattern of `B` and can
+  be read through that pattern's fields. Where `B` has a reference, `A`
+  has one in the same bits and with the same mode, to the same object
+  type, or to any object type where `B`'s has no fields. A hole of `B`,
+  an unsigned field as wide as its bits, takes any bits of `A` that hold
+  no reference. Every other field of `B` is a field of `A`. This is how a
+  kind's group refines Any's frame ([Layouts compose](#layouts-compose)):
+  String's `string` is a `frame`, a `frame.only('number')` is an `any`,
+  and a `frame` is not an `any`.
 - `f64c` is a subtype of `f64`, and `stat(O)` of `view(O)`.
 - `never` is a subtype of every type.
 - Products, arrays and the other references are invariant in a first
@@ -285,16 +300,35 @@ locals. After `lt(i, n)` it knows the range of `i`, not that `i` is below
 
 ### Floats
 
-- Float arithmetic gives `f64`. A NaN result's sign and payload depend on
-  the target (WASM leaves them open; from memory), so `canon(x)` replaces
-  any NaN by the canonical one and returns `f64c`, as L0 does
+- **The one NaN of `f64c` is `0x7FF8_0000_0000_0000`,** Rust's
+  `f64::NAN`.
+- **Float arithmetic gives `f64`.** A NaN result's sign and payload depend
+  on the target (WASM leaves them open; from memory), so `canon(x)`
+  replaces any NaN by the one NaN and returns `f64c`, as L0 does
   ([L0 design §4](../wasm/l0-design.md#4-numbers-the-runtime-canonicalises-nan)).
+  `neg`, `min`, `max`, `sqrt` and rounding give `f64` too. `abs` keeps
+  `f64c`, because it clears the sign bit and nothing else (from memory).
 - An integer converts to `f64c` exactly when its range is within ±2^53,
-  and otherwise only through an explicit rounding operation.
+  and otherwise only through an explicit rounding operation. A float
+  literal is an `f64c`.
 - A float converts to an integer through `trunc(T, x)` or
   `try_trunc(T, x)`.
-- `to_bits(x)` reads a float as a `u64`, and `from_bits(n)` reads a `u64`
-  as an `f64`. Both are total, so they are ordinary operations.
+- **`to_bits(x)` takes an `f64c`** and reads it as a `u64`, and
+  `from_bits(n)` reads a `u64` as an `f64`. Both are total, so they are
+  ordinary operations. Code that wants the bits of any float writes
+  `to_bits(canon(x))`, so no operation can tell which NaN an `f64` holds.
+
+The bits of a NaN that an operation gives are not a function of the
+program. On one x86-64 machine, every invalid operation gave
+`0xFFF8_0000_0000_0000` under WASM and under Rust, and the two disagreed
+on `+nan * -nan`
+([nan-box-in-ir.md, 5.1](./nan-box-in-ir.md#51-the-bits-of-the-one-nan)).
+So `canon` changes the bits of nearly every NaN that reaches the box,
+and the types already make code call it. The interpreter holds a float as
+a JavaScript number, with one NaN, and with `to_bits` on an `f64c` only,
+every target agrees with it. Both quiet NaNs with a zero payload could be
+allowed later, if a measurement shows that `canon` costs
+([open question 15](#open-questions)).
 
 ### Sums are trees
 
@@ -317,19 +351,25 @@ locals. After `lt(i, n)` it knows the range of `i`, not that `i` is below
 ### Names do four jobs
 
 `named('Unit', u16)` is a new type with the values of `u16`. It costs
-nothing at run time and is never converted implicitly. One mechanism does
-four jobs:
+nothing at run time and is never converted implicitly: `as(T, e)`
+converts between a name and its definition, in both directions, and does
+nothing else. One mechanism does four jobs:
 
 - **A brand.** Today's IR uses `i32` for an index, a length, a kind tag, a
   code index and a builder. With names each is its own type, and mixing
-  them up is a type error.
+  them up is a type error. The 6-bit unit of a short string is
+  `named('Id6', u(6))`, a code of an alphabet: as a plain `u(6)` it would
+  widen to a `u16` code unit, and code that returned the code as a unit
+  would pass the types.
 - **A seal.** A module can export a name without its definition
   ([Two purposes, one language](#two-purposes-one-language)).
 - **The identity of an object type.** An object type always has a name, so
   two object types with the same fields stay apart.
 - **Recursion.** A type refers to itself, or to a type declared later, by
   its name, as RTTI's data form names its recursive rules. `any` holds
-  arrays, and an array holds `any` values.
+  arrays, and an array holds `any` values. In the eDSL, a type declared
+  later is a thunk, `() => any`, as in RTTI's thunk form, because `any` is
+  assembled after Containers declares `ArrObj`.
 
 ## Layout
 
@@ -345,12 +385,17 @@ and the compiler never changes it.
   the field with that name. A field's bits are written from the most
   significant one, and they need not be adjacent.
 - `…` repeats the character before it. A field's width comes from its
-  type, so at most one fill of fixed bits is left to the checker to count.
+  type, so at most one fill is left to the checker to count: of fixed
+  bits, or of a reference, whose `p…p` takes the bits that are left, 46
+  in the box. [References fit](#what-the-checker-proves) compares that
+  width with the heap.
 - A variant of type `f64c` takes the float's own bits.
 - A nested object is a group. Groups give the public kinds, such as
   `string`, and their members are the encodings.
 
 ```js
+const Id6 = named('Id6', u(6)) // a code of the 6-bit alphabet, not a code unit
+
 export const any = bits(64, {
     number: f64c,
     boolean: ['b111_1111_1111_0…0_0001_0000', { b: bool }],
@@ -360,7 +405,7 @@ export const any = bits(64, {
         empty: '0111_1111_1111_0…0_0000_1000',
         short: {
             s3x16: ['0111_1111_1111_u…u_0100', { u: array(u16, 3) }],
-            s8x6: ['0111_1111_1111_u…u_1100', { u: array(u(6), 8) }],
+            s8x6: ['0111_1111_1111_u…u_1100', { u: array(Id6, 8) }],
             s7x7: ['1111_1111_1111_u…u_100', { u: array(u(7), 7) }],
             // 1x16, 2x16 and 4x7 to 6x7 as in the README's table
         },
@@ -384,12 +429,17 @@ export const any = bits(64, {
 The README gives the short bigint its pattern, `…vvv1`, and not the
 meaning of its bits. The line above is this note's reading: a 52-bit
 signed integer whose sign is the box's sign bit, which shows a field that
-is not adjacent.
+is not adjacent. [nan-box-in-ir.md](./nan-box-in-ir.md#1-the-box-in-one-piece)
+writes the box out in full, with all eight short strings and the
+references of five kinds.
 
 ### What the checker proves
 
 - **Width.** Each pattern is 64 bits long, and each field is exactly as
-  wide as its type.
+  wide as its type. A field's type has a width: an integer range, a
+  `bits` type, or an array or a name of one of them. A range takes the
+  fewest bits that hold it, in two's complement when it has negative
+  values, so `int(0n, 8n)` takes 4 bits and `i(52)` takes 52.
 - **References fit.** A reference field holds an offset into the heap
   without its alignment bits, so a 4-aligned offset below 2^48 fits
   `p…p`. On both targets the heap is memory the runtime owns, linear
@@ -419,14 +469,33 @@ type error: the code has to call `canon` first.
   made of shifts and ors.
 - The `match`, as a decision tree of mask tests. The README's hand-written
   `typeof_` and `is_*` functions are such tests, which gives a first
-  proof: the derived tree has to agree with them.
+  proof: the derived tree has to agree with them. A node of the tree may
+  also switch on a field, and a result may be the field itself. The
+  README's `typeof_` reads the type from the `tttt` bits that way, in at
+  most four tests and a shift, where the derived tree for L0's `kind`
+  takes up to seven one-bit tests. With today's tags the switch does not
+  help `kind`, whose tags agree with `tttt` for strings and bigints only
+  ([nan-box-in-ir.md, 5.3](./nan-box-in-ir.md#53-rules-the-draft-uses-but-does-not-state),
+  item 13).
 - Smaller tests, from junk. A junk pattern is a don't-care, so the
   compiler drops every bit that a test does not need to tell the
-  variants apart.
+  variants apart. More than one smallest test can exist, so the order is
+  part of the rule: bits are dropped from the top bit down. That order
+  gives the README's `is_ref`, `is_dyn_ref` and `is_short_bigint`,
+  constant for constant, and a golden test holds.
 - Field reads, with a shift, a mask and a sign extension for a signed
   field.
-- Packed arrays. `u.at(i)` on `array(u(6), 8)` with `i: int(0n, 7n)` is a
-  shift by `6 * i` and a mask.
+- Packed arrays. Item 0 is in the lowest bits, which the README does not
+  say and every short string's bits depend on. So `u.at(i)` on
+  `array(u(7), 7)` with `i: int(0n, 6n)` is a shift by `7 * i` and a
+  mask.
+- Identity. `identical(a, b)` holds for two values of a type with
+  declared bits when their carriers are equal. On `any`, given one NaN
+  and a short form for every value that fits one, it is JavaScript's
+  `Object.is` for the scalars and the short forms, and identity for long
+  strings, long bigints and containers. L0's `same`
+  ([L0 design §14](../wasm/l0-design.md#14-identity-same-is-reference-identity-and-a-runtime-may-merge-equal-values))
+  is `identical` over the containers.
 - `dup` and `drop`. The variants with a `ref` field are the counted ones,
   so `dup` is one mask test and an increment.
 - A shared field of a group. `heap` and `lit` both have `p`, so an arm on
@@ -441,23 +510,60 @@ String module declares its eight units as two `bits(64)` products of four
 ### Layouts compose
 
 The box above is written in one piece for brevity. In the modular runtime
-it is assembled from its modules, and that needs nothing new, because a
-group is a type of its own.
+it is assembled from its modules. A group is a type of its own, and Any
+is written over a type of its own, its *frame*, because its functions are
+written before any other module exists
+([nan-box-in-ir.md, 2](./nan-box-in-ir.md#2-the-box-by-module) writes it
+all out).
 
 - **A kind's module declares its group.** String declares the `string`
   tree with its patterns and writes its functions over that type.
-- **Any owns the box and hands out the slots.** The README's scalar table
-  already reads this way: each row is a slot with a capacity, its "Cap."
-  column, and the encoding that fills it. Any can export each slot as a
-  host function from a payload pattern to a full pattern, so a module
-  fills its slot and cannot write outside it.
-- **The assembled runtime declares the union.** The disjointness proof
-  runs there, and a collision between two modules is an error that names
-  both patterns. `kind`, `dup` and `drop` are derived from the union.
-  What
+- **Any owns the box, as a frame.** The frame is a `bits(64)` type with
+  the scalars, a slot for each row of the README's scalar table that
+  another module fills, and the two references of each kind with storage.
+  Any's tests, `kind`, `dup` and `drop` are derived from the frame.
+- **A slot is a variant whose one field is a hole,** `x`, an unsigned
+  integer as wide as its bits, so any bits are a value of it. A hole need
+  not be adjacent: each hole of the box is the sign bit and the bits
+  below the exponent. Any exports each slot as a host function,
+  `slot(path)`, from a payload pattern to a full pattern. The payload
+  pattern is exactly as wide as the hole and written from its top bit, so
+  a module fills its slot and cannot write outside it. The README's
+  scalar table already reads this way: each row is a slot with a
+  capacity, its "Cap." column, and the encoding that fills it.
+- **A reference of the frame points to an object type with no fields,**
+  because Any counts references and never reads what they point to. A
+  kind's module refines it with its own object type.
+- **The union refines the frame.** The assembled runtime declares the
+  union of the groups and proves that it is a
+  [subtype](#subtyping-is-the-subset-relation) of the frame, with each
+  pattern in a slot or a reference of its own kind. The proof is modular:
+  a group is checked against its kind's node of the frame alone, and the
+  frame's patterns are disjoint, so two groups that pass cannot collide.
+  A pattern outside its module's slots is an error that names the
+  pattern.
+- **No reference hides in a slot.** A hole takes no reference, and the
+  union has a reference wherever the frame has one. So `dup` and `drop`,
+  derived from the frame, count exactly the references of every value of
+  the union.
+- **The hooks become derived code.** What
   [modular-l0.md](../wasm/modular-l0.md#7-modules-meet-through-a-runtime-internal-interface)
   wires by hand, `box`, `box_inline`, `payload` and the `release` hooks,
-  are then the union's derived constructors, field reads and `release`.
+  are then the frame's references, its slots, the union's field reads and
+  the derived `release`.
+
+Derived from the union instead, Any's tests would depend on what other
+modules put into their slots. The smallest `is_null` for today's union,
+`x & 0x7FF0_0000_0000_0037 == 0x7FF0_0000_0000_0030`, is also true for
+`0x7FF0_0000_0000_0038`, a row of String's `1000` slot that String does
+not use yet, so a String that used it would make `kind` wrong until Any
+was compiled again. Derived from the frame, the tests let a String
+module be swapped without compiling Any again, as modular-l0.md's rule
+that a module calls the others "through their functions, never through
+their layouts" asks. The price is small: a test from the frame can keep a
+bit that the smallest test for today's union would drop, and each is
+still the README's test or smaller
+([nan-box-in-ir.md, 3](./nan-box-in-ir.md#3-what-the-frame-derives)).
 
 ### Alternatives
 
@@ -643,7 +749,9 @@ Heap and updates of the count.
 - **Bytes.** L0's byte functions, such as `make_string(ptr, len)`, read
   the program's scratch space. In the typed language they take a
   `buffer`, a bounds-checked view of that space, instead of a pointer.
-- **Constants.** A module constant of a copy type is data. A constant
+- **Constants.** `constant(T, value)` declares a module constant of a
+  copy type, and it is data: String's 64 code units of the 6-bit alphabet
+  are `constant(array(u16, 64), …)`, read with a `load`. A constant
   that owns a reference, such as the string `'undefined'`, is built once
   in `init` and then read as a borrow, as
   [L0 design §10](../wasm/l0-design.md#10-lifetime-reference-counting-borrowed-arguments-owned-results)
@@ -675,7 +783,11 @@ parameters, so no local is ever reassigned.
   `call_ref`: `call_indirect` in WASM and a function pointer in Rust. The
   type already guarantees the signature, so WASM's run-time signature
   check never fails.
-- **One branch construct.** `if_(c, a, b)` is a `match` on `bool`.
+- **One branch construct.** `if_(c, a, b)` is a `match` on `bool`. A
+  `match` on an integer has values as keys and an `else` for the rest,
+  and it is exhaustive by range, as String's `pack` branches on a length
+  from 0 to 8. It is the branch on a small integer that WASM spells
+  `br_table`.
 - **Blocks and exits.** `block` with a label, `br(label, value)` and
   `return_` stay as in
   [IR choice 7](./ir-design.md#7-control-flow-mirrors-wasm-and-rust-follows-by-label-kind).
@@ -867,9 +979,12 @@ named data form of
   comparable and hashable.
 - **Local bindings.** `let_({ x: e1, y: e2 }, ({ x, y }) => body)`.
 - **Matches.** `match_(v, { number: n => …, string: s => …, else: rest => … })`
-  has one arm per variant name. An arm can destructure its payload's
-  fields, `s3x16: ({ u }) => …`, and a nested object holds the arms of a
-  group.
+  has one arm per variant name, and a nested object holds the arms of a
+  group. An arm receives the operand at the arm's type, a subset of the
+  operand's type. Its fields, and the fields that all its variants share,
+  are read as properties, so an arm can destructure them,
+  `s3x16: ({ u }) => …` or `long: ({ p }) => …`. The arm of an `f64c`
+  variant receives the float, `number: n => …`.
 - **Loops.** `loop_({ i: u(31).of(0n) }, ({ i }, next) => …)`. A loop
   parameter declares its type with `T.of(start)`, because a range cannot
   be inferred from the first value.
@@ -878,7 +993,9 @@ named data form of
   `any` where an `any` is expected, and `int(5n, 5n)` otherwise. `1.5`,
   `true` and `'abc'` work the same way. This keeps
   [IR choice 3](./ir-design.md#3-a-javascript-primitive-is-its-own-constant)
-  and drops its `i32(3)`.
+  and drops its `i32(3)`. A host array of n expressions is an
+  `array(T, n)` value where one is expected, checked item by item, as in
+  `s1x16({ u: [c] })`.
 - **Generics are host functions.** `option` above is one, and a function
   generic in a type is `T => fn(…)`. The eDSL builds one monomorphic copy
   per type and names it after its arguments. Repeated layouts work the
@@ -931,7 +1048,7 @@ export const at = fn({ s: str, i: u(31) }, u16, ({ s, i }) =>
         empty: () => trap('not an index'),
         short: {
             s3x16: ({ u }) => u.at(i),
-            s8x6: ({ u }) => sixBit.at(u.at(i)),
+            s8x6: ({ u }) => sixBit.at(as(u(6), u.at(i))),
             s7x7: ({ u }) => u.at(i),
             // …
         },
@@ -945,8 +1062,9 @@ What the types do here:
   encoding's arm, with its own width.
 - **Index checks are where they must be, and nowhere else.** `u.at(i)`
   traps for an index past a short string, and `p.units.at(i)` for one
-  past the length. `sixBit` is a constant table of 64 code units, and a
-  `u(6)` always indexes it, so that read has no check at all.
+  past the length. `sixBit` is a `constant` of 64 code units, and a
+  `u(6)` always indexes it, so that read has no check at all. The unit
+  is an `Id6`, so the arm converts it with `as` first.
 - **Widening is implicit.** A `u(7)` unit is returned as a `u16` with no
   conversion written.
 - **No `dup` or `drop` appears.** `s` is borrowed, and `p` is a view of
@@ -956,9 +1074,10 @@ What the types do here:
 
 ### Counting: the derived `dup`
 
-The Any module writes no `dup` either. The five counted variants, one per
-kind with storage, differ only in their `tttt` bits. A test built from
-the patterns alone would also compare the top bit of `tttt`, which all
+The Any module writes no `dup` either. The five counted variants of its
+frame, one per kind with storage, differ only in their `tttt` bits. A
+test built from the patterns alone would also compare the top bit of
+`tttt`, which all
 five have clear. No variant uses the patterns with that bit set, so they
 are junk, and the compiler drops the bit. What is left is the README's
 `is_dyn_ref`, constant for constant:
@@ -1111,7 +1230,8 @@ reason reaches the host. Everything else is decided once, in the IR.
   alone, the README's `typeof_` agreed, and the minimized test for a
   counted reference had `is_dyn_ref`'s two constants.
   [nan-box-in-ir.md](./nan-box-in-ir.md) then wrote the whole box and
-  nineteen functions in the eDSL, as a check of this note.
+  nineteen functions in the eDSL, as a check of this note, and what it
+  found is now part of this note.
 - **Golden tests in IR text.** The printer's output for each pass is held
   as text next to the proof, so a change in a pass shows in a review as a
   diff of IR.
@@ -1157,10 +1277,12 @@ with L0, everything runs on a JavaScript host before any WASM exists.
    and interval arithmetic. Proofs cover the subset laws and the
    arithmetic rules.
 3. **Layouts.** `bits` declarations, the pattern notation, the proof of
-   width and disjointness, and the derived constructors, tests, field
+   width and disjointness, frames and slots, subtyping between two
+   layouts over one carrier, and the derived constructors, tests, field
    reads, `dup` and `drop`. The proof is the NaN box from Sergey's
    README: the derived tests must agree with its `typeof_` and `is_*`
-   functions on every pattern.
+   functions on every pattern. The prototype of
+   [nan-box-in-ir.md](./nan-box-in-ir.md) sketches this step.
 4. **Terms and the checker.** Expressions, the eDSL with its binders,
    `match` with exhaustiveness and refinement, kinds, views, the printer
    and the first golden tests. Proofs run over hand-written functions:
@@ -1212,8 +1334,11 @@ draft.
    bit offsets? Recommended: pattern strings, because the README already
    reads that way.
 6. **Who declares the string encodings in the NaN box?** Recommended:
-   String declares its group, Any hands out the slots, and the assembled
-   runtime proves the union ([Layouts compose](#layouts-compose)).
+   String declares its group, Any writes its functions over a frame of its
+   own and hands out the slots, and the assembled runtime proves that the
+   union refines the frame ([Layouts compose](#layouts-compose)).
+   [nan-box-in-ir.md](./nan-box-in-ir.md#2-the-box-by-module) writes both
+   halves out.
 7. **Trust at the module boundary.** Does the runtime trust an `i64` from
    a program we compiled, or check it with `try_from_bits`? Recommended:
    trust it, because only our compiler makes programs and the WASM sandbox
@@ -1250,6 +1375,15 @@ draft.
     types. At the low level the second check is the same comparison of
     the same values, so a small pass, or the target's optimizer, removes
     it. Measure first, and add a bulk `push` if copying shows up.
+15. **The bits of the one NaN.** Which NaN does `f64c` hold, and may
+    `to_bits` read an `f64`? Recommended: `0x7FF8_0000_0000_0000`, Rust's
+    `f64::NAN`, and `to_bits` takes an `f64c` ([Floats](#floats)). The
+    other choice, both quiet NaNs with a zero payload, keeps arithmetic
+    over `f64c` operands in `f64c` on WASM with no `canon`. But
+    `identical` on numbers is then not `Object.is`, Rust promises such
+    results only per CPU (from memory), and `to_bits` still needs a type
+    with one NaN
+    ([nan-box-in-ir.md, 5.1](./nan-box-in-ir.md#51-the-bits-of-the-one-nan)).
 
 ## What the review changed
 
@@ -1285,3 +1419,13 @@ never be released, so
 | Layout across modules | an open question | groups compose, and the union is proved | modular-l0.md's hooks, as types |
 | Names | brands only | brands, seals, object identity and recursion | recursive types had no rule |
 | Testing | interpreter and parity tables | also a counting heap, mutants, golden tests and Rust's overflow checks | the comparison's findings on Miri, MIR and CLIF |
+
+The check in [nan-box-in-ir.md](./nan-box-in-ir.md) then wrote the whole
+NaN box and nineteen functions in the eDSL and ran them. What it changed:
+
+| Topic | Before the check | Now | Why |
+| --- | --- | --- | --- |
+| The one NaN | "the canonical one"; `to_bits` reads any float | `0x7FF8_0000_0000_0000`, and `to_bits` takes an `f64c` | x86-64 gives `0xFFF8_0000_0000_0000` for every invalid operation, and WASM and Rust disagree on `+nan * -nan` |
+| Any's tests | derived from the union | derived from Any's own frame, which the union refines | a test derived from the union changes with another module's encodings |
+| Subtyping | subsets of one tree | also two layouts over one carrier | the union has to refine the frame, and no reference may hide in a slot |
+| Smaller rules | used, not stated | `bool` with its bit, field widths and the order of items, what `…` counts, what an arm receives, `match` on an integer, array values, `constant`, `identical`, `as`, slots, thunks, the order in which a test drops bits, and a tree that switches on a field | writing the box needed each of them |
