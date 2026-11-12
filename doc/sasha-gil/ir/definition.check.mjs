@@ -60,7 +60,7 @@ const original = f => { try { return ['ok', f()] } catch { return ['fails'] } }
 const show = x => typeof x === 'bigint' ? `${x}n` : typeof x === 'object' && x !== null ? JSON.stringify(x, (_, y) => typeof y === 'bigint' ? `${y}n` : y) : String(x)
 const same = (a, b) => Object.is(a, b) || (typeof a === 'object' && typeof b === 'object' && show(a) === show(b))
 
-const { checked, ast, h, f } = run(owned)
+const { ast, h, f } = run(owned)
 const l0 = h.imports['fjs:l0']
 let baseline = h.live()
 let cases = 0

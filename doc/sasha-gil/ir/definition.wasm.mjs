@@ -95,7 +95,7 @@ export const emit = (checked, exports) => {
         let next = 0
         const vars = new Map(params.map(([k, , x]) => [k, {
             type: x,
-            slots: flat(x).map((vt, j, all) => { localNames.push([next, all.length === 1 ? k : `${k}.${j}`]); return next++ }),
+            slots: flat(x).map((_, j, all) => { localNames.push([next, all.length === 1 ? k : `${k}.${j}`]); return next++ }),
         }]))
         const set = slots => [...slots].reverse().map(s => ['local.set', s])
         const framed = (frame, f) => { frames.push(frame); const r = f(); frames.pop(); return r }

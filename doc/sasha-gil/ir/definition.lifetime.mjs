@@ -140,7 +140,7 @@ export const lifetime = plain => {
                 const { params } = sigOf(t[1], t[2])
                 const all = t.slice(3)
                 // a lent local stays alive until the call returns
-                const lent = union(...all.filter((x, k) => params[k][1] === 'borrow').map(free))
+                const lent = union(...all.filter((_, k) => params[k][1] === 'borrow').map(free))
                 let o = owned
                 const args = all.map((x, k) => {
                     if (params[k][1] === 'borrow' && isPlace(x)) { return x }

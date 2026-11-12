@@ -145,7 +145,7 @@ export const show = t => {
     }
 }
 
-const showLit = (type, value) => typeof value === 'string' ? `'${value}'` : typeof value === 'bigint' ? `${value}` : Object.is(value, -0) ? '-0.0' : Number.isInteger(value) ? `${value}.0` : `${value}`
+const showLit = value => typeof value === 'string' ? `'${value}'` : typeof value === 'bigint' ? `${value}` : Object.is(value, -0) ? '-0.0' : Number.isInteger(value) ? `${value}.0` : `${value}`
 const callee = (module, name) => module === 'self' ? name : `${module}.${name}`
 /** A term on one line, or `null` when a part of it needs lines of its own. */
 const flatTerm = t => {
@@ -155,7 +155,7 @@ const flatTerm = t => {
     }
     const one = (x, text) => { const f = flatTerm(x); return f === null ? null : text(f) }
     switch (t[0]) {
-        case 'lit': return showLit(t[1], t[2])
+        case 'lit': return showLit(t[2])
         case 'get': return t[1]
         case 'op': return t[1] === 'trunc_sat' ? wrap('trunc_sat', [t[3]], `${show(t[2])}, `) : wrap(t[1], t.slice(2))
         case 'call': return wrap(callee(t[1], t[2]), t.slice(3))
@@ -374,7 +374,7 @@ export const check = module => {
                     decl(type).literal?.[variantsOf(type)?.join()] !== undefined || refuse(`${show(type)} has no literals`)
                     // a literal that its module has to make is a constant, made once
                     if (env.lift) {
-                        const name = showLit(type, t[2])
+                        const name = showLit(t[2])
                         literals.set(name, [type, ['lit', type, t[2]]])
                         return done(['constant', 'self', name], type)
                     }
