@@ -1,8 +1,13 @@
 /**
+ * Recursive schemas use already-bound self thunks, rather than capture a later
+ * declaration. Their accepted values and public export names stay the same;
+ * expanding a thunk may create fresh internal descriptors and different rule labels.
+ *
  * @module
  *
  * @import { Exp, HelperId, IntrinsicId, ItemsOver, OptionLambda, OptionPropertyLambda, Plain, StaticId, StepOver } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
+ * @import { _OptionLambdaSchema, _OptionPropertyLambdaSchema } from './private.ts'
  */
 
 import {
@@ -13,6 +18,7 @@ import {
     string,
     array as rttiArray,
 } from "../rtti/module.f.js";
+import { isArray } from '../types/array/module.f.js'
 
 /**
  * Every tuple here is closed — the members it declares and nothing else, which
@@ -32,6 +38,156 @@ import {
  * without reading `../rtti/todo/identity-aware-parse.md` first —
  * neither is identity-aware, and that TODO covers why and what's missing.
  */
+
+// Leaf schemas precede the recursive builder; public exports keep their docs below.
+const primitiveSchema = or(null, boolean, number, string, bigint)
+
+const argSchema = /** @type {const} */ (['arg', number])
+
+const frameSchema = /** @type {const} */ (['frame', number])
+
+const staticNames = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+
+const staticIdSchema = or(...staticNames)
+
+const intrinsicDefinitions = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
+
+const intrinsicNames = intrinsicDefinitions.map(([id]) => id)
+
+const intrinsicIdSchema = or(...intrinsicNames)
+
+const op0IdSchema = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicIdSchema, staticIdSchema)
+
+const op1IdSchema = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
+
+const op2IdSchema = or(
+    '===', '!==', '>', '>=', '<', '<=',
+    '*', '/', '%', '**',
+    '&', '|', '^', '<<', '>>', '>>>'
+)
+
+const op12IdSchema = or('+', '-')
+
+const op3IdSchema = or('?:')
+
+const constructorIdSchema = or('Array')
+
+/**
+ * One level of the expression grammar, with an already-bound recursion anchor.
+ * Option-property recursion owns a local option thunk, whose own self-reference
+ * keeps repeated calls finite without capturing a later declaration.
+ * @template {() => readonly ['or', ...readonly import('../rtti/types.ts').Type[]]} E
+ * @param {E} expression
+ */
+const schemasFor = expression => {
+    /** @type {Phantom<E, Exp>} */
+    const exp = expression
+    const op0Id = op0IdSchema
+    const op1Id = op1IdSchema
+    const op2Id = op2IdSchema
+    const op12Id = op12IdSchema
+    const op3Id = op3IdSchema
+    const constructorId = constructorIdSchema
+
+    const exps = rttiArray(exp)
+
+    const func = /** @type {const} */ (['=>', number, exps, exp])
+
+    const spread = /** @type {const} */ (['...', exp])
+
+    const items = or(exp, spread)
+
+    const array = /** @type {const} */ (['[]', rttiArray(items)])
+
+    const args = rttiArray(items)
+
+    const property = /** @type {const} */ ([':', exp, exp])
+
+    const properties = or(property, spread)
+
+    const object = /** @type {const} */ (['{}', rttiArray(properties)])
+
+    const numberCast = /** @type {const} */ (['Number', exp])
+
+    const index = or(numberCast, string, number)
+
+    const memberPresent = /** @type {const} */ (['memberPresent', exp, index])
+
+    /** @param {Phantom<_OptionLambdaSchema<Phantom<E, Exp>>, OptionLambda>} optionLambda
+     * @param {Phantom<_OptionPropertyLambdaSchema<Phantom<E, Exp>>, OptionPropertyLambda>} optionPropertyLambda */
+    const regionProductions = (optionLambda, optionPropertyLambda) => /** @type {const} */ ([
+        /** @type {const} */ (['|()', args]),
+        /** @type {const} */ (['|()', args, optionLambda]),
+        /** @type {const} */ (['|.', index]),
+        /** @type {const} */ (['|.', index, optionPropertyLambda]),
+    ])
+
+    /** @type {_OptionPropertyLambdaSchema<Phantom<E, Exp>>} */
+    const optionPropertyLambdaSchema = () => {
+        /** @type {_OptionLambdaSchema<Phantom<E, Exp>>} */
+        const optionLambdaSchema = () => ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambdaSchema)]
+        return ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambdaSchema),
+            ['|?.()', args], ['|?.()', args, optionLambdaSchema], ['|!()', args]]
+    }
+
+    /** @type {Phantom<typeof optionPropertyLambdaSchema, OptionPropertyLambda>} */
+    const optionPropertyLambda = optionPropertyLambdaSchema
+
+    /** @type {_OptionLambdaSchema<Phantom<E, Exp>>} */
+    const optionLambdaSchema = () => ['or', ...regionProductions(optionLambdaSchema, optionPropertyLambda)]
+
+    /** @type {Phantom<typeof optionLambdaSchema, OptionLambda>} */
+    const optionLambda = optionLambdaSchema
+
+    const propertyLambda = or(
+        /** @type {const} */ (['|()', args]),
+        /** @type {const} */ (['|?.()', args]),
+        /** @type {const} */ (['|?.()', args, optionLambda]),
+    )
+
+    const call = /** @type {const} */ (['()', exp, args])
+
+    const dot = or(
+        /** @type {const} */ (['.', exp, index]),
+        /** @type {const} */ (['.', exp, index, propertyLambda]),
+    )
+
+    const optionDot = or(
+        /** @type {const} */ (['?.', exp, index]),
+        /** @type {const} */ (['?.', exp, index, optionPropertyLambda]),
+    )
+
+    const optionCall = or(
+        /** @type {const} */ (['?.()', exp, args]),
+        /** @type {const} */ (['?.()', exp, args, optionLambda]),
+    )
+
+    const comma = /** @type {const} */ ([',', exps])
+
+    const op0 = /** @type {const} */ ([op0Id])
+
+    const op1 = /** @type {const} */ ([op1Id, exp])
+
+    const op2 = /** @type {const} */ ([op2Id, exp, exp])
+
+    const op12 = or(
+        /** @type {const} */ ([op12Id, exp]),
+        /** @type {const} */ ([op12Id, exp, exp]),
+    )
+
+    const op3 = /** @type {const} */ ([op3Id, exp, exp, exp])
+
+    const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])
+
+    const inOp = /** @type {const} */ (['in', string, exp])
+
+    return {
+        exps, func, spread, items, array, args, property, properties, object, numberCast, index, memberPresent,
+        propertyLambda, callNode: call, dot, optionDot, optionCall, comma, op0, op1, op2, op12, op3,
+        instanceOf, inOp, _optionLambda: optionLambdaSchema, optionLambda,
+        _optionPropertyLambda: optionPropertyLambdaSchema, optionPropertyLambda,
+    }
+}
 
 // Exp
 
@@ -63,30 +219,35 @@ import {
  *  typeof frame,
  * ]}
  */
-export const _exp = () => (['or',
-    primitive,
-    array,
-    object,
-    dot,
-    call,
-    optionDot,
-    optionCall,
-    comma,
-    op3,
-    op12,
-    op2,
-    op1,
-    op0,
-    instanceOf,
-    inOp,
-    memberPresent,
-    func,
-    arg,
-    frame,
-])
+export const _exp = () => {
+    const schemas = schemasFor(_exp)
+    return ['or',
+        primitiveSchema,
+        schemas.array,
+        schemas.object,
+        schemas.dot,
+        schemas.callNode,
+        schemas.optionDot,
+        schemas.optionCall,
+        schemas.comma,
+        schemas.op3,
+        schemas.op12,
+        schemas.op2,
+        schemas.op1,
+        schemas.op0,
+        schemas.instanceOf,
+        schemas.inOp,
+        schemas.memberPresent,
+        schemas.func,
+        argSchema,
+        frameSchema,
+    ]
+}
 
 /** @type {Phantom<typeof _exp, Exp>} */
 export const exp = _exp
+
+const schemas = schemasFor(exp)
 
 // Primitive
 
@@ -98,7 +259,7 @@ export const exp = _exp
  * `op0`/`op1`/`op2` grouping below by the same arity rule as every other
  * operation, not here.
  */
-export const primitive = or(null, boolean, number, string, bigint)
+export const primitive = primitiveSchema
 
 /**
  * A plain value as fresh literal nodes. Present `undefined` properties stay
@@ -116,7 +277,7 @@ export const fromValue = other => {
     const encode = value => {
         if (typeof value === 'function') { return other(value) }
         if (value === undefined) { return ['undefined'] }
-        if (Array.isArray(value)) { return ['[]', value.map(encode)] }
+        if (isArray(value)) { return ['[]', value.map(encode)] }
         if (value !== null && typeof value === 'object') {
             return ['{}', Object.entries(value).map(([key, member]) => [':', key, encode(member)])]
         }
@@ -127,7 +288,8 @@ export const fromValue = other => {
 
 // Exps
 
-export const exps = rttiArray(exp)
+/** @type {() => readonly ['array', typeof exp]} */
+export const exps = schemas.exps
 
 // Function
 
@@ -141,9 +303,10 @@ export const exps = rttiArray(exp)
  * operations check the metadata, while this schema checks tuple shape. Only
  * the body opens a new scope.
  */
-export const func = /** @type {const} */ (['=>', number, exps, exp])
+/** @type {readonly ['=>', typeof number, typeof exps, typeof exp]} */
+export const func = schemas.func
 /** A constant fixed-position read; its index must be canonical and below the owning length. */
-export const arg = /** @type {const} */ (['arg', number])
+export const arg = argSchema
 /**
  * A constant read of slot `N` of the owning function's frame — the value
  * the enclosing scope put at position `N` of the slots of `func`. The index
@@ -151,7 +314,7 @@ export const arg = /** @type {const} */ (['arg', number])
  * by the analysis and the operations, since the frame as a whole is not a
  * value the body can name.
  */
-export const frame = /** @type {const} */ (['frame', number])
+export const frame = frameSchema
 
 // Spread
 
@@ -164,12 +327,14 @@ export const frame = /** @type {const} */ (['frame', number])
  * Not a top-level `Exp`: `spread` only appears as an `items`/`properties`
  * alternative, never as an operand an operation node can hold directly.
  */
-export const spread = /** @type {const} */ (['...', exp])
+/** @type {readonly ['...', typeof exp]} */
+export const spread = schemas.spread
 
 // Items
 
 /** An array element: a plain `exp`, or a `spread` splicing another array in. */
-export const items = or(exp, spread)
+/** @type {() => readonly ['or', typeof exp, typeof spread]} */
+export const items = schemas.items
 
 // Array
 
@@ -179,7 +344,8 @@ export const items = or(exp, spread)
  * [exp0, ...exp1]
  * ```
  */
-export const array = /** @type {const} */ (['[]', rttiArray(items)])
+/** @type {readonly ['[]', () => readonly ['array', typeof items]]} */
+export const array = schemas.array
 
 // Args
 
@@ -199,7 +365,8 @@ export const array = /** @type {const} */ (['[]', rttiArray(items)])
  * parameters and its rest; an engine may build those two arrays directly
  * from the callee's `length` (`../README.md`, Nodes).
  */
-export const args = rttiArray(items)
+/** @type {() => readonly ['array', typeof items]} */
+export const args = schemas.args
 
 // Property
 
@@ -214,12 +381,14 @@ export const args = rttiArray(items)
  * value is coerced via JS `ToPropertyKey` when the property is defined —
  * see `../../todo/edag-stage1-discussion.md` subject 4.
  */
-export const property = /** @type {const} */ ([':', exp, exp])
+/** @type {readonly [':', typeof exp, typeof exp]} */
+export const property = schemas.property
 
 // Properties
 
 /** An object entry: a plain `property`, or a `spread` splicing another object in. */
-export const properties = or(property, spread)
+/** @type {() => readonly ['or', typeof property, typeof spread]} */
+export const properties = schemas.properties
 
 // Object — same nesting as `array` above, one position further in
 
@@ -246,7 +415,8 @@ export const properties = or(property, spread)
  * spellings assign a prototype instead and lose the property. See "the
  * `__proto__` key" in `../../spec/README.md`.
  */
-export const object = /** @type {const} */ (['{}', rttiArray(properties)])
+/** @type {readonly ['{}', () => readonly ['array', typeof properties]]} */
+export const object = schemas.object
 
 // Number
 
@@ -255,7 +425,8 @@ export const object = /** @type {const} */ (['{}', rttiArray(properties)])
  * Number(exp)
  * ```
  */
-export const numberCast = /** @type {const} */ (['Number', exp])
+/** @type {readonly ['Number', typeof exp]} */
+export const numberCast = schemas.numberCast
 
 // Index
 
@@ -273,7 +444,8 @@ export const numberCast = /** @type {const} */ (['Number', exp])
  * Does not exclude `'constructor'`/`'__proto__'` — TODO, see
  * `../rtti/todo/excluded-string-values.md`.
  */
-export const index = or(numberCast, string, number)
+/** @type {() => readonly ['or', typeof numberCast, typeof string, typeof number]} */
+export const index = schemas.index
 
 /**
  * Internal preargument member resolution. Evaluate the receiver and key, then
@@ -282,7 +454,8 @@ export const index = or(numberCast, string, number)
  * callability or invoke the member. The receiver and key remain available for
  * the subsequent member call. This operation has no source-language spelling.
  */
-export const memberPresent = /** @type {const} */ (['memberPresent', exp, index])
+/** @type {readonly ['memberPresent', typeof exp, typeof index]} */
+export const memberPresent = schemas.memberPresent
 
 // Chain lambdas
 
@@ -341,29 +514,6 @@ export const memberPresent = /** @type {const} */ (['memberPresent', exp, index]
 // throw where `a?.b.c` does not.
 
 /**
- * The productions both option states carry, listed once because
- * `OptionPropertyLambda` extends `OptionLambda` rather than restating it —
- * the containment its own doc states, and the reason `PropertyLambda` needs
- * no walker of its own in [`amnesia`](./amnesia/module.f.mjs).
- *
- * A thunk for the same reason `_optionLambda` is one: these reference
- * `optionLambda` and `optionPropertyLambda`, which are declared below.
- *
- * @type {() => readonly[
- *  readonly['|()', typeof args],
- *  readonly['|()', typeof args, typeof optionLambda],
- *  readonly['|.', typeof index],
- *  readonly['|.', typeof index, typeof optionPropertyLambda],
- * ]}
- */
-const regionProductions = () => ([
-    /** @type {const} */ (['|()', args]),
-    /** @type {const} */ (['|()', args, optionLambda]),
-    /** @type {const} */ (['|.', index]),
-    /** @type {const} */ (['|.', index, optionPropertyLambda]),
-])
-
-/**
  * The continuation of a step that produced a plain value **inside** an open
  * region — what `?.()` owns, and what a call step hands on.
  *
@@ -379,9 +529,13 @@ const regionProductions = () => ([
  * shorter tuple with no continuation position at all — see "Ending a chain"
  * above.
  *
- * @type {() => readonly['or', ...ReturnType<typeof regionProductions>]}
+ * @type {() => readonly ['or',
+ *  readonly ['|()', typeof args],
+ *  readonly ['|()', typeof args, typeof optionLambda],
+ *  readonly ['|.', typeof index],
+ *  readonly ['|.', typeof index, typeof optionPropertyLambda]]}
  */
-export const _optionLambda = () => (['or', ...regionProductions()])
+export const _optionLambda = schemas._optionLambda
 
 /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
 export const optionLambda = _optionLambda
@@ -406,18 +560,16 @@ export const optionLambda = _optionLambda
  * spells. It is also the one production with a single arity: closing the
  * region is terminal, so it never carries a continuation.
  *
- * @type {() => readonly['or', ...ReturnType<typeof regionProductions>,
- *  readonly['|?.()', typeof args],
- *  readonly['|?.()', typeof args, typeof optionLambda],
- *  readonly['|!()', typeof args],
- * ]}
+ * @type {() => readonly ['or',
+ *  readonly ['|()', typeof args],
+ *  readonly ['|()', typeof args, typeof optionLambda],
+ *  readonly ['|.', typeof index],
+ *  readonly ['|.', typeof index, typeof optionPropertyLambda],
+ *  readonly ['|?.()', typeof args],
+ *  readonly ['|?.()', typeof args, typeof optionLambda],
+ *  readonly ['|!()', typeof args]]}
  */
-export const _optionPropertyLambda = () => (['or',
-    ...regionProductions(),
-    /** @type {const} */ (['|?.()', args]),
-    /** @type {const} */ (['|?.()', args, optionLambda]),
-    /** @type {const} */ (['|!()', args]),
-])
+export const _optionPropertyLambda = schemas._optionPropertyLambda
 
 /** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
 export const optionPropertyLambda = _optionPropertyLambda
@@ -433,11 +585,11 @@ export const optionPropertyLambda = _optionPropertyLambda
  * both. There is no `|.` production, which is what gives a plain property
  * path exactly one spelling: `a.b.c` is nested `dot`s and nothing else.
  */
-export const propertyLambda = or(
-    /** @type {const} */ (['|()', args]),
-    /** @type {const} */ (['|?.()', args]),
-    /** @type {const} */ (['|?.()', args, optionLambda]),
-)
+/** @type {() => readonly ['or',
+ *  readonly ['|()', typeof args],
+ *  readonly ['|?.()', typeof args],
+ *  readonly ['|?.()', typeof args, typeof optionLambda]]} */
+export const propertyLambda = schemas.propertyLambda
 
 // Call
 
@@ -457,7 +609,8 @@ export const propertyLambda = or(
  * One arity, unlike the three chain nodes below: `()` produces a bare value
  * and so has no continuation operand to leave out.
  */
-export const call = /** @type {const} */ (['()', exp, args])
+/** @type {readonly ['()', typeof exp, typeof args]} */
+export const call = schemas.callNode
 
 // Dot
 
@@ -477,10 +630,10 @@ export const call = /** @type {const} */ (['()', exp, args])
  * drops it — and the two call continuations are the only things that can use
  * it.
  */
-export const dot = or(
-    /** @type {const} */ (['.', exp, index]),
-    /** @type {const} */ (['.', exp, index, propertyLambda]),
-)
+/** @type {() => readonly ['or',
+ *  readonly ['.', typeof exp, typeof index],
+ *  readonly ['.', typeof exp, typeof index, typeof propertyLambda]]} */
+export const dot = schemas.dot
 
 // Option Dot
 
@@ -503,10 +656,10 @@ export const dot = or(
  * `['?.', a, 'b', ['|.', 'c']]`, while `(a?.b).c` is a `dot` over a
  * complete `['?.', a, 'b']` — and throws when `a` is nullish, as JS does.
  */
-export const optionDot = or(
-    /** @type {const} */ (['?.', exp, index]),
-    /** @type {const} */ (['?.', exp, index, optionPropertyLambda]),
-)
+/** @type {() => readonly ['or',
+ *  readonly ['?.', typeof exp, typeof index],
+ *  readonly ['?.', typeof exp, typeof index, typeof optionPropertyLambda]]} */
+export const optionDot = schemas.optionDot
 
 // Option Call
 
@@ -521,10 +674,10 @@ export const optionDot = or(
  * — `a.b?.(...c)` is a `dot` with a `|?.()` continuation, not this. If `exp0`
  * is nullish the arguments are not evaluated and the region short-circuits.
  */
-export const optionCall = or(
-    /** @type {const} */ (['?.()', exp, args]),
-    /** @type {const} */ (['?.()', exp, args, optionLambda]),
-)
+/** @type {() => readonly ['or',
+ *  readonly ['?.()', typeof exp, typeof args],
+ *  readonly ['?.()', typeof exp, typeof args, typeof optionLambda]]} */
+export const optionCall = schemas.optionCall
 
 // Comma
 
@@ -543,7 +696,8 @@ export const optionCall = or(
  * one function into two hashes. `fjs/compiler/edag` emits it for what a module's
  * export does not reach; see the Caveats of `./README.md`.
  */
-export const comma = /** @type {const} */ ([',', exps])
+/** @type {readonly [',', typeof exps]} */
+export const comma = schemas.comma
 
 // No-Args Operations
 
@@ -552,7 +706,7 @@ export const comma = /** @type {const} */ ([',', exps])
  * joined by `.`, which `./types.ts` pins to that list — `Object.is` for
  * `['Object', 'is']`, `Number.isInteger` for `['Number', 'isInteger']`.
  */
-export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', 'Object.keys', 'String.fromCharCode', 'Object.fromEntries', 'Number.isInteger', 'Number.isSafeInteger', 'Number.isNaN', 'Number.isFinite'])
+export const staticIds = staticNames
 
 /**
  * A static function as a value, `['Object.is']`: the function the
@@ -565,7 +719,7 @@ export const staticIds = /** @type {const} */ (['Object.is', 'Object.entries', '
  * its context carries holds, and with neither it fails naming it rather
  * than answer.
  */
-export const staticId = or(...staticIds)
+export const staticId = staticIdSchema
 
 /**
  * Whether a node — the EDAG's, or the AST's, which shares it — is a static
@@ -593,6 +747,17 @@ export const isStatic = node => node instanceof Array && node.length === 1 && st
 export const staticPath = id => id.split('.')
 
 /**
+ * The text of a built-in named `name`, NativeFunction syntax
+ * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)):
+ * `function is() { [native code] }`. A static function's is
+ * {@link staticText}; the runtime as a value gives it to every function
+ * its `static` and `member` sections reach (`fjs/compiler/rust/runtime`).
+ *
+ * @type {(name: string) => string}
+ */
+export const nativeFunctionText = name => `function ${name}() { [native code] }`
+
+/**
  * A static function's text, `String(Object.is)`: what ECMA-262 requires
  * of a built-in function
  * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)),
@@ -605,17 +770,6 @@ export const staticPath = id => id.split('.')
  * @type {(id: StaticId) => string}
  */
 export const staticText = id => nativeFunctionText(`${staticPath(id).at(-1)}`)
-
-/**
- * The text of a built-in named `name`, NativeFunction syntax
- * ([`Function.prototype.toString`](https://tc39.es/ecma262/#sec-function.prototype.tostring)):
- * `function is() { [native code] }`. A static function's is
- * {@link staticText}; the runtime as a value gives it to every function
- * its `static` and `member` sections reach (`fjs/compiler/rust/runtime`).
- *
- * @type {(name: string) => string}
- */
-export const nativeFunctionText = name => `function ${name}() { [native code] }`
 
 /**
  * The failure of a static function no binding answers, by its name: the
@@ -643,13 +797,13 @@ export const noStatic = name => `no binding for the static ${name}`
  * (`fjs/js/runtime/README.md`, "Two invariants"). As a value the node is fresh where it
  * is established, as `entry` is and every `=>` is.
  */
-export const intrinsics = /** @type {const} */ ([['slice', 3], ['charCodeAt', 2]])
+export const intrinsics = intrinsicDefinitions
 
 /** The intrinsics' tags, {@link intrinsics}: `slice`, `charCodeAt`. */
-export const intrinsicIds = intrinsics.map(([id]) => id)
+export const intrinsicIds = intrinsicNames
 
 /** An intrinsic as a value, `['slice']`: one tag of {@link intrinsicIds}. */
-export const intrinsicId = or(...intrinsicIds)
+export const intrinsicId = intrinsicIdSchema
 
 /**
  * Whether a node — the EDAG's, or the AST's, which shares it — is an
@@ -751,10 +905,11 @@ export const isFunctionNode = node => node instanceof Array && (node[0] === '=>'
  *
  * The rest are the static functions, {@link staticId}.
  */
-export const op0Id = or('undefined', 'args', 'rest', 'self', 'entry', 'hasEntry', intrinsicId, staticId)
+export const op0Id = op0IdSchema
 
 
-export const op0 = /** @type {const} */ ([op0Id])
+/** @type {readonly [typeof op0Id]} */
+export const op0 = schemas.op0
 
 // Unary Operations
 
@@ -776,9 +931,10 @@ export const op0 = /** @type {const} */ ([op0Id])
  * node's is: in an arm of `?:` it fails only where the arm is selected,
  * and an executor never establishes it where the program would not.
  */
-export const op1Id = or('String', 'Number', 'BigInt', '!', '~', 'typeof', 'throw')
+export const op1Id = op1IdSchema
 
-export const op1 = /** @type {const} */ ([op1Id, exp])
+/** @type {readonly [typeof op1Id, typeof exp]} */
+export const op1 = schemas.op1
 
 // Binary Operations
 
@@ -787,13 +943,10 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * are normalized to conditionals before graph construction. `+` and `-` also
  * have unary arities and belong to op12; static functions remain values.
  */
-export const op2Id = or(
-    '===', '!==', '>', '>=', '<', '<=',
-    '*', '/', '%', '**',
-    '&', '|', '^', '<<', '>>', '>>>'
-)
+export const op2Id = op2IdSchema
 
-export const op2 = /** @type {const} */ ([op2Id, exp, exp])
+/** @type {readonly [typeof op2Id, typeof exp, typeof exp]} */
+export const op2 = schemas.op2
 
 // Operations at both arities
 
@@ -821,12 +974,12 @@ export const op2 = /** @type {const} */ ([op2Id, exp, exp])
  * operations the language admits as syntax is the language's decision, not
  * the schema's.
  */
-export const op12Id = or('+', '-')
+export const op12Id = op12IdSchema
 
-export const op12 = or(
-    /** @type {const} */ ([op12Id, exp]),
-    /** @type {const} */ ([op12Id, exp, exp]),
-)
+/** @type {() => readonly ['or',
+ *  readonly [typeof op12Id, typeof exp],
+ *  readonly [typeof op12Id, typeof exp, typeof exp]]} */
+export const op12 = schemas.op12
 
 // Ternary Operations
 
@@ -840,9 +993,10 @@ export const op12 = or(
  * extension path", implemented — as a vocabulary of its own, since `op1` and
  * `op2` each fix one operand count and `op12` fixes two.
  */
-export const op3Id = or('?:')
+export const op3Id = op3IdSchema
 
-export const op3 = /** @type {const} */ ([op3Id, exp, exp, exp])
+/** @type {readonly [typeof op3Id, typeof exp, typeof exp, typeof exp]} */
+export const op3 = schemas.op3
 
 // Instance Check
 
@@ -854,7 +1008,7 @@ export const op3 = /** @type {const} */ ([op3Id, exp, exp, exp])
  * `typeof x === "object"` and `typeof x === "function"` are the language's
  * spellings for those (`../../spec/README.md`, Operators).
  */
-export const constructorId = or('Array')
+export const constructorId = constructorIdSchema
 
 /**
  * `['instanceof', x, c]` is `x instanceof c` for a built-in constructor
@@ -867,7 +1021,8 @@ export const constructorId = or('Array')
  * therefore needs an arm for this node — a string is otherwise a valid
  * expression, and the name would be walked as a literal.
  */
-export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorId])
+/** @type {readonly ['instanceof', typeof exp, typeof constructorId]} */
+export const instanceOf = schemas.instanceOf
 
 // Entry Check
 
@@ -885,7 +1040,8 @@ export const instanceOf = /** @type {const} */ (['instanceof', exp, constructorI
  * an executor calls or substitutes natively
  * (`../../spec/todo/2346-in-operator.md`).
  */
-export const inOp = /** @type {const} */ (['in', string, exp])
+/** @type {readonly ['in', typeof string, typeof exp]} */
+export const inOp = schemas.inOp
 
 // Traversal
 

@@ -7,7 +7,9 @@
 
 import { assertEq } from '../../../asserts/module.f.js'
 import { parse } from '../../../rtti/parse/module.f.mjs'
-import { primitive, unknown, object, array } from './module.f.mjs'
+import { validate } from '../../../rtti/validate/module.f.mjs'
+import { toData, validate as dataValidate } from '../../../rtti/data/module.f.mjs'
+import { primitive, unknown, object, array } from './module.f.js'
 
 // Reduces a parse to its `ok`/`error` tag: these schemas are about what is
 // accepted, not about the payload `parse` rebuilds. The erased `ValidateE`
@@ -21,7 +23,7 @@ const unknownAccepts = tag(parse(unknown))
 const objectAccepts = tag(parse(object))
 const arrayAccepts = tag(parse(array))
 
-export const proof = {
+export const proof = /** @type {const} */ ({
     primitive: {
         accepts: () => {
             assertEq(primitiveAccepts(null), 'ok')
@@ -77,8 +79,28 @@ export const proof = {
         recurses: () => {
             assertEq(unknownAccepts({ a: [{ b: [[{ c: 'd' }]] }] }), 'ok')
         },
+        recursiveConsumers: () => {
+            const validated = tag(validate(unknown))
+            const dataValidated = tag(dataValidate(toData(unknown)))
+            for (const value of /** @type {const} */ ([
+                { a: [{ b: [[1, null]] }] },
+                [{ a: [{ b: 's' }] }],
+            ])) {
+                assertEq(unknownAccepts(value), 'ok')
+                assertEq(validated(value), 'ok')
+                assertEq(dataValidated(value), 'ok')
+            }
+            for (const value of /** @type {const} */ ([
+                { a: [{ b: [undefined] }] },
+                [{ a: { b: 1n } }],
+            ])) {
+                assertEq(unknownAccepts(value), 'error')
+                assertEq(validated(value), 'error')
+                assertEq(dataValidated(value), 'error')
+            }
+        },
         rejectsUndefined: () => {
             assertEq(unknownAccepts(undefined), 'error')
         },
     },
-}
+})

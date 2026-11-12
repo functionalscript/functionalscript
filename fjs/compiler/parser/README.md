@@ -500,7 +500,7 @@ the fold's:
   bare, distinct names as the intrinsic's `length` whose expression body
   is the one member call of the intrinsic's name on the first with the
   rest, `(s, a, b) => s.slice(a, b)` — the AST's `['slice']`, by the
-  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.mjs)
+  member's name, the list `intrinsics` in [`fjs/edag`](../../edag/module.f.js)
   and the helpers [`fjs/js/intrinsic`](../../js/intrinsic/module.f.js). A
   step from the shape is an ordinary function with an ordinary member call.
 

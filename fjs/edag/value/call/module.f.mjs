@@ -32,7 +32,7 @@
 import { error } from '../../../types/result/module.f.js'
 import { array } from '../array/module.f.mjs'
 import { isFunction } from '../semantics/module.f.mjs'
-import { helperLength, isHelper } from '../../module.f.mjs'
+import { helperLength, isHelper } from '../../module.f.js'
 
 /**
  * The bindings of a call of a function of `length` to `values`: the fixed

@@ -525,8 +525,8 @@ that: a claim about a *local* inference stays in the proof, with a statement
 after it.
 
 Recursive RTTI whose annotation needs a named public type may stay in
-`module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`), and declarative
-compile-time/runtime constants shared between TypeScript and
+`module.f.js` or `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.js`), and
+declarative compile-time/runtime constants shared between TypeScript and
 runtime code may be split into a normal subordinate metaprogramming module such
 as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
 and covered like any other `module.f.mjs`, never a requirement.
@@ -926,9 +926,9 @@ Forward references are fine: `unknown` is annotated in terms of `object` and
 `@type {const}` is wrong here even though it compiles. It pins the tuple, so
 `tsc` and `fjs t` both pass — but it gives declaration emit no *name* for
 the recursive positions, so the emitter inlines the structure, gives up at
-depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.mjs` the
+depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.js` the
 const cast emitted 4 `any` and 2 `/*elided*/`; the `typeof` form emitted
-neither. Only a consumer type-checking against the published `.d.mts` sees the
+neither. Only a consumer type-checking against the published `.d.ts` sees the
 difference, which is why this needs to be a rule rather than something review
 catches. Omitting the annotation entirely is a third, louder failure: the array
 literal widens to `(string | …)[]` and fails `TS2345` outright (see "Pin literal

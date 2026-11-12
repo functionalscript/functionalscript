@@ -34,7 +34,7 @@ import {
 } from '../json_rpc/module.f.mjs'
 import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
-import { unknown } from '../../media/json/rtti/module.f.mjs'
+import { unknown } from '../../media/json/rtti/module.f.js'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 

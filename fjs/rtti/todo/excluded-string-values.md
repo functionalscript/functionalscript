@@ -11,7 +11,7 @@ write "any string except these" as a schema.
 
 ### Why it matters for `../../edag`
 
-`index`'s `string` branch (`../../edag/module.f.mjs`) is meant to admit any property
+`index`'s `string` branch (`../../edag/module.f.js`) is meant to admit any property
 name *except* `'__proto__'` and `'constructor'` — see "the current decision is to
 prohibit both" in [`../../../spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md).
 Today it admits every string, prohibited names included:
@@ -33,7 +33,7 @@ layered check is probably simpler than growing the `Type` ADT for one consumer.
 
 ### Related
 
-- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `index`'s doc comment
+- [`../../edag/module.f.js`](../../edag/module.f.js) — `index`'s doc comment
   notes the gap and points here.
 - [`../../../spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — the prohibited-name list this would enforce.
