@@ -307,8 +307,8 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       importable function
       [`bigint`](../../fjs/types/bigint/from_number/module.f.js)
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
-- [x] `Math` — a reserved namespace admitting the static function
-      `Math.log2`; other members remain separate admissions
+- [x] `Math` — a reserved namespace admitting the static functions
+      `Math.log2` and `Math.trunc`; other members remain separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -393,6 +393,42 @@ the exact special cases and conversions are not approximate.
 **Language-design approval.** **sergey-shandar** explicitly requested the
 TODO PR and its stacked implementation, permitting any necessary supporting
 `Math` admissions under the rule above, in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.trunc proposal and approval
+
+**Problem.** The compiler refused `Math.trunc`, blocking the SHA-1 module's
+migration to `.f.js`.
+
+**Proposal.** Admit `Math.trunc` as a native static function, the EDAG node
+`['Math.trunc']`, with the ordinary static-value contract: detached and
+destructured calls, quoted property access, optional calls, stable identity,
+native function text and `length` of one. `Math` remains a closed namespace.
+
+Convert the first argument once with JavaScript `ToNumber`, then truncate
+toward zero. Preserve `NaN`, both infinities and both zeros; fractions
+between `-1` and zero produce `-0`. An omitted argument produces `NaN`.
+Bigints, including those returned by object conversion, and failed primitive
+conversion throw. Extra arguments are evaluated but are not converted.
+
+**Backend choice.** Both target languages provide the exact numeric operation:
+[Rust `f64::trunc`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.trunc)
+and [core WASM `f64.trunc`](https://webassembly.github.io/spec/core/exec/numerics.html#op-ftrunc).
+Use native bindings under the approved `Math` target rule above. JavaScript
+uses its native `Math.trunc`; represented execution applies its existing
+`ToNumber` conversion before native truncation; Rust uses `Any::to_number`
+and `Number::trunc`. A future WASM backend can use `f64.trunc` after the same
+conversion. No third-party WASM dependency or common numerical body is needed.
+
+**Benefits.** Familiar JavaScript spelling and exact native truncation on both
+targets, including signed zero, without an external math library.
+
+**Drawbacks.** Each executor needs a native binding that preserves conversion
+failures and special values. This admission does not admit other `Math` members.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+implementation of `Math.trunc` in a new PR, using native operations when both
+Rust and WASM provide them, in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

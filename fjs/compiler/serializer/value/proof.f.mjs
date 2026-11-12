@@ -62,7 +62,9 @@ export const proof = {
         assertEq(stringify(['Object.keys']), 'export default Object.keys;')
         assertEq(stringify(['Object.is']), 'export default Object.is;')
         assertEq(stringify(['Number.isNaN']), 'export default Number.isNaN;')
+        assertEq(stringify(['Math.trunc']), 'export default Math.trunc;')
         assertEq(stringify(['[]', [['Object.entries'], ['Object.entries']]]), 'export default [Object.entries,Object.entries];')
+        assertEq(stringify(['[]', [['Math.trunc'], ['Math.trunc']]]), 'export default [Math.trunc,Math.trunc];')
         assertEq(factoryStringify(['[]', [['Object.is'], ['Number.isFinite']]]), 'export default()=>{return [Object.is,Number.isFinite];};')
     },
     functions: () => {

@@ -18,7 +18,7 @@
 
 import { assert } from '../../asserts/module.f.js'
 import { decodeCodePoints, encodeCodePoints } from '../../basen/base16/module.f.js'
-import { sha1 } from '../../crypto/sha1/module.f.mjs'
+import { sha1 } from '../../crypto/sha1/module.f.js'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.js'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.js'

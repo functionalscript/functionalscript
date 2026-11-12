@@ -42,6 +42,15 @@ export const proof = {
         const run = memo(assertOk(analysis(compile('export default Math.log2;').edag)))
         assertEq(assertError(run({ args: [] })), 'no binding for the static Math.log2')
     },
+    // A native static is callable without a common runtime and retains the
+    // same function value when read through the namespace or destructuring.
+    mathTrunc: () => {
+        expectEdag(compile('export default Math.trunc(3.75);').edag, ['()', ['Math.trunc'], [3.75]])
+        expectEdag(compile('const { trunc } = Math; export default [trunc, Math["trunc"], trunc.length];').edag,
+            ['[]', [['Math.trunc'], ['Math.trunc'], ['.', ['Math.trunc'], 'length']]])
+        assertStructurallySame(execute(compile('const { trunc } = Math; const read = () => Math.trunc; export default [trunc(3.75), Math["trunc"](-3.75), Math.trunc?.(-0.75), trunc === read(), read() === read(), trunc.length, typeof trunc];').edag),
+            [3, -3, -0, true, true, 1, 'function'])
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`

@@ -142,6 +142,15 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Native truncation
+
+#3792 (`c6b59ebc0`) admits `Math.trunc` natively: Rust's `f64::trunc` and
+core WASM's `f64.trunc` provide the numeric operation; existing conversion
+preserves JavaScript semantics. No WASM dependencies are added. `crypto/sha1`
+now uses `.f.js`, with references updated. The graph has **273 `.f.js`
+files**, **370 `.f.mjs` files** and **14 blocked leaves**; the final pass
+accepts none, exposing no new leaves.
+
 #### Memory presence and Git byte fixture
 
 #3791 (`c639e8637`) replaces `Object.hasOwn` with `hasEntry` and the Git
@@ -733,20 +742,9 @@ became convertible. Locations are `line:column`; paths are relative to
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = ['text/ascii', 'types/function/compare', 'types/list', 'types/map', 'zlib/bits'];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `2a5b9c7` (historical)
 

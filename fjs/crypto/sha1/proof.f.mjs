@@ -9,7 +9,7 @@ import { maxLengthBytes, repeat, uint, vec } from '../../types/bit_vec/module.f.
 import { flip } from '../../types/function/module.f.js'
 import { map } from '../../types/list/module.f.js'
 import { computeSync } from '../sha2/module.f.js'
-import { sha1 } from './module.f.mjs'
+import { sha1 } from './module.f.js'
 import { demo, digest } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { runPure } from '../../effects/module.f.js'

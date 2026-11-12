@@ -34,6 +34,11 @@ pub mod math_log2_bigint_boundaries;
 pub mod math_log2_bigint_throws;
 pub mod math_log2_coercion_throws;
 pub mod math_log2_converted_bigint_throws;
+pub mod math_trunc;
+pub mod math_trunc_bigint_throws;
+pub mod math_trunc_coercion_throws;
+pub mod math_trunc_converted_bigint_throws;
+pub mod math_trunc_extra_argument_throws;
 pub mod method;
 pub mod missing;
 pub mod mixed_if;
@@ -119,6 +124,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },
     crate::Case { name: "math_log2_coercion_throws", fixture: crate::fixtures::math_log2_coercion_throws::module::<Naive>, expected: math_log2_coercion_throws::module::<Naive>, json: math_log2_coercion_throws::JSON, throws: math_log2_coercion_throws::THROWS },
     crate::Case { name: "math_log2_converted_bigint_throws", fixture: crate::fixtures::math_log2_converted_bigint_throws::module::<Naive>, expected: math_log2_converted_bigint_throws::module::<Naive>, json: math_log2_converted_bigint_throws::JSON, throws: math_log2_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_trunc", fixture: crate::fixtures::math_trunc::module::<Naive>, expected: math_trunc::module::<Naive>, json: math_trunc::JSON, throws: math_trunc::THROWS },
+    crate::Case { name: "math_trunc_bigint_throws", fixture: crate::fixtures::math_trunc_bigint_throws::module::<Naive>, expected: math_trunc_bigint_throws::module::<Naive>, json: math_trunc_bigint_throws::JSON, throws: math_trunc_bigint_throws::THROWS },
+    crate::Case { name: "math_trunc_coercion_throws", fixture: crate::fixtures::math_trunc_coercion_throws::module::<Naive>, expected: math_trunc_coercion_throws::module::<Naive>, json: math_trunc_coercion_throws::JSON, throws: math_trunc_coercion_throws::THROWS },
+    crate::Case { name: "math_trunc_converted_bigint_throws", fixture: crate::fixtures::math_trunc_converted_bigint_throws::module::<Naive>, expected: math_trunc_converted_bigint_throws::module::<Naive>, json: math_trunc_converted_bigint_throws::JSON, throws: math_trunc_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_trunc_extra_argument_throws", fixture: crate::fixtures::math_trunc_extra_argument_throws::module::<Naive>, expected: math_trunc_extra_argument_throws::module::<Naive>, json: math_trunc_extra_argument_throws::JSON, throws: math_trunc_extra_argument_throws::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
     crate::Case { name: "missing", fixture: crate::fixtures::missing::module::<Naive>, expected: missing::module::<Naive>, json: missing::JSON, throws: missing::THROWS },
     crate::Case { name: "mixed_if", fixture: crate::fixtures::mixed_if::module::<Naive>, expected: mixed_if::module::<Naive>, json: mixed_if::JSON, throws: mixed_if::THROWS },

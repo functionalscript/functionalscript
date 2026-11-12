@@ -367,11 +367,13 @@ export const proof = {
         for (const value of values) { assert(text(value).includes('Any::')) }
     },
     helpers: () => {
-        for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger'])) { assert(text([tag]).length > 0) }
+        for (const tag of /** @type {const} */ (['entry', 'hasEntry', 'slice', 'Object.is', 'Number.isInteger', 'Math.trunc'])) { assert(text([tag]).length > 0) }
         const native = unwrap(valueTagged(['Object.entries'], { ...options, runtime: null }))
         assert(untagged(native[0]).includes('Any::entries'))
         const chars = unwrap(valueTagged(['String.fromCharCode'], { ...options, runtime: null }))
         assert(untagged(chars[0]).includes('String::from_char_code(_args)'))
+        const trunc = unwrap(valueTagged(['Math.trunc'], { ...options, runtime: null }))
+        assertEq(untagged(trunc[0]), 'A::static_function(|_self, _args| _args.argument(0).to_number().map(|v| v.trunc().to_any()), 1, Array::default(), Some("function trunc() { [native code] }")).to_any()')
     },
     layout: () => {
         assertEq(braced(['Ok(v)']), '{ Ok(v) }')

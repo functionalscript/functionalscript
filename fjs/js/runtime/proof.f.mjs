@@ -110,6 +110,31 @@ const samples = [
 ]
 
 export const proof = /** @type {const} */ ({
+    trunc: {
+        numbers: () => {
+            const trunc = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.trunc'])
+            assertEq(trunc, Math.trunc)
+            assertEq(runtime.static('Math.trunc'), trunc)
+            assertEq(trunc.length, 1)
+            assert(Object.is(trunc(), NaN))
+            for (const [value, expected] of [
+                [NaN, NaN], [Infinity, Infinity], [-Infinity, -Infinity],
+                [0, 0], [-0, -0], [0.5, 0], [-0.5, -0],
+                [1.9, 1], [-1.9, -1], [5e-324, 0], [-5e-324, -0],
+                [0x20_0000_0000_0000, 0x20_0000_0000_0000],
+                [1.7976931348623157e308, 1.7976931348623157e308],
+            ]) { assert(Object.is(trunc(value), expected), value) }
+        },
+        conversion: () => {
+            const trunc = /** @type {(value?: unknown, unused?: unknown) => number} */ (statics['Math.trunc'])
+            for (const value of ['', ' -0.5 ', ' 0x10 ', 'Infinity', 'bad', true, false, null, undefined, [], [8.9], [8n], [[-1.9]], {}, () => 1]) {
+                assert(Object.is(trunc(value), Math.trunc(/** @type {number} */ (value))), value)
+            }
+            assertEq(trunc({ valueOf: () => 2.9, toString: () => { throw 'unreached' } }), 2)
+            assertEq(trunc({ valueOf: () => ({}), toString: () => '-3.9' }), -3)
+            assertEq(trunc(4.9, { valueOf: () => { throw 'unused' } }), 4)
+        },
+    },
     log2: {
         specialCases: () => {
             const body = statics['Math.log2']
@@ -249,13 +274,13 @@ export const proof = /** @type {const} */ ({
     // the section holds the built-in itself at the path, so the table is
     // complete as a value, and the host's own built-in answers alike
     // detached and on its namespace, as `host` checks a body's:
-    // Both natives read no `this`; compare their successful coercion inputs.
+    // The natives read no `this`; compare their successful coercion inputs.
     natives: () => {
         for (const [namespaceName, name] of staticPaths.filter(isNative)) {
             assertEq(table[`${namespaceName}.${name}`], host[namespaceName][name], [namespaceName, name])
             const namespace = /** @type {Readonly<Record<string, (a: unknown) => unknown>>} */ (host[namespaceName])
             const detached = namespace[name]
-            for (const a of samples.filter(a => a !== null && a !== undefined && (namespaceName !== 'String' || typeof a !== 'bigint'))) {
+            for (const a of samples.filter(a => a !== null && a !== undefined && (namespaceName === 'Object' || typeof a !== 'bigint'))) {
                 assertStructurallySame(detached(a), namespace[name](a), [namespaceName, name, a])
             }
         }
@@ -487,6 +512,10 @@ export const proof = /** @type {const} */ ({
         assertEq(JSON.stringify(edag).includes('["charCodeAt"]'), true)
     },
     throw: {
+        truncBigint: () => { table['Math.trunc'](1n, undefined) },
+        truncBigintPrimitive: () => { table['Math.trunc']({ valueOf: () => 1n }, undefined) },
+        truncConversion: () => { table['Math.trunc']({ valueOf: () => { throw 'conversion' } }, undefined) },
+        truncNoPrimitive: () => { table['Math.trunc']({ valueOf: () => ({}), toString: () => [] }, undefined) },
         log2Bigint: () => { statics['Math.log2'](1n) },
         log2BigintPrimitive: () => { statics['Math.log2']({ valueOf: () => 1n }) },
         log2Conversion: () => { statics['Math.log2']({ valueOf: () => { throw 'conversion' } }) },

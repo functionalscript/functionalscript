@@ -522,6 +522,12 @@ proved on the host, interpreted by the interpreter, and compiled by every
 backend. Correctness is argued there and nowhere else: a backend that
 disagrees with it is wrong by definition, and the corpus is what says so.
 
+For `Math` admissions, the approved
+[target rule](../spec/todo/2360-built-in.md#mathlog2-proposal-and-approval)
+defines the native surface: use compatible native operations when both Rust
+and core WASM provide them; otherwise write the common body and use it in Rust
+too. WASM adds no third-party dependencies.
+
 1. **The source is complete and naive.** It expresses the semantics in the
    simplest correct form, allocating a closure or an object wherever the
    meaning is one, and it never trades clarity for the speed of any
