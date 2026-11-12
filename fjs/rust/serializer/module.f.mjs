@@ -480,7 +480,7 @@ const operation = (s, n, result) => {
     const tag = n[0]
     if (isStatic([tag])) {
         if (s.runtime !== null) { return map1(fallible(result))(ok(cat([unstable('static_read'), `(&${s.runtime}, ${str(unwrap(stringLiteral(tag)))})`]))) }
-        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
+        if (tag !== 'Object.entries' && tag !== 'String.fromCharCode' && tag !== 'Math.trunc' && tag !== 'Math.floor' && tag !== 'Math.abs' && tag !== 'Math.sqrt' && tag !== 'Math.ceil' && tag !== 'Math.imul' && tag !== 'Math.max' && tag !== 'Math.min') { return error(['a static function read with no runtime in scope; the core may not use what it defines', tag]) }
         if (tag === 'String.fromCharCode') {
             return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', vm('String'), `::from_char_code(_args).map(|v| v.to_any()), 1, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
         }
@@ -491,8 +491,10 @@ const operation = (s, n, result) => {
         if (tag === 'Math.imul') {
             return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| ', argRead(0), '.to_number().and_then(|a| ', argRead(1), `.to_number().map(|b| a.imul(b).to_any())), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
         }
-        if (tag === 'Math.max') {
-            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| _args.into_iter().try_fold(', vm('Number'), '::from(f64::NEG_INFINITY), |maximum, value| value.to_number().map(|value| maximum.max(value))).map(|value| value.to_any()), 2, ', vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
+        if (tag === 'Math.max' || tag === 'Math.min') {
+            const method = tag.slice(5)
+            const initial = tag === 'Math.min' ? 'INFINITY' : 'NEG_INFINITY'
+            return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| _args.into_iter().try_fold(', vm('Number'), `::from(f64::${initial}), |current, value| value.to_number().map(|value| current.${method}(value))).map(|value| value.to_any()), 2, `, vm('Array'), `::default(), ${represented(staticText(tag))})`, toAny])))
         }
         return map1(pure(result))(ok(cat(['A::static_function(|_self, _args| Any::entries(', argRead(0), '), ', num('1'), ', ', vm('Array'), `::default(), ${represented(staticText('Object.entries'))})`, toAny])))
     }

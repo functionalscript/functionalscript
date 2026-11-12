@@ -270,7 +270,21 @@ export const proof = {
             exported('["[]",[["Math.max"],["Math.max"],[".",["Math.max"],"length"]]]'))
         expectModule('export default (x, y, z) => Math.max(x, y, z);',
             exported('["=>",3,[],["()",["Math.max"],[["arg",0],["arg",1],["arg",2]]]]'))
-        for (const source of ['Math?.max', 'Math?.["max"](1)', 'Number.max', 'Object.max', 'Math.min(1, 2)']) {
+        for (const source of ['Math?.max', 'Math?.["max"](1)', 'Number.max', 'Object.max', 'Math.cbrt(8)']) {
+            expectRefused(`export default ${source};`, 'reserved word', 16)
+        }
+    },
+    mathMin: () => {
+        for (const source of ['Math.min', 'Math["min"]', '(Math.min)']) {
+            expectModule(`export default ${source};`, exported('["Math.min"]'))
+        }
+        expectModule('export default Math.min(1, 2, 3);', exported('["()",["Math.min"],[1,2,3]]'))
+        expectModule('export default Math["min"]?.();', exported('["?.()",["Math.min"],[]]'))
+        expectModule('const { min: f, "min": g, min: { length } } = Math; export default [f, g, length];',
+            exported('["[]",[["Math.min"],["Math.min"],[".",["Math.min"],"length"]]]'))
+        expectModule('export default (x, y, z) => Math.min(x, y, z);',
+            exported('["=>",3,[],["()",["Math.min"],[["arg",0],["arg",1],["arg",2]]]]'))
+        for (const source of ['Math?.min', 'Math?.["min"](1)', 'Number.min', 'Object.min', 'Math.cbrt(8)']) {
             expectRefused(`export default ${source};`, 'reserved word', 16)
         }
     },

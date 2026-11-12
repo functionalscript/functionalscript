@@ -94,7 +94,7 @@ export const proof = {
         assert(rust.includes('pub const PROHIBITED: &[(&str, &str)] = &[\n    ("Object", "__defineGetter__"),\n'), rust)
         assert(rust.includes('pub const ABSENT: &[(&str, &str)] = &[\n'), rust)
         assert(rust.includes('    ("Array", "charAt"),\n'), rust)
-        assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n    &["Object", "entries"],\n    &["Object", "keys"],\n    &["String", "fromCharCode"],\n    &["Object", "fromEntries"],\n    &["Number", "isInteger"],\n    &["Number", "isSafeInteger"],\n    &["Number", "isNaN"],\n    &["Number", "isFinite"],\n    &["Math", "log2"],\n    &["Math", "trunc"],\n    &["Math", "floor"],\n    &["Math", "abs"],\n    &["Math", "sqrt"],\n    &["Math", "ceil"],\n    &["Math", "imul"],\n    &["Math", "max"],\n];\n'), rust)
+        assert(rust.includes('pub const STATICS: &[&[&str]] = &[\n    &["Object", "is"],\n    &["Object", "entries"],\n    &["Object", "keys"],\n    &["String", "fromCharCode"],\n    &["Object", "fromEntries"],\n    &["Number", "isInteger"],\n    &["Number", "isSafeInteger"],\n    &["Number", "isNaN"],\n    &["Number", "isFinite"],\n    &["Math", "log2"],\n    &["Math", "trunc"],\n    &["Math", "floor"],\n    &["Math", "abs"],\n    &["Math", "sqrt"],\n    &["Math", "ceil"],\n    &["Math", "imul"],\n    &["Math", "max"],\n    &["Math", "min"],\n];\n'), rust)
         assert(rust.endsWith('];\n'), rust)
         assertEq(path, 'nanvm/lib/src/vm/lambda/gen.methods.rs')
     },

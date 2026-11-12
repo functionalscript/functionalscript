@@ -94,6 +94,13 @@ export const proof = {
         assertStructurallySame(execute(compile('const { max } = Math; const read = () => Math.max; export default [max(), max(-0), max(-0, 0), max(0, -0), max(-0, -0), max(1, 9, 3), Math["max"](-4, -3), Math.max?.(-Infinity, -2), max(NaN, 4), max === read(), read() === read(), max === Math.imul, max.length, typeof max, String(max)];').edag),
             [-Infinity, -0, 0, 0, -0, 9, -3, -2, NaN, true, true, false, 2, 'function', 'function max() { [native code] }'])
     },
+    mathMin: () => {
+        expectEdag(compile('export default Math.min(1, 2, 3);').edag, ['()', ['Math.min'], [1, 2, 3]])
+        expectEdag(compile('const { min } = Math; export default [min, Math["min"], min.length];').edag,
+            ['[]', [['Math.min'], ['Math.min'], ['.', ['Math.min'], 'length']]])
+        assertStructurallySame(execute(compile('const { min } = Math; const read = () => Math.min; export default [min(), min(0), min(-0), min(0, -0), min(-0, 0), min(0, 0), min(4, -9, 3), Math["min"](4, 3), Math.min?.(Infinity, 2), min(NaN, 4), min === read(), read() === read(), min === Math.max, min.length, typeof min, String(min)];').edag),
+            [Infinity, 0, -0, -0, -0, 0, -9, 3, 2, NaN, true, true, false, 2, 'function', 'function min() { [native code] }'])
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`

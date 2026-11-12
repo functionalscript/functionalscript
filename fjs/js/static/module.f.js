@@ -42,7 +42,8 @@
  * the four `Number` predicates, none of which converts its argument
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#number-predicates-proposal-and-approval)),
  * the common-runtime logarithm `Math.log2` and native numeric functions
- * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul` and `Math.max`.
+ * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`,
+ * `Math.imul`, `Math.max` and `Math.min`.
  */
 export const statics = /** @type {const} */ ([
     ['Object', 'is'],
@@ -62,6 +63,7 @@ export const statics = /** @type {const} */ ([
     ['Math', 'ceil'],
     ['Math', 'imul'],
     ['Math', 'max'],
+    ['Math', 'min'],
 ])
 
 /**
@@ -72,9 +74,10 @@ export const statics = /** @type {const} */ ([
  * ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md#objectentries-proposal-and-approval)).
  * `String.fromCharCode` is native too: it constructs UTF-16 strings from
  * code units without a large lookup table.
- * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`
- * and `Math.max` have compatible native numeric operations in Rust and core WASM.
- * The maximum binding corrects Rust's NaN and signed-zero differences.
+ * `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`, `Math.ceil`, `Math.imul`,
+ * `Math.max` and `Math.min` have compatible native numeric operations in Rust
+ * and core WASM.
+ * The maximum and minimum bindings correct Rust's NaN and signed-zero differences.
  * Every other path of {@link statics} has its body in the runtime.
  */
 export const natives = /** @type {const} */ ([
@@ -87,6 +90,7 @@ export const natives = /** @type {const} */ ([
     ['Math', 'ceil'],
     ['Math', 'imul'],
     ['Math', 'max'],
+    ['Math', 'min'],
 ])
 
 /** Whether `path` is `p`, key for key. @type {(path: readonly string[]) => (p: readonly string[]) => boolean} */

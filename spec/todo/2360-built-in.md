@@ -309,7 +309,8 @@ body, represented interpreters and generated NaNVM code to JavaScript.
       meanwhile ([`doc/CONVERTING.md` §8](../../doc/CONVERTING.md#8-bigint))
 - [x] `Math` — a reserved namespace admitting the static functions
       `Math.log2`, `Math.trunc`, `Math.floor`, `Math.abs`, `Math.sqrt`,
-      `Math.ceil`, `Math.imul` and `Math.max`; other members remain separate admissions
+      `Math.ceil`, `Math.imul`, `Math.max` and `Math.min`; other members remain
+      separate admissions
       ([built-in static functions](../built-ins/static-functions/README.md),
       the approval below)
 - [ ] `Date`
@@ -597,6 +598,47 @@ needs explicit special-value corrections to match JavaScript and core WASM.
 
 **Language-design approval.** **sergey-shandar** explicitly requested
 implementation of `Math.max` in the same PR in the
+[working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
+
+##### Math.min proposal and approval
+
+**Problem.** The compiler refused `Math.min`, the inflater's next blocker
+after its numeric table indexes became explicit.
+
+**Proposal.** Admit the variadic native static value `Math.min`, represented
+by `['Math.min']`. Preserve quoted and destructured reads, detached and optional
+calls, stable identity, `length` two and `function min() { [native code] }`
+as its text. Other `Math` members remain separate admissions.
+
+Convert every argument once with `ToNumber`, from left to right, including
+arguments after `NaN` or negative infinity. Primitive or converted bigints and
+failed primitive conversion throw. All argument expressions are evaluated
+before invocation. No arguments return positive infinity; any converted `NaN`
+makes the result `NaN` after the remaining conversions succeed. Otherwise,
+return the least value. Negative zero wins a tie with positive zero in either
+order. An input consisting only of positive zeros returns `+0`, and one
+consisting only of negative zeros returns `-0`.
+
+**Backend choice.** Use
+[Rust `f64::min`](https://doc.rust-lang.org/stable/std/primitive.f64.html#method.min)
+with explicit `NaN` propagation and zero-tie correction, and
+[core WASM `f64.min`](https://webassembly.github.io/spec/core/exec/numerics.html#op-fmin),
+under the approved target rule. Rust's stable `min` ignores a lone `NaN` and
+does not guarantee the required zero tie; `f64::minimum` is unstable on the
+pinned toolchain. Share `Math.max`'s variadic binding shape, correct the special
+values around native `min`, and fold from positive infinity without ending
+conversion early on `NaN`. The runtime table holds JavaScript's built-in.
+A future WASM backend can fold core `f64.min` after the same argument
+conversions. No common numerical body or third-party dependency is needed.
+
+**Benefits.** Familiar JavaScript spelling, compatible native operations in
+both targets and progress on the inflater's migration.
+
+**Drawbacks.** Another static binding and variadic conversion contract. Rust
+needs explicit special-value corrections to match JavaScript and core WASM.
+
+**Language-design approval.** **sergey-shandar** explicitly requested
+"Implement `Math.min` in the same PR" in the
 [working session](https://chatgpt.com/c/6af4b740-b0c0-8191-8471-4aa5a50fa03a).
 
 #### Text Processing

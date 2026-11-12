@@ -43,7 +43,7 @@
  * `readBytes` are for: the length, then the header, the trailer and the windows
  * of an entry. `readFile` is for the alternates, and
  * `inflate` is not asked for at all: the objects are inflated by
- * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.mjs), which is pure. The
+ * [`fjs/zlib/inflate`](../../zlib/inflate/module.f.js), which is pure. The
  * host's `inflate` effect, which answered one `Vec` of 128 KiB at most for one of
  * the same, refused every object over that length — about one in a hundred in
  * this repository's own history; none is refused for its length now, though a delta
