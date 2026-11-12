@@ -28,7 +28,9 @@ const { isInteger } = Number;
 export default [Object.is(0, -0), is(NaN, NaN), [1, 1.5].map(isInteger), Number.isFinite("1"), entries({ b: 1, "0": 2 })];
 ```
 
-The language admits nine static functions. `Object.is` is JavaScript's
+The admitted static functions include `Math.log2`, `Object.is`,
+`Object.entries`, `Object.keys`, `Object.fromEntries`, `String.fromCharCode` and the
+four `Number` predicates. `Object.is` is JavaScript's
 SameValue, which tells `0` from `-0` and holds `NaN` equal to itself, where
 `===` says the opposite of both. `Object.entries` is JavaScript's too: a
 fresh array of fresh `[key, value]` pairs, one per enumerable own
@@ -63,7 +65,18 @@ JavaScript's, none converting its argument: `Number.isInteger`,
 `Number.isSafeInteger` — an integer within `2^53 - 1` of `0` —
 `Number.isNaN` and `Number.isFinite`, so `Number.isFinite("1")` is `false`
 where the global `isFinite("1")`, which converts and is not admitted, is
-`true`. Each is a value, as in JavaScript — passed,
+`true`.
+
+`Math.log2(x)` returns the base-2 logarithm after JavaScript's `ToNumber`
+conversion: `Math.log2("8")` is `3`, while a BigInt argument throws.
+`NaN` and negative numbers return `NaN`, either zero returns `-Infinity`,
+1 returns positive zero, and positive infinity returns itself. Omitting
+the argument returns `NaN`; extra arguments are ignored. Ordinary positive
+results are implementation-approximated, as ECMAScript specifies. The
+common runtime supplies the numerical body for the interpreter and Rust;
+WASM can compile that same body without an external math library.
+
+Each is a value, as in JavaScript — passed,
 compared, read as `Object.is.length` — and one function however often it is
 read, so `Object.is === Object.is`. A value is a function, not an operator,
 so a call of it takes any number of arguments, as in JavaScript —
@@ -108,18 +121,25 @@ conversion already, is a namespace the same way, beside the call
 `Number(x)` ([number conversion](../../conversions/number/README.md)). Each later member is
 an admission of its own ([built-ins](../../todo/2360-built-in.md)).
 
+`Math` is reserved in the same way and admits only `log2`.
+`Math.log2`, `Math["log2"]` and `const { log2 } = Math` read the same
+function, with `length` 1 and text `function log2() { [native code] }`.
+The word alone, namespace guards, computed keys and other `Math` members
+remain refused.
+
 Each read reaches the graph as the node of its name, `['Object.is']` or
 `['Number.isInteger']`, and a call of it as the ordinary call,
 `['()', ['Object.is'], [a, b]]` ([`fjs/edag`](../../../fjs/edag/README.md)). Each
 body is written once, in the `statics` table of
 [`fjs/js/runtime`](../../../fjs/js/runtime/README.md), a VM's and no module's —
-a module calls the built-in — and checked there against the host's own;
+a module calls the built-in — and checked there against the host's own
+for exact semantic cases, with separate numerical accuracy cases for
+`Math.log2`;
 every executor answers the node from it, and an executor with no binding
-for it fails, naming it, rather than answer. `Object.entries` has no
-body, since enumerating keys is what no body can do otherwise;
-`String.fromCharCode` is also native. The other statics, including
-`Object.keys` and `Object.fromEntries`, have shared bodies. Every
-executor binds `Object.entries` natively, and its text, `String(Object.entries)`, is
+for it fails, naming it, rather than answer. `Object.entries` and
+`String.fromCharCode` are native primitives; the others,
+`Object.keys`, `Object.fromEntries` and `Math.log2` among them, have bodies. The native
+primitives are bound by every executor, and the text `String(Object.entries)` is
 `function entries() { [native code] }`, the NativeFunction syntax
 ECMAScript requires of a built-in, there being no EDAG to render
 ([function source](../../principles/README.md#function-source-representation-exception)).

@@ -19,7 +19,7 @@ import { pureOk } from '../../../../effects/module.f.mjs'
 import { vm } from '../../../../edag/amnesia/module.f.mjs'
 import { read } from '../../../../edag/value/property/module.f.js'
 import { virtualAt } from '../../../../effects/node/virtual/module.f.mjs'
-import runtimeEdag from '../../../../js/runtime/gen.edag.data.js'
+import runtimeEdag from '../../../../js/runtime/gen.edag.js'
 import { utf8 } from '../../../../text/module.f.mjs'
 import {
     add, divide, get, greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual, multiply, negate,

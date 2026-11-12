@@ -320,7 +320,7 @@ const binding = (s, id) => /** @type {string} */ (/** @type {_Names} */ (s.names
 const loopLabel = (s, target) => /** @type {string} */ (/** @type {_Names} */ (s.names).loops.get(target))
 
 /** A Rust block from target statement lines. @type {(parts: readonly string[]) => string} */
-export const braced = parts => parts.length === 1 ? `{ ${parts[0]} }` : `{
+export const braced = parts => parts.length === 0 ? '{}' : parts.length === 1 ? `{ ${parts[0]} }` : `{
 ${parts.flatMap(p => p.split('\n')).map(p => `${indent}${p}`).join('\n')}
 }`
 

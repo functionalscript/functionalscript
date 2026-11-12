@@ -37,7 +37,7 @@ parser's fixtures, the `rtti` guide's examples, `testlib.f.js` and
 so they run as modules under the switch as they do today. A `*.data.js`
 file is not discovered, since `isAuthored` accepts `.f.mjs` and `.f.js`
 alone; it is reached by import from the modules that use it, as
-`fjs/js/runtime/gen.edag.data.js` is. Measuring any of them is a rule
+`fjs/js/runtime/gen.edag.js` is. Measuring any of them is a rule
 change to decide separately, not a consequence of this one.
 
 A module whose coverage drops when its JavaScript proofs stop counting has

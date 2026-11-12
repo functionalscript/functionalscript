@@ -8,7 +8,7 @@
  * @import { _BigFloatWithRemainder } from './private.ts'
  */
 
-import { abs, bitLength, mask, sign } from '../bigint/module.f.mjs'
+import { abs, bitLength, mask, sign } from '../bigint/module.f.js'
 import { max } from '../number/max/module.f.js'
 
 /** @type {(exp: number) => bigint} */

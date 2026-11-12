@@ -173,6 +173,31 @@ export const proof = {
             exported('["()",["Object.fromEntries"],[["[]",[["[]",["a",1]]]]]]'))
         expectRefused('const { fromEntries } = Number; export default 1;', 'reserved word', 25)
     },
+    // Math is a namespace, with log2 admitted as a value and every other
+    // member still closed. The namespace itself cannot be bound or read.
+    mathLog2: () => {
+        for (const source of ['Math.log2', 'Math["log2"]', '(Math.log2)']) {
+            expectModule(`export default ${source};`, exported('["Math.log2"]'))
+        }
+        expectModule('export default Math.log2(8);', exported('["()",["Math.log2"],[8]]'))
+        expectModule('export default Math.log2?.(8);', exported('["?.()",["Math.log2"],[8]]'))
+        expectModule('const { log2: f } = Math; export default [f, f.length];',
+            exported('["[]",[["Math.log2"],[".",["Math.log2"],"length"]]]'))
+        for (const source of [
+            'export default Math;',
+            'export default Math.log;',
+            'export default Math.sqrt(4);',
+            'export default Math?.log2;',
+            'export default Math?.["log2"];',
+            'export default Math[Number(0)];',
+            'const Math = 1; export default Math;',
+            'export default (Math) => 1;',
+            'import Math from "m"; export default 1;',
+            'const { log } = Math; export default 1;',
+        ]) { expectRefused(source, 'reserved word', source.indexOf('Math') + 1) }
+        expectModule('export default { Math: 1 }.Math;',
+            exported('[".",["{}",[[":","Math",1]]],"Math"]'))
+    },
     // Every namespace is a reserved global, so no scope binds the word a
     // static read is decided by.
     namespaces: () => {

@@ -52,9 +52,9 @@ export const proof = {
     // list and nothing else — not for a keyword, a literal global, a case
     // variant, a prototype member or the empty word.
     reservedGlobals: () => {
-        assertEq(reservedGlobals.join(), 'Array,BigInt,Boolean,Number,Object,String')
+        assertEq(reservedGlobals.join(), 'Array,BigInt,Boolean,Math,Number,Object,String')
         assertEq(reservedGlobals.some(isKeyword), false)
         assertEq(reservedGlobals.every(isReservedGlobal), true)
-        assertEq([...keywords, 'array', 'boolean', 'BOOLEAN', 'number', 'NUMBER', 'string', 'STRING', 'Map', 'constructor', 'x', ''].some(isReservedGlobal), false)
+        assertEq([...keywords, 'array', 'boolean', 'BOOLEAN', 'math', 'MATH', 'number', 'NUMBER', 'string', 'STRING', 'Map', 'constructor', 'x', ''].some(isReservedGlobal), false)
     },
 }

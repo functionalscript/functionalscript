@@ -8,7 +8,7 @@
  * @import { Printer } from './types.ts'
  */
 
-import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
+import { serialize as bigintSerialize } from '../bigint/module.f.js'
 import { stringLiteral } from '../../js/string_escape/module.f.mjs'
 import { tagged, untagged } from '../../text/marked/module.f.mjs'
 

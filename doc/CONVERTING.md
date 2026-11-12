@@ -263,9 +263,9 @@ stays refused.
 
 ## 5. `Math.min` and `Math.max`
 
-The `Math` global is not admitted: `Number` is a reserved word admitting
-the conversion and the four predicates above, `Math` is no name at all, and `Math.min` is refused as
-`const not found`. On two numbers the replacements are `min` from
+`Math` is a reserved namespace admitting only `Math.log2`. `Math.min` and
+`Math.max` remain refused as unadmitted namespace members. On two numbers
+the replacements are `min` from
 [`fjs/types/number/min`](../fjs/types/number/min/module.f.js) and `max`
 from [`fjs/types/number/max`](../fjs/types/number/max/module.f.js):
 
@@ -292,6 +292,19 @@ identity being what `Math.max()` with no arguments is, and `Infinity` for
 `min`. And the built-ins convert their arguments, `Math.min("1", 2)` being
 `1`, where `min` and `max` take numbers: a call on anything else is
 checked, not rewritten.
+
+### `Math.log2`
+
+Keep `Math.log2` as written, including detached calls and
+`const { log2 } = Math`. Its shared-runtime body performs JavaScript's
+argument conversion and numerical operation; no import or rewrite is
+needed. Other `Math` functions remain separate admissions. In particular,
+`Math.log` is not admitted as a substitute.
+
+This removes the remaining compilation obstacle in `fjs/types/bigint`,
+whose implementation is now `module.f.js`. Its existing corrections near
+powers of two and at conversion overflow remain necessary for the bigint
+logarithm's exact integer result.
 
 ### `Math.abs`
 

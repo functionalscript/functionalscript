@@ -27,6 +27,11 @@ pub mod intrinsic;
 pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
+pub mod math_log2;
+pub mod math_log2_bigint_boundaries;
+pub mod math_log2_bigint_throws;
+pub mod math_log2_coercion_throws;
+pub mod math_log2_converted_bigint_throws;
 pub mod method;
 pub mod missing;
 pub mod mixed_if;
@@ -105,6 +110,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "intrinsic_throws", fixture: crate::fixtures::intrinsic_throws::module::<Naive>, expected: intrinsic_throws::module::<Naive>, json: intrinsic_throws::JSON, throws: intrinsic_throws::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
+    crate::Case { name: "math_log2", fixture: crate::fixtures::math_log2::module::<Naive>, expected: math_log2::module::<Naive>, json: math_log2::JSON, throws: math_log2::THROWS },
+    crate::Case { name: "math_log2_bigint_boundaries", fixture: crate::fixtures::math_log2_bigint_boundaries::module::<Naive>, expected: math_log2_bigint_boundaries::module::<Naive>, json: math_log2_bigint_boundaries::JSON, throws: math_log2_bigint_boundaries::THROWS },
+    crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },
+    crate::Case { name: "math_log2_coercion_throws", fixture: crate::fixtures::math_log2_coercion_throws::module::<Naive>, expected: math_log2_coercion_throws::module::<Naive>, json: math_log2_coercion_throws::JSON, throws: math_log2_coercion_throws::THROWS },
+    crate::Case { name: "math_log2_converted_bigint_throws", fixture: crate::fixtures::math_log2_converted_bigint_throws::module::<Naive>, expected: math_log2_converted_bigint_throws::module::<Naive>, json: math_log2_converted_bigint_throws::JSON, throws: math_log2_converted_bigint_throws::THROWS },
     crate::Case { name: "method", fixture: crate::fixtures::method::module::<Naive>, expected: method::module::<Naive>, json: method::JSON, throws: method::THROWS },
     crate::Case { name: "missing", fixture: crate::fixtures::missing::module::<Naive>, expected: missing::module::<Naive>, json: missing::JSON, throws: missing::THROWS },
     crate::Case { name: "mixed_if", fixture: crate::fixtures::mixed_if::module::<Naive>, expected: mixed_if::module::<Naive>, json: mixed_if::JSON, throws: mixed_if::THROWS },

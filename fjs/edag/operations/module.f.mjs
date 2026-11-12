@@ -319,7 +319,7 @@ export const operation = evaluator => {
             // tuple whatever its tag: a static `isStatic` turned away would
             // still reach `binary` below as far as `tsc` can tell, and a
             // tag missing here is a type error for the same reason
-            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': {
+            case 'String.fromCharCode': case 'Object.is': case 'Object.entries': case 'Object.keys': case 'Object.fromEntries': case 'Number.isInteger': case 'Number.isSafeInteger': case 'Number.isNaN': case 'Number.isFinite': case 'Math.log2': {
                 if (node[0] === 'Object.entries' || node[0] === 'String.fromCharCode') { return [state, ok(/** @type {Static} */ ([node[0]]))] }
                 const body = staticBody(runtime, [node[0]], invoke)
                 return [state, body[0] === 'error' ? body : body[1] === undefined ? error(noStatic(node[0])) : ok(/** @type {Static} */ ([node[0]]))]

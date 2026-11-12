@@ -82,7 +82,7 @@ import { read } from '../edag/value/property/module.f.js'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep } from '../effects/module.f.mjs'
 import { catch_ } from '../effects/common/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.js'
-import runtimeEdag from '../js/runtime/gen.edag.data.js'
+import runtimeEdag from '../js/runtime/gen.edag.js'
 
 /**
  * The runtime a data output interprets the example under: `fjs/js/runtime`'s

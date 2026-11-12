@@ -14,7 +14,7 @@ import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.mjs'
 import { read } from '../value/property/module.f.js'
-import runtimeEdag from '../../js/runtime/gen.edag.data.js'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
@@ -374,6 +374,22 @@ export const proof = /** @type {const} */ ({
         // the static read, bound; its call, through an invoker without the
         // runtime, is the same failure
         assertStructurallySame(settle(invoke)(bound(['()', ['Object.is'], ['a', 'a']], [])[1]), ['error', noStatic('Object.is')])
+    },
+    // A logarithm static runs the body supplied by the runtime, including
+    // its argument binding and metadata. This synthetic body returns its
+    // arguments so the dispatch contract is independent of numerical tests.
+    mathLog2: () => {
+        /** @type {Runtime} */
+        const runtime = ['{}', [[':', 'static', ['=>', 1, [['{}', [[':', 'Math.log2', ['=>', 1, [], ['[]', [['arg', 0], ['self'], ['rest']]]]]]]], ['()', ['entry'], [['frame', 0], ['arg', 0]]]]]]]
+        assertStructurallySame(under(runtime, ['Math.log2']), ['ok', ['Math.log2']])
+        assertStructurallySame(under(runtime, ['()', ['Math.log2'], [8, 9]]), ['ok', ['[]', [8, ['Math.log2'], ['[]', [9]]]]])
+        assertStructurallySame(under(runtime, ['()', ['Math.log2'], []]), ['ok', ['[]', [['undefined'], ['Math.log2'], ['[]', []]]]])
+        assertStructurallySame(under(runtime, ['.', ['Math.log2'], 'length']), ['ok', 1])
+        assertStructurallySame(under(runtime, ['String', ['Math.log2']]), ['ok', 'function log2() { [native code] }'])
+        assertStructurallySame(under(runtime, ['===', ['Math.log2'], ['Math.log2']]), ['ok', true])
+        failure(['Math.log2'], noStatic('Math.log2'))
+        failure(['()', ['Math.log2'], [8]], noStatic('Math.log2'))
+        assertStructurallySame(under(['{}', []], ['Math.log2']), ['error', noStatic('Math.log2')])
     },
     // `Object.entries` is the dispatcher's own, with no runtime: a static
     // like every other, called natively on its first argument.

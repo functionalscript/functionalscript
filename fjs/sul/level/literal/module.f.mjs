@@ -10,7 +10,7 @@
  * @import { EncodeState, Level, LiteralToVec, PipelineState } from './types.ts'
  */
 
-import { log2 } from '../../../types/bigint/module.f.mjs'
+import { log2 } from '../../../types/bigint/module.f.js'
 import { msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { cascade } from '../../../types/function/operator/module.f.js'
 import { map, sameItems } from '../../../types/list/module.f.js'

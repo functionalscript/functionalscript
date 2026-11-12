@@ -12,7 +12,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.js'
-import { bitLength } from '../../types/bigint/module.f.mjs'
+import { bitLength } from '../../types/bigint/module.f.js'
 import { empty, length, msb, repeat, unpack, vec8, wholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'

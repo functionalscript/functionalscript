@@ -19,7 +19,7 @@ import { memo } from '../../edag/memo/module.f.mjs'
 import { toData } from '../../edag/value/to_unknown/module.f.mjs'
 import { read } from '../../edag/value/property/module.f.js'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import runtimeEdag from '../../js/runtime/gen.edag.data.js'
+import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { unwrap } from '../../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { apply, compile, execute, expectEdag, value } from './proof.f.mjs'
@@ -35,6 +35,13 @@ const commonRuntime = () => {
 const executeWithRuntime = graph => assertOk(toData(unwrap(memo(assertOk(analysis(graph)))({ args: [], runtime: commonRuntime() }))))
 
 export const proof = {
+    mathLog2: () => {
+        expectEdag(compile('export default Math.log2(8);').edag, ['()', ['Math.log2'], [8]])
+        expectEdag(compile('const { log2 } = Math; export default [log2, Math["log2"], log2.length];').edag,
+            ['[]', [['Math.log2'], ['Math.log2'], ['.', ['Math.log2'], 'length']]])
+        const run = memo(assertOk(analysis(compile('export default Math.log2;').edag)))
+        assertEq(assertError(run({ args: [] })), 'no binding for the static Math.log2')
+    },
     // The `entry` helper is the EDAG's own node for it, `['entry']`, the
     // helper as a value: one node per helper written, as every arrow is a
     // node of its own, and one however many references reach a `const`

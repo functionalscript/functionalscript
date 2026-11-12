@@ -25,7 +25,7 @@
  * @import { Sha1, V5 } from './types.ts'
  */
 
-import { mask } from '../../types/bigint/module.f.mjs'
+import { mask } from '../../types/bigint/module.f.js'
 import { ch, framed, fromWords, maj } from '../sha2/module.f.mjs'
 
 const wordLength = /** @type {const} */ (32n)

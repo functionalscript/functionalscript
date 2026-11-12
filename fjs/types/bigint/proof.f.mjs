@@ -28,7 +28,7 @@ import {
     roundUp,
     divUp8,
     roundUp8
-} from './module.f.mjs'
+} from './module.f.js'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
 import { min } from '../function/compare/module.f.js'
 
