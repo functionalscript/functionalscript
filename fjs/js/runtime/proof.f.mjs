@@ -146,6 +146,17 @@ export const proof = /** @type {const} */ ({
             }
         },
     },
+    boolean: () => {
+        assertEq(runtime.Boolean.length, 1)
+        for (const value of samples) { assertEq(runtime.Boolean(value), Boolean(value)) }
+        const conversionHooks = /** @type {const} */ ({
+            valueOf: () => { throw 'valueOf must not run' },
+            toString: () => { throw 'toString must not run' },
+        })
+        assertEq(runtime.Boolean(conversionHooks), true)
+        assertStructurallySame(at(at(edag, 'runtime'), 'Boolean'),
+            ['=>', 1, [], ['!', ['!', ['arg', 0]]]])
+    },
     map: () => {
         const input = /** @type {const} */ ([1, undefined, 3])
         /** @type {(value: unknown, index: number, receiver: readonly unknown[]) => readonly unknown[]} */
@@ -164,12 +175,12 @@ export const proof = /** @type {const} */ ({
         assertEq(fromCharCode(), '')
         assertEq(fromCharCode(0xd800, 0xffff, 0x1_0041, -1), '\ud800\uffffA\uffff')
     },
-    // `static`, `dot` and `in` are the runtime's three functions; every key `member` holds
+    // `Boolean`, `static`, `dot` and `in` are the runtime's four functions; every key `member` holds
     // is a name `allowedCalls` admits — the same claim `./types.ts` makes at
     // the type level — and every entry is a body of the receiver alone,
     // answering `undefined` or a function.
     keys: () => {
-        assertEq(Object.keys(runtime).toSorted().join(), 'dot,in,static')
+        assertEq(Object.keys(runtime).toSorted().join(), 'Boolean,dot,in,static')
         for (const [name, entry] of entries(members)) {
             assert(allowed.includes(name), name)
             assertEq(entry.length, 1)
@@ -191,7 +202,7 @@ export const proof = /** @type {const} */ ({
             assertEq(typeof entry, 'function')
             assertEq(runtime.static(id), entry, id)
         }
-        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
+        for (const id of ['Object.values', 'Math.max', 'toString', 'constructor', 'Boolean', 'Object', 'is', '']) { assertEq(runtime.static(id), undefined, id) }
     },
     // Every admitted static but a native is bound, and each body answers as
     // the host's own built-in at the same path — its `length`, and its answer on every

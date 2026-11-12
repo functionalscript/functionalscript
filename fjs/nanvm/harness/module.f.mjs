@@ -36,7 +36,7 @@ import { cmp } from '../../types/string/module.f.js'
 import { error, ok, unwrap } from '../../types/result/module.f.js'
 import { stringLiteral } from '../../media/rust/module.f.mjs'
 import { constSlice, generatedHeader } from '../../media/rust/item/module.f.js'
-import { corpus, fixturesDirectory as corpusFixturesDirectory } from '../corpus/module.f.mjs'
+import { corpus, fixturesDirectory as corpusFixturesDirectory } from '../corpus/module.f.js'
 import { expectation } from '../expected/module.f.mjs'
 import { load as loadRuntime } from '../runtime/module.f.mjs'
 
@@ -166,7 +166,7 @@ const writeExpectation = runtime => name => resultStep(
 
 /**
  * Writes the expectation of every corpus fixture (see
- * [`../corpus`](../corpus/module.f.mjs): the fixtures no exception names), in
+ * [`../corpus`](../corpus/module.f.js): the fixtures no exception names), in
  * order, stopping at the first that fails, then `mod.rs` naming them all,
  * or the failure naming a fixture Rust cannot spell, with no `mod.rs`. The
  * directory is created first, so an empty corpus still leaves a `mod.rs`,

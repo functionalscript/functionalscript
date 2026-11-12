@@ -15,7 +15,7 @@ import { virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { runNodeEffect } from '../../effects/node/module.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { utf8 } from '../../text/module.f.mjs'
-import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.mjs'
+import { corpus, exceptions, fixturesDirectory, undefinedDefault, withAliasing } from './module.f.js'
 
 const names = readdirSync(fixturesDirectory, { withFileTypes: true })
     .filter(entry => entry.isFile())

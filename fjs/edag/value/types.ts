@@ -10,7 +10,7 @@ import type { Exp, IntrinsicId, Primitive as EdagPrimitive, StaticId } from '../
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Check, Check3 } from '../../rtti/ts/types.ts'
-import type { _value, value, values, array, property, object, func, entryFunction, hasEntryFunction, intrinsicFunction, staticFunction } from './module.f.mjs'
+import type { _value, value, values, array, property, object, func, entryFunction, hasEntryFunction, intrinsicFunction, staticFunction } from './module.f.js'
 
 /** Evaluated primitives include EDAG's tagged undefined. */
 export type Primitive = EdagPrimitive | readonly ['undefined']
@@ -43,12 +43,12 @@ export type Static = readonly [StaticId]
 export type Function = Closure | EntryFunction | HasEntryFunction | Intrinsic | Static
 
 /**
- * The runtime an executor answers member and static functions from: the
- * evaluated `runtime` export of `fjs/js/runtime`, an object of two
- * functions — `static`, answering a static function's body by its id, or
- * `undefined` for an id without one, and `dot`, answering the callee of
- * a member call for a receiver and a key, or `undefined`. Its shape is
- * the module's, which `fjs/js/runtime/types.ts` pins.
+ * The runtime an executor answers member, static and runtime-backed
+ * operators from: the evaluated `runtime` export of `fjs/js/runtime`.
+ * Its four functions are `static`, answering a static body by id; `dot`,
+ * answering a member callee by receiver and key; and the `in` and `Boolean`
+ * operator bodies. A lookup can answer `undefined` for an absent body.
+ * `fjs/js/runtime/types.ts` pins the module's shape.
  */
 export type Runtime = Object
 

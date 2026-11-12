@@ -30,8 +30,8 @@
  */
 
 import { error } from '../../../types/result/module.f.js'
-import { array } from '../array/module.f.mjs'
-import { isFunction } from '../semantics/module.f.mjs'
+import { array } from '../array/module.f.js'
+import { isFunction } from '../semantics/module.f.js'
 import { helperLength, isHelper } from '../../module.f.js'
 
 /**
@@ -45,7 +45,7 @@ export const bind = (length, values) => {
     /** @type {Values} */
     let fixed = []
     for (let i = 0; i < length; i += 1) {
-        fixed = [...fixed, i < values.length ? values[i] : ['undefined']]
+        fixed = [...fixed, i < values.length ? values[Number(i)] : ['undefined']]
     }
     return [fixed, ['[]', values.slice(length)]]
 }

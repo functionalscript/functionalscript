@@ -5,7 +5,7 @@
 
 import { assert, assertStructurallySame } from '../../asserts/module.f.js'
 import { structurallySame } from '../../types/object/structurally_same/module.f.js'
-import { corpus, exceptions, undefinedDefault, withAliasing, withoutNegativeZero } from './module.f.mjs'
+import { corpus, exceptions, undefinedDefault, withAliasing, withoutNegativeZero } from './module.f.js'
 
 export const proof = {
     corpus: {

@@ -28,8 +28,8 @@ import { arrayIndex } from '../../../js/array_index/module.f.js'
 import { isArray } from '../../../types/array/module.f.js'
 import { ok, error } from '../../../types/result/module.f.js'
 import { helperLength, isHelper, isStatic, noStatic } from '../../module.f.js'
-import { isFunction, tagUndefined } from '../semantics/module.f.mjs'
-import { call } from '../call/module.f.mjs'
+import { isFunction, tagUndefined } from '../semantics/module.f.js'
+import { call } from '../call/module.f.js'
 
 /**
  * Find a stored object property, retaining its tuple identity. An absent

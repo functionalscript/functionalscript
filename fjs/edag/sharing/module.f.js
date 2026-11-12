@@ -95,23 +95,12 @@ export const visit = operands => visited => root => {
 }
 
 /**
- * The operands a walk descends into, read from a node's shape rather than
- * from every array it holds: an array, object, or comma node holds its
- * operands in a list, whose first item may be a string that spells a tag —
- * `['+', c, c]` is three array items where `['+', c, c]` a node is an
- * operation — so the list is read as a list, and every other node's
- * operands follow its tag. A spread and a property are members of a
- * list, not nodes, so a list is read through them, {@link members}.
- *
- * A `=>` node's slots are its operands, its body is not: the body is a
- * scope of its own, established when the function is called and not when
- * it is made, and shares no node with the scope around it — so a walk over
- * one scope stops at the function boundary, and a writer walks the body
- * afresh as its own root.
- *
+ * Ordinary nodes hold their operands after the tag or in one item list.
+ * Chain nodes are handled separately so full and eager walks share this
+ * selection without referring to each other.
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-export const operandsOf = node => {
+const ordinaryOperandsOf = node => {
     const [id] = node
     return id === '=>' ? /** @type {readonly unknown[]} */ (node[2])
         : id === 'arg' || isHelper(node) ? []
@@ -122,7 +111,6 @@ export const operandsOf = node => {
         : id === ',' ? /** @type {readonly unknown[]} */ (node[1])
         : id === '[]' || id === '{}' ? members(/** @type {readonly unknown[]} */ (node[1]))
         : id === '()' ? [node[1], ...members(/** @type {readonly unknown[]} */ (node[2]))]
-        : isChain(id) ? [...eagerOperandsOf(node), ...chainLazy(one, items)(node)]
         : node.slice(1)
 }
 
@@ -172,8 +160,29 @@ export const eagerOperandsOf = node => {
     return lazy.includes(/** @type {string} */ (id)) ? [node[1]]
         : id === '.' ? [node[1], node[2]]
         : id === '?.' || id === '?.()' ? [node[1]]
-        : operandsOf(node)
+        : ordinaryOperandsOf(node)
 }
+
+/**
+ * The operands a walk descends into, read from a node's shape rather than
+ * from every array it holds: an array, object, or comma node holds its
+ * operands in a list, whose first item may be a string that spells a tag —
+ * `['+', c, c]` is three array items where `['+', c, c]` a node is an
+ * operation — so the list is read as a list, and every other node's
+ * operands follow its tag. A spread and a property are members of a
+ * list, not nodes, so a list is read through them, {@link members}.
+ *
+ * A `=>` node's slots are its operands, its body is not: the body is a
+ * scope of its own, established when the function is called and not when
+ * it is made, and shares no node with the scope around it — so a walk over
+ * one scope stops at the function boundary, and a writer walks the body
+ * afresh as its own root.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+export const operandsOf = node => isChain(node[0])
+    ? [...eagerOperandsOf(node), ...chainLazy(one, items)(node)]
+    : ordinaryOperandsOf(node)
 
 /**
  * The distinct nodes an EDAG reaches from more than one place, in dependency

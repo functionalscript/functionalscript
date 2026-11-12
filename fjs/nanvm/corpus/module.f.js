@@ -15,6 +15,7 @@
  */
 
 import { isArray } from '../../types/array/module.f.js'
+import { entry } from '../../types/object/entry/module.f.js'
 
 /** Where the fixtures are: one `.mjs` module each, a helper one imports beside them. */
 export const fixturesDirectory = 'nanvm/harness/fixtures'
@@ -45,7 +46,7 @@ const extension = '.mjs'
  *
  * @type {(names: readonly string[]) => readonly string[]}
  */
-export const corpus = names => names.filter(name => name.endsWith(extension) && exceptions[name] === undefined)
+export const corpus = names => names.filter(name => name.endsWith(extension) && entry(exceptions, name) === undefined)
 
 /**
  * The corpus fixtures whose reference default export is `undefined`, each with
@@ -96,7 +97,7 @@ export const withAliasing = value => {
         }
         const entries = Object.entries(v)
         const [children, next] = walkAll(known, entries.map(([, child]) => child), walk)
-        return [['node', n, 'object', entries.map(([key], i) => [key, children[i]])], next]
+        return [['node', n, 'object', entries.map(([key], i) => [key, children[Number(i)]])], next]
     }
     return walk([], value)[0]
 }

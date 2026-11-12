@@ -12,13 +12,13 @@
 
 import { conditional } from '../testlib.f.js'
 import { assert, assertEq, assertError, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
-import { invokerWith, noIn, operation, staticCall } from './module.f.mjs'
+import { invokerWith, noBoolean, noIn, operation, staticCall } from './module.f.mjs'
 import { read } from '../value/property/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.js'
 import { noStatic, staticIds, staticPath } from '../module.f.js'
 import { isNative } from '../../js/static/module.f.js'
 import { invoke, invokeWith, vm } from '../amnesia/module.f.mjs'
-import { settle } from '../value/call/module.f.mjs'
+import { settle } from '../value/call/module.f.js'
 
 /** @type {Context} */
 const context = { frame: ['F'], args: [10, 20], fixed: [4], rest: ['[]', [5]] }
@@ -48,12 +48,49 @@ const identity = ['=>', 1, [], ['arg', 0]]
 /** A runtime whose `in` is a function of two parameters with the body given. @type {(body: Exp) => Runtime} */
 const inRuntime = body => ['{}', [[':', 'in', ['=>', 2, [], body]]]]
 
+/** A runtime whose Boolean conversion has the supplied body. @type {(body: Exp) => Runtime} */
+const booleanRuntime = body => ['{}', [[':', 'Boolean', ['=>', 1, [], body]]]]
+
 /** A node evaluated under the executor's context with the runtime given, or none. @type {(runtime: Runtime | undefined, node: Exp) => unknown} */
 const under = (runtime, node) => vm({ ...context, runtime })(node)
 /** @type {import('../types.ts').Object} */
 const throws = ['{}', [[':', 'valueOf', ['=>', 0, [], ['throw', 'conversion']]]]]
 
-export const proof = {
+export const proof = /** @type {const} */ ({
+    booleanConversion: () => {
+        const echo = booleanRuntime(['arg', 0])
+        assertStructurallySame(under(echo, ['Boolean', 7]), ['ok', 7])
+        assertStructurallySame(under(booleanRuntime(false), ['Boolean', 7]), ['ok', false])
+        assertStructurallySame(under(booleanRuntime(['throw', 'runtime body']), ['Boolean', 7]), ['error', 'runtime body'])
+        assertStructurallySame(under(booleanRuntime(['throw', 'runtime body']), ['Boolean', ['throw', 'operand']]), ['error', 'operand'])
+        failure(['Boolean', 7], noBoolean)
+        failure(['Boolean', ['throw', 'operand']], 'operand')
+        for (const missing of [/** @type {Runtime} */ (['{}', []]), /** @type {Runtime} */ (['{}', [[':', 'Boolean', 0]]])]) {
+            assertStructurallySame(under(missing, ['Boolean', 7]), ['error', noBoolean])
+        }
+
+        const evaluate = operation({ ...evaluator, context: { ...context, runtime: echo }, invoke: invokeWith(echo) })
+        const operand = /** @type {const} */ (['+', 2, 3])
+        const [next, outcome] = evaluate(['Boolean', operand], [])
+        assertStructurallySame(next, [operand])
+        assertStructurallySame(settle(invokeWith(echo))(outcome), ['ok', 5])
+
+        const real = /** @type {Runtime} */ (assertOk(read(vm({ frame: [], args: [] })(/** @type {Exp} */ (/** @type {unknown} */ (runtimeEdag))), 'runtime')))
+        for (const [source, expected] of /** @type {readonly (readonly [Exp, boolean])[]} */ ([
+            [null, false], [['undefined'], false], [false, false], [0, false], [-0, false],
+            [NaN, false], [0n, false], ['', false],
+            [true, true], [1, true], [-1, true], [Infinity, true], [1n, true], ['0', true],
+            [['[]', []], true], [['{}', []], true], [['=>', 0, [], ['throw', 'not called']], true],
+            [['Object.entries'], true],
+        ])) {
+            assertStructurallySame(under(real, ['Boolean', source]), ['ok', expected])
+        }
+        const conversionHooks = /** @type {const} */ (['{}', [
+            [':', 'valueOf', ['=>', 0, [], ['throw', 'valueOf must not run']]],
+            [':', 'toString', ['=>', 0, [], ['throw', 'toString must not run']]],
+        ]])
+        assertStructurallySame(under(real, ['Boolean', conversionHooks]), ['ok', true])
+    },
     fromCharCode: () => {
         eq(['String.fromCharCode'], ['String.fromCharCode'])
         eq(['.', ['String.fromCharCode'], 'length'], 1)
@@ -467,4 +504,4 @@ export const proof = {
         assertStructurallySame(run(['{}', [[':', 'a', 1], [':', 'b', stop]]], [])[0], ['a', 1, 'b', stop])
         assertStructurallySame(run(['?.', null, 'a', ['|!()', [2]]], [])[0], [null, 2])
     },
-}
+})

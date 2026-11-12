@@ -174,11 +174,13 @@ JavaScript: a rest parameter collects the extra ones,
 `true`.
 
 An **operator** is a construction of the language: `+`, `*`, `typeof`, and the
-conversions `Number(x)` and `String(x)`. It is no value, so the compiler sees
+conversions `Number(x)`, `String(x)` and `Boolean(x)`. It is no value, so the compiler sees
 every use, and each use takes **a fixed set of operands**, checked at compile
 time; any other set is a compilation error. `Number` takes none or one,
 `Number()` being `0`, so `Number(a, b)` and `Number(...a)` are refused by
-design (`Number takes one argument`), and so are `String`'s. The mistake
+design (`Number takes one argument`), and so are `String`'s and `Boolean`'s.
+`Boolean()` supplies `undefined` to its common-runtime body, just as
+`Boolean(undefined)` does. The mistake
 the fixed set prevents is a quiet one: `Number(s, 16)` reads as a radix, as
 `parseInt(s, 16)`'s is, where JavaScript evaluates the `16` and ignores it,
 and `Number(...a)` converts whichever value happens to come first, or

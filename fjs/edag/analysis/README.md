@@ -31,5 +31,5 @@ uses it, and so does [`memo`](../memo/README.md), so that a function value
 holds its body as the graph has it.
 
 [`../execution-models.md`](../execution-models.md) §2.2 describes how the
-writers and interpreters use the table, and [`sharing`](../sharing/module.f.mjs)
+writers and interpreters use the table, and [`sharing`](../sharing/module.f.js)
 is the identity walk underneath it.

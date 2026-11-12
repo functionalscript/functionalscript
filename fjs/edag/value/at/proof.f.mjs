@@ -6,7 +6,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.js'
-import { at } from './module.f.mjs'
+import { at } from './module.f.js'
 
 const undefinedValue = /** @type {const} */ (['undefined'])
 const letters = /** @type {const} */ (['[]', ['a', 'b', 'c']])

@@ -39,7 +39,7 @@ they differ, a shared object's identity, can be seen.
 
 ## Values and evaluation
 
-[`value`](value/module.f.mjs) defines the evaluated-value subset's type and
+[`value`](value/module.f.js) defines the evaluated-value subset's type and
 shape schema: data and functions with evaluated captures and unevaluated
 bodies. Both FJS interpreters and compiler module initialization use this
 representation; [EDAG values](values.md) records its construction, identity,
@@ -66,7 +66,7 @@ proofs](memo/proof.f.mjs) exercise actual throwing callbacks through array
 methods and an enclosing operand; [compiler proofs](../compiler/transpiler/proof.f.mjs)
 cover direct and imported module initialization.
 
-[`value/semantics`](value/semantics/module.f.mjs) provides truthiness, `typeof`
+[`value/semantics`](value/semantics/module.f.js) provides truthiness, `typeof`
 and strict equality for represented values. Distinct
 `['undefined']` tuples denote the same primitive; arrays, objects and functions
 compare by their value-node identity. These infallible helpers are shared
@@ -75,7 +75,7 @@ and `typeof`; its `binary` table supplies `===` and `!==`. Both tables
 accept evaluated values and return `Result` successes. Callers own operand
 evaluation and failure propagation.
 
-[`value/control`](value/control/module.f.mjs) adds Result-based `throw` and
+[`value/control`](value/control/module.f.js) adds Result-based `throw` and
 `?:`, taking an evaluated first operand and deferring conditional arms
 with thunks. Its `sequence` helper runs deferred operands in order and returns
 the first failure or last success unchanged; an empty sequence yields tagged
@@ -83,7 +83,7 @@ undefined. Earlier values may be discarded, but their failures still stop the
 sequence. The helpers provide stateless control flow; executor state belongs
 to the invocation/cache layer.
 
-[`value/array`](value/array/module.f.mjs) constructs evaluated arrays from
+[`value/array`](value/array/module.f.js) constructs evaluated arrays from
 deferred items, resolving array and string spreads in order. Construction
 stops at the first failure, preserves element identity and creates a fresh
 array value. A non-iterable spread returns `error(['undefined'])`.
@@ -103,7 +103,7 @@ templates, while sharing within that graph is preserved. Body code stays
 unevaluated; captured values stay outside the copy. Memo's `invoke` interprets
 the retained body with a fresh invocation cache.
 
-[`value/call`](value/call/module.f.mjs) prepares bare calls over represented
+[`value/call`](value/call/module.f.js) prepares bare calls over represented
 values. It resolves deferred arguments and spreads, pads missing fixed
 arguments with tagged undefined and creates a fresh rest array per call.
 Callee and argument failures propagate unchanged; arguments resolve before
@@ -177,14 +177,14 @@ undefined and invalid bigint/string comparisons succeed with false. Every
 result uses `Result`; operand evaluation and conversion of containers or
 functions remain with the caller, using the number hint for ordinary objects.
 
-The [`value/array`](value/array/module.f.mjs) join helper consumes an evaluated
+The [`value/array`](value/array/module.f.js) join helper consumes an evaluated
 array and a resolved string separator. Nullish elements contribute empty text;
 other elements use the supplied string converter in order, preserving the
 first failure unchanged. The converter also owns nested-array and function
 text. Separator conversion/defaulting and full value conversion remain with
 operation dispatch.
 
-[`value/at`](value/at/module.f.mjs) supplies relative indexing for evaluated
+[`value/at`](value/at/module.f.js) supplies relative indexing for evaluated
 arrays and strings: it truncates fractions toward zero and counts negative
 indices from the end. Array elements retain their identities; strings yield
 UTF-16 code units. Out-of-range reads answer tagged undefined.
@@ -277,7 +277,7 @@ operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
 structure keyed by node identity. `analysis` merges two equal nodes of one
 scope into one entry; `identityAnalysis` keeps every node its own, its
-shared entries the ones [`sharing`](sharing/module.f.mjs) counts by node
+shared entries the ones [`sharing`](sharing/module.f.js) counts by node
 identity, which is the table the FunctionalScript writer writes from and
 the compiler evaluates by. It returns `Result<Analysis, string>`:
 structural failures, such as a node shared across function scopes or a
@@ -353,7 +353,7 @@ vocabularies.
 | `['?.()', exp, items[]]`, `['?.()', exp, items[], optionLambda]` | optional call `exp?.(…)`, likewise |
 | `['\|()', items[], k?]`, `['\|.', index, k?]`, `['\|?.()', items[], k?]`, `['\|!()', items[]]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
-| `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` `throw` — `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
+| `[id, exp]` | unary operation, `id` one of `String` `Number` `Boolean` `BigInt` `!` `~` `typeof` `throw`. `Boolean` establishes its operand and invokes the [common runtime](../js/runtime/README.md)'s `Boolean` body, `value => !!value`. `throw` establishes its operand and fails with it as the thrown value, so it is the one node that never has a value |
 | `[id, exp, exp]` | binary operation, `id` one of `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |

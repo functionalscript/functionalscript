@@ -1,7 +1,8 @@
 /**
  * The built-in functions, defined once: two tables, and the `runtime`
- * export, three functions an executor asks — two over the tables, and the
- * body of the `in` operator — the one place each resolution is written
+ * export, four functions an executor asks — two over the tables, and the
+ * bodies of the `in` and `Boolean` operators — the one place each resolution
+ * is written
  * ([DESIGN.md §13](../../../doc/DESIGN.md#13-one-source-of-truth-optimize-by-substitution)).
  *
  * `member` holds, by name, the member functions whose body is written,
@@ -35,8 +36,9 @@
  * `static` for every static read; neither reads a table itself.
  * `runtime.in` is the body of the operator `"k" in o`, which an executor
  * answers by calling it, or substitutes natively
- * ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)). The two
- * tables are exported for the type pins of [`./types.ts`](./types.ts),
+ * ([`2346-in-operator.md`](../../../spec/todo/2346-in-operator.md)).
+ * `runtime.Boolean` converts by `!!value`, using only primitive negation.
+ * The two tables are exported for the type pins of [`./types.ts`](./types.ts),
  * which keep every key an admitted name, for the proof, and for the Rust
  * printer, which gives each static body the NativeFunction text of its id.
  * Which names a module may call stays
@@ -348,8 +350,16 @@ export const statics = {
     'Math.log2': log2,
 }
 
-/** The runtime: the three functions an executor asks, `static`, `dot` and `in`. */
+/** The runtime: table lookup and the `in` and `Boolean` operator bodies. */
 export const runtime = {
+    /**
+     * `Boolean(value)`, defined by logical negation twice. It reads no
+     * conversion hook and calls no runtime function, so this body remains
+     * usable while the runtime itself is being initialized.
+     *
+     * @type {(value: unknown) => boolean}
+     */
+    Boolean: value => !!value,
     /**
      * The static function `id` names, `Object.is`: the entry of
      * {@link statics}, read as the object literal it is so that no

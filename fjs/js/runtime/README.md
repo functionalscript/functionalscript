@@ -1,8 +1,9 @@
 # The runtime
 
 The built-in functions, defined once. [`module.f.js`](./module.f.js)
-holds two tables and exports `runtime`, three functions an executor asks:
-two over the tables, and the body of the `in` operator. The `member` table holds, by name, the member
+holds two tables and exports `runtime`, four functions an executor asks:
+two over the tables, and the bodies of the `in` and `Boolean` operators.
+The `member` table holds, by name, the member
 functions whose **body** is written, `startsWith`, `codePointAt` and `map`: each a
 FunctionalScript function of the receiver alone, answering `undefined`
 for a receiver the name is no member of, or the function of the arguments
@@ -32,6 +33,14 @@ of the statics is [`../todo/runtime-static.md`](../todo/runtime-static.md).
 A name without a body is absent, and each VM answers it from its own
 native table. The proposal and the steps still to take are
 [`../todo/runtime.md`](../todo/runtime.md).
+
+`runtime.Boolean` is `value => !!value`. Every `Boolean` conversion evaluates
+its operand and invokes this body, including the zero-argument spelling whose
+operand is `undefined`. Logical negation supplies truthiness without calling
+`valueOf` or `toString`; objects and functions are true, including empty
+containers. The body calls no runtime operation, so it can run during runtime
+initialization. Each executor uses this body, and a missing binding is refused
+as `no binding for the Boolean operator`.
 
 `Object.keys` projects the keys from native `Object.entries` through the same
 typed array `map` body that implements the member function. The runtime captures

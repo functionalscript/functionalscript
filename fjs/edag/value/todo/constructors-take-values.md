@@ -5,10 +5,10 @@
 
 ### Problem
 
-`array` in [`array`](../array/module.f.mjs), `object` in
+`array` in [`array`](../array/module.f.js), `object` in
 [`object`](../object/module.f.js), `func` in
 [`function`](../function/module.f.js) and `prepare`/`call` in
-[`call`](../call/module.f.mjs) take deferred operands — `ValueThunk`,
+[`call`](../call/module.f.js) take deferred operands — `ValueThunk`,
 `ObjectItems`, a `callee: ValueResult`. Their consumers outside proofs,
 [`fjs/edag/operations`](../../operations/module.f.mjs) and the dispatchers
 under `value/`, already hold evaluated values and wrap them to fit:
@@ -28,7 +28,7 @@ call(ok(dot), [() => ok(receiver), () => ok(key)], invoke)
 is this wrapper named; the other sites re-spell it inline. No call site passes
 a callee that is not `ok(...)` and no thunk that is not `() => ok(v)`, so
 `prepare`'s error-callee branch and the laziness are reached by proofs alone.
-Likewise `sequence` and `conditional` in [`control`](../control/module.f.mjs)
+Likewise `sequence` and `conditional` in [`control`](../control/module.f.js)
 have no importer but their proof: `operations` implements `,` with its own
 loop and `?:` by choosing the branch to evaluate.
 

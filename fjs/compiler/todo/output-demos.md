@@ -113,7 +113,7 @@ which outputs accept which example.
   reference in Rust, and one `const` in `.js`, whatever it is — an array, a
   call, an access, an operator — while two equal nodes are two, each
   written where it stands
-  ([`fjs/edag/sharing`](../../edag/sharing/module.f.mjs)); a pure node two
+  ([`fjs/edag/sharing`](../../edag/sharing/module.f.js)); a pure node two
   lazy operands reach with no eager path is written in each.
   The value outputs write what the program computes, not the graph: in
   `.data.js` a shared array or object is one `const`, a call's result among
