@@ -29,6 +29,11 @@ pub mod intrinsic;
 pub mod intrinsic_throws;
 pub mod lazy;
 pub mod length;
+pub mod math_floor;
+pub mod math_floor_bigint_throws;
+pub mod math_floor_coercion_throws;
+pub mod math_floor_converted_bigint_throws;
+pub mod math_floor_extra_argument_throws;
 pub mod math_log2;
 pub mod math_log2_bigint_boundaries;
 pub mod math_log2_bigint_throws;
@@ -119,6 +124,11 @@ pub const CASES: &[crate::Case] = &[
     crate::Case { name: "intrinsic_throws", fixture: crate::fixtures::intrinsic_throws::module::<Naive>, expected: intrinsic_throws::module::<Naive>, json: intrinsic_throws::JSON, throws: intrinsic_throws::THROWS },
     crate::Case { name: "lazy", fixture: crate::fixtures::lazy::module::<Naive>, expected: lazy::module::<Naive>, json: lazy::JSON, throws: lazy::THROWS },
     crate::Case { name: "length", fixture: crate::fixtures::length::module::<Naive>, expected: length::module::<Naive>, json: length::JSON, throws: length::THROWS },
+    crate::Case { name: "math_floor", fixture: crate::fixtures::math_floor::module::<Naive>, expected: math_floor::module::<Naive>, json: math_floor::JSON, throws: math_floor::THROWS },
+    crate::Case { name: "math_floor_bigint_throws", fixture: crate::fixtures::math_floor_bigint_throws::module::<Naive>, expected: math_floor_bigint_throws::module::<Naive>, json: math_floor_bigint_throws::JSON, throws: math_floor_bigint_throws::THROWS },
+    crate::Case { name: "math_floor_coercion_throws", fixture: crate::fixtures::math_floor_coercion_throws::module::<Naive>, expected: math_floor_coercion_throws::module::<Naive>, json: math_floor_coercion_throws::JSON, throws: math_floor_coercion_throws::THROWS },
+    crate::Case { name: "math_floor_converted_bigint_throws", fixture: crate::fixtures::math_floor_converted_bigint_throws::module::<Naive>, expected: math_floor_converted_bigint_throws::module::<Naive>, json: math_floor_converted_bigint_throws::JSON, throws: math_floor_converted_bigint_throws::THROWS },
+    crate::Case { name: "math_floor_extra_argument_throws", fixture: crate::fixtures::math_floor_extra_argument_throws::module::<Naive>, expected: math_floor_extra_argument_throws::module::<Naive>, json: math_floor_extra_argument_throws::JSON, throws: math_floor_extra_argument_throws::THROWS },
     crate::Case { name: "math_log2", fixture: crate::fixtures::math_log2::module::<Naive>, expected: math_log2::module::<Naive>, json: math_log2::JSON, throws: math_log2::THROWS },
     crate::Case { name: "math_log2_bigint_boundaries", fixture: crate::fixtures::math_log2_bigint_boundaries::module::<Naive>, expected: math_log2_bigint_boundaries::module::<Naive>, json: math_log2_bigint_boundaries::JSON, throws: math_log2_bigint_boundaries::THROWS },
     crate::Case { name: "math_log2_bigint_throws", fixture: crate::fixtures::math_log2_bigint_throws::module::<Naive>, expected: math_log2_bigint_throws::module::<Naive>, json: math_log2_bigint_throws::JSON, throws: math_log2_bigint_throws::THROWS },

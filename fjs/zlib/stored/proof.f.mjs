@@ -3,7 +3,7 @@ import { bytesOf, inflateAll } from '../../git/inflater/module.f.mjs'
 import { u8ListToVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { noise, storedBytes, text } from '../testlib.f.mjs'
-import { stored } from './module.f.mjs'
+import { stored } from './module.f.js'
 
 /**
  * The stream inflated by [`fjs/zlib/inflate`](../inflate/module.f.mjs)

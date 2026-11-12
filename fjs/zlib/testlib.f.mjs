@@ -17,7 +17,7 @@ import { assert } from '../asserts/module.f.js'
 import { decode } from '../basen/base16/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb } from '../types/bit_vec/module.f.js'
 import { run } from '../types/list/module.f.js'
-import { adler32 } from './adler32/module.f.mjs'
+import { adler32 } from './adler32/module.f.js'
 
 /** The words a text is made of. */
 const words = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'function', 'const', 'return', 'let', 'if', 'else', 'import', ' ', '\n', '(', ')', '{', '}', '=>']

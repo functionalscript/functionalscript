@@ -81,3 +81,5 @@ type _NativeIsTheBuiltIn = Assert<Equal<Statics['Object.entries'], typeof Object
 type _NativeFromCharCode = Assert<Equal<Statics['String.fromCharCode'], typeof String.fromCharCode>>
 
 type _NativeTrunc = Assert<Equal<Statics['Math.trunc'], typeof Math.trunc>>
+
+type _NativeFloor = Assert<Equal<Statics['Math.floor'], typeof Math.floor>>

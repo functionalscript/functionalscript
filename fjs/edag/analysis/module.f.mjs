@@ -286,6 +286,7 @@ const handlers = {
     'Number.isFinite': o0,
     'Math.log2': o0,
     'Math.trunc': o0,
+    'Math.floor': o0,
     arg: indexed,
     frame: indexed,
     '!': o1,

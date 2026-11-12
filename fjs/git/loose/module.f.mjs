@@ -6,7 +6,7 @@
  * inflated bytes are read by the pure envelope reader. This module is the
  * boundary between the three, and the writer of the same file:
  * {@link write} stores the envelope as one zlib stream through
- * [`fjs/zlib/stored`](../../zlib/stored/module.f.mjs), under a temporary
+ * [`fjs/zlib/stored`](../../zlib/stored/module.f.js), under a temporary
  * name renamed into place. One of the two places a real
  * repository meets the decoder — [`fjs/git/packstore`](../packstore/module.f.mjs)
  * is the other, and is the one a clone takes for most of its objects.
@@ -35,7 +35,7 @@ import { mkdir, random256, readWhole, rename, rm, writeExclusive } from '../../e
 import { join, parent, under } from '../../path/module.f.js'
 import { u8ListToMaxVecChunksMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
-import { stored } from '../../zlib/stored/module.f.mjs'
+import { stored } from '../../zlib/stored/module.f.js'
 import { bytesOf, inflateWithin } from '../inflater/module.f.mjs'
 import { tryLength, tryRead as readEnvelope, write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of } from '../oid/module.f.mjs'

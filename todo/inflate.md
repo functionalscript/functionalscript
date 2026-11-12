@@ -129,7 +129,7 @@ fast path.
 ### Tasks
 
 - [x] The design above, for review; the representation is the decision.
-- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.mjs): the checksum that
+- [x] [`fjs/zlib/adler32`](../fjs/zlib/adler32/module.f.js): the checksum that
       closes a stream, in the shape of a hash, with its proof against the
       trailer of Node's `zlib.deflateSync`.
 - [x] [`fjs/zlib/inflate`](../fjs/zlib/inflate/module.f.mjs): the zlib framing

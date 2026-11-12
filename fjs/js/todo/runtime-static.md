@@ -196,10 +196,11 @@ natively or by a body — and the native table in reverse.
 **The floor grows by the primitives no body can write.** Some static
 functions are definitions over the operators, bodies from the first day:
 `Object.is`, `Number.isInteger`, `Number.isNaN`, `isNaN`, `Math.max`,
-`Math.sign`. `Math.trunc` is admitted natively under the later target rule:
-both Rust and core WASM provide compatible truncation, so every executor uses
+`Math.sign`. `Math.trunc` and `Math.floor` are admitted natively under the later target rule:
+both Rust and core WASM provide compatible rounding operations, so every executor uses
 its native binding without a common numerical body
-([admission](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval)).
+([truncation](../../../spec/todo/2360-built-in.md#mathtrunc-proposal-and-approval),
+[floor](../../../spec/todo/2360-built-in.md#mathfloor-proposal-and-approval)).
 One is a primitive a VM must bind natively
 because nothing in the language reaches it: `String.fromCharCode`, a
 string from a code unit. The transcendental `Math` names — `sin`, `exp`,
