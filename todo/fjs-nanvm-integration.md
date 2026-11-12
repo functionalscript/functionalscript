@@ -142,11 +142,19 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Recursive mock runners
+
+#3791 (`e49e11f76`) makes both `runAll` and `partialRun` define `runner`
+as a function, delaying the self-reference until invocation. `effects/mock`
+now compiles as `.f.js`; references and nested `all` proofs are updated.
+The graph has **270 `.f.js` files**, **373 `.f.mjs` files** and
+**17 blocked leaves**; the final pass accepts none, exposing no new leaves.
+
 #### Mock interpreter order
 
 #3790 (`267f63128`) moves `_loop` before `run` and `partialRun`.
-`effects/mock` next stops at `runAll`'s capture of `runner` in its own
-initializer (`71:71`, `const not found`) and stays `.f.mjs`.
+At that revision, `effects/mock` still stops at `runAll`'s capture of
+`runner` in its own initializer (`71:71`, `const not found`).
 
 #### Effect walker order
 
@@ -605,23 +613,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `types/map/module.f.mjs` | 10:38 | `new` in `mapSet`, a reserved word (`reserved word`): its line's `Map(...)` reads as a call statement of its own, which the fold refuses after it | `new Map(...)` in `mapDelete`; `Map` is not a language type. Its one importer, `edag/analysis`, keys the map by EDAG nodes, objects compared by identity, so rule 9 does not apply |
 | `zlib/bits/module.f.mjs` | 33:5 | The `for` loop in `read` | `let word`, with no `while` after it |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'git/config', 'types/stack_walk', 'types/function/compare', 'types/list',
-  'types/map', 'zlib/bits',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point at `e9df9df` (historical)
 
