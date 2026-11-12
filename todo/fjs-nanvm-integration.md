@@ -142,6 +142,17 @@ value-preserving rewrites a module takes on the way, one per construct, are
 See [`fjs/compiler/README.md`](../fjs/compiler/README.md) for the authoritative extension
 contract and migration strategy.
 
+#### Array rest lowering
+
+#3800 (`29a1645bc`) lowers array rest to a slice of the existing iterable
+copy, preserving binding order, Unicode iteration and fresh tail identity.
+`text/utf8`, `text`, `text/percent`, `effects/common`, `sul/id` and
+`sul/level/hash` now use `.f.js`; references are updated.
+The graph has **285 `.f.js`**, **358 `.f.mjs`**, **20 blocked leaves**;
+the final pass accepts none. The other former rest refusals advance to
+`asn.1`'s forward `encode` reference (`284:31`), `ebnf/data`'s `forEach`
+(`199:30`) and `media/nix`'s reserved `indexOf` read (`158:13`).
+
 #### Pure Huffman fixture assignment
 
 #3798 (`085b9917b`) replaces `assign`'s captured updates with folds
@@ -1307,25 +1318,9 @@ Locations are `line:column`; paths are relative to `fjs/`.
 | `website/demo/code/module.f.mjs` | 12:48 | Default parameter in `codeBlock` | The computed key `[codeMarker]` |
 | `website/prs/load/module.f.mjs` | 106:41 | Destructured parameter in `finishedNote` | Three more destructured parameters |
 
-To recheck the current table without writing generated output, run this from
-the repository root inside `./dev.sh node --input-type=module`:
-
-```js
-import { resolve as absolute } from 'node:path';
-import { resolve } from './fjs/compiler/edag/module.f.mjs';
-import { runNodeEffect } from './fjs/effects/node/module.mjs';
-
-const leaves = [
-  'ci/package', 'emergent_testing/node', 'git/config', 'media/rust',
-  'nanvm/methods', 'types/list', 'types/map',
-  'types/object/structurally_same', 'types/ts', 'website/browser-source',
-  'website/demo/code', 'website/prs/load',
-];
-for (const leaf of leaves) {
-  const result = await runNodeEffect(resolve(absolute('fjs', leaf, 'module.f.mjs')));
-  console.log(leaf, result[0] === 'ok' ? 'accepted' : JSON.stringify(result[1]));
-}
-```
+Recheck this snapshot at its recorded revision with the
+[`resolve` / `runNodeEffect` recipe](#leaf-migration-fixed-point-at-5dcd94b-historical),
+and the leaves in its table.
 
 #### Leaf migration fixed point on #2858 (historical)
 
@@ -1659,7 +1654,7 @@ records that snapshot's blockers, including the since-migrated `array_index`:
 | Feature | Tracked in | Leaves it held at `08d013b` |
 | --- | --- | --- |
 | Template literals | now implemented ([spec: template literals](../spec/values/template-literals/README.md)) | function/operator, ci/package, ts, nanvm/methods, nanvm/member, style, demo/code, git/config, browser-source |
-| Destructuring | [`spec/todo/2450-destructuring.md`](../spec/todo/2450-destructuring.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
+| Destructuring | [`spec/bindings/destructuring`](../spec/bindings/destructuring/README.md) | structurally_same, result, function/operator, map, demo/examples, ts, git/config, nanvm/methods |
 | A runtime key that is a string, `a[k]` | in the language as the `entry` helper ([spec: entry](../spec/property-access/entries/README.md)); the module rewrites `a[k]` as `entry(a, k)`, and `k in a` as `hasEntry(a, k)`, both imported from [`fjs/types/object/entry`](../fjs/types/object/entry/module.f.js) | git/config, nanvm/methods |
 | A runtime key that is a number, `a[i]` | in the language as the conversion `a[Number(i)]` ([spec: property access](../spec/property-access/README.md)), the EDAG's `['.', a, ['Number', i]]`; the module rewrites `a[i]` as `a[Number(i)]`, not `entry` | structurally_same, function/operator, set, git/bytes, git/config, browser-source |
 | Globals and built-ins | [`spec/todo/2365-global-names.md`](../spec/todo/2365-global-names.md), [`2360-built-in.md`](../spec/todo/2360-built-in.md); of `Number`, the call `Number(exp)` is in the language ([spec: number conversion](../spec/conversions/number/README.md)), and so are the four predicates `Number.isInteger`, `Number.isSafeInteger`, `Number.isNaN` and `Number.isFinite`, with `Object.is` ([spec: built-in static functions](../spec/built-ins/static-functions/README.md)), each other member an admission of its own | structurally_same, array_index, ts, git/bytes, nanvm/methods, ci/package, git/config |
