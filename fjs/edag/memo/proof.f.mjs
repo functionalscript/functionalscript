@@ -16,7 +16,7 @@ import { noBoolean, noIn } from '../operations/module.f.mjs'
 import runtimeEdag from '../../js/runtime/gen.edag.data.js'
 import { read } from '../value/property/module.f.mjs'
 import { toData } from '../value/to_unknown/module.f.mjs'
-import { call } from '../value/call/module.f.mjs'
+import { call } from '../value/call/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 
 const context = { frame: [], args: [10, 20] }
