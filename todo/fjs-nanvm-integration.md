@@ -147,8 +147,8 @@ contract and migration strategy.
 #3794 (`0a4270f0a`) admits `Math.floor` natively via Rust's `f64::floor`
 and core WASM's `f64.floor`. `zlib/adler32` and `zlib/stored` now use `.f.js`.
 The graph has **275 `.f.js` files**, **368 `.f.mjs` files** and **15 blocked
-leaves**; the final pass accepts none. `media/rust` next stops at its forward
-reference to `bitsOf` (`165:36`). New leaves are `zlib/inflate`, using
+leaves**; the final pass accepts none. `1c9375a5a` places `bitsOf` before
+`f64Bits`; `media/rust` next stops at `Math.abs` (`155:15`). New leaves are `zlib/inflate`, using
 `Math.ceil` (`60:45`), and `zlib/testlib`, using `Math.imul` (`26:22`).
 
 #### Native truncation
