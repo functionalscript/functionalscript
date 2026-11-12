@@ -182,7 +182,7 @@ what a grammar can and cannot do for the formats.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
-- `testlib.f.mjs` — objects Git wrote, checked in as bytes and each
+- `testlib.f.js` — objects Git wrote, checked in as bytes and each
   carrying the id Git gave it: a signed merge commit of this repository
   and its root tree, and from a scratch repository a signed tag, a merge
   of one with the tag whole in `mergetag`, a tree with every mode, that

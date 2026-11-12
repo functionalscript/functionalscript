@@ -68,7 +68,8 @@ const allOver = run => (...effects) => state => {
  */
 export const runAll = o => {
     /** @type {RunInstance<any, any>} */
-    const runner = run(/** @type {any} */ ({ ...o, all: allOver(() => runner) }))
+    const runner = state => effect =>
+        run(/** @type {any} */ ({ ...o, all: allOver(() => runner) }))(state)(effect)
     return runner
 }
 
@@ -86,13 +87,16 @@ export const runAll = o => {
  * operation's; this loop's is `(state) => [state, …]`, and writing it once here
  * is the whole reason each runner supplies its own.
  *
- * @type {<O extends Operation, S>(commands: Commands<O>) => (o: PartialMemOperationMap<O, S>) => RunInstance<O, S>}
+ * @template {Operation} O
+ * @template S
+ * @param {Commands<O>} commands
+ * @returns {(o: PartialMemOperationMap<O, S>) => RunInstance<O, S>}
  */
 export const partialRun = commands => o => {
     /** @type {(command: string) => (state: any) => readonly[any, any]} */
     const onMissing = command => state => [state, error(notImplemented(command))]
-    /** @type {RunInstance<any, any>} */
-    const runner = _loop(partialMatch(commands, onMissing)(
-        commands.includes('all') ? { ...o, all: allOver(() => runner) } : o))
+    /** @type {RunInstance<O, S>} */
+    const runner = state => effect => (/** @type {typeof _loop<O, S>} */ (_loop))(partialMatch(commands, onMissing)(
+        commands.includes('all') ? { ...o, all: allOver(() => runner) } : o))(state)(effect)
     return runner
 }

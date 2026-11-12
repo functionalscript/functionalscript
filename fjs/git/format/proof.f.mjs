@@ -7,11 +7,11 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { tryEntries } from '../config/module.f.js'
-import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.mjs'
+import { initConfig, initSha256Config, latin1, noFile } from '../testlib.f.js'
 import { oidBytes, tryOidBytes } from './module.f.mjs'
 
 /**

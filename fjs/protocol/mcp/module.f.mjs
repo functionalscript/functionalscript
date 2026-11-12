@@ -26,7 +26,7 @@
 import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.js'
 import { mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
-import { read, write } from '../../effects/memory/module.f.mjs'
+import { read, write } from '../../effects/memory/module.f.js'
 import {
     decodeRequest,
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,

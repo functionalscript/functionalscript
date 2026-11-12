@@ -25,7 +25,7 @@ import { do_ } from '../../module.f.js'
 import { catchStep } from '../../module.f.js'
 import { ioError } from '../../module.f.js'
 import { ok, unwrap } from '../../../types/result/module.f.js'
-import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.js'
 
 /**
  * A listener that reads its whole request body and answers with it.
@@ -1305,7 +1305,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memory.values.mem0, 42, state)
+            assertEq(state.memory.slots.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.

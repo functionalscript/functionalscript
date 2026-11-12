@@ -135,7 +135,7 @@ runner is that plus one world-specific line:
 |------|-------------------|---|
 |[`asyncRun`](../../fjs/effects/module.mjs)|`await`|the base of every asynchronous runner|
 |[`node`](../../fjs/effects/node/module.mjs)|`asyncRun` against the real Node globals|production I/O; the `fjs` CLI|
-|[`mock`](../../fjs/effects/mock/module.f.mjs)|threads a state value: `state => effect => [state, result]`|synchronous, pure interpretation|
+|[`mock`](../../fjs/effects/mock/module.f.js)|threads a state value: `state => effect => [state, result]`|synchronous, pure interpretation|
 |[`node/virtual`](../../fjs/effects/node/virtual/README.md)|`mock` over an in-memory filesystem, consoles, network and clock|tests, deterministic and race-revealing|
 |[`node/memory`](../../fjs/effects/node/memory/module.mjs)|`asyncRun` over a store owned by the operation map|the [`memory`](../../fjs/effects/memory) operations (`MemOp`), state that outlives an effect step|
 

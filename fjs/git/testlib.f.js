@@ -115,14 +115,13 @@ export const commitPayload = latin1([
     '',].join('\n'))
 
 /**
- * A sparse array, as it arrives from outside the type system: two
- * positions, the first a hole. Typed as the bytes it claims to be, so a
- * reader or a writer meets it as a caller would hand it over, and must
- * refuse it.
+ * An array whose first value is `undefined` instead of a byte. Typed as
+ * the bytes it claims to be, so a reader or a writer meets it as a caller
+ * would hand it over, and must refuse the invalid value.
  *
  * @type {Bytes}
  */
-export const hole = /** @type {Bytes} */ (/** @type {unknown} */ ([, 0x61]))
+export const undefinedByte = /** @type {Bytes} */ (/** @type {unknown} */ ([undefined, 0x61]))
 
 /**
  * The root tree of commit `303eb262`, the merge of #1926, as `git cat-file

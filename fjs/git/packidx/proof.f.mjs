@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
-import { latin1, packIdx1, packIdx2 } from '../testlib.f.mjs'
+import { latin1, packIdx1, packIdx2 } from '../testlib.f.js'
 import { after, holdsEntryAt, offsetOf, tryIdx } from './module.f.mjs'
 
 const read = tryIdx(20)

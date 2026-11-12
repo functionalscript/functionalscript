@@ -7,7 +7,7 @@
  */
 
 import { do_, pureError, pureOk, runPure, step } from '../module.f.js'
-import { run as mockRun } from '../mock/module.f.mjs'
+import { run as mockRun } from '../mock/module.f.js'
 import { empty, fromList, nonEmpty, run, transduce } from './module.f.js'
 import { assert, assertEq, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { doneStep, fromStateFold, nextStep } from '../../types/function/operator/module.f.js'

@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
 import { ok } from '../../../types/result/module.f.js'
-import { asNominal, slotId } from '../../memory/module.f.mjs'
+import { asNominal, slotId } from '../../memory/module.f.js'
 
 /**
  * `slotId` over `store`, throwing its not-found message as an `Error`.

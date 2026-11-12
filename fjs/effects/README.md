@@ -29,7 +29,7 @@ without a `try`.
  * @import { MemOperationMap } from './mock/types.ts'
  */
 import { catchStep, do_, pureOk, step } from './module.f.js'
-import { run } from './mock/module.f.mjs'
+import { run } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 
 // An operation: a command name, called like a function, returning an Effect.

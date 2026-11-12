@@ -5,13 +5,13 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { error, ok } from '../../types/result/module.f.js'
 import { hex, storedBytes, streams } from '../../zlib/testlib.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
-import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { latin1, noFile, tagLoose, tagPayload } from '../testlib.f.js'
 import { virtual, virtualAt } from '../../effects/node/virtual/module.f.mjs'
 import { hexText, of } from '../oid/module.f.mjs'
 import { path, tryRead, write } from './module.f.mjs'

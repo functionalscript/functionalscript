@@ -9,7 +9,7 @@
 
 import { assert, assertEq, assertNotNullish, assertOk, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError, mapStep, pureError, pureOk } from '../../effects/module.f.js'
-import { partialRun } from '../../effects/mock/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.js'
 import { access, exitCode, nodeCommands } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions } from '../../effects/node/virtual/module.f.mjs'
 import { join, normalize } from '../../path/module.f.js'

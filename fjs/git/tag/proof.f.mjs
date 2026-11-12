@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { toHex } from '../oid/module.f.mjs'
-import { latin1, tagPayload } from '../testlib.f.mjs'
+import { latin1, tagPayload } from '../testlib.f.js'
 import { name, object, tagger, tryObject, tryRead, tryTarget, tryTargetAt, tryType, type, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Tag} */

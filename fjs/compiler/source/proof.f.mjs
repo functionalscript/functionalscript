@@ -8,7 +8,7 @@ import { _attributeError, _importSources, _jsonModule, _missingExport, _parseJso
 import { pureError, pureOk } from '../../effects/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { virtual, virtualAt, emptyState } from '../../effects/node/virtual/module.f.mjs'
-import { partialRun } from '../../effects/mock/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.js'
 import { nodeCommands } from '../../effects/node/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

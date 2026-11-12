@@ -9,7 +9,7 @@ import {
     match, orElse, partialMatch, pure, pureError, pureOk, refuse, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep, commandsOf, errorMessage, ioError, notImplemented,
 } from './module.f.js'
-import { run as mockRun } from './mock/module.f.mjs'
+import { run as mockRun } from './mock/module.f.js'
 import { error, ok } from '../types/result/module.f.js'
 import { assert, assertEq, assertError, assertOk, todo } from '../asserts/module.f.js'
 import { assertIoMessage } from './testlib.f.js'

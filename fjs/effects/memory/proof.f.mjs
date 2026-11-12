@@ -3,13 +3,13 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { run } from '../mock/module.f.mjs'
+import { run } from '../mock/module.f.js'
 import { pureOk, step } from '../module.f.js'
 import {
     asBase, asNominal,
     create, read, write,
     memoryInitial, memoryOperationMap,
-} from './module.f.mjs'
+} from './module.f.js'
 
 const runMemory = run(memoryOperationMap)(memoryInitial)
 
@@ -31,7 +31,7 @@ export const proof = {
         const [state, result] = runMemory(program)
         assert(result[0] === 'ok', result)
         assertEq(result[1], 42)
-        assertEq(state.values.mem0, 42, state)
+        assertEq(state.slots.mem0, 42, state)
     },
     allocatesFreshKeys: () => {
         const effect = step(
@@ -45,8 +45,8 @@ export const proof = {
         assertEq(a, 'mem0')
         assertEq(b, 'mem1')
         assertEq(state.next, 2, state)
-        assertEq(state.values.mem0, 'a', state)
-        assertEq(state.values.mem1, 'b', state)
+        assertEq(state.slots.mem0, 'a', state)
+        assertEq(state.slots.mem1, 'b', state)
     },
     // What makes presence the test rather than the value: a slot holding
     // `undefined` was allocated, and reading one is not the failure below.

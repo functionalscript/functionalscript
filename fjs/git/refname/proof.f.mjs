@@ -1,5 +1,5 @@
 import { assert } from '../../asserts/module.f.js'
-import { latin1 } from '../testlib.f.mjs'
+import { latin1 } from '../testlib.f.js'
 import { hasRefComponents, isName, isWholeName } from './module.f.mjs'
 
 export const proof = {

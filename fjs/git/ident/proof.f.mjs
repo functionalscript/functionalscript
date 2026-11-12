@@ -7,7 +7,7 @@ import { greaterThanSign as gt, lessThanSign as lt, space as sp } from '../../te
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
 import { tryRead as readPayload } from '../header/module.f.mjs'
-import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
+import { commitPayload, latin1, undefinedByte } from '../testlib.f.js'
 import { maxTime, tryRead, write } from './module.f.mjs'
 
 /** @type {(value: readonly number[]) => Ident} */
@@ -102,8 +102,8 @@ export const proof = {
             zoneShort: () => write({ name: [], email: [], time: 0n, tz: '+000' }),
             zoneLetters: () => write({ name: [], email: [], time: 0n, tz: '+00a0' }),
             nonByteInName: () => write({ name: [0x100], email: [], time: 0n, tz: '+0000' }),
-            holeInEmail: () => write({ name: [], email: hole, time: 0n, tz: '+0000' }),
-            readHole: () => tryRead(hole),
+            undefinedByteInEmail: () => write({ name: [], email: undefinedByte, time: 0n, tz: '+0000' }),
+            readUndefinedByte: () => tryRead(undefinedByte),
         },
     },
 }

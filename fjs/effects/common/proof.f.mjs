@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.js'
-import { run as mockRun, runAll } from '../mock/module.f.mjs'
+import { run as mockRun, runAll } from '../mock/module.f.js'
 import { ok } from '../../types/result/module.f.js'
 import { utf8 } from '../../text/module.f.mjs'
 import { u8ArrayMsb } from '../../types/bit_vec/module.f.js'

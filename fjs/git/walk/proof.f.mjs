@@ -8,7 +8,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { pureOk } from '../../effects/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { codePointListToString } from '../../text/utf16/module.f.js'
 import { u8ListToVecMsb } from '../../types/bit_vec/module.f.js'
 import { storedBytes } from '../../zlib/testlib.f.mjs'
@@ -18,7 +18,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import { objectPath, objectsDir, readIn } from '../store/module.f.mjs'
-import { latin1, noFile } from '../testlib.f.mjs'
+import { latin1, noFile } from '../testlib.f.js'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
 import { peel, tryEntries, tryEntry } from './module.f.mjs'
 

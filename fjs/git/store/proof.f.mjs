@@ -7,7 +7,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.js'
 import { ioError } from '../../effects/module.f.js'
-import { run } from '../../effects/mock/module.f.mjs'
+import { run } from '../../effects/mock/module.f.js'
 import { normalize } from '../../path/module.f.js'
 import { u8ListToVecMsb, u8ArrayMsb } from '../../types/bit_vec/module.f.js'
 import { toArray } from '../../types/list/alt/module.f.js'
@@ -17,7 +17,7 @@ import { error, ok } from '../../types/result/module.f.js'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
-import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { commitPayload, latin1, noFile, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.js'
 import { maxBorrowDepth, objectIdCode, objectPath, objectsDirs, readIn, tryRead } from './module.f.mjs'
 
 /** @type {(hex: string) => Oid} */
